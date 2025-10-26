@@ -213,7 +213,7 @@ export default function TUIStyleHeader({ currentPage, onNavigate }: TUIStyleHead
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="lg:hidden py-6 space-y-2 border-t border-gray-200">
+          <div className="lg:hidden py-4 space-y-1 border-t border-gray-200 bg-white max-h-screen overflow-y-auto">
             {navItems.map((item) => (
               <div key={item.id}>
                 <button
@@ -221,7 +221,7 @@ export default function TUIStyleHeader({ currentPage, onNavigate }: TUIStyleHead
                     onNavigate(item.id);
                     setMobileMenuOpen(false);
                   }}
-                  className={`block w-full text-left px-4 py-3 text-sm font-medium transition-all duration-300 rounded-lg ${
+                  className={`block w-full text-left px-4 py-3 text-sm font-medium transition-all duration-300 rounded-lg mx-2 ${
                     currentPage === item.id
                       ? 'text-sky-500 bg-sky-50 border-l-4 border-sky-500'
                       : 'text-gray-700 hover:bg-gray-50'
@@ -232,7 +232,7 @@ export default function TUIStyleHeader({ currentPage, onNavigate }: TUIStyleHead
                 
                 {/* Mobile Dropdown */}
                 {item.hasDropdown && (
-                  <div className="ml-4 space-y-1">
+                  <div className="ml-6 space-y-1">
                     {item.dropdownItems?.map((dropdownItem) => (
                       <button
                         key={dropdownItem.id}

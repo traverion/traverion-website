@@ -179,7 +179,7 @@ export default function Header({ currentPage, onNavigate }: HeaderProps) {
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="lg:hidden py-6 space-y-2 border-t border-gray-200 animate-slide-in-top">
+          <div className="lg:hidden py-4 space-y-1 border-t border-gray-200 bg-white max-h-screen overflow-y-auto animate-slide-in-top">
             {/* Mobile Search */}
             <div className="px-4 mb-4">
               <LuxuryInput
@@ -198,7 +198,7 @@ export default function Header({ currentPage, onNavigate }: HeaderProps) {
                   onNavigate(item.id);
                   setMobileMenuOpen(false);
                 }}
-                className={`block w-full text-left px-4 py-3 text-sm font-heading font-semibold uppercase tracking-wide transition-all duration-300 rounded-lg ${
+                className={`block w-full text-left px-4 py-3 text-sm font-heading font-semibold uppercase tracking-wide transition-all duration-300 rounded-lg mx-2 ${
                   currentPage === item.id
                     ? 'text-sky-500 bg-sky-50 border-l-4 border-sky-500'
                     : 'text-gray-700 hover:bg-gray-50'

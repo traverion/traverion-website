@@ -31,22 +31,22 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
       <div className="bg-gradient-to-r from-sky-500 to-blue-600 text-white py-2 px-4">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-2 text-xs">
           {/* Contact Info */}
-          <div className="flex flex-col sm:flex-row items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3">
             <div className="flex items-center gap-1">
               <Mail className="w-3 h-3 text-white/80" />
-              <a href="mailto:info.traverion@gmail.com" className="hover:text-white transition-colors duration-300">
+              <a href="mailto:info.traverion@gmail.com" className="hover:text-white transition-colors duration-300 text-xs sm:text-sm">
                 info.traverion@gmail.com
               </a>
             </div>
             <div className="flex items-center gap-1">
               <Phone className="w-3 h-3 text-white/80" />
-              <a href="tel:+3584578345138" className="hover:text-white transition-colors duration-300">
+              <a href="tel:+3584578345138" className="hover:text-white transition-colors duration-300 text-xs sm:text-sm">
                 +358 45 7834 5138
               </a>
             </div>
             <div className="flex items-center gap-1">
               <Clock className="w-3 h-3 text-white/80" />
-              <span className="text-white/80">Mon-Fri: 08:00-17:30</span>
+              <span className="text-white/80 text-xs sm:text-sm">Mon-Fri: 08:00-17:30</span>
             </div>
           </div>
 
@@ -89,21 +89,21 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
       <div className="bg-white py-3 px-4 border-b border-gray-200">
         <div className="max-w-7xl mx-auto flex flex-col lg:flex-row justify-between items-center gap-4">
           {/* Logo */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <img 
               src="/traveriontransparent.png" 
               alt="TRAVERION Logo" 
-              className="w-12 h-12 object-contain flex-shrink-0"
+              className="w-10 h-10 sm:w-12 sm:h-12 object-contain flex-shrink-0"
               onError={(e) => {
                 // Fallback if image fails to load
                 e.currentTarget.style.display = 'none';
               }}
             />
             <div className="flex-shrink-0">
-              <h1 className="text-2xl font-light bg-gradient-to-r from-sky-600 to-blue-700 bg-clip-text text-transparent">
+              <h1 className="text-xl sm:text-2xl font-light bg-gradient-to-r from-sky-600 to-blue-700 bg-clip-text text-transparent">
                 TRAVERION
               </h1>
-              <p className="text-sm text-gray-600 font-light">Beyond Ordinary</p>
+              <p className="text-xs sm:text-sm text-gray-600 font-light">Beyond Ordinary</p>
             </div>
           </div>
 
@@ -144,7 +144,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
           </nav>
 
           {/* Action Buttons */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             <button 
               onClick={() => setIsSearchOpen(true)}
               className="p-2 text-gray-600 hover:text-sky-600 transition-colors duration-300 hidden lg:block"
@@ -153,7 +153,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
             </button>
             <button
               onClick={() => onNavigate('contact')}
-              className="bg-gradient-to-r from-sky-500 to-blue-600 text-white px-6 py-2 rounded-lg font-light hover:from-sky-600 hover:to-blue-700 transition-all duration-300 shadow-lg hover:shadow-xl hidden lg:block"
+              className="bg-gradient-to-r from-sky-500 to-blue-600 text-white px-4 sm:px-6 py-2 rounded-lg font-light hover:from-sky-600 hover:to-blue-700 transition-all duration-300 shadow-lg hover:shadow-xl hidden lg:block text-sm sm:text-base"
             >
               BOOK A HOLIDAY
             </button>
@@ -169,14 +169,14 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
 
         {/* Mobile Menu */}
         {isMobileMenuOpen && (
-          <div className="lg:hidden border-t border-gray-200 bg-white">
-            <nav className="flex flex-col p-4 space-y-3">
+          <div className="lg:hidden border-t border-gray-200 bg-white max-h-screen overflow-y-auto">
+            <nav className="flex flex-col p-4 space-y-2">
               <button
                 onClick={() => {
                   onNavigate('home');
                   setIsMobileMenuOpen(false);
                 }}
-                className={`text-left px-4 py-3 rounded-lg transition-colors duration-300 font-light uppercase ${
+                className={`text-left px-4 py-3 rounded-lg transition-colors duration-300 font-medium ${
                   currentPage === 'home' ? 'bg-sky-50 text-sky-600' : 'text-gray-700 hover:bg-gray-50'
                 }`}
               >
@@ -187,7 +187,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                   onNavigate('packages');
                   setIsMobileMenuOpen(false);
                 }}
-                className={`text-left px-4 py-3 rounded-lg transition-colors duration-300 font-light uppercase ${
+                className={`text-left px-4 py-3 rounded-lg transition-colors duration-300 font-medium ${
                   currentPage === 'packages' ? 'bg-sky-50 text-sky-600' : 'text-gray-700 hover:bg-gray-50'
                 }`}
               >
@@ -198,7 +198,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                   onNavigate('blog');
                   setIsMobileMenuOpen(false);
                 }}
-                className={`text-left px-4 py-3 rounded-lg transition-colors duration-300 font-light uppercase ${
+                className={`text-left px-4 py-3 rounded-lg transition-colors duration-300 font-medium ${
                   currentPage === 'blog' ? 'bg-sky-50 text-sky-600' : 'text-gray-700 hover:bg-gray-50'
                 }`}
               >
@@ -209,31 +209,35 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                   onNavigate('contact');
                   setIsMobileMenuOpen(false);
                 }}
-                className={`text-left px-4 py-3 rounded-lg transition-colors duration-300 font-light uppercase ${
+                className={`text-left px-4 py-3 rounded-lg transition-colors duration-300 font-medium ${
                   currentPage === 'contact' ? 'bg-sky-50 text-sky-600' : 'text-gray-700 hover:bg-gray-50'
                 }`}
               >
                 {t.navigation?.contact || 'Contact'}
               </button>
-              <button
-                onClick={() => {
-                  setIsSearchOpen(true);
-                  setIsMobileMenuOpen(false);
-                }}
-                className="text-left px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors duration-300 flex items-center gap-2"
-              >
-                <Search className="w-5 h-5" />
-                Search
-              </button>
-              <button
-                onClick={() => {
-                  onNavigate('contact');
-                  setIsMobileMenuOpen(false);
-                }}
-                className="bg-gradient-to-r from-sky-500 to-blue-600 text-white px-4 py-3 rounded-lg font-light hover:from-sky-600 hover:to-blue-700 transition-all duration-300 shadow-lg text-center"
-              >
-                BOOK A HOLIDAY
-              </button>
+              
+              {/* Mobile Action Buttons */}
+              <div className="border-t border-gray-200 pt-4 space-y-2">
+                <button
+                  onClick={() => {
+                    setIsSearchOpen(true);
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="w-full text-left px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors duration-300 flex items-center gap-2"
+                >
+                  <Search className="w-5 h-5" />
+                  Search Tours
+                </button>
+                <button
+                  onClick={() => {
+                    onNavigate('contact');
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="w-full bg-gradient-to-r from-sky-500 to-blue-600 text-white px-4 py-3 rounded-lg font-medium hover:from-sky-600 hover:to-blue-700 transition-all duration-300 shadow-lg text-center"
+                >
+                  BOOK A HOLIDAY
+                </button>
+              </div>
             </nav>
           </div>
         )}
@@ -242,16 +246,16 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
       {/* Section 3: Sale Banner */}
       <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white py-2 px-4">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-2">
-          <div className="flex items-center gap-3">
-            <div className="bg-white text-amber-600 px-2 py-1 rounded-full font-bold text-sm">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="bg-white text-amber-600 px-2 py-1 rounded-full font-bold text-xs sm:text-sm">
               -40%
             </div>
-            <div>
-              <h3 className="font-bold text-sm">{t.promotions?.title || 'Last-minute deals up to -40%'}</h3>
-              <p className="text-xs opacity-90">{t.promotions?.subtitle || 'Last-minute trips to the world\'s most beautiful destinations'}</p>
+            <div className="text-center sm:text-left">
+              <h3 className="font-bold text-xs sm:text-sm">{t.promotions?.title || 'Last-minute deals up to -40%'}</h3>
+              <p className="text-xs opacity-90 hidden sm:block">{t.promotions?.subtitle || 'Last-minute trips to the world\'s most beautiful destinations'}</p>
             </div>
           </div>
-          <button className="bg-white text-amber-600 px-4 py-1 rounded text-sm font-medium hover:bg-gray-50 transition-colors duration-300">
+          <button className="bg-white text-amber-600 px-3 sm:px-4 py-1 rounded text-xs sm:text-sm font-medium hover:bg-gray-50 transition-colors duration-300 whitespace-nowrap">
             {t.promotions?.cta || 'Explore Offers'}
           </button>
         </div>
