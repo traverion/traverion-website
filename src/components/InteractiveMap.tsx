@@ -1,23 +1,12 @@
-import { useState, useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
-import { Icon, LatLngExpression } from 'leaflet';
+import { useState } from 'react';
 import { MapPin, Camera, Hotel, Utensils, Mountain, Sun, Waves, Star, Clock, Users } from 'lucide-react';
-import 'leaflet/dist/leaflet.css';
 import LuxuryCard from './ui/LuxuryCard';
-
-// Fix for default markers in react-leaflet
-delete (Icon.Default.prototype as any)._getIconUrl;
-Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-});
 
 interface MapPoint {
   id: string;
   name: string;
   description: string;
-  coordinates: LatLngExpression;
+  coordinates: [number, number];
   type: 'attraction' | 'hotel' | 'restaurant' | 'activity' | 'landmark';
   image?: string;
   rating?: number;
@@ -33,40 +22,11 @@ interface InteractiveMapProps {
   className?: string;
 }
 
-// Custom marker icons
-const createCustomIcon = (type: MapPoint['type'], color: string) => {
-  const icons = {
-    attraction: 'A',
-    hotel: 'H',
-    restaurant: 'R',
-    activity: 'E',
-    landmark: 'L',
-  };
-
-  // Create SVG with proper encoding
-  const svgContent = `
-    <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="16" cy="16" r="14" fill="${color}" stroke="white" stroke-width="2"/>
-      <text x="16" y="20" text-anchor="middle" font-size="14" fill="white" font-family="Arial, sans-serif">${icons[type]}</text>
-    </svg>
-  `.trim();
-
-  // Use encodeURIComponent instead of btoa to handle Unicode characters
-  const encodedSvg = encodeURIComponent(svgContent);
-
-  return new Icon({
-    iconUrl: `data:image/svg+xml;charset=utf-8,${encodedSvg}`,
-    iconSize: [32, 32],
-    iconAnchor: [16, 16],
-    popupAnchor: [0, -16],
-  });
-};
-
 // Map data for different tours
 const getMapData = (tourId: string) => {
   const mapData = {
     'vietnam-9-day': {
-      center: [10.8231, 106.6297] as LatLngExpression,
+      center: [10.8231, 106.6297] as [number, number],
       zoom: 6,
       route: [
         [10.8231, 106.6297], // Ho Chi Minh City
@@ -110,7 +70,7 @@ const getMapData = (tourId: string) => {
       ],
     },
     'vietnam-12-day': {
-      center: [21.0285, 105.8542] as LatLngExpression,
+      center: [21.0285, 105.8542] as [number, number],
       zoom: 5,
       route: [
         [21.0285, 105.8542], // Hanoi
@@ -166,7 +126,7 @@ const getMapData = (tourId: string) => {
       ],
     },
     'thailand-10-day': {
-      center: [13.7563, 100.5018] as LatLngExpression,
+      center: [13.7563, 100.5018] as [number, number],
       zoom: 5,
       route: [
         [13.7563, 100.5018], // Bangkok
@@ -210,7 +170,7 @@ const getMapData = (tourId: string) => {
       ],
     },
     'cambodia-10-day': {
-      center: [13.4125, 103.8670] as LatLngExpression,
+      center: [13.4125, 103.8670] as [number, number],
       zoom: 6,
       route: [
         [13.4125, 103.8670], // Siem Reap (Angkor)
@@ -254,7 +214,7 @@ const getMapData = (tourId: string) => {
       ],
     },
     'indochina-14-day': {
-      center: [16.0544, 108.2022] as LatLngExpression,
+      center: [16.0544, 108.2022] as [number, number],
       zoom: 5,
       route: [
         [21.0285, 105.8542], // Hanoi
@@ -322,7 +282,7 @@ const getMapData = (tourId: string) => {
       ],
     },
     'thailand-vietnam-14-day': {
-      center: [13.7563, 100.5018] as LatLngExpression,
+      center: [13.7563, 100.5018] as [number, number],
       zoom: 5,
       route: [
         [13.7563, 100.5018], // Bangkok
@@ -394,36 +354,9 @@ const getMapData = (tourId: string) => {
   return mapData[tourId] || mapData['vietnam-9-day'];
 };
 
-function MapController({ center, zoom }: { center: LatLngExpression; zoom: number }) {
-  const map = useMap();
-  
-  useEffect(() => {
-    map.setView(center, zoom);
-  }, [map, center, zoom]);
-
-  return null;
-}
-
-export default function InteractiveMap({ tourId, height = '400px', showRoute = true, className = '' }: InteractiveMapProps) {
+export default function InteractiveMap({ tourId, height = '400px', className = '' }: InteractiveMapProps) {
   const [selectedPoint, setSelectedPoint] = useState<MapPoint | null>(null);
-  const [isLoaded, setIsLoaded] = useState(false);
-
   const mapData = getMapData(tourId);
-
-  useEffect(() => {
-    setIsLoaded(true);
-  }, []);
-
-  if (!isLoaded) {
-    return (
-      <div className={`bg-gray-100 rounded-xl flex items-center justify-center ${className}`} style={{ height }}>
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-sky-500 mx-auto mb-2"></div>
-          <p className="text-gray-600">Loading map...</p>
-        </div>
-      </div>
-    );
-  }
 
   const getIconColor = (type: MapPoint['type']) => {
     const colors = {
@@ -436,60 +369,55 @@ export default function InteractiveMap({ tourId, height = '400px', showRoute = t
     return colors[type];
   };
 
+  const getIcon = (type: MapPoint['type']) => {
+    const icons = {
+      attraction: <Mountain className="w-4 h-4" />,
+      hotel: <Hotel className="w-4 h-4" />,
+      restaurant: <Utensils className="w-4 h-4" />,
+      activity: <Waves className="w-4 h-4" />,
+      landmark: <MapPin className="w-4 h-4" />,
+    };
+    return icons[type];
+  };
+
   return (
     <div className={`relative ${className}`}>
-      {/* Map Container */}
-      <div className="rounded-xl overflow-hidden shadow-lg" style={{ height }}>
-        <MapContainer
-          center={mapData.center}
-          zoom={mapData.zoom}
-          style={{ height: '100%', width: '100%' }}
-          scrollWheelZoom={true}
-          key={tourId} // Force re-render on tour change
-        >
-          <MapController center={mapData.center} zoom={mapData.zoom} />
-          
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
-
-          {/* Route Line */}
-          {showRoute && mapData.route && (
-            <Polyline
-              positions={mapData.route}
-              color="#3B82F6"
-              weight={4}
-              opacity={0.8}
-              dashArray="10, 10"
-            />
-          )}
-
-          {/* Markers */}
-          {mapData.points.map((point) => (
-            <Marker
-              key={point.id}
-              position={point.coordinates}
-              icon={createCustomIcon(point.type, getIconColor(point.type))}
-              eventHandlers={{
-                click: () => setSelectedPoint(point),
-              }}
-            >
-              <Popup className="custom-popup">
-                <div className="p-2">
-                  <h3 className="font-semibold text-gray-900 mb-1">{point.name}</h3>
-                  <p className="text-sm text-gray-600 mb-2">{point.description}</p>
-                  <div className="flex items-center space-x-2 text-xs text-gray-500">
-                    <Clock size={12} />
-                    <span>{point.duration}</span>
-                    <Users size={12} />
-                    <span>{point.groupSize}</span>
+      {/* Simple Map Display */}
+      <div className="rounded-xl overflow-hidden shadow-lg bg-gradient-to-br from-blue-50 to-green-50" style={{ height }}>
+        <div className="h-full flex items-center justify-center p-8">
+          <div className="text-center">
+            <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <MapPin className="w-8 h-8 text-white" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Interactive Map</h3>
+            <p className="text-gray-600 mb-6">Explore the destinations on this tour</p>
+            
+            {/* Destination Points */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-4xl mx-auto">
+              {mapData.points.map((point) => (
+                <div
+                  key={point.id}
+                  onClick={() => setSelectedPoint(point)}
+                  className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer border-l-4"
+                  style={{ borderLeftColor: getIconColor(point.type) }}
+                >
+                  <div className="flex items-center space-x-3">
+                    <div 
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-white"
+                      style={{ backgroundColor: getIconColor(point.type) }}
+                    >
+                      {getIcon(point.type)}
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-gray-900">{point.name}</h4>
+                      <p className="text-sm text-gray-600">{point.duration}</p>
+                    </div>
                   </div>
                 </div>
-              </Popup>
-            </Marker>
-          ))}
-        </MapContainer>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Map Legend */}

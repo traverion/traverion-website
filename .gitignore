@@ -85,3 +85,4 @@ public
 # Temporary folders
 tmp/
 temp/
+.vercel
