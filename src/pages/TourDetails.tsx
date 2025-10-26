@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, MapPin, Calendar, Users, Star, Clock, Plane, Shield, Heart, Share2, BookOpen, CheckCircle, XCircle } from 'lucide-react';
+import { ArrowLeft, MapPin, Calendar, Users, Star, Clock, Plane, Shield, Heart, Share2, BookOpen, CheckCircle, XCircle, Download, Bed, UtensilsCrossed, Car, Camera, Mountain } from 'lucide-react';
 import { useTranslation } from '../contexts/TranslationContext';
 import LuxuryButton from '../components/ui/LuxuryButton';
 import LuxuryCard from '../components/ui/LuxuryCard';
@@ -18,6 +18,7 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
   const [selectedImage, setSelectedImage] = useState(0);
   const [isLiked, setIsLiked] = useState(false);
   const [showBooking, setShowBooking] = useState(false);
+  const [activeTab, setActiveTab] = useState('itinerary');
 
   useEffect(() => {
     const foundTour = tourPackages.find(t => t.id === tourId);
