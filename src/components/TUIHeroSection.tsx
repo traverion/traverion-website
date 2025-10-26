@@ -27,7 +27,9 @@ export default function TUIHeroSection({ onSearch }: TUIHeroSectionProps) {
   const heroImages = [
     '/vietnam1.jpg',
     '/thailand1.jpg', 
-    '/cambodia1.jpg'
+    '/cambodia1.jpg',
+    '/laos1.jpg',
+    '/myanmar1.jpg'
   ];
 
   // Cycle through images every 8 seconds
@@ -98,6 +100,10 @@ export default function TUIHeroSection({ onSearch }: TUIHeroSectionProps) {
           style={{
             backgroundImage: `url(${image})`,
             backgroundAttachment: 'fixed',
+          }}
+          onError={(e) => {
+            // Fallback to a solid gradient if image fails to load
+            e.currentTarget.style.backgroundImage = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
           }}
         />
       ))}
