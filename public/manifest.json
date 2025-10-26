@@ -1,0 +1,27 @@
+{
+  "name": "TRAVERION - Beyond Ordinary",
+  "short_name": "TRAVERION",
+  "description": "Luxury travel packages to Southeast Asia. Discover extraordinary destinations and create unforgettable memories.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0ea5e9",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/traveriontransparent.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/traveriontransparent.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["travel", "lifestyle", "business"],
+  "lang": "en",
+  "dir": "ltr"
+}
