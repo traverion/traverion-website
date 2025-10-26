@@ -93,9 +93,13 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
             <img 
               src="/traveriontransparent.png" 
               alt="TRAVERION Logo" 
-              className="w-12 h-12 object-contain"
+              className="w-12 h-12 object-contain flex-shrink-0"
+              onError={(e) => {
+                // Fallback if image fails to load
+                e.currentTarget.style.display = 'none';
+              }}
             />
-            <div>
+            <div className="flex-shrink-0">
               <h1 className="text-2xl font-light bg-gradient-to-r from-sky-600 to-blue-700 bg-clip-text text-transparent">
                 TRAVERION
               </h1>

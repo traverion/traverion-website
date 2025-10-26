@@ -53,8 +53,11 @@ export default function Header({ currentPage, onNavigate }: HeaderProps) {
             <div className="relative flex items-center space-x-3">
               <img
                 src="/traveriontransparent.png"
-                alt="Traverion"
-                className="h-16 w-auto transition-transform duration-300 group-hover:scale-105"
+                alt="TRAVERION Logo"
+                className="h-16 w-auto transition-transform duration-300 group-hover:scale-105 object-contain flex-shrink-0"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                }}
               />
               <div className="hidden sm:block">
                 <h1 className="text-2xl font-heading font-bold bg-gradient-to-r from-sky-600 to-blue-600 bg-clip-text text-transparent">
