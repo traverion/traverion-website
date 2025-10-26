@@ -62,7 +62,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
             </button>
             
             {isLanguageOpen && (
-              <div className="absolute bottom-full right-0 mb-1 bg-white rounded shadow-lg overflow-hidden">
+              <div className="absolute top-full right-0 mt-1 bg-white rounded shadow-lg overflow-hidden">
                 <button
                   onClick={() => handleLanguageChange('en')}
                   className={`w-full px-2 py-1 text-left hover:bg-gray-100 transition-colors duration-200 text-xs text-gray-700 ${
