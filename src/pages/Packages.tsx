@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Filter, Search, MapPin, Calendar, Users, Star, GitCompare, Grid, List, DollarSign, TrendingUp } from 'lucide-react';
 import PackageCard from '../components/PackageCard';
 import LuxuryButton from '../components/ui/LuxuryButton';
@@ -31,6 +31,35 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
   const [showDynamicPricing, setShowDynamicPricing] = useState(false);
   const [showPriceComparison, setShowPriceComparison] = useState(false);
   const [selectedTourForPricing, setSelectedTourForPricing] = useState<TourPackage | null>(null);
+
+  // Load search criteria from hero search
+  useEffect(() => {
+    const searchCriteria = sessionStorage.getItem('searchCriteria');
+    if (searchCriteria) {
+      try {
+        const criteria = JSON.parse(searchCriteria);
+        // Apply search criteria to filters
+        if (criteria.destination) {
+          setSearchTerm(criteria.destination);
+        }
+        if (criteria.duration) {
+          // Map duration to price range
+          const duration = parseInt(criteria.duration);
+          if (duration <= 7) {
+            setPriceRange('low');
+          } else if (duration <= 14) {
+            setPriceRange('medium');
+          } else {
+            setPriceRange('high');
+          }
+        }
+        // Clear the stored search criteria after applying
+        sessionStorage.removeItem('searchCriteria');
+      } catch (error) {
+        console.error('Error parsing search criteria:', error);
+      }
+    }
+  }, []);
 
   // Convert tour packages to package card format
   const packages = tourPackages.map(tour => ({

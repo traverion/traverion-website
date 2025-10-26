@@ -75,6 +75,12 @@ export default function TUIHeroSection({ onSearch }: TUIHeroSectionProps) {
   );
 
   const handleSearch = () => {
+    // Validate required fields
+    if (!searchData.destination || !searchData.departureDate) {
+      alert('Please fill in destination and departure date to search');
+      return;
+    }
+
     setIsSearching(true);
     // Simulate a brief search delay for better UX
     setTimeout(() => {

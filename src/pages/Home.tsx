@@ -50,7 +50,12 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
       {/* TUI-Style Hero Section with Integrated Search */}
       <TUIHeroSection onSearch={(searchData) => {
         console.log('Search data:', searchData);
-        // Handle search logic here
+        // Navigate to packages page with search parameters
+        if (onNavigate) {
+          onNavigate('packages');
+        }
+        // Store search data for filtering on packages page
+        sessionStorage.setItem('searchCriteria', JSON.stringify(searchData));
       }} />
 
       {/* Aurinko-Style Sale Banner */}
