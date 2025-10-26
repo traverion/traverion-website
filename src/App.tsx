@@ -26,6 +26,54 @@ function App() {
   const [showContact, setShowContact] = useState(false);
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
 
+  // Handle clean URLs and detect current page from URL
+  useEffect(() => {
+    const path = window.location.pathname;
+    
+    // Map clean URLs to internal routes
+    const urlMapping: { [key: string]: string } = {
+      '/14-vietnam-thailand': 'thailand-vietnam-14-day',
+      '/9-vietnam': 'vietnam-9-day',
+      '/12-vietnam': 'vietnam-12-day',
+      '/10-thailand': 'thailand-10-day',
+      '/10-cambodia': 'cambodia-10-day',
+      '/14-indochina': 'indochina-14-day',
+      '/packages': 'packages',
+      '/blog': 'blog',
+      '/contact': 'contact',
+      '/admin': 'admin'
+    };
+
+    const mappedPage = urlMapping[path];
+    if (mappedPage) {
+      setCurrentPage(mappedPage);
+    } else if (path === '/' || path === '') {
+      setCurrentPage('home');
+    }
+  }, []);
+
+  // Update URL when page changes
+  useEffect(() => {
+    const urlMapping: { [key: string]: string } = {
+      'thailand-vietnam-14-day': '/14-vietnam-thailand',
+      'vietnam-9-day': '/9-vietnam',
+      'vietnam-12-day': '/12-vietnam',
+      'thailand-10-day': '/10-thailand',
+      'cambodia-10-day': '/10-cambodia',
+      'indochina-14-day': '/14-indochina',
+      'packages': '/packages',
+      'blog': '/blog',
+      'contact': '/contact',
+      'admin': '/admin',
+      'home': '/'
+    };
+
+    const newUrl = urlMapping[currentPage] || '/';
+    if (window.location.pathname !== newUrl) {
+      window.history.pushState({}, '', newUrl);
+    }
+  }, [currentPage]);
+
   // Scroll to top when page changes
   useEffect(() => {
     window.scrollTo(0, 0);

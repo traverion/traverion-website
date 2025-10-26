@@ -327,14 +327,14 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
                       viewMode={viewMode}
                       onViewDetails={() => {
                         if (tour && onNavigate) {
-                          // Map tour IDs to page names
+                          // Map tour IDs to clean URLs
                           const tourPageMap: { [key: string]: string } = {
-                            'vietnam-southern-9-days': 'vietnam-9-day',
-                            'vietnam-complete-12-days': 'vietnam-12-day',
-                            'thailand-10-days': 'thailand-10-day',
-                            'cambodia-10-days': 'cambodia-10-day',
-                            'indochina-14-days': 'indochina-14-day',
-                            'thailand-vietnam-14-day': 'thailand-vietnam-14-day'
+                            'vietnam-southern-9-days': '9-vietnam',
+                            'vietnam-complete-12-days': '12-vietnam',
+                            'thailand-10-days': '10-thailand',
+                            'cambodia-10-days': '10-cambodia',
+                            'indochina-14-days': '14-indochina',
+                            'thailand-vietnam-14-day': '14-vietnam-thailand'
                           };
                           
                           const pageName = tourPageMap[tour.id];
