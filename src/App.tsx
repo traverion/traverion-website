@@ -17,6 +17,9 @@ import ThailandVietnam14Day from './pages/ThailandVietnam14Day';
 import Contact from './pages/Contact';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminAccess from './components/AdminAccess';
+import Privacy from './pages/Privacy';
+import Terms from './pages/Terms';
+import Cookies from './pages/Cookies';
 import { TranslationProvider } from './contexts/TranslationContext';
 import { TourPackage as TourPackageType } from './types/tour';
 
@@ -41,7 +44,10 @@ function App() {
       '/packages': 'packages',
       '/blog': 'blog',
       '/contact': 'contact',
-      '/admin': 'admin'
+      '/admin': 'admin',
+      '/privacy': 'privacy',
+      '/terms': 'terms',
+      '/cookies': 'cookies'
     };
 
     const mappedPage = urlMapping[path];
@@ -65,6 +71,9 @@ function App() {
       'blog': '/blog',
       'contact': '/contact',
       'admin': '/admin',
+      'privacy': '/privacy',
+      'terms': '/terms',
+      'cookies': '/cookies',
       'home': '/'
     };
 
@@ -131,6 +140,12 @@ function App() {
         return <ThailandVietnam14Day onBack={() => setCurrentPage('packages')} />;
       case 'contact':
         return <Contact />;
+      case 'privacy':
+        return <Privacy />;
+      case 'terms':
+        return <Terms />;
+      case 'cookies':
+        return <Cookies />;
       case 'admin':
         return isAdminAuthenticated ? <AdminDashboard /> : <AdminAccess onAccessGranted={() => setIsAdminAuthenticated(true)} />;
       default:

@@ -7,11 +7,24 @@ export interface TourPackage {
   startLocation: string;
   endLocation: string;
   price: {
-    single: number;
-    twin: number;
-    triple: number;
-    group: number;
+    startingFrom: number;
+    currency: string;
+    perPerson: boolean;
+    twinOccupancy: boolean;
+    customQuote: boolean;
     singleSupplement: number;
+    validity: string;
+    category3?: any;
+    category4?: any;
+    category5?: any;
+    lowSeason?: any;
+    additionalFlights?: any;
+    tourLeaderPolicy?: string;
+    focPolicy?: string;
+    childrenPolicies?: any;
+    vietlongOffer?: any;
+    tippingRecommendations?: any;
+    importantNotes?: string[];
   };
   category: '3*' | '4*' | '5*';
   tourType: 'beach' | 'adventure' | 'cultural' | 'city' | 'family' | 'luxury' | 'budget';

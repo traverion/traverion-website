@@ -4,6 +4,7 @@ import { useTranslation } from '../contexts/TranslationContext';
 import LuxuryButton from './ui/LuxuryButton';
 import LuxuryCard from './ui/LuxuryCard';
 import EnhancedItinerary from './EnhancedItinerary';
+import BookingForm from './BookingForm';
 
 interface TourPackage {
   id: string;
@@ -14,9 +15,16 @@ interface TourPackage {
   startLocation: string;
   endLocation: string;
   price: {
-    single: number;
-    twin: number;
-    triple: number;
+    startingFrom: number;
+    currency: string;
+    perPerson: boolean;
+    twinOccupancy: boolean;
+    customQuote: boolean;
+    singleSupplement: number;
+    validity: string;
+    category3?: any;
+    category4?: any;
+    category5?: any;
   };
   category: string;
   tourType: string;
@@ -48,30 +56,6 @@ export default function CleanTourLayout({ tour, onBack }: CleanTourLayoutProps) 
   const [showBooking, setShowBooking] = useState(false);
   const [activeTab, setActiveTab] = useState('itinerary');
   const [isVisible, setIsVisible] = useState(false);
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    adults: 2,
-    children: 0,
-    startDate: '',
-    endDate: '',
-    message: ''
-  });
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: name === 'adults' || name === 'children' ? parseInt(value) || 0 : value
-    }));
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log('Booking inquiry submitted:', formData);
-    alert('Thank you for your inquiry! We will contact you within 24 hours to confirm your booking.');
-  };
 
   const tabs = [
     { id: 'itinerary', label: 'Itinerary', icon: Calendar },
@@ -294,139 +278,96 @@ export default function CleanTourLayout({ tour, onBack }: CleanTourLayoutProps) 
             </div>
           </div>
 
-          {/* Right Column - Booking Form */}
+          {/* Right Column - Pricing & Booking */}
           <div className="lg:col-span-1">
             <div className="bg-white rounded-xl shadow-lg p-6 sticky top-6">
-              <h3 className="text-xl font-bold text-gray-900 mb-6">Book This Tour</h3>
-              
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Full Name *</label>
-                  <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Enter your full name"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Email Address *</label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="your@email.com"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number *</label>
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="+358 45 123 4567"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Adults *</label>
-                    <select
-                      name="adults"
-                      value={formData.adults}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      {[1,2,3,4,5,6,7,8,9,10].map(num => (
-                        <option key={num} value={num}>{num}</option>
-                      ))}
-                    </select>
+              {/* Pricing Display */}
+              <div className="mb-6">
+                <div className="text-center mb-4">
+                  <div className="text-3xl font-bold text-gray-900 mb-2">
+                    Starting from {tour.price.startingFrom} {tour.price.currency}
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Children</label>
-                    <select
-                      name="children"
-                      value={formData.children}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      {[0,1,2,3,4,5].map(num => (
-                        <option key={num} value={num}>{num}</option>
-                      ))}
-                    </select>
+                  <div className="text-sm text-gray-600">
+                    per person • {tour.price.twinOccupancy ? 'Twin/Double occupancy' : 'Single occupancy'}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    Valid: {tour.price.validity}
                   </div>
                 </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Start Date *</label>
-                  <input
-                    type="date"
-                    name="startDate"
-                    value={formData.startDate}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
+                
+                <div className="bg-gradient-to-r from-sky-50 to-blue-50 rounded-lg p-4 mb-4">
+                  <div className="text-sm text-gray-700 mb-2">
+                    <strong>Custom quotes available for:</strong>
+                  </div>
+                  <div className="text-xs text-gray-600 space-y-1">
+                    <div>• All group sizes (2-20+ people)</div>
+                    <div>• Hotel categories (3*, 4*, 5*)</div>
+                    <div>• Single supplement options</div>
+                    <div>• Flexible travel dates</div>
+                  </div>
                 </div>
+              </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">End Date *</label>
-                  <input
-                    type="date"
-                    name="endDate"
-                    value={formData.endDate}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
+              {/* Booking Button */}
+              <LuxuryButton
+                variant="gradient"
+                size="lg"
+                onClick={() => setShowBooking(true)}
+                className="w-full bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white py-4 text-lg font-semibold mb-4"
+              >
+                <Send className="mr-2 w-5 h-5" />
+                Get Custom Quote
+              </LuxuryButton>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Special Requests</label>
-                  <textarea
-                    name="message"
-                    value={formData.message}
-                    onChange={handleInputChange}
-                    rows={3}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Any special requirements or requests..."
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-4 px-6 rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl"
-                >
-                  <Send className="w-5 h-5 inline mr-2" />
-                  Send Inquiry
-                </button>
-              </form>
-
-              <div className="mt-6 pt-6 border-t border-gray-200">
-                <div className="flex items-center space-x-2 text-sm text-gray-600">
-                  <Shield className="w-4 h-4" />
+              {/* Additional Info */}
+              <div className="space-y-3 text-sm text-gray-600">
+                <div className="flex items-center space-x-2">
+                  <Shield className="w-4 h-4 text-green-600" />
                   <span>Secure booking guaranteed</span>
                 </div>
-                <div className="flex items-center space-x-2 text-sm text-gray-600 mt-2">
-                  <Mail className="w-4 h-4" />
-                  <span>We'll respond within 24 hours</span>
+                <div className="flex items-center space-x-2">
+                  <Mail className="w-4 h-4 text-blue-600" />
+                  <span>Quote within 24 hours</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Clock className="w-4 h-4 text-orange-600" />
+                  <span>Flexible payment options</span>
+                </div>
+              </div>
+
+              {/* Contact Info */}
+              <div className="mt-6 pt-6 border-t border-gray-200">
+                <h4 className="font-semibold text-gray-900 mb-3">Need Help?</h4>
+                <div className="space-y-2 text-sm text-gray-600">
+                  <div className="flex items-center space-x-2">
+                    <Mail className="w-4 h-4" />
+                    <a href="mailto:info.traverion@gmail.com" className="hover:text-sky-600 transition-colors">
+                      info.traverion@gmail.com
+                    </a>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Phone className="w-4 h-4" />
+                    <a href="tel:+3584578345138" className="hover:text-sky-600 transition-colors">
+                      +358 45 7834 5138
+                    </a>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Booking Form Modal */}
+      {showBooking && (
+        <BookingForm
+          tourTitle={tour.title}
+          tourId={tour.id}
+          startingPrice={tour.price.startingFrom}
+          currency={tour.price.currency}
+          onClose={() => setShowBooking(false)}
+        />
+      )}
     </div>
   );
 }

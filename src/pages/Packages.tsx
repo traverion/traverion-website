@@ -1,16 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Filter, Search, MapPin, Calendar, Users, Star, GitCompare, Grid, List, DollarSign, TrendingUp, SlidersHorizontal } from 'lucide-react';
+import { Search, MapPin, Star } from 'lucide-react';
 import PackageCard from '../components/PackageCard';
-import LuxuryButton from '../components/ui/LuxuryButton';
 import LuxuryInput from '../components/ui/LuxuryInput';
-import TourComparison from '../components/TourComparison';
-import AIRecommendations from '../components/AIRecommendations';
-import DynamicPricing from '../components/DynamicPricing';
-import PriceComparison from '../components/PriceComparison';
 import { tourPackages } from '../data/tours';
 import { TourPackage } from '../types/tour';
 import { useTranslation } from '../contexts/TranslationContext';
-import { TOUR_PACKAGES } from '../utils/pricing';
 
 interface PackagesProps {
   onTourSelect: (tour: TourPackage) => void;
@@ -19,19 +13,8 @@ interface PackagesProps {
 
 export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
   const { t } = useTranslation();
-  const [selectedRegion, setSelectedRegion] = useState('all');
-  const [priceRange, setPriceRange] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [selectedTourType, setSelectedTourType] = useState('all');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [showComparison, setShowComparison] = useState(false);
-  const [selectedTours, setSelectedTours] = useState<TourPackage[]>([]);
-  const [showAIRecommendations, setShowAIRecommendations] = useState(false);
-  const [showDynamicPricing, setShowDynamicPricing] = useState(false);
-  const [showPriceComparison, setShowPriceComparison] = useState(false);
-  const [selectedTourForPricing, setSelectedTourForPricing] = useState<TourPackage | null>(null);
-  const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [selectedCountry, setSelectedCountry] = useState('all');
 
   // Load search criteria from hero search
   useEffect(() => {
@@ -39,20 +22,8 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
     if (searchCriteria) {
       try {
         const criteria = JSON.parse(searchCriteria);
-        // Apply search criteria to filters
         if (criteria.destination) {
           setSearchTerm(criteria.destination);
-        }
-        if (criteria.duration) {
-          // Map duration to price range
-          const duration = parseInt(criteria.duration);
-          if (duration <= 7) {
-            setPriceRange('low');
-          } else if (duration <= 14) {
-            setPriceRange('medium');
-          } else {
-            setPriceRange('high');
-          }
         }
         // Clear the stored search criteria after applying
         sessionStorage.removeItem('searchCriteria');
@@ -62,352 +33,183 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
     }
   }, []);
 
-  // Convert tour packages to package card format
-  const packages = tourPackages.map(tour => ({
-    title: tour.title,
-    destination: tour.destination,
-    duration: tour.duration,
-    groupSize: tour.groupSize,
-    price: `$${tour.price.twin}`,
-    image: tour.image,
-    description: tour.description,
-    region: tour.destination.toLowerCase().includes('vietnam') ? 'asia' : 
-            tour.destination.toLowerCase().includes('thailand') ? 'asia' : 'asia',
-    priceValue: tour.price.twin,
-    rating: tour.rating,
-    reviews: tour.reviews,
-    isPopular: tour.isPopular,
-    discount: tour.discount,
-    tourType: tour.tourType,
-  }));
-
-  const filteredPackages = packages.filter((pkg) => {
-    const regionMatch = selectedRegion === 'all' || pkg.region === selectedRegion;
-    const searchMatch = searchTerm === '' || 
-      pkg.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      pkg.destination.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      pkg.description.toLowerCase().includes(searchTerm.toLowerCase());
+  // Simple filtering logic
+  const filteredPackages = tourPackages.filter(tour => {
+    const matchesSearch = !searchTerm || 
+      tour.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      tour.destination.toLowerCase().includes(searchTerm.toLowerCase());
     
-    let priceMatch = true;
-    if (priceRange === 'low') {
-      priceMatch = pkg.priceValue < 1700;
-    } else if (priceRange === 'medium') {
-      priceMatch = pkg.priceValue >= 1700 && pkg.priceValue < 2300;
-    } else if (priceRange === 'high') {
-      priceMatch = pkg.priceValue >= 2300;
-    }
+    const matchesCountry = selectedCountry === 'all' || 
+      tour.destination.toLowerCase().includes(selectedCountry.toLowerCase());
 
-    const categoryMatch = selectedCategory === 'all' || 
-      (selectedCategory === 'popular' && pkg.isPopular) ||
-      (selectedCategory === 'discounted' && pkg.discount);
-
-    const tourTypeMatch = selectedTourType === 'all' || pkg.tourType === selectedTourType;
-
-    return regionMatch && priceMatch && searchMatch && categoryMatch && tourTypeMatch;
+    return matchesSearch && matchesCountry;
   });
+
+  const handleTourSelect = (tour: TourPackage) => {
+    if (onTourSelect) {
+      onTourSelect(tour);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 pt-20">
-      {/* Header Section */}
+      {/* Simple Header with Trust Elements */}
       <section className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="text-center">
             <h1 className="text-4xl font-bold text-gray-900 mb-4">
-              Holiday Packages
+              Our Luxury Tours
             </h1>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              Discover our premium travel packages to Southeast Asia
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-6">
+              Premium Southeast Asia travel experiences starting from $499
             </p>
+            
+            {/* Trust Indicators */}
+            <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-gray-600">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <span>500+ Happy Travelers</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                <span>24h Quote Response</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                <span>Premium Service</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                <span>Secure Booking</span>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Main Content - Two Column Layout */}
+      {/* Simple Search & Filter */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex flex-col lg:flex-row gap-8">
-          
-          {/* Left Sidebar - Search & Filters */}
-          <div className="lg:w-1/4">
-            <div className="bg-white rounded-xl shadow-lg p-6 sticky top-24">
-              {/* Mobile Filter Toggle */}
-              <div className="lg:hidden mb-6">
-                <button
-                  onClick={() => setShowMobileFilters(!showMobileFilters)}
-                  className="w-full flex items-center justify-center space-x-2 bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <SlidersHorizontal className="w-5 h-5" />
-                  <span>{showMobileFilters ? 'Hide Filters' : 'Show Filters'}</span>
-                </button>
-              </div>
-
-              {/* Filter Content */}
-              <div className={`${showMobileFilters ? 'block' : 'hidden'} lg:block`}>
-                <div className="flex items-center mb-6">
-                  <Filter className="text-blue-600 mr-3" size={24} />
-                  <h3 className="text-xl font-bold text-gray-900">Search & Filters</h3>
-                </div>
-
-                {/* Search */}
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Search Tours
-                  </label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                    <input
-                      type="text"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      placeholder="Search destinations..."
-                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-                </div>
-
-                {/* Region Filter */}
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Region
-                  </label>
-                  <select
-                    value={selectedRegion}
-                    onChange={(e) => setSelectedRegion(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="all">All Regions</option>
-                    <option value="asia">Southeast Asia</option>
-                    <option value="europe">Europe</option>
-                    <option value="america">America</option>
-                  </select>
-                </div>
-
-                {/* Price Range */}
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Price Range
-                  </label>
-                  <select
-                    value={priceRange}
-                    onChange={(e) => setPriceRange(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="all">All Prices</option>
-                    <option value="low">Under $1,700</option>
-                    <option value="medium">$1,700 - $2,300</option>
-                    <option value="high">Over $2,300</option>
-                  </select>
-                </div>
-
-                {/* Category */}
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Category
-                  </label>
-                  <select
-                    value={selectedCategory}
-                    onChange={(e) => setSelectedCategory(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="all">All Categories</option>
-                    <option value="popular">Popular</option>
-                    <option value="discounted">Discounted</option>
-                  </select>
-                </div>
-
-                {/* Tour Type */}
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Tour Type
-                  </label>
-                  <select
-                    value={selectedTourType}
-                    onChange={(e) => setSelectedTourType(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="all">All Types</option>
-                    <option value="luxury">Luxury</option>
-                    <option value="beach">Beach</option>
-                    <option value="culture">Culture</option>
-                    <option value="nature">Nature</option>
-                  </select>
-                </div>
-
-                {/* Clear Filters */}
-                <button
-                  onClick={() => {
-                    setSearchTerm('');
-                    setSelectedRegion('all');
-                    setPriceRange('all');
-                    setSelectedCategory('all');
-                    setSelectedTourType('all');
-                  }}
-                  className="w-full bg-gray-100 text-gray-700 px-4 py-3 rounded-lg hover:bg-gray-200 transition-colors"
-                >
-                  Clear All Filters
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Right Column - Tour Packages */}
-          <div className="lg:w-3/4">
-            {/* Results Header */}
-            <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-                <div className="mb-4 sm:mb-0">
-                  <h2 className="text-2xl font-bold text-gray-900">
-                    {filteredPackages.length} Tours Found
-                  </h2>
-                  <p className="text-gray-600">
-                    {searchTerm && `Search results for "${searchTerm}"`}
-                  </p>
-                </div>
-                
-                <div className="flex items-center space-x-4">
-                  {/* View Mode Toggle */}
-                  <div className="flex bg-gray-100 rounded-lg p-1">
-                    <button
-                      onClick={() => setViewMode('grid')}
-                      className={`p-2 rounded-md transition-colors ${
-                        viewMode === 'grid' ? 'bg-white shadow-sm' : 'hover:bg-gray-200'
-                      }`}
-                    >
-                      <Grid className="w-5 h-5" />
-                    </button>
-                    <button
-                      onClick={() => setViewMode('list')}
-                      className={`p-2 rounded-md transition-colors ${
-                        viewMode === 'list' ? 'bg-white shadow-sm' : 'hover:bg-gray-200'
-                      }`}
-                    >
-                      <List className="w-5 h-5" />
-                    </button>
-                  </div>
-
-                  {/* Comparison Button */}
-                  {selectedTours.length > 0 && (
-                    <LuxuryButton
-                      variant="outline"
-                      onClick={() => setShowComparison(true)}
-                      className="flex items-center space-x-2"
-                    >
-                      <GitCompare className="w-4 h-4" />
-                      <span>Compare ({selectedTours.length})</span>
-                    </LuxuryButton>
-                  )}
-                </div>
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Search */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Search Tours
+              </label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search destinations..."
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                />
               </div>
             </div>
 
-            {/* Tour Packages Grid */}
-            {filteredPackages.length > 0 ? (
-              <div className={`grid gap-6 ${
-                viewMode === 'grid' 
-                  ? 'grid-cols-1 md:grid-cols-2' 
-                  : 'grid-cols-1'
-              }`}>
-                {filteredPackages.map((pkg, index) => {
-                  const tour = tourPackages.find(t => t.title === pkg.title);
-                  return (
-                    <PackageCard 
-                      key={index} 
-                      {...pkg} 
-                      onSelect={(selected) => {
-                        if (selected) {
-                          if (tour && !selectedTours.find(t => t.id === tour.id)) {
-                            setSelectedTours([...selectedTours, tour]);
-                          }
-                        } else {
-                          if (tour) {
-                            setSelectedTours(selectedTours.filter(t => t.id !== tour.id));
-                          }
-                        }
-                      }}
-                      isSelected={selectedTours.some(t => t.title === pkg.title)}
-                      viewMode={viewMode}
-                      onViewDetails={() => {
-                        if (tour && onNavigate) {
-                          // Map tour IDs to clean URLs
-                          const tourPageMap: { [key: string]: string } = {
-                            'vietnam-southern-9-days': '9-vietnam',
-                            'vietnam-complete-12-days': '12-vietnam',
-                            'thailand-10-days': '10-thailand',
-                            'cambodia-10-days': '10-cambodia',
-                            'indochina-14-days': '14-indochina',
-                            'thailand-vietnam-14-day': '14-vietnam-thailand'
-                          };
-                          
-                          const pageName = tourPageMap[tour.id];
-                          if (pageName) {
-                            onNavigate(pageName);
-                          }
-                        }
-                      }}
-                      tourId={tour?.id}
-                      tourPackage={tour ? TOUR_PACKAGES.find(tp => tp.id === tour.id) : undefined}
-                      showDynamicPricing={true}
-                    />
-                  );
-                })}
+            {/* Country Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Country
+              </label>
+              <select
+                value={selectedCountry}
+                onChange={(e) => setSelectedCountry(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+              >
+                <option value="all">All Countries</option>
+                <option value="vietnam">Vietnam</option>
+                <option value="thailand">Thailand</option>
+                <option value="cambodia">Cambodia</option>
+              </select>
+            </div>
+
+            {/* Results Count */}
+            <div className="flex items-end">
+              <div className="w-full bg-gray-50 rounded-lg p-3 text-center">
+                <span className="text-sm text-gray-600">
+                  {filteredPackages.length} tours found
+                </span>
               </div>
-            ) : (
-              <div className="bg-white rounded-xl shadow-lg p-12 text-center">
-                <div className="text-gray-400 mb-4">
-                  <Search className="w-16 h-16 mx-auto" />
-                </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">No tours found</h3>
-                <p className="text-gray-600 mb-6">
-                  Try adjusting your search criteria or filters to find more tours.
-                </p>
-                <button
-                  onClick={() => {
-                    setSearchTerm('');
-                    setSelectedRegion('all');
-                    setPriceRange('all');
-                    setSelectedCategory('all');
-                    setSelectedTourType('all');
-                  }}
-                  className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Clear All Filters
-                </button>
-              </div>
-            )}
+            </div>
           </div>
         </div>
+
+        {/* Tours Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {filteredPackages.map((tour) => (
+            <div key={tour.id} className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300">
+              {/* Tour Image */}
+              <div className="relative h-48 overflow-hidden">
+                <img
+                  src={tour.image}
+                  alt={tour.title}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute top-4 right-4">
+                  <div className="bg-white/90 backdrop-blur-sm rounded-full px-3 py-1 text-sm font-medium text-gray-900">
+                    Starting from ${tour.price.startingFrom}
+                  </div>
+                </div>
+                {tour.isPopular && (
+                  <div className="absolute top-4 left-4">
+                    <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-3 py-1 rounded-full text-sm font-medium">
+                      Popular
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Tour Content */}
+              <div className="p-6">
+                <div className="mb-4">
+                  <h3 className="text-xl font-bold text-gray-900 mb-2 line-clamp-2">
+                    {tour.title}
+                  </h3>
+                  <div className="flex items-center text-gray-600 mb-2">
+                    <MapPin className="w-4 h-4 mr-1" />
+                    <span className="text-sm">{tour.destination}</span>
+                  </div>
+                  <div className="flex items-center text-gray-600 mb-3">
+                    <Star className="w-4 h-4 mr-1 text-yellow-400 fill-yellow-400" />
+                    <span className="text-sm">{tour.rating} ({tour.reviews} reviews)</span>
+                  </div>
+                </div>
+
+                <div className="mb-6">
+                  <div className="text-2xl font-bold text-sky-600 mb-1">
+                    Starting from ${tour.price.startingFrom} {tour.price.currency}
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    per person • {tour.duration}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <button
+                    onClick={() => handleTourSelect(tour)}
+                    className="w-full bg-gradient-to-r from-sky-500 to-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:from-sky-600 hover:to-blue-700 transition-all duration-300"
+                  >
+                    View Details & Get Quote
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* No Results */}
+        {filteredPackages.length === 0 && (
+          <div className="text-center py-12">
+            <div className="text-gray-400 mb-4">
+              <Search className="w-16 h-16 mx-auto" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">No tours found</h3>
+            <p className="text-gray-600">Try adjusting your search criteria</p>
+          </div>
+        )}
       </div>
-
-      {/* Modals */}
-      {showComparison && (
-        <TourComparison
-          tours={selectedTours}
-          onClose={() => setShowComparison(false)}
-          onTourSelect={onTourSelect}
-        />
-      )}
-
-      {showAIRecommendations && (
-        <AIRecommendations
-          onClose={() => setShowAIRecommendations(false)}
-          onTourSelect={onTourSelect}
-        />
-      )}
-
-      {showDynamicPricing && selectedTourForPricing && (
-        <DynamicPricing
-          tour={selectedTourForPricing}
-          onClose={() => {
-            setShowDynamicPricing(false);
-            setSelectedTourForPricing(null);
-          }}
-        />
-      )}
-
-      {showPriceComparison && (
-        <PriceComparison
-          onClose={() => setShowPriceComparison(false)}
-        />
-      )}
     </div>
   );
 }

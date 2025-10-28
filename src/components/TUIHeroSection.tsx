@@ -137,11 +137,12 @@ export default function TUIHeroSection({ onSearch }: TUIHeroSectionProps) {
           ))}
         </div>
 
-        {/* Trusted Travel Partners Badge */}
-        <div className="flex justify-center mb-8">
+        {/* Enhanced Trust Badges */}
+        <div className="flex flex-col items-center mb-8 space-y-4">
+          {/* Main Trust Badge */}
           <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-full px-6 py-3 shadow-lg">
             <Shield className="w-5 h-5 text-white" />
-            <span className="text-white font-light text-sm">Trusted Travel Partners</span>
+            <span className="text-white font-medium text-sm">Trusted Travel Partners</span>
             <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
             <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
             <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
@@ -149,21 +150,54 @@ export default function TUIHeroSection({ onSearch }: TUIHeroSectionProps) {
             <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
             <Award className="w-5 h-5 text-white" />
           </div>
+          
+          {/* Additional Trust Indicators */}
+          <div className="flex flex-wrap items-center justify-center gap-4 text-white/80 text-sm">
+            <div className="flex items-center gap-1">
+              <Shield className="w-4 h-4" />
+              <span>Secure Booking</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Clock className="w-4 h-4" />
+              <span>24h Quote Response</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Users className="w-4 h-4" />
+              <span>500+ Happy Travelers</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Award className="w-4 h-4" />
+              <span>Premium Service</span>
+            </div>
+          </div>
         </div>
 
         <div className="text-center text-white mb-16">
-          <h1 className="text-5xl md:text-7xl font-light mb-8">
-            {t.hero.title}
+          <h1 className="text-4xl md:text-6xl font-light mb-6">
+            Luxury Southeast Asia Tours
           </h1>
-          <p className="text-xl md:text-2xl text-white/90 max-w-3xl mx-auto mb-12 font-light">
-            {t.hero.subtitle}
+          <p className="text-lg md:text-xl text-white/90 max-w-2xl mx-auto mb-8 font-light">
+            Discover Vietnam, Thailand & Cambodia with our premium tour packages
           </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
+            <div className="bg-white/10 backdrop-blur-md rounded-full px-6 py-3">
+              <span className="text-white font-medium">Starting from $499 USD</span>
+            </div>
+            <div className="bg-white/10 backdrop-blur-md rounded-full px-6 py-3">
+              <span className="text-white font-medium">Custom Quotes Available</span>
+            </div>
+          </div>
         </div>
 
-        {/* TUI-Style Search Module */}
-        <div className="bg-white rounded-2xl shadow-2xl p-6 md:p-8 max-w-5xl mx-auto">
+        {/* Simplified Search Module */}
+        <div className="bg-white rounded-2xl shadow-2xl p-6 md:p-8 max-w-4xl mx-auto">
+          <div className="text-center mb-6">
+            <h2 className="text-2xl font-semibold text-gray-900 mb-2">Find Your Perfect Tour</h2>
+            <p className="text-gray-600">Get a custom quote in 3 simple steps</p>
+          </div>
+          
           {/* Search Form */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Departure Location */}
             <div className="relative">
               <label className="block text-sm font-light text-gray-700 mb-2">
@@ -205,47 +239,31 @@ export default function TUIHeroSection({ onSearch }: TUIHeroSectionProps) {
 
             {/* Destination */}
             <div className="relative">
-              <label className="block text-sm font-light text-gray-700 mb-2">
-                {t.search.destination}
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Where do you want to go?
               </label>
               <div className="relative">
                 <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="text"
+                <select
                   value={searchData.destination}
-                  onChange={(e) => {
-                    setSearchData(prev => ({ ...prev, destination: e.target.value }));
-                    setShowDestinationDropdown(true);
-                  }}
-                  onFocus={() => setShowDestinationDropdown(true)}
-                  placeholder={t.search.selectDestination}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-colors bg-white"
-                />
-                
-                {/* Destination Dropdown */}
-                {showDestinationDropdown && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-60 overflow-y-auto">
-                    {filteredDestinations.map((dest) => (
-                      <button
-                        key={dest}
-                        onClick={() => {
-                          setSearchData(prev => ({ ...prev, destination: dest }));
-                          setShowDestinationDropdown(false);
-                        }}
-                        className="w-full text-left px-4 py-3 hover:bg-sky-50 transition-colors"
-                      >
-                        {dest}
-                      </button>
-                    ))}
-                  </div>
-                )}
+                  onChange={(e) => setSearchData(prev => ({ ...prev, destination: e.target.value }))}
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-colors bg-white appearance-none"
+                >
+                  <option value="">Choose destination</option>
+                  <option value="Vietnam">Vietnam</option>
+                  <option value="Thailand">Thailand</option>
+                  <option value="Cambodia">Cambodia</option>
+                  <option value="Vietnam & Thailand">Vietnam & Thailand</option>
+                  <option value="Vietnam & Cambodia">Vietnam & Cambodia</option>
+                  <option value="All Southeast Asia">All Southeast Asia</option>
+                </select>
               </div>
             </div>
 
             {/* Departure Date */}
             <div>
-              <label className="block text-sm font-light text-gray-700 mb-2">
-                {t.search.departureDate}
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                When do you want to travel?
               </label>
               <div className="relative">
                 <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -258,69 +276,32 @@ export default function TUIHeroSection({ onSearch }: TUIHeroSectionProps) {
               </div>
             </div>
 
-            {/* Duration */}
-            <div>
-              <label className="block text-sm font-light text-gray-700 mb-2">
-                Trip Duration
-              </label>
-              <div className="relative">
-                <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <select
-                  value={searchData.duration}
-                  onChange={(e) => setSearchData(prev => ({ ...prev, duration: e.target.value }))}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-colors appearance-none bg-white"
-                >
-                  <option value="">Select duration</option>
-                  {durationOptions.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
           </div>
 
-          {/* Second Row - Travelers and Search Button */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-            {/* Travelers */}
-            <div>
-              <label className="block text-sm font-light text-gray-700 mb-2">
-                {t.search.travelers}
-              </label>
-              <div className="relative">
-                <Users className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <select
-                  value={searchData.travelers}
-                  onChange={(e) => setSearchData(prev => ({ ...prev, travelers: parseInt(e.target.value) }))}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-colors appearance-none bg-white"
-                >
-                  {[1, 2, 3, 4, 5, 6, 7, 8].map(num => (
-                    <option key={num} value={num}>
-                      {num} {num === 1 ? t.search.person : t.search.people}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Search Button */}
-            <div className="flex items-end">
-              <LuxuryButton
-                variant="gradient"
-                size="lg"
-                onClick={handleSearch}
-                disabled={isSearching}
-                className="w-full py-3 text-lg font-light disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isSearching ? (
-                  <div className="w-5 h-5 mr-2 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                ) : (
-                  <Search className="w-5 h-5 mr-2" />
-                )}
-                {isSearching ? 'Searching...' : t.search.searchTrips}
-              </LuxuryButton>
-            </div>
+          {/* Search Button */}
+          <div className="mt-8 text-center">
+            <LuxuryButton
+              variant="gradient"
+              size="lg"
+              onClick={handleSearch}
+              disabled={isSearching}
+              className="bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white px-12 py-4 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
+            >
+              {isSearching ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                  Searching...
+                </>
+              ) : (
+                <>
+                  <Search className="mr-2 w-5 h-5" />
+                  Get Custom Quote
+                </>
+              )}
+            </LuxuryButton>
+            <p className="text-sm text-gray-500 mt-3">
+              We'll send you a personalized quote within 24 hours
+            </p>
           </div>
         </div>
       </div>

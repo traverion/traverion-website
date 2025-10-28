@@ -57,16 +57,16 @@ export default function Footer() {
 
               {/* Social Links */}
               <div className="flex space-x-4">
-                <a href="#" className="p-3 bg-white/10 hover:bg-sky-500 rounded-xl transition-all duration-300 hover:scale-110 group">
+                <a href="https://facebook.com/traverion" target="_blank" rel="noopener noreferrer" className="p-3 bg-white/10 hover:bg-sky-500 rounded-xl transition-all duration-300 hover:scale-110 group">
                   <Facebook className="w-5 h-5 text-gray-400 group-hover:text-white" />
                 </a>
-                <a href="#" className="p-3 bg-white/10 hover:bg-pink-500 rounded-xl transition-all duration-300 hover:scale-110 group">
+                <a href="https://instagram.com/traverion" target="_blank" rel="noopener noreferrer" className="p-3 bg-white/10 hover:bg-pink-500 rounded-xl transition-all duration-300 hover:scale-110 group">
                   <Instagram className="w-5 h-5 text-gray-400 group-hover:text-white" />
                 </a>
-                <a href="#" className="p-3 bg-white/10 hover:bg-blue-500 rounded-xl transition-all duration-300 hover:scale-110 group">
+                <a href="https://twitter.com/traverion" target="_blank" rel="noopener noreferrer" className="p-3 bg-white/10 hover:bg-blue-500 rounded-xl transition-all duration-300 hover:scale-110 group">
                   <Twitter className="w-5 h-5 text-gray-400 group-hover:text-white" />
                 </a>
-                <a href="#" className="p-3 bg-white/10 hover:bg-red-500 rounded-xl transition-all duration-300 hover:scale-110 group">
+                <a href="https://youtube.com/traverion" target="_blank" rel="noopener noreferrer" className="p-3 bg-white/10 hover:bg-red-500 rounded-xl transition-all duration-300 hover:scale-110 group">
                   <Youtube className="w-5 h-5 text-gray-400 group-hover:text-white" />
                 </a>
               </div>
@@ -77,21 +77,21 @@ export default function Footer() {
               <h3 className="text-xl font-bold mb-6 text-white">{t.footer.quickLinks}</h3>
               <ul className="space-y-4">
                 {[
-                  { name: t.footer.links.aboutUs, href: '#' },
-                  { name: t.footer.links.destinations, href: '#' },
-                  { name: t.footer.links.travelPackages, href: '#' },
-                  { name: t.footer.links.blogStories, href: '#' },
-                  { name: t.footer.links.travelGuides, href: '#' },
-                  { name: t.footer.links.customerReviews, href: '#' },
+                  { name: t.footer.links.aboutUs, href: '/about', onClick: () => window.location.href = '/about' },
+                  { name: t.footer.links.destinations, href: '/destinations', onClick: () => window.location.href = '/destinations' },
+                  { name: t.footer.links.travelPackages, href: '/packages', onClick: () => window.location.href = '/packages' },
+                  { name: t.footer.links.blogStories, href: '/blog', onClick: () => window.location.href = '/blog' },
+                  { name: t.footer.links.travelGuides, href: '/blog', onClick: () => window.location.href = '/blog' },
+                  { name: t.footer.links.customerReviews, href: '/contact', onClick: () => window.location.href = '/contact' },
                 ].map((link, index) => (
                   <li key={index}>
-                    <a 
-                      href={link.href} 
-                      className="text-gray-300 hover:text-sky-400 transition-colors duration-300 hover:translate-x-1 inline-block"
+                    <button 
+                      onClick={link.onClick}
+                      className="text-gray-300 hover:text-sky-400 transition-colors duration-300 hover:translate-x-1 inline-block text-left"
                       style={{ animationDelay: `${index * 0.1}s` }}
                     >
                       {link.name}
-                    </a>
+                    </button>
                   </li>
                 ))}
               </ul>
@@ -166,9 +166,9 @@ export default function Footer() {
               </div>
               
               <div className="flex items-center space-x-6">
-                <a href="#" className="text-gray-400 hover:text-amber-400 text-sm transition-colors">{t.footer.links.privacyPolicy}</a>
-                <a href="#" className="text-gray-400 hover:text-amber-400 text-sm transition-colors">{t.footer.links.termsOfService}</a>
-                <a href="#" className="text-gray-400 hover:text-amber-400 text-sm transition-colors">{t.footer.links.cookiePolicy}</a>
+                <button onClick={() => window.location.href = '/privacy'} className="text-gray-400 hover:text-amber-400 text-sm transition-colors">{t.footer.links.privacyPolicy}</button>
+                <button onClick={() => window.location.href = '/terms'} className="text-gray-400 hover:text-amber-400 text-sm transition-colors">{t.footer.links.termsOfService}</button>
+                <button onClick={() => window.location.href = '/cookies'} className="text-gray-400 hover:text-amber-400 text-sm transition-colors">{t.footer.links.cookiePolicy}</button>
                 <div className="flex items-center space-x-1">
                   <span className="text-gray-400 text-sm">{t.footer.secure}</span>
                   <Shield className="w-4 h-4 text-green-400" />

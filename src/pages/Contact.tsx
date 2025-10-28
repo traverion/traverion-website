@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Mail, Phone, MapPin, Clock, Send, MessageCircle, Globe, User, Calendar } from 'lucide-react';
+import { Mail, Phone, MapPin, Clock, Send, MessageCircle, Globe, User, Calendar, CheckCircle } from 'lucide-react';
 import { useTranslation } from '../contexts/TranslationContext';
 import LuxuryButton from '../components/ui/LuxuryButton';
 import LuxuryCard from '../components/ui/LuxuryCard';
 import LuxuryInput from '../components/ui/LuxuryInput';
+import { submitContactInquiry, ContactInquiry } from '../lib/supabase';
 
 export default function Contact() {
   const { t } = useTranslation();
@@ -24,26 +25,46 @@ export default function Contact() {
     e.preventDefault();
     setIsSubmitting(true);
     
-    // Simulate form submission
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    setIsSubmitting(false);
-    setIsSubmitted(true);
-    
-    // Reset form after 3 seconds
-    setTimeout(() => {
-      setIsSubmitted(false);
-      setFormData({
-        name: '',
-        email: '',
-        phone: '',
-        subject: '',
-        message: '',
-        tourInterest: '',
-        travelDate: '',
-        groupSize: ''
-      });
-    }, 3000);
+    try {
+      // Prepare contact inquiry data for Supabase
+      const inquiryData: Omit<ContactInquiry, 'id' | 'created_at' | 'updated_at'> = {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone || undefined,
+        subject: formData.subject,
+        message: formData.message,
+        inquiry_type: formData.tourInterest ? 'booking' : 'general',
+        status: 'new'
+      };
+
+      // Submit to Supabase
+      const result = await submitContactInquiry(inquiryData);
+
+      if (result.success) {
+        setIsSubmitted(true);
+        // Reset form after successful submission
+        setTimeout(() => {
+          setIsSubmitted(false);
+          setFormData({
+            name: '',
+            email: '',
+            phone: '',
+            subject: '',
+            message: '',
+            tourInterest: '',
+            travelDate: '',
+            groupSize: ''
+          });
+        }, 3000);
+      } else {
+        throw new Error(result.error || 'Failed to submit inquiry');
+      }
+    } catch (error) {
+      console.error('Contact form submission error:', error);
+      alert('Failed to submit inquiry. Please try again or contact us directly.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -118,7 +139,7 @@ export default function Contact() {
               {isSubmitted ? (
                 <LuxuryCard variant="elevated" className="p-8 text-center">
                   <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <MessageCircle className="w-8 h-8 text-green-500" />
+                    <CheckCircle className="w-8 h-8 text-green-500" />
                   </div>
                   <h3 className="text-xl font-heading font-bold text-gray-900 mb-2">Message Sent!</h3>
                   <p className="text-gray-600">Thank you for contacting us. We'll get back to you soon!</p>

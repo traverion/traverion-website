@@ -32,6 +32,20 @@ export default function Header({ currentPage, onNavigate }: HeaderProps) {
     { name: t.nav.contact, id: 'contact' },
   ];
 
+  const handleSearch = () => {
+    if (searchTerm.trim()) {
+      // Navigate to packages page with search term
+      sessionStorage.setItem('searchCriteria', JSON.stringify({
+        destination: searchTerm,
+        departure: '',
+        departureDate: ''
+      }));
+      onNavigate('packages');
+      setSearchOpen(false);
+      setSearchTerm('');
+    }
+  };
+
   return (
     <header className="fixed top-0 left-0 right-0 z-50">
       {/* Contact Info Header */}
@@ -103,14 +117,39 @@ export default function Header({ currentPage, onNavigate }: HeaderProps) {
               
               {searchOpen && (
                 <div className="absolute right-0 top-full mt-2 w-80 animate-fade-in-up">
-                  <LuxuryInput
-                    type="search"
-                    placeholder="Search destinations..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    onClear={() => setSearchTerm('')}
-                    className="shadow-xl"
-                  />
+                  <div className="bg-white rounded-xl shadow-xl p-4">
+                    <LuxuryInput
+                      type="search"
+                      placeholder="Search destinations..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      onClear={() => setSearchTerm('')}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          handleSearch();
+                        }
+                      }}
+                      className="mb-3"
+                    />
+                    <div className="flex gap-2">
+                      <LuxuryButton 
+                        variant="primary" 
+                        size="sm" 
+                        onClick={handleSearch}
+                        disabled={!searchTerm.trim()}
+                        className="flex-1"
+                      >
+                        Search
+                      </LuxuryButton>
+                      <LuxuryButton 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => setSearchOpen(false)}
+                      >
+                        Cancel
+                      </LuxuryButton>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
