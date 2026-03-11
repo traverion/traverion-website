@@ -3,6 +3,7 @@ export const fi = {
   navigation: {
     home: 'KOTI',
     packages: 'LOMAMATKAT',
+    tours: 'KIERROKSET',
     blog: 'BLOGI',
     contact: 'YHTEYSTIEDOT',
   },

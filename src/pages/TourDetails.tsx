@@ -19,6 +19,8 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
   const [isLiked, setIsLiked] = useState(false);
   const [showBooking, setShowBooking] = useState(false);
   const [activeTab, setActiveTab] = useState('itinerary');
+  const [bookingDate, setBookingDate] = useState('');
+  const [guests, setGuests] = useState(2);
 
   useEffect(() => {
     const foundTour = tourPackages.find(t => t.id === tourId);
@@ -77,11 +79,9 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
         </div>
       </div>
 
-      {/* Hero Section */}
+      {/* Hero: full-width gallery */}
       <section className="relative">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
-          {/* Image Gallery */}
-          <div className="relative h-96 lg:h-screen">
+        <div className="relative h-96 lg:h-[70vh]">
             <div
               className="absolute inset-0 bg-cover bg-center transition-all duration-1000"
               style={{ backgroundImage: `url(${images[selectedImage]})` }}
@@ -104,108 +104,78 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
                 </button>
               ))}
             </div>
-          </div>
+        </div>
+      </section>
 
-          {/* Tour Info */}
-          <div className="p-8 lg:p-12 bg-white">
-            <div className="max-w-2xl">
-              {/* Badges */}
-              <div className="flex flex-wrap gap-2 mb-4">
-                {tour.isPopular && (
-                  <span className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-3 py-1 rounded-full text-sm font-bold">
-                    🔥 Popular
+      {/* Content + Sticky booking widget - GetYourGuide style */}
+      <section className="bg-gray-50 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Left: Title + description + stats (no pricing/CTA here on desktop; they're in sidebar) */}
+            <div className="lg:col-span-2 space-y-8">
+              <div>
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {tour.isPopular && (
+                    <span className="bg-amber-500 text-white px-3 py-1 rounded-full text-sm font-medium">Popular</span>
+                  )}
+                  {tour.discount && (
+                    <span className="bg-green-600 text-white px-3 py-1 rounded-full text-sm font-medium">{tour.discount} OFF</span>
+                  )}
+                  <span className="bg-gray-200 text-gray-700 px-3 py-1 rounded-full text-sm">Free cancellation</span>
+                </div>
+                <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-2">{tour.title}</h1>
+                <div className="flex items-center text-gray-600 mb-4">
+                  <MapPin size={20} className="mr-2 text-sky-500" />
+                  <span>{tour.destination}</span>
+                </div>
+                <div className="flex flex-wrap gap-4 text-sm text-gray-600 mb-6">
+                  <span className="flex items-center">
+                    <Star size={18} className="text-amber-400 fill-amber-400 mr-1" />
+                    <strong className="text-gray-900">{tour.rating}</strong> ({tour.reviews} reviews)
                   </span>
-                )}
-                {tour.discount && (
-                  <span className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-3 py-1 rounded-full text-sm font-bold">
-                    {tour.discount} OFF
-                  </span>
-                )}
+                  <span className="flex items-center"><Clock size={18} className="mr-1" />{tour.duration}</span>
+                  <span className="flex items-center"><Users size={18} className="mr-1" />{tour.groupSize}</span>
+                  <span className="flex items-center"><Plane size={18} className="mr-1" />{tour.difficulty}</span>
+                </div>
+                <p className="text-gray-700 leading-relaxed">{tour.description}</p>
               </div>
+            </div>
 
-              <h1 className="text-4xl font-heading font-bold text-gray-900 mb-4">
-                {tour.title}
-              </h1>
-              
-              <div className="flex items-center text-gray-600 mb-6">
-                <MapPin size={20} className="mr-2 text-sky-500" />
-                <span className="text-lg font-medium">{tour.destination}</span>
-              </div>
-
-              <p className="text-lg text-gray-700 leading-relaxed mb-8">
-                {tour.description}
-              </p>
-
-              {/* Tour Stats */}
-              <div className="grid grid-cols-2 gap-4 mb-8">
-                <div className="flex items-center">
-                  <Clock size={20} className="mr-3 text-sky-500" />
+            {/* Right: Sticky booking card */}
+            <div className="lg:col-span-1">
+              <div className="lg:sticky lg:top-24 bg-white rounded-xl border border-gray-200 shadow-lg p-6">
+                <div className="text-2xl font-bold text-gray-900 mb-1">From ${tour.price.startingFrom}</div>
+                <p className="text-sm text-gray-500 mb-4">per person</p>
+                <div className="space-y-4">
                   <div>
-                    <p className="text-sm text-gray-500">Duration</p>
-                    <p className="font-semibold">{tour.duration}</p>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                    <input
+                      type="date"
+                      value={bookingDate}
+                      onChange={(e) => setBookingDate(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                    />
                   </div>
-                </div>
-                <div className="flex items-center">
-                  <Users size={20} className="mr-3 text-sky-500" />
                   <div>
-                    <p className="text-sm text-gray-500">Group Size</p>
-                    <p className="font-semibold">{tour.groupSize}</p>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Guests</label>
+                    <select
+                      value={guests}
+                      onChange={(e) => setGuests(Number(e.target.value))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 bg-white"
+                    >
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+                        <option key={n} value={n}>{n} {n === 1 ? 'guest' : 'guests'}</option>
+                      ))}
+                    </select>
                   </div>
+                  <button
+                    onClick={() => setShowBooking(true)}
+                    className="w-full bg-gradient-to-r from-sky-500 to-blue-600 text-white py-3 px-4 rounded-lg font-semibold hover:from-sky-600 hover:to-blue-700 transition-all"
+                  >
+                    Check availability
+                  </button>
+                  <p className="text-xs text-gray-500 text-center">Free cancellation up to 24 hours before</p>
                 </div>
-                <div className="flex items-center">
-                  <Star size={20} className="mr-3 text-yellow-500 fill-current" />
-                  <div>
-                    <p className="text-sm text-gray-500">Rating</p>
-                    <p className="font-semibold">{tour.rating} ({tour.reviews} reviews)</p>
-                  </div>
-                </div>
-                <div className="flex items-center">
-                  <Plane size={20} className="mr-3 text-sky-500" />
-                  <div>
-                    <p className="text-sm text-gray-500">Difficulty</p>
-                    <p className="font-semibold">Easy</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Pricing */}
-              <div className="bg-gradient-to-r from-sky-50 to-blue-50 rounded-2xl p-6 mb-8">
-                <h3 className="text-2xl font-bold text-gray-900 mb-4">Pricing</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="text-center">
-                    <p className="text-sm text-gray-600">Twin Sharing</p>
-                    <p className="text-3xl font-bold text-gray-900">${tour.price.twin}</p>
-                    <p className="text-sm text-gray-500">per person</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-sm text-gray-600">Single Room</p>
-                    <p className="text-3xl font-bold text-gray-900">${tour.price.single}</p>
-                    <p className="text-sm text-gray-500">per person</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* CTA Buttons */}
-              <div className="flex flex-col sm:flex-row gap-4">
-                <LuxuryButton
-                  variant="gradient"
-                  size="lg"
-                  className="flex-1 group"
-                  onClick={() => setShowBooking(true)}
-                >
-                  <BookOpen className="mr-2 w-5 h-5" />
-                  Book This Tour
-                </LuxuryButton>
-                
-                <LuxuryButton
-                  variant="outline"
-                  size="lg"
-                  className="flex-1"
-                  onClick={() => {/* Add to wishlist */}}
-                >
-                  <Heart className="mr-2 w-5 h-5" />
-                  Add to Wishlist
-                </LuxuryButton>
               </div>
             </div>
           </div>
@@ -213,18 +183,11 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
       </section>
 
       {/* Tour Highlights */}
-      <section className="py-16 bg-gray-50">
+      <section className="py-16 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-heading font-bold text-gray-900 mb-8">Tour Highlights</h2>
+          <h2 className="text-3xl font-heading font-bold text-gray-900 mb-8">Highlights</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {[
-              'Visit iconic landmarks and hidden gems',
-              'Experience local culture and traditions',
-              'Enjoy premium accommodations',
-              'Professional local guides',
-              'Small group experience',
-              'All entrance fees included'
-            ].map((highlight, index) => (
+            {tour.highlights.map((highlight, index) => (
               <div key={index} className="flex items-center">
                 <CheckCircle size={20} className="mr-3 text-green-500 flex-shrink-0" />
                 <span className="text-gray-700">{highlight}</span>
@@ -234,21 +197,14 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
         </div>
       </section>
 
-      {/* What's Included */}
-      <section className="py-16 bg-white">
+      {/* What's Included / Excluded */}
+      <section className="py-16 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
             <div>
-              <h3 className="text-2xl font-heading font-bold text-gray-900 mb-6">What's Included</h3>
+              <h3 className="text-2xl font-heading font-bold text-gray-900 mb-6">What's included</h3>
               <div className="space-y-4">
-                {[
-                  'All accommodation as specified',
-                  'Professional English-speaking guide',
-                  'All transportation during the tour',
-                  'All entrance fees and activities',
-                  'Daily breakfast',
-                  'Airport transfers'
-                ].map((item, index) => (
+                {tour.includes.map((item, index) => (
                   <div key={index} className="flex items-center">
                     <CheckCircle size={20} className="mr-3 text-green-500 flex-shrink-0" />
                     <span className="text-gray-700">{item}</span>
@@ -256,18 +212,10 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
                 ))}
               </div>
             </div>
-            
             <div>
-              <h3 className="text-2xl font-heading font-bold text-gray-900 mb-6">What's Not Included</h3>
+              <h3 className="text-2xl font-heading font-bold text-gray-900 mb-6">What's not included</h3>
               <div className="space-y-4">
-                {[
-                  'International flights',
-                  'Travel insurance',
-                  'Personal expenses',
-                  'Tips and gratuities',
-                  'Alcoholic beverages',
-                  'Optional activities'
-                ].map((item, index) => (
+                {tour.excludes.map((item, index) => (
                   <div key={index} className="flex items-center">
                     <XCircle size={20} className="mr-3 text-red-500 flex-shrink-0" />
                     <span className="text-gray-700">{item}</span>

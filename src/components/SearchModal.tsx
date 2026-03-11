@@ -70,7 +70,7 @@ export default function SearchModal({ isOpen, onClose, onSearch }: SearchModalPr
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-          <h2 className="text-2xl font-light text-gray-900">Search TRAVERION</h2>
+          <h2 className="text-2xl font-light text-gray-900">Search tours & activities</h2>
           <button
             onClick={onClose}
             className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200"
@@ -217,7 +217,7 @@ export default function SearchModal({ isOpen, onClose, onSearch }: SearchModalPr
               className="bg-gradient-to-r from-sky-500 to-blue-600 text-white px-8 py-4 rounded-xl font-light text-lg hover:from-sky-600 hover:to-blue-700 transition-all duration-300 shadow-lg hover:shadow-xl flex items-center gap-3"
             >
               <Search className="w-5 h-5" />
-              {t.search?.searchTrips || 'Search Trips'}
+              {t.search?.searchTrips || 'Search Tours'}
             </button>
           </div>
         </div>

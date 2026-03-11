@@ -17,13 +17,13 @@ export default function StickyBookingButton({ onNavigate }: StickyBookingButtonP
           <span className="text-sm">Call</span>
         </a>
 
-        {/* Book Button */}
+        {/* Book Tours Button */}
         <button
-          onClick={() => onNavigate?.('contact')}
+          onClick={() => onNavigate?.('packages')}
           className="flex-1 bg-gradient-to-r from-sky-500 to-blue-600 text-white px-4 py-3 rounded-xl font-light shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2"
         >
           <Calendar className="w-5 h-5" />
-          <span className="text-sm">Book Now</span>
+          <span className="text-sm">Find Tours</span>
         </button>
       </div>
     </div>

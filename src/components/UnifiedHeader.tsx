@@ -103,7 +103,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
               <h1 className="text-xl sm:text-2xl font-light bg-gradient-to-r from-sky-600 to-blue-700 bg-clip-text text-transparent">
                 TRAVERION
               </h1>
-              <p className="text-xs sm:text-sm text-gray-600 font-light">Beyond Ordinary</p>
+              <p className="text-xs sm:text-sm text-gray-600 font-light">Tours & Activities</p>
             </div>
           </div>
 
@@ -123,7 +123,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                 currentPage === 'packages' ? 'text-sky-600' : ''
               }`}
             >
-              {t.navigation?.packages || 'Packages'}
+              {t.navigation?.tours || t.navigation?.packages || 'Tours'}
             </button>
             <button
               onClick={() => onNavigate('blog')}
@@ -152,10 +152,10 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
               <Search className="w-5 h-5" />
             </button>
             <button
-              onClick={() => onNavigate('contact')}
+              onClick={() => onNavigate('packages')}
               className="bg-gradient-to-r from-sky-500 to-blue-600 text-white px-4 sm:px-6 py-2 rounded-lg font-light hover:from-sky-600 hover:to-blue-700 transition-all duration-300 shadow-lg hover:shadow-xl hidden lg:block text-sm sm:text-base"
             >
-              BOOK A HOLIDAY
+              FIND TOURS
             </button>
             {/* Mobile Menu Button */}
             <button
@@ -191,7 +191,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                   currentPage === 'packages' ? 'bg-sky-50 text-sky-600' : 'text-gray-700 hover:bg-gray-50'
                 }`}
               >
-                {t.navigation?.packages || 'Packages'}
+                {t.navigation?.tours || t.navigation?.packages || 'Tours'}
               </button>
               <button
                 onClick={() => {
@@ -230,12 +230,12 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                 </button>
                 <button
                   onClick={() => {
-                    onNavigate('contact');
+                    onNavigate('packages');
                     setIsMobileMenuOpen(false);
                   }}
                   className="w-full bg-gradient-to-r from-sky-500 to-blue-600 text-white px-4 py-3 rounded-lg font-medium hover:from-sky-600 hover:to-blue-700 transition-all duration-300 shadow-lg text-center"
                 >
-                  BOOK A HOLIDAY
+                  FIND TOURS
                 </button>
               </div>
             </nav>
@@ -243,20 +243,23 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
         )}
       </div>
 
-      {/* Section 3: Sale Banner */}
+      {/* Section 3: Promo Banner - Tours */}
       <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white py-2 px-4">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-2">
           <div className="flex items-center gap-2 sm:gap-3">
             <div className="bg-white text-amber-600 px-2 py-1 rounded-full font-bold text-xs sm:text-sm">
-              -40%
+              Popular
             </div>
             <div className="text-center sm:text-left">
-              <h3 className="font-bold text-xs sm:text-sm">{t.promotions?.title || 'Last-minute deals up to -40%'}</h3>
-              <p className="text-xs opacity-90 hidden sm:block">{t.promotions?.subtitle || 'Last-minute trips to the world\'s most beautiful destinations'}</p>
+              <h3 className="font-bold text-xs sm:text-sm">{t.promotions?.title || 'Best-selling tours & activities'}</h3>
+              <p className="text-xs opacity-90 hidden sm:block">{t.promotions?.subtitle || 'Top-rated experiences in Southeast Asia'}</p>
             </div>
           </div>
-          <button className="bg-white text-amber-600 px-3 sm:px-4 py-1 rounded text-xs sm:text-sm font-medium hover:bg-gray-50 transition-colors duration-300 whitespace-nowrap">
-            {t.promotions?.cta || 'Explore Offers'}
+          <button
+            onClick={() => onNavigate('packages')}
+            className="bg-white text-amber-600 px-3 sm:px-4 py-1 rounded text-xs sm:text-sm font-medium hover:bg-gray-50 transition-colors duration-300 whitespace-nowrap"
+          >
+            {t.promotions?.cta || 'Browse Tours'}
           </button>
         </div>
       </div>

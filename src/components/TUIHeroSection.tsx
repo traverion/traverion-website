@@ -75,9 +75,8 @@ export default function TUIHeroSection({ onSearch }: TUIHeroSectionProps) {
   );
 
   const handleSearch = () => {
-    // Validate required fields
-    if (!searchData.destination || !searchData.departureDate) {
-      alert('Please fill in destination and departure date to search');
+    if (!searchData.destination) {
+      alert('Please select a destination to search');
       return;
     }
 
@@ -174,73 +173,33 @@ export default function TUIHeroSection({ onSearch }: TUIHeroSectionProps) {
 
         <div className="text-center text-white mb-16">
           <h1 className="text-4xl md:text-6xl font-light mb-6">
-            Luxury Southeast Asia Tours
+            Book Tours & Activities
           </h1>
           <p className="text-lg md:text-xl text-white/90 max-w-2xl mx-auto mb-8 font-light">
-            Discover Vietnam, Thailand & Cambodia with our premium tour packages
+            Find and book the best tours, day trips and experiences. Instant confirmation.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
             <div className="bg-white/10 backdrop-blur-md rounded-full px-6 py-3">
-              <span className="text-white font-medium">Starting from $499 USD</span>
+              <span className="text-white font-medium">500+ tours worldwide</span>
             </div>
             <div className="bg-white/10 backdrop-blur-md rounded-full px-6 py-3">
-              <span className="text-white font-medium">Custom Quotes Available</span>
+              <span className="text-white font-medium">Free cancellation</span>
             </div>
           </div>
         </div>
 
-        {/* Simplified Search Module */}
+        {/* GetYourGuide-style search: destination + date */}
         <div className="bg-white rounded-2xl shadow-2xl p-6 md:p-8 max-w-4xl mx-auto">
           <div className="text-center mb-6">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-2">Find Your Perfect Tour</h2>
-            <p className="text-gray-600">Get a custom quote in 3 simple steps</p>
+            <h2 className="text-2xl font-semibold text-gray-900 mb-2">Where do you want to go?</h2>
+            <p className="text-gray-600">Search tours and activities by destination</p>
           </div>
           
-          {/* Search Form */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Departure Location */}
-            <div className="relative">
-              <label className="block text-sm font-light text-gray-700 mb-2">
-                Departure Location
-              </label>
-              <div className="relative">
-                <Plane className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="text"
-                  value={searchData.departure}
-                  onChange={(e) => {
-                    setSearchData(prev => ({ ...prev, departure: e.target.value }));
-                    setShowDepartureDropdown(true);
-                  }}
-                  onFocus={() => setShowDepartureDropdown(true)}
-                  placeholder="Select departure city"
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-colors bg-white"
-                />
-                
-                {/* Departure Dropdown */}
-                {showDepartureDropdown && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-60 overflow-y-auto">
-                    {filteredDepartures.map((loc) => (
-                      <button
-                        key={loc}
-                        onClick={() => {
-                          setSearchData(prev => ({ ...prev, departure: loc }));
-                          setShowDepartureDropdown(false);
-                        }}
-                        className="w-full text-left px-4 py-3 hover:bg-sky-50 transition-colors"
-                      >
-                        {loc}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
             {/* Destination */}
-            <div className="relative">
+            <div className="relative md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Where do you want to go?
+                Destination
               </label>
               <div className="relative">
                 <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -260,10 +219,10 @@ export default function TUIHeroSection({ onSearch }: TUIHeroSectionProps) {
               </div>
             </div>
 
-            {/* Departure Date */}
+            {/* Date (optional) */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                When do you want to travel?
+                When (optional)
               </label>
               <div className="relative">
                 <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -275,10 +234,8 @@ export default function TUIHeroSection({ onSearch }: TUIHeroSectionProps) {
                 />
               </div>
             </div>
-
           </div>
 
-          {/* Search Button */}
           <div className="mt-8 text-center">
             <LuxuryButton
               variant="gradient"
@@ -295,12 +252,12 @@ export default function TUIHeroSection({ onSearch }: TUIHeroSectionProps) {
               ) : (
                 <>
                   <Search className="mr-2 w-5 h-5" />
-                  Get Custom Quote
+                  Search Tours
                 </>
               )}
             </LuxuryButton>
             <p className="text-sm text-gray-500 mt-3">
-              We'll send you a personalized quote within 24 hours
+              Compare prices and book the best tours and activities
             </p>
           </div>
         </div>
