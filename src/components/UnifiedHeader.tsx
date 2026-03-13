@@ -306,27 +306,6 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
         )}
       </div>
 
-      {/* Section 3: Promo Banner */}
-      <div className="bg-finland-light text-white py-2 px-4">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-2">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="bg-white text-finland px-2 py-1 rounded-full font-bold text-xs sm:text-sm">
-              Popular
-            </div>
-            <div className="text-center sm:text-left">
-              <h3 className="font-bold text-xs sm:text-sm">{t.promotions?.title || 'Best-selling tours & activities'}</h3>
-              <p className="text-xs opacity-90 hidden sm:block">{t.promotions?.subtitle || 'Top-rated experiences in Southeast Asia'}</p>
-            </div>
-          </div>
-          <button
-            onClick={() => onNavigate('packages')}
-            className="bg-white text-finland px-3 sm:px-4 py-1 rounded text-xs sm:text-sm font-medium hover:bg-gray-100 transition-colors duration-300 whitespace-nowrap"
-          >
-            {t.promotions?.cta || 'Browse Tours'}
-          </button>
-        </div>
-      </div>
-
       {/* Search Modal */}
       <SearchModal 
         isOpen={isSearchOpen} 

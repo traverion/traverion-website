@@ -382,22 +382,7 @@ export default function Packages({ onTourSelect }: PackagesProps) {
             </div>
           )}
 
-          {/* Show multi-day holiday packages only when seed data is enabled */}
-          {SHOW_SEED_LISTINGS && (
-            <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => setShowHolidayPackages(!showHolidayPackages)}
-                className="flex items-center gap-2 text-sm text-gray-600 hover:text-finland transition-colors"
-              >
-                <ChevronDown className={`w-4 h-4 transition-transform ${showHolidayPackages ? 'rotate-180' : ''}`} />
-                {showHolidayPackages ? 'Hide multi-day packages' : 'Show multi-day packages'}
-              </button>
-              {showHolidayPackages && (
-                <span className="text-xs text-gray-500">{tourPackages.length} multi-day tours</span>
-              )}
-            </div>
-          )}
+          {/* Holiday / multi-day packages hidden from UI for now */}
         </div>
 
         {/* Recommended - GYG style (only when we have listings) */}
