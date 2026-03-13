@@ -1,4 +1,4 @@
-import { MapPin, Phone, Mail, Clock, Facebook, Instagram, Twitter, Youtube, Star, Award, Shield } from 'lucide-react';
+import { MapPin, Phone, Mail, Clock, Facebook, Instagram, Twitter, Youtube, Star, Award, Shield, Heart } from 'lucide-react';
 import LuxuryButton from './ui/LuxuryButton';
 import { useTranslation } from '../contexts/TranslationContext';
 
