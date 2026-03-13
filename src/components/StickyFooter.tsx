@@ -1,4 +1,4 @@
-import { Facebook, Instagram, Twitter, Youtube, Heart, Star, Award, Shield } from 'lucide-react';
+import { Facebook, Instagram, Twitter, Youtube, Star, Award, Shield } from 'lucide-react';
 import { useTranslation } from '../contexts/TranslationContext';
 
 export default function StickyFooter() {
@@ -14,10 +14,6 @@ export default function StickyFooter() {
             <span className="text-gray-300">
               © {currentYear} TRAVERION. {t.stickyFooter.copyright}
             </span>
-            <div className="flex items-center space-x-1 text-sky-400">
-              <Heart className="w-3 h-3" />
-              <span className="text-xs">{t.stickyFooter.madeWithLove}</span>
-            </div>
           </div>
 
           {/* Center - Quick Links */}

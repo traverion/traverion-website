@@ -233,16 +233,16 @@ html {
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: #f8fafc;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(to bottom, #0ea5e9, #3b82f6);
+  background: #003580;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(to bottom, #0284c7, #2563eb);
+  background: #002F6C;
 }
 
 /* Line clamp utilities */
@@ -287,7 +287,7 @@ html {
 
 /* Gradient text utilities */
 .gradient-text {
-  background: linear-gradient(135deg, #0ea5e9, #3b82f6, #8b5cf6);
+  background: linear-gradient(135deg, #003580, #0047AB);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -312,4 +312,68 @@ html {
 
 .backdrop-blur-xl {
   backdrop-filter: blur(24px);
+}
+
+/* --- Listing / card animations (GetYourGuide, TripAdvisor, Airbnb style) --- */
+.listing-card {
+  transition: transform 0.25s ease-out, box-shadow 0.25s ease-out;
+}
+.listing-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.15), 0 4px 12px -4px rgba(0, 0, 0, 0.08);
+}
+
+.listing-card-image {
+  transition: transform 0.4s ease-out;
+}
+.listing-card:hover .listing-card-image {
+  transform: scale(1.03);
+}
+
+/* Staggered fade-in for listing grid */
+@keyframes listing-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.stagger-item {
+  animation: listing-fade-in 0.4s ease-out both;
+}
+.stagger-item:nth-child(1) { animation-delay: 0.02s; }
+.stagger-item:nth-child(2) { animation-delay: 0.05s; }
+.stagger-item:nth-child(3) { animation-delay: 0.08s; }
+.stagger-item:nth-child(4) { animation-delay: 0.11s; }
+.stagger-item:nth-child(5) { animation-delay: 0.14s; }
+.stagger-item:nth-child(6) { animation-delay: 0.17s; }
+.stagger-item:nth-child(7) { animation-delay: 0.2s; }
+.stagger-item:nth-child(8) { animation-delay: 0.23s; }
+.stagger-item:nth-child(9) { animation-delay: 0.26s; }
+.stagger-item:nth-child(n+10) { animation-delay: 0.29s; }
+
+/* Hero content fade-in */
+@keyframes hero-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.hero-fade-in {
+  animation: hero-fade-in 0.6s ease-out both;
+}
+.hero-fade-in-delay-1 { animation-delay: 0.1s; }
+.hero-fade-in-delay-2 { animation-delay: 0.2s; }
+.hero-fade-in-delay-3 { animation-delay: 0.35s; }
+
+/* Filter chip transition */
+.filter-chip {
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }

@@ -45,6 +45,20 @@ export interface TourPackage {
   reviews: number;
   isPopular: boolean;
   discount?: string;
+  /** GetYourGuide/TripAdvisor-style: hide from main listing when true */
+  isHolidayPackage?: boolean;
+  /** e.g. "Ho Chi Minh City", "Bangkok" */
+  city?: string;
+  /** e.g. "Southeast Asia", "Mekong" */
+  region?: string;
+  /** e.g. "Vietnam", "Thailand" */
+  country?: string;
+  /** e.g. "free-cancellation", "small-group", "pickup-available", "mobile-ticket", "bestseller" */
+  tags?: string[];
+  /** When true, hidden from main listing in platform mode (supplier-built tours only). */
+  isSeedData?: boolean;
+  /** Supplier id who created this listing (for platform mode). */
+  supplierId?: string;
 }
 
 export interface DayPlan {

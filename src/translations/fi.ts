@@ -197,6 +197,11 @@ export const fi = {
     perPerson: 'per henkilö (kaksin jakaminen)',
   },
 
+  // Top bar (above main nav)
+  topBanner: {
+    trustLine: 'Ilmainen peruutus useimmissa · Paras hinta -takuu',
+  },
+
   // Promotional Banner
   promotions: {
     lastMinute: 'Äkkilähdöt jopa -40%',
@@ -208,6 +213,30 @@ export const fi = {
     luxuryExperience: 'Luksuskokemus',
     luxurySubtitle: 'Kokemuksia jotka muuttavat elämää',
     exploreLuxury: 'Tutustu Luksusmatkoihin',
+  },
+
+  // Listings / Tours page
+  listings: {
+    title: 'Kierrokset ja aktiviteetit',
+    subtitle: 'kierrosta · Ilmainen peruutus useimmissa',
+    recommended: 'Suosittelemme',
+    allTours: 'Kaikki kierrokset ja aktiviteetit',
+    results: 'Tulokset',
+    noToursYet: 'Kierroksia ei ole vielä listattu.',
+    noToursYetSub: 'Lisää ensimmäinen kierroksesi ja tavoita matkailijoita maailmanlaajuisesti.',
+    listYourTour: 'Lisää kierros',
+    noToursFound: 'Kierroksia ei löytynyt',
+    tryFilters: 'Kokeile eri suodattimia tai hakusanoja',
+    showMultiDay: 'Näytä usean päivän paketit',
+    hideMultiDay: 'Piilota usean päivän paketit',
+    multiDayCount: 'usean päivän kierrosta',
+    tags: {
+      freeCancellation: 'Ilmainen peruutus',
+      smallGroup: 'Pieni ryhmä',
+      pickupAvailable: 'Nouto tarjolla',
+      mobileTicket: 'Mobiililiput',
+      bestseller: 'Myydyin',
+    },
   },
 
   // Sticky Footer

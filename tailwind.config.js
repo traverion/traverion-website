@@ -3,6 +3,13 @@ export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
+      colors: {
+        finland: {
+          DEFAULT: '#003580',
+          light: '#0047AB',
+          dark: '#002F6C',
+        },
+      },
       screens: {
         'xs': '475px',
       },

@@ -123,13 +123,13 @@ export const en = {
 
   // Footer
   footer: {
-    description: 'Creating extraordinary travel experiences that go beyond ordinary. Your trusted partner in discovering the world\'s most incredible destinations with luxury, authenticity, and adventure.',
+    description: 'Book tours and activities worldwide. Your trusted platform for discovering experiences with instant confirmation and free cancellation.',
     quickLinks: 'Quick Links',
     getInTouch: 'Get In Touch',
     stayUpdated: 'Stay Updated',
     newsletterText: 'Get the latest travel deals and destination guides.',
     yourEmail: 'Your email',
-    madeWithLove: 'Made with love in Finland',
+    madeWithLove: 'Made with love',
     secure: 'Secure',
     premiumService: 'Premium Service',
     secureBooking: 'Secure Booking',
@@ -150,8 +150,8 @@ export const en = {
       phoneHours: 'Mon-Fri 9:00-18:00',
       email: 'contact@traverion.com',
       emailResponse: '24h response time',
-      location: 'Finland',
-      locationService: 'Serving worldwide',
+      location: 'HQ Finland · Serving worldwide',
+      locationService: 'Global',
     },
     rights: 'All rights reserved',
   },
@@ -197,6 +197,11 @@ export const en = {
     perPerson: 'per person (twin share)',
   },
 
+  // Top bar (above main nav) - one line, minimal
+  topBanner: {
+    trustLine: 'Free cancellation on most tours · Best price guarantee',
+  },
+
   // Promotional Banner
   promotions: {
     lastMinute: 'Last-minute deals up to -40%',
@@ -210,10 +215,34 @@ export const en = {
     exploreLuxury: 'Explore Luxury',
   },
 
+  // Listings / Tours page
+  listings: {
+    title: 'Tours & activities',
+    subtitle: 'tours · Free cancellation on most',
+    recommended: 'Recommended for you',
+    allTours: 'All tours & activities',
+    results: 'Results',
+    noToursYet: 'No tours listed yet.',
+    noToursYetSub: 'List your first tour and reach travelers everywhere.',
+    listYourTour: 'List your tour',
+    noToursFound: 'No tours found',
+    tryFilters: 'Try different filters or search terms',
+    showMultiDay: 'Show multi-day packages',
+    hideMultiDay: 'Hide multi-day packages',
+    multiDayCount: 'multi-day tours',
+    tags: {
+      freeCancellation: 'Free cancellation',
+      smallGroup: 'Small group',
+      pickupAvailable: 'Pickup available',
+      mobileTicket: 'Mobile ticket',
+      bestseller: 'Bestseller',
+    },
+  },
+
   // Sticky Footer
   stickyFooter: {
     copyright: 'All rights reserved.',
-    madeWithLove: 'Made with love in Finland',
+    madeWithLove: 'Made with love',
     quickLinks: {
       privacy: 'Privacy Policy',
       terms: 'Terms of Service',

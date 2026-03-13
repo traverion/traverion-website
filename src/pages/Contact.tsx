@@ -4,7 +4,7 @@ import { useTranslation } from '../contexts/TranslationContext';
 import LuxuryButton from '../components/ui/LuxuryButton';
 import LuxuryCard from '../components/ui/LuxuryCard';
 import LuxuryInput from '../components/ui/LuxuryInput';
-import { submitContactInquiry, ContactInquiry } from '../lib/supabase';
+import { submitContactInquiry, ContactInquiry } from '../data/supabase-contact';
 
 export default function Contact() {
   const { t } = useTranslation();
@@ -77,7 +77,7 @@ export default function Contact() {
   return (
     <div className="min-h-screen bg-white pt-20">
       {/* Hero Section */}
-      <section className="relative py-24 bg-gradient-to-br from-sky-50 via-white to-blue-50 overflow-hidden">
+      <section className="relative py-24 bg-gradient-to-br from-gray-50 via-white to-gray-50 overflow-hidden">
         <div className="absolute inset-0 opacity-5">
           <div className="absolute inset-0" style={{
             backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%230ea5e9' fill-opacity='0.1'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
@@ -86,7 +86,7 @@ export default function Contact() {
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="text-center mb-16">
-            <div className="inline-block px-4 py-2 bg-sky-100 text-sky-600 rounded-full text-sm font-semibold mb-6 animate-fade-in-up">
+            <div className="inline-block px-4 py-2 bg-finland/10 text-finland rounded-full text-sm font-semibold mb-6 animate-fade-in-up">
               ✨ Get In Touch
             </div>
             <h1 className="text-5xl md:text-6xl font-display font-bold text-gray-900 mb-6 animate-fade-in-up stagger-1">
@@ -104,8 +104,8 @@ export default function Contact() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-16">
             <LuxuryCard variant="elevated" className="p-8 text-center">
-              <div className="w-16 h-16 bg-sky-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Phone className="w-8 h-8 text-sky-500" />
+              <div className="w-16 h-16 bg-finland/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Phone className="w-8 h-8 text-finland" />
               </div>
               <h3 className="text-xl font-heading font-bold text-gray-900 mb-2">Phone</h3>
               <p className="text-gray-600 mb-2">+358 40 123 4567</p>
@@ -113,8 +113,8 @@ export default function Contact() {
             </LuxuryCard>
 
             <LuxuryCard variant="elevated" className="p-8 text-center">
-              <div className="w-16 h-16 bg-sky-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Mail className="w-8 h-8 text-sky-500" />
+              <div className="w-16 h-16 bg-finland/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Mail className="w-8 h-8 text-finland" />
               </div>
               <h3 className="text-xl font-heading font-bold text-gray-900 mb-2">Email</h3>
               <p className="text-gray-600 mb-2">info@traverion.com</p>
@@ -122,8 +122,8 @@ export default function Contact() {
             </LuxuryCard>
 
             <LuxuryCard variant="elevated" className="p-8 text-center">
-              <div className="w-16 h-16 bg-sky-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <MapPin className="w-8 h-8 text-sky-500" />
+              <div className="w-16 h-16 bg-finland/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                <MapPin className="w-8 h-8 text-finland" />
               </div>
               <h3 className="text-xl font-heading font-bold text-gray-900 mb-2">Office</h3>
               <p className="text-gray-600 mb-2">Helsinki, Finland</p>
@@ -188,7 +188,7 @@ export default function Contact() {
                       name="tourInterest"
                       value={formData.tourInterest}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-finland focus:border-transparent transition-all"
                     >
                       <option value="">Select Tour Interest</option>
                       <option value="vietnam">Vietnam Tours</option>
@@ -221,7 +221,7 @@ export default function Contact() {
                     onChange={handleInputChange}
                     placeholder="Tell us about your dream trip..."
                     rows={5}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all resize-none"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-finland focus:border-transparent transition-all resize-none"
                     required
                   />
 
@@ -255,8 +255,8 @@ export default function Contact() {
               <div className="space-y-6">
                 <LuxuryCard variant="glass" className="p-6">
                   <div className="flex items-start">
-                    <div className="w-12 h-12 bg-sky-100 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
-                      <Globe className="w-6 h-6 text-sky-500" />
+                    <div className="w-12 h-12 bg-finland/10 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
+                      <Globe className="w-6 h-6 text-finland" />
                     </div>
                     <div>
                       <h3 className="text-lg font-heading font-semibold text-gray-900 mb-2">Expert Local Knowledge</h3>
@@ -267,8 +267,8 @@ export default function Contact() {
 
                 <LuxuryCard variant="glass" className="p-6">
                   <div className="flex items-start">
-                    <div className="w-12 h-12 bg-sky-100 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
-                      <User className="w-6 h-6 text-sky-500" />
+                    <div className="w-12 h-12 bg-finland/10 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
+                      <User className="w-6 h-6 text-finland" />
                     </div>
                     <div>
                       <h3 className="text-lg font-heading font-semibold text-gray-900 mb-2">Personalized Service</h3>
@@ -279,8 +279,8 @@ export default function Contact() {
 
                 <LuxuryCard variant="glass" className="p-6">
                   <div className="flex items-start">
-                    <div className="w-12 h-12 bg-sky-100 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
-                      <Clock className="w-6 h-6 text-sky-500" />
+                    <div className="w-12 h-12 bg-finland/10 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
+                      <Clock className="w-6 h-6 text-finland" />
                     </div>
                     <div>
                       <h3 className="text-lg font-heading font-semibold text-gray-900 mb-2">24/7 Support</h3>
@@ -290,10 +290,10 @@ export default function Contact() {
                 </LuxuryCard>
               </div>
 
-              <div className="mt-8 p-6 bg-gradient-to-r from-sky-50 to-blue-50 rounded-2xl">
+              <div className="mt-8 p-6 bg-gradient-to-r from-finland/5 to-finland/10 rounded-2xl">
                 <h3 className="text-xl font-heading font-bold text-gray-900 mb-4">Quick Response Guarantee</h3>
                 <p className="text-gray-600 mb-4">We understand that planning your dream trip is important. That's why we guarantee a response within 24 hours.</p>
-                <div className="flex items-center text-sky-600">
+                <div className="flex items-center text-finland">
                   <Calendar className="w-5 h-5 mr-2" />
                   <span className="font-semibold">Response Time: &lt; 24 hours</span>
                 </div>

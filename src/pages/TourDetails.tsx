@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
 import { ArrowLeft, MapPin, Calendar, Users, Star, Clock, Plane, Shield, Heart, Share2, BookOpen, CheckCircle, XCircle, Download, Bed, UtensilsCrossed, Car, Camera, Mountain } from 'lucide-react';
 import { useTranslation } from '../contexts/TranslationContext';
+import { useAuth } from '../contexts/AuthContext';
 import LuxuryButton from '../components/ui/LuxuryButton';
 import LuxuryCard from '../components/ui/LuxuryCard';
-import { tourPackages } from '../data/tours';
+import { getListingById, getListingByIdAsync } from '../data/listings';
+import { isSupabaseConfigured } from '../lib/supabase';
+import { analytics } from '../lib/analytics';
 import { TourPackage } from '../types/tour';
 
 interface TourDetailsProps {
@@ -14,6 +17,7 @@ interface TourDetailsProps {
 
 export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps) {
   const { t } = useTranslation();
+  const { user, requestAuth } = useAuth();
   const [tour, setTour] = useState<TourPackage | null>(null);
   const [selectedImage, setSelectedImage] = useState(0);
   const [isLiked, setIsLiked] = useState(false);
@@ -23,8 +27,11 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
   const [guests, setGuests] = useState(2);
 
   useEffect(() => {
-    const foundTour = tourPackages.find(t => t.id === tourId);
-    setTour(foundTour || null);
+    if (isSupabaseConfigured()) {
+      getListingByIdAsync(tourId).then(found => setTour(found ?? null));
+    } else {
+      setTour(getListingById(tourId) ?? null);
+    }
   }, [tourId]);
 
   if (!tour) {
@@ -71,7 +78,7 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
                 <Heart size={20} className={isLiked ? 'fill-current' : ''} />
               </button>
               
-              <button className="p-2 rounded-full bg-gray-100 text-gray-600 hover:bg-sky-50 hover:text-sky-500 transition-all duration-300">
+              <button className="p-2 rounded-full bg-gray-100 text-gray-600 hover:bg-finland/10 hover:text-finland transition-all duration-300">
                 <Share2 size={20} />
               </button>
             </div>
@@ -116,21 +123,23 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
               <div>
                 <div className="flex flex-wrap gap-2 mb-4">
                   {tour.isPopular && (
-                    <span className="bg-amber-500 text-white px-3 py-1 rounded-full text-sm font-medium">Popular</span>
+                    <span className="bg-finland text-white px-3 py-1 rounded-full text-sm font-medium">Popular</span>
                   )}
                   {tour.discount && (
-                    <span className="bg-green-600 text-white px-3 py-1 rounded-full text-sm font-medium">{tour.discount} OFF</span>
+                    <span className="bg-finland text-white px-3 py-1 rounded-full text-sm font-medium">{tour.discount} OFF</span>
                   )}
-                  <span className="bg-gray-200 text-gray-700 px-3 py-1 rounded-full text-sm">Free cancellation</span>
+                  {(tour.tags?.includes('free-cancellation') || !tour.tags?.length) && (
+                    <span className="bg-gray-200 text-gray-700 px-3 py-1 rounded-full text-sm">Free cancellation</span>
+                  )}
                 </div>
                 <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-2">{tour.title}</h1>
                 <div className="flex items-center text-gray-600 mb-4">
-                  <MapPin size={20} className="mr-2 text-sky-500" />
+                  <MapPin size={20} className="mr-2 text-finland" />
                   <span>{tour.destination}</span>
                 </div>
                 <div className="flex flex-wrap gap-4 text-sm text-gray-600 mb-6">
                   <span className="flex items-center">
-                    <Star size={18} className="text-amber-400 fill-amber-400 mr-1" />
+                    <Star size={18} className="text-finland fill-finland mr-1" />
                     <strong className="text-gray-900">{tour.rating}</strong> ({tour.reviews} reviews)
                   </span>
                   <span className="flex items-center"><Clock size={18} className="mr-1" />{tour.duration}</span>
@@ -153,7 +162,7 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
                       type="date"
                       value={bookingDate}
                       onChange={(e) => setBookingDate(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland"
                     />
                   </div>
                   <div>
@@ -161,7 +170,7 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
                     <select
                       value={guests}
                       onChange={(e) => setGuests(Number(e.target.value))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 bg-white"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
                     >
                       {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
                         <option key={n} value={n}>{n} {n === 1 ? 'guest' : 'guests'}</option>
@@ -169,12 +178,21 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
                     </select>
                   </div>
                   <button
-                    onClick={() => setShowBooking(true)}
-                    className="w-full bg-gradient-to-r from-sky-500 to-blue-600 text-white py-3 px-4 rounded-lg font-semibold hover:from-sky-600 hover:to-blue-700 transition-all"
+                    onClick={() => {
+                      if (isSupabaseConfigured() && !user) {
+                        requestAuth({ onSuccess: () => setShowBooking(true) });
+                        return;
+                      }
+                      analytics.bookStart(tour.id);
+                      setShowBooking(true);
+                    }}
+                    className="w-full bg-finland text-white py-3 px-4 rounded-lg font-semibold hover:bg-finland-dark transition-all"
                   >
                     Check availability
                   </button>
-                  <p className="text-xs text-gray-500 text-center">Free cancellation up to 24 hours before</p>
+                  <p className="text-xs text-gray-500 text-center">
+                    {tour.tags?.includes('free-cancellation') ? 'Free cancellation up to 24 hours before' : 'See cancellation policy below'}
+                  </p>
                 </div>
               </div>
             </div>
@@ -189,7 +207,7 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {tour.highlights.map((highlight, index) => (
               <div key={index} className="flex items-center">
-                <CheckCircle size={20} className="mr-3 text-green-500 flex-shrink-0" />
+                <CheckCircle size={20} className="mr-3 text-finland flex-shrink-0" />
                 <span className="text-gray-700">{highlight}</span>
               </div>
             ))}
@@ -206,7 +224,7 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
               <div className="space-y-4">
                 {tour.includes.map((item, index) => (
                   <div key={index} className="flex items-center">
-                    <CheckCircle size={20} className="mr-3 text-green-500 flex-shrink-0" />
+                    <CheckCircle size={20} className="mr-3 text-finland flex-shrink-0" />
                     <span className="text-gray-700">{item}</span>
                   </div>
                 ))}
@@ -240,6 +258,7 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
                 size="lg"
                 className="flex-1"
                 onClick={() => {
+                  analytics.bookComplete(tour.id, guests);
                   setShowBooking(false);
                   onBook(tour);
                 }}

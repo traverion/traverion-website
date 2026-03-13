@@ -51,8 +51,8 @@ export default function FeaturedDestinations({ onTourSelect, onNavigate }: Featu
               onClick={() => setSelectedFilter(filter.id)}
               className={`px-6 py-3 rounded-full font-medium transition-all duration-300 ${
                 selectedFilter === filter.id
-                  ? 'bg-gradient-to-r from-slate-700 to-slate-800 text-white shadow-lg'
-                  : 'bg-white text-gray-600 hover:bg-slate-50 hover:text-slate-700'
+                  ? 'bg-finland text-white shadow-lg'
+                  : 'bg-white text-gray-600 hover:bg-gray-50 hover:text-finland'
               }`}
             >
               {filter.label}
@@ -90,13 +90,13 @@ export default function FeaturedDestinations({ onTourSelect, onNavigate }: Featu
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 />
                 <div className="absolute top-4 left-4">
-                  <span className="bg-gradient-to-r from-slate-700 to-slate-800 text-white px-3 py-1 rounded-full text-sm font-medium">
+                  <span className="bg-finland text-white px-3 py-1 rounded-full text-sm font-medium">
                     {tour.category}
                   </span>
                 </div>
                 <div className="absolute top-4 right-4">
                   <div className="flex items-center gap-1 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full">
-                    <Star className="w-4 h-4 text-amber-400 fill-current" />
+                    <Star className="w-4 h-4 text-finland fill-finland" />
                     <span className="text-sm font-medium text-gray-700">4.8</span>
                   </div>
                 </div>
@@ -105,11 +105,11 @@ export default function FeaturedDestinations({ onTourSelect, onNavigate }: Featu
               {/* Content */}
               <div className="p-6">
                 <div className="flex items-center gap-2 mb-3">
-                  <MapPin className="w-4 h-4 text-slate-600" />
-                  <span className="text-sm text-slate-600">{tour.destination}</span>
+                  <MapPin className="w-4 h-4 text-gray-600" />
+                  <span className="text-sm text-gray-600">{tour.destination}</span>
                 </div>
 
-                <h3 className="text-xl font-medium text-gray-900 mb-2 group-hover:text-slate-700 transition-colors">
+                <h3 className="text-xl font-medium text-gray-900 mb-2 group-hover:text-finland transition-colors">
                   {tour.title}
                 </h3>
 
@@ -131,7 +131,7 @@ export default function FeaturedDestinations({ onTourSelect, onNavigate }: Featu
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <div className="text-2xl font-medium text-slate-700">
+                  <div className="text-2xl font-medium text-finland">
                     From €1,299
                   </div>
                   <LuxuryButton

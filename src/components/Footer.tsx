@@ -1,4 +1,4 @@
-import { MapPin, Phone, Mail, Clock, Facebook, Instagram, Twitter, Youtube, Heart, Star, Award, Shield } from 'lucide-react';
+import { MapPin, Phone, Mail, Clock, Facebook, Instagram, Twitter, Youtube, Star, Award, Shield } from 'lucide-react';
 import LuxuryButton from './ui/LuxuryButton';
 import { useTranslation } from '../contexts/TranslationContext';
 
@@ -42,28 +42,28 @@ export default function Footer() {
               {/* Trust Indicators */}
               <div className="grid grid-cols-3 gap-4 mb-8">
                     <div className="text-center p-4 bg-white/5 rounded-xl backdrop-blur-sm">
-                      <Award className="w-6 h-6 text-amber-400 mx-auto mb-2" />
+                      <Award className="w-6 h-6 text-white mx-auto mb-2" />
                       <p className="text-xs text-gray-400">{t.footer.premiumService}</p>
                     </div>
                     <div className="text-center p-4 bg-white/5 rounded-xl backdrop-blur-sm">
-                      <Shield className="w-6 h-6 text-amber-400 mx-auto mb-2" />
+                      <Shield className="w-6 h-6 text-white mx-auto mb-2" />
                       <p className="text-xs text-gray-400">{t.footer.secureBooking}</p>
                     </div>
                     <div className="text-center p-4 bg-white/5 rounded-xl backdrop-blur-sm">
-                      <Star className="w-6 h-6 text-amber-400 mx-auto mb-2" />
+                      <Star className="w-6 h-6 text-white mx-auto mb-2" />
                       <p className="text-xs text-gray-400">{t.footer.fiveStarService}</p>
                     </div>
               </div>
 
               {/* Social Links */}
               <div className="flex space-x-4">
-                <a href="https://facebook.com/traverion" target="_blank" rel="noopener noreferrer" className="p-3 bg-white/10 hover:bg-sky-500 rounded-xl transition-all duration-300 hover:scale-110 group">
+                <a href="https://facebook.com/traverion" target="_blank" rel="noopener noreferrer" className="p-3 bg-white/10 hover:bg-finland rounded-xl transition-all duration-300 hover:scale-110 group">
                   <Facebook className="w-5 h-5 text-gray-400 group-hover:text-white" />
                 </a>
                 <a href="https://instagram.com/traverion" target="_blank" rel="noopener noreferrer" className="p-3 bg-white/10 hover:bg-pink-500 rounded-xl transition-all duration-300 hover:scale-110 group">
                   <Instagram className="w-5 h-5 text-gray-400 group-hover:text-white" />
                 </a>
-                <a href="https://twitter.com/traverion" target="_blank" rel="noopener noreferrer" className="p-3 bg-white/10 hover:bg-blue-500 rounded-xl transition-all duration-300 hover:scale-110 group">
+                <a href="https://twitter.com/traverion" target="_blank" rel="noopener noreferrer" className="p-3 bg-white/10 hover:bg-finland-light rounded-xl transition-all duration-300 hover:scale-110 group">
                   <Twitter className="w-5 h-5 text-gray-400 group-hover:text-white" />
                 </a>
                 <a href="https://youtube.com/traverion" target="_blank" rel="noopener noreferrer" className="p-3 bg-white/10 hover:bg-red-500 rounded-xl transition-all duration-300 hover:scale-110 group">
@@ -83,11 +83,12 @@ export default function Footer() {
                   { name: t.footer.links.blogStories, href: '/blog', onClick: () => window.location.href = '/blog' },
                   { name: t.footer.links.travelGuides, href: '/blog', onClick: () => window.location.href = '/blog' },
                   { name: t.footer.links.customerReviews, href: '/contact', onClick: () => window.location.href = '/contact' },
+                  { name: 'For suppliers', href: '/supplier', onClick: () => window.location.href = '/supplier' },
                 ].map((link, index) => (
                   <li key={index}>
                     <button 
                       onClick={link.onClick}
-                      className="text-gray-300 hover:text-sky-400 transition-colors duration-300 hover:translate-x-1 inline-block text-left"
+                      className="text-gray-300 hover:text-white transition-colors duration-300 hover:translate-x-1 inline-block text-left"
                       style={{ animationDelay: `${index * 0.1}s` }}
                     >
                       {link.name}
@@ -102,8 +103,8 @@ export default function Footer() {
               <h3 className="text-xl font-bold mb-6 text-white">{t.footer.getInTouch}</h3>
               <div className="space-y-4">
                     <div className="flex items-start group">
-                      <div className="p-2 bg-amber-500/20 rounded-lg mr-4 group-hover:bg-amber-500/30 transition-colors">
-                        <Phone className="text-amber-400" size={18} />
+                      <div className="p-2 bg-white/20 rounded-lg mr-4 group-hover:bg-white/30 transition-colors">
+                        <Phone className="text-white" size={18} />
                       </div>
                   <div>
                     <p className="text-gray-300 font-medium">{t.footer.contact.phone}</p>
@@ -112,8 +113,8 @@ export default function Footer() {
                 </div>
 
                     <div className="flex items-start group">
-                      <div className="p-2 bg-amber-500/20 rounded-lg mr-4 group-hover:bg-amber-500/30 transition-colors">
-                        <Mail className="text-amber-400" size={18} />
+                      <div className="p-2 bg-white/20 rounded-lg mr-4 group-hover:bg-white/30 transition-colors">
+                        <Mail className="text-white" size={18} />
                       </div>
                   <div>
                     <p className="text-gray-300 font-medium">{t.footer.contact.email}</p>
@@ -122,8 +123,8 @@ export default function Footer() {
                 </div>
 
                     <div className="flex items-start group">
-                      <div className="p-2 bg-amber-500/20 rounded-lg mr-4 group-hover:bg-amber-500/30 transition-colors">
-                        <MapPin className="text-amber-400" size={18} />
+                      <div className="p-2 bg-white/20 rounded-lg mr-4 group-hover:bg-white/30 transition-colors">
+                        <MapPin className="text-white" size={18} />
                       </div>
                   <div>
                     <p className="text-gray-300 font-medium">{t.footer.contact.location}</p>
@@ -133,14 +134,14 @@ export default function Footer() {
               </div>
 
                   {/* Newsletter Signup */}
-                  <div className="mt-8 p-6 bg-gradient-to-r from-amber-500/10 to-amber-600/10 rounded-xl backdrop-blur-sm">
+                  <div className="mt-8 p-6 bg-gradient-to-r from-white/5 to-white/10 rounded-xl backdrop-blur-sm">
                 <h4 className="font-semibold mb-3 text-white">{t.footer.stayUpdated}</h4>
                 <p className="text-sm text-gray-300 mb-4">{t.footer.newsletterText}</p>
                 <div className="flex space-x-2">
                   <input
                     type="email"
                     placeholder={t.footer.yourEmail}
-                    className="flex-1 px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                    className="flex-1 px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-finland"
                   />
                   <LuxuryButton size="sm" variant="gradient">
                     <Heart className="w-4 h-4" />
@@ -159,16 +160,12 @@ export default function Footer() {
                 <p className="text-gray-400 text-sm">
                   © {currentYear} TRAVERION. {t.footer.rights}.
                 </p>
-                    <div className="flex items-center space-x-1 text-amber-400">
-                      <Heart className="w-4 h-4" />
-                      <span className="text-sm">{t.footer.madeWithLove}</span>
-                    </div>
               </div>
               
               <div className="flex items-center space-x-6">
-                <button onClick={() => window.location.href = '/privacy'} className="text-gray-400 hover:text-amber-400 text-sm transition-colors">{t.footer.links.privacyPolicy}</button>
-                <button onClick={() => window.location.href = '/terms'} className="text-gray-400 hover:text-amber-400 text-sm transition-colors">{t.footer.links.termsOfService}</button>
-                <button onClick={() => window.location.href = '/cookies'} className="text-gray-400 hover:text-amber-400 text-sm transition-colors">{t.footer.links.cookiePolicy}</button>
+                <button onClick={() => window.location.href = '/privacy'} className="text-gray-400 hover:text-white text-sm transition-colors">{t.footer.links.privacyPolicy}</button>
+                <button onClick={() => window.location.href = '/terms'} className="text-gray-400 hover:text-white text-sm transition-colors">{t.footer.links.termsOfService}</button>
+                <button onClick={() => window.location.href = '/cookies'} className="text-gray-400 hover:text-white text-sm transition-colors">{t.footer.links.cookiePolicy}</button>
                 <div className="flex items-center space-x-1">
                   <span className="text-gray-400 text-sm">{t.footer.secure}</span>
                   <Shield className="w-4 h-4 text-green-400" />

@@ -221,7 +221,12 @@ export const tourPackages: TourPackage[] = [
     rating: 4.8,
     reviews: 156,
     isPopular: true,
-    discount: '15%'
+    discount: '15%',
+    isHolidayPackage: true,
+    city: 'Ho Chi Minh City',
+    region: 'Southern Vietnam',
+    country: 'Vietnam',
+    tags: []
   },
   {
     id: 'thailand-10-days',
@@ -448,7 +453,12 @@ export const tourPackages: TourPackage[] = [
     bestTime: 'November - March',
     rating: 4.7,
     reviews: 89,
-    isPopular: false
+    isPopular: false,
+    isHolidayPackage: true,
+    city: 'Bangkok',
+    region: 'Thailand',
+    country: 'Thailand',
+    tags: []
   },
   {
     id: 'vietnam-complete-12-days',
@@ -668,7 +678,12 @@ export const tourPackages: TourPackage[] = [
     rating: 4.9,
     reviews: 234,
     isPopular: true,
-    discount: '20%'
+    discount: '20%',
+    isHolidayPackage: true,
+    city: 'Hanoi',
+    region: 'Northern Vietnam',
+    country: 'Vietnam',
+    tags: []
   },
   {
     id: 'cambodia-10-days',
@@ -879,7 +894,12 @@ export const tourPackages: TourPackage[] = [
     bestTime: 'November - March',
     rating: 4.6,
     reviews: 78,
-    isPopular: false
+    isPopular: false,
+    isHolidayPackage: true,
+    city: 'Siem Reap',
+    region: 'Cambodia',
+    country: 'Cambodia',
+    tags: []
   },
   {
     id: 'indochina-14-days',
@@ -1127,7 +1147,12 @@ export const tourPackages: TourPackage[] = [
     rating: 4.8,
     reviews: 156,
     isPopular: true,
-    discount: '25%'
+    discount: '25%',
+    isHolidayPackage: true,
+    city: 'Hanoi',
+    region: 'Southeast Asia',
+    country: 'Vietnam',
+    tags: []
   },
   {
     id: 'thailand-vietnam-14-day',
@@ -1384,7 +1409,12 @@ export const tourPackages: TourPackage[] = [
     rating: 4.9,
     reviews: 189,
     isPopular: true,
-    discount: '30%'
+    discount: '30%',
+    isHolidayPackage: true,
+    city: 'Bangkok',
+    region: 'Southeast Asia',
+    country: 'Thailand',
+    tags: []
   }
 ];
 

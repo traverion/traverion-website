@@ -14,7 +14,7 @@ export default function AurinkoStyleSaleBanner() {
     <section className="py-12 px-4">
       <div className="max-w-7xl mx-auto">
         {/* Main Sale Banner */}
-        <div className="bg-gradient-to-r from-sky-500 to-blue-600 rounded-2xl shadow-2xl overflow-hidden relative">
+        <div className="bg-finland rounded-2xl shadow-2xl overflow-hidden relative">
           {/* Background Image */}
           <div 
             className="absolute inset-0 bg-cover bg-center opacity-20"
@@ -38,7 +38,7 @@ export default function AurinkoStyleSaleBanner() {
             <div className="mb-8">
               <h2 className="text-4xl md:text-5xl font-light text-white mb-2">
                 {t.promotions?.lastMinute || 'SALE! Holidays from'}{' '}
-                <span className="text-6xl md:text-7xl font-bold text-yellow-300">€999</span>
+                <span className="text-6xl md:text-7xl font-bold text-white">€999</span>
               </h2>
               <p className="text-xl text-white/90 font-light">
                 {t.promotions?.lastMinuteSubtitle || 'Dream destinations now at campaign prices'}
@@ -46,7 +46,7 @@ export default function AurinkoStyleSaleBanner() {
             </div>
 
             {/* Call to Action Button */}
-            <button className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-8 py-4 rounded-xl font-light text-lg hover:from-amber-600 hover:to-orange-600 transition-all duration-300 shadow-lg hover:shadow-xl mb-8">
+            <button className="bg-white text-finland px-8 py-4 rounded-xl font-semibold text-lg hover:bg-gray-100 transition-all duration-300 shadow-lg hover:shadow-xl mb-8">
               {t.promotions?.bookNow || 'Book Now'}
             </button>
 
@@ -60,9 +60,9 @@ export default function AurinkoStyleSaleBanner() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-gray-700 font-medium text-sm mb-1">{dest.name}</p>
-                      <p className="text-sky-600 font-semibold text-lg">{dest.price}</p>
+                      <p className="text-finland font-semibold text-lg">{dest.price}</p>
                     </div>
-                    <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-sky-600 transition-colors" />
+                    <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-finland transition-colors" />
                   </div>
                 </div>
               ))}

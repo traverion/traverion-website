@@ -99,7 +99,7 @@ export default function SearchModal({ isOpen, onClose, onSearch }: SearchModalPr
                   }}
                   onFocus={() => setShowDestinationDropdown(true)}
                   placeholder={t.search?.selectDestination || 'Select destination'}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-colors"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-finland focus:border-finland transition-colors"
                 />
                 
                 {/* Destination Dropdown */}
@@ -131,7 +131,7 @@ export default function SearchModal({ isOpen, onClose, onSearch }: SearchModalPr
                 <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <button
                   onClick={() => setShowPriceDropdown(!showPriceDropdown)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-colors text-left bg-white"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-finland focus:border-finland transition-colors text-left bg-white"
                 >
                   {searchData.priceRange || 'Select price range'}
                 </button>
@@ -167,7 +167,7 @@ export default function SearchModal({ isOpen, onClose, onSearch }: SearchModalPr
                   type="date"
                   value={searchData.departureDate}
                   onChange={(e) => setSearchData(prev => ({ ...prev, departureDate: e.target.value }))}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-colors"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-finland focus:border-finland transition-colors"
                 />
               </div>
             </div>
@@ -183,7 +183,7 @@ export default function SearchModal({ isOpen, onClose, onSearch }: SearchModalPr
                   type="date"
                   value={searchData.returnDate}
                   onChange={(e) => setSearchData(prev => ({ ...prev, returnDate: e.target.value }))}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-colors"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-finland focus:border-finland transition-colors"
                 />
               </div>
             </div>
@@ -198,7 +198,7 @@ export default function SearchModal({ isOpen, onClose, onSearch }: SearchModalPr
                 <select
                   value={searchData.travelers}
                   onChange={(e) => setSearchData(prev => ({ ...prev, travelers: parseInt(e.target.value) }))}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-colors appearance-none bg-white"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-finland focus:border-finland transition-colors appearance-none bg-white"
                 >
                   {Array.from({ length: 9 }, (_, i) => i + 1).map(num => (
                     <option key={num} value={num}>
@@ -214,7 +214,7 @@ export default function SearchModal({ isOpen, onClose, onSearch }: SearchModalPr
           <div className="flex justify-center pt-4">
             <button
               onClick={handleSearch}
-              className="bg-gradient-to-r from-sky-500 to-blue-600 text-white px-8 py-4 rounded-xl font-light text-lg hover:from-sky-600 hover:to-blue-700 transition-all duration-300 shadow-lg hover:shadow-xl flex items-center gap-3"
+              className="bg-finland text-white px-8 py-4 rounded-xl font-medium text-lg hover:bg-finland-dark transition-all duration-300 shadow-lg hover:shadow-xl flex items-center gap-3"
             >
               <Search className="w-5 h-5" />
               {t.search?.searchTrips || 'Search Tours'}

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Mail, Phone, User, Calendar, Users, Send, X, CheckCircle } from 'lucide-react';
-import { submitBooking, Booking } from '../lib/supabase';
+import { submitBooking, Booking } from '../data/supabase-bookings';
 
 interface BookingFormProps {
   tourTitle: string;

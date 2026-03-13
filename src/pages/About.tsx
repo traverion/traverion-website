@@ -10,22 +10,22 @@ export default function About() {
 
   const values = [
     {
-      icon: <Award className="w-10 h-10 text-sky-500" />,
+      icon: <Award className="w-10 h-10 text-finland" />,
       title: 'Excellence',
       description: 'We are committed to delivering exceptional travel experiences that exceed expectations.',
     },
     {
-      icon: <Heart className="w-10 h-10 text-sky-500" />,
+      icon: <Heart className="w-10 h-10 text-finland" />,
       title: 'Passion',
       description: 'Our love for travel drives us to create unforgettable journeys for every client.',
     },
     {
-      icon: <Users className="w-10 h-10 text-sky-500" />,
+      icon: <Users className="w-10 h-10 text-finland" />,
       title: 'Partnership',
       description: 'Building lasting relationships with clients, partners, and local communities worldwide.',
     },
     {
-      icon: <TrendingUp className="w-10 h-10 text-sky-500" />,
+      icon: <TrendingUp className="w-10 h-10 text-finland" />,
       title: 'Innovation',
       description: 'Continuously evolving to bring you the latest trends and destinations in luxury travel.',
     },
@@ -86,7 +86,7 @@ export default function About() {
             </div>
           </div>
 
-          <div className="bg-sky-500 rounded-2xl p-12 mb-20">
+          <div className="bg-finland rounded-2xl p-12 mb-20">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
               {stats.map((stat, index) => (
                 <div key={index} className="text-center">
@@ -130,7 +130,7 @@ export default function About() {
             memories. From the moment you contact us to the day you return home, we're with you
             every step of the journey.
           </p>
-          <button className="bg-sky-500 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-sky-600 transition-all duration-300 transform hover:scale-105 shadow-lg">
+          <button className="bg-finland text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-finland-dark transition-all duration-300 transform hover:scale-105 shadow-lg">
             Start Your Journey
           </button>
         </div>

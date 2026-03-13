@@ -1,0 +1,33 @@
+import { supabase } from '../lib/supabase';
+
+export type ContactInquiry = {
+  id?: string;
+  created_at?: string;
+  updated_at?: string;
+  name: string;
+  email: string;
+  phone?: string;
+  subject: string;
+  message: string;
+  inquiry_type?: string;
+  status?: string;
+};
+
+export async function submitContactInquiry(
+  data: Omit<ContactInquiry, 'id' | 'created_at' | 'updated_at'>
+): Promise<{ success: boolean; error?: string }> {
+  if (!supabase) {
+    return { success: false, error: 'Supabase not configured' };
+  }
+  const { error } = await supabase.from('contact_inquiries').insert({
+    name: data.name,
+    email: data.email,
+    phone: data.phone ?? null,
+    subject: data.subject,
+    message: data.message,
+    inquiry_type: data.inquiry_type ?? 'general',
+    status: data.status ?? 'new',
+  });
+  if (error) return { success: false, error: error.message };
+  return { success: true };
+}

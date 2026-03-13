@@ -33,7 +33,7 @@ const LuxuryInput = forwardRef<HTMLInputElement, LuxuryInputProps>(({
 
   const inputType = type === 'password' && showPassword ? 'text' : type;
   
-  const baseClasses = 'w-full transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent';
+  const baseClasses = 'w-full transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-finland focus:border-transparent';
   
   const sizeClasses = {
     sm: 'px-3 py-2 text-sm',
@@ -43,8 +43,8 @@ const LuxuryInput = forwardRef<HTMLInputElement, LuxuryInputProps>(({
 
   const containerClasses = `
     relative group
-    ${error ? 'border-red-500' : isFocused ? 'border-sky-500' : 'border-gray-300'}
-    ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:border-sky-400'}
+    ${error ? 'border-red-500' : isFocused ? 'border-finland' : 'border-gray-300'}
+    ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:border-finland'}
   `;
 
   return (
@@ -57,7 +57,7 @@ const LuxuryInput = forwardRef<HTMLInputElement, LuxuryInputProps>(({
       
       <div className={`relative border rounded-xl ${containerClasses}`}>
         {icon && (
-          <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 group-focus-within:text-sky-500 transition-colors">
+          <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 group-focus-within:text-finland transition-colors">
             {icon}
           </div>
         )}
