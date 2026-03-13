@@ -116,14 +116,14 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
   return (
     <div className="min-h-screen bg-white">
       {/* Hero banner: tour image background + search + filter */}
-      <section className="relative text-white py-10 sm:py-14 min-h-[320px] flex items-center">
+      <section className="relative text-white py-10 sm:py-14 min-h-[320px] flex items-center overflow-hidden">
         <div
-          className="absolute inset-0 bg-cover bg-center"
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
           style={{
             backgroundImage: `url(https://images.pexels.com/photos/346885/pexels-photo-346885.jpeg?auto=compress&cs=tinysrgb&w=1920)`,
           }}
         />
-        <div className="absolute inset-0 bg-finland/75" />
+        <div className="absolute inset-0 bg-black/45" aria-hidden />
         <div className="relative z-10 w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <h1 className="text-2xl sm:text-3xl font-semibold text-center mb-2">
             Find tours & activities

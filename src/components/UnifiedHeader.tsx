@@ -20,13 +20,16 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!isUserMenuOpen) return;
+    if (!isUserMenuOpen && !isLanguageOpen) return;
     const handleClickOutside = (e: MouseEvent) => {
-      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) setIsUserMenuOpen(false);
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setIsUserMenuOpen(false);
+        setIsLanguageOpen(false);
+      }
     };
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
-  }, [isUserMenuOpen]);
+  }, [isUserMenuOpen, isLanguageOpen]);
 
   const handleLanguageChange = (newLanguage: string) => {
     setLanguage(newLanguage);
@@ -40,48 +43,8 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-[9999] bg-white shadow-2xl">
-      {/* Section 1: Slim trust bar – one line, language only */}
-      <div className="bg-finland text-white py-1.5 px-4 animate-[fade-in_0.3s_ease-out]">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-1 text-xs">
-          <p className="text-white/90 font-light tracking-wide hidden sm:block">
-            {t.topBanner?.trustLine ?? 'Free cancellation on most tours · Best price guarantee'}
-          </p>
-          <div className="relative flex items-center justify-end w-full sm:w-auto">
-            <button
-              onClick={() => setIsLanguageOpen(!isLanguageOpen)}
-              className="flex items-center gap-1.5 bg-white/15 hover:bg-white/25 px-2.5 py-1 rounded-md text-white/95 transition-colors duration-200"
-              aria-label="Select language"
-            >
-              <Globe className="w-3.5 h-3.5" />
-              <span>{language.toUpperCase()}</span>
-              <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isLanguageOpen ? 'rotate-180' : ''}`} />
-            </button>
-            {isLanguageOpen && (
-              <div className="absolute top-full right-0 mt-1 bg-white rounded-lg shadow-lg overflow-hidden border border-gray-100 animate-[fade-in_0.15s_ease-out]">
-                <button
-                  onClick={() => handleLanguageChange('en')}
-                  className={`w-full px-3 py-2 text-left hover:bg-gray-50 transition-colors duration-150 text-xs text-gray-700 ${
-                    language === 'en' ? 'bg-gray-50 font-medium' : ''
-                  }`}
-                >
-                  English
-                </button>
-                <button
-                  onClick={() => handleLanguageChange('fi')}
-                  className={`w-full px-3 py-2 text-left hover:bg-gray-50 transition-colors duration-150 text-xs text-gray-700 ${
-                    language === 'fi' ? 'bg-gray-50 font-medium' : ''
-                  }`}
-                >
-                  Suomi
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Section 2: Logo & Navigation */}
+    <header className="fixed top-0 left-0 right-0 z-[9999] bg-white shadow-md">
+      {/* Logo & Navigation */}
       <div className="bg-white py-3 px-4 border-b border-gray-200">
         <div className="max-w-7xl mx-auto flex flex-col lg:flex-row justify-between items-center gap-4">
           {/* Logo */}
@@ -141,6 +104,23 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
 
           {/* Action Buttons */}
           <div className="flex items-center gap-2 sm:gap-4" ref={userMenuRef}>
+            <div className="relative hidden lg:block">
+              <button
+                onClick={() => setIsLanguageOpen(!isLanguageOpen)}
+                className="flex items-center gap-1.5 px-2 py-1.5 text-gray-600 hover:text-finland rounded-md hover:bg-gray-50 transition-colors"
+                aria-label="Select language"
+              >
+                <Globe className="w-4 h-4" />
+                <span className="text-sm">{language.toUpperCase()}</span>
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isLanguageOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {isLanguageOpen && (
+                <div className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-gray-100 overflow-hidden z-50">
+                  <button onClick={() => handleLanguageChange('en')} className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-50 ${language === 'en' ? 'bg-gray-50 font-medium' : 'text-gray-700'}`}>English</button>
+                  <button onClick={() => handleLanguageChange('fi')} className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-50 ${language === 'fi' ? 'bg-gray-50 font-medium' : 'text-gray-700'}`}>Suomi</button>
+                </div>
+              )}
+            </div>
             <button 
               onClick={() => setIsSearchOpen(true)}
               className="p-2 text-gray-600 hover:text-finland transition-colors duration-300 hidden lg:block"
