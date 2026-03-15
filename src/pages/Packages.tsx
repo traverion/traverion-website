@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Search, MapPin, Star, Clock, SlidersHorizontal, ChevronDown, Globe, PlusCircle, Filter, X } from 'lucide-react';
 import { getAllListings, getAllListingsAsync, SHOW_SEED_LISTINGS, durationToMinutes } from '../data/listings';
 import { isSupabaseConfigured } from '../lib/supabase';
@@ -6,6 +6,8 @@ import { analytics } from '../lib/analytics';
 import { tourPackages } from '../data/tours';
 import { activities, TAG_OPTIONS, getDestinationsFromListings, SEED_DESTINATION_OPTIONS } from '../data/activities';
 import { TourPackage } from '../types/tour';
+import { fetchDiscountsByListingIds } from '../data/supabase-discounts';
+import { getDisplayPrice, isSupabaseListingId } from '../lib/discount-display';
 
 type SortOption = 'recommended' | 'price-asc' | 'price-desc' | 'rating' | 'duration';
 
@@ -90,6 +92,7 @@ export default function Packages({ onTourSelect }: PackagesProps) {
   const [filterBarSticky, setFilterBarSticky] = useState(false);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [supplierListings, setSupplierListings] = useState<TourPackage[] | null>(null);
+  const [discountsByListing, setDiscountsByListing] = useState<Map<string, import('../data/supabase-discounts').ListingDiscount[]>>(new Map());
 
   // Load supplier listings from Supabase when configured
   useEffect(() => {
@@ -97,8 +100,8 @@ export default function Packages({ onTourSelect }: PackagesProps) {
     getAllListingsAsync({ includeSeed: false, includeHolidayPackages: false }).then(setSupplierListings);
   }, []);
 
-  // Read URL on mount and when navigating to packages
-  useEffect(() => {
+  // Read URL on mount and when user uses browser back/forward
+  const syncStateFromUrl = useCallback(() => {
     const search = window.location.search;
     const parsed = parsePackagesSearchParams(search);
     setSearchTerm(parsed.searchTerm);
@@ -107,6 +110,16 @@ export default function Packages({ onTourSelect }: PackagesProps) {
     setSortBy(parsed.sort);
     setPriceRange(parsed.price);
   }, []);
+
+  useEffect(() => {
+    syncStateFromUrl();
+  }, [syncStateFromUrl]);
+
+  useEffect(() => {
+    const onPopState = () => syncStateFromUrl();
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, [syncStateFromUrl]);
 
   // Sync from sessionStorage (hero search)
   useEffect(() => {
@@ -191,6 +204,32 @@ export default function Packages({ onTourSelect }: PackagesProps) {
     return list;
   }, [allListings, destinationOptions, searchTerm, selectedDestination, selectedTags, priceRange, sortBy]);
 
+  const listingIdsForDiscounts = useMemo(
+    () => filteredPackages.map((t) => t.id).filter(isSupabaseListingId),
+    [filteredPackages]
+  );
+  useEffect(() => {
+    if (!isSupabaseConfigured() || listingIdsForDiscounts.length === 0) {
+      setDiscountsByListing(new Map());
+      return;
+    }
+    fetchDiscountsByListingIds(listingIdsForDiscounts).then(setDiscountsByListing);
+  }, [listingIdsForDiscounts.join(',')]);
+
+  const hasActiveFilters =
+    searchTerm.trim() !== '' ||
+    selectedDestination !== 'all' ||
+    selectedTags.length > 0 ||
+    priceRange !== 'all';
+
+  const clearAllFilters = () => {
+    setSearchTerm('');
+    setSelectedDestination('all');
+    setSelectedTags([]);
+    setPriceRange('all');
+    setSortBy('recommended');
+  };
+
   const toggleTag = (tagId: string) => {
     setSelectedTags(prev => prev.includes(tagId) ? prev.filter(t => t !== tagId) : [...prev, tagId]);
   };
@@ -245,6 +284,9 @@ export default function Packages({ onTourSelect }: PackagesProps) {
                 Filters
               </button>
               <span className="text-sm text-gray-500 whitespace-nowrap hidden sm:block">Sort:</span>
+              <span className="text-sm text-gray-500 hidden sm:inline">
+                {filteredPackages.length} {filteredPackages.length === 1 ? 'tour' : 'tours'}
+              </span>
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as SortOption)}
@@ -307,6 +349,15 @@ export default function Packages({ onTourSelect }: PackagesProps) {
                 {chip.label}
               </button>
             ))}
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={clearAllFilters}
+                className="ml-2 px-3 py-2 rounded-full text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+              >
+                Clear all
+              </button>
+            )}
           </div>
           {/* Mobile filter drawer */}
           {mobileFiltersOpen && (
@@ -369,7 +420,16 @@ export default function Packages({ onTourSelect }: PackagesProps) {
                     </div>
                   </div>
                 </div>
-                <div className="p-4 border-t border-gray-200">
+                <div className="p-4 border-t border-gray-200 space-y-2">
+                  {hasActiveFilters && (
+                    <button
+                      type="button"
+                      onClick={() => { clearAllFilters(); setMobileFiltersOpen(false); }}
+                      className="w-full py-2.5 rounded-lg border border-gray-300 text-gray-700 font-medium"
+                    >
+                      Clear all filters
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => setMobileFiltersOpen(false)}
@@ -430,9 +490,20 @@ export default function Packages({ onTourSelect }: PackagesProps) {
         {/* Listing grid - only when we have listings */}
         {allListings.length > 0 && (
           <>
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">
-              {selectedDestination !== 'all' || selectedTags.length > 0 || searchTerm ? 'Results' : 'All tours & activities'}
-            </h2>
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+              <h2 className="text-xl font-semibold text-gray-900">
+                {hasActiveFilters ? 'Results' : 'All tours & activities'}
+              </h2>
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  onClick={clearAllFilters}
+                  className="text-sm text-finland hover:text-finland-dark font-medium"
+                >
+                  Clear filters
+                </button>
+              )}
+            </div>
             {filteredPackages.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {filteredPackages.map((tour, index) => (
@@ -465,7 +536,15 @@ export default function Packages({ onTourSelect }: PackagesProps) {
                   )}
                 </div>
                 <div className="absolute bottom-3 right-3 bg-black/60 text-white text-sm font-semibold px-2.5 py-1 rounded-md">
-                  From ${tour.price.startingFrom}
+                  {(() => {
+                    const { price, originalPrice, label } = getDisplayPrice(tour.id, tour.price.startingFrom, discountsByListing);
+                    const hasDiscount = label && price < originalPrice;
+                    return hasDiscount ? (
+                      <>From ${price.toFixed(0)} <span className="text-white/90 text-xs font-normal">· {label}</span></>
+                    ) : (
+                      `From $${tour.price.startingFrom}`
+                    );
+                  })()}
                 </div>
               </div>
               <div className="p-4">
@@ -496,8 +575,17 @@ export default function Packages({ onTourSelect }: PackagesProps) {
                   </div>
                 )}
                 <div className="mt-3 pt-3 border-t border-gray-100">
-                  <span className="text-lg font-bold text-finland">From ${tour.price.startingFrom}</span>
-                  <span className="text-sm text-gray-500 ml-1">/ person</span>
+                  {(() => {
+                    const { price, originalPrice, label } = getDisplayPrice(tour.id, tour.price.startingFrom, discountsByListing);
+                    const hasDiscount = label && price < originalPrice;
+                    return (
+                      <>
+                        <span className="text-lg font-bold text-finland">From ${(hasDiscount ? price : tour.price.startingFrom).toFixed(0)}</span>
+                        <span className="text-sm text-gray-500 ml-1">/ person</span>
+                        {hasDiscount && <span className="block text-xs text-gray-500 mt-0.5">{label} · was ${originalPrice}</span>}
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             </div>

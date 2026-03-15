@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { TourPackage } from '../../types/tour';
+import ListingDiscounts from '../../components/supplier/ListingDiscounts';
 
 const TAG_OPTIONS = [
   { id: 'free-cancellation', label: 'Free cancellation' },
@@ -21,6 +22,7 @@ function buildListingFromForm(form: {
   tags: string[];
   groupSize: string;
   difficulty: 'Easy' | 'Moderate' | 'Challenging';
+  status: 'draft' | 'published';
 }, existingId?: string): TourPackage {
   const id = existingId ?? `supplier-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
   return {
@@ -62,6 +64,7 @@ function buildListingFromForm(form: {
     country: form.country || undefined,
     tags: form.tags.length ? form.tags : undefined,
     supplierId: 'current',
+    status: form.status,
   };
 }
 
@@ -77,6 +80,7 @@ const emptyForm = {
   tags: [] as string[],
   groupSize: '2-12 People',
   difficulty: 'Easy' as const,
+  status: 'draft' as const,
 };
 
 interface SupplierListingFormProps {
@@ -106,6 +110,7 @@ export default function SupplierListingForm({ editingId, existingListings, onSav
           tags: existing.tags ?? [],
           groupSize: existing.groupSize,
           difficulty: existing.difficulty,
+          status: existing.status ?? 'published',
         });
       }
     } else {
@@ -209,8 +214,20 @@ export default function SupplierListingForm({ editingId, existingListings, onSav
           value={form.image}
           onChange={e => setForm(f => ({ ...f, image: e.target.value }))}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
-          placeholder="https://..."
+          placeholder="https://example.com/your-tour-image.jpg"
         />
+        <p className="text-xs text-gray-500 mt-1">Paste a direct link to your tour image. For uploads, use an image host (e.g. Imgur) or your own URL.</p>
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Visibility</label>
+        <select
+          value={form.status}
+          onChange={e => setForm(f => ({ ...f, status: e.target.value as 'draft' | 'published' }))}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+        >
+          <option value="draft">Draft (hidden from main site)</option>
+          <option value="published">Published (visible to travelers)</option>
+        </select>
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Description *</label>
@@ -238,6 +255,11 @@ export default function SupplierListingForm({ editingId, existingListings, onSav
           ))}
         </div>
       </div>
+      {editingId && (
+        <div className="mt-6">
+          <ListingDiscounts listingId={editingId} />
+        </div>
+      )}
       <div className="flex gap-3 pt-4">
         <button type="submit" disabled={submitting} className="px-4 py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark disabled:opacity-50">
           {submitting ? 'Saving…' : editingId ? 'Save changes' : 'Add listing'}

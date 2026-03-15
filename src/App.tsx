@@ -8,6 +8,8 @@ import SimpleHome from './pages/SimpleHome';
 import Packages from './pages/Packages';
 import Blog from './pages/Blog';
 import TourDetails from './pages/TourDetails';
+import BookingPage from './pages/BookingPage';
+import MyBookings from './pages/MyBookings';
 import TourPackage from './pages/TourPackage';
 import Vietnam9Day from './pages/Vietnam9Day';
 import Vietnam12Day from './pages/Vietnam12Day';
@@ -62,6 +64,7 @@ function App() {
       '/10-cambodia': 'cambodia-10-day',
       '/14-indochina': 'indochina-14-day',
       '/packages': 'packages',
+      '/bookings': 'bookings',
       '/blog': 'blog',
       '/contact': 'contact',
       '/admin': 'admin',
@@ -94,6 +97,7 @@ function App() {
       'cambodia-10-day': '/10-cambodia',
       'indochina-14-day': '/14-indochina',
       'packages': '/packages',
+      'bookings': '/bookings',
       'blog': '/blog',
       'contact': '/contact',
       'admin': '/admin',
@@ -122,6 +126,7 @@ function App() {
     const titles: Record<string, { title: string; description?: string }> = {
       home: { title: 'Traverion', description: 'Book tours and activities worldwide. Find and reserve experiences with free cancellation.' },
       packages: { title: 'Tours & activities', description: 'Browse and book tours and activities worldwide. Filter by destination, price, and more.' },
+      bookings: { title: 'My bookings', description: 'View your tour and activity reservations and their status.' },
       blog: { title: 'Blog', description: 'Travel stories and tips from Traverion.' },
       contact: { title: 'Contact', description: 'Get in touch with Traverion.' },
       privacy: { title: 'Privacy Policy', description: 'Traverion privacy policy.' },
@@ -145,8 +150,8 @@ function App() {
   };
 
   const handleBookTour = (tour: TourPackageType) => {
-    setShowContact(true);
-    setCurrentPage('contact');
+    setSelectedTour(tour);
+    setCurrentPage('booking');
   };
 
   const renderPage = () => {
@@ -174,6 +179,21 @@ function App() {
             onBook={handleBookTour}
           />
         ) : <Home onTourSelect={handleTourSelect} />;
+      case 'booking':
+        return selectedTour ? (
+          <BookingPage
+            tour={selectedTour}
+            onBack={() => setCurrentPage('tour-details')}
+            onComplete={() => { setSelectedTour(null); setCurrentPage('packages'); }}
+          />
+        ) : <Home onTourSelect={handleTourSelect} />;
+      case 'bookings':
+        return (
+          <MyBookings
+            onNavigate={setCurrentPage}
+            onTourSelect={(t) => handleTourSelect(t as TourPackageType)}
+          />
+        );
       case 'tour-package':
         return selectedTour ? (
           <TourPackage 

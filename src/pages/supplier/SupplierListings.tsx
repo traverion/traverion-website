@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, MapPin, Pencil, Trash2 } from 'lucide-react';
+import { Plus, MapPin, Pencil, Trash2, Eye, EyeOff } from 'lucide-react';
 import { TourPackage } from '../../types/tour';
 import { getSupplierListings, setSupplierListings } from '../../data/listings';
-import { fetchMyListings, insertListing, updateListing, deleteListing } from '../../data/supabase-listings';
+import { fetchMyListings, insertListing, updateListing, updateListingStatus, deleteListing } from '../../data/supabase-listings';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import SupplierListingForm from './SupplierListingForm';
 
@@ -74,6 +74,12 @@ export default function SupplierListings() {
     }
   };
 
+  const handleStatusChange = async (listing: TourPackage, newStatus: 'draft' | 'published') => {
+    if (!isSupabase || !user) return;
+    const ok = await updateListingStatus(listing.id, newStatus);
+    if (ok) loadListings();
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -124,37 +130,74 @@ export default function SupplierListings() {
         listings.length > 0 && (
           <div className="space-y-3">
             <h2 className="text-lg font-medium text-gray-900">Your listings ({listings.length})</h2>
-            <ul className="divide-y divide-gray-200 border border-gray-200 rounded-xl bg-white overflow-hidden">
-              {listings.map((listing) => (
-                <li key={listing.id} className="flex items-center gap-4 p-4 hover:bg-gray-50">
-                  <img src={listing.image} alt="" className="w-20 h-20 rounded-lg object-cover flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-900 truncate">{listing.title}</p>
-                    <p className="text-sm text-gray-500">
-                      {listing.city && `${listing.city}, `}{listing.country} · {listing.duration} · From ${listing.price.startingFrom}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => { setEditingId(listing.id); setShowForm(true); }}
-                      className="p-2 rounded-lg text-gray-600 hover:bg-gray-200 hover:text-finland"
-                      title="Edit"
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(listing.id)}
-                      className="p-2 rounded-lg text-gray-600 hover:bg-red-50 hover:text-red-600"
-                      title="Delete"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
+            <div className="border border-gray-200 rounded-xl bg-white overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="min-w-full">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Listing</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Location · Duration</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Price</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {listings.map((listing) => (
+                      <tr key={listing.id} className="hover:bg-gray-50/50">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-3">
+                            <img src={listing.image} alt="" className="w-14 h-14 rounded-lg object-cover flex-shrink-0" />
+                            <p className="font-medium text-gray-900 truncate max-w-[200px]">{listing.title}</p>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-600">
+                          {listing.city && `${listing.city}, `}{listing.country ?? listing.destination} · {listing.duration}
+                        </td>
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900">From ${listing.price.startingFrom}</td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full ${
+                            listing.status === 'published' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
+                          }`}>
+                            {listing.status === 'published' ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+                            {listing.status ?? 'published'}
+                          </span>
+                          {isSupabase && (
+                            <button
+                              type="button"
+                              onClick={() => handleStatusChange(listing, listing.status === 'published' ? 'draft' : 'published')}
+                              className="ml-2 text-xs text-finland hover:underline"
+                            >
+                              → {listing.status === 'published' ? 'Draft' : 'Publish'}
+                            </button>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <button
+                              type="button"
+                              onClick={() => { setEditingId(listing.id); setShowForm(true); }}
+                              className="p-2 rounded-lg text-gray-600 hover:bg-gray-200 hover:text-finland"
+                              title="Edit"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(listing.id)}
+                              className="p-2 rounded-lg text-gray-600 hover:bg-red-50 hover:text-red-600"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         )
       )}

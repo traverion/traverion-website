@@ -3,11 +3,12 @@ import { ArrowLeft, MapPin, Calendar, Users, Star, Clock, Plane, Shield, Heart, 
 import { useTranslation } from '../contexts/TranslationContext';
 import { useAuth } from '../contexts/AuthContext';
 import LuxuryButton from '../components/ui/LuxuryButton';
-import LuxuryCard from '../components/ui/LuxuryCard';
 import { getListingById, getListingByIdAsync } from '../data/listings';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { analytics } from '../lib/analytics';
 import { TourPackage } from '../types/tour';
+import { fetchDiscountsByListingIds } from '../data/supabase-discounts';
+import { getDisplayPrice, isSupabaseListingId } from '../lib/discount-display';
 
 interface TourDetailsProps {
   tourId: string;
@@ -21,10 +22,10 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
   const [tour, setTour] = useState<TourPackage | null>(null);
   const [selectedImage, setSelectedImage] = useState(0);
   const [isLiked, setIsLiked] = useState(false);
-  const [showBooking, setShowBooking] = useState(false);
   const [activeTab, setActiveTab] = useState('itinerary');
   const [bookingDate, setBookingDate] = useState('');
   const [guests, setGuests] = useState(2);
+  const [discountsByListing, setDiscountsByListing] = useState<Map<string, import('../data/supabase-discounts').ListingDiscount[]>>(new Map());
 
   useEffect(() => {
     if (isSupabaseConfigured()) {
@@ -33,6 +34,11 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
       setTour(getListingById(tourId) ?? null);
     }
   }, [tourId]);
+
+  useEffect(() => {
+    if (!tour?.id || !isSupabaseListingId(tour.id)) return;
+    fetchDiscountsByListingIds([tour.id]).then(setDiscountsByListing);
+  }, [tour?.id]);
 
   if (!tour) {
     return (
@@ -153,8 +159,20 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
             {/* Right: Sticky booking card */}
             <div className="lg:col-span-1">
               <div className="lg:sticky lg:top-24 bg-white rounded-xl border border-gray-200 shadow-lg p-6">
-                <div className="text-2xl font-bold text-gray-900 mb-1">From ${tour.price.startingFrom}</div>
-                <p className="text-sm text-gray-500 mb-4">per person</p>
+                {(() => {
+                  const { price, originalPrice, label } = getDisplayPrice(tour.id, tour.price.startingFrom, discountsByListing);
+                  const hasDiscount = label && price < originalPrice;
+                  return (
+                    <>
+                      <div className="text-2xl font-bold text-gray-900 mb-1">
+                        From ${(hasDiscount ? price : tour.price.startingFrom).toFixed(0)}
+                        {hasDiscount && <span className="text-base font-normal text-gray-500 ml-1 line-through">was ${originalPrice}</span>}
+                      </div>
+                      {hasDiscount && <p className="text-sm text-green-600 mb-1">{label}</p>}
+                      <p className="text-sm text-gray-500 mb-4">per person</p>
+                    </>
+                  );
+                })()}
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
@@ -180,19 +198,23 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
                   <button
                     onClick={() => {
                       if (isSupabaseConfigured() && !user) {
-                        requestAuth({ onSuccess: () => setShowBooking(true) });
+                        requestAuth({ onSuccess: () => onBook(tour) });
                         return;
                       }
                       analytics.bookStart(tour.id);
-                      setShowBooking(true);
+                      onBook(tour);
                     }}
                     className="w-full bg-finland text-white py-3 px-4 rounded-lg font-semibold hover:bg-finland-dark transition-all"
                   >
                     Check availability
                   </button>
-                  <p className="text-xs text-gray-500 text-center">
-                    {tour.tags?.includes('free-cancellation') ? 'Free cancellation up to 24 hours before' : 'See cancellation policy below'}
-                  </p>
+                  <div className="mt-3 space-y-1.5 text-xs text-gray-600">
+                    {tour.tags?.includes('free-cancellation') && (
+                      <p className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 flex-shrink-0" /> Free cancellation up to 24 hours before</p>
+                    )}
+                    <p className="flex items-center gap-2"><Shield className="w-3.5 h-3.5 text-finland flex-shrink-0" /> Best price guarantee</p>
+                    <p className="flex items-center gap-2"><Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500 flex-shrink-0" /> Reserve now, pay later</p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -245,39 +267,6 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
         </div>
       </section>
 
-      {/* Booking Modal */}
-      {showBooking && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <LuxuryCard className="max-w-2xl w-full p-8">
-            <h3 className="text-2xl font-heading font-bold text-gray-900 mb-6">Book This Tour</h3>
-            <p className="text-gray-600 mb-6">Ready to book your amazing {tour.title}? Contact us to get started!</p>
-            
-            <div className="flex flex-col sm:flex-row gap-4">
-              <LuxuryButton
-                variant="gradient"
-                size="lg"
-                className="flex-1"
-                onClick={() => {
-                  analytics.bookComplete(tour.id, guests);
-                  setShowBooking(false);
-                  onBook(tour);
-                }}
-              >
-                Confirm Booking
-              </LuxuryButton>
-              
-              <LuxuryButton
-                variant="outline"
-                size="lg"
-                className="flex-1"
-                onClick={() => setShowBooking(false)}
-              >
-                Cancel
-              </LuxuryButton>
-            </div>
-          </LuxuryCard>
-        </div>
-      )}
     </div>
   );
 }

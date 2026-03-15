@@ -5,6 +5,8 @@ import { getDestinationsFromListings } from '../data/activities';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { activities } from '../data/activities';
 import { TourPackage } from '../types/tour';
+import { fetchDiscountsByListingIds } from '../data/supabase-discounts';
+import { getDisplayPrice, isSupabaseListingId } from '../lib/discount-display';
 
 const TAG_LABELS: Record<string, string> = {
   'free-cancellation': 'Free cancellation',
@@ -73,6 +75,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
   const [supplierListings, setSupplierListings] = useState<TourPackage[] | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [countryId, setCountryId] = useState('all');
+  const [discountsByListing, setDiscountsByListing] = useState<Map<string, import('../data/supabase-discounts').ListingDiscount[]>>(new Map());
 
   useEffect(() => {
     if (!isSupabaseConfigured()) return;
@@ -103,6 +106,18 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
   const hasMore = filteredListings.length > MAX_RESULTS_HOME;
   const hasActiveFilter = searchTerm.trim() !== '' || countryId !== 'all';
 
+  const displayedIds = useMemo(
+    () => filteredListings.slice(0, MAX_RESULTS_HOME).map((t) => t.id).filter(isSupabaseListingId),
+    [filteredListings]
+  );
+  useEffect(() => {
+    if (!isSupabaseConfigured() || displayedIds.length === 0) {
+      setDiscountsByListing(new Map());
+      return;
+    }
+    fetchDiscountsByListingIds(displayedIds).then(setDiscountsByListing);
+  }, [displayedIds.join(',')]);
+
   const goToPackagesWithFilters = () => {
     if (!onNavigate) return;
     const params = new URLSearchParams();
@@ -115,8 +130,8 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Hero banner: tour image background + search + filter */}
-      <section className="relative text-white py-10 sm:py-14 min-h-[320px] flex items-center overflow-hidden">
+      {/* Hero banner: tour image background + search + filter (pt clears fixed header) */}
+      <section className="relative text-white pt-24 sm:pt-28 pb-12 sm:pb-16 min-h-[380px] sm:min-h-[420px] flex items-center overflow-hidden">
         <div
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
           style={{
@@ -162,6 +177,26 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
             >
               Search
             </button>
+          </div>
+        </div>
+      </section>
+
+      {/* Trust strip (GetYourGuide-style) */}
+      <section className="py-4 bg-white border-b border-gray-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-wrap justify-center gap-6 sm:gap-10 text-sm text-gray-600">
+            <span className="flex items-center gap-2">
+              <span className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-600 font-semibold text-xs">✓</span>
+              Free cancellation
+            </span>
+            <span className="flex items-center gap-2">
+              <span className="w-8 h-8 rounded-full bg-finland/10 flex items-center justify-center text-finland font-semibold text-xs">$</span>
+              Best price guarantee
+            </span>
+            <span className="flex items-center gap-2">
+              <span className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 font-semibold text-xs">★</span>
+              Verified reviews
+            </span>
           </div>
         </div>
       </section>
@@ -247,8 +282,23 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                           <span className="bg-white/95 text-gray-700 text-xs font-medium px-2.5 py-1 rounded-md shadow-sm">Free cancellation</span>
                         )}
                       </div>
-                      <div className="absolute bottom-3 right-3 bg-black/60 text-white text-sm font-semibold px-2.5 py-1 rounded-md">
-                        From ${tour.price.startingFrom}
+                      <div className="absolute bottom-3 right-3 flex flex-col items-end gap-0.5">
+                        {(() => {
+                          const { price, originalPrice, label } = getDisplayPrice(tour.id, tour.price.startingFrom, discountsByListing);
+                          const hasDiscount = label && price < originalPrice;
+                          return (
+                            <div className="bg-black/60 text-white text-sm font-semibold px-2.5 py-1 rounded-md">
+                              {hasDiscount ? (
+                                <>
+                                  <span>From ${price.toFixed(0)}</span>
+                                  <span className="block text-xs font-normal text-white/90">{label} · was ${originalPrice}</span>
+                                </>
+                              ) : (
+                                `From $${originalPrice}`
+                              )}
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
                     <div className="p-4">

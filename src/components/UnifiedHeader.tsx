@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Globe, Search, ChevronDown, Menu, X, User, LogOut } from 'lucide-react';
+import { Globe, Search, ChevronDown, Menu, X, User, LogOut, Calendar } from 'lucide-react';
 import { useTranslation } from '../contexts/TranslationContext';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
@@ -144,6 +144,13 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                       <p className="text-sm font-medium text-gray-900 truncate">{user.email}</p>
                     </div>
                     <button
+                      onClick={() => { setIsUserMenuOpen(false); onNavigate('bookings'); }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                    >
+                      <Calendar className="w-4 h-4" />
+                      My bookings
+                    </button>
+                    <button
                       onClick={() => { setIsUserMenuOpen(false); signOut(); }}
                       className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
                     >
@@ -260,16 +267,28 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                   </button>
                 )}
                 {isSupabaseConfigured() && user && (
-                  <button
-                    onClick={() => {
-                      signOut();
-                      setIsMobileMenuOpen(false);
-                    }}
-                    className="w-full text-left px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors duration-300 flex items-center gap-2"
-                  >
-                    <LogOut className="w-5 h-5" />
-                    Log out
-                  </button>
+                  <>
+                    <button
+                      onClick={() => {
+                        onNavigate('bookings');
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className="w-full text-left px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors duration-300 flex items-center gap-2"
+                    >
+                      <Calendar className="w-5 h-5" />
+                      My bookings
+                    </button>
+                    <button
+                      onClick={() => {
+                        signOut();
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className="w-full text-left px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors duration-300 flex items-center gap-2"
+                    >
+                      <LogOut className="w-5 h-5" />
+                      Log out
+                    </button>
+                  </>
                 )}
                 <button
                   onClick={() => {

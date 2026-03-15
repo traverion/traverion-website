@@ -1,15 +1,27 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { BarChart3, Calendar, DollarSign, MapPin, Plus, ArrowRight } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { fetchMyListings } from '../../data/supabase-listings';
+import { fetchSupplierEarnings } from '../../data/supabase-earnings';
+import { fetchBookingsForSupplier } from '../../data/supabase-bookings';
 
 interface SupplierDashboardProps {
   onNavigateToListings?: () => void;
 }
 
+function isPeriodInMonth(periodStart: string, periodEnd: string, year: number, month: number): boolean {
+  const first = new Date(year, month - 1, 1);
+  const last = new Date(year, month, 0);
+  const start = new Date(periodStart);
+  const end = new Date(periodEnd);
+  return start <= last && end >= first;
+}
+
 export default function SupplierDashboard({ onNavigateToListings }: SupplierDashboardProps) {
   const { user, isSupabase } = useSupplierAuth();
   const [listingsCount, setListingsCount] = useState<number | null>(null);
+  const [earnings, setEarnings] = useState<Awaited<ReturnType<typeof fetchSupplierEarnings>>>([]);
+  const [bookingsCountThisMonth, setBookingsCountThisMonth] = useState<number | null>(null);
 
   useEffect(() => {
     if (isSupabase && user) {
@@ -19,10 +31,55 @@ export default function SupplierDashboard({ onNavigateToListings }: SupplierDash
     }
   }, [isSupabase, user]);
 
+  useEffect(() => {
+    if (isSupabase && user) {
+      fetchSupplierEarnings(user.id).then(setEarnings);
+    } else {
+      setEarnings([]);
+    }
+  }, [isSupabase, user]);
+
+  useEffect(() => {
+    if (isSupabase && user) {
+      fetchBookingsForSupplier(user.id).then((bookings) => {
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = now.getMonth() + 1;
+        const count = bookings.filter((b) => {
+          if (!b.booking_date) return false;
+          const d = new Date(b.booking_date);
+          return d.getFullYear() === y && d.getMonth() + 1 === m;
+        }).length;
+        setBookingsCountThisMonth(count);
+      });
+    } else {
+      setBookingsCountThisMonth(0);
+    }
+  }, [isSupabase, user]);
+
+  const now = new Date();
+  const thisYear = now.getFullYear();
+  const thisMonth = now.getMonth() + 1;
+
+  const earningsThisMonth = useMemo(() => {
+    return earnings
+      .filter((e) => isPeriodInMonth(e.period_start, e.period_end, thisYear, thisMonth))
+      .reduce((sum, e) => sum + Number(e.amount), 0);
+  }, [earnings, thisYear, thisMonth]);
+
+  const earningsPending = useMemo(() => {
+    return earnings
+      .filter((e) => e.status === 'pending')
+      .reduce((sum, e) => sum + Number(e.amount), 0);
+  }, [earnings]);
+
+  const currency = earnings[0]?.currency ?? 'USD';
+
   const stats = [
     { label: 'Active listings', value: listingsCount !== null ? String(listingsCount) : '—', icon: MapPin, color: 'bg-finland/10 text-finland' },
-    { label: 'Bookings this month', value: '0', icon: Calendar, color: 'bg-green-500/10 text-green-600' },
-    { label: 'Earnings (pending)', value: '$0', icon: DollarSign, color: 'bg-amber-500/10 text-amber-600' },
+    { label: 'Bookings this month', value: bookingsCountThisMonth !== null ? String(bookingsCountThisMonth) : '—', icon: Calendar, color: 'bg-green-500/10 text-green-600' },
+    { label: 'Earnings this month', value: `${currency === 'USD' ? '$' : ''}${earningsThisMonth.toFixed(0)}${currency !== 'USD' ? ` ${currency}` : ''}`, icon: DollarSign, color: 'bg-finland/10 text-finland' },
+    { label: 'Earnings (pending)', value: `${currency === 'USD' ? '$' : ''}${earningsPending.toFixed(0)}${currency !== 'USD' ? ` ${currency}` : ''}`, icon: DollarSign, color: 'bg-amber-500/10 text-amber-600' },
   ];
 
   return (
@@ -32,7 +89,7 @@ export default function SupplierDashboard({ onNavigateToListings }: SupplierDash
         <p className="text-gray-600 mt-1">Overview of your tours and activities</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map(({ label, value, icon: Icon, color }) => (
           <div
             key={label}

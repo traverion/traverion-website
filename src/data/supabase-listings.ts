@@ -31,6 +31,7 @@ export type ListingRow = {
   region: string | null;
   country: string | null;
   tags: string[] | null;
+  status: 'draft' | 'published' | null;
   created_at: string;
   updated_at: string;
 };
@@ -81,6 +82,7 @@ export function rowToTourPackage(row: ListingRow): TourPackage {
     country: row.country ?? undefined,
     tags: row.tags && row.tags.length > 0 ? row.tags : undefined,
     supplierId: row.supplier_id,
+    status: (row.status as 'draft' | 'published') ?? 'published',
   };
 }
 
@@ -114,15 +116,17 @@ export function tourPackageToRow(tour: Partial<TourPackage> & { title: string; d
     region: tour.region ?? null,
     country: tour.country ?? null,
     tags: tour.tags && tour.tags.length > 0 ? tour.tags : null,
+    status: tour.status ?? 'published',
   };
 }
 
-/** Fetch all listings (public, no auth required). */
+/** Fetch all listings (public; only published, for main site). */
 export async function fetchAllListings(): Promise<TourPackage[]> {
   if (!supabase) return [];
   const { data, error } = await supabase
     .from('listings')
     .select('*')
+    .or('status.eq.published,status.is.null')
     .order('created_at', { ascending: false });
   if (error) {
     console.error('Supabase fetch listings:', error);
@@ -190,10 +194,27 @@ export async function deleteListing(id: string): Promise<boolean> {
   return true;
 }
 
+/** Update only listing status (draft/published). */
+export async function updateListingStatus(id: string, status: 'draft' | 'published'): Promise<boolean> {
+  if (!supabase) return false;
+  const { error } = await supabase.from('listings').update({ status }).eq('id', id);
+  return !error;
+}
+
 /** Fetch a single listing by id (public). */
 export async function fetchListingById(id: string): Promise<TourPackage | null> {
   if (!supabase) return null;
   const { data, error } = await supabase.from('listings').select('*').eq('id', id).single();
   if (error || !data) return null;
   return rowToTourPackage(data as ListingRow);
+}
+
+/** Fetch listing titles for given ids (public). Returns id -> title map. */
+export async function fetchListingTitlesByIds(ids: string[]): Promise<Record<string, string>> {
+  if (!supabase || ids.length === 0) return {};
+  const { data, error } = await supabase.from('listings').select('id, title').in('id', ids);
+  if (error) return {};
+  const map: Record<string, string> = {};
+  (data ?? []).forEach((r: { id: string; title: string }) => { map[r.id] = r.title ?? ''; });
+  return map;
 }

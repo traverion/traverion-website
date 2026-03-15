@@ -59,6 +59,8 @@ export interface TourPackage {
   isSeedData?: boolean;
   /** Supplier id who created this listing (for platform mode). */
   supplierId?: string;
+  /** draft = not visible on main site; published = visible. */
+  status?: 'draft' | 'published';
 }
 
 export interface DayPlan {

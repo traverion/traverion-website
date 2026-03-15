@@ -1,176 +1,88 @@
-import { MapPin, Phone, Mail, Clock, Facebook, Instagram, Twitter, Youtube, Star, Award, Shield, Heart } from 'lucide-react';
-import LuxuryButton from './ui/LuxuryButton';
+import { MapPin, Phone, Mail, Facebook, Instagram, Twitter, Youtube, Star, Shield } from 'lucide-react';
 import { useTranslation } from '../contexts/TranslationContext';
 
+/** GetYourGuide-style footer: compact columns, trust line, legal bar */
 export default function Footer() {
   const { t } = useTranslation();
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white relative overflow-hidden z-10">
-      {/* Background Pattern */}
-      <div className="absolute inset-0 opacity-5">
-        <div className="absolute inset-0" style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-        }} />
-      </div>
-
-      <div className="relative z-10">
-        {/* Main Footer Content */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-12">
-            {/* Company Info */}
-            <div className="lg:col-span-2">
-              <div className="flex items-center mb-6 group">
-                <img
-                  src="/traveriontransparent.png"
-                  alt="Traverion"
-                  className="h-12 w-auto transition-transform duration-300 group-hover:scale-105"
-                />
-                    <div className="ml-4">
-                      <h3 className="text-2xl font-bold bg-gradient-to-r from-slate-300 to-gray-400 bg-clip-text text-transparent">
-                        TRAVERION
-                      </h3>
-                      <p className="text-sm text-gray-400">Tours & Activities</p>
-                    </div>
-              </div>
-              
-              <p className="text-gray-300 mb-8 leading-relaxed max-w-md">
-                {t.footer.description}
-              </p>
-
-              {/* Trust Indicators */}
-              <div className="grid grid-cols-3 gap-4 mb-8">
-                    <div className="text-center p-4 bg-white/5 rounded-xl backdrop-blur-sm">
-                      <Award className="w-6 h-6 text-white mx-auto mb-2" />
-                      <p className="text-xs text-gray-400">{t.footer.premiumService}</p>
-                    </div>
-                    <div className="text-center p-4 bg-white/5 rounded-xl backdrop-blur-sm">
-                      <Shield className="w-6 h-6 text-white mx-auto mb-2" />
-                      <p className="text-xs text-gray-400">{t.footer.secureBooking}</p>
-                    </div>
-                    <div className="text-center p-4 bg-white/5 rounded-xl backdrop-blur-sm">
-                      <Star className="w-6 h-6 text-white mx-auto mb-2" />
-                      <p className="text-xs text-gray-400">{t.footer.fiveStarService}</p>
-                    </div>
-              </div>
-
-              {/* Social Links */}
-              <div className="flex space-x-4">
-                <a href="https://facebook.com/traverion" target="_blank" rel="noopener noreferrer" className="p-3 bg-white/10 hover:bg-finland rounded-xl transition-all duration-300 hover:scale-110 group">
-                  <Facebook className="w-5 h-5 text-gray-400 group-hover:text-white" />
-                </a>
-                <a href="https://instagram.com/traverion" target="_blank" rel="noopener noreferrer" className="p-3 bg-white/10 hover:bg-pink-500 rounded-xl transition-all duration-300 hover:scale-110 group">
-                  <Instagram className="w-5 h-5 text-gray-400 group-hover:text-white" />
-                </a>
-                <a href="https://twitter.com/traverion" target="_blank" rel="noopener noreferrer" className="p-3 bg-white/10 hover:bg-finland-light rounded-xl transition-all duration-300 hover:scale-110 group">
-                  <Twitter className="w-5 h-5 text-gray-400 group-hover:text-white" />
-                </a>
-                <a href="https://youtube.com/traverion" target="_blank" rel="noopener noreferrer" className="p-3 bg-white/10 hover:bg-red-500 rounded-xl transition-all duration-300 hover:scale-110 group">
-                  <Youtube className="w-5 h-5 text-gray-400 group-hover:text-white" />
-                </a>
-              </div>
+    <footer className="bg-gray-900 text-white">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 lg:gap-12">
+          {/* Brand */}
+          <div className="col-span-2 md:col-span-1">
+            <a href="/" className="flex items-center gap-2 mb-3">
+              <img src="/traveriontransparent.png" alt="" className="h-9 w-auto" />
+              <span className="font-semibold text-lg text-white">TRAVERION</span>
+            </a>
+            <p className="text-sm text-gray-400 mb-4 max-w-xs">
+              {t.footer?.description ?? 'Book tours and activities worldwide. Best price guarantee.'}
+            </p>
+            <div className="flex gap-2">
+              <a href="https://facebook.com/traverion" target="_blank" rel="noopener noreferrer" className="p-2 rounded-lg bg-white/10 text-gray-400 hover:text-white hover:bg-white/20 transition-colors" aria-label="Facebook">
+                <Facebook className="w-4 h-4" />
+              </a>
+              <a href="https://instagram.com/traverion" target="_blank" rel="noopener noreferrer" className="p-2 rounded-lg bg-white/10 text-gray-400 hover:text-white hover:bg-white/20 transition-colors" aria-label="Instagram">
+                <Instagram className="w-4 h-4" />
+              </a>
+              <a href="https://twitter.com/traverion" target="_blank" rel="noopener noreferrer" className="p-2 rounded-lg bg-white/10 text-gray-400 hover:text-white hover:bg-white/20 transition-colors" aria-label="Twitter">
+                <Twitter className="w-4 h-4" />
+              </a>
             </div>
+          </div>
 
-            {/* Quick Links */}
-            <div>
-              <h3 className="text-xl font-bold mb-6 text-white">{t.footer.quickLinks}</h3>
-              <ul className="space-y-4">
-                {[
-                  { name: t.footer.links.aboutUs, href: '/about', onClick: () => window.location.href = '/about' },
-                  { name: t.footer.links.destinations, href: '/destinations', onClick: () => window.location.href = '/destinations' },
-                  { name: t.footer.links.travelPackages, href: '/packages', onClick: () => window.location.href = '/packages' },
-                  { name: t.footer.links.blogStories, href: '/blog', onClick: () => window.location.href = '/blog' },
-                  { name: t.footer.links.travelGuides, href: '/blog', onClick: () => window.location.href = '/blog' },
-                  { name: t.footer.links.customerReviews, href: '/contact', onClick: () => window.location.href = '/contact' },
-                  { name: 'For suppliers', href: '/supplier', onClick: () => window.location.href = '/supplier' },
-                ].map((link, index) => (
-                  <li key={index}>
-                    <button 
-                      onClick={link.onClick}
-                      className="text-gray-300 hover:text-white transition-colors duration-300 hover:translate-x-1 inline-block text-left"
-                      style={{ animationDelay: `${index * 0.1}s` }}
-                    >
-                      {link.name}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
+          {/* Discover */}
+          <div>
+            <h3 className="font-semibold text-white mb-3 text-sm uppercase tracking-wide">Discover</h3>
+            <ul className="space-y-2">
+              <li><a href="/packages" className="text-gray-400 hover:text-white text-sm transition-colors">{t.footer?.links?.travelPackages ?? 'Tours & activities'}</a></li>
+              <li><a href="/packages" className="text-gray-400 hover:text-white text-sm transition-colors">{t.footer?.links?.destinations ?? 'Destinations'}</a></li>
+              <li><a href="/blog" className="text-gray-400 hover:text-white text-sm transition-colors">{t.footer?.links?.blogStories ?? 'Blog'}</a></li>
+              <li><a href="/supplier" className="text-gray-400 hover:text-white text-sm transition-colors">For suppliers</a></li>
+            </ul>
+          </div>
 
-            {/* Contact Info */}
-            <div>
-              <h3 className="text-xl font-bold mb-6 text-white">{t.footer.getInTouch}</h3>
-              <div className="space-y-4">
-                    <div className="flex items-start group">
-                      <div className="p-2 bg-white/20 rounded-lg mr-4 group-hover:bg-white/30 transition-colors">
-                        <Phone className="text-white" size={18} />
-                      </div>
-                  <div>
-                    <p className="text-gray-300 font-medium">{t.footer.contact.phone}</p>
-                    <p className="text-sm text-gray-400">{t.footer.contact.phoneHours}</p>
-                  </div>
-                </div>
-
-                    <div className="flex items-start group">
-                      <div className="p-2 bg-white/20 rounded-lg mr-4 group-hover:bg-white/30 transition-colors">
-                        <Mail className="text-white" size={18} />
-                      </div>
-                  <div>
-                    <p className="text-gray-300 font-medium">{t.footer.contact.email}</p>
-                    <p className="text-sm text-gray-400">{t.footer.contact.emailResponse}</p>
-                  </div>
-                </div>
-
-                    <div className="flex items-start group">
-                      <div className="p-2 bg-white/20 rounded-lg mr-4 group-hover:bg-white/30 transition-colors">
-                        <MapPin className="text-white" size={18} />
-                      </div>
-                  <div>
-                    <p className="text-gray-300 font-medium">{t.footer.contact.location}</p>
-                    <p className="text-sm text-gray-400">{t.footer.contact.locationService}</p>
-                  </div>
-                </div>
-              </div>
-
-                  {/* Newsletter Signup */}
-                  <div className="mt-8 p-6 bg-gradient-to-r from-white/5 to-white/10 rounded-xl backdrop-blur-sm">
-                <h4 className="font-semibold mb-3 text-white">{t.footer.stayUpdated}</h4>
-                <p className="text-sm text-gray-300 mb-4">{t.footer.newsletterText}</p>
-                <div className="flex space-x-2">
-                  <input
-                    type="email"
-                    placeholder={t.footer.yourEmail}
-                    className="flex-1 px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-finland"
-                  />
-                  <LuxuryButton size="sm" variant="gradient">
-                    <Heart className="w-4 h-4" />
-                  </LuxuryButton>
-                </div>
-              </div>
+          {/* Support */}
+          <div>
+            <h3 className="font-semibold text-white mb-3 text-sm uppercase tracking-wide">Support</h3>
+            <ul className="space-y-2">
+              <li><a href="/contact" className="text-gray-400 hover:text-white text-sm transition-colors">{t.footer?.links?.customerReviews ?? 'Contact'}</a></li>
+              <li><a href="/contact" className="text-gray-400 hover:text-white text-sm transition-colors">{t.footer?.getInTouch ?? 'Get in touch'}</a></li>
+            </ul>
+            <div className="mt-3 space-y-1 text-sm text-gray-400">
+              <p className="flex items-center gap-2"><Mail className="w-3.5 h-3.5" /> {t.footer?.contact?.email ?? 'info@traverion.com'}</p>
+              <p className="flex items-center gap-2"><Phone className="w-3.5 h-3.5" /> {t.footer?.contact?.phone ?? '+358 45 783 451 38'}</p>
             </div>
           </div>
         </div>
 
-        {/* Bottom Bar */}
-        <div className="border-t border-white/10">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-            <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-              <div className="flex items-center space-x-6">
-                <p className="text-gray-400 text-sm">
-                  © {currentYear} TRAVERION. {t.footer.rights}.
-                </p>
-              </div>
-              
-              <div className="flex items-center space-x-6">
-                <button onClick={() => window.location.href = '/privacy'} className="text-gray-400 hover:text-white text-sm transition-colors">{t.footer.links.privacyPolicy}</button>
-                <button onClick={() => window.location.href = '/terms'} className="text-gray-400 hover:text-white text-sm transition-colors">{t.footer.links.termsOfService}</button>
-                <button onClick={() => window.location.href = '/cookies'} className="text-gray-400 hover:text-white text-sm transition-colors">{t.footer.links.cookiePolicy}</button>
-                <div className="flex items-center space-x-1">
-                  <span className="text-gray-400 text-sm">{t.footer.secure}</span>
-                  <Shield className="w-4 h-4 text-green-400" />
-                </div>
-              </div>
+        {/* Trust line */}
+        <div className="mt-10 pt-8 border-t border-white/10 flex flex-wrap justify-center gap-6 text-sm text-gray-400">
+          <span className="flex items-center gap-2">
+            <span className="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center text-green-400 text-xs">✓</span>
+            Free cancellation
+          </span>
+          <span className="flex items-center gap-2">
+            <Shield className="w-5 h-5 text-finland" />
+            Best price guarantee
+          </span>
+          <span className="flex items-center gap-2">
+            <Star className="w-5 h-5 text-amber-400 fill-amber-400" />
+            Verified reviews
+          </span>
+        </div>
+      </div>
+
+      {/* Bottom bar */}
+      <div className="border-t border-white/10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-3 text-sm text-gray-500">
+            <p>© {currentYear} Traverion. {t.footer?.rights ?? 'All rights reserved.'}</p>
+            <div className="flex flex-wrap justify-center gap-4">
+              <a href="/privacy" className="hover:text-white transition-colors">{t.footer?.links?.privacyPolicy ?? 'Privacy'}</a>
+              <a href="/terms" className="hover:text-white transition-colors">{t.footer?.links?.termsOfService ?? 'Terms'}</a>
+              <a href="/cookies" className="hover:text-white transition-colors">{t.footer?.links?.cookiePolicy ?? 'Cookies'}</a>
             </div>
           </div>
         </div>
