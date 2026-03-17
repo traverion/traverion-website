@@ -24,7 +24,63 @@ export default {
         'normal': '400',
         'medium': '500',
         'semibold': '600',
-      }
+      },
+      // Modern easing: smooth deceleration (Airbnb / Stripe style)
+      transitionTimingFunction: {
+        'smooth': 'cubic-bezier(0.25, 0.1, 0.25, 1)',
+        'out-smooth': 'cubic-bezier(0.33, 1, 0.68, 1)',
+        'in-out-smooth': 'cubic-bezier(0.65, 0, 0.35, 1)',
+      },
+      keyframes: {
+        'fade-in': {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
+        },
+        'fade-in-up': {
+          '0%': { opacity: '0', transform: 'translateY(8px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        'fade-in-down': {
+          '0%': { opacity: '0', transform: 'translateY(-6px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        'slide-up': {
+          '0%': { opacity: '0', transform: 'translateY(16px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        'slide-down': {
+          '0%': { opacity: '0', transform: 'translateY(-12px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        'scale-in': {
+          '0%': { opacity: '0', transform: 'scale(0.98)' },
+          '100%': { opacity: '1', transform: 'scale(1)' },
+        },
+        'shimmer': {
+          '0%': { backgroundPosition: '-200% 0' },
+          '100%': { backgroundPosition: '200% 0' },
+        },
+      },
+      animation: {
+        'fade-in': 'fade-in 0.25s cubic-bezier(0.25, 0.1, 0.25, 1) forwards',
+        'fade-in-up': 'fade-in-up 0.4s cubic-bezier(0.33, 1, 0.68, 1) forwards',
+        'fade-in-down': 'fade-in-down 0.35s cubic-bezier(0.33, 1, 0.68, 1) forwards',
+        'slide-up': 'slide-up 0.35s cubic-bezier(0.33, 1, 0.68, 1) forwards',
+        'slide-down': 'slide-down 0.3s cubic-bezier(0.33, 1, 0.68, 1) forwards',
+        'scale-in': 'scale-in 0.28s cubic-bezier(0.33, 1, 0.68, 1) forwards',
+        'shimmer': 'shimmer 1.5s ease-in-out infinite',
+      },
+      transitionDuration: {
+        '150': '150ms',
+        '200': '200ms',
+        '250': '250ms',
+        '400': '400ms',
+      },
+      boxShadow: {
+        'soft': '0 2px 8px rgba(0,0,0,0.06)',
+        'soft-lg': '0 4px 20px rgba(0,0,0,0.08)',
+        'soft-xl': '0 8px 32px rgba(0,0,0,0.1)',
+      },
     },
   },
   plugins: [],

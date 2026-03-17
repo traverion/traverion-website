@@ -8,6 +8,8 @@ import { activities, TAG_OPTIONS, getDestinationsFromListings, SEED_DESTINATION_
 import { TourPackage } from '../types/tour';
 import { fetchDiscountsByListingIds } from '../data/supabase-discounts';
 import { getDisplayPrice, isSupabaseListingId } from '../lib/discount-display';
+import { setListingsJsonLd } from '../lib/seo';
+import { SkeletonCardGrid } from '../components/ui/Skeleton';
 
 type SortOption = 'recommended' | 'price-asc' | 'price-desc' | 'rating' | 'duration';
 
@@ -92,12 +94,16 @@ export default function Packages({ onTourSelect }: PackagesProps) {
   const [filterBarSticky, setFilterBarSticky] = useState(false);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [supplierListings, setSupplierListings] = useState<TourPackage[] | null>(null);
+  const [listingsLoadError, setListingsLoadError] = useState<string | null>(null);
   const [discountsByListing, setDiscountsByListing] = useState<Map<string, import('../data/supabase-discounts').ListingDiscount[]>>(new Map());
 
   // Load supplier listings from Supabase when configured
   useEffect(() => {
     if (!isSupabaseConfigured()) return;
-    getAllListingsAsync({ includeSeed: false, includeHolidayPackages: false }).then(setSupplierListings);
+    setListingsLoadError(null);
+    getAllListingsAsync({ includeSeed: false, includeHolidayPackages: false })
+      .then(setSupplierListings)
+      .catch((e) => setListingsLoadError(e instanceof Error ? e.message : 'Failed to load tours'));
   }, []);
 
   // Read URL on mount and when user uses browser back/forward
@@ -174,6 +180,19 @@ export default function Packages({ onTourSelect }: PackagesProps) {
     if (showHolidayPackages) base.push(...tourPackages);
     return base;
   }, [supplierListings, showHolidayPackages]);
+
+  // SEO: JSON-LD for listings (helps search engines understand tour offerings)
+  useEffect(() => {
+    if (allListings.length === 0) return;
+    setListingsJsonLd(
+      allListings.slice(0, 20).map((t) => ({
+        id: t.id,
+        name: t.title,
+        description: (t.description || '').slice(0, 500),
+        image: t.image,
+      }))
+    );
+  }, [allListings]);
 
   const destinationOptions = useMemo(() => {
     return SHOW_SEED_LISTINGS ? SEED_DESTINATION_OPTIONS : getDestinationsFromListings(allListings);
@@ -262,6 +281,23 @@ export default function Packages({ onTourSelect }: PackagesProps) {
               : 'bg-white border border-gray-200 rounded-xl py-4 px-4'
           }`}
         >
+          {listingsLoadError && isSupabaseConfigured() && (
+            <div className="mb-4 p-4 rounded-lg bg-red-50 text-red-700 text-sm flex items-center justify-between gap-4">
+              <span>{listingsLoadError}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setListingsLoadError(null);
+                  getAllListingsAsync({ includeSeed: false, includeHolidayPackages: false })
+                    .then(setSupplierListings)
+                    .catch((e) => setListingsLoadError(e instanceof Error ? e.message : 'Failed to load tours'));
+                }}
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-100 text-red-800 font-medium hover:bg-red-200"
+              >
+                Try again
+              </button>
+            </div>
+          )}
           {/* Search row */}
           <div className="flex flex-col sm:flex-row gap-4 mb-4">
             <div className="flex-1 relative">
@@ -510,13 +546,15 @@ export default function Packages({ onTourSelect }: PackagesProps) {
             <div
               key={tour.id}
               onClick={() => handleTourSelect(tour)}
-              className="stagger-item listing-card bg-white rounded-2xl overflow-hidden border border-gray-100 cursor-pointer group"
+              className="listing-card bg-white rounded-2xl overflow-hidden border border-gray-100 cursor-pointer group transition-all duration-250 ease-out-smooth hover:shadow-soft-xl hover:border-gray-200 hover:-translate-y-1 animate-fade-in-up"
+              style={{ animationDelay: `${Math.min(index * 40, 280)}ms` }}
             >
               <div className="relative h-52 overflow-hidden">
                 <img
                   src={tour.image}
                   alt={tour.title}
-                  className="listing-card-image w-full h-full object-cover"
+                  loading="lazy"
+                  className="w-full h-full object-cover transition-transform duration-500 ease-out-smooth group-hover:scale-[1.03]"
                 />
                 <div className="absolute top-3 left-3 flex flex-wrap gap-2">
                   {tour.isPopular && (
@@ -595,15 +633,26 @@ export default function Packages({ onTourSelect }: PackagesProps) {
               <div className="text-center py-20">
                 <Search className="w-14 h-14 mx-auto text-gray-300 mb-4" />
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">No tours found</h3>
-                <p className="text-gray-500">Try different filters or search terms</p>
+                <p className="text-gray-500 mb-4">Try different filters or search terms</p>
+                {hasActiveFilters && (
+                  <button
+                    type="button"
+                    onClick={clearAllFilters}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark transition-colors"
+                  >
+                    Clear filters and browse all
+                  </button>
+                )}
               </div>
             )}
           </>
         )}
 
         {isSupabaseConfigured() && supplierListings === null ? (
-          <div className="text-center py-20 text-gray-500">Loading tours…</div>
-        ) : allListings.length === 0 && (
+          <div className="py-8">
+            <SkeletonCardGrid count={6} />
+          </div>
+        ) : allListings.length === 0 ? (
           <div className="text-center py-20 px-4">
             <Globe className="w-16 h-16 mx-auto text-gray-300 mb-4" />
             <h3 className="text-2xl font-semibold text-gray-900 mb-2">Tours & activities · worldwide</h3>
@@ -618,7 +667,7 @@ export default function Packages({ onTourSelect }: PackagesProps) {
               List your tour
             </a>
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );

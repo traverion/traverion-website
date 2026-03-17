@@ -79,7 +79,9 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
 
   useEffect(() => {
     if (!isSupabaseConfigured()) return;
-    getAllListingsAsync({ includeSeed: false, includeHolidayPackages: false }).then(setSupplierListings);
+    getAllListingsAsync({ includeSeed: false, includeHolidayPackages: false })
+      .then(setSupplierListings)
+      .catch(() => { /* leave supplierListings null so fallback listings are used */ });
   }, []);
 
   const allListings = useMemo(() => {
@@ -135,7 +137,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
         <div
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
           style={{
-            backgroundImage: `url(https://images.pexels.com/photos/346885/pexels-photo-346885.jpeg?auto=compress&cs=tinysrgb&w=1920)`,
+            backgroundImage: 'url(/banner1.jpg)',
           }}
         />
         <div className="absolute inset-0 bg-black/45" aria-hidden />

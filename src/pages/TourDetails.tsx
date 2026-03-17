@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { ArrowLeft, MapPin, Calendar, Users, Star, Clock, Plane, Shield, Heart, Share2, BookOpen, CheckCircle, XCircle, Download, Bed, UtensilsCrossed, Car, Camera, Mountain } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { ArrowLeft, MapPin, Calendar, Users, Star, Clock, Plane, Shield, Heart, Share2, CheckCircle, XCircle, ShoppingCart } from 'lucide-react';
 import { useTranslation } from '../contexts/TranslationContext';
 import { useAuth } from '../contexts/AuthContext';
 import LuxuryButton from '../components/ui/LuxuryButton';
@@ -9,6 +9,18 @@ import { analytics } from '../lib/analytics';
 import { TourPackage } from '../types/tour';
 import { fetchDiscountsByListingIds } from '../data/supabase-discounts';
 import { getDisplayPrice, isSupabaseListingId } from '../lib/discount-display';
+import {
+  fetchReviewsByListingId,
+  getReviewAggregateForListing,
+  submitReview,
+  userHasCompletedBookingForListing,
+  userHasReviewedListing,
+  type ReviewDisplay,
+} from '../data/supabase-reviews';
+import { fetchWishlistListingIds, toggleWishlist } from '../data/supabase-wishlist';
+import { addToCart } from '../data/supabase-cart';
+import { setPageMetaWithOg, setTourJsonLd, clearTourJsonLd } from '../lib/seo';
+import { Skeleton } from '../components/ui/Skeleton';
 
 interface TourDetailsProps {
   tourId: string;
@@ -20,16 +32,35 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
   const { t } = useTranslation();
   const { user, requestAuth } = useAuth();
   const [tour, setTour] = useState<TourPackage | null>(null);
+  const [tourLoadError, setTourLoadError] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState(0);
-  const [isLiked, setIsLiked] = useState(false);
-  const [activeTab, setActiveTab] = useState('itinerary');
+  const [inWishlist, setInWishlist] = useState(false);
+  const [reviews, setReviews] = useState<ReviewDisplay[]>([]);
+  const [reviewAggregate, setReviewAggregate] = useState<{ rating: number; count: number } | null>(null);
+  const [canLeaveReview, setCanLeaveReview] = useState(false);
+  const [hasReviewed, setHasReviewed] = useState(false);
+  const [bookingIdForReview, setBookingIdForReview] = useState<string | undefined>();
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+  const [addToCartMessage, setAddToCartMessage] = useState<'success' | 'error' | null>(null);
+  const [wishlistActionError, setWishlistActionError] = useState<string | null>(null);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewTitle, setReviewTitle] = useState('');
+  const [reviewComment, setReviewComment] = useState('');
   const [bookingDate, setBookingDate] = useState('');
   const [guests, setGuests] = useState(2);
   const [discountsByListing, setDiscountsByListing] = useState<Map<string, import('../data/supabase-discounts').ListingDiscount[]>>(new Map());
 
   useEffect(() => {
+    setTourLoadError(null);
     if (isSupabaseConfigured()) {
-      getListingByIdAsync(tourId).then(found => setTour(found ?? null));
+      getListingByIdAsync(tourId)
+        .then((found) => { setTour(found ?? null); })
+        .catch((e) => {
+          setTour(null);
+          setTourLoadError(e instanceof Error ? e.message : 'Failed to load tour');
+        });
     } else {
       setTour(getListingById(tourId) ?? null);
     }
@@ -40,15 +71,109 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
     fetchDiscountsByListingIds([tour.id]).then(setDiscountsByListing);
   }, [tour?.id]);
 
+  const loadReviews = useCallback(() => {
+    if (!tourId || !isSupabaseConfigured()) return;
+    fetchReviewsByListingId(tourId).then(setReviews);
+    getReviewAggregateForListing(tourId).then(setReviewAggregate);
+  }, [tourId]);
+
+  useEffect(() => {
+    loadReviews();
+  }, [loadReviews]);
+
+  useEffect(() => {
+    if (!user?.id || !tourId || !isSupabaseConfigured()) return;
+    fetchWishlistListingIds(user.id)
+      .then((ids) => setInWishlist(ids.includes(tourId)))
+      .catch(() => setInWishlist(false));
+  }, [user?.id, tourId]);
+
+  useEffect(() => {
+    if (!user?.id || !user?.email || !tourId || !isSupabaseConfigured()) return;
+    userHasCompletedBookingForListing(user.email, tourId).then(({ canReview, bookingId }) => {
+      setCanLeaveReview(canReview);
+      setBookingIdForReview(bookingId);
+    });
+    userHasReviewedListing(user.id, tourId).then(setHasReviewed);
+  }, [user?.id, user?.email, tourId]);
+
+  // SEO: tour-specific title, description, OG image, and JSON-LD
+  useEffect(() => {
+    if (!tour) {
+      clearTourJsonLd();
+      return;
+    }
+    const desc = (tour.description || '').slice(0, 160);
+    setPageMetaWithOg(tour.title, desc, {
+      title: tour.title,
+      description: desc,
+      image: tour.image,
+      type: 'article',
+    });
+    setTourJsonLd({
+      id: tour.id,
+      title: tour.title,
+      description: tour.description ?? '',
+      image: tour.image,
+      destination: tour.destination,
+      duration: tour.duration,
+      rating: tour.rating,
+      reviews: tour.reviews,
+      price: tour.price ? { startingFrom: tour.price.startingFrom, currency: tour.price.currency } : undefined,
+    });
+    return () => clearTourJsonLd();
+  }, [tour]);
+
   if (!tour) {
+    const isLoading = isSupabaseConfigured() && !tourLoadError;
+    if (isLoading) {
+      return (
+        <div className="min-h-screen bg-white pt-20 animate-fade-in">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <Skeleton className="h-10 w-48 mb-8" />
+            <Skeleton className="h-80 w-full rounded-xl mb-8" />
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-2 space-y-4">
+                <Skeleton className="h-8 w-3/4" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-1/2" />
+              </div>
+              <div className="space-y-4">
+                <Skeleton className="h-32 rounded-xl" />
+                <Skeleton className="h-12 w-full rounded-lg" />
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="min-h-screen bg-white pt-20 flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Tour Not Found</h1>
-          <LuxuryButton variant="outline" onClick={onBack}>
-            <ArrowLeft className="mr-2 w-4 h-4" />
-            Back to Tours
-          </LuxuryButton>
+        <div className="text-center max-w-md px-4">
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+            {tourLoadError ? 'Something went wrong' : 'Tour not found'}
+          </h1>
+          {tourLoadError && <p className="text-gray-600 mb-4">{tourLoadError}</p>}
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            {tourLoadError && (
+              <LuxuryButton
+                variant="primary"
+                onClick={() => {
+                  setTourLoadError(null);
+                  getListingByIdAsync(tourId)
+                    .then((found) => setTour(found ?? null))
+                    .catch((e) => setTourLoadError(e instanceof Error ? e.message : 'Failed to load tour'));
+                }}
+              >
+                Try again
+              </LuxuryButton>
+            )}
+            <LuxuryButton variant="outline" onClick={onBack}>
+              <ArrowLeft className="mr-2 w-4 h-4" />
+              Back to Tours
+            </LuxuryButton>
+          </div>
         </div>
       </div>
     );
@@ -68,20 +193,35 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <LuxuryButton variant="outline" onClick={onBack} className="group">
-              <ArrowLeft className="mr-2 w-4 h-4 transition-transform duration-300 group-hover:-translate-x-1" />
+              <ArrowLeft className="mr-2 w-4 h-4 transition-transform duration-200 ease-smooth group-hover:-translate-x-0.5" />
               Back to Tours
             </LuxuryButton>
             
             <div className="flex items-center space-x-4">
               <button
-                onClick={() => setIsLiked(!isLiked)}
-                className={`p-2 rounded-full transition-all duration-300 ${
-                  isLiked 
-                    ? 'bg-red-500 text-white' 
+                type="button"
+                onClick={async () => {
+                  if (!isSupabaseConfigured()) return;
+                  if (!user) {
+                    requestAuth({ onSuccess: () => {} });
+                    return;
+                  }
+                  setWishlistActionError(null);
+                  try {
+                    const res = await toggleWishlist(user.id, tour.id);
+                    setInWishlist(res.inWishlist);
+                  } catch (e) {
+                    setWishlistActionError(e instanceof Error ? e.message : 'Could not update wishlist');
+                  }
+                }}
+                className={`p-2 rounded-full transition-all duration-200 ease-smooth active:scale-95 ${
+                  inWishlist
+                    ? 'bg-red-500 text-white'
                     : 'bg-gray-100 text-gray-600 hover:bg-red-50 hover:text-red-500'
                 }`}
+                title={inWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
               >
-                <Heart size={20} className={isLiked ? 'fill-current' : ''} />
+                <Heart size={20} className={inWishlist ? 'fill-current' : ''} />
               </button>
               
               <button className="p-2 rounded-full bg-gray-100 text-gray-600 hover:bg-finland/10 hover:text-finland transition-all duration-300">
@@ -89,6 +229,9 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
               </button>
             </div>
           </div>
+          {wishlistActionError && (
+            <p className="text-sm text-red-600 mt-2">{wishlistActionError}</p>
+          )}
         </div>
       </div>
 
@@ -146,7 +289,7 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
                 <div className="flex flex-wrap gap-4 text-sm text-gray-600 mb-6">
                   <span className="flex items-center">
                     <Star size={18} className="text-finland fill-finland mr-1" />
-                    <strong className="text-gray-900">{tour.rating}</strong> ({tour.reviews} reviews)
+                    <strong className="text-gray-900">{reviewAggregate?.rating ?? tour.rating}</strong> ({reviewAggregate?.count ?? tour.reviews} reviews)
                   </span>
                   <span className="flex items-center"><Clock size={18} className="mr-1" />{tour.duration}</span>
                   <span className="flex items-center"><Users size={18} className="mr-1" />{tour.groupSize}</span>
@@ -208,9 +351,29 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
                   >
                     Check availability
                   </button>
+                  {isSupabaseConfigured() && user && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (!bookingDate.trim()) {
+                          setAddToCartMessage('error');
+                          return;
+                        }
+                        const res = await addToCart(user.id, tour.id, bookingDate, guests);
+                        setAddToCartMessage(res.success ? 'success' : 'error');
+                        if (res.success) setTimeout(() => setAddToCartMessage(null), 2000);
+                      }}
+                      className="w-full border border-finland text-finland py-2.5 px-4 rounded-lg font-medium hover:bg-finland/5 transition-all flex items-center justify-center gap-2"
+                    >
+                      <ShoppingCart className="w-4 h-4" />
+                      Add to cart
+                    </button>
+                  )}
+                  {addToCartMessage === 'success' && <p className="text-sm text-green-600">Added to cart.</p>}
+                  {addToCartMessage === 'error' && <p className="text-sm text-red-600">Select a date first or try again.</p>}
                   <div className="mt-3 space-y-1.5 text-xs text-gray-600">
-                    {tour.tags?.includes('free-cancellation') && (
-                      <p className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 flex-shrink-0" /> Free cancellation up to 24 hours before</p>
+                    {(tour.cancellationPolicy || tour.tags?.includes('free-cancellation')) && (
+                      <p className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 flex-shrink-0" /> {tour.cancellationPolicy || 'Free cancellation up to 24 hours before'}</p>
                     )}
                     <p className="flex items-center gap-2"><Shield className="w-3.5 h-3.5 text-finland flex-shrink-0" /> Best price guarantee</p>
                     <p className="flex items-center gap-2"><Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500 flex-shrink-0" /> Reserve now, pay later</p>
@@ -264,6 +427,137 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
               </div>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Reviews */}
+      <section className="py-16 bg-white border-t border-gray-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-3xl font-heading font-bold text-gray-900 mb-6">Reviews</h2>
+          {reviews.length === 0 && !showReviewForm && (
+            <p className="text-gray-600 mb-6">No reviews yet. Be the first to leave one after your experience.</p>
+          )}
+          <div className="space-y-6 mb-8">
+            {reviews.map((r) => (
+              <div key={r.id} className="border-b border-gray-100 pb-6 last:border-0">
+                <div className="flex items-center gap-3 mb-2">
+                  <span className="font-medium text-gray-900">{r.guest_name}</span>
+                  {r.verified && (
+                    <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">Verified</span>
+                  )}
+                  <span className="text-sm text-gray-500">{new Date(r.created_at).toLocaleDateString()}</span>
+                </div>
+                <div className="flex gap-1 mb-1">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <Star
+                      key={i}
+                      size={16}
+                      className={i <= r.rating ? 'text-amber-500 fill-amber-500' : 'text-gray-300'}
+                    />
+                  ))}
+                </div>
+                {r.title && <p className="font-medium text-gray-900 mb-1">{r.title}</p>}
+                <p className="text-gray-700">{r.comment}</p>
+              </div>
+            ))}
+          </div>
+
+          {canLeaveReview && !hasReviewed && !showReviewForm && (
+            <button
+              type="button"
+              onClick={() => setShowReviewForm(true)}
+              className="px-4 py-2 rounded-lg border border-finland text-finland font-medium hover:bg-finland/5"
+            >
+              Leave a review
+            </button>
+          )}
+
+          {showReviewForm && user && (
+            <div className="bg-gray-50 rounded-xl p-6 max-w-xl">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Write a review</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Rating</label>
+                  <div className="flex gap-1">
+                    {[1, 2, 3, 4, 5].map((i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => setReviewRating(i)}
+                        className="p-1"
+                      >
+                        <Star
+                          size={28}
+                          className={i <= reviewRating ? 'text-amber-500 fill-amber-500' : 'text-gray-300'}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Title (optional)</label>
+                  <input
+                    type="text"
+                    value={reviewTitle}
+                    onChange={(e) => setReviewTitle(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+                    placeholder="Sum up your experience"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Your review *</label>
+                  <textarea
+                    value={reviewComment}
+                    onChange={(e) => setReviewComment(e.target.value)}
+                    rows={4}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+                    placeholder="Tell others what you liked..."
+                    required
+                  />
+                </div>
+                {reviewError && <p className="text-sm text-red-600">{reviewError}</p>}
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    disabled={reviewSubmitting || !reviewComment.trim()}
+                    onClick={async () => {
+                      setReviewSubmitting(true);
+                      setReviewError(null);
+                      const res = await submitReview({
+                        listingId: tour.id,
+                        userId: user.id,
+                        guestName: user.email?.split('@')[0] ?? 'Guest',
+                        rating: reviewRating,
+                        title: reviewTitle.trim() || undefined,
+                        comment: reviewComment.trim(),
+                        bookingId: bookingIdForReview,
+                      });
+                      setReviewSubmitting(false);
+                      if (res.success) {
+                        setShowReviewForm(false);
+                        setReviewTitle('');
+                        setReviewComment('');
+                        setHasReviewed(true);
+                        loadReviews();
+                      } else {
+                        setReviewError(res.error ?? 'Failed to submit');
+                      }
+                    }}
+                    className="px-4 py-2 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark disabled:opacity-50"
+                  >
+                    {reviewSubmitting ? 'Submitting…' : 'Submit review'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setShowReviewForm(false); setReviewError(null); }}
+                    className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </section>
 

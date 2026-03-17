@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect } from 'react';
 import { ArrowLeft, MapPin, Star, Clock } from 'lucide-react';
 import { getAllListings, getAllListingsAsync, SHOW_SEED_LISTINGS } from '../data/listings';
 import { isSupabaseConfigured } from '../lib/supabase';
+import { setPageMetaWithOg } from '../lib/seo';
 import { activities } from '../data/activities';
 import { TourPackage } from '../types/tour';
 
@@ -31,7 +32,9 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
   const [supplierListings, setSupplierListings] = useState<TourPackage[] | null>(null);
   useEffect(() => {
     if (!isSupabaseConfigured()) return;
-    getAllListingsAsync({ includeSeed: false, includeHolidayPackages: false }).then(setSupplierListings);
+    getAllListingsAsync({ includeSeed: false, includeHolidayPackages: false })
+      .then(setSupplierListings)
+      .catch(() => {});
   }, []);
   const allListings = useMemo(() => {
     const base =
@@ -53,6 +56,14 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
     const label = list[0]?.country === labelFromSlug ? labelFromSlug : (list[0]?.city ?? labelFromSlug);
     return { label: label || labelFromSlug, listings: list };
   }, [slug, allListings]);
+
+  useEffect(() => {
+    if (!label) return;
+    setPageMetaWithOg(
+      `Tours in ${label}`,
+      `Book tours and activities in ${label}. ${listings.length} experience${listings.length !== 1 ? 's' : ''} available.`
+    );
+  }, [label, listings.length]);
 
   if (!slug) {
     if (onNavigate) onNavigate('packages');

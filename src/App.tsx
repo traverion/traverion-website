@@ -10,6 +10,8 @@ import Blog from './pages/Blog';
 import TourDetails from './pages/TourDetails';
 import BookingPage from './pages/BookingPage';
 import MyBookings from './pages/MyBookings';
+import WishlistPage from './pages/WishlistPage';
+import CartPage from './pages/CartPage';
 import TourPackage from './pages/TourPackage';
 import Vietnam9Day from './pages/Vietnam9Day';
 import Vietnam12Day from './pages/Vietnam12Day';
@@ -24,11 +26,13 @@ import AdminAccess from './components/AdminAccess';
 import Privacy from './pages/Privacy';
 import Terms from './pages/Terms';
 import Cookies from './pages/Cookies';
+import About from './pages/About';
+import Sitemap from './pages/Sitemap';
 import { TranslationProvider } from './contexts/TranslationContext';
 import { SupplierAuthProvider } from './contexts/SupplierAuthContext';
 import { AuthProvider } from './contexts/AuthContext';
 import AuthModal from './components/AuthModal';
-import { setPageMeta } from './lib/seo';
+import { setPageMetaWithOg, setCanonicalUrl, setOrganizationJsonLd } from './lib/seo';
 import { TourPackage as TourPackageType } from './types/tour';
 
 function App() {
@@ -64,13 +68,17 @@ function App() {
       '/10-cambodia': 'cambodia-10-day',
       '/14-indochina': 'indochina-14-day',
       '/packages': 'packages',
+      '/wishlist': 'wishlist',
+      '/cart': 'cart',
       '/bookings': 'bookings',
       '/blog': 'blog',
       '/contact': 'contact',
       '/admin': 'admin',
       '/privacy': 'privacy',
       '/terms': 'terms',
-      '/cookies': 'cookies'
+      '/cookies': 'cookies',
+      '/about': 'about',
+      '/sitemap': 'sitemap'
     };
 
     const mappedPage = urlMapping[path];
@@ -97,6 +105,8 @@ function App() {
       'cambodia-10-day': '/10-cambodia',
       'indochina-14-day': '/14-indochina',
       'packages': '/packages',
+      'wishlist': '/wishlist',
+      'cart': '/cart',
       'bookings': '/bookings',
       'blog': '/blog',
       'contact': '/contact',
@@ -104,6 +114,8 @@ function App() {
       'privacy': '/privacy',
       'terms': '/terms',
       'cookies': '/cookies',
+      'about': '/about',
+      'sitemap': '/sitemap',
       'home': '/'
     };
 
@@ -121,23 +133,41 @@ function App() {
     window.scrollTo(0, 0);
   }, [currentPage]);
 
-  // Document title and meta per page
+  // Organization JSON-LD once on mount
   useEffect(() => {
-    const titles: Record<string, { title: string; description?: string }> = {
+    setOrganizationJsonLd();
+  }, []);
+
+  // Document title, meta, OG/Twitter, and canonical URL per page
+  useEffect(() => {
+    const metaByPage: Record<string, { title: string; description?: string }> = {
       home: { title: 'Traverion', description: 'Book tours and activities worldwide. Find and reserve experiences with free cancellation.' },
       packages: { title: 'Tours & activities', description: 'Browse and book tours and activities worldwide. Filter by destination, price, and more.' },
+      wishlist: { title: 'Wishlist', description: 'Your saved tours and activities.' },
+      cart: { title: 'Cart', description: 'Your cart. Request bookings for selected tours.' },
       bookings: { title: 'My bookings', description: 'View your tour and activity reservations and their status.' },
       blog: { title: 'Blog', description: 'Travel stories and tips from Traverion.' },
       contact: { title: 'Contact', description: 'Get in touch with Traverion.' },
       privacy: { title: 'Privacy Policy', description: 'Traverion privacy policy.' },
       terms: { title: 'Terms of Service', description: 'Traverion terms of service.' },
       cookies: { title: 'Cookie Policy', description: 'Traverion cookie policy.' },
+      about: { title: 'About Us', description: 'Learn about Traverion.' },
+      sitemap: { title: 'Sitemap', description: 'All pages and links.' },
       destination: { title: 'Destination', description: 'Tours and activities in this destination.' },
+      admin: { title: 'Admin', description: 'Traverion admin.' },
     };
-    const meta = titles[currentPage];
-    if (meta) setPageMeta(meta.title, meta.description);
-    else setPageMeta('');
-  }, [currentPage]);
+    const meta = metaByPage[currentPage];
+    if (meta) setPageMetaWithOg(meta.title, meta.description);
+    else setPageMetaWithOg('Traverion', 'Tours & activities worldwide.');
+
+    const pathMap: Record<string, string> = {
+      home: '/', packages: '/packages', wishlist: '/wishlist', cart: '/cart', bookings: '/bookings',
+      blog: '/blog', contact: '/contact', privacy: '/privacy', terms: '/terms', cookies: '/cookies',
+      about: '/about', sitemap: '/sitemap', admin: '/admin',
+    };
+    const path = currentPage === 'destination' ? `/destinations/${destinationSlug || ''}` : (pathMap[currentPage] ?? '/');
+    setCanonicalUrl(path);
+  }, [currentPage, destinationSlug]);
 
   const handleTourSelect = (tour: TourPackageType) => {
     setSelectedTour(tour);
@@ -185,8 +215,18 @@ function App() {
             tour={selectedTour}
             onBack={() => setCurrentPage('tour-details')}
             onComplete={() => { setSelectedTour(null); setCurrentPage('packages'); }}
+            onNavigate={setCurrentPage}
           />
         ) : <Home onTourSelect={handleTourSelect} />;
+      case 'wishlist':
+        return (
+          <WishlistPage
+            onNavigate={setCurrentPage}
+            onTourSelect={handleTourSelect}
+          />
+        );
+      case 'cart':
+        return <CartPage onNavigate={setCurrentPage} />;
       case 'bookings':
         return (
           <MyBookings
@@ -221,6 +261,10 @@ function App() {
         return <Terms />;
       case 'cookies':
         return <Cookies />;
+      case 'about':
+        return <About />;
+      case 'sitemap':
+        return <Sitemap />;
       case 'admin':
         return isAdminAuthenticated ? <AdminDashboard /> : <AdminAccess onAccessGranted={() => setIsAdminAuthenticated(true)} />;
       default:
@@ -233,8 +277,8 @@ function App() {
           <AuthProvider>
             <div className="min-h-screen bg-white relative flex flex-col">
               <UnifiedHeader currentPage={currentPage} onNavigate={setCurrentPage} />
-              <main className="flex-grow">{renderPage()}</main>
-              <Footer />
+              <main className="flex-grow animate-fade-in-up" style={{ animationDuration: '0.35s' }}>{renderPage()}</main>
+              <Footer onNavigate={setCurrentPage} />
               <StickyBookingButton onNavigate={setCurrentPage} />
             </div>
             <AuthModal />

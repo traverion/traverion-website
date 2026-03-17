@@ -64,7 +64,7 @@ export default function PackageCard({
     <LuxuryCard 
       variant="elevated" 
       hover={true}
-      className="group relative overflow-hidden animate-fade-in-up cursor-pointer transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl"
+      className="group relative overflow-hidden animate-fade-in-up cursor-pointer transition-all duration-250 ease-out-smooth hover:-translate-y-1 hover:shadow-soft-xl"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onClick={onViewDetails}
@@ -72,7 +72,7 @@ export default function PackageCard({
       {/* Image Section */}
       <div className="relative h-72 overflow-hidden">
         <div
-          className="absolute inset-0 bg-cover bg-center transition-all duration-700 group-hover:scale-110"
+          className="absolute inset-0 bg-cover bg-center transition-transform duration-500 ease-out-smooth group-hover:scale-[1.04]"
           style={{ backgroundImage: `url(${image})` }}
         />
         

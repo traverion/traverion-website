@@ -1,19 +1,27 @@
 import { useState, useEffect } from 'react';
-import { LayoutDashboard, MapPin, Calendar, DollarSign, Settings, LogOut, Globe, Menu, X, Sparkles, Users, BarChart3 } from 'lucide-react';
+import { LayoutDashboard, MapPin, Calendar, DollarSign, Settings, LogOut, Globe, Menu, X, Users, BarChart3, Star, ClipboardList } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
-import SupplierAuth from '../../pages/supplier/SupplierAuth';
 import SupplierDashboard from '../../pages/supplier/SupplierDashboard';
 import SupplierListings from '../../pages/supplier/SupplierListings';
 import SupplierBookings from '../../pages/supplier/SupplierBookings';
 import SupplierEarnings from '../../pages/supplier/SupplierEarnings';
+import SupplierReviews from '../../pages/supplier/SupplierReviews';
+import SupplierPickupPlanner from '../../pages/supplier/SupplierPickupPlanner';
+import { fetchSupplierProfile, updateSupplierPayout, updateSupplierCompanyProfile } from '../../data/supabase-supplier-profile';
+import SupplierLoginPage from './SupplierLoginPage';
 
-type SupplierSection = 'dashboard' | 'listings' | 'bookings' | 'earnings' | 'settings';
+/** URL path for the supplier login/landing page. Portal is /supplier and /supplier/* */
+export const SUPPLIER_LOGIN_PATH = '/supplier-log-in';
+
+type SupplierSection = 'dashboard' | 'listings' | 'bookings' | 'earnings' | 'reviews' | 'pickup' | 'settings';
 
 const NAV_ITEMS: { id: SupplierSection; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'listings', label: 'My listings', icon: MapPin },
   { id: 'bookings', label: 'Bookings', icon: Calendar },
   { id: 'earnings', label: 'Earnings', icon: DollarSign },
+  { id: 'reviews', label: 'Reviews', icon: Star },
+  { id: 'pickup', label: 'Pickup planner', icon: ClipboardList },
   { id: 'settings', label: 'Settings', icon: Settings },
 ];
 
@@ -25,6 +33,15 @@ function getSectionFromPath(pathname: string): SupplierSection | null {
   return NAV_ITEMS.some((n) => n.id === section) ? section : 'dashboard';
 }
 
+function isSupplierLoginPath(pathname: string): boolean {
+  const p = pathname.replace(/\/$/, '');
+  return p === SUPPLIER_LOGIN_PATH;
+}
+
+function isSupplierPortalPath(pathname: string): boolean {
+  return pathname === '/supplier' || pathname === '/supplier/' || pathname.startsWith('/supplier/');
+}
+
 function pushSupplierPath(section: SupplierSection) {
   const path = section === 'dashboard' ? '/supplier' : `/supplier/${section}`;
   window.history.pushState({}, '', path);
@@ -33,8 +50,58 @@ function pushSupplierPath(section: SupplierSection) {
 
 export default function SupplierLayout() {
   const { user, loading, signOut, isSupabase } = useSupplierAuth();
-  const [section, setSection] = useState<SupplierSection>('dashboard');
+  const [section, setSection] = useState<SupplierSection>(() => getSectionFromPath(window.location.pathname) ?? 'dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [payoutMethod, setPayoutMethod] = useState<'bank' | 'paypal' | 'none' | ''>('');
+  const [payoutIban, setPayoutIban] = useState('');
+  const [payoutBic, setPayoutBic] = useState('');
+  const [payoutPaypalEmail, setPayoutPaypalEmail] = useState('');
+  const [payoutSaving, setPayoutSaving] = useState(false);
+  const [payoutMessage, setPayoutMessage] = useState<'success' | 'error' | null>(null);
+  const [paymentCycle, setPaymentCycle] = useState<'monthly' | 'biweekly' | ''>('');
+  const [payoutThreshold, setPayoutThreshold] = useState<string>('');
+  const [businessType, setBusinessType] = useState<'company' | 'individual' | ''>('');
+  const [companyLegalName, setCompanyLegalName] = useState('');
+  const [companyRegistrationNumber, setCompanyRegistrationNumber] = useState('');
+  const [managingDirectors, setManagingDirectors] = useState('');
+  const [businessAddress, setBusinessAddress] = useState('');
+  const [taxId, setTaxId] = useState('');
+  const [vatId, setVatId] = useState('');
+  const [verificationStatus, setVerificationStatus] = useState<string>('');
+  const [insurancePolicyNumber, setInsurancePolicyNumber] = useState('');
+  const [insuranceCoverage, setInsuranceCoverage] = useState('');
+  const [insuranceStart, setInsuranceStart] = useState('');
+  const [insuranceEnd, setInsuranceEnd] = useState('');
+  const [insuranceProvider, setInsuranceProvider] = useState('');
+  const [companySaving, setCompanySaving] = useState(false);
+  const [companyMessage, setCompanyMessage] = useState<'success' | 'error' | null>(null);
+
+  useEffect(() => {
+    if (section !== 'settings' || !user?.id || !isSupabase) return;
+    fetchSupplierProfile(user.id).then((p) => {
+      if (p) {
+        setPayoutMethod((p.payout_method as 'bank' | 'paypal' | 'none') ?? '');
+        setPayoutIban(p.payout_iban ?? '');
+        setPayoutBic(p.payout_bic ?? '');
+        setPayoutPaypalEmail(p.payout_paypal_email ?? '');
+        setPaymentCycle(p.payment_cycle ?? '');
+        setPayoutThreshold(String(p.payout_threshold_min ?? ''));
+        setBusinessType(p.business_type ?? '');
+        setCompanyLegalName(p.company_legal_name ?? '');
+        setCompanyRegistrationNumber(p.company_registration_number ?? '');
+        setManagingDirectors(p.managing_directors ?? '');
+        setBusinessAddress(p.business_address ?? '');
+        setTaxId(p.tax_id ?? '');
+        setVatId(p.vat_id ?? '');
+        setVerificationStatus(p.verification_status ?? '');
+        setInsurancePolicyNumber(p.insurance_policy_number ?? '');
+        setInsuranceCoverage(p.insurance_coverage ?? '');
+        setInsuranceStart(p.insurance_start ?? '');
+        setInsuranceEnd(p.insurance_end ?? '');
+        setInsuranceProvider(p.insurance_provider ?? '');
+      }
+    });
+  }, [section, user?.id, isSupabase]);
 
   useEffect(() => {
     const syncFromPath = () => {
@@ -54,8 +121,12 @@ export default function SupplierLayout() {
 
   const handleAuthenticated = () => {
     setSection('dashboard');
-    pushSupplierPath('dashboard');
+    window.location.replace('/supplier');
   };
+
+  const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
+  const onLoginPath = isSupplierLoginPath(pathname);
+  const onPortalPath = isSupplierPortalPath(pathname);
 
   if (loading) {
     return (
@@ -65,70 +136,26 @@ export default function SupplierLayout() {
     );
   }
 
-  if (!user) {
+  if (onPortalPath && !user) {
+    window.location.replace(SUPPLIER_LOGIN_PATH);
     return (
-      <div className="min-h-screen bg-gray-50">
-        <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-            <a href="/" className="flex items-center gap-2 text-gray-900 font-semibold">
-              <Globe className="w-6 h-6 text-finland" />
-              TRAVERION
-            </a>
-            <a href="/" className="text-sm text-gray-600 hover:text-finland">Back to main site</a>
-          </div>
-        </header>
-        <main>
-          {/* For suppliers landing */}
-          <section className="bg-gradient-to-b from-finland/5 to-transparent border-b border-gray-200">
-            <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14 text-center">
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-finland/10 text-finland text-sm font-medium mb-6">
-                <Sparkles className="w-4 h-4" />
-                For tour & activity providers
-              </div>
-              <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-3">
-                List your tours on Traverion
-              </h1>
-              <p className="text-lg text-gray-600 mb-10">
-                Reach travelers worldwide. Manage listings, bookings, and earnings in one place.
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-left">
-                <div className="flex gap-3 p-4 rounded-xl bg-white border border-gray-100 shadow-sm">
-                  <div className="w-10 h-10 rounded-lg bg-finland/10 flex items-center justify-center flex-shrink-0">
-                    <MapPin className="w-5 h-5 text-finland" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">List once</p>
-                    <p className="text-sm text-gray-600">Your tours appear on the main site for all travelers.</p>
-                  </div>
-                </div>
-                <div className="flex gap-3 p-4 rounded-xl bg-white border border-gray-100 shadow-sm">
-                  <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center flex-shrink-0">
-                    <Users className="w-5 h-5 text-green-600" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">Get bookings</p>
-                    <p className="text-sm text-gray-600">Confirm or cancel, see guest details and special requests.</p>
-                  </div>
-                </div>
-                <div className="flex gap-3 p-4 rounded-xl bg-white border border-gray-100 shadow-sm">
-                  <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center flex-shrink-0">
-                    <BarChart3 className="w-5 h-5 text-amber-600" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">Track earnings</p>
-                    <p className="text-sm text-gray-600">Pending and paid payouts in your dashboard.</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-          <section className="max-w-md mx-auto px-4 sm:px-6 py-10">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4 text-center">Log in or sign up</h2>
-            <SupplierAuth onAuthenticated={handleAuthenticated} isSupabase={isSupabase} />
-          </section>
-        </main>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <p className="text-gray-500">Redirecting to login...</p>
       </div>
     );
+  }
+
+  if (onLoginPath && user) {
+    window.location.replace('/supplier');
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <p className="text-gray-500">Redirecting...</p>
+      </div>
+    );
+  }
+
+  if (onLoginPath && !user) {
+    return <SupplierLoginPage onAuthenticated={handleAuthenticated} isSupabase={isSupabase} />;
   }
 
   return (
@@ -147,7 +174,7 @@ export default function SupplierLayout() {
             <button
               key={item.id}
               onClick={() => handleNavigate(item.id)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left text-sm font-medium transition-colors ${
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left text-sm font-medium transition-colors duration-200 ease-smooth ${
                 section === item.id ? 'bg-finland/10 text-finland' : 'text-gray-600 hover:bg-gray-100'
               }`}
             >
@@ -159,7 +186,7 @@ export default function SupplierLayout() {
         <div className="p-3 border-t border-gray-200">
           <button
             onClick={() => signOut()}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left text-sm font-medium text-gray-600 hover:bg-gray-100"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors duration-200 ease-smooth"
           >
             <LogOut className="w-5 h-5" />
             Sign out
@@ -176,7 +203,7 @@ export default function SupplierLayout() {
         />
       )}
       <aside
-        className={`lg:hidden fixed top-0 left-0 w-64 h-full bg-white border-r border-gray-200 z-50 transform transition-transform ${
+        className={`lg:hidden fixed top-0 left-0 w-64 h-full bg-white border-r border-gray-200 z-50 transform transition-transform duration-250 ease-out-smooth ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -223,23 +250,290 @@ export default function SupplierLayout() {
           >
             <Menu className="w-6 h-6" />
           </button>
-          <a href="/" className="ml-auto text-sm text-gray-600 hover:text-finland">Back to main site</a>
+          <a href="/" className="ml-auto text-sm text-gray-600 hover:text-finland transition-colors duration-200 ease-smooth">Back to main site</a>
         </header>
         <main className="p-4 sm:p-6 lg:p-8">
           {section === 'dashboard' && (
-            <SupplierDashboard onNavigateToListings={() => handleNavigate('listings')} />
+            <SupplierDashboard
+              onNavigateToListings={() => handleNavigate('listings')}
+              onNavigateToSettings={() => handleNavigate('settings')}
+            />
           )}
           {section === 'listings' && <SupplierListings />}
           {section === 'bookings' && <SupplierBookings />}
           {section === 'earnings' && <SupplierEarnings />}
+          {section === 'reviews' && <SupplierReviews />}
+          {section === 'pickup' && <SupplierPickupPlanner />}
           {section === 'settings' && (
             <div className="space-y-6">
               <h1 className="text-2xl font-semibold text-gray-900">Settings</h1>
-              <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4">
+              <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-6">
                 <div>
                   <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide">Account</h2>
                   <p className="mt-1 text-gray-900">{user?.email ?? '—'}</p>
-                  <p className="mt-1 text-sm text-gray-500">You are logged in as a supplier. Payout method and notifications can be added here later.</p>
+                </div>
+
+                <div>
+                  <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3">Company profile</h2>
+                  <p className="text-sm text-gray-500 mb-4">Business details for verification and invoicing.</p>
+                  <div className="space-y-4 max-w-xl">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Business type</label>
+                      <select
+                        value={businessType}
+                        onChange={(e) => setBusinessType(e.target.value as 'company' | 'individual' | '')}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                      >
+                        <option value="">Not set</option>
+                        <option value="company">Registered company</option>
+                        <option value="individual">Individual trader</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Legal name / Company name</label>
+                      <input
+                        type="text"
+                        value={companyLegalName}
+                        onChange={(e) => setCompanyLegalName(e.target.value)}
+                        placeholder="Legal or company name"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+                      />
+                    </div>
+                    {businessType === 'company' && (
+                      <>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Registration number</label>
+                          <input
+                            type="text"
+                            value={companyRegistrationNumber}
+                            onChange={(e) => setCompanyRegistrationNumber(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Managing directors</label>
+                          <input
+                            type="text"
+                            value={managingDirectors}
+                            onChange={(e) => setManagingDirectors(e.target.value)}
+                            placeholder="Names"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+                          />
+                        </div>
+                      </>
+                    )}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Business address</label>
+                      <textarea
+                        value={businessAddress}
+                        onChange={(e) => setBusinessAddress(e.target.value)}
+                        rows={2}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Tax ID (TIN)</label>
+                        <input
+                          type="text"
+                          value={taxId}
+                          onChange={(e) => setTaxId(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">VAT ID (if registered)</label>
+                        <input
+                          type="text"
+                          value={vatId}
+                          onChange={(e) => setVatId(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+                        />
+                      </div>
+                    </div>
+                    {verificationStatus && (
+                      <p className="text-sm text-gray-600">Verification status: <span className="font-medium">{verificationStatus}</span></p>
+                    )}
+                    <div className="border-t border-gray-200 pt-4">
+                      <h3 className="text-sm font-medium text-gray-700 mb-2">Insurance (optional)</h3>
+                      <div className="space-y-2">
+                        <input
+                          type="text"
+                          value={insurancePolicyNumber}
+                          onChange={(e) => setInsurancePolicyNumber(e.target.value)}
+                          placeholder="Policy number"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+                        />
+                        <input
+                          type="text"
+                          value={insuranceCoverage}
+                          onChange={(e) => setInsuranceCoverage(e.target.value)}
+                          placeholder="Coverage details"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+                        />
+                        <div className="grid grid-cols-2 gap-2">
+                          <input
+                            type="date"
+                            value={insuranceStart}
+                            onChange={(e) => setInsuranceStart(e.target.value)}
+                            placeholder="Start"
+                            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+                          />
+                          <input
+                            type="date"
+                            value={insuranceEnd}
+                            onChange={(e) => setInsuranceEnd(e.target.value)}
+                            placeholder="End"
+                            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+                          />
+                        </div>
+                        <input
+                          type="text"
+                          value={insuranceProvider}
+                          onChange={(e) => setInsuranceProvider(e.target.value)}
+                          placeholder="Provider name"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        disabled={companySaving}
+                        onClick={async () => {
+                          if (!user?.id) return;
+                          setCompanySaving(true);
+                          setCompanyMessage(null);
+                          const res = await updateSupplierCompanyProfile(user.id, {
+                            business_type: businessType || null,
+                            company_legal_name: companyLegalName.trim() || null,
+                            company_registration_number: companyRegistrationNumber.trim() || null,
+                            managing_directors: managingDirectors.trim() || null,
+                            business_address: businessAddress.trim() || null,
+                            tax_id: taxId.trim() || null,
+                            vat_id: vatId.trim() || null,
+                            insurance_policy_number: insurancePolicyNumber.trim() || null,
+                            insurance_coverage: insuranceCoverage.trim() || null,
+                            insurance_start: insuranceStart || null,
+                            insurance_end: insuranceEnd || null,
+                            insurance_provider: insuranceProvider.trim() || null,
+                          });
+                          setCompanySaving(false);
+                          setCompanyMessage(res.success ? 'success' : 'error');
+                        }}
+                        className="px-4 py-2 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark disabled:opacity-50"
+                      >
+                        {companySaving ? 'Saving…' : 'Save company profile'}
+                      </button>
+                      {companyMessage === 'success' && <span className="text-sm text-green-600">Saved.</span>}
+                      {companyMessage === 'error' && <span className="text-sm text-red-600">Failed to save.</span>}
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3">Payout method</h2>
+                  <p className="text-sm text-gray-500 mb-4">How you’d like to receive payouts when they’re enabled. This is stored securely and used when we integrate payments.</p>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Method</label>
+                      <select
+                        value={payoutMethod}
+                        onChange={(e) => setPayoutMethod(e.target.value as 'bank' | 'paypal' | 'none' | '')}
+                        className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                      >
+                        <option value="">Not set</option>
+                        <option value="bank">Bank transfer (IBAN)</option>
+                        <option value="paypal">PayPal</option>
+                        <option value="none">None / later</option>
+                      </select>
+                    </div>
+                    {payoutMethod === 'bank' && (
+                      <>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">IBAN</label>
+                          <input
+                            type="text"
+                            value={payoutIban}
+                            onChange={(e) => setPayoutIban(e.target.value)}
+                            placeholder="e.g. FI12 3456 7890 1234 56"
+                            className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">BIC / SWIFT</label>
+                          <input
+                            type="text"
+                            value={payoutBic}
+                            onChange={(e) => setPayoutBic(e.target.value)}
+                            placeholder="e.g. NDEAFIHH"
+                            className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+                          />
+                        </div>
+                      </>
+                    )}
+                    {payoutMethod === 'paypal' && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">PayPal email</label>
+                        <input
+                          type="email"
+                          value={payoutPaypalEmail}
+                          onChange={(e) => setPayoutPaypalEmail(e.target.value)}
+                          placeholder="you@example.com"
+                          className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+                        />
+                      </div>
+                    )}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Payment cycle</label>
+                      <select
+                        value={paymentCycle}
+                        onChange={(e) => setPaymentCycle(e.target.value as 'monthly' | 'biweekly' | '')}
+                        className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                      >
+                        <option value="">Not set</option>
+                        <option value="monthly">Monthly</option>
+                        <option value="biweekly">Bi-weekly</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Minimum payout threshold (e.g. 50)</label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={payoutThreshold}
+                        onChange={(e) => setPayoutThreshold(e.target.value)}
+                        placeholder="0"
+                        className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+                      />
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        disabled={payoutSaving}
+                        onClick={async () => {
+                          if (!user?.id) return;
+                          setPayoutSaving(true);
+                          setPayoutMessage(null);
+                          const res = await updateSupplierPayout(user.id, {
+                            payout_method: payoutMethod || null,
+                            payout_iban: payoutMethod === 'bank' ? payoutIban.trim() || null : null,
+                            payout_bic: payoutMethod === 'bank' ? payoutBic.trim() || null : null,
+                            payout_paypal_email: payoutMethod === 'paypal' ? payoutPaypalEmail.trim() || null : null,
+                            payment_cycle: paymentCycle || null,
+                            payout_threshold_min: payoutThreshold !== '' ? Number(payoutThreshold) : null,
+                          });
+                          setPayoutSaving(false);
+                          setPayoutMessage(res.success ? 'success' : 'error');
+                        }}
+                        className="px-4 py-2 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark disabled:opacity-50"
+                      >
+                        {payoutSaving ? 'Saving…' : 'Save payout details'}
+                      </button>
+                      {payoutMessage === 'success' && <span className="text-sm text-green-600">Saved.</span>}
+                      {payoutMessage === 'error' && <span className="text-sm text-red-600">Failed to save.</span>}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

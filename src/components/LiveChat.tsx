@@ -161,9 +161,9 @@ export default function LiveChat({ className = '' }: LiveChatProps) {
           variant="gradient"
           size="lg"
           onClick={() => setIsOpen(true)}
-          className="rounded-full w-16 h-16 shadow-2xl hover:scale-110 transition-transform duration-300 group"
+          className="rounded-full w-16 h-16 shadow-soft-xl hover:scale-105 transition-transform duration-200 ease-smooth group"
         >
-          <MessageCircle className="w-6 h-6 group-hover:scale-110 transition-transform duration-300" />
+              <MessageCircle className="w-6 h-6 transition-transform duration-200 ease-smooth" />
           <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-6 w-6 flex items-center justify-center animate-pulse">
             1
           </span>

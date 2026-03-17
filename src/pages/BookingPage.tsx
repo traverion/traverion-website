@@ -3,23 +3,27 @@
  * Date & guests → Contact details → Confirm → Done.
  * All in one page, minimal fields.
  */
-import { useState } from 'react';
-import { ArrowLeft, Calendar, Users, User, Mail, MessageSquare, CheckCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ArrowLeft, Calendar, Users, User, Mail, MessageSquare, CheckCircle, MapPin } from 'lucide-react';
 import { TourPackage } from '../types/tour';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { submitBooking } from '../data/supabase-bookings';
+import { checkAvailability } from '../data/supabase-availability';
 import { analytics } from '../lib/analytics';
+import { setPageMetaWithOg } from '../lib/seo';
+import { dateNotInPast, validateEmail, required, maxLength } from '../lib/validation';
 
 interface BookingPageProps {
   tour: TourPackage;
   onBack: () => void;
   onComplete: () => void;
+  onNavigate?: (page: string) => void;
 }
 
 type Step = 'date-guests' | 'contact' | 'confirm' | 'done';
 
-export default function BookingPage({ tour, onBack, onComplete }: BookingPageProps) {
+export default function BookingPage({ tour, onBack, onComplete, onNavigate }: BookingPageProps) {
   const { user, requestAuth } = useAuth();
   const [step, setStep] = useState<Step>('date-guests');
   const [date, setDate] = useState('');
@@ -34,9 +38,22 @@ export default function BookingPage({ tour, onBack, onComplete }: BookingPagePro
   const currency = tour.price?.currency ?? 'USD';
   const total = price * guests;
 
+  useEffect(() => {
+    setPageMetaWithOg(`Book: ${tour.title}`, `Reserve ${tour.title}. From ${currency} ${price} per person.`, {
+      title: `Book: ${tour.title}`,
+      image: tour.image,
+      type: 'website',
+    });
+  }, [tour.id, tour.title, tour.image, price, currency]);
+
   const handleContinueFromDateGuests = () => {
-    if (!date.trim()) {
-      setError('Please select a date');
+    const dateCheck = dateNotInPast(date.trim());
+    if (!dateCheck.valid) {
+      setError(dateCheck.message ?? 'Please select a date');
+      return;
+    }
+    if (guests < 1 || guests > 99) {
+      setError('Please enter between 1 and 99 guests');
       return;
     }
     setError(null);
@@ -44,8 +61,18 @@ export default function BookingPage({ tour, onBack, onComplete }: BookingPagePro
   };
 
   const handleContinueFromContact = () => {
-    if (!name.trim() || !email.trim()) {
-      setError('Name and email are required');
+    const nameCheck = required(name, 1);
+    if (!nameCheck.valid) {
+      setError(nameCheck.message ?? 'Name is required');
+      return;
+    }
+    if (!maxLength(name, 200).valid) {
+      setError('Name is too long');
+      return;
+    }
+    const emailCheck = validateEmail(email);
+    if (!emailCheck.valid) {
+      setError(emailCheck.message ?? 'Valid email is required');
       return;
     }
     setError(null);
@@ -60,6 +87,16 @@ export default function BookingPage({ tour, onBack, onComplete }: BookingPagePro
     setSubmitting(true);
     setError(null);
     try {
+      if (isSupabaseConfigured()) {
+        const avail = await checkAvailability(tour.id, date, guests);
+        if (!avail.available) {
+          setError(avail.remaining !== undefined && avail.remaining === 0
+            ? 'This date is fully booked. Please choose another.'
+            : 'Not enough capacity for this date. Please choose another.');
+          setSubmitting(false);
+          return;
+        }
+      }
       const result = await submitBooking({
         tour_id: tour.id,
         tour_title: tour.title,
@@ -69,6 +106,8 @@ export default function BookingPage({ tour, onBack, onComplete }: BookingPagePro
         departure_date: date,
         status: 'pending',
         special_requests: specialRequests.trim() || undefined,
+        total_price: total,
+        currency,
       });
       if (result.success) {
         analytics.bookComplete(tour.id, guests);
@@ -89,7 +128,7 @@ export default function BookingPage({ tour, onBack, onComplete }: BookingPagePro
         <button
           type="button"
           onClick={onBack}
-          className="flex items-center gap-2 text-gray-600 hover:text-finland mb-8"
+          className="flex items-center gap-2 text-gray-600 hover:text-finland mb-8 transition-colors duration-200 ease-smooth active:scale-[0.98]"
         >
           <ArrowLeft className="w-4 h-4" />
           Back to tour
@@ -149,7 +188,7 @@ export default function BookingPage({ tour, onBack, onComplete }: BookingPagePro
               <button
                 type="button"
                 onClick={handleContinueFromDateGuests}
-                className="px-6 py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark"
+                className="px-6 py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark transition-all duration-200 ease-smooth active:scale-[0.98]"
               >
                 Continue
               </button>
@@ -209,7 +248,7 @@ export default function BookingPage({ tour, onBack, onComplete }: BookingPagePro
               <button
                 type="button"
                 onClick={handleContinueFromContact}
-                className="px-6 py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark"
+                className="px-6 py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark transition-all duration-200 ease-smooth active:scale-[0.98]"
               >
                 Continue
               </button>
@@ -239,7 +278,7 @@ export default function BookingPage({ tour, onBack, onComplete }: BookingPagePro
                 type="button"
                 onClick={handleConfirmBooking}
                 disabled={submitting}
-                className="px-6 py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark disabled:opacity-60"
+                className="px-6 py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark disabled:opacity-60 transition-all duration-200 ease-smooth active:scale-[0.98]"
               >
                 {submitting ? 'Booking…' : 'Confirm booking'}
               </button>
@@ -248,21 +287,39 @@ export default function BookingPage({ tour, onBack, onComplete }: BookingPagePro
         )}
 
         {step === 'done' && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-green-100 text-green-600 mb-4">
-              <CheckCircle className="w-8 h-8" />
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 sm:p-10 text-center animate-fade-in-up">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 text-green-600 mb-6">
+              <CheckCircle className="w-9 h-9" />
             </div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Booking requested</h2>
-            <p className="text-gray-600 mb-6">
-              We’ve received your request for <strong>{tour.title}</strong>. The provider will confirm availability and contact you at {email}.
-            </p>
-            <button
-              type="button"
-              onClick={onComplete}
-              className="px-6 py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark"
-            >
-              Done
-            </button>
+            <h2 className="text-2xl font-semibold text-gray-900 mb-1">Booking requested</h2>
+            <p className="text-gray-500 text-sm mb-6">The provider will confirm and contact you at {email}</p>
+            <div className="bg-gray-50 rounded-xl p-5 text-left mb-6">
+              <p className="font-medium text-gray-900 mb-3">{tour.title}</p>
+              <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-gray-600">
+                <span className="flex items-center gap-1.5"><Calendar className="w-4 h-4" /> {date}</span>
+                <span className="flex items-center gap-1.5"><Users className="w-4 h-4" /> {guests} {guests === 1 ? 'guest' : 'guests'}</span>
+                <span className="flex items-center gap-1.5"><strong className="text-gray-900">{currency} {total}</strong> total</span>
+              </div>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              {onNavigate && (
+                <button
+                  type="button"
+                  onClick={() => { onNavigate('bookings'); onComplete(); }}
+                  className="px-6 py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark transition-all duration-200 ease-smooth active:scale-[0.98] inline-flex items-center justify-center gap-2"
+                >
+                  <MapPin className="w-4 h-4" />
+                  View my bookings
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={onComplete}
+                className="px-6 py-2.5 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-all duration-200 ease-smooth active:scale-[0.98]"
+              >
+                Browse more tours
+              </button>
+            </div>
           </div>
         )}
       </div>

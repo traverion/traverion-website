@@ -217,6 +217,18 @@ html {
   scroll-behavior: smooth;
 }
 
+/* Keyboard focus: visible ring for accessibility (not on mouse click) */
+:focus-visible {
+  outline: 2px solid #003580;
+  outline-offset: 2px;
+}
+button:focus-visible,
+a:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid #003580;
+  outline-offset: 2px;
+}
+
 /* Hide scrollbar for mobile tabs */
 .scrollbar-hide {
   -ms-overflow-style: none;

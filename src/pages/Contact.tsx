@@ -5,6 +5,7 @@ import LuxuryButton from '../components/ui/LuxuryButton';
 import LuxuryCard from '../components/ui/LuxuryCard';
 import LuxuryInput from '../components/ui/LuxuryInput';
 import { submitContactInquiry, ContactInquiry } from '../data/supabase-contact';
+import { required, validateEmail, maxLength } from '../lib/validation';
 
 export default function Contact() {
   const { t } = useTranslation();
@@ -23,10 +24,25 @@ export default function Contact() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!required(formData.name).valid) {
+      alert('Please enter your name.');
+      return;
+    }
+    const emailCheck = validateEmail(formData.email);
+    if (!emailCheck.valid) {
+      alert(emailCheck.message ?? 'Please enter a valid email.');
+      return;
+    }
+    if (!required(formData.message).valid) {
+      alert('Please enter your message.');
+      return;
+    }
+    if (!maxLength(formData.message, 5000).valid) {
+      alert('Message is too long (max 5000 characters).');
+      return;
+    }
     setIsSubmitting(true);
-    
     try {
-      // Prepare contact inquiry data for Supabase
       const inquiryData: Omit<ContactInquiry, 'id' | 'created_at' | 'updated_at'> = {
         name: formData.name,
         email: formData.email,

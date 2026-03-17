@@ -1,26 +1,53 @@
-import { useState, useEffect } from 'react';
-import { DollarSign, TrendingUp, Calendar } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { DollarSign, TrendingUp, Calendar, FileText, Receipt, AlertCircle, RefreshCw, Info } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { fetchSupplierEarnings, SupplierEarning } from '../../data/supabase-earnings';
+import { fetchSupplierProfile } from '../../data/supabase-supplier-profile';
 
 export default function SupplierEarnings() {
   const { user, isSupabase } = useSupplierAuth();
   const [earnings, setEarnings] = useState<SupplierEarning[]>([]);
+  const [profile, setProfile] = useState<Awaited<ReturnType<typeof fetchSupplierProfile>>>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (isSupabase && user) {
-      fetchSupplierEarnings(user.id).then((data) => {
+  const load = useCallback(() => {
+    if (!isSupabase || !user) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    fetchSupplierEarnings(user.id)
+      .then((data) => {
         setEarnings(data);
         setLoading(false);
+      })
+      .catch((e) => {
+        setError(e instanceof Error ? e.message : 'Failed to load earnings');
+        setLoading(false);
       });
-    } else {
-      setLoading(false);
-    }
+  }, [isSupabase, user]);
+
+  useEffect(() => {
+    if (isSupabase && user) load();
+    else setLoading(false);
+  }, [isSupabase, user, load]);
+
+  useEffect(() => {
+    if (isSupabase && user) fetchSupplierProfile(user.id).then(setProfile);
+    else setProfile(null);
   }, [isSupabase, user]);
 
   const pending = earnings.filter((e) => e.status === 'pending').reduce((sum, e) => sum + Number(e.amount), 0);
   const paid = earnings.filter((e) => e.status === 'paid').reduce((sum, e) => sum + Number(e.amount), 0);
+  const threshold = profile?.payout_threshold_min ?? 0;
+  const cycle = profile?.payment_cycle ?? 'monthly';
+  const nextPayoutLabel = threshold > 0
+    ? `Next payout when balance ≥ $${threshold.toFixed(0)} (${cycle})`
+    : cycle
+      ? `Payout cycle: ${cycle}. Set minimum in Settings.`
+      : 'Set payout schedule in Settings.';
 
   return (
     <div className="space-y-6">
@@ -28,6 +55,15 @@ export default function SupplierEarnings() {
         <h1 className="text-2xl font-semibold text-gray-900">Earnings</h1>
         <p className="text-gray-600 mt-1">Payouts and transaction history</p>
       </div>
+
+      {error && (
+        <div className="p-4 rounded-lg bg-red-50 text-red-700 text-sm flex items-center justify-between gap-4">
+          <span className="flex items-center gap-2"><AlertCircle className="w-4 h-4 flex-shrink-0" />{error}</span>
+          <button type="button" onClick={() => load()} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-100 text-red-800 font-medium hover:bg-red-200">
+            <RefreshCw className="w-4 h-4" /> Try again
+          </button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="bg-white border border-gray-200 rounded-xl p-5 flex items-center gap-4">
@@ -50,6 +86,13 @@ export default function SupplierEarnings() {
         </div>
       </div>
 
+      {isSupabase && (
+        <div className="flex items-start gap-2 p-3 rounded-lg bg-gray-50 border border-gray-100 text-sm text-gray-700">
+          <Info className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />
+          <span>{nextPayoutLabel}</span>
+        </div>
+      )}
+
       <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-200 flex items-center gap-2">
           <Calendar className="w-5 h-5 text-gray-500" />
@@ -71,6 +114,8 @@ export default function SupplierEarnings() {
                   <th className="px-4 py-3 font-medium">Period</th>
                   <th className="px-4 py-3 font-medium">Amount</th>
                   <th className="px-4 py-3 font-medium">Status</th>
+                  <th className="px-4 py-3 font-medium">Invoice</th>
+                  <th className="px-4 py-3 font-medium">Payment</th>
                 </tr>
               </thead>
               <tbody>
@@ -89,11 +134,58 @@ export default function SupplierEarnings() {
                         {e.status}
                       </span>
                     </td>
+                    <td className="px-4 py-3">
+                      <span className="inline-flex items-center gap-1 text-gray-600">
+                        <FileText className="w-4 h-4" />
+                        {(e as { invoice_number?: string }).invoice_number ?? '—'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      {e.status === 'paid' ? (
+                        <span className="inline-flex items-center gap-1 text-green-700" title="Payment confirmation">
+                          <Receipt className="w-4 h-4" />
+                          {(e as { payment_reference?: string }).payment_reference ?? 'Paid'}
+                        </span>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+        )}
+      </div>
+
+      <div className="bg-white border border-gray-200 rounded-xl p-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-2 flex items-center gap-2">
+          <FileText className="w-5 h-5 text-finland" />
+          Invoices & payment confirmations
+        </h2>
+        <p className="text-sm text-gray-500 mb-4">
+          Invoices are generated per period. When a payout is made, a payment confirmation is available. Download links will be available when payment processing is integrated.
+        </p>
+        {earnings.length > 0 ? (
+          <ul className="space-y-2 text-sm">
+            {earnings.slice(0, 10).map((e) => (
+              <li key={e.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+                <span>{e.period_start} – {e.period_end}</span>
+                <span className="flex items-center gap-2">
+                  <button type="button" className="text-finland hover:underline" disabled>
+                    Download invoice
+                  </button>
+                  {e.status === 'paid' && (
+                    <button type="button" className="text-green-600 hover:underline" disabled>
+                      Payment confirmation
+                    </button>
+                  )}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-gray-500 text-sm">No invoices yet.</p>
         )}
       </div>
     </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, MapPin, Pencil, Trash2, Eye, EyeOff } from 'lucide-react';
+import { Plus, MapPin, Pencil, Trash2, Eye, EyeOff, AlertCircle, RefreshCw } from 'lucide-react';
 import { TourPackage } from '../../types/tour';
 import { getSupplierListings, setSupplierListings } from '../../data/listings';
 import { fetchMyListings, insertListing, updateListing, updateListingStatus, deleteListing } from '../../data/supabase-listings';
@@ -12,14 +12,21 @@ export default function SupplierListings() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [listings, setListings] = useState<TourPackage[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const loadListings = useCallback(() => {
     if (isSupabase && user) {
       setLoading(true);
-      fetchMyListings(user.id).then(data => {
-        setListings(data);
-        setLoading(false);
-      });
+      setError(null);
+      fetchMyListings(user.id)
+        .then((data) => {
+          setListings(data);
+          setLoading(false);
+        })
+        .catch((e) => {
+          setError(e instanceof Error ? e.message : 'Failed to load listings');
+          setLoading(false);
+        });
     } else {
       setListings(getSupplierListings());
       setLoading(false);
@@ -96,6 +103,15 @@ export default function SupplierListings() {
           Add listing
         </button>
       </div>
+
+      {error && (
+        <div className="p-4 rounded-lg bg-red-50 text-red-700 text-sm flex items-center justify-between gap-4">
+          <span className="flex items-center gap-2"><AlertCircle className="w-4 h-4 flex-shrink-0" />{error}</span>
+          <button type="button" onClick={() => loadListings()} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-100 text-red-800 font-medium hover:bg-red-200">
+            <RefreshCw className="w-4 h-4" /> Try again
+          </button>
+        </div>
+      )}
 
       {showForm && (
         <SupplierListingForm

@@ -451,7 +451,7 @@ export default function AIRecommendations({ className = '', onTourSelect }: AIRe
           {/* Recommendations Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredRecommendations.map((recommendation, index) => (
-              <LuxuryCard key={recommendation.tour.id} variant="elevated" className="p-6 group hover:scale-105 transition-transform duration-300">
+              <LuxuryCard key={recommendation.tour.id} variant="elevated" className="p-6 group hover:shadow-soft-lg transition-all duration-250 ease-out-smooth">
                 {/* AI Score Badge */}
                 <div className="flex items-center justify-between mb-4">
                   <div className={`flex items-center px-3 py-1 rounded-full text-sm font-medium ${getScoreColor(recommendation.matchPercentage)}`}>

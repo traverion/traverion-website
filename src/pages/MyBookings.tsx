@@ -28,12 +28,17 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
     }
     setLoading(true);
     setError(null);
-    const list = await fetchMyBookings();
-    setBookings(list);
-    const ids = [...new Set(list.map((b) => b.listing_id))];
-    const titleMap = await fetchListingTitlesByIds(ids);
-    setTitles(titleMap);
-    setLoading(false);
+    try {
+      const list = await fetchMyBookings();
+      setBookings(list);
+      const ids = [...new Set(list.map((b) => b.listing_id))];
+      const titleMap = await fetchListingTitlesByIds(ids);
+      setTitles(titleMap);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load bookings');
+    } finally {
+      setLoading(false);
+    }
   }, [user?.email]);
 
   useEffect(() => {
@@ -141,18 +146,25 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                     <p className="mt-2 text-sm text-gray-500 line-clamp-2">{b.special_requests}</p>
                   )}
                 </div>
-                <div className="flex items-center gap-3 sm:flex-shrink-0">
-                  <span
-                    className={`inline-flex px-3 py-1 rounded-full text-sm font-medium ${
-                      b.status === 'confirmed'
-                        ? 'bg-green-100 text-green-800'
-                        : b.status === 'cancelled'
-                        ? 'bg-gray-100 text-gray-600'
-                        : 'bg-amber-100 text-amber-800'
-                    }`}
-                  >
-                    {b.status}
-                  </span>
+                <div className="flex flex-col items-start sm:items-center gap-1 sm:flex-row sm:gap-3 sm:flex-shrink-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span
+                      className={`inline-flex px-3 py-1 rounded-full text-sm font-medium ${
+                        b.status === 'confirmed'
+                          ? 'bg-green-100 text-green-800'
+                          : b.status === 'cancelled'
+                          ? 'bg-gray-100 text-gray-600'
+                          : 'bg-amber-100 text-amber-800'
+                      }`}
+                    >
+                      {b.status}
+                    </span>
+                    {b.status === 'cancelled' && b.refund_choice && (
+                      <span className="text-sm text-gray-600">
+                        Refund: {b.refund_choice === 'full_refund' ? 'Full refund' : b.refund_choice === 'no_refund' ? 'No refund' : 'Reschedule'}
+                      </span>
+                    )}
+                  </div>
                   {onTourSelect && (
                     <button
                       type="button"

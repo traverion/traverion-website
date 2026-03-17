@@ -61,6 +61,12 @@ export interface TourPackage {
   supplierId?: string;
   /** draft = not visible on main site; published = visible. */
   status?: 'draft' | 'published';
+  /** E.g. "Free cancellation up to 24 hours before" or "Non-refundable". */
+  cancellationPolicy?: string;
+  /** Meeting point / pickup location (e.g. "Hotel lobby, 9:00 AM"). */
+  meetingPoint?: string;
+  /** Pickup instructions for the guest. */
+  pickupInstructions?: string;
 }
 
 export interface DayPlan {

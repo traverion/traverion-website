@@ -32,6 +32,9 @@ export type ListingRow = {
   country: string | null;
   tags: string[] | null;
   status: 'draft' | 'published' | null;
+  cancellation_policy: string | null;
+  meeting_point: string | null;
+  pickup_instructions: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -83,6 +86,9 @@ export function rowToTourPackage(row: ListingRow): TourPackage {
     tags: row.tags && row.tags.length > 0 ? row.tags : undefined,
     supplierId: row.supplier_id,
     status: (row.status as 'draft' | 'published') ?? 'published',
+    cancellationPolicy: row.cancellation_policy ?? undefined,
+    meetingPoint: row.meeting_point ?? undefined,
+    pickupInstructions: row.pickup_instructions ?? undefined,
   };
 }
 
@@ -117,10 +123,13 @@ export function tourPackageToRow(tour: Partial<TourPackage> & { title: string; d
     country: tour.country ?? null,
     tags: tour.tags && tour.tags.length > 0 ? tour.tags : null,
     status: tour.status ?? 'published',
+    cancellation_policy: tour.cancellationPolicy ?? null,
+    meeting_point: tour.meetingPoint ?? null,
+    pickup_instructions: tour.pickupInstructions ?? null,
   };
 }
 
-/** Fetch all listings (public; only published, for main site). */
+/** Fetch all listings (public; only published, for main site). Throws on Supabase error. */
 export async function fetchAllListings(): Promise<TourPackage[]> {
   if (!supabase) return [];
   const { data, error } = await supabase
@@ -128,14 +137,11 @@ export async function fetchAllListings(): Promise<TourPackage[]> {
     .select('*')
     .or('status.eq.published,status.is.null')
     .order('created_at', { ascending: false });
-  if (error) {
-    console.error('Supabase fetch listings:', error);
-    return [];
-  }
+  if (error) throw new Error(error.message);
   return (data as ListingRow[]).map(rowToTourPackage);
 }
 
-/** Fetch listings for the current supplier (requires auth). */
+/** Fetch listings for the current supplier (requires auth). Throws on Supabase error. */
 export async function fetchMyListings(supplierId: string): Promise<TourPackage[]> {
   if (!supabase) return [];
   const { data, error } = await supabase
@@ -143,10 +149,7 @@ export async function fetchMyListings(supplierId: string): Promise<TourPackage[]
     .select('*')
     .eq('supplier_id', supplierId)
     .order('created_at', { ascending: false });
-  if (error) {
-    console.error('Supabase fetch my listings:', error);
-    return [];
-  }
+  if (error) throw new Error(error.message);
   return (data as ListingRow[]).map(rowToTourPackage);
 }
 
@@ -201,12 +204,15 @@ export async function updateListingStatus(id: string, status: 'draft' | 'publish
   return !error;
 }
 
-/** Fetch a single listing by id (public). */
+/** Fetch a single listing by id (public). Throws on Supabase error; returns null only if not found. */
 export async function fetchListingById(id: string): Promise<TourPackage | null> {
   if (!supabase) return null;
   const { data, error } = await supabase.from('listings').select('*').eq('id', id).single();
-  if (error || !data) return null;
-  return rowToTourPackage(data as ListingRow);
+  if (error) {
+    if (error.code === 'PGRST116') return null; // no rows
+    throw new Error(error.message);
+  }
+  return data ? rowToTourPackage(data as ListingRow) : null;
 }
 
 /** Fetch listing titles for given ids (public). Returns id -> title map. */

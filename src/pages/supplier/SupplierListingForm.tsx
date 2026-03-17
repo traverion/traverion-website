@@ -23,6 +23,9 @@ function buildListingFromForm(form: {
   groupSize: string;
   difficulty: 'Easy' | 'Moderate' | 'Challenging';
   status: 'draft' | 'published';
+  cancellationPolicy: string;
+  meetingPoint: string;
+  pickupInstructions: string;
 }, existingId?: string): TourPackage {
   const id = existingId ?? `supplier-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
   return {
@@ -65,6 +68,9 @@ function buildListingFromForm(form: {
     tags: form.tags.length ? form.tags : undefined,
     supplierId: 'current',
     status: form.status,
+    cancellationPolicy: form.cancellationPolicy.trim() || undefined,
+    meetingPoint: form.meetingPoint.trim() || undefined,
+    pickupInstructions: form.pickupInstructions.trim() || undefined,
   };
 }
 
@@ -81,6 +87,9 @@ const emptyForm = {
   groupSize: '2-12 People',
   difficulty: 'Easy' as const,
   status: 'draft' as const,
+  cancellationPolicy: '',
+  meetingPoint: '',
+  pickupInstructions: '',
 };
 
 interface SupplierListingFormProps {
@@ -111,6 +120,9 @@ export default function SupplierListingForm({ editingId, existingListings, onSav
           groupSize: existing.groupSize,
           difficulty: existing.difficulty,
           status: existing.status ?? 'published',
+          cancellationPolicy: existing.cancellationPolicy ?? '',
+          meetingPoint: existing.meetingPoint ?? '',
+          pickupInstructions: existing.pickupInstructions ?? '',
         });
       }
     } else {
@@ -217,6 +229,36 @@ export default function SupplierListingForm({ editingId, existingListings, onSav
           placeholder="https://example.com/your-tour-image.jpg"
         />
         <p className="text-xs text-gray-500 mt-1">Paste a direct link to your tour image. For uploads, use an image host (e.g. Imgur) or your own URL.</p>
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Cancellation policy</label>
+        <input
+          type="text"
+          value={form.cancellationPolicy}
+          onChange={e => setForm(f => ({ ...f, cancellationPolicy: e.target.value }))}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+          placeholder="e.g. Free cancellation up to 24 hours before"
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Meeting point / pickup location</label>
+        <input
+          type="text"
+          value={form.meetingPoint}
+          onChange={e => setForm(f => ({ ...f, meetingPoint: e.target.value }))}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+          placeholder="e.g. Hotel lobby, 9:00 AM"
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Pickup instructions</label>
+        <textarea
+          value={form.pickupInstructions}
+          onChange={e => setForm(f => ({ ...f, pickupInstructions: e.target.value }))}
+          rows={2}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+          placeholder="Instructions for the guest"
+        />
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Visibility</label>

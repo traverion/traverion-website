@@ -1,8 +1,7 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext } from 'react';
 import { en } from '../translations/en';
-import { fi } from '../translations/fi';
 
-type Language = 'en' | 'fi';
+type Language = 'en';
 
 interface TranslationContextType {
   language: Language;
@@ -24,31 +23,16 @@ interface TranslationProviderProps {
   children: React.ReactNode;
 }
 
+/** English only for now. Other languages can be added later. */
 export const TranslationProvider: React.FC<TranslationProviderProps> = ({ children }) => {
-  const [language, setLanguage] = useState<Language>('fi'); // Default to Finnish
-
-  const translations = {
-    en,
-    fi,
-  };
-
-  const t = translations[language];
-
-  // Save language preference to localStorage
-  useEffect(() => {
-    const savedLanguage = localStorage.getItem('traverion-language') as Language;
-    if (savedLanguage && (savedLanguage === 'en' || savedLanguage === 'fi')) {
-      setLanguage(savedLanguage);
-    }
-  }, []);
-
-  const handleSetLanguage = (lang: Language) => {
-    setLanguage(lang);
-    localStorage.setItem('traverion-language', lang);
+  const value: TranslationContextType = {
+    language: 'en',
+    setLanguage: () => {},
+    t: en,
   };
 
   return (
-    <TranslationContext.Provider value={{ language, setLanguage: handleSetLanguage, t }}>
+    <TranslationContext.Provider value={value}>
       {children}
     </TranslationContext.Provider>
   );

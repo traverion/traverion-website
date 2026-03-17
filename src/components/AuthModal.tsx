@@ -56,14 +56,16 @@ export default function AuthModal() {
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-[fade-in_0.2s_ease-out]"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-[2px] animate-fade-in"
+      style={{ animationDuration: '0.2s' }}
       role="dialog"
       aria-modal="true"
       aria-label="Log in or sign up"
       onClick={closeAuthModal}
     >
       <div
-        className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-[scale-in_0.25s_ease-out]"
+        className="bg-white rounded-2xl shadow-soft-xl w-full max-w-md overflow-hidden animate-slide-up"
+        style={{ animationDelay: '40ms' }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-gray-100">
@@ -73,7 +75,7 @@ export default function AuthModal() {
           <button
             type="button"
             onClick={closeAuthModal}
-            className="p-2 rounded-full hover:bg-gray-100 text-gray-500 transition-colors"
+            className="p-2 rounded-full hover:bg-gray-100 text-gray-500 transition-colors duration-200 ease-smooth active:scale-95"
             aria-label="Close"
           >
             <X className="w-5 h-5" />
@@ -160,7 +162,7 @@ export default function AuthModal() {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full py-3 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+            className="w-full py-3 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark transition-all duration-200 ease-smooth active:scale-[0.99] flex items-center justify-center gap-2 disabled:opacity-60"
           >
             {tab === 'signin' ? (
               <>

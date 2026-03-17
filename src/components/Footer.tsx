@@ -1,89 +1,100 @@
-import { MapPin, Phone, Mail, Facebook, Instagram, Twitter, Youtube, Star, Shield } from 'lucide-react';
-import { useTranslation } from '../contexts/TranslationContext';
+import { Instagram } from 'lucide-react';
 
-/** GetYourGuide-style footer: compact columns, trust line, legal bar */
-export default function Footer() {
-  const { t } = useTranslation();
-  const currentYear = new Date().getFullYear();
+/** TikTok logo (Lucide has no brand icon). */
+function TikTokIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
+    </svg>
+  );
+}
+
+const linkClass = 'text-gray-400 hover:text-white text-sm transition-colors duration-200 ease-smooth underline decoration-gray-500 underline-offset-2 hover:decoration-white';
+
+/** GetYourGuide-style footer: Support, Company, Work With Us. No language/currency or app store for now. */
+export default function Footer({ onNavigate }: { onNavigate?: (page: string) => void }) {
+  const nav = (page: string) => {
+    if (onNavigate) {
+      onNavigate(page);
+    } else {
+      window.location.href = page === 'home' ? '/' : `/${page}`;
+    }
+  };
 
   return (
-    <footer className="bg-gray-900 text-white">
+    <footer className="bg-[#0f172a] text-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 lg:gap-12">
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
-            <a href="/" className="flex items-center gap-2 mb-3">
+            <a href="/" className="inline-flex items-center gap-2 mb-4">
               <img src="/traveriontransparent.png" alt="" className="h-9 w-auto" />
               <span className="font-semibold text-lg text-white">TRAVERION</span>
             </a>
-            <p className="text-sm text-gray-400 mb-4 max-w-xs">
-              {t.footer?.description ?? 'Book tours and activities worldwide. Best price guarantee.'}
+            <p className="text-sm text-gray-400 max-w-xs">
+              Book tours and activities worldwide. Best price guarantee.
             </p>
-            <div className="flex gap-2">
-              <a href="https://facebook.com/traverion" target="_blank" rel="noopener noreferrer" className="p-2 rounded-lg bg-white/10 text-gray-400 hover:text-white hover:bg-white/20 transition-colors" aria-label="Facebook">
-                <Facebook className="w-4 h-4" />
-              </a>
-              <a href="https://instagram.com/traverion" target="_blank" rel="noopener noreferrer" className="p-2 rounded-lg bg-white/10 text-gray-400 hover:text-white hover:bg-white/20 transition-colors" aria-label="Instagram">
-                <Instagram className="w-4 h-4" />
-              </a>
-              <a href="https://twitter.com/traverion" target="_blank" rel="noopener noreferrer" className="p-2 rounded-lg bg-white/10 text-gray-400 hover:text-white hover:bg-white/20 transition-colors" aria-label="Twitter">
-                <Twitter className="w-4 h-4" />
-              </a>
-            </div>
-          </div>
-
-          {/* Discover */}
-          <div>
-            <h3 className="font-semibold text-white mb-3 text-sm uppercase tracking-wide">Discover</h3>
-            <ul className="space-y-2">
-              <li><a href="/packages" className="text-gray-400 hover:text-white text-sm transition-colors">{t.footer?.links?.travelPackages ?? 'Tours & activities'}</a></li>
-              <li><a href="/packages" className="text-gray-400 hover:text-white text-sm transition-colors">{t.footer?.links?.destinations ?? 'Destinations'}</a></li>
-              <li><a href="/blog" className="text-gray-400 hover:text-white text-sm transition-colors">{t.footer?.links?.blogStories ?? 'Blog'}</a></li>
-              <li><a href="/supplier" className="text-gray-400 hover:text-white text-sm transition-colors">For suppliers</a></li>
-            </ul>
           </div>
 
           {/* Support */}
           <div>
             <h3 className="font-semibold text-white mb-3 text-sm uppercase tracking-wide">Support</h3>
             <ul className="space-y-2">
-              <li><a href="/contact" className="text-gray-400 hover:text-white text-sm transition-colors">{t.footer?.links?.customerReviews ?? 'Contact'}</a></li>
-              <li><a href="/contact" className="text-gray-400 hover:text-white text-sm transition-colors">{t.footer?.getInTouch ?? 'Get in touch'}</a></li>
+              <li><button type="button" onClick={() => nav('contact')} className={`${linkClass} text-left bg-transparent border-0 cursor-pointer`}>Contact</button></li>
+              <li><button type="button" onClick={() => nav('terms')} className={`${linkClass} text-left bg-transparent border-0 cursor-pointer`}>Legal Notice</button></li>
+              <li><button type="button" onClick={() => nav('privacy')} className={`${linkClass} text-left bg-transparent border-0 cursor-pointer`}>Privacy Policy</button></li>
+              <li><button type="button" onClick={() => nav('cookies')} className={`${linkClass} text-left bg-transparent border-0 cursor-pointer`}>Cookies and Marketing Preferences</button></li>
+              <li><button type="button" onClick={() => nav('terms')} className={`${linkClass} text-left bg-transparent border-0 cursor-pointer`}>General Terms and Conditions</button></li>
+              <li><button type="button" onClick={() => nav('sitemap')} className={`${linkClass} text-left bg-transparent border-0 cursor-pointer`}>Sitemap</button></li>
             </ul>
-            <div className="mt-3 space-y-1 text-sm text-gray-400">
-              <p className="flex items-center gap-2"><Mail className="w-3.5 h-3.5" /> {t.footer?.contact?.email ?? 'info@traverion.com'}</p>
-              <p className="flex items-center gap-2"><Phone className="w-3.5 h-3.5" /> {t.footer?.contact?.phone ?? '+358 45 783 451 38'}</p>
-            </div>
           </div>
-        </div>
 
-        {/* Trust line */}
-        <div className="mt-10 pt-8 border-t border-white/10 flex flex-wrap justify-center gap-6 text-sm text-gray-400">
-          <span className="flex items-center gap-2">
-            <span className="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center text-green-400 text-xs">✓</span>
-            Free cancellation
-          </span>
-          <span className="flex items-center gap-2">
-            <Shield className="w-5 h-5 text-finland" />
-            Best price guarantee
-          </span>
-          <span className="flex items-center gap-2">
-            <Star className="w-5 h-5 text-amber-400 fill-amber-400" />
-            Verified reviews
-          </span>
+          {/* Company */}
+          <div>
+            <h3 className="font-semibold text-white mb-3 text-sm uppercase tracking-wide">Company</h3>
+            <ul className="space-y-2">
+              <li><button type="button" onClick={() => nav('about')} className={`${linkClass} text-left bg-transparent border-0 cursor-pointer`}>About Us</button></li>
+              <li><button type="button" onClick={() => nav('blog')} className={`${linkClass} text-left bg-transparent border-0 cursor-pointer`}>Blog</button></li>
+            </ul>
+          </div>
+
+          {/* Want to work with us? */}
+          <div>
+            <h3 className="font-semibold text-white mb-3 text-sm uppercase tracking-wide">Want to work with us?</h3>
+            <ul className="space-y-2">
+              <li><button type="button" onClick={() => nav('contact')} className={`${linkClass} text-left bg-transparent border-0 cursor-pointer`}>Become an affiliate</button></li>
+              <li><button type="button" onClick={() => nav('contact')} className={`${linkClass} text-left bg-transparent border-0 cursor-pointer`}>Become a content creator</button></li>
+              <li><a href="/supplier-log-in" className={linkClass}>Become a supplier</a></li>
+            </ul>
+          </div>
         </div>
       </div>
 
-      {/* Bottom bar */}
+      {/* Bottom bar – copyright + social */}
       <div className="border-t border-white/10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-3 text-sm text-gray-500">
-            <p>© {currentYear} Traverion. {t.footer?.rights ?? 'All rights reserved.'}</p>
-            <div className="flex flex-wrap justify-center gap-4">
-              <a href="/privacy" className="hover:text-white transition-colors">{t.footer?.links?.privacyPolicy ?? 'Privacy'}</a>
-              <a href="/terms" className="hover:text-white transition-colors">{t.footer?.links?.termsOfService ?? 'Terms'}</a>
-              <a href="/cookies" className="hover:text-white transition-colors">{t.footer?.links?.cookiePolicy ?? 'Cookies'}</a>
-            </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row justify-between items-center gap-3">
+          <p className="text-sm text-gray-500 text-center sm:text-left">
+            © 2026 Traverion – Original from Finland
+          </p>
+          <div className="flex items-center gap-4">
+            <a
+              href="https://instagram.com/traverion"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-2 text-gray-400 hover:text-white transition-colors rounded-lg hover:bg-white/10"
+              aria-label="Instagram"
+            >
+              <Instagram className="w-5 h-5" />
+            </a>
+            <a
+              href="https://tiktok.com/@traverion"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-2 text-gray-400 hover:text-white transition-colors rounded-lg hover:bg-white/10"
+              aria-label="TikTok"
+            >
+              <TikTokIcon className="w-5 h-5" />
+            </a>
           </div>
         </div>
       </div>

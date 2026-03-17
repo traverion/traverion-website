@@ -1,12 +1,15 @@
 import { useState, useEffect, useMemo } from 'react';
-import { BarChart3, Calendar, DollarSign, MapPin, Plus, ArrowRight } from 'lucide-react';
+import { BarChart3, Calendar, DollarSign, MapPin, Plus, ArrowRight, Star, CheckCircle, Circle } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { fetchMyListings } from '../../data/supabase-listings';
 import { fetchSupplierEarnings } from '../../data/supabase-earnings';
 import { fetchBookingsForSupplier } from '../../data/supabase-bookings';
+import { fetchReviewsForSupplierListings } from '../../data/supabase-reviews';
+import { fetchSupplierProfile } from '../../data/supabase-supplier-profile';
 
 interface SupplierDashboardProps {
   onNavigateToListings?: () => void;
+  onNavigateToSettings?: () => void;
 }
 
 function isPeriodInMonth(periodStart: string, periodEnd: string, year: number, month: number): boolean {
@@ -17,15 +20,17 @@ function isPeriodInMonth(periodStart: string, periodEnd: string, year: number, m
   return start <= last && end >= first;
 }
 
-export default function SupplierDashboard({ onNavigateToListings }: SupplierDashboardProps) {
+export default function SupplierDashboard({ onNavigateToListings, onNavigateToSettings }: SupplierDashboardProps) {
   const { user, isSupabase } = useSupplierAuth();
   const [listingsCount, setListingsCount] = useState<number | null>(null);
   const [earnings, setEarnings] = useState<Awaited<ReturnType<typeof fetchSupplierEarnings>>>([]);
   const [bookingsCountThisMonth, setBookingsCountThisMonth] = useState<number | null>(null);
+  const [providerRating, setProviderRating] = useState<{ avg: number; count: number } | null>(null);
+  const [profile, setProfile] = useState<Awaited<ReturnType<typeof fetchSupplierProfile>>(null);
 
   useEffect(() => {
     if (isSupabase && user) {
-      fetchMyListings(user.id).then((list) => setListingsCount(list.length));
+      fetchMyListings(user.id).then((list) => setListingsCount(list.length)).catch(() => setListingsCount(0));
     } else {
       setListingsCount(0);
     }
@@ -33,7 +38,7 @@ export default function SupplierDashboard({ onNavigateToListings }: SupplierDash
 
   useEffect(() => {
     if (isSupabase && user) {
-      fetchSupplierEarnings(user.id).then(setEarnings);
+      fetchSupplierEarnings(user.id).then(setEarnings).catch(() => setEarnings([]));
     } else {
       setEarnings([]);
     }
@@ -41,19 +46,49 @@ export default function SupplierDashboard({ onNavigateToListings }: SupplierDash
 
   useEffect(() => {
     if (isSupabase && user) {
-      fetchBookingsForSupplier(user.id).then((bookings) => {
-        const now = new Date();
-        const y = now.getFullYear();
-        const m = now.getMonth() + 1;
-        const count = bookings.filter((b) => {
-          if (!b.booking_date) return false;
-          const d = new Date(b.booking_date);
-          return d.getFullYear() === y && d.getMonth() + 1 === m;
-        }).length;
-        setBookingsCountThisMonth(count);
-      });
+      fetchBookingsForSupplier(user.id)
+        .then((bookings) => {
+          const now = new Date();
+          const y = now.getFullYear();
+          const m = now.getMonth() + 1;
+          const count = bookings.filter((b) => {
+            if (!b.booking_date) return false;
+            const d = new Date(b.booking_date);
+            return d.getFullYear() === y && d.getMonth() + 1 === m;
+          }).length;
+          setBookingsCountThisMonth(count);
+        })
+        .catch(() => setBookingsCountThisMonth(0));
     } else {
       setBookingsCountThisMonth(0);
+    }
+  }, [isSupabase, user]);
+
+  useEffect(() => {
+    if (isSupabase && user) {
+      fetchReviewsForSupplierListings(user.id)
+        .then((reviews) => {
+          if (reviews.length === 0) {
+            setProviderRating(null);
+            return;
+          }
+          const sum = reviews.reduce((a, r) => a + r.rating, 0);
+          setProviderRating({
+            avg: Math.round((sum / reviews.length) * 10) / 10,
+            count: reviews.length,
+          });
+        })
+        .catch(() => setProviderRating(null));
+    } else {
+      setProviderRating(null);
+    }
+  }, [isSupabase, user]);
+
+  useEffect(() => {
+    if (isSupabase && user) {
+      fetchSupplierProfile(user.id).then(setProfile);
+    } else {
+      setProfile(null);
     }
   }, [isSupabase, user]);
 
@@ -78,6 +113,7 @@ export default function SupplierDashboard({ onNavigateToListings }: SupplierDash
   const stats = [
     { label: 'Active listings', value: listingsCount !== null ? String(listingsCount) : '—', icon: MapPin, color: 'bg-finland/10 text-finland' },
     { label: 'Bookings this month', value: bookingsCountThisMonth !== null ? String(bookingsCountThisMonth) : '—', icon: Calendar, color: 'bg-green-500/10 text-green-600' },
+    { label: 'Provider rating', value: providerRating ? `${providerRating.avg} (${providerRating.count} reviews)` : '—', icon: Star, color: 'bg-amber-500/10 text-amber-600' },
     { label: 'Earnings this month', value: `${currency === 'USD' ? '$' : ''}${earningsThisMonth.toFixed(0)}${currency !== 'USD' ? ` ${currency}` : ''}`, icon: DollarSign, color: 'bg-finland/10 text-finland' },
     { label: 'Earnings (pending)', value: `${currency === 'USD' ? '$' : ''}${earningsPending.toFixed(0)}${currency !== 'USD' ? ` ${currency}` : ''}`, icon: DollarSign, color: 'bg-amber-500/10 text-amber-600' },
   ];
@@ -88,6 +124,65 @@ export default function SupplierDashboard({ onNavigateToListings }: SupplierDash
         <h1 className="text-2xl font-semibold text-gray-900">Dashboard</h1>
         <p className="text-gray-600 mt-1">Overview of your tours and activities</p>
       </div>
+
+      {isSupabase && user && (listingsCount === 0 || !profile?.payout_method || profile.payout_method === 'none' || !profile?.company_legal_name?.trim()) && (
+        <div className="bg-finland/5 border border-finland/20 rounded-xl p-5">
+          <h2 className="text-sm font-semibold text-gray-900 mb-3">Get set up</h2>
+          <ul className="space-y-2">
+            {listingsCount === 0 && (
+              <li className="flex items-center gap-3">
+                <Circle className="w-5 h-5 text-amber-500 flex-shrink-0" />
+                <span className="text-gray-700">Add your first listing</span>
+                {onNavigateToListings && (
+                  <button type="button" onClick={onNavigateToListings} className="ml-auto text-sm font-medium text-finland hover:underline">
+                    Go to listings
+                  </button>
+                )}
+              </li>
+            )}
+            {listingsCount !== 0 && (
+              <li className="flex items-center gap-3 text-gray-500">
+                <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+                <span>Add your first listing</span>
+              </li>
+            )}
+            {(!profile?.payout_method || profile.payout_method === 'none') && (
+              <li className="flex items-center gap-3">
+                <Circle className="w-5 h-5 text-amber-500 flex-shrink-0" />
+                <span className="text-gray-700">Set payout method</span>
+                {onNavigateToSettings && (
+                  <button type="button" onClick={onNavigateToSettings} className="ml-auto text-sm font-medium text-finland hover:underline">
+                    Settings
+                  </button>
+                )}
+              </li>
+            )}
+            {profile?.payout_method && profile.payout_method !== 'none' && (
+              <li className="flex items-center gap-3 text-gray-500">
+                <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+                <span>Set payout method</span>
+              </li>
+            )}
+            {!profile?.company_legal_name?.trim() && (
+              <li className="flex items-center gap-3">
+                <Circle className="w-5 h-5 text-amber-500 flex-shrink-0" />
+                <span className="text-gray-700">Complete company profile</span>
+                {onNavigateToSettings && (
+                  <button type="button" onClick={onNavigateToSettings} className="ml-auto text-sm font-medium text-finland hover:underline">
+                    Settings
+                  </button>
+                )}
+              </li>
+            )}
+            {profile?.company_legal_name?.trim() && (
+              <li className="flex items-center gap-3 text-gray-500">
+                <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+                <span>Complete company profile</span>
+              </li>
+            )}
+          </ul>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map(({ label, value, icon: Icon, color }) => (

@@ -154,9 +154,9 @@ export default function AIChatbot({ className = '', onTourRecommendation }: AICh
           variant="gradient"
           size="lg"
           onClick={() => setIsOpen(true)}
-          className="rounded-full w-14 h-14 shadow-2xl hover:scale-110 transition-transform duration-300 group"
+          className="rounded-full w-14 h-14 shadow-soft-xl hover:scale-105 transition-transform duration-200 ease-smooth group"
         >
-          <Bot className="w-6 h-6 group-hover:scale-110 transition-transform duration-300" />
+          <Bot className="w-6 h-6 transition-transform duration-200 ease-smooth" />
           <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full animate-pulse" />
         </LuxuryButton>
       </div>

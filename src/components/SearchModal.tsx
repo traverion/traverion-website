@@ -66,14 +66,14 @@ export default function SearchModal({ isOpen, onClose, onSearch }: SearchModalPr
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-[9999] bg-black/50 backdrop-blur-[2px] flex items-center justify-center p-4 animate-fade-in" style={{ animationDuration: '0.2s' }}>
+      <div className="bg-white rounded-2xl shadow-soft-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto animate-slide-up" style={{ animationDelay: '50ms' }}>
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
           <h2 className="text-2xl font-light text-gray-900">Search tours & activities</h2>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200"
+            className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200 ease-smooth active:scale-95"
           >
             <X className="w-6 h-6 text-gray-600" />
           </button>

@@ -11,7 +11,7 @@ export default function StickyBookingButton({ onNavigate }: StickyBookingButtonP
         {/* Phone Button */}
         <a
           href="tel:+3584578345138"
-          className="flex-1 bg-white border-2 border-finland text-finland px-4 py-3 rounded-xl font-medium shadow-lg hover:bg-finland/5 transition-all duration-300 flex items-center justify-center gap-2"
+          className="flex-1 bg-white border-2 border-finland text-finland px-4 py-3 rounded-xl font-medium shadow-soft hover:bg-finland/5 transition-all duration-200 ease-smooth active:scale-[0.98] flex items-center justify-center gap-2"
         >
           <Phone className="w-5 h-5" />
           <span className="text-sm">Call</span>
@@ -20,7 +20,7 @@ export default function StickyBookingButton({ onNavigate }: StickyBookingButtonP
         {/* Book Tours Button */}
         <button
           onClick={() => onNavigate?.('packages')}
-          className="flex-1 bg-finland text-white px-4 py-3 rounded-xl font-medium shadow-lg hover:bg-finland-dark transition-all duration-300 flex items-center justify-center gap-2"
+          className="flex-1 bg-finland text-white px-4 py-3 rounded-xl font-medium shadow-soft hover:bg-finland-dark transition-all duration-200 ease-smooth active:scale-[0.98] flex items-center justify-center gap-2"
         >
           <Calendar className="w-5 h-5" />
           <span className="text-sm">Find Tours</span>
