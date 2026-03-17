@@ -11,7 +11,7 @@ function TikTokIcon({ className }: { className?: string }) {
 
 const linkClass = 'text-gray-400 hover:text-white text-sm transition-colors duration-200 ease-smooth underline decoration-gray-500 underline-offset-2 hover:decoration-white';
 
-/** GetYourGuide-style footer: Support, Company, Work With Us. No language/currency or app store for now. */
+/** Footer: Support, Company, Work With Us. All links target pages handled by App (contact, terms, privacy, cookies, sitemap, about, blog). */
 export default function Footer({ onNavigate }: { onNavigate?: (page: string) => void }) {
   const nav = (page: string) => {
     if (onNavigate) {

@@ -133,7 +133,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
   return (
     <div className="min-h-screen bg-white">
       {/* Hero banner: tour image background + search + filter (pt clears fixed header) */}
-      <section className="relative text-white pt-24 sm:pt-28 pb-12 sm:pb-16 min-h-[380px] sm:min-h-[420px] flex items-center overflow-hidden">
+      <section className="relative text-white pt-24 sm:pt-28 pb-14 sm:pb-16 min-h-[520px] sm:min-h-[420px] flex items-center overflow-hidden">
         <div
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
           style={{
@@ -148,36 +148,26 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
           <p className="text-white/90 text-center text-sm sm:text-base mb-8">
             Search by tour name or location, or filter by country.
           </p>
-          <div className="bg-white rounded-xl shadow-lg p-3 sm:p-4 flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Tours or location, e.g. Northern Lights, Rome Vespa..."
-                className="w-full pl-11 pr-4 py-3 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-finland focus:border-finland outline-none"
-              />
-            </div>
-            <div className="sm:w-44">
-              <select
-                value={countryId}
-                onChange={(e) => setCountryId(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-200 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-finland focus:border-finland outline-none"
-              >
-                {countryOptions.map((opt) => (
-                  <option key={opt.id} value={opt.id}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <div className="bg-white rounded-xl shadow-lg p-3 sm:p-4 flex justify-center">
             <button
               type="button"
               onClick={goToPackagesWithFilters}
-              className="px-6 py-3 bg-finland text-white font-medium rounded-lg hover:bg-finland-dark transition-colors whitespace-nowrap"
+              className="inline-flex items-center gap-2 px-8 py-3 bg-finland text-white font-medium rounded-lg hover:bg-finland-dark transition-colors"
             >
+              <Search className="w-5 h-5" />
               Search
+            </button>
+          </div>
+          <div className="mt-4 flex justify-center">
+            <button
+              type="button"
+              onClick={() => {
+                window.history.pushState({}, '', '/packages');
+                onNavigate?.('packages');
+              }}
+              className="px-6 py-2.5 rounded-lg border-2 border-white text-white font-medium hover:bg-white hover:text-gray-900 transition-colors"
+            >
+              ALL TOURS
             </button>
           </div>
         </div>
@@ -203,40 +193,10 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
         </div>
       </section>
 
-      {/* Popular experiences – 3 hardcoded cards (GetYourGuide-style) */}
-      <section className="py-8 bg-white border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Popular experiences</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {POPULAR_EXPERIENCES.map((exp) => (
-              <button
-                key={exp.id}
-                type="button"
-                onClick={() => setSearchTerm(exp.searchQuery)}
-                className="text-left rounded-xl overflow-hidden border border-gray-200 hover:border-finland hover:shadow-md transition-all duration-200 group"
-              >
-                <div className="relative h-36 sm:h-40">
-                  <img
-                    src={exp.image}
-                    alt={exp.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                  <div className="absolute bottom-0 left-0 right-0 p-3 text-white">
-                    <h3 className="font-semibold text-white drop-shadow-sm">{exp.title}</h3>
-                    <p className="text-xs text-white/90">{exp.subtitle}</p>
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* Listings */}
       <section className="py-8 sm:py-10 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4 uppercase tracking-wide">
             {hasActiveFilter
               ? filteredListings.length === 0
                 ? 'No tours match your search'

@@ -1,9 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
-import { Search, ChevronDown, Menu, X, User, LogOut, Calendar, Heart, ShoppingCart } from 'lucide-react';
+import { Menu, X, User, LogOut, Calendar, Heart, ShoppingCart } from 'lucide-react';
 import { useTranslation } from '../contexts/TranslationContext';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
-import SearchModal from './SearchModal';
 import { fetchWishlistListingIds } from '../data/supabase-wishlist';
 import { fetchCartCount } from '../data/supabase-cart';
 
@@ -15,7 +14,6 @@ interface UnifiedHeaderProps {
 export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeaderProps) {
   const { t } = useTranslation();
   const { user, requestAuth, signOut } = useAuth();
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [wishlistCount, setWishlistCount] = useState(0);
@@ -43,19 +41,13 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
     return () => document.removeEventListener('click', handleClickOutside);
   }, [isUserMenuOpen]);
 
-  const handleSearch = (searchData: any) => {
-    console.log('Search data:', searchData);
-    // Handle search logic here - you can navigate to packages page with filters
-    onNavigate('packages');
-  };
-
   return (
     <header className="fixed top-0 left-0 right-0 z-[9999] bg-white shadow-md">
       {/* Logo & Navigation */}
       <div className="bg-white py-3 px-4 border-b border-gray-200">
-        <div className="max-w-7xl mx-auto flex flex-col lg:flex-row justify-between items-center gap-4">
-          {/* Logo */}
-          <div className="flex items-center gap-2 sm:gap-3">
+        <div className="max-w-7xl mx-auto flex flex-row justify-between items-center gap-4">
+          {/* Logo + tagline (left on mobile and desktop) */}
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-shrink">
             <img 
               src="/traveriontransparent.png" 
               alt="TRAVERION Logo" 
@@ -117,16 +109,8 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
             </button>
           </nav>
 
-          {/* Action area: Wishlist, Cart, Profile (GYG-style: icon + label) */}
+          {/* Action area: Wishlist, Cart, Profile (icon + label) */}
           <div className="flex items-center gap-4 sm:gap-6" ref={userMenuRef}>
-            <button
-              onClick={() => setIsSearchOpen(true)}
-              className="hidden lg:flex flex-col items-center gap-0.5 p-2 text-gray-600 hover:text-finland transition-colors duration-200 ease-smooth"
-              aria-label="Search"
-            >
-              <Search className="w-5 h-5" />
-              <span className="text-[10px] font-medium uppercase tracking-wide">Search</span>
-            </button>
             <button
               type="button"
               onClick={() => {
@@ -163,54 +147,63 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
               )}
               <span className="text-[10px] font-medium uppercase tracking-wide">Cart</span>
             </button>
-            {isSupabaseConfigured() && (user ? (
-              <div className="relative hidden lg:block">
-                <button
-                  type="button"
-                  onClick={() => setIsUserMenuOpen((o) => !o)}
-                  className="flex flex-col items-center gap-0.5 p-2 text-gray-600 hover:text-finland transition-colors"
-                  aria-label="Profile"
-                >
+            {/* Profile: dropdown with Log in / Sign up when not logged in; My bookings & Log out when logged in */}
+            <div className="relative hidden lg:block">
+              <button
+                type="button"
+                onClick={() => setIsUserMenuOpen((o) => !o)}
+                className="flex flex-col items-center gap-0.5 p-2 text-gray-600 hover:text-finland transition-colors"
+                aria-label="Profile"
+              >
+                {user ? (
                   <span className="w-8 h-8 rounded-full bg-finland/20 text-finland flex items-center justify-center text-sm font-medium border border-gray-200">
                     {(user.email ?? user.id).slice(0, 1).toUpperCase()}
                   </span>
-                  <span className="text-[10px] font-medium uppercase tracking-wide">Profile</span>
-                </button>
-                {isUserMenuOpen && (
-                  <div className="absolute right-0 top-full mt-1 py-1 w-48 bg-white rounded-xl shadow-soft-lg border border-gray-100 animate-slide-down">
-                    <div className="px-3 py-2 border-b border-gray-100">
-                      <p className="text-sm font-medium text-gray-900 truncate">{user.email}</p>
-                    </div>
-                    <button
-                      onClick={() => { setIsUserMenuOpen(false); onNavigate('bookings'); }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-150 ease-smooth"
-                    >
-                      <Calendar className="w-4 h-4" />
-                      My bookings
-                    </button>
-                    <button
-                      onClick={() => { setIsUserMenuOpen(false); signOut(); }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-150 ease-smooth"
-                    >
-                      <LogOut className="w-4 h-4" />
-                      Log out
-                    </button>
-                  </div>
+                ) : (
+                  <span className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center">
+                    <User className="w-4 h-4" />
+                  </span>
                 )}
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => requestAuth()}
-                className="hidden lg:flex flex-col items-center gap-0.5 p-2 text-gray-600 hover:text-finland transition-colors duration-200 ease-smooth"
-                aria-label="Profile / Log in"
-              >
-                <span className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center">
-                  <User className="w-4 h-4" />
-                </span>
                 <span className="text-[10px] font-medium uppercase tracking-wide">Profile</span>
               </button>
-            ))}
+              {isUserMenuOpen && (
+                <div className="absolute right-0 top-full mt-1 py-1 w-48 bg-white rounded-xl shadow-soft-lg border border-gray-100 animate-slide-down">
+                  {!isSupabaseConfigured() ? (
+                    <div className="px-3 py-2 text-sm text-gray-500">
+                      Sign-in not configured
+                    </div>
+                  ) : user ? (
+                    <>
+                      <div className="px-3 py-2 border-b border-gray-100">
+                        <p className="text-sm font-medium text-gray-900 truncate">{user.email}</p>
+                      </div>
+                      <button
+                        onClick={() => { setIsUserMenuOpen(false); onNavigate('bookings'); }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-150 ease-smooth text-left"
+                      >
+                        <Calendar className="w-4 h-4" />
+                        My bookings
+                      </button>
+                      <button
+                        onClick={() => { setIsUserMenuOpen(false); signOut(); }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-150 ease-smooth text-left"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        Log out
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => { setIsUserMenuOpen(false); requestAuth(); }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-150 ease-smooth text-left"
+                    >
+                      <User className="w-4 h-4" />
+                      Log in / Sign up
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
             <button
               onClick={() => onNavigate('packages')}
               className="bg-finland text-white px-4 sm:px-6 py-2 rounded-lg font-medium hover:bg-finland-dark transition-all duration-200 ease-smooth shadow-soft hover:shadow-soft-lg active:scale-[0.98] hidden lg:block text-sm sm:text-base"
@@ -316,16 +309,6 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                     <span className="truncate">{user.email}</span>
                   </div>
                 ) : null}
-                <button
-                  onClick={() => {
-                    setIsSearchOpen(true);
-                    setIsMobileMenuOpen(false);
-                  }}
-                  className="w-full text-left px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors duration-300 flex items-center gap-2"
-                >
-                  <Search className="w-5 h-5" />
-                  Search Tours
-                </button>
                 {isSupabaseConfigured() && !user && (
                   <button
                     onClick={() => {
@@ -335,7 +318,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                     className="w-full text-left px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors duration-300 flex items-center gap-2"
                   >
                     <User className="w-5 h-5" />
-                    Log in
+                    Log in / Sign up
                   </button>
                 )}
                 {isSupabaseConfigured() && user && (
@@ -376,13 +359,6 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
           </div>
         )}
       </div>
-
-      {/* Search Modal */}
-      <SearchModal 
-        isOpen={isSearchOpen} 
-        onClose={() => setIsSearchOpen(false)} 
-        onSearch={handleSearch} 
-      />
     </header>
   );
 }
