@@ -9,7 +9,7 @@ import { TourPackage } from '../types/tour';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { submitBooking } from '../data/supabase-bookings';
-import { checkAvailability } from '../data/supabase-availability';
+import { checkAvailability, incrementAvailabilityBooked } from '../data/supabase-availability';
 import { analytics } from '../lib/analytics';
 import { setPageMetaWithOg } from '../lib/seo';
 import { dateNotInPast, validateEmail, required, maxLength } from '../lib/validation';
@@ -104,12 +104,13 @@ export default function BookingPage({ tour, onBack, onComplete, onNavigate }: Bo
         customer_email: email,
         travelers: guests,
         departure_date: date,
-        status: 'pending',
+        status: 'confirmed',
         special_requests: specialRequests.trim() || undefined,
         total_price: total,
         currency,
       });
       if (result.success) {
+        if (isSupabaseConfigured()) await incrementAvailabilityBooked(tour.id, date);
         analytics.bookComplete(tour.id, guests);
         setStep('done');
       } else {

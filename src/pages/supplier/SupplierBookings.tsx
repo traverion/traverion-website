@@ -9,7 +9,7 @@ import {
   type BookingRow,
 } from '../../data/supabase-bookings';
 import { fetchMyListings } from '../../data/supabase-listings';
-import { checkAvailability, incrementAvailabilityBooked, decrementAvailabilityBooked } from '../../data/supabase-availability';
+import { decrementAvailabilityBooked } from '../../data/supabase-availability';
 
 const CANCELLATION_REASONS = [
   { id: 'customer_request', label: 'Customer requested cancellation' },
@@ -40,8 +40,6 @@ export default function SupplierBookings() {
   const [batchRefund, setBatchRefund] = useState('');
   const [batchSubmitting, setBatchSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [confirmError, setConfirmError] = useState<string | null>(null);
-
   const load = useCallback(async () => {
     if (!isSupabase || !user) {
       setLoading(false);
@@ -70,22 +68,11 @@ export default function SupplierBookings() {
   }, [load]);
 
   const handleStatusChange = async (booking: BookingRow, status: 'pending' | 'confirmed' | 'cancelled', options?: { cancellation_reason?: string; refund_choice?: 'full_refund' | 'no_refund' | 'reschedule' }) => {
-    setConfirmError(null);
     setUpdatingId(booking.id);
     const previousStatus = booking.status;
-    if (status === 'confirmed' && booking.booking_date) {
-      const avail = await checkAvailability(booking.listing_id, booking.booking_date, booking.guests);
-      if (!avail.available) {
-        setConfirmError(avail.error ?? (avail.remaining === 0 ? 'This date is fully booked.' : 'Not enough capacity for this booking.'));
-        setUpdatingId(null);
-        return;
-      }
-    }
     const ok = await updateBookingStatus(booking.id, status, options);
     if (ok) {
-      if (status === 'confirmed' && booking.booking_date) {
-        await incrementAvailabilityBooked(booking.listing_id, booking.booking_date);
-      } else if (status === 'cancelled' && previousStatus === 'confirmed' && booking.booking_date) {
+      if (status === 'cancelled' && previousStatus === 'confirmed' && booking.booking_date) {
         await decrementAvailabilityBooked(booking.listing_id, booking.booking_date);
       }
       setBookings((prev) =>
@@ -94,7 +81,6 @@ export default function SupplierBookings() {
       setCancelModal(null);
       setCancelReason('');
       setCancelRefund('');
-      setConfirmError(null);
     }
     setUpdatingId(null);
   };
@@ -174,13 +160,6 @@ export default function SupplierBookings() {
         </div>
       )}
 
-      {confirmError && (
-        <div className="p-4 rounded-lg bg-amber-50 text-amber-800 text-sm flex items-center justify-between gap-4">
-          <span className="flex items-center gap-2"><AlertCircle className="w-4 h-4 flex-shrink-0" />{confirmError}</span>
-          <button type="button" onClick={() => setConfirmError(null)} className="text-amber-700 hover:text-amber-900 font-medium">Dismiss</button>
-        </div>
-      )}
-
       {loading ? (
         <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
           <p className="text-gray-500">Loading bookings…</p>
@@ -192,7 +171,7 @@ export default function SupplierBookings() {
           </div>
           <h2 className="text-lg font-semibold text-gray-900">No bookings yet</h2>
           <p className="text-gray-500 mt-1 max-w-sm mx-auto">
-            When travelers book your experiences, they’ll appear here with status: pending, confirmed, or cancelled.
+            When travelers book your experiences, they’ll appear here as confirmed. You can request cancellation (with reason and refund choice) if needed.
           </p>
         </div>
       ) : (
@@ -274,16 +253,6 @@ export default function SupplierBookings() {
                             >
                               <CheckCircle className="w-3.5 h-3.5" />
                               Ack
-                            </button>
-                          )}
-                          {b.status !== 'confirmed' && (
-                            <button
-                              type="button"
-                              onClick={() => handleStatusChange(b, 'confirmed')}
-                              disabled={updatingId === b.id}
-                              className="text-xs px-2 py-1 rounded bg-green-100 text-green-700 hover:bg-green-200"
-                            >
-                              Confirm
                             </button>
                           )}
                           <button

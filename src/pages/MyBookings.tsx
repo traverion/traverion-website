@@ -3,11 +3,12 @@
  * RLS ensures only rows where guest_email = auth user email are returned.
  */
 import { useState, useEffect, useCallback } from 'react';
-import { Calendar, Users, MapPin, LogIn, RefreshCw } from 'lucide-react';
+import { Calendar, Users, MapPin, LogIn, RefreshCw, XCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
-import { fetchMyBookings, type BookingRow } from '../data/supabase-bookings';
+import { fetchMyBookings, cancelBookingAsCustomer, type BookingRow } from '../data/supabase-bookings';
 import { fetchListingTitlesByIds } from '../data/supabase-listings';
+import { decrementAvailabilityBooked } from '../data/supabase-availability';
 
 interface MyBookingsProps {
   onNavigate: (page: string) => void;
@@ -20,6 +21,32 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   const [titles, setTitles] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [cancelConfirm, setCancelConfirm] = useState<BookingRow | null>(null);
+
+  /** Tour start is within 24 hours from now → no refund. Otherwise full refund. */
+  const getRefundChoiceForCancel = useCallback((bookingDate: string | null): 'full_refund' | 'no_refund' => {
+    if (!bookingDate) return 'no_refund';
+    const startMs = new Date(bookingDate + 'T00:00:00').getTime();
+    const nowMs = Date.now();
+    const hours24 = 24 * 60 * 60 * 1000;
+    return startMs - nowMs > hours24 ? 'full_refund' : 'no_refund';
+  }, []);
+
+  const handleCancelBooking = useCallback(async (b: BookingRow) => {
+    setCancellingId(b.id);
+    setError(null);
+    const refundChoice = getRefundChoiceForCancel(b.booking_date);
+    const res = await cancelBookingAsCustomer(b.id, refundChoice);
+    setCancellingId(null);
+    setCancelConfirm(null);
+    if (res.success) {
+      if (b.booking_date) await decrementAvailabilityBooked(b.listing_id, b.booking_date);
+      load();
+    } else {
+      setError(res.error ?? 'Could not cancel booking');
+    }
+  }, [getRefundChoiceForCancel, load]);
 
   const load = useCallback(async () => {
     if (!isSupabaseConfigured() || !user?.email) {
@@ -63,7 +90,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-10">
             <Calendar className="w-14 h-14 text-gray-300 mx-auto mb-4" />
             <h1 className="text-2xl font-semibold text-gray-900 mb-2">Your bookings</h1>
-            <p className="text-gray-600 mb-6">Log in to see your reservations and their status (pending, confirmed, or cancelled).</p>
+            <p className="text-gray-600 mb-6">Log in to see your reservations and their status (confirmed or cancelled).</p>
             <button
               type="button"
               onClick={() => requestAuth()}
@@ -165,18 +192,64 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                       </span>
                     )}
                   </div>
-                  {onTourSelect && (
-                    <button
-                      type="button"
-                      onClick={() => onTourSelect({ id: b.listing_id })}
-                      className="text-sm text-finland hover:underline"
-                    >
-                      View tour
-                    </button>
-                  )}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {onTourSelect && (
+                      <button
+                        type="button"
+                        onClick={() => onTourSelect({ id: b.listing_id })}
+                        className="text-sm text-finland hover:underline"
+                      >
+                        View tour
+                      </button>
+                    )}
+                    {b.status === 'confirmed' && (
+                      <button
+                        type="button"
+                        onClick={() => setCancelConfirm(b)}
+                        disabled={cancellingId !== null}
+                        className="text-sm text-red-600 hover:text-red-800 inline-flex items-center gap-1 disabled:opacity-50"
+                      >
+                        <XCircle className="w-4 h-4" />
+                        Cancel booking
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {cancelConfirm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Cancel this booking?</h3>
+              <p className="text-sm text-gray-600 mb-2">
+                {titles[cancelConfirm.listing_id] ?? 'Tour'} · {cancelConfirm.booking_date ? new Date(cancelConfirm.booking_date).toLocaleDateString() : 'Date TBC'}
+              </p>
+              <p className="text-sm text-gray-600 mb-4">
+                {getRefundChoiceForCancel(cancelConfirm.booking_date) === 'full_refund'
+                  ? 'Your tour start is more than 24 hours away. You will receive a full refund.'
+                  : 'Your tour starts within 24 hours. No refund applies.'}
+              </p>
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCancelConfirm(null)}
+                  className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
+                >
+                  Keep booking
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleCancelBooking(cancelConfirm)}
+                  disabled={cancellingId !== null}
+                  className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+                >
+                  {cancellingId === cancelConfirm.id ? 'Cancelling…' : 'Yes, cancel'}
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>

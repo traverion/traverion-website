@@ -52,7 +52,7 @@ export async function submitBooking(
     guest_name: data.customer_name ?? null,
     guests: data.travelers ?? 1,
     booking_date: data.departure_date || null,
-    status: data.status ?? 'pending',
+    status: data.status ?? 'confirmed',
     special_requests: data.special_requests ?? null,
     total_amount: totalAmount ?? null,
     currency: data.currency ?? 'USD',
@@ -144,6 +144,24 @@ export async function batchCancelBookings(
     });
   }
   return { count: bookingIds.length };
+}
+
+/** Consumer cancels own booking. RLS allows update only when guest_email = auth user. Sets refund_choice to full_refund if tour start is >24h away, else no_refund. */
+export async function cancelBookingAsCustomer(
+  bookingId: string,
+  refundChoice: 'full_refund' | 'no_refund'
+): Promise<{ success: boolean; error?: string }> {
+  if (!supabase) return { success: false, error: 'Supabase not configured' };
+  const { error } = await supabase
+    .from('bookings')
+    .update({
+      status: 'cancelled',
+      cancelled_at: new Date().toISOString(),
+      refund_choice: refundChoice,
+    })
+    .eq('id', bookingId);
+  if (error) return { success: false, error: error.message };
+  return { success: true };
 }
 
 /** Fetch current consumer's bookings (RLS: select where guest_email = auth user email). Must be logged in. Throws on Supabase error. */
