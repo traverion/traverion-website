@@ -139,8 +139,8 @@ This project is proprietary and confidential.
 ## 🤝 Support
 
 For support and questions, contact:
-- Email: info.traverion@gmail.com
-- Phone: +358 45 7834 5138
+- Email: info@traverion.com
+- Phone: +358 45 8803060
 
 ---
 

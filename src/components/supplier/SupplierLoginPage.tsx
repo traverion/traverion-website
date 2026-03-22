@@ -22,7 +22,8 @@ export default function SupplierLoginPage({ onAuthenticated, isSupabase }: Suppl
           <a href="/" className="text-sm text-gray-600 hover:text-finland">Back to main site</a>
         </div>
       </header>
-      <main>
+      <main className="overflow-x-hidden">
+        <div className="lux-page-enter">
         <section className="bg-gradient-to-b from-finland/5 to-transparent border-b border-gray-200">
           <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14 text-center">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-finland/10 text-finland text-sm font-medium mb-6">
@@ -70,6 +71,7 @@ export default function SupplierLoginPage({ onAuthenticated, isSupabase }: Suppl
           <h2 className="text-xl font-semibold text-gray-900 mb-4 text-center">Log in or sign up</h2>
           <SupplierAuth onAuthenticated={onAuthenticated} isSupabase={isSupabase} />
         </section>
+        </div>
       </main>
     </div>
   );

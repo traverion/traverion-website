@@ -341,14 +341,14 @@ export default function CleanTourLayout({ tour, onBack }: CleanTourLayoutProps) 
                 <div className="space-y-2 text-sm text-gray-600">
                   <div className="flex items-center space-x-2">
                     <Mail className="w-4 h-4" />
-                    <a href="mailto:info.traverion@gmail.com" className="hover:text-sky-600 transition-colors">
-                      info.traverion@gmail.com
+                    <a href="mailto:info@traverion.com" className="hover:text-sky-600 transition-colors">
+                      info@traverion.com
                     </a>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Phone className="w-4 h-4" />
-                    <a href="tel:+3584578345138" className="hover:text-sky-600 transition-colors">
-                      +358 45 7834 5138
+                    <a href="tel:+358458803060" className="hover:text-sky-600 transition-colors">
+                      +358 45 8803060
                     </a>
                   </div>
                 </div>

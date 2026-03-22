@@ -1,5 +1,9 @@
 import { supabase } from '../lib/supabase';
 
+/**
+ * Rows are ready for Resend (or any mailer): use `subject` as the outgoing email Subject line.
+ * `inquiry_type` is `general` | `affiliate` | `content_creator` for filtering and templates.
+ */
 export type ContactInquiry = {
   id?: string;
   created_at?: string;

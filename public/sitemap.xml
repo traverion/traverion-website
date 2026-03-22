@@ -7,5 +7,9 @@
   <url><loc>https://traverion.com/contact</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
   <url><loc>https://traverion.com/privacy</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
   <url><loc>https://traverion.com/terms</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
+  <url><loc>https://traverion.com/cookies</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
+  <url><loc>https://traverion.com/legal-notice</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
+  <url><loc>https://traverion.com/affiliate</loc><changefreq>monthly</changefreq><priority>0.4</priority></url>
+  <url><loc>https://traverion.com/content-creator</loc><changefreq>monthly</changefreq><priority>0.4</priority></url>
   <url><loc>https://traverion.com/sitemap</loc><changefreq>monthly</changefreq><priority>0.4</priority></url>
 </urlset>

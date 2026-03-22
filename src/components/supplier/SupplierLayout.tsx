@@ -172,9 +172,10 @@ export default function SupplierLayout() {
         <nav className="flex-1 p-3 space-y-0.5">
           {NAV_ITEMS.map((item) => (
             <button
+              type="button"
               key={item.id}
               onClick={() => handleNavigate(item.id)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left text-sm font-medium transition-colors duration-200 ease-smooth ${
+              className={`lux-flat w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left text-sm font-medium transition-colors duration-300 ease-lux ${
                 section === item.id ? 'bg-finland/10 text-finland' : 'text-gray-600 hover:bg-gray-100'
               }`}
             >
@@ -185,8 +186,9 @@ export default function SupplierLayout() {
         </nav>
         <div className="p-3 border-t border-gray-200">
           <button
+            type="button"
             onClick={() => signOut()}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors duration-200 ease-smooth"
+            className="lux-flat w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors duration-300 ease-lux"
           >
             <LogOut className="w-5 h-5" />
             Sign out
@@ -212,17 +214,18 @@ export default function SupplierLayout() {
             <Globe className="w-6 h-6 text-finland" />
             TRAVERION
           </a>
-          <button onClick={() => setSidebarOpen(false)} className="p-2 text-gray-500">
+          <button type="button" onClick={() => setSidebarOpen(false)} className="no-lux-interaction lux-tap-target p-2 text-gray-500 rounded-lg">
             <X className="w-5 h-5" />
           </button>
         </div>
         <nav className="p-3 space-y-0.5">
           {NAV_ITEMS.map((item) => (
             <button
+              type="button"
               key={item.id}
               onClick={() => handleNavigate(item.id)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left text-sm font-medium ${
-                section === item.id ? 'bg-finland/10 text-finland' : 'text-gray-600'
+              className={`lux-flat w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left text-sm font-medium transition-colors duration-300 ease-lux ${
+                section === item.id ? 'bg-finland/10 text-finland' : 'text-gray-600 hover:bg-gray-50'
               }`}
             >
               <item.icon className="w-5 h-5" />
@@ -232,8 +235,9 @@ export default function SupplierLayout() {
         </nav>
         <div className="p-3 border-t border-gray-200">
           <button
+            type="button"
             onClick={() => signOut()}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left text-sm font-medium text-gray-600"
+            className="lux-flat w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors duration-300 ease-lux"
           >
             <LogOut className="w-5 h-5" />
             Sign out
@@ -243,16 +247,18 @@ export default function SupplierLayout() {
 
       {/* Main content */}
       <div className="flex-1 lg:pl-64">
-        <header className="bg-white border-b border-gray-200 sticky top-0 z-20 h-16 flex items-center px-4 sm:px-6 lg:px-8">
+        <header className="bg-white/95 backdrop-blur-md border-b border-gray-200 sticky top-0 z-20 h-16 flex items-center px-4 sm:px-6 lg:px-8 supports-[backdrop-filter]:bg-white/90 transition-shadow duration-500 ease-lux">
           <button
+            type="button"
             onClick={() => setSidebarOpen(true)}
-            className="lg:hidden p-2 -ml-2 text-gray-600"
+            className="no-lux-interaction lux-tap-target lg:hidden p-2 -ml-2 text-gray-600 rounded-lg"
           >
             <Menu className="w-6 h-6" />
           </button>
-          <a href="/" className="ml-auto text-sm text-gray-600 hover:text-finland transition-colors duration-200 ease-smooth">Back to main site</a>
+          <a href="/" className="ml-auto text-sm text-gray-600 hover:text-finland transition-colors duration-300 ease-lux rounded-md px-1">Back to main site</a>
         </header>
-        <main className="p-4 sm:p-6 lg:p-8">
+        <main className="p-4 sm:p-6 lg:p-8 overflow-x-hidden">
+          <div key={section} className="lux-page-enter">
           {section === 'dashboard' && (
             <SupplierDashboard
               onNavigateToListings={() => handleNavigate('listings')}
@@ -538,6 +544,7 @@ export default function SupplierLayout() {
               </div>
             </div>
           )}
+          </div>
         </main>
       </div>
     </div>

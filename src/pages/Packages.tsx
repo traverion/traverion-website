@@ -166,7 +166,7 @@ export default function Packages({ onTourSelect }: PackagesProps) {
   }, [searchTerm, selectedDestination, selectedTags, sortBy, priceRange]);
 
   useEffect(() => {
-    const onScroll = () => setFilterBarSticky(window.scrollY > 280);
+    const onScroll = () => setFilterBarSticky(window.scrollY > 360);
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
@@ -260,25 +260,26 @@ export default function Packages({ onTourSelect }: PackagesProps) {
 
   return (
     <div className="min-h-screen bg-gray-50 pt-20">
-      {/* Simple page header - TripAdvisor/GetYourGuide style */}
-      <section className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <h1 className="text-3xl font-semibold text-gray-900 mb-1">
+      {/* Hero + search & filters over banner (same asset as home) */}
+      <section className="relative border-b border-gray-200 overflow-hidden min-h-[300px] sm:min-h-[360px] lg:min-h-[400px]">
+        <div
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          style={{ backgroundImage: 'url(/banner1.jpg)' }}
+        />
+        <div className="absolute inset-0 bg-black/50" aria-hidden />
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-8 sm:pt-10 sm:pb-10">
+          <h1 className="text-3xl sm:text-4xl font-semibold text-white mb-2 uppercase tracking-wide drop-shadow-sm">
             Tours & activities
           </h1>
-          <p className="text-gray-600">
+          <p className="text-white/90 text-base sm:text-lg mb-6">
             {filteredPackages.length} {filteredPackages.length === 1 ? 'tour' : 'tours'} · Free cancellation on most
           </p>
-        </div>
-      </section>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Sticky filter bar - GYG/Airbnb style */}
+        {/* Sticky filter bar - white card on hero */}
         <div
-          className={`mb-6 transition-all duration-200 ${
+          className={`mb-0 transition-all duration-200 ${
             filterBarSticky
               ? 'sticky top-20 z-30 bg-white/95 backdrop-blur-md border border-gray-200 rounded-xl shadow-lg py-4 px-4'
-              : 'bg-white border border-gray-200 rounded-xl py-4 px-4'
+              : 'bg-white border border-gray-200 rounded-xl shadow-xl py-4 px-4 ring-1 ring-black/5'
           }`}
         >
           {listingsLoadError && isSupabaseConfigured() && (
@@ -395,18 +396,37 @@ export default function Packages({ onTourSelect }: PackagesProps) {
               </button>
             )}
           </div>
-          {/* Mobile filter drawer */}
+          {/* Mobile filter drawer — above fixed header (z-9999), full height + safe areas */}
           {mobileFiltersOpen && (
-            <div className="lg:hidden fixed inset-0 z-50 flex">
-              <div className="absolute inset-0 bg-black/50" onClick={() => setMobileFiltersOpen(false)} aria-hidden />
-              <div className="relative w-full max-w-sm bg-white shadow-xl flex flex-col ml-auto">
-                <div className="flex items-center justify-between p-4 border-b border-gray-200">
-                  <h3 className="font-semibold text-gray-900">Filters</h3>
-                  <button type="button" onClick={() => setMobileFiltersOpen(false)} className="p-2 text-gray-500">
+            <div className="lg:hidden fixed inset-0 z-[10000]">
+              <div
+                className="absolute inset-0 bg-black/50"
+                onClick={() => setMobileFiltersOpen(false)}
+                aria-hidden
+              />
+              <aside
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="filters-drawer-title"
+                className="absolute top-0 right-0 bottom-0 w-full max-w-[min(100vw,24rem)] flex flex-col bg-white shadow-2xl"
+                style={{
+                  paddingTop: 'max(0px, env(safe-area-inset-top, 0px))',
+                }}
+              >
+                <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-gray-200">
+                  <h3 id="filters-drawer-title" className="font-semibold text-gray-900 text-lg">
+                    Filters
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setMobileFiltersOpen(false)}
+                    className="p-2 -mr-2 text-gray-500 rounded-lg hover:bg-gray-100"
+                    aria-label="Close filters"
+                  >
                     <X className="w-5 h-5" />
                   </button>
                 </div>
-                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 space-y-4 pb-2">
                   <div>
                     <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Destination</p>
                     <div className="flex flex-wrap gap-2">
@@ -456,7 +476,12 @@ export default function Packages({ onTourSelect }: PackagesProps) {
                     </div>
                   </div>
                 </div>
-                <div className="p-4 border-t border-gray-200 space-y-2">
+                <div
+                  className="flex-shrink-0 p-4 border-t border-gray-200 space-y-2 bg-white"
+                  style={{
+                    paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 1rem))',
+                  }}
+                >
                   {hasActiveFilters && (
                     <button
                       type="button"
@@ -474,13 +499,16 @@ export default function Packages({ onTourSelect }: PackagesProps) {
                     Show {filteredPackages.length} results
                   </button>
                 </div>
-              </div>
+              </aside>
             </div>
           )}
 
           {/* Holiday / multi-day packages hidden from UI for now */}
         </div>
+        </div>
+      </section>
 
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Recommended - GYG style (only when we have listings) */}
         {SHOW_SEED_LISTINGS && selectedDestination === 'all' && selectedTags.length === 0 && !searchTerm && allListings.length > 0 && (
           <section className="mb-10">

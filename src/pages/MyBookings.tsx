@@ -9,6 +9,8 @@ import { isSupabaseConfigured } from '../lib/supabase';
 import { fetchMyBookings, cancelBookingAsCustomer, type BookingRow } from '../data/supabase-bookings';
 import { fetchListingTitlesByIds } from '../data/supabase-listings';
 import { decrementAvailabilityBooked } from '../data/supabase-availability';
+import PageHero from '../components/PageHero';
+import { HERO_IMG } from '../lib/heroImages';
 
 interface MyBookingsProps {
   onNavigate: (page: string) => void;
@@ -16,7 +18,7 @@ interface MyBookingsProps {
 }
 
 export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps) {
-  const { user, requestAuth } = useAuth();
+  const { user } = useAuth();
   const [bookings, setBookings] = useState<BookingRow[]>([]);
   const [titles, setTitles] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -75,8 +77,14 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
 
   if (!isSupabaseConfigured()) {
     return (
-      <div className="min-h-screen bg-gray-50 pt-24 pb-12">
-        <div className="max-w-2xl mx-auto px-4">
+      <div className="min-h-screen bg-gray-50 pt-20">
+        <PageHero
+          imageSrc={HERO_IMG.beach2}
+          overlay="slateSoft"
+          title="Your bookings"
+          subtitle="View reservations and status for tours you have booked with Traverion."
+        />
+        <div className="max-w-2xl mx-auto px-4 py-8 pb-12">
           <p className="text-gray-600">Bookings are not available in this configuration.</p>
         </div>
       </div>
@@ -85,15 +93,24 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gray-50 pt-24 pb-12">
-        <div className="max-w-xl mx-auto px-4 text-center">
+      <div className="min-h-screen bg-gray-50 pt-20">
+        <PageHero
+          imageSrc={HERO_IMG.beach2}
+          overlay="slateSoft"
+          title="Your bookings"
+          subtitle="Log in to see your reservations and their status (confirmed or cancelled)."
+        />
+        <div className="max-w-xl mx-auto px-4 py-8 pb-12 text-center">
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-10">
             <Calendar className="w-14 h-14 text-gray-300 mx-auto mb-4" />
             <h1 className="text-2xl font-semibold text-gray-900 mb-2">Your bookings</h1>
             <p className="text-gray-600 mb-6">Log in to see your reservations and their status (confirmed or cancelled).</p>
             <button
               type="button"
-              onClick={() => requestAuth()}
+              onClick={() => {
+                window.history.pushState({}, '', '/auth?tab=signin&next=bookings');
+                onNavigate('auth');
+              }}
               className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark"
             >
               <LogIn className="w-5 h-5" />
@@ -106,13 +123,15 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-24 pb-12">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-          <div>
-            <h1 className="text-2xl font-semibold text-gray-900">Your bookings</h1>
-            <p className="text-gray-600 mt-1">View status of your tour and activity reservations.</p>
-          </div>
+    <div className="min-h-screen bg-gray-50 pt-20">
+      <PageHero
+        imageSrc={HERO_IMG.beach2}
+        overlay="slateSoft"
+        title="Your bookings"
+        subtitle="View status of your tour and activity reservations."
+      />
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 pb-12">
+        <div className="flex justify-end mb-8">
           <button
             type="button"
             onClick={load}

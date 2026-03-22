@@ -13,8 +13,8 @@ export default function LuxuryCard({
   hover = true,
   className = '',
 }: LuxuryCardProps) {
-  const baseClasses = 'rounded-2xl transition-all duration-500';
-  
+  const baseClasses = 'rounded-2xl transition-shadow duration-500 ease-lux';
+
   const variants = {
     default: 'bg-white shadow-lg hover:shadow-2xl',
     glass: 'glass backdrop-blur-lg bg-white/10 border border-white/20',
@@ -22,7 +22,7 @@ export default function LuxuryCard({
     elevated: 'bg-white shadow-2xl hover:shadow-3xl',
   };
 
-  const hoverClasses = hover ? 'hover-lift hover:scale-105' : '';
+  const hoverClasses = hover ? 'lux-card-surface' : '';
 
   return (
     <div className={`${baseClasses} ${variants[variant]} ${hoverClasses} ${className}`}>

@@ -15,7 +15,7 @@ interface CartPageProps {
 }
 
 export default function CartPage({ onNavigate }: CartPageProps) {
-  const { user, requestAuth } = useAuth();
+  const { user } = useAuth();
   const [items, setItems] = useState<CartItemWithListing[]>([]);
   const [loading, setLoading] = useState(true);
   const [submittingId, setSubmittingId] = useState<string | null>(null);
@@ -95,11 +95,14 @@ export default function CartPage({ onNavigate }: CartPageProps) {
             <p className="text-gray-600 mb-6">Log in to add tours to your cart and request bookings.</p>
             <button
               type="button"
-              onClick={() => requestAuth()}
+              onClick={() => {
+                window.history.pushState({}, '', '/auth?tab=signup&next=cart');
+                onNavigate('auth');
+              }}
               className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark"
             >
               <LogIn className="w-5 h-5" />
-              Log in
+              Sign in / Sign up
             </button>
           </div>
         </div>

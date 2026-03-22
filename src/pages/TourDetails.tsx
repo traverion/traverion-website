@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ArrowLeft, MapPin, Calendar, Users, Star, Clock, Plane, Shield, Heart, Share2, CheckCircle, XCircle, ShoppingCart } from 'lucide-react';
+import { ArrowLeft, MapPin, Calendar, Users, Star, Clock, Plane, Shield, Share2, CheckCircle, XCircle, ShoppingCart } from 'lucide-react';
 import { useTranslation } from '../contexts/TranslationContext';
 import { useAuth } from '../contexts/AuthContext';
 import LuxuryButton from '../components/ui/LuxuryButton';
@@ -17,7 +17,6 @@ import {
   userHasReviewedListing,
   type ReviewDisplay,
 } from '../data/supabase-reviews';
-import { fetchWishlistListingIds, toggleWishlist } from '../data/supabase-wishlist';
 import { addToCart } from '../data/supabase-cart';
 import { setPageMetaWithOg, setTourJsonLd, clearTourJsonLd } from '../lib/seo';
 import { Skeleton } from '../components/ui/Skeleton';
@@ -30,11 +29,10 @@ interface TourDetailsProps {
 
 export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps) {
   const { t } = useTranslation();
-  const { user, requestAuth } = useAuth();
+  const { user } = useAuth();
   const [tour, setTour] = useState<TourPackage | null>(null);
   const [tourLoadError, setTourLoadError] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState(0);
-  const [inWishlist, setInWishlist] = useState(false);
   const [reviews, setReviews] = useState<ReviewDisplay[]>([]);
   const [reviewAggregate, setReviewAggregate] = useState<{ rating: number; count: number } | null>(null);
   const [canLeaveReview, setCanLeaveReview] = useState(false);
@@ -44,7 +42,6 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [addToCartMessage, setAddToCartMessage] = useState<'success' | 'error' | null>(null);
-  const [wishlistActionError, setWishlistActionError] = useState<string | null>(null);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewTitle, setReviewTitle] = useState('');
   const [reviewComment, setReviewComment] = useState('');
@@ -80,13 +77,6 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
   useEffect(() => {
     loadReviews();
   }, [loadReviews]);
-
-  useEffect(() => {
-    if (!user?.id || !tourId || !isSupabaseConfigured()) return;
-    fetchWishlistListingIds(user.id)
-      .then((ids) => setInWishlist(ids.includes(tourId)))
-      .catch(() => setInWishlist(false));
-  }, [user?.id, tourId]);
 
   useEffect(() => {
     if (!user?.id || !user?.email || !tourId || !isSupabaseConfigured()) return;
@@ -198,40 +188,11 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
             </LuxuryButton>
             
             <div className="flex items-center space-x-4">
-              <button
-                type="button"
-                onClick={async () => {
-                  if (!isSupabaseConfigured()) return;
-                  if (!user) {
-                    requestAuth({ onSuccess: () => {} });
-                    return;
-                  }
-                  setWishlistActionError(null);
-                  try {
-                    const res = await toggleWishlist(user.id, tour.id);
-                    setInWishlist(res.inWishlist);
-                  } catch (e) {
-                    setWishlistActionError(e instanceof Error ? e.message : 'Could not update wishlist');
-                  }
-                }}
-                className={`p-2 rounded-full transition-all duration-200 ease-smooth active:scale-95 ${
-                  inWishlist
-                    ? 'bg-red-500 text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-red-50 hover:text-red-500'
-                }`}
-                title={inWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
-              >
-                <Heart size={20} className={inWishlist ? 'fill-current' : ''} />
-              </button>
-              
               <button className="p-2 rounded-full bg-gray-100 text-gray-600 hover:bg-finland/10 hover:text-finland transition-all duration-300">
                 <Share2 size={20} />
               </button>
             </div>
           </div>
-          {wishlistActionError && (
-            <p className="text-sm text-red-600 mt-2">{wishlistActionError}</p>
-          )}
         </div>
       </div>
 
@@ -341,7 +302,7 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
                   <button
                     onClick={() => {
                       if (isSupabaseConfigured() && !user) {
-                        requestAuth({ onSuccess: () => onBook(tour) });
+                        window.location.href = '/auth?tab=signup&next=packages';
                         return;
                       }
                       analytics.bookStart(tour.id);

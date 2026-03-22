@@ -24,7 +24,7 @@ interface BookingPageProps {
 type Step = 'date-guests' | 'contact' | 'confirm' | 'done';
 
 export default function BookingPage({ tour, onBack, onComplete, onNavigate }: BookingPageProps) {
-  const { user, requestAuth } = useAuth();
+  const { user } = useAuth();
   const [step, setStep] = useState<Step>('date-guests');
   const [date, setDate] = useState('');
   const [guests, setGuests] = useState(2);
@@ -81,7 +81,9 @@ export default function BookingPage({ tour, onBack, onComplete, onNavigate }: Bo
 
   const handleConfirmBooking = async () => {
     if (isSupabaseConfigured() && !user) {
-      requestAuth({ onSuccess: () => {} });
+      window.history.pushState({}, '', '/auth?tab=signup&next=packages');
+      if (onNavigate) onNavigate('auth');
+      else window.location.href = '/auth?tab=signup&next=packages';
       return;
     }
     setSubmitting(true);

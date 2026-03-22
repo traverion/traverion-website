@@ -9,9 +9,10 @@ function TikTokIcon({ className }: { className?: string }) {
   );
 }
 
-const linkClass = 'text-gray-400 hover:text-white text-sm transition-colors duration-200 ease-smooth underline decoration-gray-500 underline-offset-2 hover:decoration-white';
+const linkClass =
+  'lux-flat text-gray-400 hover:text-white text-sm transition-colors duration-300 ease-lux underline decoration-gray-500 underline-offset-2 hover:decoration-white';
 
-/** Footer: Support, Company, Work With Us. All links target pages handled by App (contact, terms, privacy, cookies, sitemap, about, blog). */
+/** Footer: Support, Company, Work With Us — routes handled in App (contact, legal-notice, privacy, cookies, terms, sitemap, about, blog, affiliate, content-creator; supplier → /supplier-log-in). */
 export default function Footer({ onNavigate }: { onNavigate?: (page: string) => void }) {
   const nav = (page: string) => {
     if (onNavigate) {
@@ -41,7 +42,7 @@ export default function Footer({ onNavigate }: { onNavigate?: (page: string) => 
             <h3 className="font-semibold text-white mb-3 text-sm uppercase tracking-wide">Support</h3>
             <ul className="space-y-2">
               <li><button type="button" onClick={() => nav('contact')} className={`${linkClass} text-left bg-transparent border-0 cursor-pointer`}>Contact</button></li>
-              <li><button type="button" onClick={() => nav('terms')} className={`${linkClass} text-left bg-transparent border-0 cursor-pointer`}>Legal Notice</button></li>
+              <li><button type="button" onClick={() => nav('legal-notice')} className={`${linkClass} text-left bg-transparent border-0 cursor-pointer`}>Legal Notice</button></li>
               <li><button type="button" onClick={() => nav('privacy')} className={`${linkClass} text-left bg-transparent border-0 cursor-pointer`}>Privacy Policy</button></li>
               <li><button type="button" onClick={() => nav('cookies')} className={`${linkClass} text-left bg-transparent border-0 cursor-pointer`}>Cookies and Marketing Preferences</button></li>
               <li><button type="button" onClick={() => nav('terms')} className={`${linkClass} text-left bg-transparent border-0 cursor-pointer`}>General Terms and Conditions</button></li>
@@ -62,8 +63,8 @@ export default function Footer({ onNavigate }: { onNavigate?: (page: string) => 
           <div>
             <h3 className="font-semibold text-white mb-3 text-sm uppercase tracking-wide">Want to work with us?</h3>
             <ul className="space-y-2">
-              <li><button type="button" onClick={() => nav('contact')} className={`${linkClass} text-left bg-transparent border-0 cursor-pointer`}>Become an affiliate</button></li>
-              <li><button type="button" onClick={() => nav('contact')} className={`${linkClass} text-left bg-transparent border-0 cursor-pointer`}>Become a content creator</button></li>
+              <li><button type="button" onClick={() => nav('affiliate')} className={`${linkClass} text-left bg-transparent border-0 cursor-pointer`}>Become an affiliate</button></li>
+              <li><button type="button" onClick={() => nav('content-creator')} className={`${linkClass} text-left bg-transparent border-0 cursor-pointer`}>Become a content creator</button></li>
               <li><a href="/supplier-log-in" className={linkClass}>Become a supplier</a></li>
             </ul>
           </div>
@@ -81,7 +82,7 @@ export default function Footer({ onNavigate }: { onNavigate?: (page: string) => 
               href="https://instagram.com/traverion"
               target="_blank"
               rel="noopener noreferrer"
-              className="p-2 text-gray-400 hover:text-white transition-colors rounded-lg hover:bg-white/10"
+              className="lux-tap-target p-2 text-gray-400 hover:text-white transition-colors duration-300 ease-lux rounded-lg hover:bg-white/10"
               aria-label="Instagram"
             >
               <Instagram className="w-5 h-5" />
@@ -90,7 +91,7 @@ export default function Footer({ onNavigate }: { onNavigate?: (page: string) => 
               href="https://tiktok.com/@traverion"
               target="_blank"
               rel="noopener noreferrer"
-              className="p-2 text-gray-400 hover:text-white transition-colors rounded-lg hover:bg-white/10"
+              className="lux-tap-target p-2 text-gray-400 hover:text-white transition-colors duration-300 ease-lux rounded-lg hover:bg-white/10"
               aria-label="TikTok"
             >
               <TikTokIcon className="w-5 h-5" />

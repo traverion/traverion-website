@@ -1,36 +1,42 @@
-import { useState } from 'react';
 import { ArrowLeft, Cookie, Settings, Shield, Mail, Phone } from 'lucide-react';
 import LuxuryButton from '../components/ui/LuxuryButton';
-import { useTranslation } from '../contexts/TranslationContext';
+import PageHero from '../components/PageHero';
+import { HERO_IMG } from '../lib/heroImages';
+import { navigateBackOrFallback } from '../lib/appRouting';
 
-export default function Cookies() {
-  const { t } = useTranslation();
+type CookiesProps = {
+  onNavigate?: (page: string) => void;
+};
 
+export default function Cookies({ onNavigate }: CookiesProps) {
   return (
     <div className="min-h-screen bg-gray-50 pt-20">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Header */}
-        <div className="mb-8">
-          <LuxuryButton 
-            variant="outline" 
-            onClick={() => window.history.back()}
-            className="mb-6"
-          >
-            <ArrowLeft className="mr-2 w-4 h-4" />
-            Back
-          </LuxuryButton>
-          
-          <div className="flex items-center gap-3 mb-4">
-            <Cookie className="w-8 h-8 text-sky-600" />
-            <h1 className="text-4xl font-bold text-gray-900">Cookie Policy</h1>
-          </div>
-          <p className="text-gray-600 text-lg">
-            Last updated: {new Date().toLocaleDateString()}
-          </p>
-        </div>
+      <PageHero
+        imageSrc={HERO_IMG.laos}
+        eyebrow="Transparency"
+        title="Cookies & marketing preferences"
+        subtitle="What cookies we use, why they matter, and how you can control analytics and marketing signals when you browse Traverion."
+        overlay="finland"
+      />
+
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <LuxuryButton
+          variant="outline"
+          onClick={() =>
+            navigateBackOrFallback(() => {
+              onNavigate?.('home');
+            })
+          }
+          className="mb-8"
+        >
+          <ArrowLeft className="mr-2 w-4 h-4" />
+          Back
+        </LuxuryButton>
+
+        <p className="text-gray-600 text-sm mb-6">Last updated: {new Date().toLocaleDateString()}</p>
 
         {/* Content */}
-        <div className="bg-white rounded-xl shadow-lg p-8 space-y-8">
+        <div className="bg-white rounded-xl shadow-lg p-6 sm:p-8 space-y-8 border border-gray-100">
           <section>
             <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
               <Cookie className="w-6 h-6 text-sky-600" />
@@ -77,14 +83,44 @@ export default function Cookies() {
 
           <section>
             <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <Cookie className="w-6 h-6 text-sky-600" />
+              Third-party tools & retention
+            </h2>
+            <div className="space-y-4 text-gray-700">
+              <p>
+                Some cookies are set by trusted partners (for example analytics or embedded maps). Those
+                providers have their own privacy notices. We aim to use only services that meet reasonable
+                security and compliance standards.
+              </p>
+              <p>
+                Retention periods vary: session cookies expire when you close the browser; persistent
+                cookies may last from a few days to several months depending on their purpose. Marketing
+                preferences you save with us are kept until you withdraw consent or close your account,
+                subject to legal retention needs.
+              </p>
+            </div>
+          </section>
+
+          <section>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
               <Mail className="w-6 h-6 text-sky-600" />
               Contact Us
             </h2>
             <div className="space-y-4 text-gray-700">
               <p>If you have any questions about our use of cookies, please contact us:</p>
               <div className="bg-gray-50 rounded-lg p-4">
-                <p><strong>Email:</strong> privacy@traverion.com</p>
-                <p><strong>Phone:</strong> +358 45 7834 5138</p>
+                <p>
+                  <strong>Email:</strong>{' '}
+                  <a href="mailto:info@traverion.com" className="text-sky-700 hover:underline">
+                    info@traverion.com
+                  </a>
+                </p>
+                <p>
+                  <strong>Phone:</strong>{' '}
+                  <a href="tel:+358458803060" className="text-sky-700 hover:underline">
+                    +358 45 8803060
+                  </a>
+                </p>
                 <p><strong>Address:</strong> TRAVERION Travel Agency, Finland</p>
               </div>
             </div>

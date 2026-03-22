@@ -146,9 +146,9 @@ export const en = {
       cookiePolicy: 'Cookie Policy',
     },
     contact: {
-      phone: '+358 45 78345138',
+      phone: '+358 45 8803060',
       phoneHours: 'Mon-Fri 9:00-18:00',
-      email: 'contact@traverion.com',
+      email: 'info@traverion.com',
       emailResponse: '24h response time',
       location: 'HQ Finland · Serving worldwide',
       locationService: 'Global',

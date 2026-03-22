@@ -1,26 +1,55 @@
-import { useState } from 'react';
-import { Mail, Phone, MapPin, Clock, Send, MessageCircle, Globe, User, Calendar, CheckCircle } from 'lucide-react';
-import { useTranslation } from '../contexts/TranslationContext';
+import { useState, useEffect } from 'react';
+import { Mail, Phone, Send, CheckCircle } from 'lucide-react';
 import LuxuryButton from '../components/ui/LuxuryButton';
 import LuxuryCard from '../components/ui/LuxuryCard';
 import LuxuryInput from '../components/ui/LuxuryInput';
+import PageHero from '../components/PageHero';
+import { HERO_IMG } from '../lib/heroImages';
 import { submitContactInquiry, ContactInquiry } from '../data/supabase-contact';
 import { required, validateEmail, maxLength } from '../lib/validation';
+import { CONTACT_PREFILL_KEY } from '../lib/contactPrefill';
+import { buildInquiryEmailSubject } from '../lib/contactEmailSubject';
 
-export default function Contact() {
-  const { t } = useTranslation();
+type ContactProps = {
+  onNavigate?: (page: string) => void;
+};
+
+export default function Contact({ onNavigate }: ContactProps) {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     phone: '',
-    subject: '',
-    message: '',
-    tourInterest: '',
-    travelDate: '',
-    groupSize: ''
+    message: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(CONTACT_PREFILL_KEY);
+      if (raw) {
+        const p = JSON.parse(raw) as { inquiry_type?: string };
+        if (p?.inquiry_type === 'affiliate') {
+          onNavigate?.('affiliate');
+          return;
+        }
+        if (p?.inquiry_type === 'content_creator') {
+          onNavigate?.('content-creator');
+          return;
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+    const topic = new URLSearchParams(window.location.search).get('topic');
+    if (topic === 'affiliate') {
+      onNavigate?.('affiliate');
+      return;
+    }
+    if (topic === 'creator' || topic === 'content-creator') {
+      onNavigate?.('content-creator');
+    }
+  }, [onNavigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,33 +72,29 @@ export default function Contact() {
     }
     setIsSubmitting(true);
     try {
+      const emailSubject = buildInquiryEmailSubject('general', '');
+
       const inquiryData: Omit<ContactInquiry, 'id' | 'created_at' | 'updated_at'> = {
         name: formData.name,
         email: formData.email,
         phone: formData.phone || undefined,
-        subject: formData.subject,
+        subject: emailSubject,
         message: formData.message,
-        inquiry_type: formData.tourInterest ? 'booking' : 'general',
+        inquiry_type: 'general',
         status: 'new'
       };
 
-      // Submit to Supabase
       const result = await submitContactInquiry(inquiryData);
 
       if (result.success) {
         setIsSubmitted(true);
-        // Reset form after successful submission
         setTimeout(() => {
           setIsSubmitted(false);
           setFormData({
             name: '',
             email: '',
             phone: '',
-            subject: '',
-            message: '',
-            tourInterest: '',
-            travelDate: '',
-            groupSize: ''
+            message: ''
           });
         }, 3000);
       } else {
@@ -83,237 +108,139 @@ export default function Contact() {
     }
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value
     });
   };
 
-  return (
-    <div className="min-h-screen bg-white pt-20">
-      {/* Hero Section */}
-      <section className="relative py-24 bg-gradient-to-br from-gray-50 via-white to-gray-50 overflow-hidden">
-        <div className="absolute inset-0 opacity-5">
-          <div className="absolute inset-0" style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%230ea5e9' fill-opacity='0.1'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-          }} />
-        </div>
+  const goPackages = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (onNavigate) {
+      e.preventDefault();
+      onNavigate('packages');
+    }
+  };
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="text-center mb-16">
-            <div className="inline-block px-4 py-2 bg-finland/10 text-finland rounded-full text-sm font-semibold mb-6 animate-fade-in-up">
-              ✨ Get In Touch
+  return (
+    <div className="min-h-screen bg-gray-50 pt-20">
+      <PageHero
+        imageSrc={HERO_IMG.beach}
+        overlay="slateSoft"
+        eyebrow="Support"
+        title="Contact us"
+        subtitle="Bookings, trips, and general questions only. Affiliate and creator applications each have their own page in the footer."
+      />
+
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12 pt-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-start">
+          <div className="pt-2">
+            <div className="inline-block px-3 py-1.5 bg-finland/10 text-finland rounded-full text-sm font-semibold mb-4">
+              Get in touch
             </div>
-            <h1 className="text-5xl md:text-6xl font-display font-bold text-gray-900 mb-6 animate-fade-in-up stagger-1">
-              Contact <span className="gradient-text">Us</span>
-            </h1>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed animate-fade-in-up stagger-2">
-              Ready to start your extraordinary journey? We're here to help you plan the perfect luxury travel experience.
+            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4">We are here to help</h2>
+            <p className="text-lg text-gray-600 leading-relaxed max-w-xl mb-4">
+              Tell us what you need — tours, packages, or account help — and we will follow up. Supplier
+              access: supplier portal. Partnerships: <strong className="text-gray-800">Become an affiliate</strong>.
+              Media / creators: <strong className="text-gray-800">Become a content creator</strong>.
+            </p>
+            <p className="text-gray-600 leading-relaxed max-w-xl">
+              Browse{' '}
+              <a href="/packages" onClick={goPackages} className="text-finland font-medium hover:underline">
+                tours &amp; activities
+              </a>{' '}
+              anytime.
             </p>
           </div>
-        </div>
-      </section>
 
-      {/* Contact Information */}
-      <section className="py-16 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-16">
-            <LuxuryCard variant="elevated" className="p-8 text-center">
-              <div className="w-16 h-16 bg-finland/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Phone className="w-8 h-8 text-finland" />
-              </div>
-              <h3 className="text-xl font-heading font-bold text-gray-900 mb-2">Phone</h3>
-              <p className="text-gray-600 mb-2">+358 40 123 4567</p>
-              <p className="text-sm text-gray-500">Mon-Fri 9AM-6PM (EET)</p>
-            </LuxuryCard>
-
-            <LuxuryCard variant="elevated" className="p-8 text-center">
-              <div className="w-16 h-16 bg-finland/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Mail className="w-8 h-8 text-finland" />
-              </div>
-              <h3 className="text-xl font-heading font-bold text-gray-900 mb-2">Email</h3>
-              <p className="text-gray-600 mb-2">info@traverion.com</p>
-              <p className="text-sm text-gray-500">We'll respond within 24 hours</p>
-            </LuxuryCard>
-
-            <LuxuryCard variant="elevated" className="p-8 text-center">
-              <div className="w-16 h-16 bg-finland/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <MapPin className="w-8 h-8 text-finland" />
-              </div>
-              <h3 className="text-xl font-heading font-bold text-gray-900 mb-2">Office</h3>
-              <p className="text-gray-600 mb-2">Helsinki, Finland</p>
-              <p className="text-sm text-gray-500">By appointment only</p>
-            </LuxuryCard>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-            {/* Contact Form */}
-            <div>
-              <h2 className="text-3xl font-heading font-bold text-gray-900 mb-6">Send us a Message</h2>
-              
-              {isSubmitted ? (
-                <LuxuryCard variant="elevated" className="p-8 text-center">
-                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <CheckCircle className="w-8 h-8 text-green-500" />
-                  </div>
-                  <h3 className="text-xl font-heading font-bold text-gray-900 mb-2">Message Sent!</h3>
-                  <p className="text-gray-600">Thank you for contacting us. We'll get back to you soon!</p>
-                </LuxuryCard>
-              ) : (
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <LuxuryInput
-                      type="text"
-                      placeholder="Your Name"
-                      value={formData.name}
-                      onChange={handleInputChange}
-                      name="name"
-                      required
-                    />
-                    <LuxuryInput
-                      type="email"
-                      placeholder="Email Address"
-                      value={formData.email}
-                      onChange={handleInputChange}
-                      name="email"
-                      required
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <LuxuryInput
-                      type="tel"
-                      placeholder="Phone Number"
-                      value={formData.phone}
-                      onChange={handleInputChange}
-                      name="phone"
-                    />
-                    <LuxuryInput
-                      type="text"
-                      placeholder="Subject"
-                      value={formData.subject}
-                      onChange={handleInputChange}
-                      name="subject"
-                      required
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <select
-                      name="tourInterest"
-                      value={formData.tourInterest}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-finland focus:border-transparent transition-all"
-                    >
-                      <option value="">Select Tour Interest</option>
-                      <option value="vietnam">Vietnam Tours</option>
-                      <option value="thailand">Thailand Tours</option>
-                      <option value="cambodia">Cambodia Tours</option>
-                      <option value="indochina">Indochina Tours</option>
-                      <option value="custom">Custom Tour</option>
-                    </select>
-                    
-                    <LuxuryInput
-                      type="date"
-                      placeholder="Preferred Travel Date"
-                      value={formData.travelDate}
-                      onChange={handleInputChange}
-                      name="travelDate"
-                    />
-                  </div>
-
-                  <LuxuryInput
-                    type="text"
-                    placeholder="Group Size"
-                    value={formData.groupSize}
-                    onChange={handleInputChange}
-                    name="groupSize"
-                  />
-
-                  <textarea
-                    name="message"
-                    value={formData.message}
-                    onChange={handleInputChange}
-                    placeholder="Tell us about your dream trip..."
-                    rows={5}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-finland focus:border-transparent transition-all resize-none"
-                    required
-                  />
-
-                  <LuxuryButton
-                    type="submit"
-                    variant="gradient"
-                    size="lg"
-                    className="w-full group"
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                        Sending...
-                      </>
-                    ) : (
-                      <>
-                        <Send className="mr-2 w-5 h-5" />
-                        Send Message
-                      </>
-                    )}
-                  </LuxuryButton>
-                </form>
-              )}
-            </div>
-
-            {/* Additional Info */}
-            <div>
-              <h2 className="text-3xl font-heading font-bold text-gray-900 mb-6">Why Choose Us?</h2>
-              
-              <div className="space-y-6">
-                <LuxuryCard variant="glass" className="p-6">
-                  <div className="flex items-start">
-                    <div className="w-12 h-12 bg-finland/10 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
-                      <Globe className="w-6 h-6 text-finland" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-heading font-semibold text-gray-900 mb-2">Expert Local Knowledge</h3>
-                      <p className="text-gray-600">Our team has extensive experience in Southeast Asia, ensuring authentic and memorable experiences.</p>
-                    </div>
-                  </div>
-                </LuxuryCard>
-
-                <LuxuryCard variant="glass" className="p-6">
-                  <div className="flex items-start">
-                    <div className="w-12 h-12 bg-finland/10 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
-                      <User className="w-6 h-6 text-finland" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-heading font-semibold text-gray-900 mb-2">Personalized Service</h3>
-                      <p className="text-gray-600">Every tour is tailored to your preferences, ensuring a unique and personal experience.</p>
-                    </div>
-                  </div>
-                </LuxuryCard>
-
-                <LuxuryCard variant="glass" className="p-6">
-                  <div className="flex items-start">
-                    <div className="w-12 h-12 bg-finland/10 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
-                      <Clock className="w-6 h-6 text-finland" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-heading font-semibold text-gray-900 mb-2">24/7 Support</h3>
-                      <p className="text-gray-600">We're here to help you throughout your journey, from planning to completion.</p>
-                    </div>
-                  </div>
-                </LuxuryCard>
-              </div>
-
-              <div className="mt-8 p-6 bg-gradient-to-r from-finland/5 to-finland/10 rounded-2xl">
-                <h3 className="text-xl font-heading font-bold text-gray-900 mb-4">Quick Response Guarantee</h3>
-                <p className="text-gray-600 mb-4">We understand that planning your dream trip is important. That's why we guarantee a response within 24 hours.</p>
-                <div className="flex items-center text-finland">
-                  <Calendar className="w-5 h-5 mr-2" />
-                  <span className="font-semibold">Response Time: &lt; 24 hours</span>
+          <LuxuryCard variant="elevated" className="p-6 sm:p-8">
+            {isSubmitted ? (
+              <div className="text-center py-6">
+                <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle className="w-7 h-7 text-green-500" />
                 </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Message Sent!</h3>
+                <p className="text-gray-600">Thank you. We will get back to you soon.</p>
               </div>
+            ) : (
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <LuxuryInput
+                  type="text"
+                  placeholder="Your Name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  name="name"
+                  required
+                />
+                <LuxuryInput
+                  type="email"
+                  placeholder="Email Address"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  name="email"
+                  required
+                />
+                <LuxuryInput
+                  type="tel"
+                  placeholder="Phone number (optional)"
+                  value={formData.phone}
+                  onChange={handleInputChange}
+                  name="phone"
+                />
+                <textarea
+                  name="message"
+                  value={formData.message}
+                  onChange={handleInputChange}
+                  placeholder="Your message..."
+                  rows={8}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-finland focus:border-transparent transition-all resize-none"
+                  required
+                />
+                <LuxuryButton
+                  type="submit"
+                  variant="gradient"
+                  size="lg"
+                  className="w-full"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                      Sending...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="mr-2 w-5 h-5" />
+                      Send Message
+                    </>
+                  )}
+                </LuxuryButton>
+              </form>
+            )}
+          </LuxuryCard>
+        </div>
+
+        <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="bg-white border border-gray-200 rounded-xl p-5 flex items-center gap-3">
+            <span className="w-10 h-10 rounded-full bg-finland/10 text-finland flex items-center justify-center">
+              <Phone className="w-5 h-5" />
+            </span>
+            <div>
+              <p className="text-xs uppercase tracking-wide text-gray-500">Phone</p>
+              <a href="tel:+358458803060" className="text-gray-900 font-medium hover:text-finland">
+                +358 45 8803060
+              </a>
+            </div>
+          </div>
+          <div className="bg-white border border-gray-200 rounded-xl p-5 flex items-center gap-3">
+            <span className="w-10 h-10 rounded-full bg-finland/10 text-finland flex items-center justify-center">
+              <Mail className="w-5 h-5" />
+            </span>
+            <div>
+              <p className="text-xs uppercase tracking-wide text-gray-500">Email</p>
+              <a href="mailto:info@traverion.com" className="text-gray-900 font-medium hover:text-finland">
+                info@traverion.com
+              </a>
             </div>
           </div>
         </div>

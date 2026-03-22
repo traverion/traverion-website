@@ -25,14 +25,14 @@ export default function UnifiedFooter({ currentPage, onNavigate }: UnifiedFooter
           <div className="flex flex-col sm:flex-row items-center gap-4 text-sm">
             <div className="flex items-center gap-2">
               <Mail className="w-4 h-4 text-gray-300" />
-              <a href="mailto:info.traverion@gmail.com" className="hover:text-gray-200 transition-colors duration-300 font-medium">
-                info.traverion@gmail.com
+              <a href="mailto:info@traverion.com" className="hover:text-gray-200 transition-colors duration-300 font-medium">
+                info@traverion.com
               </a>
             </div>
             <div className="flex items-center gap-2">
               <Phone className="w-4 h-4 text-gray-300" />
-              <a href="tel:+3584578345138" className="hover:text-gray-200 transition-colors duration-300 font-medium">
-                +358 45 7834 5138
+              <a href="tel:+358458803060" className="hover:text-gray-200 transition-colors duration-300 font-medium">
+                +358 45 8803060
               </a>
             </div>
             <div className="flex items-center gap-2">

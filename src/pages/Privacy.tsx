@@ -1,36 +1,42 @@
-import { useState } from 'react';
-import { ArrowLeft, Shield, Lock, Eye, Database, Mail, Phone } from 'lucide-react';
+import { ArrowLeft, Shield, Lock, Eye, Database, Mail, UserCheck } from 'lucide-react';
 import LuxuryButton from '../components/ui/LuxuryButton';
-import { useTranslation } from '../contexts/TranslationContext';
+import PageHero from '../components/PageHero';
+import { HERO_IMG } from '../lib/heroImages';
+import { navigateBackOrFallback } from '../lib/appRouting';
 
-export default function Privacy() {
-  const { t } = useTranslation();
+type PrivacyProps = {
+  onNavigate?: (page: string) => void;
+};
 
+export default function Privacy({ onNavigate }: PrivacyProps) {
   return (
     <div className="min-h-screen bg-gray-50 pt-20">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Header */}
-        <div className="mb-8">
-          <LuxuryButton 
-            variant="outline" 
-            onClick={() => window.history.back()}
-            className="mb-6"
-          >
-            <ArrowLeft className="mr-2 w-4 h-4" />
-            Back
-          </LuxuryButton>
-          
-          <div className="flex items-center gap-3 mb-4">
-            <Shield className="w-8 h-8 text-sky-600" />
-            <h1 className="text-4xl font-bold text-gray-900">Privacy Policy</h1>
-          </div>
-          <p className="text-gray-600 text-lg">
-            Last updated: {new Date().toLocaleDateString()}
-          </p>
-        </div>
+      <PageHero
+        imageSrc={HERO_IMG.laos}
+        overlay="slateSoft"
+        eyebrow="Your privacy"
+        title="Privacy Policy"
+        subtitle="How we collect, use, and protect personal data when you use Traverion — including bookings, accounts, and marketing preferences."
+      />
+
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <LuxuryButton
+          variant="outline"
+          onClick={() =>
+            navigateBackOrFallback(() => {
+              onNavigate?.('home');
+            })
+          }
+          className="mb-8"
+        >
+          <ArrowLeft className="mr-2 w-4 h-4" />
+          Back
+        </LuxuryButton>
+
+        <p className="text-gray-600 text-sm mb-6">Last updated: {new Date().toLocaleDateString()}</p>
 
         {/* Content */}
-        <div className="bg-white rounded-xl shadow-lg p-8 space-y-8">
+        <div className="bg-white rounded-xl shadow-lg p-6 sm:p-8 space-y-8 border border-gray-100">
           <section>
             <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
               <Lock className="w-6 h-6 text-sky-600" />
@@ -94,14 +100,45 @@ export default function Privacy() {
 
           <section>
             <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <UserCheck className="w-6 h-6 text-sky-600" />
+              Your rights (including GDPR)
+            </h2>
+            <div className="space-y-4 text-gray-700">
+              <p>
+                Where the EU General Data Protection Regulation (GDPR) or similar laws apply, you may have the
+                right to access, correct, delete, or restrict processing of your personal data, to data
+                portability, and to object to certain processing. You may also lodge a complaint with a
+                supervisory authority in your country of residence.
+              </p>
+              <p>
+                To exercise these rights, contact us using the details below. We may need to verify your
+                identity before fulfilling a request. Our legal bases for processing include performance of
+                a contract (e.g. completing a booking), legitimate interests (e.g. fraud prevention and
+                analytics), consent where required (e.g. certain marketing cookies), and legal obligation.
+              </p>
+            </div>
+          </section>
+
+          <section>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
               <Mail className="w-6 h-6 text-sky-600" />
               Contact Us
             </h2>
             <div className="space-y-4 text-gray-700">
               <p>If you have any questions about this Privacy Policy, please contact us:</p>
               <div className="bg-gray-50 rounded-lg p-4">
-                <p><strong>Email:</strong> privacy@traverion.com</p>
-                <p><strong>Phone:</strong> +358 45 7834 5138</p>
+                <p>
+                  <strong>Email:</strong>{' '}
+                  <a href="mailto:info@traverion.com" className="text-sky-700 hover:underline">
+                    info@traverion.com
+                  </a>
+                </p>
+                <p>
+                  <strong>Phone:</strong>{' '}
+                  <a href="tel:+358458803060" className="text-sky-700 hover:underline">
+                    +358 45 8803060
+                  </a>
+                </p>
                 <p><strong>Address:</strong> TRAVERION Travel Agency, Finland</p>
               </div>
             </div>

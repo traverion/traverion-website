@@ -1,9 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
-import { Menu, X, User, LogOut, Calendar, Heart, ShoppingCart } from 'lucide-react';
+import { Menu, X, User, LogOut, Calendar, ShoppingCart } from 'lucide-react';
 import { useTranslation } from '../contexts/TranslationContext';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
-import { fetchWishlistListingIds } from '../data/supabase-wishlist';
 import { fetchCartCount } from '../data/supabase-cart';
 
 interface UnifiedHeaderProps {
@@ -13,20 +12,17 @@ interface UnifiedHeaderProps {
 
 export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeaderProps) {
   const { t } = useTranslation();
-  const { user, requestAuth, signOut } = useAuth();
+  const { user, signOut } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const [wishlistCount, setWishlistCount] = useState(0);
   const [cartCount, setCartCount] = useState(0);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!isSupabaseConfigured() || !user?.id) {
-      setWishlistCount(0);
       setCartCount(0);
       return;
     }
-    fetchWishlistListingIds(user.id).then(ids => setWishlistCount(ids.length)).catch(() => setWishlistCount(0));
     fetchCartCount(user.id).then(setCartCount).catch(() => setCartCount(0));
   }, [user?.id, currentPage]);
 
@@ -42,7 +38,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
   }, [isUserMenuOpen]);
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-[9999] bg-white shadow-md">
+    <header className="fixed top-0 left-0 right-0 z-[9999] bg-white/95 backdrop-blur-md shadow-md border-b border-gray-100/80 supports-[backdrop-filter]:bg-white/88 transition-shadow duration-500 ease-lux">
       {/* Logo & Navigation */}
       <div className="bg-white py-3 px-4 border-b border-gray-200">
         <div className="max-w-7xl mx-auto flex flex-row justify-between items-center gap-4">
@@ -57,85 +53,74 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                 e.currentTarget.style.display = 'none';
               }}
             />
-            <div className="flex-shrink-0">
+            <div className="flex-shrink-0 min-w-0">
               <h1 className="text-xl sm:text-2xl font-light text-finland">
                 TRAVERION
               </h1>
-              <p className="text-xs sm:text-sm text-gray-600 font-light">Tours & Activities · Worldwide</p>
+              <p className="hidden sm:block text-xs sm:text-sm text-gray-600 font-light">Tours & Activities · Worldwide</p>
             </div>
           </div>
 
           {/* Navigation */}
           <nav className="hidden lg:flex items-center gap-8">
             <button
+              type="button"
               onClick={() => onNavigate('home')}
-              className={`text-gray-700 hover:text-finland transition-colors duration-200 ease-smooth font-light uppercase ${
-                currentPage === 'home' ? 'text-finland' : ''
+              className={`lux-nav-link font-light uppercase ${
+                currentPage === 'home' ? 'text-finland lux-nav-link--active' : 'text-gray-700 hover:text-finland'
               }`}
             >
               {t.navigation?.home || 'Home'}
             </button>
             <button
+              type="button"
               onClick={() => onNavigate('packages')}
-              className={`text-gray-700 hover:text-finland transition-colors duration-200 ease-smooth font-light uppercase ${
-                currentPage === 'packages' ? 'text-finland' : ''
+              className={`lux-nav-link font-light uppercase ${
+                currentPage === 'packages' ? 'text-finland lux-nav-link--active' : 'text-gray-700 hover:text-finland'
               }`}
             >
               {t.navigation?.tours || t.navigation?.packages || 'Tours'}
             </button>
             <button
+              type="button"
               onClick={() => onNavigate('about')}
-              className={`text-gray-700 hover:text-finland transition-colors duration-200 ease-smooth font-light uppercase ${
-                currentPage === 'about' ? 'text-finland' : ''
+              className={`lux-nav-link font-light uppercase ${
+                currentPage === 'about' ? 'text-finland lux-nav-link--active' : 'text-gray-700 hover:text-finland'
               }`}
             >
               About
             </button>
             <button
+              type="button"
               onClick={() => onNavigate('blog')}
-              className={`text-gray-700 hover:text-finland transition-colors duration-200 ease-smooth font-light uppercase ${
-                currentPage === 'blog' ? 'text-finland' : ''
+              className={`lux-nav-link font-light uppercase ${
+                currentPage === 'blog' ? 'text-finland lux-nav-link--active' : 'text-gray-700 hover:text-finland'
               }`}
             >
               {t.navigation?.blog || 'Blog'}
             </button>
             <button
+              type="button"
               onClick={() => onNavigate('contact')}
-              className={`text-gray-700 hover:text-finland transition-colors duration-200 ease-smooth font-light uppercase ${
-                currentPage === 'contact' ? 'text-finland' : ''
+              className={`lux-nav-link font-light uppercase ${
+                currentPage === 'contact' ? 'text-finland lux-nav-link--active' : 'text-gray-700 hover:text-finland'
               }`}
             >
               {t.navigation?.contact || 'Contact'}
             </button>
           </nav>
 
-          {/* Action area: Wishlist, Cart, Profile (icon + label) */}
+          {/* Action area: Cart, Profile (icon + label) */}
           <div className="flex items-center gap-4 sm:gap-6" ref={userMenuRef}>
             <button
               type="button"
               onClick={() => {
-                if (isSupabaseConfigured() && !user) requestAuth();
-                else onNavigate('wishlist');
+                if (isSupabaseConfigured() && !user) {
+                  window.history.pushState({}, '', '/auth?tab=signup&next=cart');
+                  onNavigate('auth');
+                } else onNavigate('cart');
               }}
-              className="hidden lg:flex flex-col items-center gap-0.5 p-2 text-gray-600 hover:text-finland transition-colors relative"
-              aria-label="Wishlist"
-              title="Wishlist"
-            >
-              <Heart className="w-5 h-5" />
-              {wishlistCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center px-1">
-                  {wishlistCount > 99 ? '99+' : wishlistCount}
-                </span>
-              )}
-              <span className="text-[10px] font-medium uppercase tracking-wide">Wishlist</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                if (isSupabaseConfigured() && !user) requestAuth();
-                else onNavigate('cart');
-              }}
-              className="hidden lg:flex flex-col items-center gap-0.5 p-2 text-gray-600 hover:text-finland transition-colors relative"
+              className="lux-tap-target hidden lg:flex flex-col items-center gap-0.5 p-2 text-gray-600 hover:text-finland relative rounded-lg"
               aria-label="Cart"
               title="Cart"
             >
@@ -152,7 +137,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
               <button
                 type="button"
                 onClick={() => setIsUserMenuOpen((o) => !o)}
-                className="flex flex-col items-center gap-0.5 p-2 text-gray-600 hover:text-finland transition-colors"
+                className="lux-tap-target flex flex-col items-center gap-0.5 p-2 text-gray-600 hover:text-finland rounded-lg"
                 aria-label="Profile"
               >
                 {user ? (
@@ -178,15 +163,17 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                         <p className="text-sm font-medium text-gray-900 truncate">{user.email}</p>
                       </div>
                       <button
+                        type="button"
                         onClick={() => { setIsUserMenuOpen(false); onNavigate('bookings'); }}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-150 ease-smooth text-left"
+                        className="lux-flat w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 text-left rounded-lg"
                       >
                         <Calendar className="w-4 h-4" />
                         My bookings
                       </button>
                       <button
+                        type="button"
                         onClick={() => { setIsUserMenuOpen(false); signOut(); }}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-150 ease-smooth text-left"
+                        className="lux-flat w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 text-left rounded-lg"
                       >
                         <LogOut className="w-4 h-4" />
                         Log out
@@ -194,8 +181,13 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                     </>
                   ) : (
                     <button
-                      onClick={() => { setIsUserMenuOpen(false); requestAuth(); }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-150 ease-smooth text-left"
+                      type="button"
+                      onClick={() => {
+                        setIsUserMenuOpen(false);
+                        window.history.pushState({}, '', '/auth?tab=signup&next=home');
+                        onNavigate('auth');
+                      }}
+                      className="lux-flat w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 text-left rounded-lg"
                     >
                       <User className="w-4 h-4" />
                       Log in / Sign up
@@ -205,14 +197,16 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
               )}
             </div>
             <button
+              type="button"
               onClick={() => onNavigate('packages')}
-              className="bg-finland text-white px-4 sm:px-6 py-2 rounded-lg font-medium hover:bg-finland-dark transition-all duration-200 ease-smooth shadow-soft hover:shadow-soft-lg active:scale-[0.98] hidden lg:block text-sm sm:text-base"
+              className="btn-luxury bg-finland text-white px-4 sm:px-6 py-2 rounded-lg font-medium hover:bg-finland-dark shadow-soft hover:shadow-soft-lg hidden lg:block text-sm sm:text-base"
             >
               FIND TOURS
             </button>
             <button
+              type="button"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="lg:hidden p-2 text-gray-600 hover:text-finland transition-colors duration-200 ease-smooth active:scale-95"
+              className="no-lux-interaction lux-tap-target lg:hidden p-2 text-gray-600 hover:text-finland rounded-lg"
               aria-label="Menu"
             >
               {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -229,7 +223,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                   onNavigate('home');
                   setIsMobileMenuOpen(false);
                 }}
-                className={`text-left px-4 py-3 rounded-lg transition-colors duration-300 font-medium ${
+                className={`lux-flat text-left px-4 py-3 rounded-lg transition-colors duration-300 ease-lux font-medium ${
                   currentPage === 'home' ? 'bg-finland/10 text-finland' : 'text-gray-700 hover:bg-gray-50'
                 }`}
               >
@@ -240,7 +234,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                   onNavigate('packages');
                   setIsMobileMenuOpen(false);
                 }}
-                className={`text-left px-4 py-3 rounded-lg transition-colors duration-300 font-medium ${
+                className={`lux-flat text-left px-4 py-3 rounded-lg transition-colors duration-300 ease-lux font-medium ${
                   currentPage === 'packages' ? 'bg-finland/10 text-finland' : 'text-gray-700 hover:bg-gray-50'
                 }`}
               >
@@ -251,7 +245,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                   onNavigate('about');
                   setIsMobileMenuOpen(false);
                 }}
-                className={`text-left px-4 py-3 rounded-lg transition-colors duration-300 font-medium ${
+                className={`lux-flat text-left px-4 py-3 rounded-lg transition-colors duration-300 ease-lux font-medium ${
                   currentPage === 'about' ? 'bg-finland/10 text-finland' : 'text-gray-700 hover:bg-gray-50'
                 }`}
               >
@@ -262,7 +256,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                   onNavigate('blog');
                   setIsMobileMenuOpen(false);
                 }}
-                className={`text-left px-4 py-3 rounded-lg transition-colors duration-300 font-medium ${
+                className={`lux-flat text-left px-4 py-3 rounded-lg transition-colors duration-300 ease-lux font-medium ${
                   currentPage === 'blog' ? 'bg-finland/10 text-finland' : 'text-gray-700 hover:bg-gray-50'
                 }`}
               >
@@ -273,26 +267,25 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                   onNavigate('contact');
                   setIsMobileMenuOpen(false);
                 }}
-                className={`text-left px-4 py-3 rounded-lg transition-colors duration-300 font-medium ${
+                className={`lux-flat text-left px-4 py-3 rounded-lg transition-colors duration-300 ease-lux font-medium ${
                   currentPage === 'contact' ? 'bg-finland/10 text-finland' : 'text-gray-700 hover:bg-gray-50'
                 }`}
               >
                 {t.navigation?.contact || 'Contact'}
               </button>
               
-              {/* Mobile: Wishlist & Cart */}
+              {/* Mobile: Cart */}
               {isSupabaseConfigured() && (
                 <>
                   <button
-                    onClick={() => { onNavigate('wishlist'); setIsMobileMenuOpen(false); }}
-                    className="w-full text-left px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                  >
-                    <Heart className="w-5 h-5" />
-                    Wishlist {wishlistCount > 0 && `(${wishlistCount})`}
-                  </button>
-                  <button
-                    onClick={() => { onNavigate('cart'); setIsMobileMenuOpen(false); }}
-                    className="w-full text-left px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                    onClick={() => {
+                      if (isSupabaseConfigured() && !user) {
+                        window.history.pushState({}, '', '/auth?tab=signup&next=cart');
+                        onNavigate('auth');
+                      } else onNavigate('cart');
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className="lux-flat w-full text-left px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-50 flex items-center gap-2"
                   >
                     <ShoppingCart className="w-5 h-5" />
                     Cart {cartCount > 0 && `(${cartCount})`}
@@ -312,10 +305,11 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                 {isSupabaseConfigured() && !user && (
                   <button
                     onClick={() => {
-                      requestAuth();
+                      window.history.pushState({}, '', '/auth?tab=signup&next=home');
+                      onNavigate('auth');
                       setIsMobileMenuOpen(false);
                     }}
-                    className="w-full text-left px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors duration-300 flex items-center gap-2"
+                    className="lux-flat w-full text-left px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors duration-300 ease-lux flex items-center gap-2"
                   >
                     <User className="w-5 h-5" />
                     Log in / Sign up
@@ -328,7 +322,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                         onNavigate('bookings');
                         setIsMobileMenuOpen(false);
                       }}
-                      className="w-full text-left px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors duration-300 flex items-center gap-2"
+                      className="lux-flat w-full text-left px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors duration-300 ease-lux flex items-center gap-2"
                     >
                       <Calendar className="w-5 h-5" />
                       My bookings
@@ -338,7 +332,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                         signOut();
                         setIsMobileMenuOpen(false);
                       }}
-                      className="w-full text-left px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors duration-300 flex items-center gap-2"
+                      className="lux-flat w-full text-left px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors duration-300 ease-lux flex items-center gap-2"
                     >
                       <LogOut className="w-5 h-5" />
                       Log out
@@ -350,7 +344,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                     onNavigate('packages');
                     setIsMobileMenuOpen(false);
                   }}
-                  className="w-full bg-finland text-white px-4 py-3 rounded-lg font-medium hover:bg-finland-dark transition-all duration-300 shadow-lg text-center"
+                  className="btn-luxury w-full bg-finland text-white px-4 py-3 rounded-lg font-medium hover:bg-finland-dark transition-all duration-300 ease-lux shadow-lg text-center"
                 >
                   FIND TOURS
                 </button>

@@ -133,7 +133,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
   return (
     <div className="min-h-screen bg-white">
       {/* Hero banner: tour image background + search + filter (pt clears fixed header) */}
-      <section className="relative text-white pt-24 sm:pt-28 pb-14 sm:pb-16 min-h-[520px] sm:min-h-[420px] flex items-center overflow-hidden">
+      <section className="relative text-white pt-24 sm:pt-28 pb-14 sm:pb-20 min-h-[520px] sm:min-h-[520px] lg:min-h-[580px] flex items-center overflow-hidden">
         <div
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
           style={{
@@ -142,7 +142,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
         />
         <div className="absolute inset-0 bg-black/45" aria-hidden />
         <div className="relative z-10 w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h1 className="text-2xl sm:text-3xl font-semibold text-center mb-2">
+          <h1 className="text-2xl sm:text-3xl font-semibold text-center mb-2 uppercase tracking-wide">
             Find tours & activities
           </h1>
           <p className="text-white/90 text-center text-sm sm:text-base mb-8">
