@@ -26,7 +26,7 @@ export default function SupplierDashboard({ onNavigateToListings, onNavigateToSe
   const [earnings, setEarnings] = useState<Awaited<ReturnType<typeof fetchSupplierEarnings>>>([]);
   const [bookingsCountThisMonth, setBookingsCountThisMonth] = useState<number | null>(null);
   const [providerRating, setProviderRating] = useState<{ avg: number; count: number } | null>(null);
-  const [profile, setProfile] = useState<Awaited<ReturnType<typeof fetchSupplierProfile>>(null);
+  const [profile, setProfile] = useState<Awaited<ReturnType<typeof fetchSupplierProfile>> | null>(null);
 
   useEffect(() => {
     if (isSupabase && user) {
