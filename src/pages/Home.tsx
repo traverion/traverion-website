@@ -142,10 +142,10 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
         />
         <div className="absolute inset-0 bg-black/45" aria-hidden />
         <div className="relative z-10 w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h1 className="text-2xl sm:text-3xl font-semibold text-center mb-2 uppercase tracking-wide">
+          <h1 className="text-2xl sm:text-3xl font-semibold text-center mb-2 uppercase tracking-wide !text-white drop-shadow-md">
             Find tours & activities
           </h1>
-          <p className="text-white/90 text-center text-sm sm:text-base mb-8">
+          <p className="!text-white/95 text-center text-sm sm:text-base mb-8 drop-shadow-md [text-shadow:0_1px_12px_rgba(0,0,0,0.5)]">
             Search by tour name or location, or filter by country.
           </p>
           <div className="bg-white rounded-xl shadow-lg p-3 sm:p-4 flex justify-center">

@@ -77,10 +77,10 @@ export default function Destinations() {
         <div className="absolute inset-0 bg-black/50" />
 
         <div className="relative z-10 text-center px-4 max-w-4xl mx-auto">
-          <h1 className="text-5xl md:text-6xl font-bold text-white mb-4">
+          <h1 className="text-5xl md:text-6xl font-bold !text-white mb-4 drop-shadow-md">
             Explore Destinations
           </h1>
-          <p className="text-xl text-white/90">
+          <p className="text-xl !text-white/95 drop-shadow-md [text-shadow:0_1px_12px_rgba(0,0,0,0.5)]">
             Discover your next adventure from our curated selection of worldwide destinations
           </p>
         </div>

@@ -123,11 +123,11 @@ export default function BeautifulTourPackage({ tourId, onBack }: TourPackageProp
             <div className="max-w-4xl">
 
               
-              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-3 md:mb-4 leading-tight">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold !text-white mb-3 md:mb-4 leading-tight drop-shadow-md">
                 {tour.title}
               </h1>
               
-              <p className="text-base sm:text-lg md:text-xl text-white/90 mb-4 md:mb-6 leading-relaxed max-w-3xl">
+              <p className="text-base sm:text-lg md:text-xl !text-white/95 mb-4 md:mb-6 leading-relaxed max-w-3xl drop-shadow-md [text-shadow:0_1px_14px_rgba(0,0,0,0.55)]">
                 {tour.description}
               </p>
 

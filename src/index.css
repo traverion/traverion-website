@@ -256,6 +256,17 @@
   animation: fade-in-up 0.75s ease-out both;
 }
 
+/* Hero copy on photos: keep eyebrow / title / subtitle white (override any inherited body color) */
+.page-hero-content .page-hero-eyebrow {
+  color: rgba(255, 255, 255, 0.92) !important;
+}
+.page-hero-content .page-hero-title {
+  color: #ffffff !important;
+}
+.page-hero-content .page-hero-subtitle {
+  color: rgba(255, 255, 255, 0.98) !important;
+}
+
 /* --- Luxury motion tokens (site-wide) --- */
 :root {
   --lux-ease: cubic-bezier(0.22, 1, 0.36, 1);

@@ -49,11 +49,11 @@ export default function TourDetail({ tour }: TourDetailProps) {
                   </span>
                 </div>
                 
-                <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
+                <h1 className="text-4xl md:text-5xl font-bold !text-white mb-4 drop-shadow-md">
                   {tour.title}
                 </h1>
                 
-                <div className="flex items-center space-x-6 text-white/90 mb-4">
+                <div className="flex items-center space-x-6 !text-white/95 mb-4 drop-shadow-md [text-shadow:0_1px_10px_rgba(0,0,0,0.5)]">
                   <div className="flex items-center">
                     <MapPin size={20} className="mr-2" />
                     <span>{tour.destination}</span>
