@@ -118,6 +118,72 @@ export default function SupplierDashboard({ onNavigateToListings, onNavigateToSe
     { label: 'Earnings (pending)', value: `${currency === 'USD' ? '$' : ''}${earningsPending.toFixed(0)}${currency !== 'USD' ? ` ${currency}` : ''}`, icon: DollarSign, color: 'bg-amber-500/10 text-amber-600' },
   ];
 
+  const healthChecks = useMemo(() => {
+    const hasListings = (listingsCount ?? 0) > 0;
+    const hasPayoutMethod = !!profile?.payout_method && profile.payout_method !== 'none';
+    const hasCompanyProfile = !!profile?.company_legal_name?.trim();
+    const hasBookingsThisMonth = (bookingsCountThisMonth ?? 0) > 0;
+    const hasReviews = (providerRating?.count ?? 0) > 0;
+
+    const checks = [
+      {
+        id: 'listing',
+        title: 'First listing published',
+        done: hasListings,
+        descriptionDone: 'Your products are live in the marketplace.',
+        descriptionTodo: 'Add your first listing so travelers can discover your tours.',
+        cta: 'Go to listings',
+        onClick: onNavigateToListings,
+      },
+      {
+        id: 'payout',
+        title: 'Payout method configured',
+        done: hasPayoutMethod,
+        descriptionDone: 'Payout destination is configured.',
+        descriptionTodo: 'Set up bank transfer or PayPal for faster payout processing.',
+        cta: 'Open settings',
+        onClick: onNavigateToSettings,
+      },
+      {
+        id: 'company',
+        title: 'Company profile completed',
+        done: hasCompanyProfile,
+        descriptionDone: 'Business details are on file.',
+        descriptionTodo: 'Add legal company details to improve trust and verification readiness.',
+        cta: 'Open settings',
+        onClick: onNavigateToSettings,
+      },
+      {
+        id: 'bookings',
+        title: 'Bookings this month',
+        done: hasBookingsThisMonth,
+        descriptionDone: `${bookingsCountThisMonth} booking${bookingsCountThisMonth === 1 ? '' : 's'} this month.`,
+        descriptionTodo: 'No bookings this month yet. Refresh title/photos and add availability to improve conversion.',
+      },
+      {
+        id: 'reviews',
+        title: 'Review momentum',
+        done: hasReviews,
+        descriptionDone: `${providerRating?.count ?? 0} review${providerRating?.count === 1 ? '' : 's'} with ${providerRating?.avg.toFixed(1)} average rating.`,
+        descriptionTodo: 'No reviews yet. Ask recent guests for feedback after completed tours.',
+      },
+    ];
+
+    const setupChecks = checks.slice(0, 3);
+    const setupScore = Math.round((setupChecks.filter((c) => c.done).length / setupChecks.length) * 100);
+
+    return { checks, setupScore };
+  }, [
+    listingsCount,
+    profile?.payout_method,
+    profile?.company_legal_name,
+    bookingsCountThisMonth,
+    providerRating?.count,
+    providerRating?.avg,
+    onNavigateToListings,
+    onNavigateToSettings,
+  ]);
+
   return (
     <div className="space-y-8">
       <div>
@@ -125,61 +191,49 @@ export default function SupplierDashboard({ onNavigateToListings, onNavigateToSe
         <p className="text-gray-600 mt-1">Overview of your tours and activities</p>
       </div>
 
-      {isSupabase && user && (listingsCount === 0 || !profile?.payout_method || profile.payout_method === 'none' || !profile?.company_legal_name?.trim()) && (
-        <div className="bg-finland/5 border border-finland/20 rounded-xl p-5">
-          <h2 className="text-sm font-semibold text-gray-900 mb-3">Get set up</h2>
+      {isSupabase && user && (
+        <div className="bg-white border border-gray-200 rounded-xl p-5 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+            <div>
+              <h2 className="text-base font-semibold text-gray-900">Supplier health</h2>
+              <p className="text-sm text-gray-600">Actionable checks based on account setup and recent performance.</p>
+            </div>
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-finland/10 text-finland text-sm font-semibold">
+              Setup score: {healthChecks.setupScore}%
+            </div>
+          </div>
+
           <ul className="space-y-2">
-            {listingsCount === 0 && (
-              <li className="flex items-center gap-3">
-                <Circle className="w-5 h-5 text-amber-500 flex-shrink-0" />
-                <span className="text-gray-700">Add your first listing</span>
-                {onNavigateToListings && (
-                  <button type="button" onClick={onNavigateToListings} className="ml-auto text-sm font-medium text-finland hover:underline">
-                    Go to listings
+            {healthChecks.checks.map((check) => (
+              <li
+                key={check.id}
+                className={`flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 rounded-lg border px-3 py-2.5 ${
+                  check.done ? 'border-green-100 bg-green-50/40' : 'border-amber-100 bg-amber-50/40'
+                }`}
+              >
+                <div className="flex items-start sm:items-center gap-3 min-w-0">
+                  {check.done ? (
+                    <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5 sm:mt-0" />
+                  ) : (
+                    <Circle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5 sm:mt-0" />
+                  )}
+                  <div className="min-w-0">
+                    <p className={`text-sm font-medium ${check.done ? 'text-gray-700' : 'text-gray-900'}`}>{check.title}</p>
+                    <p className="text-xs text-gray-500">{check.done ? check.descriptionDone : check.descriptionTodo}</p>
+                  </div>
+                </div>
+                {!check.done && check.onClick && (
+                  <button
+                    type="button"
+                    onClick={check.onClick}
+                    className="sm:ml-auto inline-flex items-center gap-1 text-sm font-medium text-finland hover:underline"
+                  >
+                    {check.cta}
+                    <ArrowRight className="w-4 h-4" />
                   </button>
                 )}
               </li>
-            )}
-            {listingsCount !== 0 && (
-              <li className="flex items-center gap-3 text-gray-500">
-                <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
-                <span>Add your first listing</span>
-              </li>
-            )}
-            {(!profile?.payout_method || profile.payout_method === 'none') && (
-              <li className="flex items-center gap-3">
-                <Circle className="w-5 h-5 text-amber-500 flex-shrink-0" />
-                <span className="text-gray-700">Set payout method</span>
-                {onNavigateToSettings && (
-                  <button type="button" onClick={onNavigateToSettings} className="ml-auto text-sm font-medium text-finland hover:underline">
-                    Settings
-                  </button>
-                )}
-              </li>
-            )}
-            {profile?.payout_method && profile.payout_method !== 'none' && (
-              <li className="flex items-center gap-3 text-gray-500">
-                <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
-                <span>Set payout method</span>
-              </li>
-            )}
-            {!profile?.company_legal_name?.trim() && (
-              <li className="flex items-center gap-3">
-                <Circle className="w-5 h-5 text-amber-500 flex-shrink-0" />
-                <span className="text-gray-700">Complete company profile</span>
-                {onNavigateToSettings && (
-                  <button type="button" onClick={onNavigateToSettings} className="ml-auto text-sm font-medium text-finland hover:underline">
-                    Settings
-                  </button>
-                )}
-              </li>
-            )}
-            {profile?.company_legal_name?.trim() && (
-              <li className="flex items-center gap-3 text-gray-500">
-                <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
-                <span>Complete company profile</span>
-              </li>
-            )}
+            ))}
           </ul>
         </div>
       )}

@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Calendar, Mail, RefreshCw, CheckCircle, MessageCircle, Trash2, FileText, AlertCircle } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Calendar, Mail, RefreshCw, CheckCircle, MessageCircle, Trash2, FileText, AlertCircle, Download } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import {
   fetchBookingsForSupplier,
@@ -39,6 +39,17 @@ export default function SupplierBookings() {
   const [batchReason, setBatchReason] = useState('');
   const [batchRefund, setBatchRefund] = useState('');
   const [batchSubmitting, setBatchSubmitting] = useState(false);
+  const [view, setView] = useState<'all' | 'pending' | 'needs_ack' | 'upcoming' | 'cancelled'>('all');
+  const [filterListingId, setFilterListingId] = useState('');
+  const [filterDateFrom, setFilterDateFrom] = useState('');
+  const [filterDateTo, setFilterDateTo] = useState('');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkCancelModal, setBulkCancelModal] = useState(false);
+  const [bulkCancelReason, setBulkCancelReason] = useState('');
+  const [bulkCancelRefund, setBulkCancelRefund] = useState('');
+  const [bulkActionSubmitting, setBulkActionSubmitting] = useState(false);
+  const [exportDateFrom, setExportDateFrom] = useState('');
+  const [exportDateTo, setExportDateTo] = useState('');
   const [error, setError] = useState<string | null>(null);
   const load = useCallback(async () => {
     if (!isSupabase || !user) {
@@ -124,6 +135,135 @@ export default function SupplierBookings() {
   };
 
   const listingOptions = Object.entries(listingTitles).map(([id, title]) => ({ id, title }));
+  const todayIso = new Date().toISOString().slice(0, 10);
+
+  const filteredBookings = useMemo(() => {
+    return bookings.filter((b) => {
+      if (view === 'pending' && b.status !== 'pending') return false;
+      if (view === 'needs_ack' && !!b.acknowledged_at) return false;
+      if (view === 'upcoming') {
+        if (!b.booking_date) return false;
+        if (b.booking_date < todayIso) return false;
+        if (b.status === 'cancelled') return false;
+      }
+      if (view === 'cancelled' && b.status !== 'cancelled') return false;
+      if (filterListingId && b.listing_id !== filterListingId) return false;
+      if (filterDateFrom && (!b.booking_date || b.booking_date < filterDateFrom)) return false;
+      if (filterDateTo && (!b.booking_date || b.booking_date > filterDateTo)) return false;
+      return true;
+    });
+  }, [bookings, view, filterListingId, filterDateFrom, filterDateTo, todayIso]);
+
+  const selectedBookings = useMemo(
+    () => filteredBookings.filter((b) => selectedIds.includes(b.id)),
+    [filteredBookings, selectedIds]
+  );
+
+  const toggleSelected = (id: string) => {
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
+
+  const toggleSelectAllVisible = () => {
+    const ids = filteredBookings.map((b) => b.id);
+    const allSelected = ids.length > 0 && ids.every((id) => selectedIds.includes(id));
+    setSelectedIds((prev) => (allSelected ? prev.filter((id) => !ids.includes(id)) : [...new Set([...prev, ...ids])]));
+  };
+
+  const clearSelection = () => setSelectedIds([]);
+
+  const handleBulkAcknowledge = async () => {
+    const targets = selectedBookings.filter((b) => !b.acknowledged_at && b.status !== 'cancelled');
+    if (targets.length === 0) return;
+    setBulkActionSubmitting(true);
+    await Promise.all(targets.map((b) => acknowledgeBooking(b.id)));
+    setBookings((prev) =>
+      prev.map((b) => (targets.some((t) => t.id === b.id) ? { ...b, acknowledged_at: new Date().toISOString() } : b))
+    );
+    setBulkActionSubmitting(false);
+    clearSelection();
+  };
+
+  const handleBulkConfirm = async () => {
+    const targets = selectedBookings.filter((b) => b.status !== 'confirmed' && b.status !== 'cancelled');
+    if (targets.length === 0) return;
+    setBulkActionSubmitting(true);
+    await Promise.all(targets.map((b) => updateBookingStatus(b.id, 'confirmed')));
+    setBookings((prev) => prev.map((b) => (targets.some((t) => t.id === b.id) ? { ...b, status: 'confirmed' } : b)));
+    setBulkActionSubmitting(false);
+    clearSelection();
+  };
+
+  const handleBulkCancelSelected = async () => {
+    if (!bulkCancelReason) return;
+    const targets = selectedBookings.filter((b) => b.status !== 'cancelled');
+    if (targets.length === 0) return;
+    setBulkActionSubmitting(true);
+    for (const b of targets) {
+      const previousStatus = b.status;
+      await updateBookingStatus(b.id, 'cancelled', {
+        cancellation_reason: bulkCancelReason,
+        refund_choice: bulkCancelRefund as 'full_refund' | 'no_refund' | 'reschedule' | undefined,
+      });
+      if (previousStatus === 'confirmed' && b.booking_date) {
+        await decrementAvailabilityBooked(b.listing_id, b.booking_date);
+      }
+    }
+    setBookings((prev) =>
+      prev.map((b) =>
+        targets.some((t) => t.id === b.id)
+          ? {
+              ...b,
+              status: 'cancelled',
+              cancelled_at: new Date().toISOString(),
+              cancellation_reason: bulkCancelReason,
+              refund_choice: bulkCancelRefund || b.refund_choice,
+            }
+          : b
+      )
+    );
+    setBulkActionSubmitting(false);
+    setBulkCancelModal(false);
+    setBulkCancelReason('');
+    setBulkCancelRefund('');
+    clearSelection();
+  };
+
+  const handleExportCsv = () => {
+    const exportRows = filteredBookings.filter((b) => {
+      if (exportDateFrom && (!b.booking_date || b.booking_date < exportDateFrom)) return false;
+      if (exportDateTo && (!b.booking_date || b.booking_date > exportDateTo)) return false;
+      return true;
+    });
+    const escapeCsv = (value: string | number | null | undefined) => {
+      const str = String(value ?? '');
+      if (str.includes(',') || str.includes('"') || str.includes('\n')) return `"${str.replace(/"/g, '""')}"`;
+      return str;
+    };
+    const header = ['booking_id', 'listing', 'guest_name', 'guest_email', 'booking_date', 'guests', 'status', 'acknowledged', 'special_requests'];
+    const lines = exportRows.map((b) =>
+      [
+        b.id,
+        listingTitles[b.listing_id] ?? b.listing_id,
+        b.guest_name,
+        b.guest_email,
+        b.booking_date,
+        b.guests,
+        b.status,
+        b.acknowledged_at ? 'yes' : 'no',
+        b.special_requests,
+      ]
+        .map(escapeCsv)
+        .join(',')
+    );
+    const csv = [header.join(','), ...lines].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `supplier-bookings-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="space-y-6">
@@ -132,7 +272,7 @@ export default function SupplierBookings() {
           <h1 className="text-2xl font-semibold text-gray-900">Bookings</h1>
           <p className="text-gray-600 mt-1">View and manage incoming bookings for your listings.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             type="button"
             onClick={() => setBatchModal(true)}
@@ -150,6 +290,56 @@ export default function SupplierBookings() {
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </button>
+        </div>
+      </div>
+
+      <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
+        <div className="flex flex-wrap gap-2">
+          {[
+            { id: 'all', label: 'All' },
+            { id: 'pending', label: 'Pending' },
+            { id: 'needs_ack', label: 'Needs ack' },
+            { id: 'upcoming', label: 'Upcoming' },
+            { id: 'cancelled', label: 'Cancelled' },
+          ].map((v) => (
+            <button
+              key={v.id}
+              type="button"
+              onClick={() => {
+                setView(v.id as typeof view);
+                setSelectedIds([]);
+              }}
+              className={`px-3 py-1.5 rounded-full text-sm border ${
+                view === v.id ? 'bg-finland/10 text-finland border-finland/20' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+              }`}
+            >
+              {v.label}
+            </button>
+          ))}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <select
+            value={filterListingId}
+            onChange={(e) => setFilterListingId(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white text-sm"
+          >
+            <option value="">All listings</option>
+            {listingOptions.map((o) => (
+              <option key={o.id} value={o.id}>{o.title}</option>
+            ))}
+          </select>
+          <input
+            type="date"
+            value={filterDateFrom}
+            onChange={(e) => setFilterDateFrom(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland text-sm"
+          />
+          <input
+            type="date"
+            value={filterDateTo}
+            onChange={(e) => setFilterDateTo(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland text-sm"
+          />
         </div>
       </div>
 
@@ -174,12 +364,89 @@ export default function SupplierBookings() {
             When travelers book your experiences, they’ll appear here as confirmed. You can request cancellation (with reason and refund choice) if needed.
           </p>
         </div>
+      ) : filteredBookings.length === 0 ? (
+        <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
+          <h2 className="text-lg font-semibold text-gray-900">No matching bookings</h2>
+          <p className="text-gray-500 mt-1">Try a different view or clear date/listing filters.</p>
+        </div>
       ) : (
         <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-200 bg-gray-50/70 flex flex-col gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={toggleSelectAllVisible}
+                className="px-3 py-1.5 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50"
+              >
+                {filteredBookings.length > 0 && filteredBookings.every((b) => selectedIds.includes(b.id)) ? 'Unselect all' : 'Select all'}
+              </button>
+              <span className="text-sm text-gray-600">{selectedIds.length} selected</span>
+              <button
+                type="button"
+                onClick={handleBulkAcknowledge}
+                disabled={selectedIds.length === 0 || bulkActionSubmitting}
+                className="px-3 py-1.5 rounded-lg border border-blue-200 text-sm text-blue-700 bg-blue-50 hover:bg-blue-100 disabled:opacity-50"
+              >
+                Acknowledge selected
+              </button>
+              <button
+                type="button"
+                onClick={handleBulkConfirm}
+                disabled={selectedIds.length === 0 || bulkActionSubmitting}
+                className="px-3 py-1.5 rounded-lg border border-green-200 text-sm text-green-700 bg-green-50 hover:bg-green-100 disabled:opacity-50"
+              >
+                Confirm selected
+              </button>
+              <button
+                type="button"
+                onClick={() => setBulkCancelModal(true)}
+                disabled={selectedIds.length === 0 || bulkActionSubmitting}
+                className="px-3 py-1.5 rounded-lg border border-red-200 text-sm text-red-700 bg-red-50 hover:bg-red-100 disabled:opacity-50"
+              >
+                Cancel selected
+              </button>
+              {selectedIds.length > 0 && (
+                <button type="button" onClick={clearSelection} className="px-3 py-1.5 rounded-lg text-sm text-gray-600 hover:bg-gray-100">
+                  Clear
+                </button>
+              )}
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm text-gray-600">Export range:</span>
+              <input
+                type="date"
+                value={exportDateFrom}
+                onChange={(e) => setExportDateFrom(e.target.value)}
+                className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm"
+              />
+              <input
+                type="date"
+                value={exportDateTo}
+                onChange={(e) => setExportDateTo(e.target.value)}
+                className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm"
+              />
+              <button
+                type="button"
+                onClick={handleExportCsv}
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50"
+              >
+                <Download className="w-4 h-4" />
+                Export CSV
+              </button>
+            </div>
+          </div>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
+                    <input
+                      type="checkbox"
+                      checked={filteredBookings.length > 0 && filteredBookings.every((b) => selectedIds.includes(b.id))}
+                      onChange={toggleSelectAllVisible}
+                      aria-label="Select all visible bookings"
+                    />
+                  </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Listing</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Guest</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Date</th>
@@ -190,8 +457,16 @@ export default function SupplierBookings() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {bookings.map((b) => (
+                {filteredBookings.map((b) => (
                   <tr key={b.id} className="hover:bg-gray-50/50">
+                    <td className="px-4 py-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(b.id)}
+                        onChange={() => toggleSelected(b.id)}
+                        aria-label={`Select booking ${b.id}`}
+                      />
+                    </td>
                     <td className="px-4 py-3 text-sm text-gray-900">
                       {listingTitles[b.listing_id] ?? <span className="text-gray-400">Listing</span>}
                     </td>
@@ -414,6 +689,66 @@ export default function SupplierBookings() {
                 className="px-4 py-2 rounded-lg bg-red-100 text-red-700 hover:bg-red-200 disabled:opacity-50"
               >
                 {batchSubmitting ? 'Cancelling…' : 'Cancel bookings'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {bulkCancelModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Cancel selected bookings</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              You are cancelling {selectedBookings.filter((b) => b.status !== 'cancelled').length} selected booking(s).
+            </p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Reason</label>
+                <select
+                  value={bulkCancelReason}
+                  onChange={(e) => setBulkCancelReason(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                >
+                  <option value="">Select reason</option>
+                  {CANCELLATION_REASONS.map((r) => (
+                    <option key={r.id} value={r.id}>{r.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Refund</label>
+                <select
+                  value={bulkCancelRefund}
+                  onChange={(e) => setBulkCancelRefund(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                >
+                  <option value="">Select option</option>
+                  {REFUND_CHOICES.map((r) => (
+                    <option key={r.id} value={r.id}>{r.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setBulkCancelModal(false);
+                  setBulkCancelReason('');
+                  setBulkCancelRefund('');
+                }}
+                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                disabled={!bulkCancelReason || bulkActionSubmitting}
+                onClick={handleBulkCancelSelected}
+                className="px-4 py-2 rounded-lg bg-red-100 text-red-700 hover:bg-red-200 disabled:opacity-50"
+              >
+                {bulkActionSubmitting ? 'Cancelling…' : 'Confirm cancellation'}
               </button>
             </div>
           </div>
