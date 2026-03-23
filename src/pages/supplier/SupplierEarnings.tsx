@@ -1,8 +1,14 @@
-import { useState, useEffect, useCallback } from 'react';
-import { DollarSign, TrendingUp, Calendar, FileText, Receipt, AlertCircle, RefreshCw, Info } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { DollarSign, TrendingUp, Calendar, FileText, Receipt, AlertCircle, RefreshCw, Info, Download } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { fetchSupplierEarnings, SupplierEarning } from '../../data/supabase-earnings';
 import { fetchSupplierProfile } from '../../data/supabase-supplier-profile';
+
+function formatMoney(amount: number, currency: string) {
+  const c = currency || 'USD';
+  if (c === 'USD') return `$${amount.toFixed(2)}`;
+  return `${amount.toFixed(2)} ${c}`;
+}
 
 export default function SupplierEarnings() {
   const { user, isSupabase } = useSupplierAuth();
@@ -10,6 +16,7 @@ export default function SupplierEarnings() {
   const [profile, setProfile] = useState<Awaited<ReturnType<typeof fetchSupplierProfile>>>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'paid' | 'cancelled'>('all');
 
   const load = useCallback(() => {
     if (!isSupabase || !user) {
@@ -39,15 +46,57 @@ export default function SupplierEarnings() {
     else setProfile(null);
   }, [isSupabase, user]);
 
-  const pending = earnings.filter((e) => e.status === 'pending').reduce((sum, e) => sum + Number(e.amount), 0);
-  const paid = earnings.filter((e) => e.status === 'paid').reduce((sum, e) => sum + Number(e.amount), 0);
+  const primaryCurrency = earnings[0]?.currency ?? 'USD';
+
+  const { pending, paid, cancelled, filteredEarnings } = useMemo(() => {
+    const pendingSum = earnings.filter((e) => e.status === 'pending').reduce((sum, e) => sum + Number(e.amount), 0);
+    const paidSum = earnings.filter((e) => e.status === 'paid').reduce((sum, e) => sum + Number(e.amount), 0);
+    const cancelledSum = earnings.filter((e) => e.status === 'cancelled').reduce((sum, e) => sum + Number(e.amount), 0);
+    const filtered =
+      statusFilter === 'all'
+        ? earnings
+        : earnings.filter((e) => e.status === statusFilter);
+    return {
+      pending: pendingSum,
+      paid: paidSum,
+      cancelled: cancelledSum,
+      filteredEarnings: filtered,
+    };
+  }, [earnings, statusFilter]);
+
   const threshold = profile?.payout_threshold_min ?? 0;
   const cycle = profile?.payment_cycle ?? 'monthly';
   const nextPayoutLabel = threshold > 0
-    ? `Next payout when balance ≥ $${threshold.toFixed(0)} (${cycle})`
+    ? `Next payout when pending balance ≥ ${formatMoney(threshold, primaryCurrency)} (${cycle})`
     : cycle
       ? `Payout cycle: ${cycle}. Set minimum in Settings.`
       : 'Set payout schedule in Settings.';
+
+  const payoutProgressPct =
+    threshold > 0 && pending > 0 ? Math.min(100, Math.round((pending / threshold) * 100)) : null;
+
+  const exportCsv = () => {
+    const rows = filteredEarnings;
+    const escape = (v: string | number | null | undefined) => {
+      const s = String(v ?? '');
+      if (s.includes(',') || s.includes('"') || s.includes('\n')) return `"${s.replace(/"/g, '""')}"`;
+      return s;
+    };
+    const header = ['period_start', 'period_end', 'amount', 'currency', 'status', 'invoice_number', 'payment_reference'];
+    const lines = rows.map((e) =>
+      [e.period_start, e.period_end, e.amount, e.currency, e.status, e.invoice_number ?? '', e.payment_reference ?? '']
+        .map(escape)
+        .join(',')
+    );
+    const csv = [header.join(','), ...lines].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `supplier-earnings-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="space-y-6">
@@ -65,14 +114,25 @@ export default function SupplierEarnings() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white border border-gray-200 rounded-xl p-5 flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center">
             <TrendingUp className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-sm text-gray-500">Pending</p>
-            <p className="text-xl font-semibold text-gray-900">${pending.toFixed(2)}</p>
+            <p className="text-sm text-gray-500">Pending payout</p>
+            <p className="text-xl font-semibold text-gray-900 tabular-nums">{formatMoney(pending, primaryCurrency)}</p>
+            {payoutProgressPct !== null && (
+              <div className="mt-2">
+                <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-amber-500 transition-all duration-300"
+                    style={{ width: `${payoutProgressPct}%` }}
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-1">{payoutProgressPct}% of minimum threshold (pending)</p>
+              </div>
+            )}
           </div>
         </div>
         <div className="bg-white border border-gray-200 rounded-xl p-5 flex items-center gap-4">
@@ -81,7 +141,17 @@ export default function SupplierEarnings() {
           </div>
           <div>
             <p className="text-sm text-gray-500">Paid out</p>
-            <p className="text-xl font-semibold text-gray-900">${paid.toFixed(2)}</p>
+            <p className="text-xl font-semibold text-gray-900 tabular-nums">{formatMoney(paid, primaryCurrency)}</p>
+          </div>
+        </div>
+        <div className="bg-white border border-gray-200 rounded-xl p-5 flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-gray-100 text-gray-600 flex items-center justify-center">
+            <Receipt className="w-6 h-6" />
+          </div>
+          <div>
+            <p className="text-sm text-gray-500">Cancelled / adjusted</p>
+            <p className="text-xl font-semibold text-gray-900 tabular-nums">{formatMoney(cancelled, primaryCurrency)}</p>
+            <p className="text-xs text-gray-400 mt-1">Reversals or voided accruals</p>
           </div>
         </div>
       </div>
@@ -94,9 +164,35 @@ export default function SupplierEarnings() {
       )}
 
       <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-        <div className="px-4 py-3 border-b border-gray-200 flex items-center gap-2">
-          <Calendar className="w-5 h-5 text-gray-500" />
-          <span className="font-medium text-gray-900">History</span>
+        <div className="px-4 py-3 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Calendar className="w-5 h-5 text-gray-500" />
+            <span className="font-medium text-gray-900">History</span>
+            <span className="text-sm text-gray-500">({filteredEarnings.length} row{filteredEarnings.length === 1 ? '' : 's'})</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {(['all', 'pending', 'paid', 'cancelled'] as const).map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setStatusFilter(s)}
+                className={`px-3 py-1.5 rounded-full text-sm border ${
+                  statusFilter === s ? 'bg-finland/10 text-finland border-finland/20' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                }`}
+              >
+                {s === 'all' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={exportCsv}
+              disabled={filteredEarnings.length === 0}
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            >
+              <Download className="w-4 h-4" />
+              Export CSV
+            </button>
+          </div>
         </div>
         {loading ? (
           <div className="p-8 text-center text-gray-500">Loading…</div>
@@ -106,6 +202,8 @@ export default function SupplierEarnings() {
             <p className="text-gray-500">No earnings yet</p>
             <p className="text-sm text-gray-400 mt-1">When you have completed bookings, payouts will appear here.</p>
           </div>
+        ) : filteredEarnings.length === 0 ? (
+          <div className="p-8 text-center text-gray-500 text-sm">No rows for this filter.</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -119,12 +217,12 @@ export default function SupplierEarnings() {
                 </tr>
               </thead>
               <tbody>
-                {earnings.map((e) => (
+                {filteredEarnings.map((e) => (
                   <tr key={e.id} className="border-t border-gray-100">
                     <td className="px-4 py-3 text-gray-900">
                       {e.period_start} – {e.period_end}
                     </td>
-                    <td className="px-4 py-3 font-medium">{e.currency} {Number(e.amount).toFixed(2)}</td>
+                    <td className="px-4 py-3 font-medium tabular-nums">{formatMoney(Number(e.amount), e.currency)}</td>
                     <td className="px-4 py-3">
                       <span
                         className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${
