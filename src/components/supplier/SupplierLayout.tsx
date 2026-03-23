@@ -163,10 +163,15 @@ export default function SupplierLayout() {
       {/* Sidebar - desktop */}
       <aside className="hidden lg:flex flex-col w-64 bg-white border-r border-gray-200 fixed inset-y-0 left-0 z-30">
         <div className="p-4 border-b border-gray-200">
-          <a href="/" className="flex items-center gap-2 text-gray-900 font-semibold">
-            <Globe className="w-6 h-6 text-finland" />
+          <button
+            type="button"
+            onClick={() => handleNavigate('dashboard')}
+            className="flex items-center gap-2 text-gray-900 font-semibold text-left w-full rounded-lg hover:bg-gray-50 transition-colors duration-200 -mx-1 px-1 py-0.5"
+            title="Go to supplier dashboard"
+          >
+            <Globe className="w-6 h-6 text-finland flex-shrink-0" />
             TRAVERION
-          </a>
+          </button>
           <p className="text-xs text-gray-500 mt-0.5">Supplier portal</p>
         </div>
         <nav className="flex-1 p-3 space-y-0.5">
@@ -209,11 +214,19 @@ export default function SupplierLayout() {
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-          <a href="/" className="flex items-center gap-2 text-gray-900 font-semibold">
-            <Globe className="w-6 h-6 text-finland" />
+        <div className="p-4 border-b border-gray-200 flex items-center justify-between gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              handleNavigate('dashboard');
+              setSidebarOpen(false);
+            }}
+            className="flex items-center gap-2 text-gray-900 font-semibold text-left min-w-0 rounded-lg hover:bg-gray-50 transition-colors duration-200 -mx-1 px-1 py-0.5"
+            title="Go to supplier dashboard"
+          >
+            <Globe className="w-6 h-6 text-finland flex-shrink-0" />
             TRAVERION
-          </a>
+          </button>
           <button type="button" onClick={() => setSidebarOpen(false)} className="no-lux-interaction lux-tap-target p-2 text-gray-500 rounded-lg">
             <X className="w-5 h-5" />
           </button>
@@ -255,7 +268,9 @@ export default function SupplierLayout() {
           >
             <Menu className="w-6 h-6" />
           </button>
-          <a href="/" className="ml-auto text-sm text-gray-600 hover:text-finland transition-colors duration-300 ease-lux rounded-md px-1">Back to main site</a>
+          <span className="ml-auto text-xs sm:text-sm text-gray-500" title="You are in the supplier portal">
+            Supplier portal
+          </span>
         </header>
         <main className="p-4 sm:p-6 lg:p-8 overflow-x-hidden">
           <div key={section} className="lux-page-enter">
