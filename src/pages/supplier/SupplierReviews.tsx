@@ -11,6 +11,7 @@ import {
   type ReviewDisplay,
   type ReviewReplyRow,
 } from '../../data/supabase-reviews';
+import { loadSupplierReviewSlaHours, saveSupplierReviewSlaHours } from '../../lib/supplierReviewSla';
 
 export default function SupplierReviews() {
   const { user, isSupabase } = useSupplierAuth();
@@ -20,6 +21,10 @@ export default function SupplierReviews() {
   const [replyingId, setReplyingId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
+  const [replyError, setReplyError] = useState<string | null>(null);
+  const [highlightReviewId, setHighlightReviewId] = useState<string | null>(null);
+  const [draftToneByReview, setDraftToneByReview] = useState<Record<string, 'friendly' | 'professional' | 'short'>>({});
+  const [slaHours, setSlaHours] = useState<number>(() => loadSupplierReviewSlaHours());
 
   const load = useCallback(async () => {
     if (!isSupabase || !user) {
@@ -51,15 +56,108 @@ export default function SupplierReviews() {
     load();
   }, [load]);
 
+  const readHighlightFromUrl = useCallback(() => {
+    const id = new URLSearchParams(window.location.search).get('highlight');
+    setHighlightReviewId(id && id.length > 0 ? id : null);
+  }, []);
+
+  useEffect(() => {
+    readHighlightFromUrl();
+    const onPop = () => readHighlightFromUrl();
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [readHighlightFromUrl]);
+
+  useEffect(() => {
+    if (!highlightReviewId || loading) return;
+    const el = document.getElementById(`supplier-review-card-${highlightReviewId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [highlightReviewId, loading, reviews.length]);
+
   const handleSubmitReply = async (reviewId: string) => {
     if (!user) return;
     const text = (replyText[reviewId] ?? '').trim();
     if (!text) return;
     setReplyingId(reviewId);
+    setReplyError(null);
     const res = await submitReviewReply(reviewId, user.id, text);
     setReplyingId(null);
-    if (res.success) load();
+    if (res.success) {
+      load();
+    } else {
+      setReplyError(res.error ?? 'Could not save reply. Check that you own this listing.');
+    }
   };
+
+  useEffect(() => {
+    const onSla = () => setSlaHours(loadSupplierReviewSlaHours());
+    window.addEventListener('traverion-supplier-review-sla', onSla);
+    return () => window.removeEventListener('traverion-supplier-review-sla', onSla);
+  }, []);
+
+  const generateReplyDraft = (
+    r: ReviewDisplay & { listing_title?: string },
+    tone: 'friendly' | 'professional' | 'short'
+  ) => {
+    const guest = r.guest_name?.trim() || 'there';
+    const listing = r.listing_title || 'your experience';
+    if (tone === 'short') {
+      return `Hi ${guest}, thank you for your review of ${listing}. We appreciate your feedback and hope to welcome you again soon.`;
+    }
+    if (tone === 'professional') {
+      return `Hello ${guest}, thank you for taking the time to share your feedback about ${listing}. We appreciate your comments and continuously use guest input to improve the experience. We hope to host you again in the future.`;
+    }
+    return `Hi ${guest}! Thank you so much for the lovely review on ${listing}. We're really happy you joined us, and your feedback means a lot to our team. Hope to see you again soon!`;
+  };
+
+  const averageResponseHours = (() => {
+    const deltas: number[] = [];
+    for (const r of reviews) {
+      const reply = replies[r.id];
+      if (!reply) continue;
+      const reviewAt = new Date(r.created_at).getTime();
+      const replyAt = new Date(reply.created_at).getTime();
+      if (Number.isFinite(reviewAt) && Number.isFinite(replyAt) && replyAt >= reviewAt) {
+        deltas.push((replyAt - reviewAt) / (1000 * 60 * 60));
+      }
+    }
+    if (deltas.length === 0) return null;
+    const avg = deltas.reduce((a, b) => a + b, 0) / deltas.length;
+    return Math.round(avg * 10) / 10;
+  })();
+
+  const unrepliedCount = reviews.filter((r) => !replies[r.id]).length;
+  const nowMs = Date.now();
+  const overdueUnreplied = reviews.filter((r) => {
+    if (replies[r.id]) return false;
+    const ageHours = (nowMs - new Date(r.created_at).getTime()) / (1000 * 60 * 60);
+    return ageHours > slaHours;
+  }).length;
+  const withinSlaReplied = (() => {
+    let total = 0;
+    let within = 0;
+    for (const r of reviews) {
+      const reply = replies[r.id];
+      if (!reply) continue;
+      const ageHours = (new Date(reply.created_at).getTime() - new Date(r.created_at).getTime()) / (1000 * 60 * 60);
+      total += 1;
+      if (ageHours <= slaHours) within += 1;
+    }
+    if (total === 0) return null;
+    return Math.round((within / total) * 100);
+  })();
+  const nearBreachUnreplied = reviews.filter((r) => {
+    if (replies[r.id]) return false;
+    const ageHours = (nowMs - new Date(r.created_at).getTime()) / (1000 * 60 * 60);
+    return ageHours >= Math.max(1, slaHours - 6) && ageHours <= slaHours;
+  });
+  const breachedUnreplied = reviews.filter((r) => {
+    if (replies[r.id]) return false;
+    const ageHours = (nowMs - new Date(r.created_at).getTime()) / (1000 * 60 * 60);
+    return ageHours > slaHours;
+  });
 
   if (!isSupabase || !user) return null;
 
@@ -70,11 +168,115 @@ export default function SupplierReviews() {
         <p className="text-gray-600 mt-1">See and respond to customer reviews for your listings.</p>
       </div>
 
+      {!loading && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="bg-white border border-gray-200 rounded-xl p-4">
+            <p className="text-xs uppercase tracking-wide text-gray-500 font-medium">Total reviews</p>
+            <p className="text-2xl font-semibold text-gray-900 mt-1">{reviews.length}</p>
+          </div>
+          <div className="bg-white border border-amber-200 bg-amber-50/40 rounded-xl p-4">
+            <p className="text-xs uppercase tracking-wide text-amber-800 font-medium">Need reply</p>
+            <p className="text-2xl font-semibold text-amber-900 mt-1">{unrepliedCount}</p>
+          </div>
+          <div className="bg-white border border-blue-200 bg-blue-50/40 rounded-xl p-4">
+            <p className="text-xs uppercase tracking-wide text-blue-800 font-medium">Avg response time</p>
+            <p className="text-2xl font-semibold text-blue-900 mt-1">
+              {averageResponseHours == null ? '—' : `${averageResponseHours}h`}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {!loading && (
+        <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-5 space-y-3">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">Review SLA automation</h2>
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-gray-600">Target reply window</label>
+              <input
+                type="number"
+                min={1}
+                max={168}
+                value={slaHours}
+                onChange={(e) => {
+                  const n = Number(e.target.value);
+                  setSlaHours(n);
+                  saveSupplierReviewSlaHours(n);
+                }}
+                className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
+              />
+              <span className="text-xs text-gray-500">hours</span>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="border border-red-200 bg-red-50/40 rounded-lg p-3">
+              <p className="text-xs uppercase tracking-wide text-red-800 font-medium">Overdue unreplied</p>
+              <p className="text-xl font-semibold text-red-900 mt-1">{overdueUnreplied}</p>
+            </div>
+            <div className="border border-green-200 bg-green-50/40 rounded-lg p-3">
+              <p className="text-xs uppercase tracking-wide text-green-800 font-medium">Within SLA</p>
+              <p className="text-xl font-semibold text-green-900 mt-1">
+                {withinSlaReplied == null ? '—' : `${withinSlaReplied}%`}
+              </p>
+            </div>
+            <div className="border border-gray-200 rounded-lg p-3">
+              <p className="text-xs uppercase tracking-wide text-gray-500 font-medium">SLA target</p>
+              <p className="text-xl font-semibold text-gray-900 mt-1">{slaHours}h</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!loading && (nearBreachUnreplied.length > 0 || breachedUnreplied.length > 0) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {nearBreachUnreplied.length > 0 && (
+            <div className="p-4 rounded-lg border border-amber-200 bg-amber-50/50 text-amber-900">
+              <p className="text-xs uppercase tracking-wide font-semibold">SLA risk</p>
+              <p className="text-sm mt-1">
+                {nearBreachUnreplied.length} review{nearBreachUnreplied.length === 1 ? '' : 's'} are close to SLA breach
+                (within ~6h).
+              </p>
+              <button
+                type="button"
+                onClick={() => setHighlightReviewId(nearBreachUnreplied[0].id)}
+                className="mt-2 text-xs font-medium underline"
+              >
+                Focus first at-risk review
+              </button>
+            </div>
+          )}
+          {breachedUnreplied.length > 0 && (
+            <div className="p-4 rounded-lg border border-red-200 bg-red-50/60 text-red-900">
+              <p className="text-xs uppercase tracking-wide font-semibold">SLA breached</p>
+              <p className="text-sm mt-1">
+                {breachedUnreplied.length} review{breachedUnreplied.length === 1 ? '' : 's'} exceeded the {slaHours}h target.
+              </p>
+              <button
+                type="button"
+                onClick={() => setHighlightReviewId(breachedUnreplied[0].id)}
+                className="mt-2 text-xs font-medium underline"
+              >
+                Focus first breached review
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       {error && (
         <div className="p-4 rounded-lg bg-red-50 text-red-700 text-sm flex items-center justify-between gap-4">
           <span className="flex items-center gap-2"><AlertCircle className="w-4 h-4 flex-shrink-0" />{error}</span>
           <button type="button" onClick={() => load()} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-100 text-red-800 font-medium hover:bg-red-200">
             <RefreshCw className="w-4 h-4" /> Try again
+          </button>
+        </div>
+      )}
+
+      {replyError && (
+        <div className="p-4 rounded-lg bg-red-50 text-red-700 text-sm flex items-center justify-between gap-4">
+          <span className="flex items-center gap-2"><AlertCircle className="w-4 h-4 flex-shrink-0" />{replyError}</span>
+          <button type="button" onClick={() => setReplyError(null)} className="text-sm font-medium text-red-800 hover:underline">
+            Dismiss
           </button>
         </div>
       )}
@@ -94,7 +296,15 @@ export default function SupplierReviews() {
           {reviews.map((r) => (
             <div
               key={r.id}
-              className="bg-white border border-gray-200 rounded-xl p-6"
+              id={`supplier-review-card-${r.id}`}
+              className={`bg-white border rounded-xl p-6 transition-shadow ${
+                highlightReviewId === r.id
+                  ? 'border-finland ring-2 ring-finland/25 shadow-md'
+                  : !replies[r.id] &&
+                    (nowMs - new Date(r.created_at).getTime()) / (1000 * 60 * 60) > slaHours
+                    ? 'border-red-200 bg-red-50/20'
+                  : 'border-gray-200'
+              }`}
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1">
@@ -135,6 +345,41 @@ export default function SupplierReviews() {
                     <MessageSquare className="w-4 h-4 inline mr-1" />
                     Reply (optional)
                   </label>
+                  <div className="flex flex-wrap items-center gap-2 mb-2">
+                    {([
+                      { id: 'friendly', label: 'Friendly' },
+                      { id: 'professional', label: 'Professional' },
+                      { id: 'short', label: 'Short' },
+                    ] as const).map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => {
+                          setDraftToneByReview((prev) => ({ ...prev, [r.id]: t.id }));
+                          const draft = generateReplyDraft(r, t.id);
+                          setReplyText((prev) => ({ ...prev, [r.id]: draft }));
+                        }}
+                        className={`px-2.5 py-1 rounded-full text-xs border ${
+                          (draftToneByReview[r.id] ?? 'friendly') === t.id
+                            ? 'bg-finland/10 text-finland border-finland/30'
+                            : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                        }`}
+                      >
+                        {t.label} draft
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const tone = draftToneByReview[r.id] ?? 'friendly';
+                        const draft = generateReplyDraft(r, tone);
+                        setReplyText((prev) => ({ ...prev, [r.id]: draft }));
+                      }}
+                      className="text-xs text-gray-500 hover:text-gray-700 underline"
+                    >
+                      Regenerate
+                    </button>
+                  </div>
                   <textarea
                     value={replyText[r.id] ?? ''}
                     onChange={(e) => setReplyText((prev) => ({ ...prev, [r.id]: e.target.value }))}

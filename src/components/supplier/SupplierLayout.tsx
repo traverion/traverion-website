@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { LayoutDashboard, MapPin, Calendar, DollarSign, Settings, LogOut, Globe, Menu, X, Users, BarChart3, Star, ClipboardList } from 'lucide-react';
+import { LayoutDashboard, MapPin, Calendar, DollarSign, Settings, LogOut, Globe, Menu, X, Users, BarChart3, Star, ClipboardList, Lock } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import SupplierDashboard from '../../pages/supplier/SupplierDashboard';
 import SupplierListings from '../../pages/supplier/SupplierListings';
@@ -9,6 +9,15 @@ import SupplierReviews from '../../pages/supplier/SupplierReviews';
 import SupplierPickupPlanner from '../../pages/supplier/SupplierPickupPlanner';
 import { fetchSupplierProfile, updateSupplierPayout, updateSupplierCompanyProfile } from '../../data/supabase-supplier-profile';
 import SupplierLoginPage from './SupplierLoginPage';
+import SupplierNotificationCenter from './SupplierNotificationCenter';
+import { loadSupplierNotifPrefs, saveSupplierNotifPrefs, type SupplierNotifPrefs } from '../../lib/supplierNotificationPrefs';
+import {
+  canManageTeam,
+  canManageFinance,
+  type SupplierRole,
+} from '../../lib/supplierTeamRoles';
+import { useSupplierRole } from '../../hooks/useSupplierRole';
+import { upsertSupplierTeamMember, removeSupplierTeamMember } from '../../data/supabase-supplier-team';
 
 /** URL path for the supplier login/landing page. Portal is /supplier and /supplier/* */
 export const SUPPLIER_LOGIN_PATH = '/supplier-log-in';
@@ -24,6 +33,15 @@ const NAV_ITEMS: { id: SupplierSection; label: string; icon: typeof LayoutDashbo
   { id: 'pickup', label: 'Pickup planner', icon: ClipboardList },
   { id: 'settings', label: 'Settings', icon: Settings },
 ];
+
+function canAccessSection(role: SupplierRole, section: SupplierSection): boolean {
+  if (role === 'owner') return true;
+  if (role === 'manager') return section !== 'earnings';
+  if (role === 'ops') return ['dashboard', 'bookings', 'pickup', 'reviews', 'settings'].includes(section);
+  if (role === 'finance') return ['dashboard', 'earnings', 'settings'].includes(section);
+  // viewer
+  return ['dashboard', 'reviews'].includes(section);
+}
 
 function getSectionFromPath(pathname: string): SupplierSection | null {
   if (pathname === '/supplier' || pathname === '/supplier/') return 'dashboard';
@@ -42,14 +60,9 @@ function isSupplierPortalPath(pathname: string): boolean {
   return pathname === '/supplier' || pathname === '/supplier/' || pathname.startsWith('/supplier/');
 }
 
-function pushSupplierPath(section: SupplierSection) {
-  const path = section === 'dashboard' ? '/supplier' : `/supplier/${section}`;
-  window.history.pushState({}, '', path);
-  window.dispatchEvent(new PopStateEvent('popstate'));
-}
-
 export default function SupplierLayout() {
   const { user, loading, signOut, isSupabase } = useSupplierAuth();
+  const { role, members: roleMembers } = useSupplierRole();
   const [section, setSection] = useState<SupplierSection>(() => getSectionFromPath(window.location.pathname) ?? 'dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [payoutMethod, setPayoutMethod] = useState<'bank' | 'paypal' | 'none' | ''>('');
@@ -75,6 +88,11 @@ export default function SupplierLayout() {
   const [insuranceProvider, setInsuranceProvider] = useState('');
   const [companySaving, setCompanySaving] = useState(false);
   const [companyMessage, setCompanyMessage] = useState<'success' | 'error' | null>(null);
+  const [notifPrefs, setNotifPrefs] = useState<SupplierNotifPrefs>(() => loadSupplierNotifPrefs());
+  const [teamLabel, setTeamLabel] = useState('');
+  const [teamMemberId, setTeamMemberId] = useState('');
+  const [teamRole, setTeamRole] = useState<SupplierRole>('viewer');
+  const [teamMembers, setTeamMembers] = useState(roleMembers);
 
   useEffect(() => {
     if (section !== 'settings' || !user?.id || !isSupabase) return;
@@ -104,6 +122,10 @@ export default function SupplierLayout() {
   }, [section, user?.id, isSupabase]);
 
   useEffect(() => {
+    setTeamMembers(roleMembers);
+  }, [roleMembers]);
+
+  useEffect(() => {
     const syncFromPath = () => {
       const s = getSectionFromPath(window.location.pathname);
       if (s) setSection(s);
@@ -113,9 +135,18 @@ export default function SupplierLayout() {
     return () => window.removeEventListener('popstate', syncFromPath);
   }, []);
 
+  useEffect(() => {
+    if (!canAccessSection(role, section)) {
+      setSection('dashboard');
+      window.history.replaceState({}, '', '/supplier');
+    }
+  }, [role, section]);
+
   const handleNavigate = (s: SupplierSection) => {
     setSection(s);
-    pushSupplierPath(s);
+    const path = s === 'dashboard' ? '/supplier' : `/supplier/${s}`;
+    window.history.pushState({}, '', path);
+    window.dispatchEvent(new PopStateEvent('popstate'));
     setSidebarOpen(false);
   };
 
@@ -179,13 +210,18 @@ export default function SupplierLayout() {
             <button
               type="button"
               key={item.id}
-              onClick={() => handleNavigate(item.id)}
+              onClick={() => {
+                if (canAccessSection(role, item.id)) handleNavigate(item.id);
+              }}
+              disabled={!canAccessSection(role, item.id)}
               className={`lux-flat w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left text-sm font-medium transition-colors duration-300 ease-lux ${
                 section === item.id ? 'bg-finland/10 text-finland' : 'text-gray-600 hover:bg-gray-100'
               }`}
+              title={!canAccessSection(role, item.id) ? `Restricted for role: ${role}` : undefined}
             >
               <item.icon className="w-5 h-5 flex-shrink-0" />
               {item.label}
+              {!canAccessSection(role, item.id) && <Lock className="w-3.5 h-3.5 ml-auto text-gray-400" />}
             </button>
           ))}
         </nav>
@@ -236,13 +272,18 @@ export default function SupplierLayout() {
             <button
               type="button"
               key={item.id}
-              onClick={() => handleNavigate(item.id)}
+              onClick={() => {
+                if (canAccessSection(role, item.id)) handleNavigate(item.id);
+              }}
+              disabled={!canAccessSection(role, item.id)}
               className={`lux-flat w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left text-sm font-medium transition-colors duration-300 ease-lux ${
                 section === item.id ? 'bg-finland/10 text-finland' : 'text-gray-600 hover:bg-gray-50'
               }`}
+              title={!canAccessSection(role, item.id) ? `Restricted for role: ${role}` : undefined}
             >
               <item.icon className="w-5 h-5" />
               {item.label}
+              {!canAccessSection(role, item.id) && <Lock className="w-3.5 h-3.5 ml-auto text-gray-400" />}
             </button>
           ))}
         </nav>
@@ -268,30 +309,264 @@ export default function SupplierLayout() {
           >
             <Menu className="w-6 h-6" />
           </button>
-          <span className="ml-auto text-xs sm:text-sm text-gray-500" title="You are in the supplier portal">
-            Supplier portal
-          </span>
+          <div className="ml-auto flex items-center gap-1">
+            <SupplierNotificationCenter />
+            <span className="text-xs sm:text-sm text-gray-500 hidden sm:inline" title="You are in the supplier portal">
+              Supplier portal
+            </span>
+          </div>
         </header>
         <main className="p-4 sm:p-6 lg:p-8 overflow-x-hidden">
           <div key={section} className="lux-page-enter">
-          {section === 'dashboard' && (
+          {!canAccessSection(role, section) && (
+            <div className="bg-white border border-amber-200 rounded-xl p-6">
+              <h2 className="text-lg font-semibold text-gray-900">Access restricted</h2>
+              <p className="text-sm text-gray-600 mt-1">
+                Your current role (<span className="font-medium">{role}</span>) does not have access to this section.
+              </p>
+            </div>
+          )}
+          {section === 'dashboard' && canAccessSection(role, section) && (
             <SupplierDashboard
               onNavigateToListings={() => handleNavigate('listings')}
               onNavigateToSettings={() => handleNavigate('settings')}
             />
           )}
-          {section === 'listings' && <SupplierListings />}
-          {section === 'bookings' && <SupplierBookings />}
-          {section === 'earnings' && <SupplierEarnings />}
-          {section === 'reviews' && <SupplierReviews />}
-          {section === 'pickup' && <SupplierPickupPlanner />}
-          {section === 'settings' && (
+          {section === 'listings' && canAccessSection(role, section) && <SupplierListings />}
+          {section === 'bookings' && canAccessSection(role, section) && <SupplierBookings />}
+          {section === 'earnings' && canAccessSection(role, section) && <SupplierEarnings />}
+          {section === 'reviews' && canAccessSection(role, section) && <SupplierReviews />}
+          {section === 'pickup' && canAccessSection(role, section) && <SupplierPickupPlanner />}
+          {section === 'settings' && canAccessSection(role, section) && (
             <div className="space-y-6">
               <h1 className="text-2xl font-semibold text-gray-900">Settings</h1>
               <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-6">
                 <div>
                   <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide">Account</h2>
                   <p className="mt-1 text-gray-900">{user?.email ?? '—'}</p>
+                  <p className="mt-1 text-xs text-gray-500">Current role: <span className="font-medium text-gray-700">{role}</span></p>
+                </div>
+
+                <div>
+                  <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3">Team & roles</h2>
+                  <p className="text-sm text-gray-500 mb-4">Assign supplier roles to control who can manage bookings, operations, and finance.</p>
+                  <div className="space-y-3 max-w-2xl">
+                    {teamMembers.map((m) => (
+                      <div key={m.id} className="flex items-center justify-between gap-3 border border-gray-200 rounded-lg p-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">{m.label}</p>
+                          <p className="text-xs text-gray-500 truncate">{m.id}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-700">{m.role}</span>
+                          {canManageTeam(role) && m.id !== (user?.id ?? 'local-supplier') && (
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                const currentUserId = user?.id ?? 'local-supplier';
+                                const ok = await removeSupplierTeamMember(currentUserId, m.id);
+                                if (ok) {
+                                  setTeamMembers((prev) => prev.filter((x) => x.id !== m.id));
+                                }
+                              }}
+                              className="text-xs text-red-600 hover:underline"
+                            >
+                              Remove
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    {canManageTeam(role) ? (
+                      <div className="border border-dashed border-gray-300 rounded-lg p-3 space-y-2">
+                        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Add member</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                          <input
+                            type="text"
+                            value={teamLabel}
+                            onChange={(e) => setTeamLabel(e.target.value)}
+                            placeholder="Display name"
+                            className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                          />
+                          <input
+                            type="text"
+                            value={teamMemberId}
+                            onChange={(e) => setTeamMemberId(e.target.value)}
+                            placeholder="User id or email"
+                            className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                          />
+                          <select
+                            value={teamRole}
+                            onChange={(e) => setTeamRole(e.target.value as SupplierRole)}
+                            className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
+                          >
+                            <option value="manager">manager</option>
+                            <option value="ops">ops</option>
+                            <option value="finance">finance</option>
+                            <option value="viewer">viewer</option>
+                          </select>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const id = teamMemberId.trim();
+                            if (!id) return;
+                            const label = teamLabel.trim() || id;
+                            const currentUserId = user?.id ?? 'local-supplier';
+                            const ok = await upsertSupplierTeamMember(currentUserId, { id, label, role: teamRole });
+                            if (ok) {
+                              const next = [
+                                ...teamMembers.filter((m) => m.id !== id),
+                                { id, label, role: teamRole, createdAt: new Date().toISOString() },
+                              ];
+                              setTeamMembers(next);
+                              setTeamLabel('');
+                              setTeamMemberId('');
+                              setTeamRole('viewer');
+                            }
+                          }}
+                          className="px-3 py-2 rounded-lg bg-finland text-white text-sm font-medium hover:bg-finland-dark"
+                        >
+                          Add member
+                        </button>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-500">Only owners can manage team roles.</p>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3">Notifications</h2>
+                  <p className="text-sm text-gray-500 mb-4">
+                    Control channels, urgency, and quiet hours for the header bell.
+                  </p>
+                  <div className="space-y-3 max-w-xl">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={notifPrefs.newBookings}
+                        onChange={(e) => {
+                          const next = { ...notifPrefs, newBookings: e.target.checked };
+                          setNotifPrefs(next);
+                          saveSupplierNotifPrefs(next);
+                        }}
+                        className="rounded border-gray-300 text-finland focus:ring-finland"
+                      />
+                      <span className="text-sm text-gray-800">Unacknowledged bookings</span>
+                    </label>
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={notifPrefs.reviewsNeedReply}
+                        onChange={(e) => {
+                          const next = { ...notifPrefs, reviewsNeedReply: e.target.checked };
+                          setNotifPrefs(next);
+                          saveSupplierNotifPrefs(next);
+                        }}
+                        className="rounded border-gray-300 text-finland focus:ring-finland"
+                      />
+                      <span className="text-sm text-gray-800">Reviews waiting for your reply</span>
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Booking urgency</label>
+                        <select
+                          value={notifPrefs.bookingUrgency}
+                          onChange={(e) => {
+                            const next = { ...notifPrefs, bookingUrgency: e.target.value as 'all' | 'high_only' };
+                            setNotifPrefs(next);
+                            saveSupplierNotifPrefs(next);
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white text-sm"
+                        >
+                          <option value="all">All</option>
+                          <option value="high_only">High only</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Review urgency</label>
+                        <select
+                          value={notifPrefs.reviewUrgency}
+                          onChange={(e) => {
+                            const next = { ...notifPrefs, reviewUrgency: e.target.value as 'all' | 'high_only' };
+                            setNotifPrefs(next);
+                            saveSupplierNotifPrefs(next);
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white text-sm"
+                        >
+                          <option value="all">All</option>
+                          <option value="high_only">High only</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                      <label className="flex items-center gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={notifPrefs.channelInApp}
+                          onChange={(e) => {
+                            const next = { ...notifPrefs, channelInApp: e.target.checked };
+                            setNotifPrefs(next);
+                            saveSupplierNotifPrefs(next);
+                          }}
+                          className="rounded border-gray-300 text-finland focus:ring-finland"
+                        />
+                        <span className="text-sm text-gray-800">Channel: In-app bell</span>
+                      </label>
+                      <label className="flex items-center gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={notifPrefs.channelEmail}
+                          onChange={(e) => {
+                            const next = { ...notifPrefs, channelEmail: e.target.checked };
+                            setNotifPrefs(next);
+                            saveSupplierNotifPrefs(next);
+                          }}
+                          className="rounded border-gray-300 text-finland focus:ring-finland"
+                        />
+                        <span className="text-sm text-gray-800">Channel: Email digest (placeholder)</span>
+                      </label>
+                    </div>
+                    <div className="pt-1 border-t border-gray-100">
+                      <label className="flex items-center gap-3 cursor-pointer mb-2">
+                        <input
+                          type="checkbox"
+                          checked={notifPrefs.quietHoursEnabled}
+                          onChange={(e) => {
+                            const next = { ...notifPrefs, quietHoursEnabled: e.target.checked };
+                            setNotifPrefs(next);
+                            saveSupplierNotifPrefs(next);
+                          }}
+                          className="rounded border-gray-300 text-finland focus:ring-finland"
+                        />
+                        <span className="text-sm text-gray-800">Quiet hours</span>
+                      </label>
+                      <div className="grid grid-cols-2 gap-2 max-w-sm">
+                        <input
+                          type="time"
+                          value={notifPrefs.quietHoursStart}
+                          onChange={(e) => {
+                            const next = { ...notifPrefs, quietHoursStart: e.target.value };
+                            setNotifPrefs(next);
+                            saveSupplierNotifPrefs(next);
+                          }}
+                          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland text-sm"
+                        />
+                        <input
+                          type="time"
+                          value={notifPrefs.quietHoursEnd}
+                          onChange={(e) => {
+                            const next = { ...notifPrefs, quietHoursEnd: e.target.value };
+                            setNotifPrefs(next);
+                            saveSupplierNotifPrefs(next);
+                          }}
+                          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland text-sm"
+                        />
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">During quiet hours, in-app bell notifications are muted.</p>
+                    </div>
+                  </div>
                 </div>
 
                 <div>
@@ -420,7 +695,7 @@ export default function SupplierLayout() {
                     <div className="flex items-center gap-3">
                       <button
                         type="button"
-                        disabled={companySaving}
+                        disabled={companySaving || !canManageFinance(role)}
                         onClick={async () => {
                           if (!user?.id) return;
                           setCompanySaving(true);
@@ -531,7 +806,7 @@ export default function SupplierLayout() {
                     <div className="flex items-center gap-3">
                       <button
                         type="button"
-                        disabled={payoutSaving}
+                        disabled={payoutSaving || !canManageFinance(role)}
                         onClick={async () => {
                           if (!user?.id) return;
                           setPayoutSaving(true);

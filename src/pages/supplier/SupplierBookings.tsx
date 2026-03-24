@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Calendar, Mail, RefreshCw, CheckCircle, MessageCircle, Trash2, FileText, AlertCircle, Download } from 'lucide-react';
+import { Calendar, Mail, RefreshCw, CheckCircle, MessageCircle, Trash2, FileText, AlertCircle, Download, Ticket } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import {
   fetchBookingsForSupplier,
@@ -10,6 +10,35 @@ import {
 } from '../../data/supabase-bookings';
 import { fetchMyListings } from '../../data/supabase-listings';
 import { decrementAvailabilityBooked } from '../../data/supabase-availability';
+import { useSupplierRole } from '../../hooks/useSupplierRole';
+import { canManageBookings } from '../../lib/supplierTeamRoles';
+import {
+  fetchSupplierBookingOpsNotes,
+  upsertSupplierBookingOpsNote,
+  deleteSupplierBookingOpsNote,
+} from '../../data/supabase-booking-ops-notes';
+import {
+  fetchSupplierBookingEvents,
+  insertSupplierBookingEvent,
+  fetchSupplierBookingMessages,
+  insertSupplierBookingMessage,
+  updateSupplierBookingMessageDelivery,
+} from '../../data/supabase-booking-events';
+import { sendSupplierEmailViaEdge } from '../../data/supabase-supplier-messaging';
+import {
+  fetchSupplierBookingVouchers,
+  insertSupplierBookingVouchers,
+  redeemSupplierBookingVoucherByCode,
+  expireSupplierBookingVouchers,
+  updateSupplierBookingVoucherStatus,
+} from '../../data/supabase-booking-vouchers';
+import {
+  fetchSupplierMessageCampaigns,
+  fetchSupplierExportRuns,
+  insertSupplierMessageCampaign,
+  updateSupplierMessageCampaignStatus,
+  insertSupplierExportRun,
+} from '../../data/supabase-supplier-campaigns-exports';
 
 const CANCELLATION_REASONS = [
   { id: 'customer_request', label: 'Customer requested cancellation' },
@@ -23,8 +52,132 @@ const REFUND_CHOICES = [
   { id: 'reschedule', label: 'Offer reschedule' },
 ];
 
+const COMM_LOG_KEY = 'traverion_supplier_comm_log';
+const BOOKING_AUDIT_KEY = 'traverion_supplier_booking_audit';
+const VOUCHER_LOG_KEY = 'traverion_supplier_voucher_log';
+const REMINDER_SETTINGS_KEY = 'traverion_supplier_reminder_settings';
+const REMINDER_SENT_KEY = 'traverion_supplier_reminder_sent';
+const FILTER_PRESETS_KEY = 'traverion_supplier_booking_filter_presets';
+
+const MESSAGE_TEMPLATES = [
+  {
+    id: 'welcome',
+    label: 'Welcome + what to bring',
+    subject: 'Your upcoming booking - important details',
+    body:
+      'Hi {{guest}},\n\nThanks for booking {{listing}}. We look forward to hosting you on {{date}}.\nPlease arrive 10 minutes early and bring comfortable shoes + water.\n\nBest regards,\nSupplier team',
+  },
+  {
+    id: 'meeting',
+    label: 'Meeting point reminder',
+    subject: 'Reminder: meeting point details for your booking',
+    body:
+      'Hi {{guest}},\n\nQuick reminder for {{listing}} on {{date}}.\nMeeting point: {{meeting}}\nIf you have trouble finding us, reply to this email.\n\nBest,\nSupplier team',
+  },
+  {
+    id: 'pending',
+    label: 'Pending booking follow-up',
+    subject: 'Booking status update',
+    body:
+      'Hi {{guest}},\n\nYour booking for {{listing}} is currently pending confirmation. We will confirm shortly.\nThank you for your patience.\n\nBest regards,\nSupplier team',
+  },
+] as const;
+
+type CommunicationLogEntry = {
+  id: string;
+  createdAt: string;
+  subject: string;
+  recipients: string[];
+  bookingIds: string[];
+  deliveryStatus?: 'queued' | 'sent' | 'failed';
+  errorMessage?: string;
+};
+
+type BookingAuditEntry = {
+  id: string;
+  bookingId: string;
+  at: string;
+  action: 'booking_created' | 'acknowledged' | 'status_confirmed' | 'status_cancelled' | 'note';
+  details?: string;
+};
+
+type BookingOpsNote = {
+  bookingId: string;
+  note: string;
+  updatedAt: string;
+  pendingSync: boolean;
+};
+
+type VoucherEntry = {
+  id: string;
+  bookingId: string;
+  listingId: string;
+  code: string;
+  guestEmail?: string;
+  discountType: 'percent' | 'fixed';
+  discountValue: number;
+  status: 'active' | 'redeemed' | 'expired';
+  createdAt: string;
+  expiresAt?: string;
+  notes?: string;
+};
+
+type CampaignHistoryEntry = {
+  id: string;
+  subject: string;
+  scope: 'selected' | 'filtered';
+  recipientsCount: number;
+  sentCount: number;
+  failedCount: number;
+  status: 'queued' | 'sent' | 'failed' | 'partial';
+  createdAt: string;
+};
+
+type ExportHistoryEntry = {
+  id: string;
+  kind: 'bookings' | 'ops_summary';
+  format: 'csv' | 'json';
+  scope: 'filtered' | 'selected';
+  rowCount: number;
+  dateFrom?: string;
+  dateTo?: string;
+  createdAt: string;
+};
+
+type ReminderSettings = {
+  enabled: boolean;
+  daysBefore: 1 | 2;
+  templateId: (typeof MESSAGE_TEMPLATES)[number]['id'];
+  quietHoursEnabled: boolean;
+  quietStartHour: number;
+  quietEndHour: number;
+};
+
+type ReminderRunEntry = {
+  id: string;
+  createdAt: string;
+  targetCount: number;
+  sentCount: number;
+  failedCount: number;
+  mode: 'manual' | 'auto';
+};
+
+type BookingFilterPreset = {
+  id: string;
+  name: string;
+  view: 'all' | 'pending' | 'needs_ack' | 'upcoming' | 'cancelled';
+  listingId: string;
+  dateFrom: string;
+  dateTo: string;
+  createdAt: string;
+};
+
+const OPS_NOTES_KEY = 'traverion_supplier_ops_notes';
+
 export default function SupplierBookings() {
   const { user, isSupabase } = useSupplierAuth();
+  const { role } = useSupplierRole();
+  const canEditBookings = canManageBookings(role);
   const [bookings, setBookings] = useState<BookingRow[]>([]);
   const [listingTitles, setListingTitles] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -43,6 +196,8 @@ export default function SupplierBookings() {
   const [filterListingId, setFilterListingId] = useState('');
   const [filterDateFrom, setFilterDateFrom] = useState('');
   const [filterDateTo, setFilterDateTo] = useState('');
+  const [filterPresets, setFilterPresets] = useState<BookingFilterPreset[]>([]);
+  const [newPresetName, setNewPresetName] = useState('');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkCancelModal, setBulkCancelModal] = useState(false);
   const [bulkCancelReason, setBulkCancelReason] = useState('');
@@ -50,6 +205,49 @@ export default function SupplierBookings() {
   const [bulkActionSubmitting, setBulkActionSubmitting] = useState(false);
   const [exportDateFrom, setExportDateFrom] = useState('');
   const [exportDateTo, setExportDateTo] = useState('');
+  const [exportScope, setExportScope] = useState<'filtered' | 'selected'>('filtered');
+  const [exportFormat, setExportFormat] = useState<'csv' | 'json'>('csv');
+  const [exportKind, setExportKind] = useState<'bookings' | 'ops_summary'>('bookings');
+  const [highlightBookingId, setHighlightBookingId] = useState<string | null>(null);
+  const [templateId, setTemplateId] = useState<string>(MESSAGE_TEMPLATES[0].id);
+  const [commSubject, setCommSubject] = useState('');
+  const [commBody, setCommBody] = useState('');
+  const [commLog, setCommLog] = useState<CommunicationLogEntry[]>([]);
+  const [sendingComm, setSendingComm] = useState(false);
+  const [quickMessageBookingId, setQuickMessageBookingId] = useState<string | null>(null);
+  const [campaignOpen, setCampaignOpen] = useState(false);
+  const [campaignScope, setCampaignScope] = useState<'selected' | 'filtered'>('selected');
+  const [sendingCampaign, setSendingCampaign] = useState(false);
+  const [campaignHistory, setCampaignHistory] = useState<CampaignHistoryEntry[]>([]);
+  const [exportHistory, setExportHistory] = useState<ExportHistoryEntry[]>([]);
+  const [historySearch, setHistorySearch] = useState('');
+  const [historyCampaignStatus, setHistoryCampaignStatus] = useState<'all' | CampaignHistoryEntry['status']>('all');
+  const [historyExportKind, setHistoryExportKind] = useState<'all' | ExportHistoryEntry['kind']>('all');
+  const [historyDateRange, setHistoryDateRange] = useState<'all' | '7d' | '30d' | '90d' | 'custom'>('30d');
+  const [historyDateFrom, setHistoryDateFrom] = useState('');
+  const [historyDateTo, setHistoryDateTo] = useState('');
+  const [reminderSettings, setReminderSettings] = useState<ReminderSettings>({
+    enabled: false,
+    daysBefore: 1,
+    templateId: 'meeting',
+    quietHoursEnabled: true,
+    quietStartHour: 22,
+    quietEndHour: 7,
+  });
+  const [reminderSentKeys, setReminderSentKeys] = useState<string[]>([]);
+  const [reminderRuns, setReminderRuns] = useState<ReminderRunEntry[]>([]);
+  const [runningReminders, setRunningReminders] = useState(false);
+  const [voucherLog, setVoucherLog] = useState<VoucherEntry[]>([]);
+  const [voucherDiscountType, setVoucherDiscountType] = useState<'percent' | 'fixed'>('percent');
+  const [voucherDiscountValue, setVoucherDiscountValue] = useState('10');
+  const [voucherExpiresAt, setVoucherExpiresAt] = useState('');
+  const [voucherNotes, setVoucherNotes] = useState('');
+  const [voucherRedeemCode, setVoucherRedeemCode] = useState('');
+  const [voucherRedeeming, setVoucherRedeeming] = useState(false);
+  const [voucherRedeemResult, setVoucherRedeemResult] = useState<string | null>(null);
+  const [auditLog, setAuditLog] = useState<BookingAuditEntry[]>([]);
+  const [timelineBookingId, setTimelineBookingId] = useState<string | null>(null);
+  const [opsNotes, setOpsNotes] = useState<Record<string, BookingOpsNote>>({});
   const [error, setError] = useState<string | null>(null);
   const load = useCallback(async () => {
     if (!isSupabase || !user) {
@@ -78,7 +276,284 @@ export default function SupplierBookings() {
     load();
   }, [load]);
 
+  useEffect(() => {
+    const syncFromUrl = () => {
+      const id = new URLSearchParams(window.location.search).get('booking');
+      setHighlightBookingId(id && id.length > 0 ? id : null);
+      if (id) setSelectedIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
+    };
+    syncFromUrl();
+    window.addEventListener('popstate', syncFromUrl);
+    return () => window.removeEventListener('popstate', syncFromUrl);
+  }, []);
+
+  useEffect(() => {
+    const syncOpsNotesFromServer = async () => {
+      if (!isSupabase || !user || bookings.length === 0) return;
+      const ids = bookings.map((b) => b.id);
+      const remote = await fetchSupplierBookingOpsNotes(user.id, ids);
+      setOpsNotes((prev) => {
+        const merged = { ...prev };
+        Object.entries(remote).forEach(([bookingId, r]) => {
+          const local = merged[bookingId];
+          if (!local || (!local.pendingSync && new Date(r.updatedAt).getTime() >= new Date(local.updatedAt).getTime())) {
+            merged[bookingId] = {
+              bookingId,
+              note: r.note,
+              updatedAt: r.updatedAt,
+              pendingSync: false,
+            };
+          }
+        });
+        localStorage.setItem(OPS_NOTES_KEY, JSON.stringify(merged));
+        return merged;
+      });
+    };
+    syncOpsNotesFromServer();
+  }, [isSupabase, user, bookings]);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(OPS_NOTES_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as Record<string, BookingOpsNote>;
+      if (parsed && typeof parsed === 'object') setOpsNotes(parsed);
+    } catch {
+      // Ignore malformed local storage values.
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(COMM_LOG_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as CommunicationLogEntry[];
+      if (Array.isArray(parsed)) setCommLog(parsed.slice(0, 20));
+    } catch {
+      // Ignore malformed local storage values.
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(COMM_LOG_KEY, JSON.stringify(commLog.slice(0, 20)));
+  }, [commLog]);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(VOUCHER_LOG_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as VoucherEntry[];
+      if (Array.isArray(parsed)) setVoucherLog(parsed.slice(0, 200));
+    } catch {
+      // Ignore malformed local storage values.
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(VOUCHER_LOG_KEY, JSON.stringify(voucherLog.slice(0, 200)));
+  }, [voucherLog]);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(REMINDER_SETTINGS_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as Partial<ReminderSettings>;
+      if (!parsed || typeof parsed !== 'object') return;
+      setReminderSettings((prev) => ({
+        ...prev,
+        enabled: typeof parsed.enabled === 'boolean' ? parsed.enabled : prev.enabled,
+        daysBefore: parsed.daysBefore === 2 ? 2 : 1,
+        templateId: parsed.templateId && MESSAGE_TEMPLATES.some((t) => t.id === parsed.templateId)
+          ? parsed.templateId
+          : prev.templateId,
+        quietHoursEnabled:
+          typeof parsed.quietHoursEnabled === 'boolean'
+            ? parsed.quietHoursEnabled
+            : prev.quietHoursEnabled,
+        quietStartHour:
+          typeof parsed.quietStartHour === 'number' ? Math.min(23, Math.max(0, parsed.quietStartHour)) : prev.quietStartHour,
+        quietEndHour:
+          typeof parsed.quietEndHour === 'number' ? Math.min(23, Math.max(0, parsed.quietEndHour)) : prev.quietEndHour,
+      }));
+    } catch {
+      // Ignore malformed local storage values.
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(REMINDER_SETTINGS_KEY, JSON.stringify(reminderSettings));
+  }, [reminderSettings]);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(REMINDER_SENT_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as string[];
+      if (Array.isArray(parsed)) setReminderSentKeys(parsed.slice(0, 1000));
+    } catch {
+      // Ignore malformed local storage values.
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(REMINDER_SENT_KEY, JSON.stringify(reminderSentKeys.slice(0, 1000)));
+  }, [reminderSentKeys]);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(FILTER_PRESETS_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as BookingFilterPreset[];
+      if (Array.isArray(parsed)) setFilterPresets(parsed.slice(0, 20));
+    } catch {
+      // Ignore malformed local storage values.
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(FILTER_PRESETS_KEY, JSON.stringify(filterPresets.slice(0, 20)));
+  }, [filterPresets]);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(BOOKING_AUDIT_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as BookingAuditEntry[];
+      if (Array.isArray(parsed)) setAuditLog(parsed.slice(0, 500));
+    } catch {
+      // Ignore malformed local storage values.
+    }
+  }, []);
+
+  useEffect(() => {
+    const loadServerEvents = async () => {
+      if (!isSupabase || !user || bookings.length === 0) return;
+      const ids = bookings.map((b) => b.id);
+      const rows = await fetchSupplierBookingEvents(user.id, ids);
+      if (rows.length === 0) return;
+      const mapped: BookingAuditEntry[] = rows.map((r) => ({
+        id: r.id,
+        bookingId: r.booking_id,
+        at: r.created_at,
+        action: r.event_type,
+        details: r.details ?? undefined,
+      }));
+      setAuditLog((prev) => {
+        const byId = new Map<string, BookingAuditEntry>();
+        [...mapped, ...prev].forEach((e) => byId.set(e.id, e));
+        const merged = [...byId.values()]
+          .sort((a, b) => b.at.localeCompare(a.at))
+          .slice(0, 500);
+        localStorage.setItem(BOOKING_AUDIT_KEY, JSON.stringify(merged));
+        return merged;
+      });
+    };
+    loadServerEvents();
+  }, [isSupabase, user, bookings]);
+
+  useEffect(() => {
+    const loadServerMessages = async () => {
+      if (!isSupabase || !user) return;
+      const rows = await fetchSupplierBookingMessages(user.id);
+      if (rows.length === 0) return;
+      const mapped: CommunicationLogEntry[] = rows.map((r) => ({
+        id: r.id,
+        createdAt: r.created_at,
+        subject: r.subject,
+        recipients: r.recipients ?? [],
+        bookingIds: r.booking_ids ?? [],
+        deliveryStatus: r.delivery_status ?? 'queued',
+        errorMessage: r.error_message ?? undefined,
+      }));
+      setCommLog(mapped.slice(0, 20));
+      localStorage.setItem(COMM_LOG_KEY, JSON.stringify(mapped.slice(0, 20)));
+    };
+    loadServerMessages();
+  }, [isSupabase, user]);
+
+  useEffect(() => {
+    const loadServerVouchers = async () => {
+      if (!isSupabase || !user) return;
+      const rows = await fetchSupplierBookingVouchers(user.id);
+      if (rows.length === 0) return;
+      const mapped: VoucherEntry[] = rows.map((r) => ({
+        id: r.id,
+        bookingId: r.booking_id,
+        listingId: r.listing_id,
+        code: r.code,
+        guestEmail: r.guest_email ?? undefined,
+        discountType: r.discount_type,
+        discountValue: Number(r.discount_value),
+        status: r.status,
+        createdAt: r.created_at,
+        expiresAt: r.expires_at ?? undefined,
+        notes: r.notes ?? undefined,
+      }));
+      setVoucherLog(mapped.slice(0, 200));
+      localStorage.setItem(VOUCHER_LOG_KEY, JSON.stringify(mapped.slice(0, 200)));
+    };
+    loadServerVouchers();
+  }, [isSupabase, user]);
+
+  useEffect(() => {
+    const loadServerHistory = async () => {
+      if (!isSupabase || !user) return;
+      const [campaigns, exports] = await Promise.all([
+        fetchSupplierMessageCampaigns(user.id),
+        fetchSupplierExportRuns(user.id),
+      ]);
+      setCampaignHistory(
+        campaigns.map((c) => ({
+          id: c.id,
+          subject: c.subject,
+          scope: c.scope,
+          recipientsCount: c.recipients_count,
+          sentCount: c.sent_count,
+          failedCount: c.failed_count,
+          status: c.status,
+          createdAt: c.created_at,
+        }))
+      );
+      setExportHistory(
+        exports.map((r) => ({
+          id: r.id,
+          kind: r.kind,
+          format: r.format,
+          scope: r.scope,
+          rowCount: r.row_count,
+          dateFrom: r.date_from ?? undefined,
+          dateTo: r.date_to ?? undefined,
+          createdAt: r.created_at,
+        }))
+      );
+    };
+    loadServerHistory();
+  }, [isSupabase, user]);
+
+  const pushAudit = useCallback((entry: Omit<BookingAuditEntry, 'id' | 'at'>) => {
+    const next: BookingAuditEntry = {
+      ...entry,
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      at: new Date().toISOString(),
+    };
+    setAuditLog((prev) => {
+      const combined = [next, ...prev].slice(0, 500);
+      localStorage.setItem(BOOKING_AUDIT_KEY, JSON.stringify(combined));
+      return combined;
+    });
+    if (isSupabase && user) {
+      void insertSupplierBookingEvent({
+        supplierId: user.id,
+        actorId: user.id,
+        bookingId: entry.bookingId,
+        eventType: entry.action,
+        details: entry.details,
+      });
+    }
+  }, [isSupabase, user]);
+
   const handleStatusChange = async (booking: BookingRow, status: 'pending' | 'confirmed' | 'cancelled', options?: { cancellation_reason?: string; refund_choice?: 'full_refund' | 'no_refund' | 'reschedule' }) => {
+    if (!canEditBookings) return;
     setUpdatingId(booking.id);
     const previousStatus = booking.status;
     const ok = await updateBookingStatus(booking.id, status, options);
@@ -89,6 +564,17 @@ export default function SupplierBookings() {
       setBookings((prev) =>
         prev.map((b) => (b.id === booking.id ? { ...b, status, cancelled_at: status === 'cancelled' ? new Date().toISOString() : null, cancellation_reason: options?.cancellation_reason ?? b.cancellation_reason, refund_choice: options?.refund_choice ?? b.refund_choice } : b))
       );
+      if (status === 'confirmed') {
+        pushAudit({ bookingId: booking.id, action: 'status_confirmed' });
+      } else if (status === 'cancelled') {
+        const details = [
+          options?.cancellation_reason ? `reason: ${options.cancellation_reason}` : '',
+          options?.refund_choice ? `refund: ${options.refund_choice}` : '',
+        ]
+          .filter(Boolean)
+          .join(' · ');
+        pushAudit({ bookingId: booking.id, action: 'status_cancelled', details: details || undefined });
+      }
       setCancelModal(null);
       setCancelReason('');
       setCancelRefund('');
@@ -97,17 +583,20 @@ export default function SupplierBookings() {
   };
 
   const handleAcknowledge = async (booking: BookingRow) => {
+    if (!canEditBookings) return;
     setUpdatingId(booking.id);
     const ok = await acknowledgeBooking(booking.id);
     if (ok) {
       setBookings((prev) =>
         prev.map((b) => (b.id === booking.id ? { ...b, acknowledged_at: new Date().toISOString() } : b))
       );
+      pushAudit({ bookingId: booking.id, action: 'acknowledged' });
     }
     setUpdatingId(null);
   };
 
   const handleBatchCancel = async () => {
+    if (!canEditBookings) return;
     if (!user || !batchListingId || !batchDateFrom || !batchDateTo || !batchReason) return;
     setBatchSubmitting(true);
     const res = await batchCancelBookings(user.id, {
@@ -154,10 +643,724 @@ export default function SupplierBookings() {
     });
   }, [bookings, view, filterListingId, filterDateFrom, filterDateTo, todayIso]);
 
+  useEffect(() => {
+    if (!highlightBookingId) return;
+    const inCurrentRows = filteredBookings.some((b) => b.id === highlightBookingId);
+    if (inCurrentRows) {
+      requestAnimationFrame(() => {
+        const el = document.getElementById(`supplier-booking-row-${highlightBookingId}`);
+        el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    } else {
+      setView('all');
+      setFilterListingId('');
+      setFilterDateFrom('');
+      setFilterDateTo('');
+    }
+  }, [highlightBookingId, filteredBookings]);
+
   const selectedBookings = useMemo(
     () => filteredBookings.filter((b) => selectedIds.includes(b.id)),
     [filteredBookings, selectedIds]
   );
+
+  const todayOpsBookings = useMemo(
+    () =>
+      filteredBookings.filter(
+        (b) => b.booking_date === todayIso && b.status !== 'cancelled'
+      ),
+    [filteredBookings, todayIso]
+  );
+  const bookingSlaAlerts = useMemo(() => {
+    const now = Date.now();
+    const pendingBreach = bookings.filter((b) => {
+      if (b.status !== 'pending') return false;
+      const ageH = (now - new Date(b.created_at).getTime()) / (1000 * 60 * 60);
+      return ageH > 24;
+    });
+    const pendingRisk = bookings.filter((b) => {
+      if (b.status !== 'pending') return false;
+      const ageH = (now - new Date(b.created_at).getTime()) / (1000 * 60 * 60);
+      return ageH >= 18 && ageH <= 24;
+    });
+    const ackBreach = bookings.filter((b) => {
+      if (b.status === 'cancelled' || b.acknowledged_at) return false;
+      const ageH = (now - new Date(b.created_at).getTime()) / (1000 * 60 * 60);
+      return ageH > 12;
+    });
+    return { pendingRisk, pendingBreach, ackBreach };
+  }, [bookings]);
+
+  const targetBookings = selectedBookings.length > 0 ? selectedBookings : filteredBookings.slice(0, 1);
+  const recipientEmails = useMemo(
+    () =>
+      [...new Set(targetBookings.map((b) => b.guest_email).filter((v): v is string => !!v))],
+    [targetBookings]
+  );
+  const campaignBookings = useMemo(
+    () => (campaignScope === 'selected' ? selectedBookings : filteredBookings),
+    [campaignScope, selectedBookings, filteredBookings]
+  );
+  const campaignRecipients = useMemo(
+    () =>
+      [...new Set(campaignBookings.map((b) => b.guest_email).filter((v): v is string => !!v))],
+    [campaignBookings]
+  );
+  const voucherTargetBookings = selectedBookings.length > 0 ? selectedBookings : filteredBookings.slice(0, 1);
+  const voucherStats = useMemo(() => {
+    const active = voucherLog.filter((v) => v.status === 'active').length;
+    const redeemed = voucherLog.filter((v) => v.status === 'redeemed').length;
+    const expired = voucherLog.filter((v) => v.status === 'expired').length;
+    return { active, redeemed, expired };
+  }, [voucherLog]);
+  const normalizedHistorySearch = historySearch.trim().toLowerCase();
+  const isWithinHistoryDateRange = useCallback(
+    (isoDate: string) => {
+      const t = new Date(isoDate).getTime();
+      if (Number.isNaN(t)) return false;
+      if (historyDateRange === 'all') return true;
+      if (historyDateRange === 'custom') {
+        if (historyDateFrom) {
+          const from = new Date(`${historyDateFrom}T00:00:00`).getTime();
+          if (!Number.isNaN(from) && t < from) return false;
+        }
+        if (historyDateTo) {
+          const to = new Date(`${historyDateTo}T23:59:59`).getTime();
+          if (!Number.isNaN(to) && t > to) return false;
+        }
+        return true;
+      }
+      const days = historyDateRange === '7d' ? 7 : historyDateRange === '30d' ? 30 : 90;
+      const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+      return t >= cutoff;
+    },
+    [historyDateRange, historyDateFrom, historyDateTo]
+  );
+  const filteredCampaignHistory = useMemo(() => {
+    return campaignHistory.filter((entry) => {
+      if (!isWithinHistoryDateRange(entry.createdAt)) return false;
+      if (historyCampaignStatus !== 'all' && entry.status !== historyCampaignStatus) return false;
+      if (!normalizedHistorySearch) return true;
+      return (
+        entry.subject.toLowerCase().includes(normalizedHistorySearch) ||
+        entry.scope.toLowerCase().includes(normalizedHistorySearch)
+      );
+    });
+  }, [campaignHistory, historyCampaignStatus, normalizedHistorySearch, isWithinHistoryDateRange]);
+  const filteredExportHistory = useMemo(() => {
+    return exportHistory.filter((entry) => {
+      if (!isWithinHistoryDateRange(entry.createdAt)) return false;
+      if (historyExportKind !== 'all' && entry.kind !== historyExportKind) return false;
+      if (!normalizedHistorySearch) return true;
+      const kindLabel = entry.kind === 'bookings' ? 'detailed bookings' : 'ops summary';
+      return (
+        kindLabel.includes(normalizedHistorySearch) ||
+        entry.format.toLowerCase().includes(normalizedHistorySearch) ||
+        entry.scope.toLowerCase().includes(normalizedHistorySearch)
+      );
+    });
+  }, [exportHistory, historyExportKind, normalizedHistorySearch, isWithinHistoryDateRange]);
+
+  const isWithinQuietHours = useCallback(() => {
+    if (!reminderSettings.quietHoursEnabled) return false;
+    const hour = new Date().getHours();
+    const start = reminderSettings.quietStartHour;
+    const end = reminderSettings.quietEndHour;
+    if (start === end) return true;
+    if (start < end) return hour >= start && hour < end;
+    return hour >= start || hour < end;
+  }, [reminderSettings.quietHoursEnabled, reminderSettings.quietStartHour, reminderSettings.quietEndHour]);
+
+  const dueReminderBookings = useMemo(() => {
+    const daysBefore = reminderSettings.daysBefore;
+    const today = new Date();
+    return bookings.filter((b) => {
+      if (b.status !== 'confirmed' || !b.booking_date || !b.guest_email) return false;
+      const bookingDate = new Date(`${b.booking_date}T12:00:00`);
+      const todayDate = new Date(`${today.toISOString().slice(0, 10)}T12:00:00`);
+      const diffMs = bookingDate.getTime() - todayDate.getTime();
+      const diffDays = Math.round(diffMs / (24 * 60 * 60 * 1000));
+      if (diffDays !== daysBefore) return false;
+      const sentKey = `${b.id}:${b.booking_date}:${daysBefore}`;
+      return !reminderSentKeys.includes(sentKey);
+    });
+  }, [bookings, reminderSettings.daysBefore, reminderSentKeys]);
+  const messageAnalytics = useMemo(() => {
+    const total = commLog.length;
+    const sent = commLog.filter((m) => m.deliveryStatus === 'sent').length;
+    const failed = commLog.filter((m) => m.deliveryStatus === 'failed').length;
+    const queued = total - sent - failed;
+    const recipientTotal = commLog.reduce((sum, m) => sum + m.recipients.length, 0);
+    const avgRecipients = total > 0 ? recipientTotal / total : 0;
+    const campaignTotal = campaignHistory.length;
+    const campaignSent = campaignHistory.filter((c) => c.status === 'sent').length;
+    const campaignFailed = campaignHistory.filter((c) => c.status === 'failed').length;
+    const deliveryRate = total > 0 ? (sent / total) * 100 : 0;
+    const failureRate = total > 0 ? (failed / total) * 100 : 0;
+    const campaignSuccessRate = campaignTotal > 0 ? (campaignSent / campaignTotal) * 100 : 0;
+    const byHour = new Array<number>(24).fill(0);
+    commLog.forEach((m) => {
+      const h = new Date(m.createdAt).getHours();
+      if (!Number.isNaN(h)) byHour[h] += 1;
+    });
+    let bestHour = 0;
+    for (let i = 1; i < byHour.length; i += 1) {
+      if (byHour[i] > byHour[bestHour]) bestHour = i;
+    }
+    return {
+      total,
+      sent,
+      failed,
+      queued,
+      avgRecipients,
+      campaignTotal,
+      campaignSent,
+      campaignFailed,
+      deliveryRate,
+      failureRate,
+      campaignSuccessRate,
+      bestHour,
+    };
+  }, [commLog, campaignHistory]);
+
+  const applyTemplate = useCallback(
+    (id: string) => {
+      const t = MESSAGE_TEMPLATES.find((x) => x.id === id);
+      if (!t) return;
+      const sample = targetBookings[0];
+      const listing = sample ? listingTitles[sample.listing_id] ?? 'your booking' : 'your booking';
+      const guest = sample?.guest_name || 'traveler';
+      const date = sample?.booking_date ? new Date(sample.booking_date).toLocaleDateString() : 'your booking date';
+      const meeting = sample ? sample.special_requests || 'see your booking details' : 'see your booking details';
+      const body = t.body
+        .replaceAll('{{guest}}', guest)
+        .replaceAll('{{listing}}', listing)
+        .replaceAll('{{date}}', date)
+        .replaceAll('{{meeting}}', meeting);
+      setTemplateId(id);
+      setCommSubject(t.subject);
+      setCommBody(body);
+    },
+    [targetBookings, listingTitles]
+  );
+
+  useEffect(() => {
+    if (!commSubject && !commBody) {
+      applyTemplate(templateId);
+    }
+  }, [templateId, commBody, commSubject, applyTemplate]);
+
+  const saveCommLog = (entries: CommunicationLogEntry[]) => {
+    setCommLog(entries);
+    localStorage.setItem(COMM_LOG_KEY, JSON.stringify(entries.slice(0, 20)));
+  };
+
+  const handleSendCommunication = async () => {
+    if (recipientEmails.length === 0 || !commSubject.trim() || !commBody.trim()) return;
+    setSendingComm(true);
+    const entry: CommunicationLogEntry = {
+      id: `${Date.now()}`,
+      createdAt: new Date().toISOString(),
+      subject: commSubject.trim(),
+      recipients: recipientEmails,
+      bookingIds: targetBookings.map((b) => b.id),
+      deliveryStatus: 'queued',
+    };
+    saveCommLog([entry, ...commLog].slice(0, 20));
+    if (isSupabase && user) {
+      const inserted = await insertSupplierBookingMessage({
+        supplierId: user.id,
+        actorId: user.id,
+        subject: entry.subject,
+        recipients: entry.recipients,
+        bookingIds: entry.bookingIds,
+        channel: 'email',
+        bodyPreview: commBody.trim().slice(0, 500),
+        deliveryStatus: 'queued',
+      });
+      const msgId = inserted.id;
+      const send = await sendSupplierEmailViaEdge({
+        to: entry.recipients,
+        subject: entry.subject,
+        body: commBody.trim(),
+      });
+      const status: CommunicationLogEntry['deliveryStatus'] = send.success ? 'sent' : 'failed';
+      setCommLog((prev) =>
+        prev.map((m) =>
+          m.id === entry.id ? { ...m, deliveryStatus: status, errorMessage: send.error } : m
+        )
+      );
+      if (msgId) {
+        await updateSupplierBookingMessageDelivery({
+          id: msgId,
+          deliveryStatus: send.success ? 'sent' : 'failed',
+          providerMessageId: send.providerMessageId,
+          errorMessage: send.error,
+        });
+      }
+    } else {
+      const to = encodeURIComponent(recipientEmails.join(','));
+      const subject = encodeURIComponent(commSubject.trim());
+      const body = encodeURIComponent(commBody.trim());
+      window.location.href = `mailto:${to}?subject=${subject}&body=${body}`;
+      setCommLog((prev) =>
+        prev.map((m) => (m.id === entry.id ? { ...m, deliveryStatus: 'sent' } : m))
+      );
+    }
+    setSendingComm(false);
+  };
+
+  const handleSendQuickTemplate = async (
+    booking: BookingRow,
+    quickTemplateId: (typeof MESSAGE_TEMPLATES)[number]['id']
+  ) => {
+    if (!booking.guest_email) return;
+    const t = MESSAGE_TEMPLATES.find((x) => x.id === quickTemplateId);
+    if (!t) return;
+    setQuickMessageBookingId(booking.id);
+    const listing = listingTitles[booking.listing_id] ?? 'your booking';
+    const guest = booking.guest_name || 'traveler';
+    const date = booking.booking_date ? new Date(booking.booking_date).toLocaleDateString() : 'your booking date';
+    const meeting = booking.special_requests || 'see your booking details';
+    const subject = t.subject;
+    const body = t.body
+      .replaceAll('{{guest}}', guest)
+      .replaceAll('{{listing}}', listing)
+      .replaceAll('{{date}}', date)
+      .replaceAll('{{meeting}}', meeting);
+    const entry: CommunicationLogEntry = {
+      id: `${Date.now()}-${booking.id}-quick`,
+      createdAt: new Date().toISOString(),
+      subject,
+      recipients: [booking.guest_email],
+      bookingIds: [booking.id],
+      deliveryStatus: 'queued',
+    };
+    saveCommLog([entry, ...commLog].slice(0, 20));
+    if (isSupabase && user) {
+      const inserted = await insertSupplierBookingMessage({
+        supplierId: user.id,
+        actorId: user.id,
+        subject: entry.subject,
+        recipients: entry.recipients,
+        bookingIds: entry.bookingIds,
+        channel: 'email',
+        bodyPreview: body.slice(0, 500),
+        deliveryStatus: 'queued',
+      });
+      const send = await sendSupplierEmailViaEdge({
+        to: entry.recipients,
+        subject: entry.subject,
+        body,
+      });
+      setCommLog((prev) =>
+        prev.map((m) =>
+          m.id === entry.id
+            ? { ...m, deliveryStatus: send.success ? 'sent' : 'failed', errorMessage: send.error }
+            : m
+        )
+      );
+      if (inserted.id) {
+        await updateSupplierBookingMessageDelivery({
+          id: inserted.id,
+          deliveryStatus: send.success ? 'sent' : 'failed',
+          providerMessageId: send.providerMessageId,
+          errorMessage: send.error,
+        });
+      }
+    } else {
+      const to = encodeURIComponent(entry.recipients.join(','));
+      const encodedSubject = encodeURIComponent(entry.subject);
+      const encodedBody = encodeURIComponent(body);
+      window.location.href = `mailto:${to}?subject=${encodedSubject}&body=${encodedBody}`;
+      setCommLog((prev) =>
+        prev.map((m) => (m.id === entry.id ? { ...m, deliveryStatus: 'sent' } : m))
+      );
+    }
+    setQuickMessageBookingId(null);
+  };
+
+  const handleRunDueReminders = async (mode: 'manual' | 'auto' = 'manual') => {
+    if (!reminderSettings.enabled || dueReminderBookings.length === 0 || runningReminders) return;
+    if (isWithinQuietHours()) return;
+    setRunningReminders(true);
+    let sentCount = 0;
+    let failedCount = 0;
+
+    const template = MESSAGE_TEMPLATES.find((t) => t.id === reminderSettings.templateId) ?? MESSAGE_TEMPLATES[1];
+    for (const b of dueReminderBookings) {
+      const listing = listingTitles[b.listing_id] ?? 'your booking';
+      const guest = b.guest_name || 'traveler';
+      const date = b.booking_date ? new Date(b.booking_date).toLocaleDateString() : 'your booking date';
+      const meeting = b.special_requests || 'see your booking details';
+      const subject = `[Auto reminder] ${template.subject}`;
+      const body = template.body
+        .replaceAll('{{guest}}', guest)
+        .replaceAll('{{listing}}', listing)
+        .replaceAll('{{date}}', date)
+        .replaceAll('{{meeting}}', meeting);
+      const entry: CommunicationLogEntry = {
+        id: `${Date.now()}-${b.id}-auto`,
+        createdAt: new Date().toISOString(),
+        subject,
+        recipients: [b.guest_email as string],
+        bookingIds: [b.id],
+        deliveryStatus: 'queued',
+      };
+      saveCommLog([entry, ...commLog].slice(0, 20));
+
+      if (isSupabase && user) {
+        const inserted = await insertSupplierBookingMessage({
+          supplierId: user.id,
+          actorId: user.id,
+          subject,
+          recipients: entry.recipients,
+          bookingIds: entry.bookingIds,
+          channel: 'email',
+          bodyPreview: body.slice(0, 500),
+          deliveryStatus: 'queued',
+        });
+        const send = await sendSupplierEmailViaEdge({
+          to: entry.recipients,
+          subject,
+          body,
+        });
+        if (inserted.id) {
+          await updateSupplierBookingMessageDelivery({
+            id: inserted.id,
+            deliveryStatus: send.success ? 'sent' : 'failed',
+            providerMessageId: send.providerMessageId,
+            errorMessage: send.error,
+          });
+        }
+        if (send.success) {
+          sentCount += 1;
+          setReminderSentKeys((prev) => [`${b.id}:${b.booking_date}:${reminderSettings.daysBefore}`, ...prev]);
+        } else {
+          failedCount += 1;
+        }
+      } else {
+        failedCount += 1;
+      }
+    }
+
+    setReminderRuns((prev) =>
+      [
+        {
+          id: `${Date.now()}-reminder-run`,
+          createdAt: new Date().toISOString(),
+          targetCount: dueReminderBookings.length,
+          sentCount,
+          failedCount,
+          mode,
+        },
+        ...prev,
+      ].slice(0, 20)
+    );
+    setRunningReminders(false);
+  };
+
+  const handleSendCampaign = async () => {
+    if (campaignRecipients.length === 0 || !commSubject.trim() || !commBody.trim()) return;
+    setSendingCampaign(true);
+    const entry: CommunicationLogEntry = {
+      id: `${Date.now()}-campaign`,
+      createdAt: new Date().toISOString(),
+      subject: `[Campaign] ${commSubject.trim()}`,
+      recipients: campaignRecipients,
+      bookingIds: campaignBookings.map((b) => b.id),
+      deliveryStatus: 'queued',
+    };
+    saveCommLog([entry, ...commLog].slice(0, 20));
+    const localCampaignId = `${Date.now()}-local-campaign`;
+    setCampaignHistory((prev) =>
+      [
+        {
+          id: localCampaignId,
+          subject: entry.subject,
+          scope: campaignScope,
+          recipientsCount: entry.recipients.length,
+          sentCount: 0,
+          failedCount: 0,
+          status: 'queued',
+          createdAt: entry.createdAt,
+        },
+        ...prev,
+      ].slice(0, 20)
+    );
+
+    if (isSupabase && user) {
+      const campaign = await insertSupplierMessageCampaign({
+        supplierId: user.id,
+        actorId: user.id,
+        subject: entry.subject,
+        scope: campaignScope,
+        bookingIds: entry.bookingIds,
+        recipients: entry.recipients,
+        filtersSnapshot: {
+          view,
+          filterListingId: filterListingId || null,
+          filterDateFrom: filterDateFrom || null,
+          filterDateTo: filterDateTo || null,
+        },
+      });
+      const inserted = await insertSupplierBookingMessage({
+        supplierId: user.id,
+        actorId: user.id,
+        campaignId: campaign.id,
+        subject: entry.subject,
+        recipients: entry.recipients,
+        bookingIds: entry.bookingIds,
+        channel: 'email',
+        bodyPreview: commBody.trim().slice(0, 500),
+        deliveryStatus: 'queued',
+      });
+      const msgId = inserted.id;
+      const send = await sendSupplierEmailViaEdge({
+        to: entry.recipients,
+        subject: entry.subject,
+        body: commBody.trim(),
+      });
+      const status: CommunicationLogEntry['deliveryStatus'] = send.success ? 'sent' : 'failed';
+      setCampaignHistory((prev) =>
+        prev.map((c) =>
+          c.id === localCampaignId
+            ? {
+                ...c,
+                status: send.success ? 'sent' : 'failed',
+                sentCount: send.success ? entry.recipients.length : 0,
+                failedCount: send.success ? 0 : entry.recipients.length,
+              }
+            : c
+        )
+      );
+      setCommLog((prev) =>
+        prev.map((m) =>
+          m.id === entry.id ? { ...m, deliveryStatus: status, errorMessage: send.error } : m
+        )
+      );
+      if (msgId) {
+        await updateSupplierBookingMessageDelivery({
+          id: msgId,
+          deliveryStatus: send.success ? 'sent' : 'failed',
+          providerMessageId: send.providerMessageId,
+          errorMessage: send.error,
+        });
+      }
+      if (campaign.id) {
+        await updateSupplierMessageCampaignStatus({
+          campaignId: campaign.id,
+          supplierId: user.id,
+          status: send.success ? 'sent' : 'failed',
+          sentCount: send.success ? entry.recipients.length : 0,
+          failedCount: send.success ? 0 : entry.recipients.length,
+        });
+      }
+    } else {
+      const to = encodeURIComponent(campaignRecipients.join(','));
+      const subject = encodeURIComponent(entry.subject);
+      const body = encodeURIComponent(commBody.trim());
+      window.location.href = `mailto:${to}?subject=${subject}&body=${body}`;
+      setCommLog((prev) =>
+        prev.map((m) => (m.id === entry.id ? { ...m, deliveryStatus: 'sent' } : m))
+      );
+      setCampaignHistory((prev) =>
+        prev.map((c) =>
+          c.id === localCampaignId
+            ? { ...c, status: 'sent', sentCount: entry.recipients.length, failedCount: 0 }
+            : c
+        )
+      );
+    }
+    setSendingCampaign(false);
+    setCampaignOpen(false);
+  };
+
+  const buildVoucherCode = (bookingId: string, idx: number) => {
+    const bookingPart = bookingId.slice(0, 4).toUpperCase();
+    const randomPart = Math.random().toString(36).slice(2, 6).toUpperCase();
+    return `TRV-${bookingPart}-${idx + 1}${randomPart}`;
+  };
+
+  const handleGenerateVouchers = async () => {
+    const value = Number(voucherDiscountValue);
+    if (voucherTargetBookings.length === 0 || Number.isNaN(value) || value <= 0) return;
+    const createdAt = new Date().toISOString();
+    const next: VoucherEntry[] = voucherTargetBookings.map((b, idx) => ({
+      id: `${Date.now()}-${idx}-${b.id}`,
+      bookingId: b.id,
+      listingId: b.listing_id,
+      code: buildVoucherCode(b.id, idx),
+      guestEmail: b.guest_email ?? undefined,
+      discountType: voucherDiscountType,
+      discountValue: value,
+      status: 'active',
+      createdAt,
+      expiresAt: voucherExpiresAt || undefined,
+      notes: voucherNotes.trim() || undefined,
+    }));
+    setVoucherLog((prev) => [...next, ...prev].slice(0, 200));
+    if (isSupabase && user) {
+      await insertSupplierBookingVouchers(
+        next.map((v) => ({
+          bookingId: v.bookingId,
+          supplierId: user.id,
+          listingId: v.listingId,
+          code: v.code,
+          guestEmail: v.guestEmail,
+          discountType: v.discountType,
+          discountValue: v.discountValue,
+          status: v.status,
+          notes: v.notes,
+          expiresAt: v.expiresAt,
+        }))
+      );
+      const rows = await fetchSupplierBookingVouchers(user.id);
+      if (rows.length > 0) {
+        const mapped: VoucherEntry[] = rows.map((r) => ({
+          id: r.id,
+          bookingId: r.booking_id,
+          listingId: r.listing_id,
+          code: r.code,
+          guestEmail: r.guest_email ?? undefined,
+          discountType: r.discount_type,
+          discountValue: Number(r.discount_value),
+          status: r.status,
+          createdAt: r.created_at,
+          expiresAt: r.expires_at ?? undefined,
+          notes: r.notes ?? undefined,
+        }));
+        setVoucherLog(mapped.slice(0, 200));
+      }
+    }
+  };
+
+  const handleVoucherStatusChange = async (
+    id: string,
+    status: VoucherEntry['status']
+  ) => {
+    let blocked = false;
+    setVoucherLog((prev) =>
+      prev.map((v) => {
+        if (v.id !== id) return v;
+        if (v.status === 'redeemed' && status !== 'redeemed') {
+          blocked = true;
+          return v;
+        }
+        return { ...v, status };
+      })
+    );
+    if (blocked) {
+      setVoucherRedeemResult('Redeemed vouchers are locked and cannot be changed back.');
+      return;
+    }
+    if (isSupabase && user) {
+      await updateSupplierBookingVoucherStatus(user.id, id, status);
+    }
+  };
+
+  const handleRedeemVoucher = async () => {
+    const normalized = voucherRedeemCode.trim().toUpperCase();
+    if (!normalized) return;
+    setVoucherRedeeming(true);
+    setVoucherRedeemResult(null);
+
+    const localMatch = voucherLog.find((v) => v.code.toUpperCase() === normalized);
+    if (!localMatch) {
+      setVoucherRedeemResult('Voucher code not found.');
+      setVoucherRedeeming(false);
+      return;
+    }
+    if (localMatch.status === 'redeemed') {
+      setVoucherRedeemResult('Voucher already redeemed.');
+      setVoucherRedeeming(false);
+      return;
+    }
+    if (localMatch.expiresAt && localMatch.expiresAt < new Date().toISOString().slice(0, 10)) {
+      setVoucherLog((prev) => prev.map((v) => (v.id === localMatch.id ? { ...v, status: 'expired' } : v)));
+      if (isSupabase && user) {
+        await updateSupplierBookingVoucherStatus(user.id, localMatch.id, 'expired');
+      }
+      setVoucherRedeemResult('Voucher is expired.');
+      setVoucherRedeeming(false);
+      return;
+    }
+
+    if (isSupabase && user) {
+      const result = await redeemSupplierBookingVoucherByCode(user.id, normalized);
+      if (!result.success) {
+        setVoucherRedeemResult(
+          result.reason === 'already_redeemed'
+            ? 'Voucher already redeemed.'
+            : result.reason === 'expired'
+              ? 'Voucher is expired.'
+              : 'Voucher could not be redeemed.'
+        );
+        if (result.reason === 'expired' && result.voucherId) {
+          setVoucherLog((prev) =>
+            prev.map((v) => (v.id === result.voucherId ? { ...v, status: 'expired' } : v))
+          );
+        }
+        setVoucherRedeeming(false);
+        return;
+      }
+    }
+
+    setVoucherLog((prev) =>
+      prev.map((v) => (v.code.toUpperCase() === normalized ? { ...v, status: 'redeemed' } : v))
+    );
+    setVoucherRedeemResult('Voucher redeemed successfully.');
+    setVoucherRedeemCode('');
+    setVoucherRedeeming(false);
+  };
+
+  const handleExpireVouchersNow = async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    setVoucherLog((prev) =>
+      prev.map((v) =>
+        v.status === 'active' && v.expiresAt && v.expiresAt < today
+          ? { ...v, status: 'expired' }
+          : v
+      )
+    );
+    if (isSupabase && user) {
+      await expireSupplierBookingVouchers(user.id);
+    }
+  };
+
+  const handleExportVouchersCsv = () => {
+    if (voucherLog.length === 0) return;
+    const escapeCsv = (value: string | number | null | undefined) => {
+      const str = String(value ?? '');
+      if (str.includes(',') || str.includes('"') || str.includes('\n')) return `"${str.replace(/"/g, '""')}"`;
+      return str;
+    };
+    const header = ['voucher_code', 'booking_id', 'listing', 'guest_email', 'discount_type', 'discount_value', 'status', 'created_at', 'expires_at', 'notes'];
+    const lines = voucherLog.map((v) =>
+      [
+        v.code,
+        v.bookingId,
+        listingTitles[v.listingId] ?? v.listingId,
+        v.guestEmail,
+        v.discountType,
+        v.discountValue,
+        v.status,
+        v.createdAt,
+        v.expiresAt,
+        v.notes,
+      ]
+        .map(escapeCsv)
+        .join(',')
+    );
+    const csv = [header.join(','), ...lines].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `supplier-vouchers-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const toggleSelected = (id: string) => {
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -172,6 +1375,7 @@ export default function SupplierBookings() {
   const clearSelection = () => setSelectedIds([]);
 
   const handleBulkAcknowledge = async () => {
+    if (!canEditBookings) return;
     const targets = selectedBookings.filter((b) => !b.acknowledged_at && b.status !== 'cancelled');
     if (targets.length === 0) return;
     setBulkActionSubmitting(true);
@@ -179,21 +1383,25 @@ export default function SupplierBookings() {
     setBookings((prev) =>
       prev.map((b) => (targets.some((t) => t.id === b.id) ? { ...b, acknowledged_at: new Date().toISOString() } : b))
     );
+    targets.forEach((b) => pushAudit({ bookingId: b.id, action: 'acknowledged', details: 'bulk action' }));
     setBulkActionSubmitting(false);
     clearSelection();
   };
 
   const handleBulkConfirm = async () => {
+    if (!canEditBookings) return;
     const targets = selectedBookings.filter((b) => b.status !== 'confirmed' && b.status !== 'cancelled');
     if (targets.length === 0) return;
     setBulkActionSubmitting(true);
     await Promise.all(targets.map((b) => updateBookingStatus(b.id, 'confirmed')));
     setBookings((prev) => prev.map((b) => (targets.some((t) => t.id === b.id) ? { ...b, status: 'confirmed' } : b)));
+    targets.forEach((b) => pushAudit({ bookingId: b.id, action: 'status_confirmed', details: 'bulk action' }));
     setBulkActionSubmitting(false);
     clearSelection();
   };
 
   const handleBulkCancelSelected = async () => {
+    if (!canEditBookings) return;
     if (!bulkCancelReason) return;
     const targets = selectedBookings.filter((b) => b.status !== 'cancelled');
     if (targets.length === 0) return;
@@ -221,6 +1429,13 @@ export default function SupplierBookings() {
           : b
       )
     );
+    targets.forEach((b) =>
+      pushAudit({
+        bookingId: b.id,
+        action: 'status_cancelled',
+        details: `bulk action${bulkCancelReason ? ` · reason: ${bulkCancelReason}` : ''}${bulkCancelRefund ? ` · refund: ${bulkCancelRefund}` : ''}`,
+      })
+    );
     setBulkActionSubmitting(false);
     setBulkCancelModal(false);
     setBulkCancelReason('');
@@ -228,31 +1443,227 @@ export default function SupplierBookings() {
     clearSelection();
   };
 
-  const handleExportCsv = () => {
-    const exportRows = filteredBookings.filter((b) => {
+  const handleAdvancedExport = async () => {
+    const scopedRows = exportScope === 'selected' ? selectedBookings : filteredBookings;
+    const exportRows = scopedRows.filter((b) => {
       if (exportDateFrom && (!b.booking_date || b.booking_date < exportDateFrom)) return false;
       if (exportDateTo && (!b.booking_date || b.booking_date > exportDateTo)) return false;
       return true;
     });
+    if (exportRows.length === 0) return;
+
     const escapeCsv = (value: string | number | null | undefined) => {
       const str = String(value ?? '');
       if (str.includes(',') || str.includes('"') || str.includes('\n')) return `"${str.replace(/"/g, '""')}"`;
       return str;
     };
-    const header = ['booking_id', 'listing', 'guest_name', 'guest_email', 'booking_date', 'guests', 'status', 'acknowledged', 'special_requests'];
-    const lines = exportRows.map((b) =>
-      [
-        b.id,
-        listingTitles[b.listing_id] ?? b.listing_id,
-        b.guest_name,
-        b.guest_email,
-        b.booking_date,
-        b.guests,
-        b.status,
-        b.acknowledged_at ? 'yes' : 'no',
-        b.special_requests,
-      ]
-        .map(escapeCsv)
+    if (exportKind === 'bookings') {
+      const rows = exportRows.map((b) => ({
+        booking_id: b.id,
+        listing_id: b.listing_id,
+        listing: listingTitles[b.listing_id] ?? b.listing_id,
+        guest_name: b.guest_name ?? '',
+        guest_email: b.guest_email ?? '',
+        booking_date: b.booking_date ?? '',
+        guests: b.guests ?? '',
+        status: b.status,
+        acknowledged: b.acknowledged_at ? 'yes' : 'no',
+        acknowledged_at: b.acknowledged_at ?? '',
+        cancelled_at: b.cancelled_at ?? '',
+        cancellation_reason: b.cancellation_reason ?? '',
+        refund_choice: b.refund_choice ?? '',
+        special_requests: b.special_requests ?? '',
+      }));
+
+      if (exportFormat === 'json') {
+        setExportHistory((prev) =>
+          [
+            {
+              id: `${Date.now()}-local-export`,
+              kind: exportKind,
+              format: exportFormat,
+              scope: exportScope,
+              rowCount: rows.length,
+              dateFrom: exportDateFrom || undefined,
+              dateTo: exportDateTo || undefined,
+              createdAt: new Date().toISOString(),
+            },
+            ...prev,
+          ].slice(0, 20)
+        );
+        if (isSupabase && user) {
+          await insertSupplierExportRun({
+            supplierId: user.id,
+            actorId: user.id,
+            kind: exportKind,
+            format: exportFormat,
+            scope: exportScope,
+            dateFrom: exportDateFrom || undefined,
+            dateTo: exportDateTo || undefined,
+            rowCount: rows.length,
+            filtersSnapshot: { view, filterListingId: filterListingId || null },
+          });
+        }
+        const json = JSON.stringify(
+          {
+            exportedAt: new Date().toISOString(),
+            scope: exportScope,
+            dateFrom: exportDateFrom || null,
+            dateTo: exportDateTo || null,
+            rows,
+          },
+          null,
+          2
+        );
+        const blob = new Blob([json], { type: 'application/json;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `supplier-bookings-advanced-${new Date().toISOString().slice(0, 10)}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        return;
+      }
+
+      const header = Object.keys(rows[0]);
+      const lines = rows.map((row) =>
+        header
+          .map((key) => escapeCsv(row[key as keyof typeof row]))
+          .join(',')
+      );
+      const csv = [header.join(','), ...lines].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `supplier-bookings-advanced-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setExportHistory((prev) =>
+        [
+          {
+            id: `${Date.now()}-local-export`,
+            kind: exportKind,
+            format: exportFormat,
+            scope: exportScope,
+            rowCount: rows.length,
+            dateFrom: exportDateFrom || undefined,
+            dateTo: exportDateTo || undefined,
+            createdAt: new Date().toISOString(),
+          },
+          ...prev,
+        ].slice(0, 20)
+      );
+      if (isSupabase && user) {
+        await insertSupplierExportRun({
+          supplierId: user.id,
+          actorId: user.id,
+          kind: exportKind,
+          format: exportFormat,
+          scope: exportScope,
+          dateFrom: exportDateFrom || undefined,
+          dateTo: exportDateTo || undefined,
+          rowCount: rows.length,
+          filtersSnapshot: { view, filterListingId: filterListingId || null },
+        });
+      }
+      return;
+    }
+
+    const summaryMap = new Map<
+      string,
+      {
+        listingId: string;
+        listing: string;
+        date: string;
+        bookings: number;
+        guests: number;
+        pending: number;
+        confirmed: number;
+        cancelled: number;
+        needsAck: number;
+      }
+    >();
+    exportRows.forEach((b) => {
+      const date = b.booking_date ?? 'unscheduled';
+      const key = `${b.listing_id}::${date}`;
+      const existing = summaryMap.get(key) ?? {
+        listingId: b.listing_id,
+        listing: listingTitles[b.listing_id] ?? b.listing_id,
+        date,
+        bookings: 0,
+        guests: 0,
+        pending: 0,
+        confirmed: 0,
+        cancelled: 0,
+        needsAck: 0,
+      };
+      existing.bookings += 1;
+      existing.guests += b.guests ?? 0;
+      if (b.status === 'pending') existing.pending += 1;
+      if (b.status === 'confirmed') existing.confirmed += 1;
+      if (b.status === 'cancelled') existing.cancelled += 1;
+      if (!b.acknowledged_at && b.status !== 'cancelled') existing.needsAck += 1;
+      summaryMap.set(key, existing);
+    });
+    const rows = [...summaryMap.values()].sort(
+      (a, b) => a.date.localeCompare(b.date) || a.listing.localeCompare(b.listing)
+    );
+
+    if (exportFormat === 'json') {
+      setExportHistory((prev) =>
+        [
+          {
+            id: `${Date.now()}-local-export`,
+            kind: exportKind,
+            format: exportFormat,
+            scope: exportScope,
+            rowCount: rows.length,
+            dateFrom: exportDateFrom || undefined,
+            dateTo: exportDateTo || undefined,
+            createdAt: new Date().toISOString(),
+          },
+          ...prev,
+        ].slice(0, 20)
+      );
+      if (isSupabase && user) {
+        await insertSupplierExportRun({
+          supplierId: user.id,
+          actorId: user.id,
+          kind: exportKind,
+          format: exportFormat,
+          scope: exportScope,
+          dateFrom: exportDateFrom || undefined,
+          dateTo: exportDateTo || undefined,
+          rowCount: rows.length,
+          filtersSnapshot: { view, filterListingId: filterListingId || null },
+        });
+      }
+      const json = JSON.stringify(
+        {
+          exportedAt: new Date().toISOString(),
+          scope: exportScope,
+          dateFrom: exportDateFrom || null,
+          dateTo: exportDateTo || null,
+          rows,
+        },
+        null,
+        2
+      );
+      const blob = new Blob([json], { type: 'application/json;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `supplier-ops-summary-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      return;
+    }
+
+    const header = Object.keys(rows[0]);
+    const lines = rows.map((row) =>
+      header
+        .map((key) => escapeCsv(row[key as keyof typeof row]))
         .join(',')
     );
     const csv = [header.join(','), ...lines].join('\n');
@@ -260,10 +1671,164 @@ export default function SupplierBookings() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `supplier-bookings-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `supplier-ops-summary-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+    setExportHistory((prev) =>
+      [
+        {
+          id: `${Date.now()}-local-export`,
+          kind: exportKind,
+          format: exportFormat,
+          scope: exportScope,
+          rowCount: rows.length,
+          dateFrom: exportDateFrom || undefined,
+          dateTo: exportDateTo || undefined,
+          createdAt: new Date().toISOString(),
+        },
+        ...prev,
+      ].slice(0, 20)
+    );
+    if (isSupabase && user) {
+      await insertSupplierExportRun({
+        supplierId: user.id,
+        actorId: user.id,
+        kind: exportKind,
+        format: exportFormat,
+        scope: exportScope,
+        dateFrom: exportDateFrom || undefined,
+        dateTo: exportDateTo || undefined,
+        rowCount: rows.length,
+        filtersSnapshot: { view, filterListingId: filterListingId || null },
+      });
+    }
   };
+
+  const handleSaveFilterPreset = () => {
+    const name = newPresetName.trim();
+    if (!name) return;
+    const preset: BookingFilterPreset = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      name,
+      view,
+      listingId: filterListingId,
+      dateFrom: filterDateFrom,
+      dateTo: filterDateTo,
+      createdAt: new Date().toISOString(),
+    };
+    setFilterPresets((prev) => [preset, ...prev].slice(0, 20));
+    setNewPresetName('');
+  };
+
+  const applyFilterPreset = (preset: BookingFilterPreset) => {
+    setView(preset.view);
+    setFilterListingId(preset.listingId);
+    setFilterDateFrom(preset.dateFrom);
+    setFilterDateTo(preset.dateTo);
+    setSelectedIds([]);
+  };
+
+  const deleteFilterPreset = (presetId: string) => {
+    setFilterPresets((prev) => prev.filter((p) => p.id !== presetId));
+  };
+
+  const bookingTimeline = useMemo(() => {
+    if (!timelineBookingId) return [];
+    const booking = bookings.find((b) => b.id === timelineBookingId);
+    if (!booking) return [];
+    const events: { at: string; label: string; details?: string }[] = [];
+    events.push({ at: booking.created_at, label: 'Booking created' });
+    if (booking.acknowledged_at) {
+      events.push({ at: booking.acknowledged_at, label: 'Supplier acknowledged' });
+    }
+    if (booking.status === 'confirmed') {
+      events.push({ at: booking.created_at, label: 'Status: confirmed' });
+    }
+    if (booking.cancelled_at) {
+      events.push({
+        at: booking.cancelled_at,
+        label: 'Status: cancelled',
+        details: [
+          booking.cancellation_reason ? `reason: ${booking.cancellation_reason}` : '',
+          booking.refund_choice ? `refund: ${booking.refund_choice}` : '',
+        ]
+          .filter(Boolean)
+          .join(' · '),
+      });
+    }
+    const audits = auditLog
+      .filter((e) => e.bookingId === timelineBookingId)
+      .map((e) => ({
+        at: e.at,
+        label:
+          e.action === 'acknowledged'
+            ? 'Supplier acknowledged'
+            : e.action === 'status_confirmed'
+              ? 'Status changed to confirmed'
+              : e.action === 'status_cancelled'
+                ? 'Status changed to cancelled'
+                : e.action === 'booking_created'
+                  ? 'Booking created'
+                  : 'Timeline note',
+        details: e.details,
+      }));
+    return [...events, ...audits].sort((a, b) => a.at.localeCompare(b.at));
+  }, [timelineBookingId, bookings, auditLog]);
+
+  const persistOpsNotes = (next: Record<string, BookingOpsNote>) => {
+    setOpsNotes(next);
+    localStorage.setItem(OPS_NOTES_KEY, JSON.stringify(next));
+  };
+
+  const saveOpsNote = (bookingId: string, note: string) => {
+    const trimmed = note.trim();
+    const next = { ...opsNotes };
+    if (!trimmed) {
+      delete next[bookingId];
+      persistOpsNotes(next);
+      return;
+    }
+    next[bookingId] = {
+      bookingId,
+      note: trimmed,
+      updatedAt: new Date().toISOString(),
+      pendingSync: true,
+    };
+    persistOpsNotes(next);
+    pushAudit({
+      bookingId,
+      action: 'note',
+      details: 'Ops note updated (offline-safe)',
+    });
+  };
+
+  const syncSingleOpsNote = useCallback(
+    async (bookingId: string) => {
+      if (!isSupabase || !user) return;
+      const local = opsNotes[bookingId];
+      if (!local || !local.pendingSync) return;
+      let ok = false;
+      if (!local.note.trim()) {
+        ok = await deleteSupplierBookingOpsNote(user.id, bookingId);
+      } else {
+        ok = await upsertSupplierBookingOpsNote(user.id, bookingId, local.note);
+      }
+      if (!ok) return;
+      setOpsNotes((prev) => {
+        const next = { ...prev };
+        const curr = next[bookingId];
+        if (!curr) return prev;
+        next[bookingId] = {
+          ...curr,
+          pendingSync: false,
+          updatedAt: new Date().toISOString(),
+        };
+        localStorage.setItem(OPS_NOTES_KEY, JSON.stringify(next));
+        return next;
+      });
+    },
+    [isSupabase, user, opsNotes]
+  );
 
   return (
     <div className="space-y-6">
@@ -271,11 +1836,17 @@ export default function SupplierBookings() {
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">Bookings</h1>
           <p className="text-gray-600 mt-1">View and manage incoming bookings for your listings.</p>
+          {!canEditBookings && (
+            <p className="text-xs text-amber-700 mt-1">
+              Your role is {role}. You can view bookings, but edit actions are restricted.
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <button
             type="button"
             onClick={() => setBatchModal(true)}
+            disabled={!canEditBookings}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
           >
             <Trash2 className="w-4 h-4" />
@@ -341,12 +1912,684 @@ export default function SupplierBookings() {
             className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland text-sm"
           />
         </div>
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-2 items-start">
+          <div className="flex flex-wrap gap-2">
+            {filterPresets.map((preset) => (
+              <div key={preset.id} className="inline-flex items-center gap-1 border border-gray-200 rounded-full px-2 py-1 bg-gray-50">
+                <button
+                  type="button"
+                  onClick={() => applyFilterPreset(preset)}
+                  className="text-xs text-gray-700 hover:text-finland"
+                >
+                  {preset.name}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => deleteFilterPreset(preset.id)}
+                  className="text-xs text-gray-400 hover:text-red-600"
+                  aria-label={`Delete preset ${preset.name}`}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+            {filterPresets.length === 0 && (
+              <span className="text-xs text-gray-500">No saved views yet.</span>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={newPresetName}
+              onChange={(e) => setNewPresetName(e.target.value)}
+              placeholder="Save current view as…"
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+            />
+            <button
+              type="button"
+              onClick={handleSaveFilterPreset}
+              disabled={!newPresetName.trim()}
+              className="px-3 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            >
+              Save view
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {(bookingSlaAlerts.pendingRisk.length > 0 ||
+        bookingSlaAlerts.pendingBreach.length > 0 ||
+        bookingSlaAlerts.ackBreach.length > 0) && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {bookingSlaAlerts.pendingRisk.length > 0 && (
+            <div className="p-3 rounded-lg border border-amber-200 bg-amber-50/40">
+              <p className="text-xs uppercase tracking-wide text-amber-800 font-medium">Pending SLA risk</p>
+              <p className="text-sm text-amber-900 mt-1">
+                {bookingSlaAlerts.pendingRisk.length} pending booking{bookingSlaAlerts.pendingRisk.length === 1 ? '' : 's'} nearing 24h.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setView('pending');
+                  setSelectedIds([]);
+                }}
+                className="mt-2 text-xs text-amber-900 underline"
+              >
+                Open pending queue
+              </button>
+            </div>
+          )}
+          {bookingSlaAlerts.pendingBreach.length > 0 && (
+            <div className="p-3 rounded-lg border border-red-200 bg-red-50/50">
+              <p className="text-xs uppercase tracking-wide text-red-800 font-medium">Pending SLA breached</p>
+              <p className="text-sm text-red-900 mt-1">
+                {bookingSlaAlerts.pendingBreach.length} pending booking{bookingSlaAlerts.pendingBreach.length === 1 ? '' : 's'} over 24h.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setView('pending');
+                  setSelectedIds([]);
+                }}
+                className="mt-2 text-xs text-red-900 underline"
+              >
+                Prioritize now
+              </button>
+            </div>
+          )}
+          {bookingSlaAlerts.ackBreach.length > 0 && (
+            <div className="p-3 rounded-lg border border-blue-200 bg-blue-50/50">
+              <p className="text-xs uppercase tracking-wide text-blue-800 font-medium">Acknowledgement SLA breached</p>
+              <p className="text-sm text-blue-900 mt-1">
+                {bookingSlaAlerts.ackBreach.length} booking{bookingSlaAlerts.ackBreach.length === 1 ? '' : 's'} unacknowledged over 12h.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setView('needs_ack');
+                  setSelectedIds([]);
+                }}
+                className="mt-2 text-xs text-blue-900 underline"
+              >
+                Open needs-ack view
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-5 space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-base font-semibold text-gray-900">Automated reminder scheduler</h2>
+            <p className="text-sm text-gray-600">
+              Queue and send booking reminders for confirmed upcoming bookings using a reusable template.
+            </p>
+          </div>
+          <div className="text-xs text-gray-500">
+            Due now {dueReminderBookings.length} · Quiet hours {isWithinQuietHours() ? 'active' : 'inactive'}
+          </div>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-2">
+          <label className="inline-flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-sm">
+            <input
+              type="checkbox"
+              checked={reminderSettings.enabled}
+              onChange={(e) => setReminderSettings((prev) => ({ ...prev, enabled: e.target.checked }))}
+            />
+            Enabled
+          </label>
+          <select
+            value={reminderSettings.daysBefore}
+            onChange={(e) =>
+              setReminderSettings((prev) => ({ ...prev, daysBefore: Number(e.target.value) === 2 ? 2 : 1 }))
+            }
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
+          >
+            <option value={1}>Send 1 day before</option>
+            <option value={2}>Send 2 days before</option>
+          </select>
+          <select
+            value={reminderSettings.templateId}
+            onChange={(e) =>
+              setReminderSettings((prev) => ({
+                ...prev,
+                templateId: e.target.value as ReminderSettings['templateId'],
+              }))
+            }
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
+          >
+            {MESSAGE_TEMPLATES.map((t) => (
+              <option key={t.id} value={t.id}>{t.label}</option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={() => handleRunDueReminders('manual')}
+            disabled={!reminderSettings.enabled || dueReminderBookings.length === 0 || runningReminders || isWithinQuietHours()}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-finland text-white text-sm font-medium hover:bg-finland-dark disabled:opacity-50"
+          >
+            {runningReminders ? 'Running…' : 'Run due reminders now'}
+          </button>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-2">
+          <label className="inline-flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-sm">
+            <input
+              type="checkbox"
+              checked={reminderSettings.quietHoursEnabled}
+              onChange={(e) => setReminderSettings((prev) => ({ ...prev, quietHoursEnabled: e.target.checked }))}
+            />
+            Quiet hours
+          </label>
+          <input
+            type="number"
+            min={0}
+            max={23}
+            value={reminderSettings.quietStartHour}
+            onChange={(e) =>
+              setReminderSettings((prev) => ({ ...prev, quietStartHour: Math.min(23, Math.max(0, Number(e.target.value) || 0)) }))
+            }
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+            placeholder="Quiet start (0-23)"
+          />
+          <input
+            type="number"
+            min={0}
+            max={23}
+            value={reminderSettings.quietEndHour}
+            onChange={(e) =>
+              setReminderSettings((prev) => ({ ...prev, quietEndHour: Math.min(23, Math.max(0, Number(e.target.value) || 0)) }))
+            }
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+            placeholder="Quiet end (0-23)"
+          />
+        </div>
+        {reminderRuns.length > 0 && (
+          <ul className="space-y-2 max-h-40 overflow-y-auto pr-1">
+            {reminderRuns.map((run) => (
+              <li key={run.id} className="border border-gray-200 rounded-lg p-3 text-xs text-gray-700">
+                {new Date(run.createdAt).toLocaleString()} · {run.mode} · targets {run.targetCount} · sent {run.sentCount} · failed {run.failedCount}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-5 space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-base font-semibold text-gray-900">Communication hub</h2>
+            <p className="text-sm text-gray-600">
+              Message selected bookings (or the first visible booking) using reusable templates.
+            </p>
+          </div>
+          <div className="text-xs text-gray-500">
+            Targets: {targetBookings.length} booking{targetBookings.length === 1 ? '' : 's'} · {recipientEmails.length} recipient{recipientEmails.length === 1 ? '' : 's'}
+          </div>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="space-y-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Template</label>
+              <select
+                value={templateId}
+                onChange={(e) => applyTemplate(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white text-sm"
+              >
+                {MESSAGE_TEMPLATES.map((t) => (
+                  <option key={t.id} value={t.id}>{t.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
+              <input
+                type="text"
+                value={commSubject}
+                onChange={(e) => setCommSubject(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Message</label>
+              <textarea
+                value={commBody}
+                onChange={(e) => setCommBody(e.target.value)}
+                rows={7}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland text-sm"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleSendCommunication}
+                disabled={sendingComm || recipientEmails.length === 0 || !commSubject.trim() || !commBody.trim()}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-finland text-white text-sm font-medium hover:bg-finland-dark disabled:opacity-50"
+              >
+                <Mail className="w-4 h-4" />
+                {sendingComm ? 'Sending…' : 'Send email'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setCampaignOpen(true)}
+                disabled={sendingCampaign || !commSubject.trim() || !commBody.trim()}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-finland/40 text-finland text-sm font-medium hover:bg-finland/10 disabled:opacity-50"
+              >
+                Bulk campaign
+              </button>
+              <span className="text-xs text-gray-500">
+                Sends via server when Supabase is configured.
+              </span>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-sm font-semibold text-gray-900">Communication log</h3>
+            {commLog.length === 0 ? (
+              <p className="text-sm text-gray-500 border border-gray-200 rounded-lg p-3">No messages logged yet.</p>
+            ) : (
+              <ul className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                {commLog.map((entry) => (
+                  <li key={entry.id} className="border border-gray-200 rounded-lg p-3 text-sm">
+                    <p className="font-medium text-gray-900 truncate">{entry.subject}</p>
+                    <p className="text-gray-500 text-xs mt-1">
+                      {new Date(entry.createdAt).toLocaleString()} · {entry.recipients.length} recipient{entry.recipients.length === 1 ? '' : 's'} · {entry.bookingIds.length} booking{entry.bookingIds.length === 1 ? '' : 's'}
+                    </p>
+                    <p className={`text-[11px] mt-1 ${
+                      entry.deliveryStatus === 'sent'
+                        ? 'text-green-700'
+                        : entry.deliveryStatus === 'failed'
+                          ? 'text-red-700'
+                          : 'text-amber-700'
+                    }`}>
+                      Delivery: {entry.deliveryStatus ?? 'queued'}
+                      {entry.errorMessage ? ` · ${entry.errorMessage}` : ''}
+                    </p>
+                    <p className="text-xs text-gray-600 mt-1 truncate">{entry.recipients.join(', ')}</p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-5 space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-base font-semibold text-gray-900">Message performance analytics</h2>
+            <p className="text-sm text-gray-600">
+              Delivery and campaign performance based on recent communication activity.
+            </p>
+          </div>
+          <div className="text-xs text-gray-500">
+            Best send hour: {String(messageAnalytics.bestHour).padStart(2, '0')}:00
+          </div>
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-2">
+          <div className="border border-gray-200 rounded-lg p-3">
+            <p className="text-xs text-gray-500">Messages</p>
+            <p className="text-lg font-semibold text-gray-900">{messageAnalytics.total}</p>
+          </div>
+          <div className="border border-gray-200 rounded-lg p-3">
+            <p className="text-xs text-gray-500">Delivery rate</p>
+            <p className="text-lg font-semibold text-green-700">{messageAnalytics.deliveryRate.toFixed(0)}%</p>
+          </div>
+          <div className="border border-gray-200 rounded-lg p-3">
+            <p className="text-xs text-gray-500">Failure rate</p>
+            <p className="text-lg font-semibold text-red-700">{messageAnalytics.failureRate.toFixed(0)}%</p>
+          </div>
+          <div className="border border-gray-200 rounded-lg p-3">
+            <p className="text-xs text-gray-500">Campaign success</p>
+            <p className="text-lg font-semibold text-gray-900">{messageAnalytics.campaignSuccessRate.toFixed(0)}%</p>
+          </div>
+          <div className="border border-gray-200 rounded-lg p-3">
+            <p className="text-xs text-gray-500">Avg recipients</p>
+            <p className="text-lg font-semibold text-gray-900">{messageAnalytics.avgRecipients.toFixed(1)}</p>
+          </div>
+        </div>
+        <div className="text-xs text-gray-600">
+          Sent {messageAnalytics.sent} · Failed {messageAnalytics.failed} · Queued {messageAnalytics.queued} ·
+          Campaigns sent {messageAnalytics.campaignSent}/{messageAnalytics.campaignTotal}
+          {messageAnalytics.campaignFailed > 0 ? ` · Campaigns failed ${messageAnalytics.campaignFailed}` : ''}
+        </div>
+      </div>
+
+      <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-5 space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-base font-semibold text-gray-900">Voucher generation v1</h2>
+            <p className="text-sm text-gray-600">
+              Generate one voucher per selected booking (or first visible booking) and track redemption status.
+            </p>
+          </div>
+          <div className="text-xs text-gray-500">
+            Active {voucherStats.active} · Redeemed {voucherStats.redeemed} · Expired {voucherStats.expired}
+          </div>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Discount type</label>
+            <select
+              value={voucherDiscountType}
+              onChange={(e) => setVoucherDiscountType(e.target.value as 'percent' | 'fixed')}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white text-sm"
+            >
+              <option value="percent">Percent (%)</option>
+              <option value="fixed">Fixed amount</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Discount value</label>
+            <input
+              type="number"
+              min={1}
+              value={voucherDiscountValue}
+              onChange={(e) => setVoucherDiscountValue(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Expires on (optional)</label>
+            <input
+              type="date"
+              value={voucherExpiresAt}
+              onChange={(e) => setVoucherExpiresAt(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland text-sm"
+            />
+          </div>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Internal note (optional)</label>
+          <input
+            type="text"
+            value={voucherNotes}
+            onChange={(e) => setVoucherNotes(e.target.value)}
+            placeholder="e.g. Recovery voucher for weather disruption"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland text-sm"
+          />
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={handleGenerateVouchers}
+            disabled={voucherTargetBookings.length === 0 || Number(voucherDiscountValue) <= 0}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-finland text-white text-sm font-medium hover:bg-finland-dark disabled:opacity-50"
+          >
+            <Ticket className="w-4 h-4" />
+            Generate vouchers ({voucherTargetBookings.length})
+          </button>
+          <button
+            type="button"
+            onClick={handleExportVouchersCsv}
+            disabled={voucherLog.length === 0}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          >
+            <Download className="w-4 h-4" />
+            Export vouchers CSV
+          </button>
+          <span className="text-xs text-gray-500">
+            Targets selected bookings first, otherwise uses the first visible booking.
+          </span>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-2">
+          <input
+            type="text"
+            value={voucherRedeemCode}
+            onChange={(e) => setVoucherRedeemCode(e.target.value.toUpperCase())}
+            placeholder="Enter voucher code to redeem"
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+          />
+          <button
+            type="button"
+            onClick={handleRedeemVoucher}
+            disabled={voucherRedeeming || !voucherRedeemCode.trim()}
+            className="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700 disabled:opacity-50"
+          >
+            {voucherRedeeming ? 'Redeeming…' : 'Redeem voucher'}
+          </button>
+          <button
+            type="button"
+            onClick={handleExpireVouchersNow}
+            className="inline-flex items-center justify-center px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50"
+          >
+            Expire outdated
+          </button>
+        </div>
+        {voucherRedeemResult && (
+          <p className="text-xs text-gray-600">{voucherRedeemResult}</p>
+        )}
+        <div className="space-y-2">
+          <h3 className="text-sm font-semibold text-gray-900">Voucher log</h3>
+          {voucherLog.length === 0 ? (
+            <p className="text-sm text-gray-500 border border-gray-200 rounded-lg p-3">No vouchers generated yet.</p>
+          ) : (
+            <ul className="space-y-2 max-h-72 overflow-y-auto pr-1">
+              {voucherLog.map((entry) => (
+                <li key={entry.id} className="border border-gray-200 rounded-lg p-3 text-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="font-medium text-gray-900">{entry.code}</p>
+                    <select
+                      value={entry.status}
+                      onChange={(e) => handleVoucherStatusChange(entry.id, e.target.value as VoucherEntry['status'])}
+                      className="px-2 py-1 border border-gray-300 rounded text-xs bg-white"
+                    >
+                      <option value="active">active</option>
+                      <option value="redeemed">redeemed</option>
+                      <option value="expired">expired</option>
+                    </select>
+                  </div>
+                  <p className="text-gray-600 text-xs mt-1">
+                    {entry.discountType === 'percent' ? `${entry.discountValue}% off` : `${entry.discountValue} off`} · {listingTitles[entry.listingId] ?? entry.listingId}
+                  </p>
+                  <p className="text-gray-500 text-xs mt-1">
+                    Booking {entry.bookingId} · {entry.guestEmail ?? 'No guest email'} · {new Date(entry.createdAt).toLocaleString()}
+                    {entry.expiresAt ? ` · Expires ${entry.expiresAt}` : ''}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+
+      <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-5 space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-base font-semibold text-gray-900">Campaigns & export history</h2>
+            <p className="text-sm text-gray-600">
+              Track recently sent campaigns and generated exports.
+            </p>
+          </div>
+          <div className="text-xs text-gray-500">
+            Campaigns {campaignHistory.length} · Exports {exportHistory.length}
+          </div>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-2">
+          <input
+            type="text"
+            value={historySearch}
+            onChange={(e) => setHistorySearch(e.target.value)}
+            placeholder="Search subject, kind, scope…"
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+          />
+          <select
+            value={historyCampaignStatus}
+            onChange={(e) => setHistoryCampaignStatus(e.target.value as 'all' | CampaignHistoryEntry['status'])}
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
+          >
+            <option value="all">All campaign statuses</option>
+            <option value="queued">Queued</option>
+            <option value="sent">Sent</option>
+            <option value="failed">Failed</option>
+            <option value="partial">Partial</option>
+          </select>
+          <select
+            value={historyExportKind}
+            onChange={(e) => setHistoryExportKind(e.target.value as 'all' | ExportHistoryEntry['kind'])}
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
+          >
+            <option value="all">All export kinds</option>
+            <option value="bookings">Detailed bookings</option>
+            <option value="ops_summary">Ops summary</option>
+          </select>
+          <select
+            value={historyDateRange}
+            onChange={(e) => setHistoryDateRange(e.target.value as 'all' | '7d' | '30d' | '90d' | 'custom')}
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
+          >
+            <option value="all">All time</option>
+            <option value="7d">Last 7 days</option>
+            <option value="30d">Last 30 days</option>
+            <option value="90d">Last 90 days</option>
+            <option value="custom">Custom range</option>
+          </select>
+        </div>
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={() => {
+              setHistorySearch('');
+              setHistoryCampaignStatus('all');
+              setHistoryExportKind('all');
+              setHistoryDateRange('30d');
+              setHistoryDateFrom('');
+              setHistoryDateTo('');
+            }}
+            className="px-3 py-1.5 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50"
+          >
+            Clear filters
+          </button>
+        </div>
+        {historyDateRange === 'custom' && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <input
+              type="date"
+              value={historyDateFrom}
+              onChange={(e) => setHistoryDateFrom(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+            />
+            <input
+              type="date"
+              value={historyDateTo}
+              onChange={(e) => setHistoryDateTo(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+            />
+          </div>
+        )}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <h3 className="text-sm font-semibold text-gray-900">Recent campaigns</h3>
+            {filteredCampaignHistory.length === 0 ? (
+              <p className="text-sm text-gray-500 border border-gray-200 rounded-lg p-3">No campaign history yet.</p>
+            ) : (
+              <ul className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                {filteredCampaignHistory.map((entry) => (
+                  <li key={entry.id} className="border border-gray-200 rounded-lg p-3 text-sm">
+                    <p className="font-medium text-gray-900 truncate">{entry.subject}</p>
+                    <p className="text-xs text-gray-600 mt-1">
+                      {new Date(entry.createdAt).toLocaleString()} · {entry.scope} · recipients {entry.recipientsCount}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      sent {entry.sentCount} · failed {entry.failedCount}
+                    </p>
+                    <p className={`text-[11px] mt-1 ${
+                      entry.status === 'sent'
+                        ? 'text-green-700'
+                        : entry.status === 'failed'
+                          ? 'text-red-700'
+                          : entry.status === 'partial'
+                            ? 'text-amber-700'
+                            : 'text-gray-600'
+                    }`}>
+                      Status: {entry.status}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-sm font-semibold text-gray-900">Recent export runs</h3>
+            {filteredExportHistory.length === 0 ? (
+              <p className="text-sm text-gray-500 border border-gray-200 rounded-lg p-3">No export history yet.</p>
+            ) : (
+              <ul className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                {filteredExportHistory.map((entry) => (
+                  <li key={entry.id} className="border border-gray-200 rounded-lg p-3 text-sm">
+                    <p className="font-medium text-gray-900">
+                      {entry.kind === 'bookings' ? 'Detailed bookings' : 'Ops summary'} · {entry.format.toUpperCase()}
+                    </p>
+                    <p className="text-xs text-gray-600 mt-1">
+                      {new Date(entry.createdAt).toLocaleString()} · {entry.scope} · rows {entry.rowCount}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Range: {entry.dateFrom || 'any'} to {entry.dateTo || 'any'}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
       </div>
 
       {error && (
         <div className="p-4 rounded-lg bg-red-50 text-red-700 text-sm flex items-center justify-between gap-4">
           <span className="flex items-center gap-2"><AlertCircle className="w-4 h-4 flex-shrink-0" />{error}</span>
           <button type="button" onClick={() => load()} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-100 text-red-800 font-medium hover:bg-red-200">Try again</button>
+        </div>
+      )}
+
+      {campaignOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Send bulk campaign</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Send this message to many bookings at once and log campaign delivery.
+            </p>
+            <div className="space-y-3">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="campaign-scope"
+                  checked={campaignScope === 'selected'}
+                  onChange={() => setCampaignScope('selected')}
+                />
+                Selected bookings ({selectedBookings.length})
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="campaign-scope"
+                  checked={campaignScope === 'filtered'}
+                  onChange={() => setCampaignScope('filtered')}
+                />
+                All filtered bookings ({filteredBookings.length})
+              </label>
+              <div className="rounded-lg border border-gray-200 p-3 text-sm text-gray-700">
+                <p>Recipients: <span className="font-medium">{campaignRecipients.length}</span></p>
+                <p>Bookings: <span className="font-medium">{campaignBookings.length}</span></p>
+                <p className="mt-1 text-xs text-gray-500">Subject: [Campaign] {commSubject}</p>
+              </div>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setCampaignOpen(false)}
+                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSendCampaign}
+                disabled={sendingCampaign || campaignRecipients.length === 0 || !commSubject.trim() || !commBody.trim()}
+                className="px-4 py-2 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark disabled:opacity-50"
+              >
+                {sendingCampaign ? 'Sending campaign…' : 'Send campaign'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -370,6 +2613,119 @@ export default function SupplierBookings() {
           <p className="text-gray-500 mt-1">Try a different view or clear date/listing filters.</p>
         </div>
       ) : (
+        <div className="space-y-4">
+          <div className="md:hidden bg-white border border-gray-200 rounded-xl p-4">
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <h2 className="text-sm font-semibold text-gray-900">Mobile quick actions</h2>
+              <span className="text-xs text-gray-500">
+                Today: {todayOpsBookings.length}
+              </span>
+            </div>
+            {todayOpsBookings.length === 0 ? (
+              <p className="text-sm text-gray-500">No active bookings today.</p>
+            ) : (
+              <div className="space-y-2">
+                {todayOpsBookings.map((b) => (
+                  <div key={`mobile-${b.id}`} className="border border-gray-200 rounded-lg p-3 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                          {listingTitles[b.listing_id] ?? 'Listing'}
+                        </p>
+                        <p className="text-xs text-gray-500 truncate">
+                          {b.guest_name ?? b.guest_email ?? 'Guest'} · {b.guests} guest{b.guests === 1 ? '' : 's'}
+                        </p>
+                      </div>
+                      <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
+                        b.status === 'confirmed' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'
+                      }`}>
+                        {b.status}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-600">
+                      {b.special_requests || 'No special requests'}
+                    </p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {!b.acknowledged_at && (
+                        <button
+                          type="button"
+                          onClick={() => handleAcknowledge(b)}
+                          disabled={!canEditBookings || updatingId === b.id}
+                          className="text-xs px-2.5 py-1.5 rounded bg-blue-100 text-blue-700 disabled:opacity-50"
+                        >
+                          Ack
+                        </button>
+                      )}
+                      {b.status !== 'confirmed' && (
+                        <button
+                          type="button"
+                          onClick={() => handleStatusChange(b, 'confirmed')}
+                          disabled={!canEditBookings || updatingId === b.id}
+                          className="text-xs px-2.5 py-1.5 rounded bg-green-100 text-green-700 disabled:opacity-50"
+                        >
+                          Confirm
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setTimelineBookingId(b.id)}
+                        className="text-xs px-2.5 py-1.5 rounded bg-gray-100 text-gray-700"
+                      >
+                        Timeline
+                      </button>
+                      {b.guest_email && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleSendQuickTemplate(b, 'meeting')}
+                            disabled={quickMessageBookingId === b.id}
+                            className="text-xs px-2.5 py-1.5 rounded bg-indigo-100 text-indigo-700 disabled:opacity-50"
+                          >
+                            {quickMessageBookingId === b.id ? 'Sending…' : 'Send reminder'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleSendQuickTemplate(b, 'welcome')}
+                            disabled={quickMessageBookingId === b.id}
+                            className="text-xs px-2.5 py-1.5 rounded bg-violet-100 text-violet-700 disabled:opacity-50"
+                          >
+                            Welcome msg
+                          </button>
+                        </>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setCancelModal(b)}
+                        disabled={!canEditBookings || updatingId === b.id}
+                        className="text-xs px-2.5 py-1.5 rounded bg-red-100 text-red-700 disabled:opacity-50"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] text-gray-500 mb-1">Ops note (offline-safe)</label>
+                      <textarea
+                        defaultValue={opsNotes[b.id]?.note ?? ''}
+                        onBlur={async (e) => {
+                          saveOpsNote(b.id, e.target.value);
+                          await syncSingleOpsNote(b.id);
+                        }}
+                        rows={2}
+                        placeholder="Add quick field notes for this booking..."
+                        className="w-full px-2.5 py-2 text-xs border border-gray-200 rounded-md focus:ring-2 focus:ring-finland"
+                      />
+                      {opsNotes[b.id]?.pendingSync && (
+                        <p className="text-[11px] text-amber-700 mt-1">
+                          Saved locally · pending sync
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
         <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
           <div className="px-4 py-3 border-b border-gray-200 bg-gray-50/70 flex flex-col gap-3">
             <div className="flex flex-wrap items-center gap-2">
@@ -384,7 +2740,7 @@ export default function SupplierBookings() {
               <button
                 type="button"
                 onClick={handleBulkAcknowledge}
-                disabled={selectedIds.length === 0 || bulkActionSubmitting}
+                disabled={!canEditBookings || selectedIds.length === 0 || bulkActionSubmitting}
                 className="px-3 py-1.5 rounded-lg border border-blue-200 text-sm text-blue-700 bg-blue-50 hover:bg-blue-100 disabled:opacity-50"
               >
                 Acknowledge selected
@@ -392,7 +2748,7 @@ export default function SupplierBookings() {
               <button
                 type="button"
                 onClick={handleBulkConfirm}
-                disabled={selectedIds.length === 0 || bulkActionSubmitting}
+                disabled={!canEditBookings || selectedIds.length === 0 || bulkActionSubmitting}
                 className="px-3 py-1.5 rounded-lg border border-green-200 text-sm text-green-700 bg-green-50 hover:bg-green-100 disabled:opacity-50"
               >
                 Confirm selected
@@ -400,7 +2756,7 @@ export default function SupplierBookings() {
               <button
                 type="button"
                 onClick={() => setBulkCancelModal(true)}
-                disabled={selectedIds.length === 0 || bulkActionSubmitting}
+                disabled={!canEditBookings || selectedIds.length === 0 || bulkActionSubmitting}
                 className="px-3 py-1.5 rounded-lg border border-red-200 text-sm text-red-700 bg-red-50 hover:bg-red-100 disabled:opacity-50"
               >
                 Cancel selected
@@ -412,7 +2768,31 @@ export default function SupplierBookings() {
               )}
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-sm text-gray-600">Export range:</span>
+              <span className="text-sm text-gray-600">Advanced export:</span>
+              <select
+                value={exportKind}
+                onChange={(e) => setExportKind(e.target.value as 'bookings' | 'ops_summary')}
+                className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white"
+              >
+                <option value="bookings">Detailed bookings</option>
+                <option value="ops_summary">Ops summary</option>
+              </select>
+              <select
+                value={exportScope}
+                onChange={(e) => setExportScope(e.target.value as 'filtered' | 'selected')}
+                className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white"
+              >
+                <option value="filtered">Filtered rows</option>
+                <option value="selected">Selected rows</option>
+              </select>
+              <select
+                value={exportFormat}
+                onChange={(e) => setExportFormat(e.target.value as 'csv' | 'json')}
+                className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white"
+              >
+                <option value="csv">CSV</option>
+                <option value="json">JSON</option>
+              </select>
               <input
                 type="date"
                 value={exportDateFrom}
@@ -427,11 +2807,11 @@ export default function SupplierBookings() {
               />
               <button
                 type="button"
-                onClick={handleExportCsv}
+                onClick={handleAdvancedExport}
                 className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50"
               >
                 <Download className="w-4 h-4" />
-                Export CSV
+                Export {exportFormat.toUpperCase()}
               </button>
             </div>
           </div>
@@ -458,7 +2838,13 @@ export default function SupplierBookings() {
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {filteredBookings.map((b) => (
-                  <tr key={b.id} className="hover:bg-gray-50/50">
+                  <tr
+                    id={`supplier-booking-row-${b.id}`}
+                    key={b.id}
+                    className={`hover:bg-gray-50/50 ${
+                      highlightBookingId === b.id ? 'ring-2 ring-finland/25 bg-finland/5' : ''
+                    }`}
+                  >
                     <td className="px-4 py-3">
                       <input
                         type="checkbox"
@@ -506,8 +2892,16 @@ export default function SupplierBookings() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-right">
+                      <div className="flex items-center justify-end gap-1 flex-wrap">
+                          <button
+                            type="button"
+                            onClick={() => setTimelineBookingId(b.id)}
+                            className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-600 hover:bg-gray-200"
+                          >
+                            Timeline
+                          </button>
                       {b.status !== 'cancelled' && (
-                        <div className="flex items-center justify-end gap-1 flex-wrap">
+                        <>
                           {b.guest_email && (
                             <a
                               href={`mailto:${b.guest_email}?subject=Your booking – ${listingTitles[b.listing_id] ?? 'Tour'}`}
@@ -522,7 +2916,7 @@ export default function SupplierBookings() {
                             <button
                               type="button"
                               onClick={() => handleAcknowledge(b)}
-                              disabled={updatingId === b.id}
+                              disabled={!canEditBookings || updatingId === b.id}
                               className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-700 hover:bg-blue-200 inline-flex items-center gap-1 disabled:opacity-50"
                               title="Acknowledge booking"
                             >
@@ -533,19 +2927,21 @@ export default function SupplierBookings() {
                           <button
                             type="button"
                             onClick={() => setCancelModal(b)}
-                            disabled={updatingId === b.id}
+                            disabled={!canEditBookings || updatingId === b.id}
                             className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-600 hover:bg-gray-200"
                           >
                             Cancel
                           </button>
-                        </div>
+                        </>
                       )}
+                      </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+        </div>
         </div>
       )}
 
@@ -603,6 +2999,77 @@ export default function SupplierBookings() {
               >
                 {updatingId === cancelModal.id ? 'Cancelling…' : 'Confirm cancellation'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {timelineBookingId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-xl w-full p-6 max-h-[80vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Booking timeline</h3>
+              <button
+                type="button"
+                onClick={() => setTimelineBookingId(null)}
+                className="px-3 py-1.5 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50"
+              >
+                Close
+              </button>
+            </div>
+            <div className="overflow-y-auto pr-1 space-y-3">
+              {timelineBookingId && (
+                <div className="border border-gray-200 rounded-lg p-3 bg-gray-50/60">
+                  <label className="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">
+                    Ops note
+                  </label>
+                  <textarea
+                    value={opsNotes[timelineBookingId]?.note ?? ''}
+                    onChange={(e) => {
+                      const id = timelineBookingId;
+                      if (!id) return;
+                      const note = e.target.value;
+                      const next = { ...opsNotes };
+                      next[id] = {
+                        bookingId: id,
+                        note,
+                        updatedAt: new Date().toISOString(),
+                        pendingSync: true,
+                      };
+                      persistOpsNotes(next);
+                    }}
+                    onBlur={(e) => {
+                      const id = timelineBookingId;
+                      if (!id) return;
+                      saveOpsNote(id, e.target.value);
+                      syncSingleOpsNote(id);
+                    }}
+                    rows={3}
+                    placeholder="Shared handoff note for this booking..."
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+                  />
+                  {opsNotes[timelineBookingId]?.updatedAt && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Last updated {new Date(opsNotes[timelineBookingId].updatedAt).toLocaleString()}
+                      {opsNotes[timelineBookingId].pendingSync ? ' · pending sync' : ''}
+                    </p>
+                  )}
+                </div>
+              )}
+              {bookingTimeline.length === 0 ? (
+                <p className="text-sm text-gray-500">No timeline events found for this booking.</p>
+              ) : (
+                bookingTimeline.map((evt, i) => (
+                  <div key={`${evt.at}-${i}`} className="flex items-start gap-3">
+                    <div className="mt-1 w-2.5 h-2.5 rounded-full bg-finland/70 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-900">{evt.label}</p>
+                      {evt.details && <p className="text-sm text-gray-600">{evt.details}</p>}
+                      <p className="text-xs text-gray-400 mt-0.5">{new Date(evt.at).toLocaleString()}</p>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>

@@ -46,9 +46,11 @@ function App() {
   const [showContact, setShowContact] = useState(false);
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
 
-  // Supplier area at /supplier and /supplier/* — separate layout, no main header/footer
+  // Supplier portal: /supplier/* and dedicated login URL (must mount SupplierLayout for both)
+  const supplierPath =
+    typeof window !== 'undefined' ? window.location.pathname.replace(/\/$/, '') || '/' : '';
   const isSupplierArea =
-    typeof window !== 'undefined' && window.location.pathname.startsWith('/supplier');
+    supplierPath.startsWith('/supplier') || supplierPath === '/supplier-log-in';
   if (isSupplierArea) {
     return (
       <TranslationProvider>

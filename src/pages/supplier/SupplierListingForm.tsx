@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { TourPackage } from '../../types/tour';
 import ListingDiscounts from '../../components/supplier/ListingDiscounts';
 
@@ -97,11 +97,22 @@ interface SupplierListingFormProps {
   existingListings: TourPackage[];
   onSave: (tour: TourPackage) => void | Promise<void>;
   onCancel: () => void;
+  /** Deep link: scroll/focus this section (see supplier-listing-field-* ids). */
+  focusSection?: string | null;
+  onFocusConsumed?: () => void;
 }
 
-export default function SupplierListingForm({ editingId, existingListings, onSave, onCancel }: SupplierListingFormProps) {
+export default function SupplierListingForm({
+  editingId,
+  existingListings,
+  onSave,
+  onCancel,
+  focusSection,
+  onFocusConsumed,
+}: SupplierListingFormProps) {
   const [form, setForm] = useState(emptyForm);
   const [submitting, setSubmitting] = useState(false);
+  const lastFocused = useRef<string | null>(null);
 
   useEffect(() => {
     if (editingId) {
@@ -130,6 +141,24 @@ export default function SupplierListingForm({ editingId, existingListings, onSav
     }
   }, [editingId, existingListings]);
 
+  useEffect(() => {
+    lastFocused.current = null;
+  }, [editingId]);
+
+  useEffect(() => {
+    if (!focusSection || !editingId) return;
+    if (lastFocused.current === `${editingId}:${focusSection}`) return;
+    const el = document.getElementById(`supplier-listing-field-${focusSection}`);
+    if (!el) return;
+    lastFocused.current = `${editingId}:${focusSection}`;
+    requestAnimationFrame(() => {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const focusable = el.querySelector<HTMLElement>('input, textarea, select, button');
+      focusable?.focus?.();
+    });
+    onFocusConsumed?.();
+  }, [focusSection, editingId, onFocusConsumed]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const listing = buildListingFromForm(form, editingId ?? undefined);
@@ -151,7 +180,7 @@ export default function SupplierListingForm({ editingId, existingListings, onSav
   return (
     <form onSubmit={handleSubmit} className="bg-white border border-gray-200 rounded-xl p-6 space-y-4 max-w-2xl">
       <h2 className="text-xl font-semibold text-gray-900">{editingId ? 'Edit listing' : 'New listing'}</h2>
-      <div>
+      <div id="supplier-listing-field-title">
         <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
         <input
           type="text"
@@ -161,7 +190,7 @@ export default function SupplierListingForm({ editingId, existingListings, onSav
           required
         />
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" id="supplier-listing-field-location">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
           <input
@@ -184,7 +213,7 @@ export default function SupplierListingForm({ editingId, existingListings, onSav
           />
         </div>
       </div>
-      <div>
+      <div id="supplier-listing-field-destination">
         <label className="block text-sm font-medium text-gray-700 mb-1">Destination (short) *</label>
         <input
           type="text"
@@ -196,7 +225,7 @@ export default function SupplierListingForm({ editingId, existingListings, onSav
         />
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
+        <div id="supplier-listing-field-duration">
           <label className="block text-sm font-medium text-gray-700 mb-1">Duration *</label>
           <input
             type="text"
@@ -207,7 +236,7 @@ export default function SupplierListingForm({ editingId, existingListings, onSav
             required
           />
         </div>
-        <div>
+        <div id="supplier-listing-field-price">
           <label className="block text-sm font-medium text-gray-700 mb-1">Price from (USD) *</label>
           <input
             type="number"
@@ -219,7 +248,7 @@ export default function SupplierListingForm({ editingId, existingListings, onSav
           />
         </div>
       </div>
-      <div>
+      <div id="supplier-listing-field-image">
         <label className="block text-sm font-medium text-gray-700 mb-1">Image URL</label>
         <input
           type="url"
@@ -230,7 +259,7 @@ export default function SupplierListingForm({ editingId, existingListings, onSav
         />
         <p className="text-xs text-gray-500 mt-1">Paste a direct link to your tour image. For uploads, use an image host (e.g. Imgur) or your own URL.</p>
       </div>
-      <div>
+      <div id="supplier-listing-field-cancellation">
         <label className="block text-sm font-medium text-gray-700 mb-1">Cancellation policy</label>
         <input
           type="text"
@@ -240,7 +269,7 @@ export default function SupplierListingForm({ editingId, existingListings, onSav
           placeholder="e.g. Free cancellation up to 24 hours before"
         />
       </div>
-      <div>
+      <div id="supplier-listing-field-meeting">
         <label className="block text-sm font-medium text-gray-700 mb-1">Meeting point / pickup location</label>
         <input
           type="text"
@@ -250,7 +279,7 @@ export default function SupplierListingForm({ editingId, existingListings, onSav
           placeholder="e.g. Hotel lobby, 9:00 AM"
         />
       </div>
-      <div>
+      <div id="supplier-listing-field-pickup">
         <label className="block text-sm font-medium text-gray-700 mb-1">Pickup instructions</label>
         <textarea
           value={form.pickupInstructions}
@@ -260,7 +289,7 @@ export default function SupplierListingForm({ editingId, existingListings, onSav
           placeholder="Instructions for the guest"
         />
       </div>
-      <div>
+      <div id="supplier-listing-field-published">
         <label className="block text-sm font-medium text-gray-700 mb-1">Visibility</label>
         <select
           value={form.status}
@@ -271,7 +300,7 @@ export default function SupplierListingForm({ editingId, existingListings, onSav
           <option value="published">Published (visible to travelers)</option>
         </select>
       </div>
-      <div>
+      <div id="supplier-listing-field-description">
         <label className="block text-sm font-medium text-gray-700 mb-1">Description *</label>
         <textarea
           value={form.description}
@@ -281,7 +310,31 @@ export default function SupplierListingForm({ editingId, existingListings, onSav
           required
         />
       </div>
-      <div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" id="supplier-listing-field-group">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Group size</label>
+          <input
+            type="text"
+            value={form.groupSize}
+            onChange={e => setForm(f => ({ ...f, groupSize: e.target.value }))}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+            placeholder="e.g. 2-12 People"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Difficulty</label>
+          <select
+            value={form.difficulty}
+            onChange={e => setForm(f => ({ ...f, difficulty: e.target.value as 'Easy' | 'Moderate' | 'Challenging' }))}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+          >
+            <option value="Easy">Easy</option>
+            <option value="Moderate">Moderate</option>
+            <option value="Challenging">Challenging</option>
+          </select>
+        </div>
+      </div>
+      <div id="supplier-listing-field-tags">
         <label className="block text-sm font-medium text-gray-700 mb-2">Tags</label>
         <div className="flex flex-wrap gap-2">
           {TAG_OPTIONS.map(tag => (

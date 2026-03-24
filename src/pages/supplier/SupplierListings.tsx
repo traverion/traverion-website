@@ -6,15 +6,57 @@ import { fetchMyListings, insertListing, updateListing, updateListingStatus, del
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import SupplierListingForm from './SupplierListingForm';
 import { computeListingQuality, listingQualityPercent } from '../../lib/listingQualityScore';
+import { openSupplierListingEditor } from '../../lib/supplierPortalNavigation';
 
 export default function SupplierListings() {
   const { user, isSupabase } = useSupplierAuth();
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [formFocusSection, setFormFocusSection] = useState<string | null>(null);
   const [listings, setListings] = useState<TourPackage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedQualityId, setExpandedQualityId] = useState<string | null>(null);
+
+  const syncListingsUrlToState = useCallback(() => {
+    const params = new URLSearchParams(window.location.search);
+    const edit = params.get('edit');
+    const focus = params.get('focus');
+    if (edit) {
+      setEditingId(edit);
+      setShowForm(true);
+      setFormFocusSection(focus && focus.length > 0 ? focus : null);
+    } else {
+      setFormFocusSection(null);
+      // Keep local "Add listing" / edit-without-URL state; only URL drives deep links.
+    }
+  }, []);
+
+  useEffect(() => {
+    syncListingsUrlToState();
+    const onPop = () => syncListingsUrlToState();
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [syncListingsUrlToState]);
+
+  useEffect(() => {
+    if (loading) return;
+    const params = new URLSearchParams(window.location.search);
+    const edit = params.get('edit');
+    if (!edit) return;
+    const found = listings.some((l) => l.id === edit);
+    if (found) {
+      setEditingId(edit);
+      setShowForm(true);
+      const focus = params.get('focus');
+      setFormFocusSection(focus && focus.length > 0 ? focus : null);
+    } else {
+      setShowForm(false);
+      setEditingId(null);
+      setFormFocusSection(null);
+      window.history.replaceState({}, '', '/supplier/listings');
+    }
+  }, [listings, loading]);
 
   const qualityOverview = useMemo(() => {
     if (listings.length === 0) return null;
@@ -126,7 +168,13 @@ export default function SupplierListings() {
         </div>
         <button
           type="button"
-          onClick={() => { setEditingId(null); setShowForm(true); }}
+          onClick={() => {
+            setEditingId(null);
+            setShowForm(true);
+            setFormFocusSection(null);
+            window.history.pushState({}, '', '/supplier/listings');
+            window.dispatchEvent(new PopStateEvent('popstate'));
+          }}
           className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark transition-colors"
         >
           <Plus className="w-5 h-5" />
@@ -191,7 +239,15 @@ export default function SupplierListings() {
           editingId={editingId}
           existingListings={listings}
           onSave={handleSave}
-          onCancel={() => { setShowForm(false); setEditingId(null); }}
+          onCancel={() => {
+            setShowForm(false);
+            setEditingId(null);
+            setFormFocusSection(null);
+            window.history.pushState({}, '', '/supplier/listings');
+            window.dispatchEvent(new PopStateEvent('popstate'));
+          }}
+          focusSection={formFocusSection}
+          onFocusConsumed={() => setFormFocusSection(null)}
         />
       )}
 
@@ -294,7 +350,7 @@ export default function SupplierListings() {
                           <div className="flex items-center justify-end gap-1">
                             <button
                               type="button"
-                              onClick={() => { setEditingId(listing.id); setShowForm(true); }}
+                              onClick={() => openSupplierListingEditor(listing.id)}
                               className="p-2 rounded-lg text-gray-600 hover:bg-gray-200 hover:text-finland"
                               title="Edit"
                             >
@@ -318,7 +374,9 @@ export default function SupplierListings() {
                               <p className="text-sm font-medium text-gray-900">Checklist — {listing.title}</p>
                               <button
                                 type="button"
-                                onClick={() => { setEditingId(listing.id); setShowForm(true); }}
+                                onClick={() => {
+                                  openSupplierListingEditor(listing.id);
+                                }}
                                 className="inline-flex items-center gap-2 self-start px-3 py-1.5 rounded-lg bg-finland text-white text-sm font-medium hover:bg-finland-dark"
                               >
                                 <Pencil className="w-4 h-4" />
@@ -343,6 +401,15 @@ export default function SupplierListings() {
                                     </div>
                                     {!complete && c.tip && (
                                       <p className="text-xs text-gray-600 mt-1">{c.tip}</p>
+                                    )}
+                                    {!complete && (
+                                      <button
+                                        type="button"
+                                        onClick={() => openSupplierListingEditor(listing.id, c.id)}
+                                        className="mt-2 text-xs font-medium text-finland hover:underline"
+                                      >
+                                        Fix this →
+                                      </button>
                                     )}
                                   </li>
                                 );

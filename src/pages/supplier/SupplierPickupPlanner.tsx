@@ -1,16 +1,87 @@
 /**
- * Supplier: pickup planner – list bookings with meeting point / pickup, filter by date.
+ * Supplier: pickup planner – bookings with meeting / pickup, filters, CSV, deep link to edit listing pickup fields.
  */
-import { useState, useEffect, useCallback } from 'react';
-import { MapPin, ClipboardList, AlertCircle, RefreshCw } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import {
+  MapPin,
+  ClipboardList,
+  AlertCircle,
+  RefreshCw,
+  ExternalLink,
+  Download,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  X,
+  Printer,
+} from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
-import { fetchBookingsForSupplier } from '../../data/supabase-bookings';
+import {
+  fetchBookingsForSupplier,
+  updateBookingStatus,
+  acknowledgeBooking,
+} from '../../data/supabase-bookings';
 import { fetchMyListings } from '../../data/supabase-listings';
 import { fetchListingById } from '../../data/supabase-listings';
 import type { BookingRow } from '../../data/supabase-bookings';
+import { openSupplierListingEditor, openSupplierBooking } from '../../lib/supplierPortalNavigation';
+import { decrementAvailabilityBooked } from '../../data/supabase-availability';
+import { useSupplierRole } from '../../hooks/useSupplierRole';
+import { canManageBookings } from '../../lib/supplierTeamRoles';
+
+function toYmd(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+type StatusFilter = 'active' | 'confirmed' | 'pending';
+type PlannerView = 'table' | 'calendar';
+type CalendarRange = 'day' | 'week';
+type RefundChoice = 'full_refund' | 'no_refund' | 'reschedule';
+
+const CANCELLATION_REASONS = [
+  { id: 'customer_request', label: 'Customer requested cancellation' },
+  { id: 'force_majeure', label: 'Force majeure' },
+  { id: 'operational', label: 'Operational reasons' },
+];
+
+const REFUND_CHOICES: { id: RefundChoice; label: string }[] = [
+  { id: 'full_refund', label: 'Full refund' },
+  { id: 'no_refund', label: 'No refund' },
+  { id: 'reschedule', label: 'Offer reschedule' },
+];
+
+function parseYmdLocal(ymd: string): Date | null {
+  if (!ymd) return null;
+  const [y, m, d] = ymd.split('-').map(Number);
+  if (!y || !m || !d) return null;
+  return new Date(y, m - 1, d);
+}
+
+function startOfWeek(d: Date): Date {
+  const copy = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const day = copy.getDay();
+  const diff = day === 0 ? -6 : 1 - day; // Monday start
+  copy.setDate(copy.getDate() + diff);
+  return copy;
+}
+
+function addDays(d: Date, n: number): Date {
+  const copy = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  copy.setDate(copy.getDate() + n);
+  return copy;
+}
+
+function isSameYmd(a: string | null | undefined, b: string): boolean {
+  return !!a && a === b;
+}
 
 export default function SupplierPickupPlanner() {
   const { user, isSupabase } = useSupplierAuth();
+  const { role } = useSupplierRole();
+  const canEditBookings = canManageBookings(role);
   const [bookings, setBookings] = useState<BookingRow[]>([]);
   const [listingTitles, setListingTitles] = useState<Record<string, string>>({});
   const [meetingPoints, setMeetingPoints] = useState<Record<string, string>>({});
@@ -18,6 +89,15 @@ export default function SupplierPickupPlanner() {
   const [loading, setLoading] = useState(true);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('active');
+  const [view, setView] = useState<PlannerView>('table');
+  const [calendarRange, setCalendarRange] = useState<CalendarRange>('week');
+  const [calendarAnchorDate, setCalendarAnchorDate] = useState<string>(toYmd(new Date()));
+  const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
+  const [manifestOpen, setManifestOpen] = useState(false);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelRefund, setCancelRefund] = useState<RefundChoice | ''>('');
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -34,7 +114,9 @@ export default function SupplierPickupPlanner() {
       ]);
       setBookings(bookingsList);
       const titles: Record<string, string> = {};
-      listings.forEach((l) => { titles[l.id] = l.title; });
+      listings.forEach((l) => {
+        titles[l.id] = l.title;
+      });
       setListingTitles(titles);
       const listingIds = [...new Set(bookingsList.map((b) => b.listing_id))];
       const points: Record<string, string> = {};
@@ -59,16 +141,350 @@ export default function SupplierPickupPlanner() {
     load();
   }, [load]);
 
-  const filtered = bookings.filter((b) => {
-    if (b.status === 'cancelled') return false;
-    if (dateFrom && b.booking_date && b.booking_date < dateFrom) return false;
-    if (dateTo && b.booking_date && b.booking_date > dateTo) return false;
-    return true;
-  });
+  const setPreset = (preset: 'today' | 'week' | 'month' | 'clear') => {
+    if (preset === 'clear') {
+      setDateFrom('');
+      setDateTo('');
+      return;
+    }
+    const now = new Date();
+    if (preset === 'today') {
+      const s = toYmd(now);
+      setDateFrom(s);
+      setDateTo(s);
+      return;
+    }
+    if (preset === 'week') {
+      setDateFrom(toYmd(now));
+      const end = new Date(now);
+      end.setDate(end.getDate() + 7);
+      setDateTo(toYmd(end));
+      return;
+    }
+    setDateFrom(toYmd(now));
+    const end = new Date(now);
+    end.setDate(end.getDate() + 30);
+    setDateTo(toYmd(end));
+  };
 
-  const sorted = [...filtered].sort(
-    (a, b) => (a.booking_date ?? '').localeCompare(b.booking_date ?? '') || a.created_at.localeCompare(b.created_at)
+  const filtered = useMemo(() => {
+    return bookings.filter((b) => {
+      if (statusFilter === 'active' && b.status === 'cancelled') return false;
+      if (statusFilter === 'confirmed' && b.status !== 'confirmed') return false;
+      if (statusFilter === 'pending' && b.status !== 'pending') return false;
+
+      const bd = b.booking_date;
+      if (dateFrom && bd && bd < dateFrom) return false;
+      if (dateTo && bd && bd > dateTo) return false;
+      if ((dateFrom || dateTo) && !bd) return false;
+      return true;
+    });
+  }, [bookings, dateFrom, dateTo, statusFilter]);
+
+  const sorted = useMemo(
+    () =>
+      [...filtered].sort(
+        (a, b) =>
+          (a.booking_date ?? '').localeCompare(b.booking_date ?? '') || a.created_at.localeCompare(b.created_at)
+      ),
+    [filtered]
   );
+
+  const effectiveCalendarDate = useMemo(
+    () => parseYmdLocal(calendarAnchorDate) ?? new Date(),
+    [calendarAnchorDate]
+  );
+
+  const calendarDates = useMemo(() => {
+    if (calendarRange === 'day') {
+      return [new Date(effectiveCalendarDate.getFullYear(), effectiveCalendarDate.getMonth(), effectiveCalendarDate.getDate())];
+    }
+    const start = startOfWeek(effectiveCalendarDate);
+    return Array.from({ length: 7 }, (_, i) => addDays(start, i));
+  }, [calendarRange, effectiveCalendarDate]);
+
+  const calendarBookingsByDate = useMemo(() => {
+    const byDate: Record<string, BookingRow[]> = {};
+    calendarDates.forEach((d) => {
+      byDate[toYmd(d)] = [];
+    });
+    for (const b of sorted) {
+      if (!b.booking_date) continue;
+      if (byDate[b.booking_date]) byDate[b.booking_date].push(b);
+    }
+    Object.keys(byDate).forEach((k) => {
+      byDate[k].sort(
+        (a, b) => a.created_at.localeCompare(b.created_at)
+      );
+    });
+    return byDate;
+  }, [calendarDates, sorted]);
+
+  const selectedBooking = useMemo(
+    () => sorted.find((b) => b.id === selectedBookingId) ?? null,
+    [sorted, selectedBookingId]
+  );
+
+  const runSheetGroups = useMemo(() => {
+    const groups: Record<string, Record<string, BookingRow[]>> = {};
+    for (const b of sorted) {
+      if (b.status === 'cancelled' || !b.booking_date) continue;
+      const date = b.booking_date;
+      const listingId = b.listing_id;
+      if (!groups[date]) groups[date] = {};
+      if (!groups[date][listingId]) groups[date][listingId] = [];
+      groups[date][listingId].push(b);
+    }
+    Object.keys(groups).forEach((d) => {
+      Object.keys(groups[d]).forEach((l) => {
+        groups[d][l].sort((a, b) => a.created_at.localeCompare(b.created_at));
+      });
+    });
+    return groups;
+  }, [sorted]);
+
+  const runSheetDates = useMemo(
+    () => Object.keys(runSheetGroups).sort((a, b) => a.localeCompare(b)),
+    [runSheetGroups]
+  );
+
+  const operationalInsights = useMemo(() => {
+    const today = new Date();
+    const tomorrowYmd = toYmd(addDays(today, 1));
+    const next7Ymd = toYmd(addDays(today, 7));
+
+    const upcoming = sorted.filter(
+      (b) =>
+        b.status !== 'cancelled' &&
+        !!b.booking_date &&
+        (b.booking_date as string) >= toYmd(today) &&
+        (b.booking_date as string) <= next7Ymd
+    );
+
+    const tomorrow = upcoming.filter((b) => isSameYmd(b.booking_date, tomorrowYmd));
+    const missingPickupTomorrow = tomorrow.filter((b) => needsPickupInfo(b.listing_id));
+    const pendingTomorrow = tomorrow.filter((b) => b.status === 'pending');
+    const unacknowledged = upcoming.filter((b) => !b.acknowledged_at);
+
+    const sameDayListingCounts: Record<string, number> = {};
+    for (const b of upcoming) {
+      if (!b.booking_date) continue;
+      const key = `${b.booking_date}:${b.listing_id}`;
+      sameDayListingCounts[key] = (sameDayListingCounts[key] ?? 0) + 1;
+    }
+    const heavyDays = Object.entries(sameDayListingCounts)
+      .filter(([, count]) => count >= 4)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([key, count]) => {
+        const [date, listingId] = key.split(':');
+        return {
+          date,
+          listingId,
+          listingTitle: listingTitles[listingId] ?? 'Listing',
+          count,
+        };
+      });
+
+    return {
+      tomorrowYmd,
+      upcomingCount: upcoming.length,
+      tomorrowCount: tomorrow.length,
+      missingPickupTomorrow,
+      pendingTomorrow,
+      unacknowledgedCount: unacknowledged.length,
+      heavyDays,
+    };
+  }, [sorted, listingTitles]);
+
+  const conflictInsights = useMemo(() => {
+    const bucket: Record<string, { bookingCount: number; guestCount: number; listingId: string; date: string; pendingCount: number; unackCount: number }> = {};
+    for (const b of sorted) {
+      if (b.status === 'cancelled' || !b.booking_date) continue;
+      const key = `${b.booking_date}:${b.listing_id}`;
+      if (!bucket[key]) {
+        bucket[key] = {
+          bookingCount: 0,
+          guestCount: 0,
+          listingId: b.listing_id,
+          date: b.booking_date,
+          pendingCount: 0,
+          unackCount: 0,
+        };
+      }
+      bucket[key].bookingCount += 1;
+      bucket[key].guestCount += Number(b.guests || 0);
+      if (b.status === 'pending') bucket[key].pendingCount += 1;
+      if (!b.acknowledged_at) bucket[key].unackCount += 1;
+    }
+    const rows = Object.values(bucket)
+      .map((r) => {
+        const hasPickupGap =
+          ((meetingPoints[r.listingId] ?? '').trim().length + (pickupInstructions[r.listingId] ?? '').trim().length) < 20;
+        const guideCapacity = 12; // v3 baseline per guide/day
+        const availableGuides = 2; // v3 baseline staffing assumption
+        const capacityLimit = guideCapacity * availableGuides;
+        const overCapacityGuests = Math.max(0, r.guestCount - capacityLimit);
+        const pressureScore =
+          (r.bookingCount >= 4 ? 1 : 0) +
+          (r.guestCount >= 16 ? 1 : 0) +
+          (hasPickupGap ? 1 : 0) +
+          (r.pendingCount >= 2 ? 1 : 0) +
+          (r.unackCount >= 2 ? 1 : 0) +
+          (overCapacityGuests > 0 ? 1 : 0);
+        const recommendation =
+          overCapacityGuests > 0
+            ? `Over capacity by ${overCapacityGuests} guests. Add guide capacity or split slot.`
+            : hasPickupGap
+              ? 'Complete meeting/pickup instructions before day starts.'
+              : r.pendingCount >= 2
+                ? 'Prioritize confirmations to reduce operational uncertainty.'
+                : r.unackCount >= 2
+                  ? 'Acknowledge bookings to clear ops queue.'
+                  : 'Prepare run-sheet and meeting point briefing.';
+        return {
+          ...r,
+          pressureScore,
+          hasPickupGap,
+          overCapacityGuests,
+          recommendation,
+          listingTitle: listingTitles[r.listingId] ?? 'Listing',
+        };
+      })
+      .filter((r) => r.pressureScore > 0)
+      .sort((a, b) => b.pressureScore - a.pressureScore || b.guestCount - a.guestCount)
+      .slice(0, 10);
+    return rows;
+  }, [sorted, listingTitles, meetingPoints, pickupInstructions]);
+
+  useEffect(() => {
+    if (!selectedBookingId) {
+      setCancelReason('');
+      setCancelRefund('');
+    }
+  }, [selectedBookingId]);
+
+  const needsPickupInfo = (listingId: string) => {
+    const m = (meetingPoints[listingId] ?? '').trim();
+    const p = (pickupInstructions[listingId] ?? '').trim();
+    return m.length + p.length < 20;
+  };
+
+  const exportCsv = () => {
+    const headers = ['Date', 'Status', 'Listing', 'Guest', 'Guests', 'Meeting point', 'Pickup instructions'];
+    const escape = (s: string) => `"${s.replace(/"/g, '""')}"`;
+    const rows = sorted.map((b) =>
+      [
+        b.booking_date ?? '',
+        b.status,
+        listingTitles[b.listing_id] ?? '',
+        b.guest_name ?? b.guest_email ?? '',
+        String(b.guests ?? ''),
+        meetingPoints[b.listing_id] ?? '',
+        pickupInstructions[b.listing_id] ?? '',
+      ].map((c) => escape(String(c))).join(',')
+    );
+    const csv = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `pickup-planner-${toYmd(new Date())}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const shiftCalendar = (direction: -1 | 1) => {
+    const anchor = parseYmdLocal(calendarAnchorDate) ?? new Date();
+    const delta = calendarRange === 'day' ? 1 : 7;
+    setCalendarAnchorDate(toYmd(addDays(anchor, direction * delta)));
+  };
+
+  const jumpCalendarToday = () => {
+    setCalendarAnchorDate(toYmd(new Date()));
+  };
+
+  const handleAcknowledgeSelected = async () => {
+    if (!canEditBookings) return;
+    if (!selectedBooking || selectedBooking.status === 'cancelled' || selectedBooking.acknowledged_at) return;
+    setUpdatingId(selectedBooking.id);
+    const ok = await acknowledgeBooking(selectedBooking.id);
+    if (ok) {
+      setBookings((prev) =>
+        prev.map((b) =>
+          b.id === selectedBooking.id ? { ...b, acknowledged_at: new Date().toISOString() } : b
+        )
+      );
+    }
+    setUpdatingId(null);
+  };
+
+  const handleConfirmSelected = async () => {
+    if (!canEditBookings) return;
+    if (!selectedBooking || selectedBooking.status === 'confirmed' || selectedBooking.status === 'cancelled') return;
+    setUpdatingId(selectedBooking.id);
+    const ok = await updateBookingStatus(selectedBooking.id, 'confirmed');
+    if (ok) {
+      setBookings((prev) =>
+        prev.map((b) => (b.id === selectedBooking.id ? { ...b, status: 'confirmed' } : b))
+      );
+    }
+    setUpdatingId(null);
+  };
+
+  const handleCancelSelected = async () => {
+    if (!canEditBookings) return;
+    if (!selectedBooking || selectedBooking.status === 'cancelled' || !cancelReason) return;
+    setUpdatingId(selectedBooking.id);
+    const previousStatus = selectedBooking.status;
+    const ok = await updateBookingStatus(selectedBooking.id, 'cancelled', {
+      cancellation_reason: cancelReason,
+      refund_choice: cancelRefund || undefined,
+    });
+    if (ok) {
+      if (previousStatus === 'confirmed' && selectedBooking.booking_date) {
+        await decrementAvailabilityBooked(selectedBooking.listing_id, selectedBooking.booking_date);
+      }
+      setBookings((prev) =>
+        prev.map((b) =>
+          b.id === selectedBooking.id
+            ? {
+                ...b,
+                status: 'cancelled',
+                cancelled_at: new Date().toISOString(),
+                cancellation_reason: cancelReason,
+                refund_choice: cancelRefund || b.refund_choice,
+              }
+            : b
+        )
+      );
+    }
+    setUpdatingId(null);
+  };
+
+  const printRunSheet = () => {
+    window.print();
+  };
+
+  const calendarLabel = useMemo(() => {
+    if (calendarRange === 'day') {
+      return effectiveCalendarDate.toLocaleDateString(undefined, {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+      });
+    }
+    const first = calendarDates[0];
+    const last = calendarDates[calendarDates.length - 1];
+    const firstLabel = first.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    const lastLabel = last.toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+    return `${firstLabel} - ${lastLabel}`;
+  }, [calendarDates, calendarRange, effectiveCalendarDate]);
 
   if (!isSupabase || !user) return null;
 
@@ -76,37 +492,306 @@ export default function SupplierPickupPlanner() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold text-gray-900">Pickup planner</h1>
-        <p className="text-gray-600 mt-1">View bookings with meeting point and pickup details. Set these on each listing.</p>
+        <p className="text-gray-600 mt-1">
+          Operational view of upcoming bookings with meeting point and pickup copy from each listing. Use{' '}
+          <strong>Edit pickup</strong> to jump to the listing editor.
+        </p>
+        {!canEditBookings && (
+          <p className="text-xs text-amber-700 mt-1">
+            Your role is {role}. You can view pickup plans, but booking status actions are restricted.
+          </p>
+        )}
       </div>
 
       {error && (
         <div className="p-4 rounded-lg bg-red-50 text-red-700 text-sm flex items-center justify-between gap-4">
-          <span className="flex items-center gap-2"><AlertCircle className="w-4 h-4 flex-shrink-0" />{error}</span>
-          <button type="button" onClick={() => load()} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-100 text-red-800 font-medium hover:bg-red-200">
+          <span className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            {error}
+          </span>
+          <button
+            type="button"
+            onClick={() => load()}
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-100 text-red-800 font-medium hover:bg-red-200"
+          >
             <RefreshCw className="w-4 h-4" /> Try again
           </button>
         </div>
       )}
 
-      <div className="bg-white border border-gray-200 rounded-xl p-4 flex flex-wrap gap-4 items-end">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">From date</label>
-          <input
-            type="date"
-            value={dateFrom}
-            onChange={(e) => setDateFrom(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
-          />
+      <div className="bg-white border border-gray-200 rounded-xl p-4 flex flex-col gap-4">
+        <div className="flex flex-wrap gap-2 items-center justify-between">
+          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">View</span>
+          <div className="inline-flex rounded-lg border border-gray-200 p-0.5 bg-gray-50">
+            <button
+              type="button"
+              onClick={() => setView('table')}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                view === 'table' ? 'bg-white text-finland shadow-sm' : 'text-gray-600 hover:text-gray-800'
+              }`}
+            >
+              Table
+            </button>
+            <button
+              type="button"
+              onClick={() => setView('calendar')}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                view === 'calendar' ? 'bg-white text-finland shadow-sm' : 'text-gray-600 hover:text-gray-800'
+              }`}
+            >
+              <CalendarDays className="w-4 h-4" />
+              Calendar
+            </button>
+          </div>
         </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">To date</label>
-          <input
-            type="date"
-            value={dateTo}
-            onChange={(e) => setDateTo(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
-          />
+        <div className="flex flex-wrap gap-2 items-center">
+          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide mr-1">Quick dates</span>
+          <button
+            type="button"
+            onClick={() => setPreset('today')}
+            className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50"
+          >
+            Today
+          </button>
+          <button
+            type="button"
+            onClick={() => setPreset('week')}
+            className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50"
+          >
+            Next 7 days
+          </button>
+          <button
+            type="button"
+            onClick={() => setPreset('month')}
+            className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50"
+          >
+            Next 30 days
+          </button>
+          <button
+            type="button"
+            onClick={() => setPreset('clear')}
+            className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm text-gray-500 hover:bg-gray-50"
+          >
+            All dates
+          </button>
         </div>
+        <div className="flex flex-wrap gap-4 items-end">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">From date</label>
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">To date</label>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Booking status</label>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white min-w-[10rem]"
+            >
+              <option value="active">Active (not cancelled)</option>
+              <option value="confirmed">Confirmed only</option>
+              <option value="pending">Pending only</option>
+            </select>
+          </div>
+          {sorted.length > 0 && (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={exportCsv}
+                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                <Download className="w-4 h-4" />
+                Export CSV
+              </button>
+              <button
+                type="button"
+                onClick={() => setManifestOpen(true)}
+                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                <Printer className="w-4 h-4" />
+                Run-sheet
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-5 space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-base font-semibold text-gray-900">Operational readiness</h2>
+          <span className="text-xs text-gray-500">
+            Next 7 days · Tomorrow {new Date(operationalInsights.tomorrowYmd).toLocaleDateString()}
+          </span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+          <div className="rounded-lg border border-gray-200 px-3 py-2.5">
+            <p className="text-xs uppercase tracking-wide text-gray-500 font-medium">Upcoming bookings</p>
+            <p className="text-2xl font-semibold text-gray-900 mt-1">{operationalInsights.upcomingCount}</p>
+          </div>
+          <div className="rounded-lg border border-amber-200 bg-amber-50/40 px-3 py-2.5">
+            <p className="text-xs uppercase tracking-wide text-amber-800 font-medium">Tomorrow missing pickup info</p>
+            <p className="text-2xl font-semibold text-amber-900 mt-1">
+              {operationalInsights.missingPickupTomorrow.length}
+            </p>
+          </div>
+          <div className="rounded-lg border border-blue-200 bg-blue-50/40 px-3 py-2.5">
+            <p className="text-xs uppercase tracking-wide text-blue-800 font-medium">Tomorrow pending bookings</p>
+            <p className="text-2xl font-semibold text-blue-900 mt-1">{operationalInsights.pendingTomorrow.length}</p>
+          </div>
+          <div className="rounded-lg border border-red-200 bg-red-50/40 px-3 py-2.5">
+            <p className="text-xs uppercase tracking-wide text-red-800 font-medium">Unacknowledged (7d)</p>
+            <p className="text-2xl font-semibold text-red-900 mt-1">{operationalInsights.unacknowledgedCount}</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="rounded-lg border border-gray-200 p-3">
+            <h3 className="text-sm font-semibold text-gray-900 mb-2">Tomorrow risk list</h3>
+            {operationalInsights.missingPickupTomorrow.length === 0 &&
+            operationalInsights.pendingTomorrow.length === 0 ? (
+              <p className="text-sm text-gray-500">No immediate pickup or confirmation risks for tomorrow.</p>
+            ) : (
+              <ul className="space-y-2">
+                {operationalInsights.missingPickupTomorrow.slice(0, 6).map((b) => (
+                  <li key={`m-${b.id}`} className="text-sm text-gray-700 flex items-start justify-between gap-2">
+                    <span className="min-w-0 truncate">
+                      Missing pickup info · {listingTitles[b.listing_id] ?? 'Listing'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => openSupplierListingEditor(b.listing_id, 'pickup')}
+                      className="text-finland hover:underline text-xs flex-shrink-0"
+                    >
+                      Fix
+                    </button>
+                  </li>
+                ))}
+                {operationalInsights.pendingTomorrow.slice(0, 6).map((b) => (
+                  <li key={`p-${b.id}`} className="text-sm text-gray-700 flex items-start justify-between gap-2">
+                    <span className="min-w-0 truncate">
+                      Pending confirmation · {listingTitles[b.listing_id] ?? 'Listing'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedBookingId(b.id)}
+                      className="text-finland hover:underline text-xs flex-shrink-0"
+                    >
+                      Open
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div className="rounded-lg border border-gray-200 p-3">
+            <h3 className="text-sm font-semibold text-gray-900 mb-2">Potential capacity pressure</h3>
+            {operationalInsights.heavyDays.length === 0 ? (
+              <p className="text-sm text-gray-500">
+                No listing/date combinations with high booking concentration detected.
+              </p>
+            ) : (
+              <ul className="space-y-2">
+                {operationalInsights.heavyDays.map((item) => (
+                  <li key={`${item.date}-${item.listingId}`} className="text-sm text-gray-700 flex items-start justify-between gap-2">
+                    <span className="min-w-0 truncate">
+                      {new Date(item.date).toLocaleDateString()} · {item.listingTitle} · {item.count} bookings
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => openSupplierListingEditor(item.listingId, 'meeting')}
+                      className="text-finland hover:underline text-xs flex-shrink-0"
+                    >
+                      Prepare
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-5 space-y-4">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-base font-semibold text-gray-900">Conflict engine v3</h2>
+          <span className="text-xs text-gray-500">
+            Signals: load, capacity, pending/unack backlog, pickup readiness
+          </span>
+        </div>
+        {conflictInsights.length === 0 ? (
+          <p className="text-sm text-gray-500">No capacity pressure signals detected in current filters.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead className="bg-gray-50 border-y border-gray-200">
+                <tr>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Date</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Listing</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Bookings</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Guests</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Backlog</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Pressure</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Recommendation</th>
+                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wide">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {conflictInsights.map((c) => (
+                  <tr key={`${c.date}-${c.listingId}`} className="hover:bg-gray-50/60">
+                    <td className="px-3 py-2 text-gray-700">{new Date(c.date).toLocaleDateString()}</td>
+                    <td className="px-3 py-2 text-gray-900">{c.listingTitle}</td>
+                    <td className="px-3 py-2 text-gray-700">{c.bookingCount}</td>
+                    <td className="px-3 py-2 text-gray-700">{c.guestCount}</td>
+                    <td className="px-3 py-2 text-gray-700 text-xs">
+                      {c.pendingCount} pending · {c.unackCount} unacked
+                    </td>
+                    <td className="px-3 py-2">
+                      <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
+                        c.pressureScore >= 4
+                          ? 'bg-red-100 text-red-700'
+                          : c.pressureScore >= 2
+                            ? 'bg-amber-100 text-amber-700'
+                            : 'bg-blue-100 text-blue-700'
+                      }`}>
+                        {c.pressureScore >= 4 ? 'High' : c.pressureScore >= 2 ? 'Medium' : 'Low'}
+                      </span>
+                      {c.overCapacityGuests > 0 && (
+                        <p className="text-[11px] text-red-700 mt-1">+{c.overCapacityGuests} over capacity</p>
+                      )}
+                      {c.hasPickupGap && (
+                        <p className="text-[11px] text-amber-700 mt-1">Pickup details incomplete</p>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-xs text-gray-700 max-w-xs">{c.recommendation}</td>
+                    <td className="px-3 py-2 text-right">
+                      <button
+                        type="button"
+                        onClick={() => openSupplierListingEditor(c.listingId, 'meeting')}
+                        className="text-finland font-medium hover:underline"
+                      >
+                        Prepare plan
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {loading ? (
@@ -116,35 +801,54 @@ export default function SupplierPickupPlanner() {
       ) : sorted.length === 0 ? (
         <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
           <ClipboardList className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-          <h2 className="text-lg font-semibold text-gray-900">No bookings in range</h2>
-          <p className="text-gray-500 mt-1">Confirmed or pending bookings with dates in the selected range will appear here.</p>
+          <h2 className="text-lg font-semibold text-gray-900">No bookings match</h2>
+          <p className="text-gray-500 mt-1">
+            Try widening the date range or changing the status filter. Bookings without a tour date are hidden when a date
+            range is set.
+          </p>
         </div>
-      ) : (
+      ) : view === 'table' ? (
         <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Date</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Status</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Listing</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Guest</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Guests</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Meeting point</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Pickup instructions</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Meeting</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Pickup</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wide">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {sorted.map((b) => (
-                  <tr key={b.id} className="hover:bg-gray-50/50">
+                  <tr
+                    key={b.id}
+                    className={`hover:bg-gray-50/50 ${needsPickupInfo(b.listing_id) ? 'bg-amber-50/40' : ''}`}
+                  >
                     <td className="px-4 py-3 text-sm text-gray-600">
                       {b.booking_date ? new Date(b.booking_date).toLocaleDateString() : '—'}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-900">
-                      {listingTitles[b.listing_id] ?? '—'}
-                    </td>
                     <td className="px-4 py-3 text-sm">
-                      {b.guest_name ?? b.guest_email ?? '—'}
+                      <span
+                        className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
+                          b.status === 'confirmed'
+                            ? 'bg-green-100 text-green-800'
+                            : b.status === 'pending'
+                              ? 'bg-amber-100 text-amber-800'
+                              : b.status === 'cancelled'
+                                ? 'bg-gray-100 text-gray-600'
+                                : 'bg-gray-100 text-gray-700'
+                        }`}
+                      >
+                        {b.status}
+                      </span>
                     </td>
+                    <td className="px-4 py-3 text-sm text-gray-900">{listingTitles[b.listing_id] ?? '—'}</td>
+                    <td className="px-4 py-3 text-sm">{b.guest_name ?? b.guest_email ?? '—'}</td>
                     <td className="px-4 py-3 text-sm text-gray-600">{b.guests ?? '—'}</td>
                     <td className="px-4 py-3 text-sm text-gray-600 max-w-[200px]">
                       {meetingPoints[b.listing_id] ? (
@@ -153,11 +857,30 @@ export default function SupplierPickupPlanner() {
                           {meetingPoints[b.listing_id]}
                         </span>
                       ) : (
-                        '—'
+                        <span className="text-amber-800">Missing</span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600 max-w-[200px] truncate" title={pickupInstructions[b.listing_id]}>
-                      {pickupInstructions[b.listing_id] || '—'}
+                      {pickupInstructions[b.listing_id] || <span className="text-amber-800">—</span>}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-right">
+                      <div className="inline-flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedBookingId(b.id)}
+                          className="text-gray-700 font-medium hover:underline"
+                        >
+                          Details
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openSupplierListingEditor(b.listing_id, 'pickup')}
+                          className="inline-flex items-center gap-1 text-finland font-medium hover:underline"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          Edit pickup
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -165,6 +888,393 @@ export default function SupplierPickupPlanner() {
             </table>
           </div>
         </div>
+      ) : (
+        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 flex flex-wrap items-center gap-2 justify-between">
+            <div className="inline-flex rounded-lg border border-gray-200 p-0.5 bg-white">
+              <button
+                type="button"
+                onClick={() => setCalendarRange('day')}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium ${
+                  calendarRange === 'day' ? 'bg-finland/10 text-finland' : 'text-gray-600'
+                }`}
+              >
+                Day
+              </button>
+              <button
+                type="button"
+                onClick={() => setCalendarRange('week')}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium ${
+                  calendarRange === 'week' ? 'bg-finland/10 text-finland' : 'text-gray-600'
+                }`}
+              >
+                Week
+              </button>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => shiftCalendar(-1)}
+                className="p-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100"
+                aria-label="Previous"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <p className="text-sm font-medium text-gray-800 min-w-[13rem] text-center">{calendarLabel}</p>
+              <button
+                type="button"
+                onClick={() => shiftCalendar(1)}
+                className="p-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100"
+                aria-label="Next"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={jumpCalendarToday}
+                className="px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-100"
+              >
+                Today
+              </button>
+            </div>
+          </div>
+          <div className={`grid gap-3 p-4 ${calendarRange === 'day' ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-4'}`}>
+            {calendarDates.map((d) => {
+              const key = toYmd(d);
+              const dayBookings = calendarBookingsByDate[key] ?? [];
+              const dayName = d.toLocaleDateString(undefined, { weekday: 'short' });
+              const dayNumber = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+              return (
+                <section key={key} className="border border-gray-200 rounded-lg overflow-hidden">
+                  <header className="px-3 py-2 border-b border-gray-100 bg-gray-50 flex items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-gray-800">{dayName}</p>
+                    <p className="text-xs text-gray-500">{dayNumber}</p>
+                  </header>
+                  <div className="p-2 space-y-2 min-h-20">
+                    {dayBookings.length === 0 ? (
+                      <p className="text-xs text-gray-400 px-1 py-2">No bookings</p>
+                    ) : (
+                      dayBookings.map((b) => (
+                        <button
+                          key={b.id}
+                          type="button"
+                          onClick={() => setSelectedBookingId(b.id)}
+                          className={`w-full text-left rounded-md border px-2.5 py-2 hover:shadow-sm transition-shadow ${
+                            needsPickupInfo(b.listing_id)
+                              ? 'border-amber-200 bg-amber-50'
+                              : 'border-gray-200 bg-white'
+                          }`}
+                          title="Open booking details"
+                        >
+                          <p className="text-xs font-semibold text-gray-800 truncate">
+                            {listingTitles[b.listing_id] ?? 'Listing'}
+                          </p>
+                          <p className="text-xs text-gray-600 truncate">
+                            {b.guest_name ?? b.guest_email ?? 'Guest'} · {b.guests} guest{b.guests === 1 ? '' : 's'}
+                          </p>
+                          <p className="text-[11px] text-gray-500 mt-0.5 truncate">
+                            {meetingPoints[b.listing_id] || 'Meeting point missing'}
+                          </p>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </section>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {selectedBooking && (
+        <>
+          <button
+            type="button"
+            onClick={() => setSelectedBookingId(null)}
+            className="fixed inset-0 bg-black/30 z-40 cursor-default"
+            aria-label="Close booking details"
+          />
+          <aside className="fixed right-0 top-0 h-full w-full sm:w-[26rem] bg-white border-l border-gray-200 shadow-xl z-50 flex flex-col">
+            <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900">Booking details</h2>
+              <button
+                type="button"
+                onClick={() => setSelectedBookingId(null)}
+                className="p-2 rounded-lg text-gray-500 hover:bg-gray-100"
+                aria-label="Close panel"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-5 space-y-5 overflow-y-auto">
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Listing</p>
+                <p className="text-sm font-medium text-gray-900 mt-1">
+                  {listingTitles[selectedBooking.listing_id] ?? '—'}
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Date</p>
+                  <p className="text-sm text-gray-800 mt-1">
+                    {selectedBooking.booking_date ? new Date(selectedBooking.booking_date).toLocaleDateString() : '—'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</p>
+                  <p className="text-sm text-gray-800 mt-1 capitalize">{selectedBooking.status}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Guest</p>
+                  <p className="text-sm text-gray-800 mt-1">
+                    {selectedBooking.guest_name ?? selectedBooking.guest_email ?? '—'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Guests</p>
+                  <p className="text-sm text-gray-800 mt-1">{selectedBooking.guests ?? '—'}</p>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Meeting point</p>
+                <p className="text-sm text-gray-800 mt-1">
+                  {meetingPoints[selectedBooking.listing_id] || 'Missing'}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Pickup instructions</p>
+                <p className="text-sm text-gray-800 mt-1 whitespace-pre-wrap">
+                  {pickupInstructions[selectedBooking.listing_id] || 'Missing'}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Special requests</p>
+                <p className="text-sm text-gray-800 mt-1 whitespace-pre-wrap">
+                  {selectedBooking.special_requests || '—'}
+                </p>
+              </div>
+              {selectedBooking.status !== 'cancelled' && (
+                <div className="border border-amber-200 bg-amber-50/50 rounded-lg p-3 space-y-3">
+                  <p className="text-xs font-semibold text-amber-900 uppercase tracking-wide">
+                    Cancel booking
+                  </p>
+                  <div>
+                    <label className="block text-xs font-medium text-amber-900 mb-1">Reason</label>
+                    <select
+                      value={cancelReason}
+                      onChange={(e) => setCancelReason(e.target.value)}
+                      className="w-full px-3 py-2 border border-amber-300 rounded-lg bg-white text-sm"
+                    >
+                      <option value="">Select reason</option>
+                      {CANCELLATION_REASONS.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-amber-900 mb-1">Refund option</label>
+                    <select
+                      value={cancelRefund}
+                      onChange={(e) => setCancelRefund(e.target.value as RefundChoice | '')}
+                      className="w-full px-3 py-2 border border-amber-300 rounded-lg bg-white text-sm"
+                    >
+                      <option value="">Choose refund option</option>
+                      {REFUND_CHOICES.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="mt-auto p-4 border-t border-gray-200 bg-gray-50 flex items-center gap-2 justify-end">
+              {selectedBooking.status !== 'cancelled' && (
+                <>
+                  {!selectedBooking.acknowledged_at && (
+                    <button
+                      type="button"
+                      disabled={!canEditBookings || updatingId === selectedBooking.id}
+                      onClick={handleAcknowledgeSelected}
+                      className="px-3 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-60"
+                    >
+                      Acknowledge
+                    </button>
+                  )}
+                  {selectedBooking.status !== 'confirmed' && (
+                    <button
+                      type="button"
+                      disabled={!canEditBookings || updatingId === selectedBooking.id}
+                      onClick={handleConfirmSelected}
+                      className="px-3 py-2 rounded-lg border border-green-300 bg-green-50 text-sm text-green-800 hover:bg-green-100 disabled:opacity-60"
+                    >
+                      Confirm
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    disabled={!canEditBookings || updatingId === selectedBooking.id || !cancelReason}
+                    onClick={handleCancelSelected}
+                    className="px-3 py-2 rounded-lg border border-red-300 bg-red-50 text-sm text-red-800 hover:bg-red-100 disabled:opacity-60"
+                  >
+                    Cancel booking
+                  </button>
+                </>
+              )}
+              <button
+                type="button"
+                onClick={() => openSupplierBooking(selectedBooking.id)}
+                className="px-3 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-100"
+              >
+                Open in bookings
+              </button>
+              <button
+                type="button"
+                onClick={() => openSupplierListingEditor(selectedBooking.listing_id, 'meeting')}
+                className="px-3 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-100"
+              >
+                Edit meeting
+              </button>
+              <button
+                type="button"
+                onClick={() => openSupplierListingEditor(selectedBooking.listing_id, 'pickup')}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-finland text-white text-sm font-medium hover:bg-finland-dark"
+              >
+                <ExternalLink className="w-4 h-4" />
+                Edit pickup
+              </button>
+            </div>
+          </aside>
+        </>
+      )}
+
+      {manifestOpen && (
+        <>
+          <style>{`
+            @media print {
+              body * { visibility: hidden; }
+              #pickup-runsheet-print, #pickup-runsheet-print * { visibility: visible; }
+              #pickup-runsheet-print { position: absolute; left: 0; top: 0; width: 100%; background: white; }
+            }
+          `}</style>
+          <button
+            type="button"
+            onClick={() => setManifestOpen(false)}
+            className="fixed inset-0 bg-black/40 z-50 cursor-default"
+            aria-label="Close run-sheet"
+          />
+          <aside className="fixed right-0 top-0 h-full w-full lg:w-[56rem] bg-white border-l border-gray-200 shadow-xl z-[60] flex flex-col">
+            <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Pickup run-sheet</h2>
+                <p className="text-xs text-gray-500">
+                  Grouped by date and listing. Print to paper or Save as PDF.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={printRunSheet}
+                  className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  <Printer className="w-4 h-4" />
+                  Print / PDF
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setManifestOpen(false)}
+                  className="p-2 rounded-lg text-gray-500 hover:bg-gray-100"
+                  aria-label="Close run-sheet panel"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+            <div id="pickup-runsheet-print" className="p-5 overflow-y-auto space-y-6">
+              {runSheetDates.length === 0 ? (
+                <p className="text-sm text-gray-500">No active dated bookings in current filters.</p>
+              ) : (
+                runSheetDates.map((date) => {
+                  const byListing = runSheetGroups[date];
+                  const listingIds = Object.keys(byListing);
+                  return (
+                    <section key={date} className="border border-gray-200 rounded-lg overflow-hidden">
+                      <header className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+                        <h3 className="text-base font-semibold text-gray-900">
+                          {new Date(date).toLocaleDateString(undefined, {
+                            weekday: 'long',
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                          })}
+                        </h3>
+                        <span className="text-xs text-gray-500">
+                          {listingIds.reduce((sum, id) => sum + byListing[id].length, 0)} bookings
+                        </span>
+                      </header>
+                      <div className="divide-y divide-gray-200">
+                        {listingIds.map((listingId) => {
+                          const rows = byListing[listingId];
+                          const totalGuests = rows.reduce((sum, b) => sum + Number(b.guests || 0), 0);
+                          return (
+                            <div key={listingId} className="p-4">
+                              <div className="flex items-center justify-between gap-3 mb-2">
+                                <div>
+                                  <p className="text-sm font-semibold text-gray-900">
+                                    {listingTitles[listingId] ?? 'Listing'}
+                                  </p>
+                                  <p className="text-xs text-gray-500">
+                                    Meeting: {meetingPoints[listingId] || 'Missing'} · Pickup: {pickupInstructions[listingId] || 'Missing'}
+                                  </p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-xs text-gray-500">Total guests</p>
+                                  <p className="text-lg font-semibold text-gray-900">{totalGuests}</p>
+                                </div>
+                              </div>
+                              <div className="overflow-x-auto">
+                                <table className="min-w-full text-sm">
+                                  <thead>
+                                    <tr className="text-left text-xs uppercase tracking-wide text-gray-500 border-b border-gray-200">
+                                      <th className="py-1.5 pr-3">Booking</th>
+                                      <th className="py-1.5 pr-3">Guest</th>
+                                      <th className="py-1.5 pr-3">Guests</th>
+                                      <th className="py-1.5 pr-3">Status</th>
+                                      <th className="py-1.5">Special requests</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {rows.map((b) => (
+                                      <tr key={b.id} className="border-b border-gray-100 last:border-b-0">
+                                        <td className="py-1.5 pr-3 text-gray-600">{b.id.slice(0, 8)}</td>
+                                        <td className="py-1.5 pr-3 text-gray-800">
+                                          {b.guest_name ?? b.guest_email ?? '—'}
+                                        </td>
+                                        <td className="py-1.5 pr-3 text-gray-700">{b.guests ?? '—'}</td>
+                                        <td className="py-1.5 pr-3 text-gray-700">{b.status}</td>
+                                        <td className="py-1.5 text-gray-600">
+                                          {b.special_requests || '—'}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </section>
+                  );
+                })
+              )}
+            </div>
+          </aside>
+        </>
       )}
     </div>
   );
