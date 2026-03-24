@@ -486,7 +486,7 @@ export default function SupplierPickupPlanner() {
     return `${firstLabel} - ${lastLabel}`;
   }, [calendarDates, calendarRange, effectiveCalendarDate]);
 
-  if (!isSupabase || !user) return null;
+  if (!user) return null;
 
   return (
     <div className="space-y-6">

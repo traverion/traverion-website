@@ -159,7 +159,7 @@ export default function SupplierReviews() {
     return ageHours > slaHours;
   });
 
-  if (!isSupabase || !user) return null;
+  if (!user) return null;
 
   return (
     <div className="space-y-6">
