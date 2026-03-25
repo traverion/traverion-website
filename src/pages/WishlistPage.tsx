@@ -17,7 +17,6 @@ interface WishlistPageProps {
 
 export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageProps) {
   const { user, requestAuth } = useAuth();
-  const [listingIds, setListingIds] = useState<string[]>([]);
   const [listings, setListings] = useState<TourPackage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -31,7 +30,6 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
     setError(null);
     try {
       const ids = await fetchWishlistListingIds(user.id);
-      setListingIds(ids);
       const tours: TourPackage[] = [];
       for (const id of ids) {
         const t = await fetchListingById(id);
@@ -54,7 +52,6 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
     if (!user) return;
     const ok = await removeFromWishlist(user.id, listingId);
     if (ok) {
-      setListingIds((prev) => prev.filter((id) => id !== listingId));
       setListings((prev) => prev.filter((t) => t.id !== listingId));
     }
   };
@@ -94,14 +91,22 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
   return (
     <div className="min-h-screen bg-gray-50 pt-24 pb-12">
       <div className="max-w-4xl mx-auto px-4 sm:px-6">
-        <button
-          type="button"
-          onClick={() => onNavigate('packages')}
-          className="flex items-center gap-2 text-gray-600 hover:text-finland mb-6"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to tours
-        </button>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm mb-6">
+          <button
+            type="button"
+            onClick={() => onNavigate('account')}
+            className="inline-flex items-center gap-1.5 text-gray-600 hover:text-finland font-medium"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            My account
+          </button>
+          <span className="text-gray-300 hidden sm:inline" aria-hidden>
+            |
+          </span>
+          <button type="button" onClick={() => onNavigate('packages')} className="text-gray-500 hover:text-finland">
+            Browse tours
+          </button>
+        </div>
         <h1 className="text-2xl font-semibold text-gray-900 mb-6 flex items-center gap-2">
           <Heart className="w-6 h-6 text-red-500 fill-red-500" />
           Wishlist

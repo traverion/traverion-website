@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Menu, X, User, LogOut, Calendar, ShoppingCart } from 'lucide-react';
+import { Menu, X, User, LogOut, LayoutDashboard, ShoppingCart } from 'lucide-react';
 import { useTranslation } from '../contexts/TranslationContext';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
@@ -164,11 +164,11 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                       </div>
                       <button
                         type="button"
-                        onClick={() => { setIsUserMenuOpen(false); onNavigate('bookings'); }}
+                        onClick={() => { setIsUserMenuOpen(false); onNavigate('account'); }}
                         className="lux-flat w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 text-left rounded-lg"
                       >
-                        <Calendar className="w-4 h-4" />
-                        My bookings
+                        <LayoutDashboard className="w-4 h-4" />
+                        My account
                       </button>
                       <button
                         type="button"
@@ -319,13 +319,13 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                   <>
                     <button
                       onClick={() => {
-                        onNavigate('bookings');
+                        onNavigate('account');
                         setIsMobileMenuOpen(false);
                       }}
                       className="lux-flat w-full text-left px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors duration-300 ease-lux flex items-center gap-2"
                     >
-                      <Calendar className="w-5 h-5" />
-                      My bookings
+                      <LayoutDashboard className="w-5 h-5" />
+                      My account
                     </button>
                     <button
                       onClick={() => {

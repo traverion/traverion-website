@@ -32,7 +32,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
   const [submitting, setSubmitting] = useState(false);
 
   const nextPage = useMemo(() => {
-    const allowed = new Set(['home', 'packages', 'cart', 'bookings', 'contact']);
+    const allowed = new Set(['home', 'packages', 'cart', 'bookings', 'account', 'wishlist', 'contact']);
     return allowed.has(next) ? next : 'cart';
   }, [next]);
 

@@ -11,6 +11,8 @@ import TourDetails from './pages/TourDetails';
 import BookingPage from './pages/BookingPage';
 import MyBookings from './pages/MyBookings';
 import CartPage from './pages/CartPage';
+import AccountPage from './pages/AccountPage';
+import WishlistPage from './pages/WishlistPage';
 import TourPackage from './pages/TourPackage';
 import Vietnam9Day from './pages/Vietnam9Day';
 import Vietnam12Day from './pages/Vietnam12Day';
@@ -93,6 +95,8 @@ function App() {
       'packages': '/packages',
       'cart': '/cart',
       'auth': '/auth',
+      'account': '/account',
+      'wishlist': '/wishlist',
       'bookings': '/bookings',
       'blog': '/blog',
       'contact': '/contact',
@@ -134,6 +138,8 @@ function App() {
       packages: { title: 'Tours & activities', description: 'Browse and book tours and activities worldwide. Filter by destination, price, and more.' },
       auth: { title: 'Sign in', description: 'Sign in or create an account to manage your bookings and cart.' },
       cart: { title: 'Cart', description: 'Your cart. Request bookings for selected tours.' },
+      account: { title: 'My account', description: 'Your bookings, wishlist, and cart in one place.' },
+      wishlist: { title: 'Wishlist', description: 'Tours and activities you have saved.' },
       bookings: { title: 'My bookings', description: 'View your tour and activity reservations and their status.' },
       blog: { title: 'Blog', description: 'Travel stories and tips from Traverion.' },
       contact: { title: 'Contact', description: 'Get in touch with Traverion.' },
@@ -153,7 +159,7 @@ function App() {
     else setPageMetaWithOg('Traverion', 'Tours & activities worldwide.');
 
     const pathMap: Record<string, string> = {
-      home: '/', packages: '/packages', auth: '/auth', cart: '/cart', bookings: '/bookings',
+      home: '/', packages: '/packages', auth: '/auth', cart: '/cart', account: '/account', wishlist: '/wishlist', bookings: '/bookings',
       blog: '/blog', contact: '/contact', privacy: '/privacy', terms: '/terms', cookies: '/cookies',
       about: '/about', sitemap: '/sitemap', admin: '/admin',
       'legal-notice': '/legal-notice', affiliate: '/affiliate', 'content-creator': '/content-creator',
@@ -213,6 +219,15 @@ function App() {
         ) : <Home onTourSelect={handleTourSelect} />;
       case 'cart':
         return <CartPage onNavigate={setCurrentPage} />;
+      case 'account':
+        return <AccountPage onNavigate={setCurrentPage} />;
+      case 'wishlist':
+        return (
+          <WishlistPage
+            onNavigate={setCurrentPage}
+            onTourSelect={(t) => handleTourSelect(t as TourPackageType)}
+          />
+        );
       case 'auth':
         return <AuthPage onNavigate={setCurrentPage} />;
       case 'bookings':

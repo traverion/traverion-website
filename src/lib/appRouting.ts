@@ -11,6 +11,8 @@ const PATH_TO_PAGE: Record<string, string> = {
   '/packages': 'packages',
   '/cart': 'cart',
   '/auth': 'auth',
+  '/account': 'account',
+  '/wishlist': 'wishlist',
   '/bookings': 'bookings',
   '/blog': 'blog',
   '/contact': 'contact',

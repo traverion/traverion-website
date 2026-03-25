@@ -3,7 +3,7 @@
  * RLS ensures only rows where guest_email = auth user email are returned.
  */
 import { useState, useEffect, useCallback } from 'react';
-import { Calendar, Users, MapPin, LogIn, RefreshCw, XCircle } from 'lucide-react';
+import { Calendar, Users, MapPin, LogIn, RefreshCw, XCircle, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { fetchMyBookings, cancelBookingAsCustomer, type BookingRow } from '../data/supabase-bookings';
@@ -108,7 +108,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
             <button
               type="button"
               onClick={() => {
-                window.history.pushState({}, '', '/auth?tab=signin&next=bookings');
+                window.history.pushState({}, '', '/auth?tab=signin&next=account');
                 onNavigate('auth');
               }}
               className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark"
@@ -131,6 +131,28 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
         subtitle="View status of your tour and activity reservations."
       />
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 pb-12">
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+            <button
+              type="button"
+              onClick={() => onNavigate('account')}
+              className="inline-flex items-center gap-1.5 text-gray-600 hover:text-finland font-medium"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              My account
+            </button>
+            <span className="text-gray-300 hidden sm:inline" aria-hidden>
+              |
+            </span>
+            <button
+              type="button"
+              onClick={() => onNavigate('packages')}
+              className="text-gray-500 hover:text-finland"
+            >
+              Browse tours
+            </button>
+          </div>
+        </div>
         <div className="flex justify-end mb-8">
           <button
             type="button"

@@ -25,7 +25,9 @@ const SECTIONS: SitemapSection[] = [
     title: 'Account',
     items: [
       { label: 'Sign in / Sign up', page: 'auth' },
+      { label: 'My account', page: 'account' },
       { label: 'Cart', page: 'cart' },
+      { label: 'Wishlist', page: 'wishlist' },
       { label: 'My bookings', page: 'bookings' },
     ],
   },
