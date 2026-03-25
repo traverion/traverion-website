@@ -11,8 +11,6 @@ import {
   type ReviewDisplay,
   type ReviewReplyRow,
 } from '../../data/supabase-reviews';
-import { loadSupplierReviewSlaHours, saveSupplierReviewSlaHours } from '../../lib/supplierReviewSla';
-
 export default function SupplierReviews() {
   const { user, isSupabase } = useSupplierAuth();
   const [reviews, setReviews] = useState<(ReviewDisplay & { listing_title?: string })[]>([]);
@@ -24,7 +22,6 @@ export default function SupplierReviews() {
   const [replyError, setReplyError] = useState<string | null>(null);
   const [highlightReviewId, setHighlightReviewId] = useState<string | null>(null);
   const [draftToneByReview, setDraftToneByReview] = useState<Record<string, 'friendly' | 'professional' | 'short'>>({});
-  const [slaHours, setSlaHours] = useState<number>(() => loadSupplierReviewSlaHours());
 
   const load = useCallback(async () => {
     if (!isSupabase || !user) {
@@ -91,12 +88,6 @@ export default function SupplierReviews() {
     }
   };
 
-  useEffect(() => {
-    const onSla = () => setSlaHours(loadSupplierReviewSlaHours());
-    window.addEventListener('traverion-supplier-review-sla', onSla);
-    return () => window.removeEventListener('traverion-supplier-review-sla', onSla);
-  }, []);
-
   const generateReplyDraft = (
     r: ReviewDisplay & { listing_title?: string },
     tone: 'friendly' | 'professional' | 'short'
@@ -129,35 +120,6 @@ export default function SupplierReviews() {
   })();
 
   const unrepliedCount = reviews.filter((r) => !replies[r.id]).length;
-  const nowMs = Date.now();
-  const overdueUnreplied = reviews.filter((r) => {
-    if (replies[r.id]) return false;
-    const ageHours = (nowMs - new Date(r.created_at).getTime()) / (1000 * 60 * 60);
-    return ageHours > slaHours;
-  }).length;
-  const withinSlaReplied = (() => {
-    let total = 0;
-    let within = 0;
-    for (const r of reviews) {
-      const reply = replies[r.id];
-      if (!reply) continue;
-      const ageHours = (new Date(reply.created_at).getTime() - new Date(r.created_at).getTime()) / (1000 * 60 * 60);
-      total += 1;
-      if (ageHours <= slaHours) within += 1;
-    }
-    if (total === 0) return null;
-    return Math.round((within / total) * 100);
-  })();
-  const nearBreachUnreplied = reviews.filter((r) => {
-    if (replies[r.id]) return false;
-    const ageHours = (nowMs - new Date(r.created_at).getTime()) / (1000 * 60 * 60);
-    return ageHours >= Math.max(1, slaHours - 6) && ageHours <= slaHours;
-  });
-  const breachedUnreplied = reviews.filter((r) => {
-    if (replies[r.id]) return false;
-    const ageHours = (nowMs - new Date(r.created_at).getTime()) / (1000 * 60 * 60);
-    return ageHours > slaHours;
-  });
 
   if (!user) return null;
 
@@ -184,82 +146,6 @@ export default function SupplierReviews() {
               {averageResponseHours == null ? '—' : `${averageResponseHours}h`}
             </p>
           </div>
-        </div>
-      )}
-
-      {!loading && (
-        <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-5 space-y-3">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">Review SLA automation</h2>
-            <div className="flex items-center gap-2">
-              <label className="text-xs text-gray-600">Target reply window</label>
-              <input
-                type="number"
-                min={1}
-                max={168}
-                value={slaHours}
-                onChange={(e) => {
-                  const n = Number(e.target.value);
-                  setSlaHours(n);
-                  saveSupplierReviewSlaHours(n);
-                }}
-                className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
-              />
-              <span className="text-xs text-gray-500">hours</span>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="border border-red-200 bg-red-50/40 rounded-lg p-3">
-              <p className="text-xs uppercase tracking-wide text-red-800 font-medium">Overdue unreplied</p>
-              <p className="text-xl font-semibold text-red-900 mt-1">{overdueUnreplied}</p>
-            </div>
-            <div className="border border-green-200 bg-green-50/40 rounded-lg p-3">
-              <p className="text-xs uppercase tracking-wide text-green-800 font-medium">Within SLA</p>
-              <p className="text-xl font-semibold text-green-900 mt-1">
-                {withinSlaReplied == null ? '—' : `${withinSlaReplied}%`}
-              </p>
-            </div>
-            <div className="border border-gray-200 rounded-lg p-3">
-              <p className="text-xs uppercase tracking-wide text-gray-500 font-medium">SLA target</p>
-              <p className="text-xl font-semibold text-gray-900 mt-1">{slaHours}h</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {!loading && (nearBreachUnreplied.length > 0 || breachedUnreplied.length > 0) && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {nearBreachUnreplied.length > 0 && (
-            <div className="p-4 rounded-lg border border-amber-200 bg-amber-50/50 text-amber-900">
-              <p className="text-xs uppercase tracking-wide font-semibold">SLA risk</p>
-              <p className="text-sm mt-1">
-                {nearBreachUnreplied.length} review{nearBreachUnreplied.length === 1 ? '' : 's'} are close to SLA breach
-                (within ~6h).
-              </p>
-              <button
-                type="button"
-                onClick={() => setHighlightReviewId(nearBreachUnreplied[0].id)}
-                className="mt-2 text-xs font-medium underline"
-              >
-                Focus first at-risk review
-              </button>
-            </div>
-          )}
-          {breachedUnreplied.length > 0 && (
-            <div className="p-4 rounded-lg border border-red-200 bg-red-50/60 text-red-900">
-              <p className="text-xs uppercase tracking-wide font-semibold">SLA breached</p>
-              <p className="text-sm mt-1">
-                {breachedUnreplied.length} review{breachedUnreplied.length === 1 ? '' : 's'} exceeded the {slaHours}h target.
-              </p>
-              <button
-                type="button"
-                onClick={() => setHighlightReviewId(breachedUnreplied[0].id)}
-                className="mt-2 text-xs font-medium underline"
-              >
-                Focus first breached review
-              </button>
-            </div>
-          )}
         </div>
       )}
 
@@ -300,10 +186,9 @@ export default function SupplierReviews() {
               className={`bg-white border rounded-xl p-6 transition-shadow ${
                 highlightReviewId === r.id
                   ? 'border-finland ring-2 ring-finland/25 shadow-md'
-                  : !replies[r.id] &&
-                    (nowMs - new Date(r.created_at).getTime()) / (1000 * 60 * 60) > slaHours
-                    ? 'border-red-200 bg-red-50/20'
-                  : 'border-gray-200'
+                  : !replies[r.id]
+                    ? 'border-amber-200 bg-amber-50/20'
+                    : 'border-gray-200'
               }`}
             >
               <div className="flex items-start justify-between gap-4">
