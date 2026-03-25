@@ -1,4 +1,4 @@
-import { Star, Clock, ArrowRight, MapPin, Search } from 'lucide-react';
+import { ArrowRight, MapPin, Search } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import { getAllListings, getAllListingsAsync, SHOW_SEED_LISTINGS } from '../data/listings';
 import { getDestinationsFromListings } from '../data/activities';
@@ -6,7 +6,9 @@ import { isSupabaseConfigured } from '../lib/supabase';
 import { activities } from '../data/activities';
 import { TourPackage } from '../types/tour';
 import { fetchDiscountsByListingIds } from '../data/supabase-discounts';
+import { getReviewAggregatesForListingIds } from '../data/supabase-reviews';
 import { getDisplayPrice, isSupabaseListingId } from '../lib/discount-display';
+import { ListingCardRating } from '../components/ListingCardRating';
 
 const TAG_LABELS: Record<string, string> = {
   'free-cancellation': 'Free cancellation',
@@ -76,6 +78,9 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [countryId, setCountryId] = useState('all');
   const [discountsByListing, setDiscountsByListing] = useState<Map<string, import('../data/supabase-discounts').ListingDiscount[]>>(new Map());
+  const [reviewAggregates, setReviewAggregates] = useState<Map<string, { rating: number; count: number }>>(
+    () => new Map()
+  );
 
   useEffect(() => {
     if (!isSupabaseConfigured()) return;
@@ -104,21 +109,41 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
     );
   }, [allListings, searchTerm, countryId]);
 
-  const displayedListings = filteredListings.slice(0, MAX_RESULTS_HOME);
+  const displayedListings = useMemo(
+    () => filteredListings.slice(0, MAX_RESULTS_HOME),
+    [filteredListings]
+  );
   const hasMore = filteredListings.length > MAX_RESULTS_HOME;
   const hasActiveFilter = searchTerm.trim() !== '' || countryId !== 'all';
 
   const displayedIds = useMemo(
-    () => filteredListings.slice(0, MAX_RESULTS_HOME).map((t) => t.id).filter(isSupabaseListingId),
-    [filteredListings]
+    () => displayedListings.map((t) => t.id).filter(isSupabaseListingId),
+    [displayedListings]
   );
+  const displayedIdsKey = useMemo(() => displayedIds.join(','), [displayedIds]);
+
   useEffect(() => {
-    if (!isSupabaseConfigured() || displayedIds.length === 0) {
+    if (!isSupabaseConfigured() || !displayedIdsKey) {
       setDiscountsByListing(new Map());
       return;
     }
-    fetchDiscountsByListingIds(displayedIds).then(setDiscountsByListing);
-  }, [displayedIds.join(',')]);
+    fetchDiscountsByListingIds(displayedIdsKey.split(',')).then(setDiscountsByListing);
+  }, [displayedIdsKey]);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured() || !displayedIdsKey) {
+      setReviewAggregates(new Map());
+      return;
+    }
+    const ids = displayedIdsKey.split(',');
+    let cancelled = false;
+    getReviewAggregatesForListingIds(ids).then((m) => {
+      if (!cancelled) setReviewAggregates(m);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [displayedIdsKey]);
 
   const goToPackagesWithFilters = () => {
     if (!onNavigate) return;
@@ -273,13 +298,8 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                           <span className="truncate">{tour.city ?? tour.destination}</span>
                         </div>
                       )}
-                      <div className="flex items-center text-sm text-gray-600 mt-2">
-                        <Star className="w-4 h-4 text-finland fill-finland mr-0.5" />
-                        <strong className="text-gray-900">{tour.rating}</strong>
-                        <span className="ml-1">({tour.reviews})</span>
-                        <span className="mx-1.5 text-gray-300">·</span>
-                        <Clock className="w-3.5 h-3.5 mr-0.5" />
-                        {tour.duration}
+                      <div className="mt-2">
+                        <ListingCardRating tour={tour} aggregate={reviewAggregates.get(tour.id)} />
                       </div>
                       {tour.tags && tour.tags.length > 0 && (
                         <div className="flex flex-wrap gap-1.5 mt-2">

@@ -44,6 +44,35 @@ export async function getReviewAggregateForListing(listingId: string): Promise<{
   return { rating: Math.round((sum / count) * 10) / 10, count };
 }
 
+/** Batch aggregates for listing cards (packages, home, destinations). One round-trip per chunk. */
+export async function getReviewAggregatesForListingIds(
+  listingIds: string[]
+): Promise<Map<string, { rating: number; count: number }>> {
+  const out = new Map<string, { rating: number; count: number }>();
+  if (!supabase || listingIds.length === 0) return out;
+  const unique = [...new Set(listingIds)];
+  const chunkSize = 120;
+  for (let i = 0; i < unique.length; i += chunkSize) {
+    const chunk = unique.slice(i, i + chunkSize);
+    const { data, error } = await supabase.from('reviews').select('listing_id, rating').in('listing_id', chunk);
+    if (error) continue;
+    const buckets = new Map<string, number[]>();
+    for (const row of data ?? []) {
+      const lid = String((row as { listing_id: string }).listing_id);
+      const r = Number((row as { rating: number }).rating);
+      if (!Number.isFinite(r)) continue;
+      if (!buckets.has(lid)) buckets.set(lid, []);
+      buckets.get(lid)!.push(r);
+    }
+    for (const [lid, ratings] of buckets) {
+      const count = ratings.length;
+      const sum = ratings.reduce((a, b) => a + b, 0);
+      out.set(lid, { rating: Math.round((sum / count) * 10) / 10, count });
+    }
+  }
+  return out;
+}
+
 /** Submit a review (user must be logged in). Optionally link booking_id for "verified" badge. */
 export async function submitReview(params: {
   listingId: string;

@@ -2,6 +2,16 @@
 
 What’s missing on the **customer (consumer)** side and **supplier** side compared to GYG/TripAdvisor.
 
+### Notable progress (keep this in sync when you ship)
+
+- **Reviews (partial):** `reviews` table + tour detail (`TourDetails`) show real reviews and aggregates. **Packages, Home, and destination pages** load batched aggregates for listing cards so suppliers without reviews show **“No reviews yet”** instead of a misleading default score; **Top rated** sort uses real averages (listings with no reviews sort last).
+- **Wishlist & cart:** Persisted in Supabase; **`/wishlist`** and **`/cart`** wired; header cart badge when configured.
+- **Account:** **`/account`** hub (bookings, wishlist, cart; reviews tile placeholder).
+- **Discovery (partial):** **`/destinations/:slug`** destination pages; Packages has shareable query params (`q`, `destination`, `tags`, `price`, `sort`), **removable “Applied” filter chips**, and **deferred search** for smoother typing.
+- **Availability (partial):** Booking flow checks capacity / dates when Supabase availability is configured.
+
+Still open: payments, transactional email, full “Places to see” / inspiration nav, time slots, consumer “My reviews”, supplier email notifications, etc.
+
 ---
 
 ## Consumer side – what’s missing
@@ -16,41 +26,42 @@ What’s missing on the **customer (consumer)** side and **supplier** side compa
 
 ### 2. **Reviews & ratings (real)**
 - **GYG/TripAdvisor:** Real reviews after the experience; ratings drive sort/filters and trust; photos, “verified” badge, helpful votes.
-- **Traverion:** Listings have `rating` and `reviews` in DB (often default 4.5 / 0). Some pages use mock data from `src/data/reviews.ts`. No table for customer reviews, no post-booking “Leave a review” flow.
+- **Traverion (current):** `reviews` table exists; **tour detail** loads reviews + aggregate. **Listing grids** (Packages, Home, destinations) use **batched aggregates** from `reviews` for Supabase listings; zero reviews → honest **“No reviews yet”** on cards (not the listing row default). **Packages** “Top rated” sort uses those aggregates. Seed/demo listings may still show static ratings.
+- **Still missing vs GYG:** Post-booking **email** to leave a review; review photos; helpful votes; dedicated **“My reviews”** in the account hub; richer filters (e.g. min rating).
 
-**Gap:** `reviews` table (listing_id, booking_id or guest_email, rating, comment, date, optional photos); post-booking email/link to leave review; aggregate rating/review count on listing; show real reviews on tour detail; optionally use in “Sort by rating” and filters.
+**Gap (remaining):** Email nudge after trip; optional photos/helpful votes; surface “my reviews” in `/account` when ready.
 
 ---
 
 ### 3. **Wishlist & cart (functional)**
 - **GYG/TripAdvisor:** Wishlist = save experiences; cart = add multiple items and checkout together.
-- **Traverion:** Header has Wishlist and Cart **UI only** (placeholders). No save/list, no cart, no multi-item checkout.
+- **Traverion (current):** **Supabase wishlist + cart** for logged-in users; **`/wishlist`**, **`/cart`**, header cart count; multi-item **request** flow (not paid checkout).
 
-**Gap:** Wishlist: persist saved listing IDs (user account or localStorage), wishlist page, “Add/remove from wishlist” on cards and detail. Cart: cart table or session, add to cart, cart page, then one checkout for multiple items (when payments exist).
+**Gap:** “Add to wishlist” on every listing surface if not already; **paid** multi-item checkout when payments exist.
 
 ---
 
 ### 4. **Discovery / navigation**
 - **GYG/TripAdvisor:** “Places to see”, “Things to do”, “Trip inspiration” (or similar) with destination/activity browse and landing pages.
-- **Traverion:** Intentionally **skipped for now** (no “Places to see” etc. in header). Home has search + country filter; Packages has search/filters. No destination/activity taxonomy landing pages.
+- **Traverion (current):** Home search + country filter; **Packages** with URL-synced filters, **Applied** chips, sort options, deferred search; **`/destinations/:slug`** pages for country/city slugs. Header still **no** separate “Places to see” / inspiration mega-nav.
 
-**Gap:** When you have enough tours: add “Places to see”, “Things to do”, “Trip inspiration” (or your naming) with real links and, later, destination/activity category pages.
+**Gap:** Optional top-nav “Trip inspiration” etc. when content exists; deeper activity taxonomy pages; map browse if desired.
 
 ---
 
 ### 5. **Availability & times**
 - **GYG/TripAdvisor:** Per experience: dates and time slots; “Only 2 left”; calendar with available days.
-- **Traverion:** Booking asks for **date + guests** only. No availability check; no time slots; no capacity limits. Any date can be submitted.
+- **Traverion (current):** Booking asks for **date + guests**; when Supabase is configured, **availability/capacity** can be enforced on submit (see booking flow). No per-slot times in UI yet; “Only X left” not necessarily shown on detail.
 
-**Gap:** Availability model (e.g. per listing: available dates, times, capacity); check availability before/during booking; disable fully booked dates; optional “Only X left” on detail and in widget.
+**Gap:** Time slots; calendar UX on listing detail; prominent scarcity labels; supplier tooling for slots (see supplier section).
 
 ---
 
 ### 6. **Customer account & history**
 - **GYG/TripAdvisor:** Profile: past bookings, reviews written, wishlist, payment methods, preferences.
-- **Traverion:** Logged-in user has **My Bookings** (via RLS) and logout. No profile page, no saved payment methods, no “My reviews” or “My wishlist” hub.
+- **Traverion (current):** **`/account`** hub linking bookings, wishlist, cart; **My bookings** still directly reachable. No saved payment methods; **My reviews** not wired in hub yet (placeholder tile).
 
-**Gap:** Profile/dashboard: bookings, wishlist, reviews written; later: saved payment methods, preferences (currency, notifications).
+**Gap:** “My reviews” list + saved payments/preferences when you add Stripe and review history.
 
 ---
 
@@ -80,9 +91,9 @@ What’s missing on the **customer (consumer)** side and **supplier** side compa
 
 ### 10. **Multi-item & checkout UX**
 - **GYG/TripAdvisor:** Add to cart → cart page → one checkout for several experiences; vouchers/gift cards in some cases.
-- **Traverion:** One booking per tour, one page per booking. No cart, no combined checkout.
+- **Traverion (current):** Cart supports **multiple request bookings** (no single paid checkout). Direct book flow per tour still exists.
 
-**Gap:** Covered by cart + payments above: cart, combined checkout, optional voucher/gift later.
+**Gap:** Combined **paid** checkout when payments exist; optional vouchers/gifts later.
 
 ---
 
@@ -98,9 +109,9 @@ What’s missing on the **customer (consumer)** side and **supplier** side compa
 
 ### 2. **Availability & capacity**
 - **GYG/TripAdvisor:** Suppliers set calendar (dates, times, capacity); manage overbooking; sometimes sync with external systems.
-- **Traverion:** Suppliers don’t set availability. Bookings are just “pending → confirmed/cancelled”. No calendar, no slots, no capacity.
+- **Traverion (current):** Availability data can exist in Supabase and **consumer booking** can respect capacity (when configured). Supplier-facing calendar/slot UX may still be thin—confirm in-app.
 
-**Gap:** Supplier UI to set available dates/times and capacity per listing; use this to drive consumer availability and “Only X left”.
+**Gap:** Full supplier calendar UX, time slots, and “Only X left” surfacing on listing pages if not already complete.
 
 ---
 
@@ -122,9 +133,9 @@ What’s missing on the **customer (consumer)** side and **supplier** side compa
 
 ### 5. **Performance & quality**
 - **GYG/TripAdvisor:** Supplier ratings, response time, cancellation rate; sometimes “Partner badge” or quality program.
-- **Traverion:** No supplier-level rating or performance metrics. Only listing-level rating/reviews (and reviews are not real yet).
+- **Traverion:** No supplier-level dashboard metrics yet. Listing-level reviews are **real** where guests submit them; aggregates show on listings and cards.
 
-**Gap:** Once reviews are real: supplier-level aggregates, response time, cancellation rate; optional badges or quality program.
+**Gap:** Supplier-level aggregates, response time, cancellation rate; optional badges or quality program.
 
 ---
 
@@ -141,11 +152,11 @@ What’s missing on the **customer (consumer)** side and **supplier** side compa
 | Area              | Consumer gap                                      | Supplier gap                                  |
 |-------------------|---------------------------------------------------|-----------------------------------------------|
 | **Money**         | No payment at checkout                            | No payout method / real payouts               |
-| **Reviews**       | No real reviews; mock or static rating/review count | No review notifications; no quality metrics  |
-| **Wishlist/Cart** | UI only; no save, no cart, no multi-item checkout | —                                             |
-| **Discovery**     | No “Places to see” / “Things to do” / inspiration | —                                             |
-| **Availability** | No dates/times/capacity check                     | No calendar/slots/capacity management         |
-| **Account**       | No profile, no “My reviews” / “My wishlist”       | —                                             |
+| **Reviews**       | Real reviews + aggregates on detail & cards; no “My reviews” hub yet | No review notifications; limited quality metrics |
+| **Wishlist/Cart** | Supabase wishlist + cart; multi-item **requests** | —                                             |
+| **Discovery**     | Packages filters + `/destinations/:slug`; no inspiration nav | —                                    |
+| **Availability** | Capacity check on book when configured            | Confirm full supplier calendar UX              |
+| **Account**       | `/account` hub; payments/review history later       | —                                             |
 | **Comms**         | No booking/review emails                          | No new-booking/cancel/review emails            |
 | **Trust/Support** | Policies and support not enforced                 | No dedicated supplier support                 |
 | **Product**       | —                                                 | No variants, add-ons, tiered pricing          |

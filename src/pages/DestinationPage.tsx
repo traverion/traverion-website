@@ -1,10 +1,13 @@
 import { useMemo, useState, useEffect } from 'react';
-import { ArrowLeft, MapPin, Star, Clock } from 'lucide-react';
+import { ArrowLeft, MapPin } from 'lucide-react';
 import { getAllListings, getAllListingsAsync, SHOW_SEED_LISTINGS } from '../data/listings';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { setPageMetaWithOg } from '../lib/seo';
 import { activities } from '../data/activities';
 import { TourPackage } from '../types/tour';
+import { getReviewAggregatesForListingIds } from '../data/supabase-reviews';
+import { isSupabaseListingId } from '../lib/discount-display';
+import { ListingCardRating } from '../components/ListingCardRating';
 
 const TAG_LABELS: Record<string, string> = {
   'free-cancellation': 'Free cancellation',
@@ -30,6 +33,10 @@ interface DestinationPageProps {
 
 export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate }: DestinationPageProps) {
   const [supplierListings, setSupplierListings] = useState<TourPackage[] | null>(null);
+  const [reviewAggregates, setReviewAggregates] = useState<Map<string, { rating: number; count: number }>>(
+    () => new Map()
+  );
+
   useEffect(() => {
     if (!isSupabaseConfigured()) return;
     getAllListingsAsync({ includeSeed: false, includeHolidayPackages: false })
@@ -56,6 +63,27 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
     const label = list[0]?.country === labelFromSlug ? labelFromSlug : (list[0]?.city ?? labelFromSlug);
     return { label: label || labelFromSlug, listings: list };
   }, [slug, allListings]);
+
+  const listingIdsForReviews = useMemo(
+    () => listings.map((t) => t.id).filter(isSupabaseListingId),
+    [listings]
+  );
+  const listingIdsForReviewsKey = useMemo(() => listingIdsForReviews.join(','), [listingIdsForReviews]);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured() || !listingIdsForReviewsKey) {
+      setReviewAggregates(new Map());
+      return;
+    }
+    const ids = listingIdsForReviewsKey.split(',');
+    let cancelled = false;
+    getReviewAggregatesForListingIds(ids).then((m) => {
+      if (!cancelled) setReviewAggregates(m);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [listingIdsForReviewsKey]);
 
   useEffect(() => {
     if (!label) return;
@@ -129,14 +157,7 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
                     <MapPin className="w-4 h-4 mr-1 flex-shrink-0 text-gray-400" />
                     <span className="truncate">{tour.city ?? tour.destination}</span>
                   </div>
-                  <div className="flex items-center text-sm text-gray-600">
-                    <Star className="w-4 h-4 text-finland fill-finland mr-0.5" />
-                    <strong>{tour.rating}</strong>
-                    <span className="ml-1">({tour.reviews})</span>
-                    <span className="mx-1.5 text-gray-300">·</span>
-                    <Clock className="w-3.5 h-3.5 mr-0.5 text-gray-400" />
-                    {tour.duration}
-                  </div>
+                  <ListingCardRating tour={tour} aggregate={reviewAggregates.get(tour.id)} />
                   {tour.tags && tour.tags.length > 0 && (
                     <div className="flex flex-wrap gap-1.5 mt-2">
                       {tour.tags.filter(t => t !== 'free-cancellation' && t !== 'bestseller').map(tagId => (

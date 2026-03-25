@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Search, MapPin, Star, Clock, SlidersHorizontal, ChevronDown, Globe, PlusCircle, Filter, X } from 'lucide-react';
+import { useState, useEffect, useMemo, useCallback, useDeferredValue } from 'react';
+import { Search, MapPin, Globe, PlusCircle, Filter, X } from 'lucide-react';
 import { getAllListings, getAllListingsAsync, SHOW_SEED_LISTINGS, durationToMinutes } from '../data/listings';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { analytics } from '../lib/analytics';
@@ -7,9 +7,11 @@ import { tourPackages } from '../data/tours';
 import { activities, TAG_OPTIONS, getDestinationsFromListings, SEED_DESTINATION_OPTIONS } from '../data/activities';
 import { TourPackage } from '../types/tour';
 import { fetchDiscountsByListingIds } from '../data/supabase-discounts';
+import { getReviewAggregatesForListingIds } from '../data/supabase-reviews';
 import { getDisplayPrice, isSupabaseListingId } from '../lib/discount-display';
 import { setListingsJsonLd } from '../lib/seo';
 import { SkeletonCardGrid } from '../components/ui/Skeleton';
+import { ListingCardRating } from '../components/ListingCardRating';
 
 type SortOption = 'recommended' | 'price-asc' | 'price-desc' | 'rating' | 'duration';
 
@@ -90,12 +92,17 @@ export default function Packages({ onTourSelect }: PackagesProps) {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState<SortOption>('recommended');
   const [priceRange, setPriceRange] = useState('all');
-  const [showHolidayPackages, setShowHolidayPackages] = useState(false);
+  const [showHolidayPackages] = useState(false);
   const [filterBarSticky, setFilterBarSticky] = useState(false);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [supplierListings, setSupplierListings] = useState<TourPackage[] | null>(null);
   const [listingsLoadError, setListingsLoadError] = useState<string | null>(null);
   const [discountsByListing, setDiscountsByListing] = useState<Map<string, import('../data/supabase-discounts').ListingDiscount[]>>(new Map());
+  const [reviewAggregates, setReviewAggregates] = useState<Map<string, { rating: number; count: number }>>(
+    () => new Map()
+  );
+
+  const deferredSearch = useDeferredValue(searchTerm);
 
   // Load supplier listings from Supabase when configured
   useEffect(() => {
@@ -181,6 +188,27 @@ export default function Packages({ onTourSelect }: PackagesProps) {
     return base;
   }, [supplierListings, showHolidayPackages]);
 
+  const supabaseListingIds = useMemo(
+    () => allListings.map((t) => t.id).filter(isSupabaseListingId),
+    [allListings]
+  );
+  const supabaseListingIdsKey = useMemo(() => supabaseListingIds.join(','), [supabaseListingIds]);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured() || !supabaseListingIdsKey) {
+      setReviewAggregates(new Map());
+      return;
+    }
+    const ids = supabaseListingIdsKey.split(',');
+    let cancelled = false;
+    getReviewAggregatesForListingIds(ids).then((map) => {
+      if (!cancelled) setReviewAggregates(map);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [supabaseListingIdsKey]);
+
   // SEO: JSON-LD for listings (helps search engines understand tour offerings)
   useEffect(() => {
     if (allListings.length === 0) return;
@@ -198,16 +226,28 @@ export default function Packages({ onTourSelect }: PackagesProps) {
     return SHOW_SEED_LISTINGS ? SEED_DESTINATION_OPTIONS : getDestinationsFromListings(allListings);
   }, [allListings]);
 
+  const ratingSortScore = useCallback(
+    (tour: TourPackage) => {
+      if (!isSupabaseListingId(tour.id)) return tour.rating;
+      const agg = reviewAggregates.get(tour.id);
+      if (agg && agg.count > 0) return agg.rating;
+      return -1;
+    },
+    [reviewAggregates]
+  );
+
   const filteredPackages = useMemo(() => {
-    let list = allListings.filter(tour => {
-      const matchesSearch = !searchTerm ||
-        tour.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (tour.destination && tour.destination.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (tour.city && tour.city.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (tour.country && tour.country.toLowerCase().includes(searchTerm.toLowerCase()));
+    const q = deferredSearch.trim().toLowerCase();
+    let list = allListings.filter((tour) => {
+      const matchesSearch =
+        !q ||
+        tour.title.toLowerCase().includes(q) ||
+        (tour.destination && tour.destination.toLowerCase().includes(q)) ||
+        (tour.city && tour.city.toLowerCase().includes(q)) ||
+        (tour.country && tour.country.toLowerCase().includes(q));
       const matchesDest = matchesDestination(tour, selectedDestination, destinationOptions);
-      const matchesTag = selectedTags.length === 0 ||
-        (tour.tags && selectedTags.every(tagId => tour.tags!.includes(tagId)));
+      const matchesTag =
+        selectedTags.length === 0 || (tour.tags && selectedTags.every((tagId) => tour.tags!.includes(tagId)));
       let matchesPrice = true;
       if (priceRange === 'under100') matchesPrice = tour.price.startingFrom < 100;
       else if (priceRange === '100-500') matchesPrice = tour.price.startingFrom >= 100 && tour.price.startingFrom < 500;
@@ -218,22 +258,36 @@ export default function Packages({ onTourSelect }: PackagesProps) {
 
     if (sortBy === 'price-asc') list = [...list].sort((a, b) => a.price.startingFrom - b.price.startingFrom);
     else if (sortBy === 'price-desc') list = [...list].sort((a, b) => b.price.startingFrom - a.price.startingFrom);
-    else if (sortBy === 'rating') list = [...list].sort((a, b) => b.rating - a.rating);
+    else if (sortBy === 'rating')
+      list = [...list].sort((a, b) => ratingSortScore(b) - ratingSortScore(a));
     else if (sortBy === 'duration') list = [...list].sort((a, b) => durationToMinutes(a.duration) - durationToMinutes(b.duration));
     return list;
-  }, [allListings, destinationOptions, searchTerm, selectedDestination, selectedTags, priceRange, sortBy]);
+  }, [
+    allListings,
+    destinationOptions,
+    deferredSearch,
+    selectedDestination,
+    selectedTags,
+    priceRange,
+    sortBy,
+    ratingSortScore,
+  ]);
 
   const listingIdsForDiscounts = useMemo(
     () => filteredPackages.map((t) => t.id).filter(isSupabaseListingId),
     [filteredPackages]
   );
+  const listingIdsForDiscountsKey = useMemo(
+    () => listingIdsForDiscounts.join(','),
+    [listingIdsForDiscounts]
+  );
   useEffect(() => {
-    if (!isSupabaseConfigured() || listingIdsForDiscounts.length === 0) {
+    if (!isSupabaseConfigured() || !listingIdsForDiscountsKey) {
       setDiscountsByListing(new Map());
       return;
     }
-    fetchDiscountsByListingIds(listingIdsForDiscounts).then(setDiscountsByListing);
-  }, [listingIdsForDiscounts.join(',')]);
+    fetchDiscountsByListingIds(listingIdsForDiscountsKey.split(',')).then(setDiscountsByListing);
+  }, [listingIdsForDiscountsKey]);
 
   const hasActiveFilters =
     searchTerm.trim() !== '' ||
@@ -271,9 +325,16 @@ export default function Packages({ onTourSelect }: PackagesProps) {
           <h1 className="text-3xl sm:text-4xl font-semibold !text-white mb-2 uppercase tracking-wide drop-shadow-md">
             Tours & activities
           </h1>
-          <p className="!text-white/95 text-base sm:text-lg mb-6 drop-shadow-md [text-shadow:0_1px_12px_rgba(0,0,0,0.5)]">
-            {filteredPackages.length} {filteredPackages.length === 1 ? 'tour' : 'tours'} · Free cancellation on most
-          </p>
+          <div className="mb-6">
+            <p className="!text-white/95 text-base sm:text-lg drop-shadow-md [text-shadow:0_1px_12px_rgba(0,0,0,0.5)]">
+              {filteredPackages.length} {filteredPackages.length === 1 ? 'tour' : 'tours'} · Free cancellation on most
+            </p>
+            {searchTerm.trim() !== '' && searchTerm !== deferredSearch && (
+              <p className="!text-white/75 text-sm mt-1 drop-shadow-md" aria-live="polite">
+                Updating results…
+              </p>
+            )}
+          </div>
         {/* Sticky filter bar - white card on hero */}
         <div
           className={`mb-0 transition-all duration-200 ${
@@ -332,11 +393,59 @@ export default function Packages({ onTourSelect }: PackagesProps) {
                 <option value="recommended">Recommended</option>
                 <option value="price-asc">Price: low to high</option>
                 <option value="price-desc">Price: high to low</option>
-                <option value="rating">Top rated</option>
+                <option value="rating">Top rated (by reviews)</option>
                 <option value="duration">Duration</option>
               </select>
             </div>
           </div>
+
+          {hasActiveFilters && (
+            <div className="flex flex-wrap items-center gap-2 mb-4" aria-label="Active filters">
+              <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Applied</span>
+              {searchTerm.trim() !== '' && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm('')}
+                  className="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 hover:bg-gray-200 border border-gray-200/80"
+                >
+                  “{searchTerm.trim().slice(0, 36)}
+                  {searchTerm.trim().length > 36 ? '…' : ''}”
+                  <X className="w-3.5 h-3.5 opacity-70" aria-hidden />
+                </button>
+              )}
+              {selectedDestination !== 'all' && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedDestination('all')}
+                  className="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 hover:bg-gray-200 border border-gray-200/80"
+                >
+                  {destinationOptions.find((c) => c.id === selectedDestination)?.label ?? selectedDestination}
+                  <X className="w-3.5 h-3.5 opacity-70" aria-hidden />
+                </button>
+              )}
+              {selectedTags.map((tagId) => (
+                <button
+                  key={tagId}
+                  type="button"
+                  onClick={() => toggleTag(tagId)}
+                  className="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-full text-xs font-medium bg-finland/10 text-finland hover:bg-finland/15 border border-finland/20"
+                >
+                  {TAG_OPTIONS.find((t) => t.id === tagId)?.label ?? tagId}
+                  <X className="w-3.5 h-3.5 opacity-70" aria-hidden />
+                </button>
+              ))}
+              {priceRange !== 'all' && (
+                <button
+                  type="button"
+                  onClick={() => setPriceRange('all')}
+                  className="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 hover:bg-gray-200 border border-gray-200/80"
+                >
+                  {PRICE_CHIPS.find((c) => c.id === priceRange)?.label ?? priceRange}
+                  <X className="w-3.5 h-3.5 opacity-70" aria-hidden />
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Filter chips - destination, tags, price (hidden on mobile; use Filters drawer) */}
           <div className="hidden lg:flex flex-wrap items-center gap-2">
@@ -536,14 +645,11 @@ export default function Packages({ onTourSelect }: PackagesProps) {
                     </div>
                     <div className="p-3">
                       <h3 className="font-semibold text-gray-900 text-sm mb-1 line-clamp-2 group-hover:text-finland transition-colors">{tour.title}</h3>
-                      <div className="flex items-center text-gray-500 text-xs">
-                        <Star className="w-3.5 h-3.5 text-finland fill-finland mr-0.5" />
-                        <strong>{tour.rating}</strong>
-                        <span className="ml-0.5">({tour.reviews})</span>
-                        <span className="mx-1 text-gray-300">·</span>
-                        <Clock className="w-3 h-3 mr-0.5 text-gray-400" />
-                        {tour.duration}
-                      </div>
+                      <ListingCardRating
+                        tour={tour}
+                        aggregate={reviewAggregates.get(tour.id)}
+                        compact
+                      />
                     </div>
                   </div>
                 ))}
@@ -621,16 +727,7 @@ export default function Packages({ onTourSelect }: PackagesProps) {
                   <MapPin className="w-4 h-4 mr-1 flex-shrink-0 text-gray-400" />
                   <span className="truncate">{tour.destination}</span>
                 </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="flex items-center text-gray-600">
-                    <Star className="w-4 h-4 text-finland fill-finland mr-0.5" />
-                    <strong className="text-gray-900">{tour.rating}</strong>
-                    <span className="ml-1">({tour.reviews})</span>
-                    <span className="mx-1.5 text-gray-300">·</span>
-                    <Clock className="w-3.5 h-3.5 mr-0.5 text-gray-400" />
-                    {tour.duration}
-                  </span>
-                </div>
+                <ListingCardRating tour={tour} aggregate={reviewAggregates.get(tour.id)} />
                 {tour.tags && tour.tags.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 mt-2">
                     {tour.tags.filter(t => t !== 'free-cancellation' && t !== 'bestseller').map(tagId => (
