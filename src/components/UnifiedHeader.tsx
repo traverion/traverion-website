@@ -154,8 +154,30 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
               {isUserMenuOpen && (
                 <div className="absolute right-0 top-full mt-1 py-1 w-48 bg-white rounded-xl shadow-soft-lg border border-gray-100 animate-slide-down">
                   {!isSupabaseConfigured() ? (
-                    <div className="px-3 py-2 text-sm text-gray-500">
-                      Sign-in not configured
+                    <div className="px-3 py-2 space-y-2">
+                      <p className="text-xs text-gray-600 leading-snug">
+                        Online accounts are not available in this environment yet. You can still browse tours and contact us for help.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsUserMenuOpen(false);
+                          onNavigate('contact');
+                        }}
+                        className="lux-flat w-full text-left px-2 py-1.5 text-sm font-medium text-finland hover:bg-finland/5 rounded-lg"
+                      >
+                        Contact support
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsUserMenuOpen(false);
+                          onNavigate('packages');
+                        }}
+                        className="lux-flat w-full text-left px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-50 rounded-lg"
+                      >
+                        Browse tours
+                      </button>
                     </div>
                   ) : user ? (
                     <>
@@ -274,23 +296,36 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                 {t.navigation?.contact || 'Contact'}
               </button>
               
-              {/* Mobile: Cart */}
+              {/* Mobile: Cart (requires Supabase for synced cart) */}
               {isSupabaseConfigured() && (
-                <>
+                <button
+                  onClick={() => {
+                    if (!user) {
+                      window.history.pushState({}, '', '/auth?tab=signup&next=cart');
+                      onNavigate('auth');
+                    } else onNavigate('cart');
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="lux-flat w-full text-left px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                >
+                  <ShoppingCart className="w-5 h-5" />
+                  Cart {cartCount > 0 && `(${cartCount})`}
+                </button>
+              )}
+              {!isSupabaseConfigured() && (
+                <div className="px-4 py-3 rounded-lg bg-gray-50 border border-gray-100 text-sm text-gray-600">
+                  <p className="mb-2">Accounts and saved cart need the live site configuration.</p>
                   <button
+                    type="button"
                     onClick={() => {
-                      if (isSupabaseConfigured() && !user) {
-                        window.history.pushState({}, '', '/auth?tab=signup&next=cart');
-                        onNavigate('auth');
-                      } else onNavigate('cart');
+                      onNavigate('contact');
                       setIsMobileMenuOpen(false);
                     }}
-                    className="lux-flat w-full text-left px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                    className="text-finland font-medium hover:underline"
                   >
-                    <ShoppingCart className="w-5 h-5" />
-                    Cart {cartCount > 0 && `(${cartCount})`}
+                    Contact support
                   </button>
-                </>
+                </div>
               )}
               {/* Mobile Action Buttons */}
               <div className="border-t border-gray-200 pt-4 space-y-2">
