@@ -2,6 +2,23 @@ import { useState } from 'react';
 import { LogIn, UserPlus, Globe, Check, MapPin, Users, CreditCard } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { ensureSupplierProfile } from '../../data/supabase-supplier-profile';
+import { notifySupplierEvent } from '../../data/supabase-supplier-messaging';
+
+function supplierPortalBaseUrl(): string {
+  const v = import.meta.env.VITE_SITE_URL;
+  if (typeof v === 'string' && v.trim()) return v.replace(/\/$/, '');
+  if (typeof window !== 'undefined') return window.location.origin;
+  return 'https://www.traverion.com';
+}
+
+/** Fire-and-forget welcome email (Edge Function dedupes via welcome_email_sent_at). */
+function sendSupplierWelcomeEmail(userId: string): void {
+  void notifySupplierEvent({
+    supplierId: userId,
+    eventType: 'supplier_welcome',
+    portalBaseUrl: supplierPortalBaseUrl(),
+  });
+}
 
 interface SupplierAuthProps {
   onAuthenticated: () => void;
@@ -49,8 +66,8 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
       setError('Passwords do not match');
       return;
     }
-    if (mode === 'signup' && password.length < 6) {
-      setError('Password must be at least 6 characters');
+    if (mode === 'signup' && password.length < 8) {
+      setError('Password must be at least 8 characters');
       return;
     }
     setSubmitting(true);
@@ -65,6 +82,7 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
           }
           if (data.session) {
             await ensureSupplierProfile(data.session.user.id, { display_name: normalizedEmail.split('@')[0] ?? null });
+            sendSupplierWelcomeEmail(data.session.user.id);
             onAuthenticated();
             return;
           }
@@ -78,6 +96,7 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
           }
           if (data.user) {
             await ensureSupplierProfile(data.user.id, { display_name: normalizedEmail.split('@')[0] ?? null });
+            sendSupplierWelcomeEmail(data.user.id);
           }
           onAuthenticated();
         }
@@ -205,11 +224,11 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
                 placeholder="••••••••"
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland"
                 required
-                minLength={mode === 'signup' ? 6 : undefined}
+                minLength={mode === 'signup' ? 8 : undefined}
                 autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
               />
               {mode === 'signup' && (
-                <p className="text-xs text-gray-500 mt-1">At least 6 characters</p>
+                <p className="text-xs text-gray-500 mt-1">At least 8 characters</p>
               )}
               {mode === 'signin' && (
                 <button
@@ -233,6 +252,7 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
                   placeholder="••••••••"
                   className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland"
                   autoComplete="new-password"
+                  minLength={8}
                   required
                 />
               </div>

@@ -2,7 +2,7 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 
-type EventType = 'new_booking' | 'booking_cancelled' | 'new_review';
+type EventType = 'new_booking' | 'booking_cancelled' | 'new_review' | 'supplier_welcome';
 
 type Payload = {
   supplierId: string;
@@ -15,6 +15,8 @@ type Payload = {
   guestName?: string;
   reviewRating?: number;
   reviewTitle?: string;
+  /** Base site URL (no trailing slash), e.g. https://www.traverion.com — used in supplier_welcome body */
+  portalBaseUrl?: string;
 };
 
 function json(body: unknown, status = 200): Response {
@@ -25,6 +27,7 @@ function json(body: unknown, status = 200): Response {
 }
 
 function eventSubject(payload: Payload): string {
+  if (payload.eventType === 'supplier_welcome') return 'Welcome to Traverion for suppliers';
   const listing = payload.listingTitle ?? 'your listing';
   if (payload.eventType === 'new_booking') return `New booking request: ${listing}`;
   if (payload.eventType === 'booking_cancelled') return `Booking cancelled: ${listing}`;
@@ -32,6 +35,20 @@ function eventSubject(payload: Payload): string {
 }
 
 function eventBody(payload: Payload): string {
+  if (payload.eventType === 'supplier_welcome') {
+    const base = (payload.portalBaseUrl ?? 'https://www.traverion.com').replace(/\/$/, '');
+    return [
+      'Thanks for creating a supplier account on Traverion.',
+      '',
+      'Next steps:',
+      '1. Complete your business profile and payout details in Settings.',
+      '2. Create and publish your first listing when you are ready.',
+      '',
+      `Open your supplier portal: ${base}/supplier`,
+      '',
+      '— Traverion',
+    ].join('\n');
+  }
   const listing = payload.listingTitle ?? 'Listing';
   const lines = [`Event: ${payload.eventType}`, `Listing: ${listing}`];
   if (payload.bookingId) lines.push(`Booking id: ${payload.bookingId}`);
@@ -70,6 +87,18 @@ serve(async (req) => {
     }
 
     const admin = createClient(supabaseUrl, serviceRoleKey);
+
+    if (payload.eventType === 'supplier_welcome') {
+      const { data: prof } = await admin
+        .from('supplier_profiles')
+        .select('welcome_email_sent_at')
+        .eq('id', payload.supplierId)
+        .maybeSingle();
+      if (prof?.welcome_email_sent_at) {
+        return json({ success: true, skipped: true, notified: 0 });
+      }
+    }
+
     const recipients = new Set<string>();
 
     const { data: teamRows } = await admin
@@ -110,6 +139,14 @@ serve(async (req) => {
     const resendJson: any = await resendResp.json();
     if (!resendResp.ok) {
       return json({ success: false, error: resendJson?.message ?? 'Resend error' }, 500);
+    }
+
+    if (payload.eventType === 'supplier_welcome') {
+      const now = new Date().toISOString();
+      await admin
+        .from('supplier_profiles')
+        .update({ welcome_email_sent_at: now, updated_at: now })
+        .eq('id', payload.supplierId);
     }
 
     return json({

@@ -107,6 +107,13 @@ supabase secrets set RESEND_API_KEY=re_xxxxxxxxxxxxxxxx
 supabase secrets set SUPPLIER_EMAIL_FROM="Traverion <no-reply@your-verified-domain.com>"
 ```
 
+Apply new database migrations (includes `welcome_email_sent_at` for one-time supplier welcome emails):
+
+```bash
+supabase db push
+# or run the SQL in supabase/migrations/020_supplier_welcome_email_sent.sql from the SQL editor
+```
+
 Deploy or redeploy the functions so they run with the latest secrets:
 
 ```bash

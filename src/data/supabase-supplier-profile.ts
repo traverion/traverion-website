@@ -22,6 +22,7 @@ export type SupplierProfileRow = {
   insurance_provider: string | null;
   payment_cycle: 'monthly' | 'biweekly' | null;
   payout_threshold_min: number | null;
+  welcome_email_sent_at: string | null;
   created_at: string;
   updated_at: string;
 };
