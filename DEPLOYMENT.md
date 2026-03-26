@@ -78,15 +78,55 @@ Set these in Vercel Project Settings -> Environment Variables:
 - `VITE_SUPABASE_ANON_KEY`
 - `VITE_SITE_URL` (recommended, e.g. `https://traverion.com`)
 
-### Supabase Edge Functions (supplier email notifications)
-Set these with Supabase function secrets:
+### Supabase Edge Functions (supplier email via Resend)
 
-- `RESEND_API_KEY`
-- `SUPPLIER_EMAIL_FROM`
-- `SUPABASE_URL`
-- `SUPABASE_SERVICE_ROLE_KEY`
+Two functions send mail: `notify-supplier-event` (bookings/reviews) and `send-supplier-message` (manual messages from the portal). Both call the Resend HTTP API.
 
-Without these, supplier notification functions (`notify-supplier-event`, `send-supplier-message`) will not send emails.
+#### What to set (Supabase secrets)
+
+| Secret | Required | Notes |
+|--------|----------|--------|
+| `RESEND_API_KEY` | **Yes** | API key from [resend.com](https://resend.com) → API Keys (`re_...`). |
+| `SUPPLIER_EMAIL_FROM` | Optional | Default in code is `Traverion <no-reply@traverion.com>`. **Must** use an address/domain you verified in Resend (Domains), or Resend will reject sends. |
+| `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | Usually **no** | On Supabase-hosted Edge Functions these are **injected automatically**. Only add them as secrets if logs show they are missing (e.g. self-hosted). |
+
+Set secrets via **Supabase Dashboard** → your project → **Project Settings** → **Edge Functions** → **Secrets**, or via CLI (below).
+
+#### CLI (recommended for copy-paste)
+
+```bash
+# Install CLI: https://supabase.com/docs/guides/cli
+supabase login
+supabase link --project-ref YOUR_PROJECT_REF   # Dashboard → Project Settings → General → Reference ID
+```
+
+Then set secrets (use your real values):
+
+```bash
+supabase secrets set RESEND_API_KEY=re_xxxxxxxxxxxxxxxx
+supabase secrets set SUPPLIER_EMAIL_FROM="Traverion <no-reply@your-verified-domain.com>"
+```
+
+Deploy or redeploy the functions so they run with the latest secrets:
+
+```bash
+supabase functions deploy notify-supplier-event
+supabase functions deploy send-supplier-message
+```
+
+#### Resend checklist (production)
+
+1. Add your domain in Resend → **Domains** and complete DNS (SPF/DKIM).
+2. Use a `SUPPLIER_EMAIL_FROM` address on that domain.
+3. For testing only, Resend may allow their sandbox sender; production should use your domain.
+
+#### Quick verify
+
+1. In **Supabase** → **Edge Functions** → open `notify-supplier-event` → **Logs** (leave tab open).
+2. On the **live site**, complete an action that triggers mail (e.g. customer booking or new review), or use **Send message** in the supplier portal if that path calls `send-supplier-message`.
+3. Confirm **no** `RESEND_API_KEY not configured` in logs, and check the supplier inbox for the email.
+
+Without `RESEND_API_KEY`, the function responds with `500` and `RESEND_API_KEY not configured`.
 
 ## 📱 Production Features
 

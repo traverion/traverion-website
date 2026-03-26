@@ -1,6 +1,6 @@
 # TRAVERION Launch Checklist
 
-Last updated: 2026-03-26
+Last updated: 2026-03-27
 Owner: Launch lead
 
 Use this as a strict go/no-go checklist.  
@@ -14,11 +14,10 @@ Mark each item `[x]` only after verifying in production.
   - [ ] `VITE_SUPABASE_URL`
   - [ ] `VITE_SUPABASE_ANON_KEY`
   - [ ] `VITE_SITE_URL`
-- [ ] Supabase function secrets are set:
-  - [ ] `RESEND_API_KEY`
-  - [ ] `SUPPLIER_EMAIL_FROM`
-  - [ ] `SUPABASE_URL`
-  - [ ] `SUPABASE_SERVICE_ROLE_KEY`
+- [ ] Supabase Edge Function secrets are set (see `DEPLOYMENT.md` → Supabase Edge Functions):
+  - [ ] `RESEND_API_KEY` (required for any supplier email)
+  - [ ] `SUPPLIER_EMAIL_FROM` (optional if default works; must match a Resend-verified domain in production)
+  - [ ] `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` — usually **auto-injected** on hosted Edge Functions; set manually only if logs show missing env
 - [ ] Health endpoint responds (`/health.txt` returns `OK`).
 
 ## 2) Customer Journey (P0)
