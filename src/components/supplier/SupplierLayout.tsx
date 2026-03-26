@@ -24,7 +24,7 @@ import { upsertSupplierTeamMember, removeSupplierTeamMember } from '../../data/s
 /** URL path for the supplier login/landing page. Portal is /supplier and /supplier/* */
 export const SUPPLIER_LOGIN_PATH = '/supplier-log-in';
 
-type SupplierSection = 'dashboard' | 'listings' | 'bookings' | 'earnings' | 'reviews' | 'pickup' | 'settings' | 'badges' | 'referrals';
+type SupplierSection = 'dashboard' | 'listings' | 'bookings' | 'earnings' | 'reviews' | 'pickup' | 'settings' | 'badges';
 type AccountShortcutTarget = 'company' | 'account' | 'security';
 type BadgeVariant = 'gold' | 'verified' | 'trusted';
 
@@ -37,14 +37,14 @@ const NAV_ITEMS: { id: SupplierSection; label: string; icon: typeof LayoutDashbo
   { id: 'pickup', label: 'Pickup planner', icon: ClipboardList },
   { id: 'settings', label: 'Settings', icon: Settings },
 ];
-const ROUTABLE_SECTIONS = [...NAV_ITEMS.map((n) => n.id), 'badges', 'referrals'] as const;
+const ROUTABLE_SECTIONS = [...NAV_ITEMS.map((n) => n.id), 'badges'] as const;
 type ExtraSupplierSection = (typeof ROUTABLE_SECTIONS)[number];
 
 function canAccessSection(role: SupplierRole, section: SupplierSection): boolean {
   if (role === 'owner') return true;
   if (role === 'manager') return section !== 'earnings';
-  if (role === 'ops') return ['dashboard', 'bookings', 'pickup', 'reviews', 'settings', 'badges', 'referrals'].includes(section);
-  if (role === 'finance') return ['dashboard', 'earnings', 'settings', 'badges', 'referrals'].includes(section);
+  if (role === 'ops') return ['dashboard', 'bookings', 'pickup', 'reviews', 'settings', 'badges'].includes(section);
+  if (role === 'finance') return ['dashboard', 'earnings', 'settings', 'badges'].includes(section);
   // viewer
   return ['dashboard', 'reviews'].includes(section);
 }
@@ -111,9 +111,6 @@ export default function SupplierLayout() {
   const [passwordMessage, setPasswordMessage] = useState<'success' | 'error' | null>(null);
   const [badgeEnabled, setBadgeEnabled] = useState(false);
   const [badgeVariant, setBadgeVariant] = useState<BadgeVariant>('gold');
-  const [referralName, setReferralName] = useState('');
-  const [referralEmail, setReferralEmail] = useState('');
-  const [referrals, setReferrals] = useState<Array<{ id: string; name: string; email: string; createdAt: string }>>([]);
 
   useEffect(() => {
     if (section !== 'settings' || !user?.id || !isSupabase) return;
@@ -202,15 +199,6 @@ export default function SupplierLayout() {
         // ignore invalid local data
       }
     }
-    const savedReferrals = localStorage.getItem('supplier_referrals');
-    if (savedReferrals) {
-      try {
-        const parsed = JSON.parse(savedReferrals) as Array<{ id: string; name: string; email: string; createdAt: string }>;
-        setReferrals(parsed.slice(0, 50));
-      } catch {
-        // ignore invalid local data
-      }
-    }
   }, []);
 
   useEffect(() => {
@@ -248,7 +236,7 @@ export default function SupplierLayout() {
   const onPortalPath = isSupplierPortalPath(pathname);
   const onboardingDoneCount = [onboardingListingCount !== null && onboardingListingCount > 0, onboardingHasPayout, onboardingHasCompany].filter(Boolean).length;
   const onboardingComplete = onboardingDoneCount === 3;
-  const onboardingNextLabel = onboardingListingCount !== null && onboardingListingCount <= 0 ? 'Publish your first listing' : !onboardingHasPayout ? 'Add payout details' : 'Complete company profile';
+  const onboardingNextLabel = onboardingListingCount !== null && onboardingListingCount <= 0 ? 'Publish your first listing' : !onboardingHasPayout ? 'Add payout details' : 'Complete business profile';
   const onboardingNextAction = onboardingListingCount !== null && onboardingListingCount <= 0 ? () => handleNavigate('listings') : () => handleNavigate('settings');
 
   if (loading) {
@@ -427,11 +415,10 @@ export default function SupplierLayout() {
             {accountMenuOpen && (
               <div className="hidden lg:block absolute right-0 top-12 w-72 bg-white border border-gray-200 rounded-xl shadow-lg p-2 z-50">
                 <p className="px-3 pt-2 pb-1 text-xs uppercase tracking-wide text-gray-500">Traverion supplier account</p>
-                <button type="button" onClick={() => openSettingsFocus('company')} className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-sm">Company profile</button>
+                <button type="button" onClick={() => openSettingsFocus('company')} className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-sm">Business profile</button>
                 <button type="button" onClick={() => openSettingsFocus('account')} className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-sm">Account settings</button>
                 <button type="button" onClick={() => openSettingsFocus('security')} className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-sm">Security and password</button>
                 <button type="button" onClick={() => handleNavigate('badges')} className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-sm">Brand assets</button>
-                <button type="button" onClick={() => handleNavigate('referrals')} className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-sm">Partner invites</button>
                 <button type="button" onClick={() => signOut()} className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-sm text-red-600">Log out</button>
               </div>
             )}
@@ -447,11 +434,10 @@ export default function SupplierLayout() {
             </div>
             <div className="p-4 space-y-2">
               <p className="px-1 pt-1 pb-2 text-xs uppercase tracking-wide text-gray-500">Traverion supplier account</p>
-              <button type="button" onClick={() => openSettingsFocus('company')} className="w-full text-left px-4 py-3 rounded-xl border border-gray-200">Company profile</button>
+              <button type="button" onClick={() => openSettingsFocus('company')} className="w-full text-left px-4 py-3 rounded-xl border border-gray-200">Business profile</button>
               <button type="button" onClick={() => openSettingsFocus('account')} className="w-full text-left px-4 py-3 rounded-xl border border-gray-200">Account settings</button>
               <button type="button" onClick={() => openSettingsFocus('security')} className="w-full text-left px-4 py-3 rounded-xl border border-gray-200">Security and password</button>
               <button type="button" onClick={() => handleNavigate('badges')} className="w-full text-left px-4 py-3 rounded-xl border border-gray-200">Brand assets</button>
-              <button type="button" onClick={() => handleNavigate('referrals')} className="w-full text-left px-4 py-3 rounded-xl border border-gray-200">Partner invites</button>
               <button type="button" onClick={() => signOut()} className="w-full text-left px-4 py-3 rounded-xl border border-red-200 text-red-600">Log out</button>
             </div>
           </div>
@@ -461,7 +447,7 @@ export default function SupplierLayout() {
             <div className="mb-4 bg-amber-50 border border-amber-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <div>
                 <p className="text-sm font-semibold text-gray-900">Finish supplier setup ({onboardingDoneCount}/3)</p>
-                <p className="text-xs text-amber-800">Complete listing, payout, and company details for smoother operations.</p>
+                <p className="text-xs text-amber-800">Complete listing, payout, and business details for smoother operations.</p>
               </div>
               <button
                 type="button"
@@ -535,66 +521,6 @@ export default function SupplierLayout() {
               </div>
             </div>
           )}
-          {section === 'referrals' && canAccessSection(role, section) && (
-            <div className="space-y-6">
-              <h1 className="text-2xl font-semibold text-gray-900">Partner invites</h1>
-              <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4 max-w-3xl">
-                <p className="text-sm text-gray-500">Invite trusted activity providers to join Traverion. Track who you invited.</p>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  <input
-                    type="text"
-                    value={referralName}
-                    onChange={(e) => setReferralName(e.target.value)}
-                    placeholder="Partner name"
-                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                  />
-                  <input
-                    type="email"
-                    value={referralEmail}
-                    onChange={(e) => setReferralEmail(e.target.value)}
-                    placeholder="Partner email"
-                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const name = referralName.trim();
-                      const email = referralEmail.trim();
-                      if (!name || !email) return;
-                      const next = [{ id: `${Date.now()}`, name, email, createdAt: new Date().toISOString() }, ...referrals].slice(0, 50);
-                      setReferrals(next);
-                      localStorage.setItem('supplier_referrals', JSON.stringify(next));
-                      setReferralName('');
-                      setReferralEmail('');
-                    }}
-                    className="px-3 py-2 rounded-lg bg-finland text-white text-sm font-medium hover:bg-finland-dark"
-                  >
-                    Add referral
-                  </button>
-                </div>
-                {referrals.length === 0 ? (
-                  <p className="text-sm text-gray-500 border border-gray-200 rounded-lg p-3">No referrals yet.</p>
-                ) : (
-                  <ul className="space-y-2">
-                    {referrals.map((r) => (
-                      <li key={r.id} className="border border-gray-200 rounded-lg p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">{r.name}</p>
-                          <p className="text-xs text-gray-500">{r.email}</p>
-                        </div>
-                        <a
-                          href={`mailto:${encodeURIComponent(r.email)}?subject=${encodeURIComponent('Invitation to join Traverion supplier network')}`}
-                          className="text-sm text-finland hover:underline"
-                        >
-                          Send invite
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </div>
-          )}
           {section === 'settings' && canAccessSection(role, section) && (
             <div className="space-y-6">
               <h1 className="text-2xl font-semibold text-gray-900">Settings</h1>
@@ -621,7 +547,7 @@ export default function SupplierLayout() {
                           {hasPayout ? 'Done' : 'Todo'} · Payout details
                         </li>
                         <li className={`rounded-lg border px-3 py-2 ${hasCompany ? 'border-green-100 bg-green-50/40 text-gray-700' : 'border-amber-100 bg-amber-50/40 text-gray-900'}`}>
-                          {hasCompany ? 'Done' : 'Todo'} · Company profile
+                          {hasCompany ? 'Done' : 'Todo'} · Business profile
                         </li>
                       </ul>
                       {!hasListing && (
@@ -872,7 +798,7 @@ export default function SupplierLayout() {
                 </div>
 
                 <div id="supplier-settings-company">
-                  <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3">Company profile</h2>
+                  <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3">Business profile</h2>
                   <p className="text-sm text-gray-500 mb-4">Business details for verification and invoicing.</p>
                   <div className="space-y-4 max-w-xl">
                     <div>
@@ -1021,7 +947,7 @@ export default function SupplierLayout() {
                         }}
                         className="px-4 py-2 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark disabled:opacity-50"
                       >
-                        {companySaving ? 'Saving…' : 'Save company profile'}
+                        {companySaving ? 'Saving…' : 'Save business profile'}
                       </button>
                       {companyMessage === 'success' && <span className="text-sm text-green-600">Saved.</span>}
                       {companyMessage === 'error' && <span className="text-sm text-red-600">Failed to save.</span>}
