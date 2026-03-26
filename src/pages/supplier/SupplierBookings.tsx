@@ -2606,11 +2606,32 @@ export default function SupplierBookings() {
           <p className="text-gray-500 mt-1 max-w-sm mx-auto">
             When travelers book your experiences, they’ll appear here as confirmed. You can request cancellation (with reason and refund choice) if needed.
           </p>
+          <div className="mt-5 flex items-center justify-center gap-2">
+            <button
+              type="button"
+              onClick={() => setView('all')}
+              className="px-4 py-2 rounded-lg bg-finland text-white text-sm font-medium hover:bg-finland-dark"
+            >
+              Refresh view
+            </button>
+          </div>
         </div>
       ) : filteredBookings.length === 0 ? (
         <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
           <h2 className="text-lg font-semibold text-gray-900">No matching bookings</h2>
           <p className="text-gray-500 mt-1">Try a different view or clear date/listing filters.</p>
+          <button
+            type="button"
+            onClick={() => {
+              setFilterListingId('');
+              setFilterDateFrom('');
+              setFilterDateTo('');
+              setView('all');
+            }}
+            className="mt-4 px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50"
+          >
+            Clear filters
+          </button>
         </div>
       ) : (
         <div className="space-y-4">
@@ -2653,7 +2674,7 @@ export default function SupplierBookings() {
                           disabled={!canEditBookings || updatingId === b.id}
                           className="text-xs px-2.5 py-1.5 rounded bg-blue-100 text-blue-700 disabled:opacity-50"
                         >
-                          Ack
+                          Acknowledge
                         </button>
                       )}
                       {b.status !== 'confirmed' && (
@@ -2689,7 +2710,7 @@ export default function SupplierBookings() {
                             disabled={quickMessageBookingId === b.id}
                             className="text-xs px-2.5 py-1.5 rounded bg-violet-100 text-violet-700 disabled:opacity-50"
                           >
-                            Welcome msg
+                            Send welcome
                           </button>
                         </>
                       )}
@@ -2921,7 +2942,7 @@ export default function SupplierBookings() {
                               title="Acknowledge booking"
                             >
                               <CheckCircle className="w-3.5 h-3.5" />
-                              Ack
+                              Acknowledge
                             </button>
                           )}
                           <button
@@ -2951,6 +2972,9 @@ export default function SupplierBookings() {
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Request cancellation</h3>
             <p className="text-sm text-gray-600 mb-4">
               Cancel booking for {listingTitles[cancelModal.listing_id]} – {cancelModal.guest_email ?? cancelModal.guest_name ?? 'Guest'}?
+            </p>
+            <p className="text-xs text-amber-700 mb-4">
+              This updates traveler-facing status immediately and should only be used when cancellation is final.
             </p>
             <div className="space-y-4">
               <div>

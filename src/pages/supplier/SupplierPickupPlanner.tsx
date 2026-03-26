@@ -997,6 +997,17 @@ export default function SupplierPickupPlanner() {
             Clear the listing filter or uncheck &quot;Needs pickup details&quot; to see all rows that match your dates and
             status.
           </p>
+          <button
+            type="button"
+            onClick={() => {
+              setListingFilterId('');
+              setNeedsPickupOnly(false);
+              setSortDate('asc');
+            }}
+            className="mt-4 px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50"
+          >
+            Clear quick filters
+          </button>
         </div>
       ) : (
         <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">

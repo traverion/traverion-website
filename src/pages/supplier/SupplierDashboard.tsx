@@ -264,7 +264,7 @@ export default function SupplierDashboard({ onNavigateToListings, onNavigateToSe
           </div>
 
           <ul className="space-y-2">
-            {healthChecks.checks.map((check) => (
+            {healthChecks.checks.slice(0, 3).map((check) => (
               <li
                 key={check.id}
                 className={`flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 rounded-lg border px-3 py-2.5 ${
@@ -295,6 +295,9 @@ export default function SupplierDashboard({ onNavigateToListings, onNavigateToSe
               </li>
             ))}
           </ul>
+          <p className="text-xs text-gray-500 mt-3">
+            The top setup actions are shown here. Daily operational items are in &quot;Needs action&quot; below.
+          </p>
         </div>
       )}
 
