@@ -82,7 +82,11 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
           onAuthenticated();
         }
       } else {
-        setError(mapAuthError('unavailable'));
+        setError(
+          'Sign-in can’t run here because the site isn’t connected to the account service (Supabase). ' +
+            'If you’re on production, the deploy needs VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY. ' +
+            'If you’re testing locally, add them to .env and restart the dev server.'
+        );
       }
     } finally {
       setSubmitting(false);
