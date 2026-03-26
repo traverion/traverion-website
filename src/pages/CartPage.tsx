@@ -78,8 +78,21 @@ export default function CartPage({ onNavigate }: CartPageProps) {
   if (!isSupabaseConfigured()) {
     return (
       <div className="min-h-screen bg-gray-50 pt-24 pb-12">
-        <div className="max-w-2xl mx-auto px-4">
-          <p className="text-gray-600">Cart is not available in this configuration.</p>
+        <div className="max-w-xl mx-auto px-4 text-center">
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-10">
+            <ShoppingCart className="w-14 h-14 text-gray-300 mx-auto mb-4" />
+            <h1 className="text-2xl font-semibold text-gray-900 mb-2">Cart unavailable</h1>
+            <p className="text-gray-600 mb-6">
+              Cart requests are available only in the live app setup. You can still browse tours and book directly.
+            </p>
+            <button
+              type="button"
+              onClick={() => onNavigate('packages')}
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark"
+            >
+              Browse tours
+            </button>
+          </div>
         </div>
       </div>
     );

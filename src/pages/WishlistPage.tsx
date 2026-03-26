@@ -16,7 +16,7 @@ interface WishlistPageProps {
 }
 
 export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageProps) {
-  const { user, requestAuth } = useAuth();
+  const { user } = useAuth();
   const [listings, setListings] = useState<TourPackage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -59,8 +59,21 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
   if (!isSupabaseConfigured()) {
     return (
       <div className="min-h-screen bg-gray-50 pt-24 pb-12">
-        <div className="max-w-2xl mx-auto px-4">
-          <p className="text-gray-600">Wishlist is not available in this configuration.</p>
+        <div className="max-w-xl mx-auto px-4 text-center">
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-10">
+            <Heart className="w-14 h-14 text-gray-300 mx-auto mb-4" />
+            <h1 className="text-2xl font-semibold text-gray-900 mb-2">Wishlist unavailable</h1>
+            <p className="text-gray-600 mb-6">
+              Saved tours are available only in the live app setup. You can still browse all tours.
+            </p>
+            <button
+              type="button"
+              onClick={() => onNavigate('packages')}
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark"
+            >
+              Browse tours
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -76,11 +89,14 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
             <p className="text-gray-600 mb-6">Log in to save tours and activities and see them here.</p>
             <button
               type="button"
-              onClick={() => requestAuth()}
+              onClick={() => {
+                window.history.pushState({}, '', '/auth?tab=signup&next=wishlist');
+                onNavigate('auth');
+              }}
               className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark"
             >
               <LogIn className="w-5 h-5" />
-              Log in
+              Sign in / Sign up
             </button>
           </div>
         </div>

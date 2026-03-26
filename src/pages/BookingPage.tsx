@@ -118,7 +118,7 @@ export default function BookingPage({ tour, onBack, onComplete, onNavigate }: Bo
       } else {
         setError(result.error ?? 'Booking failed');
       }
-    } catch (e) {
+    } catch {
       setError('Something went wrong. Please try again.');
     } finally {
       setSubmitting(false);
@@ -308,11 +308,11 @@ export default function BookingPage({ tour, onBack, onComplete, onNavigate }: Bo
               {onNavigate && (
                 <button
                   type="button"
-                  onClick={() => { onNavigate('bookings'); onComplete(); }}
+                  onClick={() => { onNavigate('account'); onComplete(); }}
                   className="px-6 py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark transition-all duration-200 ease-smooth active:scale-[0.98] inline-flex items-center justify-center gap-2"
                 >
                   <MapPin className="w-4 h-4" />
-                  View my bookings
+                  Open my account
                 </button>
               )}
               <button

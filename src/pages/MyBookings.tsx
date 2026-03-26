@@ -85,7 +85,29 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
           subtitle="View reservations and status for tours you have booked with Traverion."
         />
         <div className="max-w-2xl mx-auto px-4 py-8 pb-12">
-          <p className="text-gray-600">Bookings are not available in this configuration.</p>
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 text-center">
+            <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">Bookings unavailable</h2>
+            <p className="text-gray-600 mb-5">
+              Booking history is available only in the live app setup.
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <button
+                type="button"
+                onClick={() => onNavigate('packages')}
+                className="px-5 py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark"
+              >
+                Browse tours
+              </button>
+              <button
+                type="button"
+                onClick={() => onNavigate('contact')}
+                className="px-5 py-2.5 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50"
+              >
+                Contact support
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     );

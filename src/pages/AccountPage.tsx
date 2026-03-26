@@ -63,15 +63,24 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
           <LayoutDashboard className="w-12 h-12 text-gray-300 mx-auto mb-4" />
           <h1 className="text-2xl font-semibold text-gray-900">My account</h1>
           <p className="mt-2 text-gray-600">
-            Account features need the live app configuration. You can still browse tours and contact us.
+            Account features need the live app configuration. You can still browse tours or reach support.
           </p>
-          <button
-            type="button"
-            onClick={() => onNavigate('packages')}
-            className="mt-6 px-5 py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark"
-          >
-            Browse tours
-          </button>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+            <button
+              type="button"
+              onClick={() => onNavigate('packages')}
+              className="px-5 py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark"
+            >
+              Browse tours
+            </button>
+            <button
+              type="button"
+              onClick={() => onNavigate('contact')}
+              className="px-5 py-2.5 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50"
+            >
+              Contact support
+            </button>
+          </div>
         </div>
       </div>
     );

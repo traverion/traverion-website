@@ -759,15 +759,24 @@ export default function Packages({ onTourSelect }: PackagesProps) {
                 <Search className="w-14 h-14 mx-auto text-gray-300 mb-4" />
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">No tours found</h3>
                 <p className="text-gray-500 mb-4">Try different filters or search terms</p>
-                {hasActiveFilters && (
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  {hasActiveFilters && (
+                    <button
+                      type="button"
+                      onClick={clearAllFilters}
+                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark transition-colors"
+                    >
+                      Clear filters
+                    </button>
+                  )}
                   <button
                     type="button"
-                    onClick={clearAllFilters}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark transition-colors"
+                    onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-colors"
                   >
-                    Clear filters and browse all
+                    Edit search
                   </button>
-                )}
+                </div>
               </div>
             )}
           </>
@@ -780,17 +789,26 @@ export default function Packages({ onTourSelect }: PackagesProps) {
         ) : allListings.length === 0 ? (
           <div className="text-center py-20 px-4">
             <Globe className="w-16 h-16 mx-auto text-gray-300 mb-4" />
-            <h3 className="text-2xl font-semibold text-gray-900 mb-2">Tours & activities · worldwide</h3>
+            <h3 className="text-2xl font-semibold text-gray-900 mb-2">No tours published yet</h3>
             <p className="text-gray-500 mb-6 max-w-md mx-auto">
-              No tours listed yet. List your first tour and reach travelers everywhere.
+              We are adding new tours. Try again soon or contact us if you need help finding something specific.
             </p>
-            <a
-              href="/supplier"
-              className="inline-flex items-center gap-2 bg-finland text-white font-semibold px-6 py-3 rounded-xl hover:bg-finland-dark transition-colors"
-            >
-              <PlusCircle className="w-5 h-5" />
-              List your tour
-            </a>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="inline-flex items-center gap-2 bg-finland text-white font-semibold px-6 py-3 rounded-xl hover:bg-finland-dark transition-colors"
+              >
+                Refresh
+              </button>
+              <a
+                href="/supplier"
+                className="inline-flex items-center gap-2 border border-gray-300 text-gray-700 font-semibold px-6 py-3 rounded-xl hover:bg-gray-50 transition-colors"
+              >
+                <PlusCircle className="w-5 h-5" />
+                Become a supplier
+              </a>
+            </div>
           </div>
         ) : null}
       </div>
