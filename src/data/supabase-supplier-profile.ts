@@ -26,6 +26,29 @@ export type SupplierProfileRow = {
   updated_at: string;
 };
 
+/**
+ * Ensure base supplier profile row exists for authenticated supplier.
+ * Safe to call multiple times.
+ */
+export async function ensureSupplierProfile(
+  userId: string,
+  payload?: { display_name?: string | null }
+): Promise<{ success: boolean; error?: string }> {
+  if (!supabase) return { success: false, error: 'Supabase not configured' };
+  const { error } = await supabase
+    .from('supplier_profiles')
+    .upsert(
+      {
+        id: userId,
+        ...(payload?.display_name ? { display_name: payload.display_name } : {}),
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'id' }
+    );
+  if (error) return { success: false, error: error.message };
+  return { success: true };
+}
+
 /** Fetch supplier profile (RLS: own row). */
 export async function fetchSupplierProfile(userId: string): Promise<SupplierProfileRow | null> {
   if (!supabase) return null;

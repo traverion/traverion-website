@@ -3,10 +3,11 @@ import { Plus, MapPin, Pencil, Trash2, Eye, EyeOff, AlertCircle, RefreshCw, Chev
 import { TourPackage } from '../../types/tour';
 import { getSupplierListings, setSupplierListings } from '../../data/listings';
 import { fetchMyListings, insertListing, updateListing, updateListingStatus, deleteListing } from '../../data/supabase-listings';
+import { fetchSupplierProfile } from '../../data/supabase-supplier-profile';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import SupplierListingForm from './SupplierListingForm';
 import { computeListingQuality, listingQualityPercent } from '../../lib/listingQualityScore';
-import { openSupplierListingEditor } from '../../lib/supplierPortalNavigation';
+import { navigateSupplierUrl, openSupplierListingEditor } from '../../lib/supplierPortalNavigation';
 
 export default function SupplierListings() {
   const { user, isSupabase } = useSupplierAuth();
@@ -17,6 +18,10 @@ export default function SupplierListings() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedQualityId, setExpandedQualityId] = useState<string | null>(null);
+  const [profileReadyToList, setProfileReadyToList] = useState(true);
+  const [profileGateMessage, setProfileGateMessage] = useState<string | null>(null);
+  const [missingBusinessDetails, setMissingBusinessDetails] = useState(false);
+  const [missingPayoutDetails, setMissingPayoutDetails] = useState(false);
 
   const syncListingsUrlToState = useCallback(() => {
     const params = new URLSearchParams(window.location.search);
@@ -117,6 +122,31 @@ export default function SupplierListings() {
     }
   }, [isSupabase]);
 
+  useEffect(() => {
+    const loadProfileGate = async () => {
+      if (!isSupabase || !user?.id) {
+        setProfileReadyToList(true);
+        setProfileGateMessage(null);
+        setMissingBusinessDetails(false);
+        setMissingPayoutDetails(false);
+        return;
+      }
+      const profile = await fetchSupplierProfile(user.id);
+      const hasBusinessDetails = !!profile?.company_legal_name?.trim();
+      const hasPayout = !!profile?.payout_method && profile.payout_method !== 'none';
+      const ready = hasBusinessDetails && hasPayout;
+      setMissingBusinessDetails(!hasBusinessDetails);
+      setMissingPayoutDetails(!hasPayout);
+      setProfileReadyToList(ready);
+      if (!ready) {
+        setProfileGateMessage('To create or publish listings, complete Business profile and Payout method in Settings.');
+      } else {
+        setProfileGateMessage(null);
+      }
+    };
+    loadProfileGate();
+  }, [isSupabase, user?.id, showForm, loading]);
+
   const refresh = () => {
     loadListings();
     setShowForm(false);
@@ -124,6 +154,11 @@ export default function SupplierListings() {
   };
 
   const handleSave = async (tour: TourPackage) => {
+    if (isSupabase && !profileReadyToList) {
+      setError('Complete Business profile and Payout method before creating listings.');
+      setShowForm(false);
+      return;
+    }
     if (isSupabase && user) {
       if (editingId) {
         await updateListing(editingId, tour);
@@ -155,6 +190,10 @@ export default function SupplierListings() {
 
   const handleStatusChange = async (listing: TourPackage, newStatus: 'draft' | 'published') => {
     if (!isSupabase || !user) return;
+    if (newStatus === 'published' && !profileReadyToList) {
+      setError('Complete Business profile and Payout method before publishing listings.');
+      return;
+    }
     const ok = await updateListingStatus(listing.id, newStatus);
     if (ok) loadListings();
   };
@@ -169,18 +208,55 @@ export default function SupplierListings() {
         <button
           type="button"
           onClick={() => {
+            if (!profileReadyToList) return;
             setEditingId(null);
             setShowForm(true);
             setFormFocusSection(null);
             window.history.pushState({}, '', '/supplier/listings');
             window.dispatchEvent(new PopStateEvent('popstate'));
           }}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark transition-colors"
+          disabled={!profileReadyToList}
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark transition-colors disabled:opacity-50"
         >
           <Plus className="w-5 h-5" />
           Add listing
         </button>
       </div>
+
+      {!profileReadyToList && (
+        <div className="p-4 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <p>{profileGateMessage}</p>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              {missingBusinessDetails && (
+                <button
+                  type="button"
+                  onClick={() => navigateSupplierUrl('/supplier/settings#supplier-settings-company')}
+                  className="text-xs px-2.5 py-1 rounded-full border border-amber-300 bg-white text-amber-800 hover:bg-amber-100"
+                >
+                  Missing: Business profile
+                </button>
+              )}
+              {missingPayoutDetails && (
+                <button
+                  type="button"
+                  onClick={() => navigateSupplierUrl('/supplier/settings#supplier-settings-payout')}
+                  className="text-xs px-2.5 py-1 rounded-full border border-amber-300 bg-white text-amber-800 hover:bg-amber-100"
+                >
+                  Missing: Payout method
+                </button>
+              )}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigateSupplierUrl('/supplier/settings')}
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark"
+          >
+            Complete setup
+          </button>
+        </div>
+      )}
 
       {error && (
         <div className="p-4 rounded-lg bg-red-50 text-red-700 text-sm flex items-center justify-between gap-4">
@@ -264,8 +340,12 @@ export default function SupplierListings() {
           </p>
           <button
             type="button"
-            onClick={() => setShowForm(true)}
-            className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark transition-colors"
+            onClick={() => {
+              if (!profileReadyToList) return;
+              setShowForm(true);
+            }}
+            disabled={!profileReadyToList}
+            className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark transition-colors disabled:opacity-50"
           >
             <Plus className="w-5 h-5" />
             Add your first listing

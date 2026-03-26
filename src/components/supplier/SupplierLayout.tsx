@@ -997,7 +997,7 @@ export default function SupplierLayout() {
                   </div>
                 </div>
 
-                <div>
+                <div id="supplier-settings-payout">
                   <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3">Payout method</h2>
                   <p className="text-sm text-gray-500 mb-4">How you’d like to receive payouts when they’re enabled. This is stored securely and used when we integrate payments.</p>
                   <div className="space-y-4">

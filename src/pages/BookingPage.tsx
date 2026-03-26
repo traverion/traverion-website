@@ -24,7 +24,7 @@ interface BookingPageProps {
 type Step = 'date-guests' | 'contact' | 'confirm' | 'done';
 
 export default function BookingPage({ tour, onBack, onComplete, onNavigate }: BookingPageProps) {
-  const { user } = useAuth();
+  const { user, requestAuth } = useAuth();
   const [step, setStep] = useState<Step>('date-guests');
   const [date, setDate] = useState('');
   const [guests, setGuests] = useState(2);
@@ -46,6 +46,10 @@ export default function BookingPage({ tour, onBack, onComplete, onNavigate }: Bo
     });
   }, [tour.id, tour.title, tour.image, price, currency]);
 
+  useEffect(() => {
+    if (user?.email) setEmail(user.email);
+  }, [user?.email]);
+
   const handleContinueFromDateGuests = () => {
     const dateCheck = dateNotInPast(date.trim());
     if (!dateCheck.valid) {
@@ -54,6 +58,15 @@ export default function BookingPage({ tour, onBack, onComplete, onNavigate }: Bo
     }
     if (guests < 1 || guests > 99) {
       setError('Please enter between 1 and 99 guests');
+      return;
+    }
+    if (isSupabaseConfigured() && !user) {
+      setError(null);
+      requestAuth({
+        onSuccess: () => {
+          setStep('contact');
+        },
+      });
       return;
     }
     setError(null);
@@ -80,12 +93,7 @@ export default function BookingPage({ tour, onBack, onComplete, onNavigate }: Bo
   };
 
   const handleConfirmBooking = async () => {
-    if (isSupabaseConfigured() && !user) {
-      window.history.pushState({}, '', '/auth?tab=signup&next=packages');
-      if (onNavigate) onNavigate('auth');
-      else window.location.href = '/auth?tab=signup&next=packages';
-      return;
-    }
+    if (isSupabaseConfigured() && !user) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -272,6 +280,9 @@ export default function BookingPage({ tour, onBack, onComplete, onNavigate }: Bo
               )}
             </div>
             <p className="text-lg font-semibold text-gray-900 mb-6">Total: {currency} {total}</p>
+            <p className="text-xs text-gray-500 mb-4">
+              You are submitting a booking request. No payment is charged at this step.
+            </p>
             {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
             <div className="flex justify-end gap-3">
               <button type="button" onClick={() => setStep('contact')} className="px-4 py-2.5 text-gray-600 hover:text-finland">

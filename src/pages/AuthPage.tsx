@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, LogIn, UserPlus } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
 import PageHero from '../components/PageHero';
 import { HERO_IMG } from '../lib/heroImages';
 
@@ -30,6 +31,16 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [resetSending, setResetSending] = useState(false);
+
+  const mapAuthError = (message: string): string => {
+    const m = message.toLowerCase();
+    if (m.includes('already registered') || m.includes('already been registered') || m.includes('user already exists')) {
+      return 'This email is already in use. Try signing in instead.';
+    }
+    if (m.includes('invalid login credentials')) return 'Incorrect email or password.';
+    return message;
+  };
 
   const nextPage = useMemo(() => {
     const allowed = new Set(['home', 'packages', 'cart', 'bookings', 'account', 'wishlist', 'contact']);
@@ -63,14 +74,14 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
       if (tab === 'signin') {
         const { error: err } = await signIn(email, password);
         if (err) {
-          setError(err);
+          setError(mapAuthError(err));
           return;
         }
         onNavigate(nextPage);
       } else {
         const { error: err, hasSession } = await signUp(email, password);
         if (err) {
-          setError(err);
+          setError(mapAuthError(err));
           return;
         }
         if (hasSession) {
@@ -83,6 +94,29 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleResetPassword = async () => {
+    setError(null);
+    setSuccessMessage(null);
+    if (!email.trim()) {
+      setError('Enter your email first, then reset password.');
+      return;
+    }
+    if (!supabase) {
+      setError('Password reset is not configured.');
+      return;
+    }
+    setResetSending(true);
+    const { error: err } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: `${window.location.origin}/auth?tab=signin&next=${encodeURIComponent(nextPage)}`,
+    });
+    setResetSending(false);
+    if (err) {
+      setError(err.message);
+      return;
+    }
+    setSuccessMessage('Password reset email sent. Check your inbox.');
   };
 
   return (
@@ -140,12 +174,24 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
               <input
                 id="auth-page-email"
                 type="email"
+                name="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland outline-none"
+                autoComplete="email"
                 required
               />
+              {tab === 'signin' && (
+                <button
+                  type="button"
+                  onClick={handleResetPassword}
+                  disabled={resetSending}
+                  className="mt-2 text-xs text-finland hover:underline disabled:opacity-50"
+                >
+                  {resetSending ? 'Sending reset email…' : 'Forgot password?'}
+                </button>
+              )}
             </div>
             <div>
               <label htmlFor="auth-page-password" className="block text-sm font-medium text-gray-700 mb-1">
@@ -154,12 +200,14 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
               <input
                 id="auth-page-password"
                 type="password"
+                name={tab === 'signup' ? 'new-password' : 'current-password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland outline-none"
                 required
                 minLength={tab === 'signup' ? 6 : undefined}
+                autoComplete={tab === 'signup' ? 'new-password' : 'current-password'}
               />
             </div>
             {tab === 'signup' && (
@@ -170,10 +218,12 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
                 <input
                   id="auth-page-confirm"
                   type="password"
+                  name="confirm-password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="••••••••"
                   className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland outline-none"
+                  autoComplete="new-password"
                   required
                 />
               </div>
