@@ -13,22 +13,31 @@ export default function SupplierLogin({ onAuthenticated, isSupabase }: SupplierL
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  const mapAuthError = (message: string): string => {
+    const m = message.toLowerCase();
+    if (m.includes('not configured') || m.includes('unavailable')) {
+      return 'Supplier authentication is currently unavailable. Please try again shortly.';
+    }
+    if (m.includes('invalid login credentials')) return 'Incorrect email or password.';
+    return message;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     if (!email || !password) return;
     setSubmitting(true);
+    const normalizedEmail = email.trim().toLowerCase();
     try {
       if (isSupabase && supabase) {
-        const { error: err } = await supabase.auth.signInWithPassword({ email, password });
+        const { error: err } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
         if (err) {
-          setError(err.message);
+          setError(mapAuthError(err.message));
           return;
         }
         onAuthenticated();
       } else {
-        localStorage.setItem('supplier_authenticated', 'true');
-        onAuthenticated();
+        setError(mapAuthError('unavailable'));
       }
     } finally {
       setSubmitting(false);

@@ -20,8 +20,8 @@ export function SupplierAuthProvider({ children }: { children: React.ReactNode }
 
   useEffect(() => {
     if (!isSupabase) {
-      const ok = localStorage.getItem('supplier_authenticated') === 'true';
-      if (ok) setUser({ id: 'local-supplier', email: '' });
+      localStorage.removeItem('supplier_authenticated');
+      setUser(null);
       setLoading(false);
       return;
     }

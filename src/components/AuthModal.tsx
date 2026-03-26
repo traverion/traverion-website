@@ -18,6 +18,7 @@ export default function AuthModal() {
 
   const mapAuthError = (message: string): string => {
     const m = message.toLowerCase();
+    if (m.includes('not configured')) return 'Authentication is currently unavailable. Please try again shortly.';
     if (m.includes('already registered') || m.includes('already been registered') || m.includes('user already exists')) {
       return 'This email is already in use. Try logging in instead.';
     }
@@ -77,12 +78,12 @@ export default function AuthModal() {
       return;
     }
     setResetSending(true);
-    const { error: err } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+    const { error: err } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
       redirectTo: `${window.location.origin}/auth?tab=signin&next=account`,
     });
     setResetSending(false);
     if (err) {
-      setError(err.message);
+      setError(mapAuthError(err.message));
       return;
     }
     setSuccessMessage('Password reset email sent. Check your inbox.');

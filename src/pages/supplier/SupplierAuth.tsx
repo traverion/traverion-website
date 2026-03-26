@@ -28,6 +28,9 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
 
   const mapAuthError = (message: string): string => {
     const m = message.toLowerCase();
+    if (m.includes('not configured') || m.includes('unavailable')) {
+      return 'Supplier authentication is currently unavailable. Please try again shortly.';
+    }
     if (m.includes('already registered') || m.includes('already been registered') || m.includes('user already exists')) {
       return 'This email is already in use. Try signing in instead.';
     }
@@ -51,35 +54,35 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
       return;
     }
     setSubmitting(true);
+    const normalizedEmail = email.trim().toLowerCase();
     try {
       if (isSupabase && supabase) {
         if (mode === 'signup') {
-          const { data, error: err } = await supabase.auth.signUp({ email, password });
+          const { data, error: err } = await supabase.auth.signUp({ email: normalizedEmail, password });
           if (err) {
             setError(mapAuthError(err.message));
             return;
           }
           if (data.session) {
-            await ensureSupplierProfile(data.session.user.id, { display_name: email.split('@')[0] ?? null });
+            await ensureSupplierProfile(data.session.user.id, { display_name: normalizedEmail.split('@')[0] ?? null });
             onAuthenticated();
             return;
           }
           setSuccessMessage('Check your email to confirm your account, then sign in below.');
           setMode('signin');
         } else {
-          const { data, error: err } = await supabase.auth.signInWithPassword({ email, password });
+          const { data, error: err } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
           if (err) {
             setError(mapAuthError(err.message));
             return;
           }
           if (data.user) {
-            await ensureSupplierProfile(data.user.id, { display_name: email.split('@')[0] ?? null });
+            await ensureSupplierProfile(data.user.id, { display_name: normalizedEmail.split('@')[0] ?? null });
           }
           onAuthenticated();
         }
       } else {
-        localStorage.setItem('supplier_authenticated', 'true');
-        onAuthenticated();
+        setError(mapAuthError('unavailable'));
       }
     } finally {
       setSubmitting(false);
@@ -98,12 +101,12 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
       return;
     }
     setResetSending(true);
-    const { error: err } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+    const { error: err } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
       redirectTo: `${window.location.origin}/supplier-log-in`,
     });
     setResetSending(false);
     if (err) {
-      setError(err.message);
+      setError(mapAuthError(err.message));
       return;
     }
     setSuccessMessage('Password reset email sent. Check your inbox.');
