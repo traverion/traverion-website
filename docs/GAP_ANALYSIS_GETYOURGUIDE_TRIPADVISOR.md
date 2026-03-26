@@ -9,6 +9,7 @@ What’s missing on the **customer (consumer)** side and **supplier** side compa
 - **Account:** **`/account`** hub (bookings, wishlist, cart; reviews tile placeholder).
 - **Discovery (partial):** **`/destinations/:slug`** destination pages; Packages has shareable query params (`q`, `destination`, `tags`, `price`, `sort`), **removable “Applied” filter chips**, and **deferred search** for smoother typing.
 - **Availability (partial):** Booking flow checks capacity / dates when Supabase availability is configured.
+- **Supplier notifications (partial):** `notify-supplier-event` edge function added and wired from booking/review writes; sends Resend emails to supplier/team account emails when edge env vars are configured.
 
 Still open: payments, transactional email, full “Places to see” / inspiration nav, time slots, consumer “My reviews”, supplier email notifications, etc.
 

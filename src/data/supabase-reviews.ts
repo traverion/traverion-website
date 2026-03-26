@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { notifySupplierEvent } from './supabase-supplier-messaging';
 
 export type ReviewRow = {
   id: string;
@@ -97,6 +98,22 @@ export async function submitReview(params: {
     { onConflict: 'listing_id,user_id' }
   );
   if (error) return { success: false, error: error.message };
+  const { data: listingData } = await supabase
+    .from('listings')
+    .select('supplier_id, title')
+    .eq('id', params.listingId)
+    .maybeSingle();
+  if (listingData?.supplier_id) {
+    void notifySupplierEvent({
+      supplierId: listingData.supplier_id,
+      eventType: 'new_review',
+      listingId: params.listingId,
+      listingTitle: listingData.title ?? undefined,
+      reviewRating: params.rating,
+      reviewTitle: params.title,
+      guestName: params.guestName,
+    });
+  }
   return { success: true };
 }
 

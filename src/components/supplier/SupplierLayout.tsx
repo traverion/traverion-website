@@ -525,7 +525,7 @@ export default function SupplierLayout() {
                           }}
                           className="rounded border-gray-300 text-finland focus:ring-finland"
                         />
-                        <span className="text-sm text-gray-800">Channel: Email digest (placeholder)</span>
+                        <span className="text-sm text-gray-800">Channel: Email notifications</span>
                       </label>
                     </div>
                     <div className="pt-1 border-t border-gray-100">
@@ -564,7 +564,10 @@ export default function SupplierLayout() {
                           className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland text-sm"
                         />
                       </div>
-                      <p className="text-xs text-gray-500 mt-1">During quiet hours, in-app bell notifications are muted.</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        During quiet hours, in-app bell notifications are muted. Email delivery still depends on your
+                        Resend + Edge Function setup.
+                      </p>
                     </div>
                   </div>
                 </div>

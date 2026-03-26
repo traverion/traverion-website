@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { notifySupplierEvent } from './supabase-supplier-messaging';
 
 /** Shape used by BookingForm (legacy). Mapped to public.bookings in DB. */
 export type Booking = {
@@ -46,7 +47,12 @@ export async function submitBooking(
     return { success: false, error: 'Supabase not configured' };
   }
   const totalAmount = (data.total_price != null ? data.total_price : undefined) as number | undefined;
-  const { error } = await supabase.from('bookings').insert({
+  const { data: listingData } = await supabase
+    .from('listings')
+    .select('supplier_id, title')
+    .eq('id', data.tour_id)
+    .maybeSingle();
+  const { data: inserted, error } = await supabase.from('bookings').insert({
     listing_id: data.tour_id,
     guest_email: data.customer_email ?? null,
     guest_name: data.customer_name ?? null,
@@ -56,8 +62,20 @@ export async function submitBooking(
     special_requests: data.special_requests ?? null,
     total_amount: totalAmount ?? null,
     currency: data.currency ?? 'USD',
-  });
+  }).select('id').maybeSingle();
   if (error) return { success: false, error: error.message };
+  if (listingData?.supplier_id) {
+    void notifySupplierEvent({
+      supplierId: listingData.supplier_id,
+      eventType: 'new_booking',
+      listingId: data.tour_id,
+      listingTitle: listingData.title ?? data.tour_title ?? undefined,
+      bookingId: inserted?.id,
+      bookingDate: data.departure_date,
+      guests: data.travelers,
+      guestName: data.customer_name,
+    });
+  }
   return { success: true };
 }
 
@@ -161,6 +179,30 @@ export async function cancelBookingAsCustomer(
     })
     .eq('id', bookingId);
   if (error) return { success: false, error: error.message };
+  const { data: bookingMeta } = await supabase
+    .from('bookings')
+    .select('id, listing_id, booking_date, guests, guest_name')
+    .eq('id', bookingId)
+    .maybeSingle();
+  if (bookingMeta?.listing_id) {
+    const { data: listingData } = await supabase
+      .from('listings')
+      .select('supplier_id, title')
+      .eq('id', bookingMeta.listing_id)
+      .maybeSingle();
+    if (listingData?.supplier_id) {
+      void notifySupplierEvent({
+        supplierId: listingData.supplier_id,
+        eventType: 'booking_cancelled',
+        listingId: bookingMeta.listing_id,
+        listingTitle: listingData.title ?? undefined,
+        bookingId: bookingMeta.id,
+        bookingDate: bookingMeta.booking_date ?? undefined,
+        guests: Number(bookingMeta.guests ?? 0),
+        guestName: bookingMeta.guest_name ?? undefined,
+      });
+    }
+  }
   return { success: true };
 }
 
