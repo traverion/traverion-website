@@ -45,7 +45,6 @@ function App() {
   const [currentPage, setCurrentPage] = useState('home');
   const [destinationSlug, setDestinationSlug] = useState<string | null>(null);
   const [selectedTour, setSelectedTour] = useState<TourPackageType | null>(null);
-  const [showContact, setShowContact] = useState(false);
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
 
   // Supplier portal: /supplier/* and dedicated login URL (must mount SupplierLayout for both)
@@ -53,38 +52,32 @@ function App() {
     typeof window !== 'undefined' ? window.location.pathname.replace(/\/$/, '') || '/' : '';
   const isSupplierArea =
     supplierPath.startsWith('/supplier') || supplierPath === '/supplier-log-in';
-  if (isSupplierArea) {
-    return (
-      <TranslationProvider>
-        <SupplierAuthProvider>
-          <SupplierLayout />
-        </SupplierAuthProvider>
-      </TranslationProvider>
-    );
-  }
-
   // Sync internal route from the URL (initial load + browser back/forward)
   const syncRouteFromUrl = useCallback(() => {
+    if (isSupplierArea) return;
     const { page, destinationSlug } = parsePathname(window.location.pathname);
     setCurrentPage(page);
     setDestinationSlug(destinationSlug);
     if (shouldClearSelectedTour(page)) {
       setSelectedTour(null);
     }
-  }, []);
+  }, [isSupplierArea]);
 
   useEffect(() => {
+    if (isSupplierArea) return;
     syncRouteFromUrl();
-  }, [syncRouteFromUrl]);
+  }, [syncRouteFromUrl, isSupplierArea]);
 
   useEffect(() => {
+    if (isSupplierArea) return;
     const onPopState = () => syncRouteFromUrl();
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
-  }, [syncRouteFromUrl]);
+  }, [syncRouteFromUrl, isSupplierArea]);
 
   // Update URL when page changes
   useEffect(() => {
+    if (isSupplierArea) return;
     const urlMapping: { [key: string]: string } = {
       'thailand-vietnam-14-day': '/14-vietnam-thailand',
       'vietnam-9-day': '/9-vietnam',
@@ -119,20 +112,23 @@ function App() {
     if (window.location.pathname !== newUrl) {
       window.history.pushState({}, '', newUrl);
     }
-  }, [currentPage, destinationSlug]);
+  }, [currentPage, destinationSlug, isSupplierArea]);
 
   // Scroll to top when page changes
   useEffect(() => {
+    if (isSupplierArea) return;
     window.scrollTo(0, 0);
-  }, [currentPage]);
+  }, [currentPage, isSupplierArea]);
 
   // Organization JSON-LD once on mount
   useEffect(() => {
+    if (isSupplierArea) return;
     setOrganizationJsonLd();
-  }, []);
+  }, [isSupplierArea]);
 
   // Document title, meta, OG/Twitter, and canonical URL per page
   useEffect(() => {
+    if (isSupplierArea) return;
     const metaByPage: Record<string, { title: string; description?: string }> = {
       home: { title: 'Traverion', description: 'Book tours and activities worldwide. Find and reserve experiences with free cancellation.' },
       packages: { title: 'Tours & activities', description: 'Browse and book tours and activities worldwide. Filter by destination, price, and more.' },
@@ -166,7 +162,7 @@ function App() {
     };
     const path = currentPage === 'destination' ? `/destinations/${destinationSlug || ''}` : (pathMap[currentPage] ?? '/');
     setCanonicalUrl(path);
-  }, [currentPage, destinationSlug]);
+  }, [currentPage, destinationSlug, isSupplierArea]);
 
   const handleTourSelect = (tour: TourPackageType) => {
     setSelectedTour(tour);
@@ -281,23 +277,33 @@ function App() {
     }
   };
 
-      return (
-        <TranslationProvider>
-          <AuthProvider>
-            <div className="min-h-screen bg-white relative flex flex-col">
-              <UnifiedHeader currentPage={currentPage} onNavigate={setCurrentPage} />
-              <main className="flex-grow overflow-x-hidden">
-                <div key={currentPage} className="lux-page-enter min-h-[min(50vh,480px)]">
-                  {renderPage()}
-                </div>
-              </main>
-              <Footer onNavigate={setCurrentPage} />
-              <StickyBookingButton onNavigate={setCurrentPage} />
+  if (isSupplierArea) {
+    return (
+      <TranslationProvider>
+        <SupplierAuthProvider>
+          <SupplierLayout />
+        </SupplierAuthProvider>
+      </TranslationProvider>
+    );
+  }
+
+  return (
+    <TranslationProvider>
+      <AuthProvider>
+        <div className="min-h-screen bg-white relative flex flex-col">
+          <UnifiedHeader currentPage={currentPage} onNavigate={setCurrentPage} />
+          <main className="flex-grow overflow-x-hidden">
+            <div key={currentPage} className="lux-page-enter min-h-[min(50vh,480px)]">
+              {renderPage()}
             </div>
-            <AuthModal />
-          </AuthProvider>
-        </TranslationProvider>
-      );
+          </main>
+          <Footer onNavigate={setCurrentPage} />
+          <StickyBookingButton onNavigate={setCurrentPage} />
+        </div>
+        <AuthModal />
+      </AuthProvider>
+    </TranslationProvider>
+  );
 }
 
 export default App;

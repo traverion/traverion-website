@@ -10,6 +10,24 @@ const TAG_OPTIONS = [
   { id: 'bestseller', label: 'Bestseller' },
 ];
 
+type ListingFormState = {
+  title: string;
+  destination: string;
+  duration: string;
+  price: number;
+  image: string;
+  description: string;
+  city: string;
+  country: string;
+  tags: string[];
+  groupSize: string;
+  difficulty: 'Easy' | 'Moderate' | 'Challenging';
+  status: 'draft' | 'published';
+  cancellationPolicy: string;
+  meetingPoint: string;
+  pickupInstructions: string;
+};
+
 function buildListingFromForm(form: {
   title: string;
   destination: string;
@@ -74,7 +92,7 @@ function buildListingFromForm(form: {
   };
 }
 
-const emptyForm = {
+const emptyForm: ListingFormState = {
   title: '',
   destination: '',
   duration: '',
@@ -85,8 +103,8 @@ const emptyForm = {
   country: '',
   tags: [] as string[],
   groupSize: '2-12 People',
-  difficulty: 'Easy' as const,
-  status: 'draft' as const,
+  difficulty: 'Easy',
+  status: 'draft',
   cancellationPolicy: '',
   meetingPoint: '',
   pickupInstructions: '',
@@ -110,7 +128,7 @@ export default function SupplierListingForm({
   focusSection,
   onFocusConsumed,
 }: SupplierListingFormProps) {
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState<ListingFormState>(emptyForm);
   const [submitting, setSubmitting] = useState(false);
   const lastFocused = useRef<string | null>(null);
 

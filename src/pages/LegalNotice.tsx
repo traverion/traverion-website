@@ -9,6 +9,8 @@ type LegalNoticeProps = {
   onNavigate?: (page: string) => void;
 };
 
+const LAST_UPDATED = '2026-03-26';
+
 export default function LegalNotice({ onNavigate }: LegalNoticeProps) {
   const goTerms = (e: MouseEvent<HTMLAnchorElement>) => {
     if (onNavigate) {
@@ -149,7 +151,7 @@ export default function LegalNotice({ onNavigate }: LegalNoticeProps) {
             </section>
 
             <p className="text-sm text-gray-500 pt-4 border-t border-gray-100">
-              Last updated: {new Date().toLocaleDateString()}
+              Last updated: {LAST_UPDATED}
             </p>
           </div>
         </div>

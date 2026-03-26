@@ -209,7 +209,7 @@ export default function SupplierBookings() {
   const [exportFormat, setExportFormat] = useState<'csv' | 'json'>('csv');
   const [exportKind, setExportKind] = useState<'bookings' | 'ops_summary'>('bookings');
   const [highlightBookingId, setHighlightBookingId] = useState<string | null>(null);
-  const [templateId, setTemplateId] = useState<string>(MESSAGE_TEMPLATES[0].id);
+  const [templateId, setTemplateId] = useState<(typeof MESSAGE_TEMPLATES)[number]['id']>(MESSAGE_TEMPLATES[0].id);
   const [commSubject, setCommSubject] = useState('');
   const [commBody, setCommBody] = useState('');
   const [commLog, setCommLog] = useState<CommunicationLogEntry[]>([]);
@@ -249,6 +249,26 @@ export default function SupplierBookings() {
   const [timelineBookingId, setTimelineBookingId] = useState<string | null>(null);
   const [opsNotes, setOpsNotes] = useState<Record<string, BookingOpsNote>>({});
   const [error, setError] = useState<string | null>(null);
+  const applyTemplateTokens = useCallback(
+    (templateBody: string, sample?: BookingRow) => {
+      const listing = sample ? listingTitles[sample.listing_id] ?? 'your booking' : 'your booking';
+      const guest = sample?.guest_name || 'traveler';
+      const date = sample?.booking_date ? new Date(sample.booking_date).toLocaleDateString() : 'your booking date';
+      const meeting = sample ? sample.special_requests || 'see your booking details' : 'see your booking details';
+      return templateBody
+        .split('{{guest}}').join(guest)
+        .split('{{listing}}').join(listing)
+        .split('{{date}}').join(date)
+        .split('{{meeting}}').join(meeting);
+    },
+    [listingTitles]
+  );
+
+  const parseCampaignStatus = useCallback((status: string): CampaignHistoryEntry['status'] => {
+    if (status === 'queued' || status === 'sent' || status === 'failed' || status === 'partial') return status;
+    return 'queued';
+  }, []);
+
   const load = useCallback(async () => {
     if (!isSupabase || !user) {
       setLoading(false);
@@ -469,7 +489,7 @@ export default function SupplierBookings() {
       localStorage.setItem(COMM_LOG_KEY, JSON.stringify(mapped.slice(0, 20)));
     };
     loadServerMessages();
-  }, [isSupabase, user]);
+  }, [isSupabase, user, parseCampaignStatus]);
 
   useEffect(() => {
     const loadServerVouchers = async () => {
@@ -493,7 +513,7 @@ export default function SupplierBookings() {
       localStorage.setItem(VOUCHER_LOG_KEY, JSON.stringify(mapped.slice(0, 200)));
     };
     loadServerVouchers();
-  }, [isSupabase, user]);
+  }, [isSupabase, user, parseCampaignStatus]);
 
   useEffect(() => {
     const loadServerHistory = async () => {
@@ -510,7 +530,7 @@ export default function SupplierBookings() {
           recipientsCount: c.recipients_count,
           sentCount: c.sent_count,
           failedCount: c.failed_count,
-          status: c.status,
+          status: parseCampaignStatus(c.status),
           createdAt: c.created_at,
         }))
       );
@@ -528,7 +548,7 @@ export default function SupplierBookings() {
       );
     };
     loadServerHistory();
-  }, [isSupabase, user]);
+  }, [isSupabase, user, parseCampaignStatus]);
 
   const pushAudit = useCallback((entry: Omit<BookingAuditEntry, 'id' | 'at'>) => {
     const next: BookingAuditEntry = {
@@ -824,24 +844,16 @@ export default function SupplierBookings() {
   }, [commLog, campaignHistory]);
 
   const applyTemplate = useCallback(
-    (id: string) => {
+    (id: (typeof MESSAGE_TEMPLATES)[number]['id']) => {
       const t = MESSAGE_TEMPLATES.find((x) => x.id === id);
       if (!t) return;
       const sample = targetBookings[0];
-      const listing = sample ? listingTitles[sample.listing_id] ?? 'your booking' : 'your booking';
-      const guest = sample?.guest_name || 'traveler';
-      const date = sample?.booking_date ? new Date(sample.booking_date).toLocaleDateString() : 'your booking date';
-      const meeting = sample ? sample.special_requests || 'see your booking details' : 'see your booking details';
-      const body = t.body
-        .replaceAll('{{guest}}', guest)
-        .replaceAll('{{listing}}', listing)
-        .replaceAll('{{date}}', date)
-        .replaceAll('{{meeting}}', meeting);
+      const body = applyTemplateTokens(t.body, sample);
       setTemplateId(id);
       setCommSubject(t.subject);
       setCommBody(body);
     },
-    [targetBookings, listingTitles]
+    [targetBookings, applyTemplateTokens]
   );
 
   useEffect(() => {
@@ -918,16 +930,8 @@ export default function SupplierBookings() {
     const t = MESSAGE_TEMPLATES.find((x) => x.id === quickTemplateId);
     if (!t) return;
     setQuickMessageBookingId(booking.id);
-    const listing = listingTitles[booking.listing_id] ?? 'your booking';
-    const guest = booking.guest_name || 'traveler';
-    const date = booking.booking_date ? new Date(booking.booking_date).toLocaleDateString() : 'your booking date';
-    const meeting = booking.special_requests || 'see your booking details';
     const subject = t.subject;
-    const body = t.body
-      .replaceAll('{{guest}}', guest)
-      .replaceAll('{{listing}}', listing)
-      .replaceAll('{{date}}', date)
-      .replaceAll('{{meeting}}', meeting);
+    const body = applyTemplateTokens(t.body, booking);
     const entry: CommunicationLogEntry = {
       id: `${Date.now()}-${booking.id}-quick`,
       createdAt: new Date().toISOString(),
@@ -989,16 +993,8 @@ export default function SupplierBookings() {
 
     const template = MESSAGE_TEMPLATES.find((t) => t.id === reminderSettings.templateId) ?? MESSAGE_TEMPLATES[1];
     for (const b of dueReminderBookings) {
-      const listing = listingTitles[b.listing_id] ?? 'your booking';
-      const guest = b.guest_name || 'traveler';
-      const date = b.booking_date ? new Date(b.booking_date).toLocaleDateString() : 'your booking date';
-      const meeting = b.special_requests || 'see your booking details';
       const subject = `[Auto reminder] ${template.subject}`;
-      const body = template.body
-        .replaceAll('{{guest}}', guest)
-        .replaceAll('{{listing}}', listing)
-        .replaceAll('{{date}}', date)
-        .replaceAll('{{meeting}}', meeting);
+      const body = applyTemplateTokens(template.body, b);
       const entry: CommunicationLogEntry = {
         id: `${Date.now()}-${b.id}-auto`,
         createdAt: new Date().toISOString(),
@@ -1082,9 +1078,9 @@ export default function SupplierBookings() {
           recipientsCount: entry.recipients.length,
           sentCount: 0,
           failedCount: 0,
-          status: 'queued',
+          status: 'queued' as const,
           createdAt: entry.createdAt,
-        },
+        } satisfies CampaignHistoryEntry,
         ...prev,
       ].slice(0, 20)
     );
@@ -2133,7 +2129,7 @@ export default function SupplierBookings() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Template</label>
               <select
                 value={templateId}
-                onChange={(e) => applyTemplate(e.target.value)}
+                onChange={(e) => applyTemplate(e.target.value as (typeof MESSAGE_TEMPLATES)[number]['id'])}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white text-sm"
               >
                 {MESSAGE_TEMPLATES.map((t) => (

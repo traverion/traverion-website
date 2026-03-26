@@ -8,6 +8,8 @@ type PrivacyProps = {
   onNavigate?: (page: string) => void;
 };
 
+const LAST_UPDATED = '2026-03-26';
+
 export default function Privacy({ onNavigate }: PrivacyProps) {
   return (
     <div className="min-h-screen bg-gray-50 pt-20">
@@ -33,7 +35,7 @@ export default function Privacy({ onNavigate }: PrivacyProps) {
           Back
         </LuxuryButton>
 
-        <p className="text-gray-600 text-sm mb-6">Last updated: {new Date().toLocaleDateString()}</p>
+        <p className="text-gray-600 text-sm mb-6">Last updated: {LAST_UPDATED}</p>
 
         {/* Content */}
         <div className="bg-white rounded-xl shadow-lg p-6 sm:p-8 space-y-8 border border-gray-100">

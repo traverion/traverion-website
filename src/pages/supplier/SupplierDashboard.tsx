@@ -244,6 +244,17 @@ export default function SupplierDashboard({ onNavigateToListings, onNavigateToSe
     };
   }, [bookings, reviews]);
 
+  const quickStart = useMemo(() => {
+    const setupChecks = healthChecks.checks.slice(0, 3);
+    const next = setupChecks.find((c) => !c.done) ?? null;
+    return {
+      checks: setupChecks,
+      doneCount: setupChecks.filter((c) => c.done).length,
+      total: setupChecks.length,
+      next,
+    };
+  }, [healthChecks.checks]);
+
   return (
     <div className="space-y-8">
       <div>
@@ -255,16 +266,16 @@ export default function SupplierDashboard({ onNavigateToListings, onNavigateToSe
         <div className="bg-white border border-gray-200 rounded-xl p-5 sm:p-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
             <div>
-              <h2 className="text-base font-semibold text-gray-900">Supplier health</h2>
-              <p className="text-sm text-gray-600">Actionable checks based on account setup and recent performance.</p>
+              <h2 className="text-base font-semibold text-gray-900">Quick start</h2>
+              <p className="text-sm text-gray-600">Complete these essentials first, then run day-to-day from bookings.</p>
             </div>
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-finland/10 text-finland text-sm font-semibold">
-              Setup score: {healthChecks.setupScore}%
+              {quickStart.doneCount}/{quickStart.total} completed
             </div>
           </div>
 
           <ul className="space-y-2">
-            {healthChecks.checks.slice(0, 3).map((check) => (
+            {quickStart.checks.map((check) => (
               <li
                 key={check.id}
                 className={`flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 rounded-lg border px-3 py-2.5 ${
@@ -295,9 +306,18 @@ export default function SupplierDashboard({ onNavigateToListings, onNavigateToSe
               </li>
             ))}
           </ul>
-          <p className="text-xs text-gray-500 mt-3">
-            The top setup actions are shown here. Daily operational items are in &quot;Needs action&quot; below.
-          </p>
+          {quickStart.next && quickStart.next.onClick && (
+            <div className="mt-3">
+              <button
+                type="button"
+                onClick={quickStart.next.onClick}
+                className="inline-flex items-center gap-1 text-sm font-medium text-finland hover:underline"
+              >
+                Continue setup: {quickStart.next.title}
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          )}
         </div>
       )}
 

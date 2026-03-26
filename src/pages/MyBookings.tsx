@@ -35,21 +35,6 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
     return startMs - nowMs > hours24 ? 'full_refund' : 'no_refund';
   }, []);
 
-  const handleCancelBooking = useCallback(async (b: BookingRow) => {
-    setCancellingId(b.id);
-    setError(null);
-    const refundChoice = getRefundChoiceForCancel(b.booking_date);
-    const res = await cancelBookingAsCustomer(b.id, refundChoice);
-    setCancellingId(null);
-    setCancelConfirm(null);
-    if (res.success) {
-      if (b.booking_date) await decrementAvailabilityBooked(b.listing_id, b.booking_date);
-      load();
-    } else {
-      setError(res.error ?? 'Could not cancel booking');
-    }
-  }, [getRefundChoiceForCancel, load]);
-
   const load = useCallback(async () => {
     if (!isSupabaseConfigured() || !user?.email) {
       setLoading(false);
@@ -69,6 +54,21 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
       setLoading(false);
     }
   }, [user?.email]);
+
+  const handleCancelBooking = useCallback(async (b: BookingRow) => {
+    setCancellingId(b.id);
+    setError(null);
+    const refundChoice = getRefundChoiceForCancel(b.booking_date);
+    const res = await cancelBookingAsCustomer(b.id, refundChoice);
+    setCancellingId(null);
+    setCancelConfirm(null);
+    if (res.success) {
+      if (b.booking_date) await decrementAvailabilityBooked(b.listing_id, b.booking_date);
+      load();
+    } else {
+      setError(res.error ?? 'Could not cancel booking');
+    }
+  }, [getRefundChoiceForCancel, load]);
 
   useEffect(() => {
     if (user) load();

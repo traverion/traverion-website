@@ -79,7 +79,7 @@ export default function Footer({ onNavigate }: { onNavigate?: (page: string) => 
           </p>
           <div className="flex items-center gap-4">
             <a
-              href="https://instagram.com/traverion"
+              href="https://instagram.com/traverionco"
               target="_blank"
               rel="noopener noreferrer"
               className="lux-tap-target p-2 text-gray-400 hover:text-white transition-colors duration-300 ease-lux rounded-lg hover:bg-white/10"
@@ -88,7 +88,7 @@ export default function Footer({ onNavigate }: { onNavigate?: (page: string) => 
               <Instagram className="w-5 h-5" />
             </a>
             <a
-              href="https://tiktok.com/@traverion"
+              href="https://tiktok.com/@traverion.com"
               target="_blank"
               rel="noopener noreferrer"
               className="lux-tap-target p-2 text-gray-400 hover:text-white transition-colors duration-300 ease-lux rounded-lg hover:bg-white/10"

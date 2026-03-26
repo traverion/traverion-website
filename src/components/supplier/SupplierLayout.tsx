@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { LayoutDashboard, MapPin, Calendar, DollarSign, Settings, LogOut, Globe, Menu, X, Users, BarChart3, Star, ClipboardList, Lock } from 'lucide-react';
+import { LayoutDashboard, MapPin, Calendar, DollarSign, Settings, LogOut, Globe, Menu, X, Star, ClipboardList, Lock, UserCircle2, ChevronDown } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
+import { supabase } from '../../lib/supabase';
 import SupplierDashboard from '../../pages/supplier/SupplierDashboard';
 import SupplierListings from '../../pages/supplier/SupplierListings';
 import SupplierBookings from '../../pages/supplier/SupplierBookings';
@@ -8,6 +9,7 @@ import SupplierEarnings from '../../pages/supplier/SupplierEarnings';
 import SupplierReviews from '../../pages/supplier/SupplierReviews';
 import SupplierPickupPlanner from '../../pages/supplier/SupplierPickupPlanner';
 import { fetchSupplierProfile, updateSupplierPayout, updateSupplierCompanyProfile } from '../../data/supabase-supplier-profile';
+import { fetchMyListings } from '../../data/supabase-listings';
 import SupplierLoginPage from './SupplierLoginPage';
 import SupplierNotificationCenter from './SupplierNotificationCenter';
 import { loadSupplierNotifPrefs, saveSupplierNotifPrefs, type SupplierNotifPrefs } from '../../lib/supplierNotificationPrefs';
@@ -22,7 +24,9 @@ import { upsertSupplierTeamMember, removeSupplierTeamMember } from '../../data/s
 /** URL path for the supplier login/landing page. Portal is /supplier and /supplier/* */
 export const SUPPLIER_LOGIN_PATH = '/supplier-log-in';
 
-type SupplierSection = 'dashboard' | 'listings' | 'bookings' | 'earnings' | 'reviews' | 'pickup' | 'settings';
+type SupplierSection = 'dashboard' | 'listings' | 'bookings' | 'earnings' | 'reviews' | 'pickup' | 'settings' | 'badges' | 'referrals';
+type AccountShortcutTarget = 'company' | 'account' | 'security';
+type BadgeVariant = 'gold' | 'verified' | 'trusted';
 
 const NAV_ITEMS: { id: SupplierSection; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -33,22 +37,24 @@ const NAV_ITEMS: { id: SupplierSection; label: string; icon: typeof LayoutDashbo
   { id: 'pickup', label: 'Pickup planner', icon: ClipboardList },
   { id: 'settings', label: 'Settings', icon: Settings },
 ];
+const ROUTABLE_SECTIONS = [...NAV_ITEMS.map((n) => n.id), 'badges', 'referrals'] as const;
+type ExtraSupplierSection = (typeof ROUTABLE_SECTIONS)[number];
 
 function canAccessSection(role: SupplierRole, section: SupplierSection): boolean {
   if (role === 'owner') return true;
   if (role === 'manager') return section !== 'earnings';
-  if (role === 'ops') return ['dashboard', 'bookings', 'pickup', 'reviews', 'settings'].includes(section);
-  if (role === 'finance') return ['dashboard', 'earnings', 'settings'].includes(section);
+  if (role === 'ops') return ['dashboard', 'bookings', 'pickup', 'reviews', 'settings', 'badges', 'referrals'].includes(section);
+  if (role === 'finance') return ['dashboard', 'earnings', 'settings', 'badges', 'referrals'].includes(section);
   // viewer
   return ['dashboard', 'reviews'].includes(section);
 }
 
 function getSectionFromPath(pathname: string): SupplierSection | null {
   if (pathname === '/supplier' || pathname === '/supplier/') return 'dashboard';
-  const match = pathname.match(/^\/supplier\/([a-z]+)/);
+  const match = pathname.match(/^\/supplier\/([a-z-]+)/);
   if (!match) return null;
-  const section = match[1] as SupplierSection;
-  return NAV_ITEMS.some((n) => n.id === section) ? section : 'dashboard';
+  const section = match[1] as ExtraSupplierSection;
+  return ROUTABLE_SECTIONS.includes(section) ? (section as SupplierSection) : 'dashboard';
 }
 
 function isSupplierLoginPath(pathname: string): boolean {
@@ -93,6 +99,21 @@ export default function SupplierLayout() {
   const [teamMemberId, setTeamMemberId] = useState('');
   const [teamRole, setTeamRole] = useState<SupplierRole>('viewer');
   const [teamMembers, setTeamMembers] = useState(roleMembers);
+  const [settingsListingsCount, setSettingsListingsCount] = useState<number | null>(null);
+  const [onboardingListingCount, setOnboardingListingCount] = useState<number | null>(null);
+  const [onboardingHasPayout, setOnboardingHasPayout] = useState(false);
+  const [onboardingHasCompany, setOnboardingHasCompany] = useState(false);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [mobileAccountOpen, setMobileAccountOpen] = useState(false);
+  const [settingsFocus, setSettingsFocus] = useState<AccountShortcutTarget | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordMessage, setPasswordMessage] = useState<'success' | 'error' | null>(null);
+  const [badgeEnabled, setBadgeEnabled] = useState(false);
+  const [badgeVariant, setBadgeVariant] = useState<BadgeVariant>('gold');
+  const [referralName, setReferralName] = useState('');
+  const [referralEmail, setReferralEmail] = useState('');
+  const [referrals, setReferrals] = useState<Array<{ id: string; name: string; email: string; createdAt: string }>>([]);
 
   useEffect(() => {
     if (section !== 'settings' || !user?.id || !isSupabase) return;
@@ -122,6 +143,32 @@ export default function SupplierLayout() {
   }, [section, user?.id, isSupabase]);
 
   useEffect(() => {
+    const loadOnboardingSignals = async () => {
+      if (!user?.id || !isSupabase) {
+        setOnboardingListingCount(0);
+        setOnboardingHasPayout(false);
+        setOnboardingHasCompany(false);
+        return;
+      }
+      const [profile, listings] = await Promise.all([
+        fetchSupplierProfile(user.id),
+        fetchMyListings(user.id),
+      ]);
+      setOnboardingListingCount(listings.length);
+      setOnboardingHasPayout(!!profile?.payout_method && profile.payout_method !== 'none');
+      setOnboardingHasCompany(!!profile?.company_legal_name?.trim());
+    };
+    loadOnboardingSignals();
+  }, [user?.id, isSupabase]);
+
+  useEffect(() => {
+    if (section !== 'settings' || !user?.id || !isSupabase) return;
+    fetchMyListings(user.id)
+      .then((rows) => setSettingsListingsCount(rows.length))
+      .catch(() => setSettingsListingsCount(0));
+  }, [section, user?.id, isSupabase]);
+
+  useEffect(() => {
     setTeamMembers(roleMembers);
   }, [roleMembers]);
 
@@ -142,12 +189,53 @@ export default function SupplierLayout() {
     }
   }, [role, section]);
 
+  useEffect(() => {
+    const savedBadge = localStorage.getItem('supplier_badge_state');
+    if (savedBadge) {
+      try {
+        const parsed = JSON.parse(savedBadge) as { enabled?: boolean; variant?: BadgeVariant };
+        setBadgeEnabled(!!parsed.enabled);
+        if (parsed.variant === 'gold' || parsed.variant === 'verified' || parsed.variant === 'trusted') {
+          setBadgeVariant(parsed.variant);
+        }
+      } catch {
+        // ignore invalid local data
+      }
+    }
+    const savedReferrals = localStorage.getItem('supplier_referrals');
+    if (savedReferrals) {
+      try {
+        const parsed = JSON.parse(savedReferrals) as Array<{ id: string; name: string; email: string; createdAt: string }>;
+        setReferrals(parsed.slice(0, 50));
+      } catch {
+        // ignore invalid local data
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (section !== 'settings' || !settingsFocus) return;
+    const el = document.getElementById(`supplier-settings-${settingsFocus}`);
+    if (!el) return;
+    requestAnimationFrame(() => {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    setSettingsFocus(null);
+  }, [section, settingsFocus]);
+
   const handleNavigate = (s: SupplierSection) => {
     setSection(s);
     const path = s === 'dashboard' ? '/supplier' : `/supplier/${s}`;
     window.history.pushState({}, '', path);
     window.dispatchEvent(new PopStateEvent('popstate'));
     setSidebarOpen(false);
+    setAccountMenuOpen(false);
+    setMobileAccountOpen(false);
+  };
+
+  const openSettingsFocus = (target: AccountShortcutTarget) => {
+    setSettingsFocus(target);
+    handleNavigate('settings');
   };
 
   const handleAuthenticated = () => {
@@ -158,6 +246,10 @@ export default function SupplierLayout() {
   const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
   const onLoginPath = isSupplierLoginPath(pathname);
   const onPortalPath = isSupplierPortalPath(pathname);
+  const onboardingDoneCount = [onboardingListingCount !== null && onboardingListingCount > 0, onboardingHasPayout, onboardingHasCompany].filter(Boolean).length;
+  const onboardingComplete = onboardingDoneCount === 3;
+  const onboardingNextLabel = onboardingListingCount !== null && onboardingListingCount <= 0 ? 'Publish your first listing' : !onboardingHasPayout ? 'Add payout details' : 'Complete company profile';
+  const onboardingNextAction = onboardingListingCount !== null && onboardingListingCount <= 0 ? () => handleNavigate('listings') : () => handleNavigate('settings');
 
   if (loading) {
     return (
@@ -309,14 +401,77 @@ export default function SupplierLayout() {
           >
             <Menu className="w-6 h-6" />
           </button>
-          <div className="ml-auto flex items-center gap-1">
+          <div className="ml-auto flex items-center gap-1 relative">
             <SupplierNotificationCenter />
             <span className="text-xs sm:text-sm text-gray-500 hidden sm:inline" title="You are in the supplier portal">
               Supplier portal
             </span>
+            <button
+              type="button"
+              onClick={() => setAccountMenuOpen((v) => !v)}
+              className="hidden lg:inline-flex items-center gap-1 px-2 py-1.5 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50"
+            >
+              <span className="w-7 h-7 rounded-full bg-finland/10 text-finland border border-finland/20 inline-flex items-center justify-center text-xs font-semibold">
+                {(user?.email ?? user?.id ?? 'S').slice(0, 1).toUpperCase()}
+              </span>
+              <ChevronDown className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileAccountOpen(true)}
+              className="lg:hidden inline-flex items-center justify-center w-9 h-9 rounded-full border border-gray-200 text-finland"
+              aria-label="Open account menu"
+            >
+              <UserCircle2 className="w-5 h-5" />
+            </button>
+            {accountMenuOpen && (
+              <div className="hidden lg:block absolute right-0 top-12 w-72 bg-white border border-gray-200 rounded-xl shadow-lg p-2 z-50">
+                <p className="px-3 pt-2 pb-1 text-xs uppercase tracking-wide text-gray-500">Traverion supplier account</p>
+                <button type="button" onClick={() => openSettingsFocus('company')} className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-sm">Company profile</button>
+                <button type="button" onClick={() => openSettingsFocus('account')} className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-sm">Account settings</button>
+                <button type="button" onClick={() => openSettingsFocus('security')} className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-sm">Security and password</button>
+                <button type="button" onClick={() => handleNavigate('badges')} className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-sm">Brand assets</button>
+                <button type="button" onClick={() => handleNavigate('referrals')} className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-sm">Partner invites</button>
+                <button type="button" onClick={() => signOut()} className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-sm text-red-600">Log out</button>
+              </div>
+            )}
           </div>
         </header>
+        {mobileAccountOpen && (
+          <div className="lg:hidden fixed inset-0 z-50 bg-white">
+            <div className="h-16 px-4 border-b border-gray-200 flex items-center justify-between">
+              <h2 className="font-semibold text-gray-900">Account</h2>
+              <button type="button" onClick={() => setMobileAccountOpen(false)} className="p-2 rounded-lg text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-4 space-y-2">
+              <p className="px-1 pt-1 pb-2 text-xs uppercase tracking-wide text-gray-500">Traverion supplier account</p>
+              <button type="button" onClick={() => openSettingsFocus('company')} className="w-full text-left px-4 py-3 rounded-xl border border-gray-200">Company profile</button>
+              <button type="button" onClick={() => openSettingsFocus('account')} className="w-full text-left px-4 py-3 rounded-xl border border-gray-200">Account settings</button>
+              <button type="button" onClick={() => openSettingsFocus('security')} className="w-full text-left px-4 py-3 rounded-xl border border-gray-200">Security and password</button>
+              <button type="button" onClick={() => handleNavigate('badges')} className="w-full text-left px-4 py-3 rounded-xl border border-gray-200">Brand assets</button>
+              <button type="button" onClick={() => handleNavigate('referrals')} className="w-full text-left px-4 py-3 rounded-xl border border-gray-200">Partner invites</button>
+              <button type="button" onClick={() => signOut()} className="w-full text-left px-4 py-3 rounded-xl border border-red-200 text-red-600">Log out</button>
+            </div>
+          </div>
+        )}
         <main className="p-4 sm:p-6 lg:p-8 overflow-x-hidden">
+          {!onboardingComplete && canAccessSection(role, section) && (
+            <div className="mb-4 bg-amber-50 border border-amber-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div>
+                <p className="text-sm font-semibold text-gray-900">Finish supplier setup ({onboardingDoneCount}/3)</p>
+                <p className="text-xs text-amber-800">Complete listing, payout, and company details for smoother operations.</p>
+              </div>
+              <button
+                type="button"
+                onClick={onboardingNextAction}
+                className="inline-flex items-center justify-center px-3 py-2 rounded-lg bg-finland text-white text-sm font-medium hover:bg-finland-dark"
+              >
+                {onboardingNextLabel}
+              </button>
+            </div>
+          )}
           <div key={section} className="lux-page-enter">
           {!canAccessSection(role, section) && (
             <div className="bg-white border border-amber-200 rounded-xl p-6">
@@ -337,11 +492,155 @@ export default function SupplierLayout() {
           {section === 'earnings' && canAccessSection(role, section) && <SupplierEarnings />}
           {section === 'reviews' && canAccessSection(role, section) && <SupplierReviews />}
           {section === 'pickup' && canAccessSection(role, section) && <SupplierPickupPlanner />}
+          {section === 'badges' && canAccessSection(role, section) && (
+            <div className="space-y-6">
+              <h1 className="text-2xl font-semibold text-gray-900">Brand assets</h1>
+              <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4 max-w-2xl">
+                <p className="text-sm text-gray-500">Configure your supplier trust badge for Traverion partner-facing use.</p>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={badgeEnabled}
+                    onChange={(e) => {
+                      const enabled = e.target.checked;
+                      setBadgeEnabled(enabled);
+                      localStorage.setItem('supplier_badge_state', JSON.stringify({ enabled, variant: badgeVariant }));
+                    }}
+                    className="rounded border-gray-300 text-finland focus:ring-finland"
+                  />
+                  <span className="text-sm text-gray-800">Enable promotional badge</span>
+                </label>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Badge style</label>
+                  <select
+                    value={badgeVariant}
+                    onChange={(e) => {
+                      const variant = e.target.value as BadgeVariant;
+                      setBadgeVariant(variant);
+                      localStorage.setItem('supplier_badge_state', JSON.stringify({ enabled: badgeEnabled, variant }));
+                    }}
+                    className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-finland"
+                  >
+                    <option value="gold">Gold partner</option>
+                    <option value="verified">Verified operator</option>
+                    <option value="trusted">Trusted host</option>
+                  </select>
+                </div>
+                <div className="rounded-lg border border-gray-200 p-4 bg-gray-50">
+                  <p className="text-xs text-gray-500 mb-1">Preview</p>
+                  <p className="text-sm font-medium text-gray-900">
+                    {badgeEnabled ? `${badgeVariant === 'gold' ? 'Gold Partner' : badgeVariant === 'verified' ? 'Verified Operator' : 'Trusted Host'} · Traverion` : 'Badge disabled'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+          {section === 'referrals' && canAccessSection(role, section) && (
+            <div className="space-y-6">
+              <h1 className="text-2xl font-semibold text-gray-900">Partner invites</h1>
+              <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4 max-w-3xl">
+                <p className="text-sm text-gray-500">Invite trusted activity providers to join Traverion. Track who you invited.</p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <input
+                    type="text"
+                    value={referralName}
+                    onChange={(e) => setReferralName(e.target.value)}
+                    placeholder="Partner name"
+                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  />
+                  <input
+                    type="email"
+                    value={referralEmail}
+                    onChange={(e) => setReferralEmail(e.target.value)}
+                    placeholder="Partner email"
+                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const name = referralName.trim();
+                      const email = referralEmail.trim();
+                      if (!name || !email) return;
+                      const next = [{ id: `${Date.now()}`, name, email, createdAt: new Date().toISOString() }, ...referrals].slice(0, 50);
+                      setReferrals(next);
+                      localStorage.setItem('supplier_referrals', JSON.stringify(next));
+                      setReferralName('');
+                      setReferralEmail('');
+                    }}
+                    className="px-3 py-2 rounded-lg bg-finland text-white text-sm font-medium hover:bg-finland-dark"
+                  >
+                    Add referral
+                  </button>
+                </div>
+                {referrals.length === 0 ? (
+                  <p className="text-sm text-gray-500 border border-gray-200 rounded-lg p-3">No referrals yet.</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {referrals.map((r) => (
+                      <li key={r.id} className="border border-gray-200 rounded-lg p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">{r.name}</p>
+                          <p className="text-xs text-gray-500">{r.email}</p>
+                        </div>
+                        <a
+                          href={`mailto:${encodeURIComponent(r.email)}?subject=${encodeURIComponent('Invitation to join Traverion supplier network')}`}
+                          className="text-sm text-finland hover:underline"
+                        >
+                          Send invite
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          )}
           {section === 'settings' && canAccessSection(role, section) && (
             <div className="space-y-6">
               <h1 className="text-2xl font-semibold text-gray-900">Settings</h1>
+              <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-5">
+                {(() => {
+                  const hasListing = (settingsListingsCount ?? 0) > 0;
+                  const hasPayout = !!payoutMethod && payoutMethod !== 'none';
+                  const hasCompany = !!companyLegalName.trim();
+                  const done = [hasListing, hasPayout, hasCompany].filter(Boolean).length;
+                  return (
+                    <>
+                      <div className="flex items-center justify-between gap-3 mb-3">
+                        <div>
+                          <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">Setup progress</h2>
+                          <p className="text-xs text-gray-500 mt-0.5">Minimum steps for smooth onboarding.</p>
+                        </div>
+                        <span className="text-sm font-semibold text-finland">{done}/3</span>
+                      </div>
+                      <ul className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm">
+                        <li className={`rounded-lg border px-3 py-2 ${hasListing ? 'border-green-100 bg-green-50/40 text-gray-700' : 'border-amber-100 bg-amber-50/40 text-gray-900'}`}>
+                          {hasListing ? 'Done' : 'Todo'} · Publish listing
+                        </li>
+                        <li className={`rounded-lg border px-3 py-2 ${hasPayout ? 'border-green-100 bg-green-50/40 text-gray-700' : 'border-amber-100 bg-amber-50/40 text-gray-900'}`}>
+                          {hasPayout ? 'Done' : 'Todo'} · Payout details
+                        </li>
+                        <li className={`rounded-lg border px-3 py-2 ${hasCompany ? 'border-green-100 bg-green-50/40 text-gray-700' : 'border-amber-100 bg-amber-50/40 text-gray-900'}`}>
+                          {hasCompany ? 'Done' : 'Todo'} · Company profile
+                        </li>
+                      </ul>
+                      {!hasListing && (
+                        <div className="mt-3">
+                          <button
+                            type="button"
+                            onClick={() => handleNavigate('listings')}
+                            className="inline-flex items-center gap-1 text-sm font-medium text-finland hover:underline"
+                          >
+                            Go to listings
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
               <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-6">
-                <div>
+                <div id="supplier-settings-account">
                   <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide">Account</h2>
                   <p className="mt-1 text-gray-900">{user?.email ?? '—'}</p>
                   <p className="mt-1 text-xs text-gray-500">Current role: <span className="font-medium text-gray-700">{role}</span></p>
@@ -572,7 +871,7 @@ export default function SupplierLayout() {
                   </div>
                 </div>
 
-                <div>
+                <div id="supplier-settings-company">
                   <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3">Company profile</h2>
                   <p className="text-sm text-gray-500 mb-4">Business details for verification and invoicing.</p>
                   <div className="space-y-4 max-w-xl">
@@ -726,6 +1025,48 @@ export default function SupplierLayout() {
                       </button>
                       {companyMessage === 'success' && <span className="text-sm text-green-600">Saved.</span>}
                       {companyMessage === 'error' && <span className="text-sm text-red-600">Failed to save.</span>}
+                    </div>
+                  </div>
+                </div>
+
+                <div id="supplier-settings-security">
+                  <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3">Security and password</h2>
+                  <p className="text-sm text-gray-500 mb-4">Update your supplier account password.</p>
+                  <div className="space-y-3 max-w-md">
+                    <input
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="New password (min 8 characters)"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+                    />
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        disabled={passwordSaving || newPassword.trim().length < 8}
+                        onClick={async () => {
+                          if (!isSupabase || !supabase) {
+                            setPasswordMessage('error');
+                            return;
+                          }
+                          setPasswordSaving(true);
+                          setPasswordMessage(null);
+                          const { error } = await supabase.auth.updateUser({ password: newPassword.trim() });
+                          setPasswordSaving(false);
+                          if (error) {
+                            setPasswordMessage('error');
+                            return;
+                          }
+                          setNewPassword('');
+                          setPasswordMessage('success');
+                        }}
+                        className="px-4 py-2 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark disabled:opacity-50"
+                      >
+                        {passwordSaving ? 'Saving…' : 'Update password'}
+                      </button>
+                      {!isSupabase && <span className="text-xs text-amber-700">Enable Supabase auth to update password.</span>}
+                      {passwordMessage === 'success' && <span className="text-sm text-green-600">Password updated.</span>}
+                      {passwordMessage === 'error' && <span className="text-sm text-red-600">Could not update password.</span>}
                     </div>
                   </div>
                 </div>

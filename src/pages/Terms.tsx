@@ -9,6 +9,8 @@ type TermsProps = {
   onNavigate?: (page: string) => void;
 };
 
+const LAST_UPDATED = '2026-03-26';
+
 export default function Terms({ onNavigate }: TermsProps) {
   const goPrivacy = (e: MouseEvent<HTMLAnchorElement>) => {
     if (onNavigate) {
@@ -51,7 +53,7 @@ export default function Terms({ onNavigate }: TermsProps) {
         <div>
           <header className="mb-8">
             <p className="text-gray-600 text-sm">
-              Last updated: {new Date().toLocaleDateString()}
+              Last updated: {LAST_UPDATED}
             </p>
             <p className="text-gray-600 mt-3 text-sm sm:text-base">
               These Terms work together with our{' '}

@@ -1,4 +1,12 @@
 User-agent: *
 Allow: /
+Disallow: /auth
+Disallow: /account
+Disallow: /bookings
+Disallow: /cart
+Disallow: /wishlist
+Disallow: /supplier
+Disallow: /supplier/
+Disallow: /supplier-log-in
 
 Sitemap: https://traverion.com/sitemap.xml

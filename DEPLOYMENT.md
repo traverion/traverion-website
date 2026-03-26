@@ -71,7 +71,22 @@
 
 ## 🌐 Environment Variables
 
-No environment variables needed for basic deployment.
+### Vercel (frontend)
+Set these in Vercel Project Settings -> Environment Variables:
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+- `VITE_SITE_URL` (recommended, e.g. `https://traverion.com`)
+
+### Supabase Edge Functions (supplier email notifications)
+Set these with Supabase function secrets:
+
+- `RESEND_API_KEY`
+- `SUPPLIER_EMAIL_FROM`
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+
+Without these, supplier notification functions (`notify-supplier-event`, `send-supplier-message`) will not send emails.
 
 ## 📱 Production Features
 
