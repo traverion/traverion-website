@@ -36,12 +36,15 @@ const BENEFITS = [
 export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAuthProps) {
   const [mode, setMode] = useState<Mode>('signup');
   const [email, setEmail] = useState('');
+  const [businessName, setBusinessName] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [resetSending, setResetSending] = useState(false);
+  const [resendSending, setResendSending] = useState(false);
 
   const mapAuthError = (message: string): string => {
     const m = message.toLowerCase();
@@ -62,6 +65,14 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
     setError(null);
     setSuccessMessage(null);
     if (!email || !password) return;
+    if (mode === 'signup' && !businessName.trim()) {
+      setError('Business name is required');
+      return;
+    }
+    if (mode === 'signup' && !phoneNumber.trim()) {
+      setError('Phone number is required');
+      return;
+    }
     if (mode === 'signup' && password !== confirmPassword) {
       setError('Passwords do not match');
       return;
@@ -75,17 +86,29 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
     try {
       if (isSupabase && supabase) {
         if (mode === 'signup') {
+          const cleanBusinessName = businessName.trim();
+          const cleanPhoneNumber = phoneNumber.trim();
           const { data, error: err } = await supabase.auth.signUp({
             email: normalizedEmail,
             password,
-            options: { emailRedirectTo: `${supplierPortalBaseUrl()}/supplier-log-in` },
+            options: {
+              emailRedirectTo: `${supplierPortalBaseUrl()}/supplier-log-in`,
+              data: {
+                supplier_business_name: cleanBusinessName,
+                supplier_phone: cleanPhoneNumber,
+              },
+            },
           });
           if (err) {
             setError(mapAuthError(err.message));
             return;
           }
           if (data.session) {
-            await ensureSupplierProfile(data.session.user.id, { display_name: normalizedEmail.split('@')[0] ?? null });
+            await ensureSupplierProfile(data.session.user.id, {
+              display_name: normalizedEmail.split('@')[0] ?? null,
+              company_legal_name: cleanBusinessName,
+              contact_phone: cleanPhoneNumber,
+            });
             sendSupplierWelcomeEmail(data.session.user.id);
             onAuthenticated();
             return;
@@ -99,7 +122,14 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
             return;
           }
           if (data.user) {
-            await ensureSupplierProfile(data.user.id, { display_name: normalizedEmail.split('@')[0] ?? null });
+            const userMeta = data.user.user_metadata as
+              | { supplier_business_name?: string; supplier_phone?: string }
+              | undefined;
+            await ensureSupplierProfile(data.user.id, {
+              display_name: normalizedEmail.split('@')[0] ?? null,
+              company_legal_name: userMeta?.supplier_business_name?.trim() || null,
+              contact_phone: userMeta?.supplier_phone?.trim() || null,
+            });
             sendSupplierWelcomeEmail(data.user.id);
           }
           onAuthenticated();
@@ -137,6 +167,31 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
       return;
     }
     setSuccessMessage('Password reset email sent. Check your inbox.');
+  };
+
+  const handleResendConfirmation = async () => {
+    setError(null);
+    if (!email.trim()) {
+      setError('Enter your email first, then resend confirmation.');
+      return;
+    }
+    if (!supabase) {
+      setError('Email confirmation is not configured.');
+      return;
+    }
+    setResendSending(true);
+    const normalizedEmail = email.trim().toLowerCase();
+    const { error: err } = await supabase.auth.resend({
+      type: 'signup',
+      email: normalizedEmail,
+      options: { emailRedirectTo: `${supplierPortalBaseUrl()}/supplier-log-in` },
+    });
+    setResendSending(false);
+    if (err) {
+      setError(mapAuthError(err.message));
+      return;
+    }
+    setSuccessMessage('Confirmation email resent. Check inbox/spam.');
   };
 
   return (
@@ -218,6 +273,36 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
                 required
               />
             </div>
+            {mode === 'signup' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Business name</label>
+                <input
+                  type="text"
+                  name="organization"
+                  value={businessName}
+                  onChange={(e) => setBusinessName(e.target.value)}
+                  placeholder="Your company / operator name"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland"
+                  autoComplete="organization"
+                  required
+                />
+              </div>
+            )}
+            {mode === 'signup' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Phone number</label>
+                <input
+                  type="tel"
+                  name="tel"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  placeholder="+358 40 123 4567"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland"
+                  autoComplete="tel"
+                  required
+                />
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
               <input
@@ -263,6 +348,16 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
             )}
             {error && (
               <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>
+            )}
+            {mode === 'signin' && successMessage && successMessage.toLowerCase().includes('confirm') && (
+              <button
+                type="button"
+                onClick={handleResendConfirmation}
+                disabled={resendSending}
+                className="w-full py-2.5 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 disabled:opacity-50"
+              >
+                {resendSending ? 'Resending confirmation…' : 'Resend confirmation email'}
+              </button>
             )}
             <button
               type="submit"

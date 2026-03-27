@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 export type SupplierProfileRow = {
   id: string;
   display_name: string | null;
+  contact_phone: string | null;
   payout_method: string | null;
   payout_iban: string | null;
   payout_bic: string | null;
@@ -33,7 +34,11 @@ export type SupplierProfileRow = {
  */
 export async function ensureSupplierProfile(
   userId: string,
-  payload?: { display_name?: string | null }
+  payload?: {
+    display_name?: string | null;
+    company_legal_name?: string | null;
+    contact_phone?: string | null;
+  }
 ): Promise<{ success: boolean; error?: string }> {
   if (!supabase) return { success: false, error: 'Supabase not configured' };
   const { error } = await supabase
@@ -42,6 +47,8 @@ export async function ensureSupplierProfile(
       {
         id: userId,
         ...(payload?.display_name ? { display_name: payload.display_name } : {}),
+        ...(payload?.company_legal_name ? { company_legal_name: payload.company_legal_name } : {}),
+        ...(payload?.contact_phone ? { contact_phone: payload.contact_phone } : {}),
         updated_at: new Date().toISOString(),
       },
       { onConflict: 'id' }
