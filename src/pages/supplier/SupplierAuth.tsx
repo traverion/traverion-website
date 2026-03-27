@@ -75,7 +75,11 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
     try {
       if (isSupabase && supabase) {
         if (mode === 'signup') {
-          const { data, error: err } = await supabase.auth.signUp({ email: normalizedEmail, password });
+          const { data, error: err } = await supabase.auth.signUp({
+            email: normalizedEmail,
+            password,
+            options: { emailRedirectTo: `${supplierPortalBaseUrl()}/supplier-log-in` },
+          });
           if (err) {
             setError(mapAuthError(err.message));
             return;

@@ -6,7 +6,11 @@ type AuthContextValue = {
   user: User | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
-  signUp: (email: string, password: string) => Promise<{ error?: string; hasSession?: boolean }>;
+  signUp: (
+    email: string,
+    password: string,
+    options?: { redirectTo?: string }
+  ) => Promise<{ error?: string; hasSession?: boolean }>;
   signOut: () => Promise<void>;
   /** Open the auth modal; call onSuccess after user signs in/up (e.g. to open booking). */
   requestAuth: (options?: { onSuccess?: () => void }) => void;
@@ -16,6 +20,13 @@ type AuthContextValue = {
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
+
+function appBaseUrl(): string {
+  const v = import.meta.env.VITE_SITE_URL as string | undefined;
+  if (typeof v === 'string' && v.trim()) return v.replace(/\/$/, '');
+  if (typeof window !== 'undefined') return window.location.origin;
+  return 'https://www.traverion.com';
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -45,10 +56,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error: error?.message };
   }, []);
 
-  const signUp = useCallback(async (email: string, password: string) => {
+  const signUp = useCallback(async (email: string, password: string, options?: { redirectTo?: string }) => {
     if (!supabase) return { error: 'Not configured' };
     const normalizedEmail = email.trim().toLowerCase();
-    const { data, error } = await supabase.auth.signUp({ email: normalizedEmail, password });
+    const redirectTo = options?.redirectTo ?? `${appBaseUrl()}/auth?tab=signin&next=account`;
+    const { data, error } = await supabase.auth.signUp({
+      email: normalizedEmail,
+      password,
+      options: { emailRedirectTo: redirectTo },
+    });
     return { error: error?.message, hasSession: !!data?.session };
   }, []);
 
