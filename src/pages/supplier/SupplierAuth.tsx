@@ -27,6 +27,14 @@ interface SupplierAuthProps {
 
 type Mode = 'signin' | 'signup';
 
+function normalizePhone(phone: string): string {
+  const trimmed = phone.trim();
+  if (!trimmed) return '';
+  const keepLeadingPlus = trimmed.startsWith('+');
+  const digitsOnly = trimmed.replace(/\D/g, '');
+  return keepLeadingPlus ? `+${digitsOnly}` : digitsOnly;
+}
+
 const BENEFITS = [
   { icon: MapPin, text: 'List once — your tours appear on Traverion for travelers worldwide' },
   { icon: Users, text: 'No upfront cost — reach customers without listing fees' },
@@ -57,6 +65,12 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
     if (m.includes('invalid login credentials')) {
       return 'Incorrect email or password.';
     }
+    if (m.includes('duplicate key value') && m.includes('contact_phone')) {
+      return 'An account with this phone number already exists. Please use another phone number or sign in.';
+    }
+    if (m.includes('email not confirmed')) {
+      return 'Please confirm your email before signing in.';
+    }
     return message;
   };
 
@@ -73,6 +87,10 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
       setError('Phone number is required');
       return;
     }
+    if (mode === 'signup' && normalizePhone(phoneNumber).length < 6) {
+      setError('Enter a valid phone number');
+      return;
+    }
     if (mode === 'signup' && password !== confirmPassword) {
       setError('Passwords do not match');
       return;
@@ -87,7 +105,16 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
       if (isSupabase && supabase) {
         if (mode === 'signup') {
           const cleanBusinessName = businessName.trim();
-          const cleanPhoneNumber = phoneNumber.trim();
+          const cleanPhoneNumber = normalizePhone(phoneNumber);
+          const { data: existingPhoneRows, error: phoneCheckError } = await supabase
+            .from('supplier_profiles')
+            .select('id')
+            .eq('contact_phone', cleanPhoneNumber)
+            .limit(1);
+          if (!phoneCheckError && (existingPhoneRows?.length ?? 0) > 0) {
+            setError('An account with this phone number already exists. Please sign in instead.');
+            return;
+          }
           const { data, error: err } = await supabase.auth.signUp({
             email: normalizedEmail,
             password,
@@ -104,11 +131,22 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
             return;
           }
           if (data.session) {
-            await ensureSupplierProfile(data.session.user.id, {
-              display_name: normalizedEmail.split('@')[0] ?? null,
+            if (!data.user?.email_confirmed_at) {
+              await supabase.auth.signOut();
+              setSuccessMessage('Check your email to confirm your account, then sign in below.');
+              setMode('signin');
+              return;
+            }
+            const ensured = await ensureSupplierProfile(data.session.user.id, {
+              display_name: cleanBusinessName,
               company_legal_name: cleanBusinessName,
               contact_phone: cleanPhoneNumber,
             });
+            if (!ensured.success) {
+              await supabase.auth.signOut();
+              setError(mapAuthError(ensured.error ?? 'Could not create your supplier profile.'));
+              return;
+            }
             sendSupplierWelcomeEmail(data.session.user.id);
             onAuthenticated();
             return;
@@ -121,15 +159,26 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
             setError(mapAuthError(err.message));
             return;
           }
+          if (data.user && !data.user.email_confirmed_at) {
+            await supabase.auth.signOut();
+            setError('Please confirm your email before signing in.');
+            setSuccessMessage('You can use "Resend confirmation email" below if needed.');
+            return;
+          }
           if (data.user) {
             const userMeta = data.user.user_metadata as
               | { supplier_business_name?: string; supplier_phone?: string }
               | undefined;
-            await ensureSupplierProfile(data.user.id, {
-              display_name: normalizedEmail.split('@')[0] ?? null,
+            const ensured = await ensureSupplierProfile(data.user.id, {
+              display_name: userMeta?.supplier_business_name?.trim() || normalizedEmail.split('@')[0] || null,
               company_legal_name: userMeta?.supplier_business_name?.trim() || null,
-              contact_phone: userMeta?.supplier_phone?.trim() || null,
+              contact_phone: normalizePhone(userMeta?.supplier_phone ?? ''),
             });
+            if (!ensured.success) {
+              await supabase.auth.signOut();
+              setError(mapAuthError(ensured.error ?? 'Could not load your supplier profile.'));
+              return;
+            }
             sendSupplierWelcomeEmail(data.user.id);
           }
           onAuthenticated();

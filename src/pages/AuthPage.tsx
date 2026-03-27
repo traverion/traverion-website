@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, LogIn, UserPlus } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
+import { normalizeConsumerPhone } from '../data/supabase-consumer-profile';
 import PageHero from '../components/PageHero';
 import { HERO_IMG } from '../lib/heroImages';
 
@@ -26,6 +27,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
   const [{ tab: initialTab, next }] = useState(readAuthQuery);
   const [tab, setTab] = useState<AuthTab>(initialTab);
   const [email, setEmail] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -40,6 +42,10 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
       return 'This email is already in use. Try signing in instead.';
     }
     if (m.includes('invalid login credentials')) return 'Incorrect email or password.';
+    if (m.includes('email not confirmed')) return 'Please confirm your email before signing in.';
+    if (m.includes('contact_phone') || m.includes('phone number already exists')) {
+      return 'An account with this phone number already exists. Try signing in instead.';
+    }
     return message;
   };
 
@@ -61,6 +67,14 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
     setSuccessMessage(null);
     if (!email || !password) return;
     if (tab === 'signup') {
+      if (!phoneNumber.trim()) {
+        setError('Phone number is required');
+        return;
+      }
+      if (normalizeConsumerPhone(phoneNumber).length < 6) {
+        setError('Enter a valid phone number');
+        return;
+      }
       if (password !== confirmPassword) {
         setError('Passwords do not match');
         return;
@@ -80,7 +94,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
         }
         onNavigate(nextPage);
       } else {
-        const { error: err, hasSession } = await signUp(email, password);
+        const { error: err, hasSession } = await signUp(email, password, { phoneNumber });
         if (err) {
           setError(mapAuthError(err));
           return;
@@ -211,6 +225,24 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
                 autoComplete={tab === 'signup' ? 'new-password' : 'current-password'}
               />
             </div>
+            {tab === 'signup' && (
+              <div>
+                <label htmlFor="auth-page-phone" className="block text-sm font-medium text-gray-700 mb-1">
+                  Phone number
+                </label>
+                <input
+                  id="auth-page-phone"
+                  type="tel"
+                  name="tel"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  placeholder="+358 40 123 4567"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland outline-none"
+                  autoComplete="tel"
+                  required
+                />
+              </div>
+            )}
             {tab === 'signup' && (
               <div>
                 <label htmlFor="auth-page-confirm" className="block text-sm font-medium text-gray-700 mb-1">

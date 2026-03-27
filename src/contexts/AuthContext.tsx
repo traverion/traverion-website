@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { ensureConsumerProfile, isConsumerPhoneAvailable, normalizeConsumerPhone } from '../data/supabase-consumer-profile';
 
 type AuthContextValue = {
   user: User | null;
@@ -9,7 +10,7 @@ type AuthContextValue = {
   signUp: (
     email: string,
     password: string,
-    options?: { redirectTo?: string }
+    options?: { redirectTo?: string; phoneNumber?: string }
   ) => Promise<{ error?: string; hasSession?: boolean }>;
   signOut: () => Promise<void>;
   /** Open the auth modal; call onSuccess after user signs in/up (e.g. to open booking). */
@@ -52,20 +53,62 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signIn = useCallback(async (email: string, password: string) => {
     if (!supabase) return { error: 'Not configured' };
     const normalizedEmail = email.trim().toLowerCase();
-    const { error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
+    if (error) return { error: error.message };
+    if (data.user && !data.user.email_confirmed_at) {
+      await supabase.auth.signOut();
+      return { error: 'Please confirm your email before signing in.' };
+    }
+    if (data.user) {
+      const userMeta = data.user.user_metadata as { phone?: string; customer_phone?: string } | undefined;
+      const ensured = await ensureConsumerProfile(data.user.id, {
+        display_name: normalizedEmail.split('@')[0] ?? null,
+        contact_phone: userMeta?.customer_phone ?? userMeta?.phone ?? null,
+      });
+      if (!ensured.success) {
+        await supabase.auth.signOut();
+        return { error: ensured.error ?? 'Could not load your account profile.' };
+      }
+    }
     return { error: error?.message };
   }, []);
 
-  const signUp = useCallback(async (email: string, password: string, options?: { redirectTo?: string }) => {
+  const signUp = useCallback(async (email: string, password: string, options?: { redirectTo?: string; phoneNumber?: string }) => {
     if (!supabase) return { error: 'Not configured' };
     const normalizedEmail = email.trim().toLowerCase();
+    const normalizedPhone = normalizeConsumerPhone(options?.phoneNumber ?? '');
+    if (!normalizedPhone) return { error: 'Phone number is required' };
+
+    const availability = await isConsumerPhoneAvailable(normalizedPhone);
+    if (availability.error) return { error: availability.error };
+    if (!availability.available) return { error: 'An account with this phone number already exists. Try signing in instead.' };
+
     const redirectTo = options?.redirectTo ?? `${appBaseUrl()}/auth?tab=signin&next=account`;
     const { data, error } = await supabase.auth.signUp({
       email: normalizedEmail,
       password,
-      options: { emailRedirectTo: redirectTo },
+      options: {
+        emailRedirectTo: redirectTo,
+        data: { customer_phone: normalizedPhone },
+      },
     });
-    return { error: error?.message, hasSession: !!data?.session };
+    if (error) return { error: error.message, hasSession: false };
+
+    if (data.session) {
+      if (!data.user?.email_confirmed_at) {
+        await supabase.auth.signOut();
+        return { error: undefined, hasSession: false };
+      }
+      const ensured = await ensureConsumerProfile(data.user.id, {
+        display_name: normalizedEmail.split('@')[0] ?? null,
+        contact_phone: normalizedPhone,
+      });
+      if (!ensured.success) {
+        await supabase.auth.signOut();
+        return { error: ensured.error, hasSession: false };
+      }
+    }
+    return { error: undefined, hasSession: !!data?.session };
   }, []);
 
   const signOut = useCallback(async () => {

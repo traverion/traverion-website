@@ -11,6 +11,7 @@ export default function SupplierLogin({ onAuthenticated, isSupabase }: SupplierL
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const mapAuthError = (message: string): string => {
@@ -18,6 +19,7 @@ export default function SupplierLogin({ onAuthenticated, isSupabase }: SupplierL
     if (m.includes('not configured') || m.includes('unavailable')) {
       return 'Supplier authentication is currently unavailable. Please try again shortly.';
     }
+    if (m.includes('email not confirmed')) return 'Please confirm your email before signing in.';
     if (m.includes('invalid login credentials')) return 'Incorrect email or password.';
     return message;
   };
@@ -25,14 +27,21 @@ export default function SupplierLogin({ onAuthenticated, isSupabase }: SupplierL
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setSuccessMessage(null);
     if (!email || !password) return;
     setSubmitting(true);
     const normalizedEmail = email.trim().toLowerCase();
     try {
       if (isSupabase && supabase) {
-        const { error: err } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
+        const { data, error: err } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
         if (err) {
           setError(mapAuthError(err.message));
+          return;
+        }
+        if (data.user && !data.user.email_confirmed_at) {
+          await supabase.auth.signOut();
+          setError('Please confirm your email before signing in.');
+          setSuccessMessage('Check your inbox and verify your email first, then log in.');
           return;
         }
         onAuthenticated();
@@ -86,6 +95,9 @@ export default function SupplierLogin({ onAuthenticated, isSupabase }: SupplierL
           </div>
           {error && (
             <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>
+          )}
+          {successMessage && (
+            <p className="text-sm text-green-700 bg-green-50 px-3 py-2 rounded-lg">{successMessage}</p>
           )}
           <button
             type="submit"

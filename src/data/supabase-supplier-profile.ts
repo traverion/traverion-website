@@ -41,13 +41,15 @@ export async function ensureSupplierProfile(
   }
 ): Promise<{ success: boolean; error?: string }> {
   if (!supabase) return { success: false, error: 'Supabase not configured' };
+  const normalizedCompanyName = payload?.company_legal_name?.trim() || null;
+  const normalizedDisplayName = payload?.display_name?.trim() || normalizedCompanyName;
   const { error } = await supabase
     .from('supplier_profiles')
     .upsert(
       {
         id: userId,
-        ...(payload?.display_name ? { display_name: payload.display_name } : {}),
-        ...(payload?.company_legal_name ? { company_legal_name: payload.company_legal_name } : {}),
+        ...(normalizedDisplayName ? { display_name: normalizedDisplayName } : {}),
+        ...(normalizedCompanyName ? { company_legal_name: normalizedCompanyName } : {}),
         ...(payload?.contact_phone ? { contact_phone: payload.contact_phone } : {}),
         updated_at: new Date().toISOString(),
       },
@@ -116,12 +118,14 @@ export async function updateSupplierCompanyProfile(
   }>
 ): Promise<{ success: boolean; error?: string }> {
   if (!supabase) return { success: false, error: 'Supabase not configured' };
+  const normalizedCompanyName = payload.company_legal_name?.trim();
   const { error } = await supabase
     .from('supplier_profiles')
     .upsert(
       {
         id: userId,
         ...payload,
+        ...(normalizedCompanyName ? { display_name: normalizedCompanyName, company_legal_name: normalizedCompanyName } : {}),
         updated_at: new Date().toISOString(),
       },
       { onConflict: 'id' }
