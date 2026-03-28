@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Mail, Phone, Clock, Globe, Search, Heart, ChevronDown } from 'lucide-react';
 import { useTranslation } from '../contexts/TranslationContext';
+import { BRAND_LOGO_SRC } from '../lib/brandAssets';
 
 interface UnifiedFooterProps {
   currentPage: string;
@@ -81,9 +82,11 @@ export default function UnifiedFooter({ currentPage, onNavigate }: UnifiedFooter
         <div className="max-w-7xl mx-auto flex flex-col lg:flex-row justify-between items-center gap-4">
           {/* Logo */}
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-sky-500 to-blue-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-lg">T</span>
-            </div>
+            <img
+              src={BRAND_LOGO_SRC}
+              alt=""
+              className="h-10 w-10 sm:h-12 sm:w-12 object-contain flex-shrink-0"
+            />
             <div>
               <h1 className="text-2xl font-bold bg-gradient-to-r from-sky-600 to-blue-700 bg-clip-text text-transparent">
                 TRAVERION

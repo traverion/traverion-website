@@ -5,8 +5,8 @@
   or set subject in dashboard to: Confirm your Traverion account
 
   Variables: https://supabase.com/docs/guides/auth/auth-templates
-  Logo img uses https://www.traverion.com/... (not {{ .SiteURL }}) so it loads in email clients when
-  Supabase Site URL is localhost or a redirecting apex domain.
+  Logo: full URL below must match src/lib/brandAssets.ts (BRAND_LOGO_FILENAME on https://www.traverion.com).
+  Do not use {{ .SiteURL }} for the image src so inboxes always load the file from production CDN/host.
 -->
 <!DOCTYPE html>
 <html lang="en">
