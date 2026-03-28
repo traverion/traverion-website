@@ -7,6 +7,7 @@
   Variables: https://supabase.com/docs/guides/auth/auth-templates
   Logo: https://www.traverion.com/ + BRAND_LOGO_FILENAME (see src/lib/brandAssets.ts). Asset is landscape (~922×685);
   use proportional width/height in <img> — never equal square values or the mark looks stretched.
+  Logo URL includes ?v=… (see brandAssets BRAND_LOGO_EMAIL_QUERY) so email apps don’t keep showing an old cached PNG.
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -33,7 +34,7 @@
           <tr>
             <td style="padding:0 0 20px 0;text-align:center;">
               <a href="{{ .SiteURL }}" style="text-decoration:none;display:inline-block;">
-                <img src="https://www.traverion.com/traverionlogotransparent.png" width="200" height="149" alt="Traverion" border="0" style="display:block;margin:0 auto 12px auto;width:200px;max-width:85%;height:auto;border:0;outline:none;">
+                <img src="https://www.traverion.com/traverionlogotransparent.png?v=3" width="200" height="149" alt="Traverion" border="0" style="display:block;margin:0 auto 12px auto;width:200px;max-width:85%;height:auto;border:0;outline:none;">
                 <span style="font-size:20px;font-weight:700;letter-spacing:-0.02em;color:#003580;">Traverion</span>
               </a>
             </td>
