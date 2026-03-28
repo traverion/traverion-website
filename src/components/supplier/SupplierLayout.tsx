@@ -11,8 +11,6 @@ import SupplierPickupPlanner from '../../pages/supplier/SupplierPickupPlanner';
 import { fetchSupplierProfile, updateSupplierPayout, updateSupplierCompanyProfile } from '../../data/supabase-supplier-profile';
 import { fetchMyListings } from '../../data/supabase-listings';
 import SupplierLoginPage from './SupplierLoginPage';
-import SupplierNotificationCenter from './SupplierNotificationCenter';
-import { loadSupplierNotifPrefs, saveSupplierNotifPrefs, type SupplierNotifPrefs } from '../../lib/supplierNotificationPrefs';
 import {
   canManageTeam,
   canManageFinance,
@@ -97,7 +95,6 @@ export default function SupplierLayout() {
   const [insuranceProvider, setInsuranceProvider] = useState('');
   const [companySaving, setCompanySaving] = useState(false);
   const [companyMessage, setCompanyMessage] = useState<'success' | 'error' | null>(null);
-  const [notifPrefs, setNotifPrefs] = useState<SupplierNotifPrefs>(() => loadSupplierNotifPrefs());
   const [teamLabel, setTeamLabel] = useState('');
   const [teamMemberId, setTeamMemberId] = useState('');
   const [teamRole, setTeamRole] = useState<SupplierRole>('viewer');
@@ -424,7 +421,6 @@ export default function SupplierLayout() {
             />
           </button>
           <div className="flex items-center gap-1 relative z-10 ml-auto shrink-0">
-            <SupplierNotificationCenter />
             <span className="text-xs sm:text-sm text-gray-500 hidden sm:inline" title="You are in the supplier portal">
               Supplier portal
             </span>
@@ -724,142 +720,6 @@ export default function SupplierLayout() {
                     ) : (
                       <p className="text-xs text-gray-500">Only owners can manage team roles.</p>
                     )}
-                  </div>
-                </div>
-
-                <div>
-                  <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3">Notifications</h2>
-                  <p className="text-sm text-gray-500 mb-4">
-                    Control channels, urgency, and quiet hours for the header bell.
-                  </p>
-                  <div className="space-y-3 max-w-xl">
-                    <label className="flex items-center gap-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={notifPrefs.newBookings}
-                        onChange={(e) => {
-                          const next = { ...notifPrefs, newBookings: e.target.checked };
-                          setNotifPrefs(next);
-                          saveSupplierNotifPrefs(next);
-                        }}
-                        className="rounded border-gray-300 text-finland focus:ring-finland"
-                      />
-                      <span className="text-sm text-gray-800">Unacknowledged bookings</span>
-                    </label>
-                    <label className="flex items-center gap-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={notifPrefs.reviewsNeedReply}
-                        onChange={(e) => {
-                          const next = { ...notifPrefs, reviewsNeedReply: e.target.checked };
-                          setNotifPrefs(next);
-                          saveSupplierNotifPrefs(next);
-                        }}
-                        className="rounded border-gray-300 text-finland focus:ring-finland"
-                      />
-                      <span className="text-sm text-gray-800">Reviews waiting for your reply</span>
-                    </label>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Booking urgency</label>
-                        <select
-                          value={notifPrefs.bookingUrgency}
-                          onChange={(e) => {
-                            const next = { ...notifPrefs, bookingUrgency: e.target.value as 'all' | 'high_only' };
-                            setNotifPrefs(next);
-                            saveSupplierNotifPrefs(next);
-                          }}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white text-sm"
-                        >
-                          <option value="all">All</option>
-                          <option value="high_only">High only</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Review urgency</label>
-                        <select
-                          value={notifPrefs.reviewUrgency}
-                          onChange={(e) => {
-                            const next = { ...notifPrefs, reviewUrgency: e.target.value as 'all' | 'high_only' };
-                            setNotifPrefs(next);
-                            saveSupplierNotifPrefs(next);
-                          }}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white text-sm"
-                        >
-                          <option value="all">All</option>
-                          <option value="high_only">High only</option>
-                        </select>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                      <label className="flex items-center gap-3 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={notifPrefs.channelInApp}
-                          onChange={(e) => {
-                            const next = { ...notifPrefs, channelInApp: e.target.checked };
-                            setNotifPrefs(next);
-                            saveSupplierNotifPrefs(next);
-                          }}
-                          className="rounded border-gray-300 text-finland focus:ring-finland"
-                        />
-                        <span className="text-sm text-gray-800">Channel: In-app bell</span>
-                      </label>
-                      <label className="flex items-center gap-3 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={notifPrefs.channelEmail}
-                          onChange={(e) => {
-                            const next = { ...notifPrefs, channelEmail: e.target.checked };
-                            setNotifPrefs(next);
-                            saveSupplierNotifPrefs(next);
-                          }}
-                          className="rounded border-gray-300 text-finland focus:ring-finland"
-                        />
-                        <span className="text-sm text-gray-800">Channel: Email notifications</span>
-                      </label>
-                    </div>
-                    <div className="pt-1 border-t border-gray-100">
-                      <label className="flex items-center gap-3 cursor-pointer mb-2">
-                        <input
-                          type="checkbox"
-                          checked={notifPrefs.quietHoursEnabled}
-                          onChange={(e) => {
-                            const next = { ...notifPrefs, quietHoursEnabled: e.target.checked };
-                            setNotifPrefs(next);
-                            saveSupplierNotifPrefs(next);
-                          }}
-                          className="rounded border-gray-300 text-finland focus:ring-finland"
-                        />
-                        <span className="text-sm text-gray-800">Quiet hours</span>
-                      </label>
-                      <div className="grid grid-cols-2 gap-2 max-w-sm">
-                        <input
-                          type="time"
-                          value={notifPrefs.quietHoursStart}
-                          onChange={(e) => {
-                            const next = { ...notifPrefs, quietHoursStart: e.target.value };
-                            setNotifPrefs(next);
-                            saveSupplierNotifPrefs(next);
-                          }}
-                          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland text-sm"
-                        />
-                        <input
-                          type="time"
-                          value={notifPrefs.quietHoursEnd}
-                          onChange={(e) => {
-                            const next = { ...notifPrefs, quietHoursEnd: e.target.value };
-                            setNotifPrefs(next);
-                            saveSupplierNotifPrefs(next);
-                          }}
-                          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland text-sm"
-                        />
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1">
-                        During quiet hours, in-app bell notifications are muted. Email delivery still depends on your
-                        Resend + Edge Function setup.
-                      </p>
-                    </div>
                   </div>
                 </div>
 
