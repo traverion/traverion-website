@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useDeferredValue } from 'react';
-import { Search, MapPin, Globe, PlusCircle, Filter, X } from 'lucide-react';
+import { Search, MapPin, Globe, PlusCircle, Filter, X, SlidersHorizontal } from 'lucide-react';
 import { getAllListings, getAllListingsAsync, SHOW_SEED_LISTINGS, durationToMinutes } from '../data/listings';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { analytics } from '../lib/analytics';
