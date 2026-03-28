@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, LogIn, UserPlus } from 'lucide-react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
+import { ArrowLeft, LogIn, UserPlus, Mail } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { normalizeConsumerPhone } from '../data/supabase-consumer-profile';
 import PageHero from '../components/PageHero';
 import { HERO_IMG } from '../lib/heroImages';
+import { publicSiteBaseUrl } from '../lib/publicSiteUrl';
 
 type AuthTab = 'signin' | 'signup';
 
@@ -34,6 +35,22 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [resetSending, setResetSending] = useState(false);
+  const [resendSending, setResendSending] = useState(false);
+
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem('traverion_auth_flash');
+      if (!raw) return;
+      sessionStorage.removeItem('traverion_auth_flash');
+      const parsed = JSON.parse(raw) as { kind?: string; message?: string };
+      if (parsed?.kind === 'error' && typeof parsed.message === 'string') {
+        setError(parsed.message);
+        setTab('signin');
+      }
+    } catch {
+      sessionStorage.removeItem('traverion_auth_flash');
+    }
+  }, []);
 
   const mapAuthError = (message: string): string => {
     const m = message.toLowerCase();
@@ -111,6 +128,31 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
     }
   };
 
+  const handleResendConfirmation = useCallback(async () => {
+    setError(null);
+    setSuccessMessage(null);
+    if (!email.trim()) {
+      setError('Enter your email, then resend confirmation.');
+      return;
+    }
+    if (!supabase) {
+      setError('Authentication is not configured.');
+      return;
+    }
+    setResendSending(true);
+    const { error: err } = await supabase.auth.resend({
+      type: 'signup',
+      email: email.trim().toLowerCase(),
+      options: { emailRedirectTo: `${publicSiteBaseUrl()}/auth?tab=signin&next=account` },
+    });
+    setResendSending(false);
+    if (err) {
+      setError(mapAuthError(err.message));
+      return;
+    }
+    setSuccessMessage('Confirmation email sent. Check your inbox and use the new link.');
+  }, [email]);
+
   const handleResetPassword = async () => {
     setError(null);
     setSuccessMessage(null);
@@ -124,7 +166,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
     }
     setResetSending(true);
     const { error: err } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-      redirectTo: `${window.location.origin}/auth?tab=signin&next=${encodeURIComponent(nextPage)}`,
+      redirectTo: `${publicSiteBaseUrl()}/auth?tab=signin&next=${encodeURIComponent(nextPage)}`,
     });
     setResetSending(false);
     if (err) {
@@ -198,14 +240,25 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
                 required
               />
               {tab === 'signin' && (
-                <button
-                  type="button"
-                  onClick={handleResetPassword}
-                  disabled={resetSending}
-                  className="mt-2 text-xs text-finland hover:underline disabled:opacity-50"
-                >
-                  {resetSending ? 'Sending reset email…' : 'Forgot password?'}
-                </button>
+                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+                  <button
+                    type="button"
+                    onClick={handleResendConfirmation}
+                    disabled={resendSending}
+                    className="text-xs text-finland hover:underline disabled:opacity-50 inline-flex items-center gap-1"
+                  >
+                    <Mail className="w-3.5 h-3.5 shrink-0" aria-hidden />
+                    {resendSending ? 'Sending…' : 'Resend confirmation email'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleResetPassword}
+                    disabled={resetSending}
+                    className="text-xs text-finland hover:underline disabled:opacity-50"
+                  >
+                    {resetSending ? 'Sending reset email…' : 'Forgot password?'}
+                  </button>
+                </div>
               )}
             </div>
             <div>

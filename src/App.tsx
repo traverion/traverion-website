@@ -68,6 +68,29 @@ function App() {
     syncRouteFromUrl();
   }, [syncRouteFromUrl, isSupplierArea]);
 
+  /** Supabase puts confirm/recovery failures in the URL hash; redirect root loads would hide them. */
+  useEffect(() => {
+    if (isSupplierArea) return;
+    const raw = window.location.hash?.replace(/^#/, '') ?? '';
+    if (!raw.includes('error=')) return;
+    const p = new URLSearchParams(raw);
+    const code = p.get('error_code') ?? '';
+    const desc = (p.get('error_description') ?? '').replace(/\+/g, ' ');
+    const message =
+      code === 'otp_expired'
+        ? 'This confirmation link has expired or was already used. Use “Resend confirmation email” on the sign-in form, or sign up again.'
+        : desc || 'This email link is invalid or has expired.';
+    try {
+      sessionStorage.setItem('traverion_auth_flash', JSON.stringify({ kind: 'error' as const, message }));
+    } catch {
+      /* ignore quota / private mode */
+    }
+    const onAuth = (window.location.pathname.replace(/\/$/, '') || '/') === '/auth';
+    const qs = onAuth && window.location.search ? window.location.search : '?tab=signin&next=account';
+    window.history.replaceState({}, '', `/auth${qs}`);
+    setCurrentPage('auth');
+  }, [isSupplierArea]);
+
   useEffect(() => {
     if (isSupplierArea) return;
     const onPopState = () => syncRouteFromUrl();

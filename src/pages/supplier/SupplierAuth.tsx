@@ -3,20 +3,14 @@ import { LogIn, UserPlus, Globe, Check, MapPin, Users, CreditCard } from 'lucide
 import { supabase } from '../../lib/supabase';
 import { ensureSupplierProfile } from '../../data/supabase-supplier-profile';
 import { notifySupplierEvent } from '../../data/supabase-supplier-messaging';
-
-function supplierPortalBaseUrl(): string {
-  const v = import.meta.env.VITE_SITE_URL;
-  if (typeof v === 'string' && v.trim()) return v.replace(/\/$/, '');
-  if (typeof window !== 'undefined') return window.location.origin;
-  return 'https://www.traverion.com';
-}
+import { publicSiteBaseUrl } from '../../lib/publicSiteUrl';
 
 /** Fire-and-forget welcome email (Edge Function dedupes via welcome_email_sent_at). */
 function sendSupplierWelcomeEmail(userId: string): void {
   void notifySupplierEvent({
     supplierId: userId,
     eventType: 'supplier_welcome',
-    portalBaseUrl: supplierPortalBaseUrl(),
+    portalBaseUrl: publicSiteBaseUrl(),
   });
 }
 
@@ -119,7 +113,7 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
             email: normalizedEmail,
             password,
             options: {
-              emailRedirectTo: `${supplierPortalBaseUrl()}/supplier-log-in`,
+              emailRedirectTo: `${publicSiteBaseUrl()}/supplier-log-in`,
               data: {
                 supplier_business_name: cleanBusinessName,
                 supplier_phone: cleanPhoneNumber,
@@ -208,7 +202,7 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
     }
     setResetSending(true);
     const { error: err } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-      redirectTo: `${window.location.origin}/supplier-log-in`,
+      redirectTo: `${publicSiteBaseUrl()}/supplier-log-in`,
     });
     setResetSending(false);
     if (err) {
@@ -233,7 +227,7 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
     const { error: err } = await supabase.auth.resend({
       type: 'signup',
       email: normalizedEmail,
-      options: { emailRedirectTo: `${supplierPortalBaseUrl()}/supplier-log-in` },
+      options: { emailRedirectTo: `${publicSiteBaseUrl()}/supplier-log-in` },
     });
     setResendSending(false);
     if (err) {

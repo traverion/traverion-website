@@ -3,6 +3,7 @@ import { X, LogIn, UserPlus } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { normalizeConsumerPhone } from '../data/supabase-consumer-profile';
+import { publicSiteBaseUrl } from '../lib/publicSiteUrl';
 
 type Tab = 'signin' | 'signup';
 
@@ -93,7 +94,7 @@ export default function AuthModal() {
     }
     setResetSending(true);
     const { error: err } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-      redirectTo: `${window.location.origin}/auth?tab=signin&next=account`,
+      redirectTo: `${publicSiteBaseUrl()}/auth?tab=signin&next=account`,
     });
     setResetSending(false);
     if (err) {

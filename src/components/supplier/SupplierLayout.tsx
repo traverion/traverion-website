@@ -21,6 +21,7 @@ import {
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { upsertSupplierTeamMember, removeSupplierTeamMember } from '../../data/supabase-supplier-team';
 import { BRAND_LOGO_SRC } from '../../lib/brandAssets';
+import { publicSiteBaseUrl } from '../../lib/publicSiteUrl';
 
 /** URL path for the supplier login/landing page. Portal is /supplier and /supplier/* */
 export const SUPPLIER_LOGIN_PATH = '/supplier-log-in';
@@ -601,7 +602,7 @@ export default function SupplierLayout() {
                           const { error } = await supabase.auth.resend({
                             type: 'signup',
                             email: supplierEmail.trim().toLowerCase(),
-                            options: { emailRedirectTo: `${window.location.origin}/supplier-log-in` },
+                            options: { emailRedirectTo: `${publicSiteBaseUrl()}/supplier-log-in` },
                           });
                           setVerificationSending(false);
                           setVerificationMessage(error ? 'error' : 'sent');

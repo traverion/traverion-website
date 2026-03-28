@@ -48,7 +48,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
             <img 
               src={BRAND_LOGO_SRC} 
               alt="TRAVERION Logo" 
-              className="w-16 h-16 sm:w-24 sm:h-24 object-contain flex-shrink-0"
+              className="w-20 h-20 sm:w-32 sm:h-32 object-contain flex-shrink-0"
               onError={(e) => {
                 // Fallback if image fails to load
                 e.currentTarget.style.display = 'none';

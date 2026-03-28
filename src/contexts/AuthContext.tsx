@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { publicSiteBaseUrl } from '../lib/publicSiteUrl';
 import { ensureConsumerProfile, isConsumerPhoneAvailable, normalizeConsumerPhone } from '../data/supabase-consumer-profile';
 
 type AuthContextValue = {
@@ -21,13 +22,6 @@ type AuthContextValue = {
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
-
-function appBaseUrl(): string {
-  const v = import.meta.env.VITE_SITE_URL as string | undefined;
-  if (typeof v === 'string' && v.trim()) return v.replace(/\/$/, '');
-  if (typeof window !== 'undefined') return window.location.origin;
-  return 'https://www.traverion.com';
-}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -83,7 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (availability.error) return { error: availability.error };
     if (!availability.available) return { error: 'An account with this phone number already exists. Try signing in instead.' };
 
-    const redirectTo = options?.redirectTo ?? `${appBaseUrl()}/auth?tab=signin&next=account`;
+    const redirectTo = options?.redirectTo ?? `${publicSiteBaseUrl()}/auth?tab=signin&next=account`;
     const { data, error } = await supabase.auth.signUp({
       email: normalizedEmail,
       password,
