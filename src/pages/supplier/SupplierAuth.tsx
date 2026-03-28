@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { ensureSupplierProfile } from '../../data/supabase-supplier-profile';
 import { notifySupplierEvent } from '../../data/supabase-supplier-messaging';
 import { publicSiteBaseUrl } from '../../lib/publicSiteUrl';
+import { isSignUpEmailAlreadyRegistered } from '../../lib/supabaseAuthHelpers';
 
 /** Fire-and-forget welcome email (Edge Function dedupes via welcome_email_sent_at). */
 function sendSupplierWelcomeEmail(userId: string): void {
@@ -59,7 +60,10 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
     if (m.includes('invalid login credentials')) {
       return 'Incorrect email or password.';
     }
-    if (m.includes('duplicate key value') && m.includes('contact_phone')) {
+    if (
+      (m.includes('duplicate key') && m.includes('contact_phone')) ||
+      m.includes('supplier_profiles_contact_phone_unique')
+    ) {
       return 'An account with this phone number already exists. Please use another phone number or sign in.';
     }
     if (m.includes('email not confirmed')) {
@@ -122,6 +126,12 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
           });
           if (err) {
             setError(mapAuthError(err.message));
+            return;
+          }
+          if (isSignUpEmailAlreadyRegistered(data.user)) {
+            setError('This email is already registered. Please sign in instead.');
+            setSuccessMessage(null);
+            setMode('signin');
             return;
           }
           if (data.session) {

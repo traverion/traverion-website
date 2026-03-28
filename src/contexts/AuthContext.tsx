@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { isSignUpEmailAlreadyRegistered } from '../lib/supabaseAuthHelpers';
 import { publicSiteBaseUrl } from '../lib/publicSiteUrl';
 import { ensureConsumerProfile, isConsumerPhoneAvailable, normalizeConsumerPhone } from '../data/supabase-consumer-profile';
 
@@ -87,6 +88,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       },
     });
     if (error) return { error: error.message, hasSession: false };
+
+    if (isSignUpEmailAlreadyRegistered(data.user)) {
+      return { error: 'This email is already in use. Try signing in instead.', hasSession: false };
+    }
 
     if (data.session) {
       if (!data.user?.email_confirmed_at) {
