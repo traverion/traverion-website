@@ -1,13 +1,13 @@
 // Service Worker for Traverion PWA
-const CACHE_NAME = 'traverion-v1.0.0';
-const STATIC_CACHE = 'traverion-static-v1.0.0';
+const CACHE_NAME = 'traverion-v1.0.1';
+const STATIC_CACHE = 'traverion-static-v1.0.1';
 const DYNAMIC_CACHE = 'traverion-dynamic-v1.0.0';
 
 // Files to cache for offline functionality
 const STATIC_FILES = [
   '/',
   '/index.html',
-  '/traveriontransparent.png',
+  '/traverionlogotransparent.png',
   'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap',
   'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.css',
   'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
@@ -109,7 +109,7 @@ self.addEventListener('fetch', (event) => {
 
             // Return cached images or other assets
             if (request.destination === 'image') {
-              return caches.match('/traveriontransparent.png');
+              return caches.match('/traverionlogotransparent.png');
             }
 
             return new Response('Offline content not available', {
@@ -139,8 +139,8 @@ self.addEventListener('push', (event) => {
   
   const options = {
     body: event.data ? event.data.text() : 'New travel deals available!',
-    icon: '/traveriontransparent.png',
-    badge: '/traveriontransparent.png',
+    icon: '/traverionlogotransparent.png',
+    badge: '/traverionlogotransparent.png',
     vibrate: [100, 50, 100],
     data: {
       dateOfArrival: Date.now(),
@@ -150,12 +150,12 @@ self.addEventListener('push', (event) => {
       {
         action: 'explore',
         title: 'Explore Deals',
-        icon: '/traveriontransparent.png'
+        icon: '/traverionlogotransparent.png'
       },
       {
         action: 'close',
         title: 'Close',
-        icon: '/traveriontransparent.png'
+        icon: '/traverionlogotransparent.png'
       }
     ]
   };

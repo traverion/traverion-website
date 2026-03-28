@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Download, Smartphone, Wifi, WifiOff, Bell, BellOff, Share2, X, CheckCircle, AlertCircle } from 'lucide-react';
 import LuxuryButton from './ui/LuxuryButton';
 import LuxuryCard from './ui/LuxuryCard';
+import { BRAND_LOGO_SRC } from '../lib/brandAssets';
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
@@ -130,7 +131,7 @@ export default function PWAInstaller() {
         // Show a test notification
         new Notification('Traverion', {
           body: 'You will now receive travel updates and deals!',
-          icon: '/traveriontransparent.png',
+          icon: BRAND_LOGO_SRC,
           tag: 'traverion-notification'
         });
       }

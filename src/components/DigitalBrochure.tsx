@@ -6,6 +6,7 @@ import SimpleMap from './SimpleMap';
 import { useTranslation } from '../contexts/TranslationContext';
 import { tourPackages } from '../data/tours';
 import { TourPackage } from '../types/tour';
+import { BRAND_LOGO_SRC } from '../lib/brandAssets';
 
 interface DigitalBrochureProps {
   tourId: string;
@@ -48,7 +49,7 @@ export default function DigitalBrochure({ tourId, className = '' }: DigitalBroch
         duration: tour.duration,
         price: `From $${tour.price.twin}`,
         image: tour.image,
-        logo: '/traveriontransparent.png'
+        logo: BRAND_LOGO_SRC
       }
     },
     {

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { LayoutDashboard, MapPin, Calendar, DollarSign, Settings, LogOut, Globe, Menu, X, Star, ClipboardList, Lock, UserCircle2, ChevronDown } from 'lucide-react';
+import { LayoutDashboard, MapPin, Calendar, DollarSign, Settings, LogOut, Menu, X, Star, ClipboardList, Lock, UserCircle2, ChevronDown } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { supabase } from '../../lib/supabase';
 import SupplierDashboard from '../../pages/supplier/SupplierDashboard';
@@ -20,6 +20,7 @@ import {
 } from '../../lib/supplierTeamRoles';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { upsertSupplierTeamMember, removeSupplierTeamMember } from '../../data/supabase-supplier-team';
+import { BRAND_LOGO_SRC } from '../../lib/brandAssets';
 
 /** URL path for the supplier login/landing page. Portal is /supplier and /supplier/* */
 export const SUPPLIER_LOGIN_PATH = '/supplier-log-in';
@@ -285,7 +286,7 @@ export default function SupplierLayout() {
             className="flex items-center gap-2 text-gray-900 font-semibold text-left w-full rounded-lg hover:bg-gray-50 transition-colors duration-200 -mx-1 px-1 py-0.5"
             title="Go to supplier dashboard"
           >
-            <Globe className="w-6 h-6 text-finland flex-shrink-0" />
+            <img src={BRAND_LOGO_SRC} alt="" className="h-9 w-9 object-contain flex-shrink-0" />
             TRAVERION
           </button>
           <p className="text-xs text-gray-500 mt-0.5">Supplier portal</p>
@@ -345,7 +346,7 @@ export default function SupplierLayout() {
             className="flex items-center gap-2 text-gray-900 font-semibold text-left min-w-0 rounded-lg hover:bg-gray-50 transition-colors duration-200 -mx-1 px-1 py-0.5"
             title="Go to supplier dashboard"
           >
-            <Globe className="w-6 h-6 text-finland flex-shrink-0" />
+            <img src={BRAND_LOGO_SRC} alt="" className="h-9 w-9 object-contain flex-shrink-0" />
             TRAVERION
           </button>
           <button type="button" onClick={() => setSidebarOpen(false)} className="no-lux-interaction lux-tap-target p-2 text-gray-500 rounded-lg">
@@ -394,7 +395,17 @@ export default function SupplierLayout() {
           >
             <Menu className="w-6 h-6" />
           </button>
-          <div className="ml-auto flex items-center gap-1 relative">
+          <div className="flex-1 flex justify-center lg:hidden min-w-0">
+            <button
+              type="button"
+              onClick={() => handleNavigate('dashboard')}
+              className="flex items-center gap-2 min-w-0"
+              aria-label="Traverion supplier home"
+            >
+              <img src={BRAND_LOGO_SRC} alt="" className="h-10 w-10 object-contain flex-shrink-0" />
+            </button>
+          </div>
+          <div className="flex items-center gap-1 relative lg:ml-auto ml-0">
             <SupplierNotificationCenter />
             <span className="text-xs sm:text-sm text-gray-500 hidden sm:inline" title="You are in the supplier portal">
               Supplier portal

@@ -48,7 +48,7 @@ export function setPageMetaWithOg(title: string, description?: string, og?: OgMe
   const d = og?.description ?? description ?? '';
   const baseUrl = getBaseUrl();
   const url = og?.url ?? (typeof window !== 'undefined' ? window.location.href : baseUrl);
-  const image = og?.image ?? `${baseUrl}/traveriontransparent.png`;
+  const image = og?.image ?? `${baseUrl}/traverionlogotransparent.png`;
   const type = og?.type ?? 'website';
 
   document.title = title ? `${title} · Traverion` : 'Traverion – Tours & Activities Worldwide';
@@ -94,7 +94,7 @@ export function setTourJsonLd(tour: {
     '@id': `${baseUrl}/#/tour/${tour.id}`,
     name: tour.title,
     description: (tour.description || '').slice(0, 500),
-    image: tour.image || `${baseUrl}/traveriontransparent.png`,
+    image: tour.image || `${baseUrl}/traverionlogotransparent.png`,
     url,
     ...(tour.destination && { destination: tour.destination }),
     ...(tour.rating != null && { aggregateRating: { '@type': 'AggregateRating', ratingValue: tour.rating, reviewCount: tour.reviews ?? 0 } }),
@@ -125,7 +125,7 @@ export function setListingsJsonLd(listings: { id: string; name: string; descript
     '@id': `${baseUrl}/#/tour/${item.id}`,
     name: item.name,
     description: (item.description || '').slice(0, 500),
-    image: item.image || `${baseUrl}/traveriontransparent.png`,
+    image: item.image || `${baseUrl}/traverionlogotransparent.png`,
     url: item.url ?? `${baseUrl}/packages`,
   }));
   script.textContent = JSON.stringify({
@@ -168,7 +168,7 @@ export function setOrganizationJsonLd() {
     '@type': 'Organization',
     name: 'Traverion',
     url: baseUrl,
-    logo: `${baseUrl}/traveriontransparent.png`,
+    logo: `${baseUrl}/traverionlogotransparent.png`,
     description: 'Book tours and activities worldwide. Find and reserve experiences with free cancellation.',
     sameAs: [],
   });

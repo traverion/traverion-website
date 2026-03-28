@@ -1,4 +1,5 @@
 import { Instagram } from 'lucide-react';
+import { BRAND_LOGO_SRC } from '../lib/brandAssets';
 
 /** TikTok logo (Lucide has no brand icon). */
 function TikTokIcon({ className }: { className?: string }) {
@@ -29,7 +30,7 @@ export default function Footer({ onNavigate }: { onNavigate?: (page: string) => 
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
             <a href="/" className="inline-flex items-center gap-2 mb-4">
-              <img src="/traveriontransparent.png" alt="" className="h-9 w-auto" />
+              <img src={BRAND_LOGO_SRC} alt="" className="h-11 w-auto object-contain" />
               <span className="font-semibold text-lg text-white">TRAVERION</span>
             </a>
             <p className="text-sm text-gray-400 max-w-xs">

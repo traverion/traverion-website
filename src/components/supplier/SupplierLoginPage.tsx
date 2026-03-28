@@ -5,6 +5,7 @@
 import { MapPin, Users, BarChart3, Sparkles } from 'lucide-react';
 import SupplierAuth from '../../pages/supplier/SupplierAuth';
 import Footer from '../Footer';
+import { BRAND_LOGO_SRC } from '../../lib/brandAssets';
 
 interface SupplierLoginPageProps {
   onAuthenticated: () => void;
@@ -18,9 +19,9 @@ export default function SupplierLoginPage({ onAuthenticated, isSupabase }: Suppl
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
           <a href="/" className="flex items-center gap-2 sm:gap-3 text-gray-900 min-w-0">
             <img
-              src="/traveriontransparent.png"
+              src={BRAND_LOGO_SRC}
               alt=""
-              className="h-9 w-9 sm:h-10 sm:w-10 object-contain flex-shrink-0"
+              className="h-11 w-11 sm:h-12 sm:w-12 object-contain flex-shrink-0"
             />
             <div className="min-w-0">
               <span className="font-semibold text-lg sm:text-xl text-finland tracking-tight block leading-tight">

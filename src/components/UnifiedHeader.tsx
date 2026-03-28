@@ -4,6 +4,7 @@ import { useTranslation } from '../contexts/TranslationContext';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { fetchCartCount } from '../data/supabase-cart';
+import { BRAND_LOGO_SRC } from '../lib/brandAssets';
 
 interface UnifiedHeaderProps {
   currentPage: string;
@@ -45,9 +46,9 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
           {/* Logo + tagline (left on mobile and desktop) */}
           <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-shrink">
             <img 
-              src="/traveriontransparent.png" 
+              src={BRAND_LOGO_SRC} 
               alt="TRAVERION Logo" 
-              className="w-10 h-10 sm:w-12 sm:h-12 object-contain flex-shrink-0"
+              className="w-12 h-12 sm:w-16 sm:h-16 object-contain flex-shrink-0"
               onError={(e) => {
                 // Fallback if image fails to load
                 e.currentTarget.style.display = 'none';

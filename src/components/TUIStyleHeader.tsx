@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import LuxuryButton from './ui/LuxuryButton';
 import ContactInfoHeader from './ContactInfoHeader';
 import { useTranslation } from '../contexts/TranslationContext';
+import { BRAND_LOGO_SRC } from '../lib/brandAssets';
 
 interface TUIStyleHeaderProps {
   currentPage: string;
@@ -103,9 +104,9 @@ export default function TUIStyleHeader({ currentPage, onNavigate }: TUIStyleHead
             >
               <div className="relative flex items-center space-x-3">
                 <img
-                  src="/traveriontransparent.png"
+                  src={BRAND_LOGO_SRC}
                   alt="TRAVERION Logo"
-                  className="h-12 w-auto transition-transform duration-300 group-hover:scale-105 object-contain flex-shrink-0"
+                  className="h-14 sm:h-16 w-auto transition-transform duration-300 group-hover:scale-105 object-contain flex-shrink-0"
                   onError={(e) => {
                     e.currentTarget.style.display = 'none';
                   }}

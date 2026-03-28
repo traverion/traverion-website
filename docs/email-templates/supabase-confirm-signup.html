@@ -5,7 +5,7 @@
   or set subject in dashboard to: Confirm your Traverion account
 
   Variables: https://supabase.com/docs/guides/auth/auth-templates
-  Logo: defaults to {{ .SiteURL }}/traveriontransparent.png — replace path when your asset is ready.
+  Logo: {{ .SiteURL }}/traverionlogotransparent.png
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -32,7 +32,7 @@
           <tr>
             <td style="padding:0 0 20px 0;text-align:center;">
               <a href="{{ .SiteURL }}" style="text-decoration:none;display:inline-block;">
-                <img src="{{ .SiteURL }}/traveriontransparent.png" width="48" height="48" alt="Traverion" style="display:block;margin:0 auto 8px auto;border:0;outline:none;">
+                <img src="{{ .SiteURL }}/traverionlogotransparent.png" width="56" height="56" alt="Traverion" style="display:block;margin:0 auto 8px auto;border:0;outline:none;object-fit:contain;">
                 <span style="font-size:20px;font-weight:700;letter-spacing:-0.02em;color:#003580;">Traverion</span>
               </a>
             </td>
