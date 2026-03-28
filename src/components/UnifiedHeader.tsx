@@ -41,24 +41,24 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
   return (
     <header className="fixed top-0 left-0 right-0 z-[9999] bg-white/95 backdrop-blur-md shadow-md border-b border-gray-100/80 supports-[backdrop-filter]:bg-white/88 transition-shadow duration-500 ease-lux">
       {/* Logo & Navigation */}
-      <div className="bg-white py-3 px-4 border-b border-gray-200">
-        <div className="max-w-7xl mx-auto flex flex-row justify-between items-center gap-4">
+      <div className="bg-white py-1.5 sm:py-2 px-4 border-b border-gray-200">
+        <div className="max-w-7xl mx-auto flex flex-row justify-between items-center gap-3 sm:gap-4">
           {/* Logo + tagline (left on mobile and desktop) */}
-          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-shrink">
+          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-shrink">
             <img 
               src={BRAND_LOGO_SRC} 
               alt="TRAVERION Logo" 
-              className="w-20 h-20 sm:w-32 sm:h-32 object-contain flex-shrink-0"
+              className="w-14 h-14 sm:w-[4.5rem] sm:h-[4.5rem] object-contain flex-shrink-0"
               onError={(e) => {
                 // Fallback if image fails to load
                 e.currentTarget.style.display = 'none';
               }}
             />
-            <div className="flex-shrink-0 min-w-0">
-              <h1 className="text-xl sm:text-2xl font-light text-finland">
+            <div className="flex-shrink-0 min-w-0 leading-tight">
+              <h1 className="text-lg sm:text-xl font-light text-finland">
                 TRAVERION
               </h1>
-              <p className="hidden sm:block text-xs sm:text-sm text-gray-600 font-light">Tours & Activities · Worldwide</p>
+              <p className="hidden sm:block text-[11px] sm:text-xs text-gray-600 font-light mt-0.5">Tours & Activities · Worldwide</p>
             </div>
           </div>
 
@@ -121,7 +121,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                   onNavigate('auth');
                 } else onNavigate('cart');
               }}
-              className="lux-tap-target hidden lg:flex flex-col items-center gap-0.5 p-2 text-gray-600 hover:text-finland relative rounded-lg"
+              className="lux-tap-target hidden lg:flex flex-col items-center gap-0.5 p-1.5 text-gray-600 hover:text-finland relative rounded-lg"
               aria-label="Cart"
               title="Cart"
             >
@@ -138,7 +138,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
               <button
                 type="button"
                 onClick={() => setIsUserMenuOpen((o) => !o)}
-                className="lux-tap-target flex flex-col items-center gap-0.5 p-2 text-gray-600 hover:text-finland rounded-lg"
+                className="lux-tap-target flex flex-col items-center gap-0.5 p-1.5 text-gray-600 hover:text-finland rounded-lg"
                 aria-label="Profile"
               >
                 {user ? (
@@ -222,7 +222,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
             <button
               type="button"
               onClick={() => onNavigate('packages')}
-              className="btn-luxury bg-finland text-white px-4 sm:px-6 py-2 rounded-lg font-medium hover:bg-finland-dark shadow-soft hover:shadow-soft-lg hidden lg:block text-sm sm:text-base"
+              className="btn-luxury bg-finland text-white px-4 sm:px-5 py-1.5 rounded-lg font-medium hover:bg-finland-dark shadow-soft hover:shadow-soft-lg hidden lg:block text-sm"
             >
               FIND TOURS
             </button>
