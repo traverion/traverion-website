@@ -501,6 +501,7 @@ export default function SupplierLayout() {
             <SupplierDashboard
               onNavigateToListings={() => handleNavigate('listings')}
               onNavigateToSettings={() => handleNavigate('settings')}
+              onNavigateToBookings={() => handleNavigate('bookings')}
             />
           )}
           {section === 'listings' && canAccessSection(role, section) && <SupplierListings />}

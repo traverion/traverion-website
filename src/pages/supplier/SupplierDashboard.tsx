@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
-import { BarChart3, Calendar, DollarSign, MapPin, Plus, ArrowRight, Star, CheckCircle, Circle } from 'lucide-react';
+import { BarChart3, Calendar, CalendarDays, DollarSign, MapPin, Plus, ArrowRight, Star, CheckCircle, Circle } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { fetchMyListings } from '../../data/supabase-listings';
 import { fetchSupplierEarnings } from '../../data/supabase-earnings';
-import { fetchBookingsForSupplier } from '../../data/supabase-bookings';
+import { fetchBookingsForSupplier, type BookingRow } from '../../data/supabase-bookings';
 import { aggregateReviewRatings, fetchReviewsForSupplierListings } from '../../data/supabase-reviews';
 import { fetchSupplierProfile } from '../../data/supabase-supplier-profile';
 import { isSupplierBusinessProfileComplete, isSupplierPayoutConfigured } from '../../lib/supplierOnboarding';
@@ -11,6 +11,7 @@ import { isSupplierBusinessProfileComplete, isSupplierPayoutConfigured } from '.
 interface SupplierDashboardProps {
   onNavigateToListings?: () => void;
   onNavigateToSettings?: () => void;
+  onNavigateToBookings?: () => void;
 }
 
 function isPeriodInMonth(periodStart: string, periodEnd: string, year: number, month: number): boolean {
@@ -21,20 +22,57 @@ function isPeriodInMonth(periodStart: string, periodEnd: string, year: number, m
   return start <= last && end >= first;
 }
 
-export default function SupplierDashboard({ onNavigateToListings, onNavigateToSettings }: SupplierDashboardProps) {
+function localYmd(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/** Monday-start week containing `d`; returns 7 dates at local midnight. */
+function weekDaysMondayStart(d: Date): Date[] {
+  const copy = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const dow = copy.getDay();
+  const mondayOffset = dow === 0 ? -6 : 1 - dow;
+  copy.setDate(copy.getDate() + mondayOffset);
+  return Array.from({ length: 7 }, (_, i) => {
+    const x = new Date(copy);
+    x.setDate(copy.getDate() + i);
+    return x;
+  });
+}
+
+export default function SupplierDashboard({
+  onNavigateToListings,
+  onNavigateToSettings,
+  onNavigateToBookings,
+}: SupplierDashboardProps) {
   const { user, isSupabase } = useSupplierAuth();
   const [listingsCount, setListingsCount] = useState<number | null>(null);
+  const [listingTitlesById, setListingTitlesById] = useState<Record<string, string>>({});
+  const [supplierBookings, setSupplierBookings] = useState<BookingRow[]>([]);
   const [earnings, setEarnings] = useState<Awaited<ReturnType<typeof fetchSupplierEarnings>>>([]);
-  const [bookingsCountThisMonth, setBookingsCountThisMonth] = useState<number | null>(null);
   const [providerRating, setProviderRating] = useState<{ avg: number; count: number }>({ avg: 0, count: 0 });
   const [profile, setProfile] = useState<Awaited<ReturnType<typeof fetchSupplierProfile>> | null>(null);
 
   useEffect(() => {
-    if (isSupabase && user) {
-      fetchMyListings(user.id).then((list) => setListingsCount(list.length)).catch(() => setListingsCount(0));
-    } else {
+    if (!isSupabase || !user) {
       setListingsCount(0);
+      setListingTitlesById({});
+      setSupplierBookings([]);
+      return;
     }
+    Promise.all([fetchMyListings(user.id), fetchBookingsForSupplier(user.id)])
+      .then(([listings, bookings]) => {
+        setListingsCount(listings.length);
+        setListingTitlesById(Object.fromEntries(listings.map((t) => [t.id, t.title])));
+        setSupplierBookings(bookings);
+      })
+      .catch(() => {
+        setListingsCount(0);
+        setListingTitlesById({});
+        setSupplierBookings([]);
+      });
   }, [isSupabase, user]);
 
   useEffect(() => {
@@ -42,26 +80,6 @@ export default function SupplierDashboard({ onNavigateToListings, onNavigateToSe
       fetchSupplierEarnings(user.id).then(setEarnings).catch(() => setEarnings([]));
     } else {
       setEarnings([]);
-    }
-  }, [isSupabase, user]);
-
-  useEffect(() => {
-    if (isSupabase && user) {
-      fetchBookingsForSupplier(user.id)
-        .then((bookingRows) => {
-          const now = new Date();
-          const y = now.getFullYear();
-          const m = now.getMonth() + 1;
-          const count = bookingRows.filter((b) => {
-            if (!b.booking_date) return false;
-            const d = new Date(b.booking_date);
-            return d.getFullYear() === y && d.getMonth() + 1 === m;
-          }).length;
-          setBookingsCountThisMonth(count);
-        })
-        .catch(() => setBookingsCountThisMonth(0));
-    } else {
-      setBookingsCountThisMonth(0);
     }
   }, [isSupabase, user]);
 
@@ -89,6 +107,42 @@ export default function SupplierDashboard({ onNavigateToListings, onNavigateToSe
   const now = new Date();
   const thisYear = now.getFullYear();
   const thisMonth = now.getMonth() + 1;
+  const todayYmd = localYmd(now);
+  const weekDays = weekDaysMondayStart(now);
+
+  const bookingsCountThisMonth = useMemo(() => {
+    return supplierBookings.filter((b) => {
+      if (!b.booking_date) return false;
+      const p = /^(\d{4})-(\d{2})-(\d{2})$/.exec(b.booking_date);
+      if (!p) return false;
+      return Number(p[1]) === thisYear && Number(p[2]) === thisMonth;
+    }).length;
+  }, [supplierBookings, thisYear, thisMonth]);
+
+  const todayScheduleRows = useMemo(() => {
+    const active = supplierBookings.filter(
+      (b) => b.booking_date === todayYmd && b.status !== 'cancelled'
+    );
+    const byListing = new Map<string, { bookings: number; guests: number }>();
+    for (const b of active) {
+      const cur = byListing.get(b.listing_id) ?? { bookings: 0, guests: 0 };
+      cur.bookings += 1;
+      cur.guests += Math.max(1, Number(b.guests) || 1);
+      byListing.set(b.listing_id, cur);
+    }
+    return [...byListing.entries()]
+      .map(([listingId, agg]) => ({
+        listingId,
+        title: listingTitlesById[listingId] ?? 'Listing',
+        ...agg,
+      }))
+      .sort((a, b) => a.title.localeCompare(b.title));
+  }, [supplierBookings, listingTitlesById, todayYmd]);
+
+  const todayTotalBookings = useMemo(
+    () => todayScheduleRows.reduce((s, r) => s + r.bookings, 0),
+    [todayScheduleRows]
+  );
 
   const earningsThisMonth = useMemo(() => {
     return earnings
@@ -100,24 +154,23 @@ export default function SupplierDashboard({ onNavigateToListings, onNavigateToSe
 
   const netEarningsDisplay = `${currency === 'USD' ? '$' : ''}${earningsThisMonth.toFixed(0)}${currency !== 'USD' ? ` ${currency}` : ''}`;
 
-  /** Order: money and bookings first, then footprint and reputation. */
   const stats = [
-    { label: 'Net earnings this month', value: netEarningsDisplay, icon: DollarSign, color: 'bg-finland/10 text-finland' },
-    { label: 'Bookings this month', value: bookingsCountThisMonth !== null ? String(bookingsCountThisMonth) : '—', icon: Calendar, color: 'bg-green-500/10 text-green-600' },
-    { label: 'Active listings', value: listingsCount !== null ? String(listingsCount) : '—', icon: MapPin, color: 'bg-finland/10 text-finland' },
+    { label: 'Bookings this month', value: String(bookingsCountThisMonth), icon: Calendar, color: 'bg-green-500/10 text-green-600' },
     {
-      label: 'Provider rating',
+      label: 'Review rating',
       value: `${providerRating.avg.toFixed(1)} (${providerRating.count} ${providerRating.count === 1 ? 'review' : 'reviews'})`,
       icon: Star,
       color: 'bg-amber-500/10 text-amber-600',
     },
+    { label: 'Active listings', value: listingsCount !== null ? String(listingsCount) : '—', icon: MapPin, color: 'bg-finland/10 text-finland' },
+    { label: 'Net earnings this month', value: netEarningsDisplay, icon: DollarSign, color: 'bg-finland/10 text-finland' },
   ];
 
   const healthChecks = useMemo(() => {
     const hasListings = (listingsCount ?? 0) > 0;
     const hasPayoutMethod = isSupplierPayoutConfigured(profile);
     const hasCompanyProfile = isSupplierBusinessProfileComplete(profile);
-    const hasBookingsThisMonth = (bookingsCountThisMonth ?? 0) > 0;
+    const hasBookingsThisMonth = bookingsCountThisMonth > 0;
     const hasReviews = providerRating.count > 0;
 
     const checks = [
@@ -153,7 +206,7 @@ export default function SupplierDashboard({ onNavigateToListings, onNavigateToSe
         id: 'bookings',
         title: 'Bookings this month',
         done: hasBookingsThisMonth,
-        descriptionDone: `${bookingsCountThisMonth} booking${bookingsCountThisMonth === 1 ? '' : 's'} this month.`,
+        descriptionDone: `${bookingsCountThisMonth} booking${bookingsCountThisMonth === 1 ? '' : 's'} this calendar month.`,
         descriptionTodo: 'No bookings this month yet. Refresh title/photos and add availability to improve conversion.',
       },
       {
@@ -270,6 +323,91 @@ export default function SupplierDashboard({ onNavigateToListings, onNavigateToSe
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>
+          )}
+        </div>
+      )}
+
+      {isSupabase && user && (
+        <div className="rounded-xl border-2 border-slate-200 bg-white p-5 sm:p-6 shadow-md ring-1 ring-slate-900/5">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
+            <div className="flex items-start gap-3">
+              <div className="w-11 h-11 rounded-xl bg-finland/10 text-finland flex items-center justify-center flex-shrink-0">
+                <CalendarDays className="w-6 h-6" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Today</h2>
+                <p className="text-sm text-gray-600 mt-0.5">
+                  {now.toLocaleDateString(undefined, {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                  })}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {todayTotalBookings === 0
+                    ? 'No bookings on your calendar for today.'
+                    : `${todayTotalBookings} booking${todayTotalBookings === 1 ? '' : 's'} today${todayScheduleRows.length > 0 ? ` across ${todayScheduleRows.length} listing${todayScheduleRows.length === 1 ? '' : 's'}` : ''}.`}
+                </p>
+              </div>
+            </div>
+            {onNavigateToBookings && (
+              <button
+                type="button"
+                onClick={onNavigateToBookings}
+                className="inline-flex items-center gap-1 text-sm font-semibold text-finland hover:text-finland-dark hover:underline shrink-0"
+              >
+                Open bookings
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
+          <div className="flex gap-1 sm:gap-2 justify-between mb-5 pb-5 border-b border-slate-200 overflow-x-auto">
+            {weekDays.map((d) => {
+              const ymd = localYmd(d);
+              const isToday = ymd === todayYmd;
+              return (
+                <div
+                  key={ymd}
+                  className={`flex flex-col items-center min-w-[2.75rem] sm:min-w-[3.25rem] rounded-lg px-1 py-2 text-center ${
+                    isToday ? 'bg-finland text-white shadow-md ring-2 ring-finland/30' : 'bg-slate-50 text-gray-600'
+                  }`}
+                >
+                  <span className={`text-[10px] sm:text-xs font-medium uppercase ${isToday ? 'text-white/90' : 'text-gray-500'}`}>
+                    {d.toLocaleDateString(undefined, { weekday: 'short' })}
+                  </span>
+                  <span className={`text-base sm:text-lg font-bold tabular-nums ${isToday ? '' : 'text-gray-900'}`}>
+                    {d.getDate()}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+
+          {todayScheduleRows.length === 0 ? (
+            <p className="text-sm text-gray-500 text-center py-6 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+              No listings with bookings today. When travelers book for this date, they will appear here with counts.
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {todayScheduleRows.map((row) => (
+                <li
+                  key={row.listingId}
+                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-xl border-2 border-slate-200 bg-slate-50/80 px-4 py-3"
+                >
+                  <p className="text-sm font-semibold text-gray-900 min-w-0">{row.title}</p>
+                  <div className="flex items-center gap-3 shrink-0 text-sm">
+                    <span className="tabular-nums font-semibold text-finland">
+                      {row.bookings} booking{row.bookings === 1 ? '' : 's'}
+                    </span>
+                    <span className="text-gray-500">
+                      {row.guests} guest{row.guests === 1 ? '' : 's'}
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
           )}
         </div>
       )}
