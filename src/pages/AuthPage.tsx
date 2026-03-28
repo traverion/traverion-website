@@ -6,6 +6,7 @@ import { normalizeConsumerPhone } from '../data/supabase-consumer-profile';
 import PageHero from '../components/PageHero';
 import { HERO_IMG } from '../lib/heroImages';
 import { publicSiteBaseUrl } from '../lib/publicSiteUrl';
+import { BRAND_LOGO_SRC } from '../lib/brandAssets';
 
 type AuthTab = 'signin' | 'signup';
 
@@ -196,10 +197,15 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
 
         <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-lg">
           <div className="px-6 pt-6 pb-4 border-b border-gray-100">
-            <h1 className="text-2xl font-semibold text-gray-900">
-              {tab === 'signin' ? 'Sign in' : 'Sign up'}
-            </h1>
-            <p className="text-sm text-gray-600 mt-1">Access your bookings and cart.</p>
+            <div className="flex items-center gap-3 mb-3">
+              <img src={BRAND_LOGO_SRC} alt="" className="h-12 w-12 sm:h-14 sm:w-14 object-contain flex-shrink-0" />
+              <div className="min-w-0">
+                <h1 className="text-2xl font-semibold text-gray-900">
+                  {tab === 'signin' ? 'Sign in' : 'Sign up'}
+                </h1>
+                <p className="text-sm text-gray-600 mt-0.5">Access your bookings and cart.</p>
+              </div>
+            </div>
           </div>
 
           <div className="flex border-b border-gray-100">

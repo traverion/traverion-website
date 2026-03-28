@@ -1,8 +1,9 @@
 import { publicSiteBaseUrl } from './publicSiteUrl';
 
 /**
- * Logo file in /public. Change this when you replace the asset; then update the same filename
- * in docs/email-templates/*.html (img src full URL) and index.html favicon links if needed.
+ * Official Traverion mark: `public/traverionlogotransparent.png`.
+ * Use BRAND_LOGO_SRC everywhere on the site; keep email templates and index.html favicon links
+ * on the same filename if you ever rename the file.
  */
 export const BRAND_LOGO_FILENAME = 'traverionlogotransparent.png';
 

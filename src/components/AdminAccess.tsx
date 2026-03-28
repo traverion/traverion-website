@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Shield, Eye, EyeOff, Lock, User, Key } from 'lucide-react';
+import { Eye, EyeOff, Lock, User, Key } from 'lucide-react';
 import LuxuryButton from './ui/LuxuryButton';
 import LuxuryCard from './ui/LuxuryCard';
 import LuxuryInput from './ui/LuxuryInput';
+import { BRAND_LOGO_SRC } from '../lib/brandAssets';
 
 interface AdminAccessProps {
   onAccessGranted: () => void;
@@ -40,9 +41,11 @@ export default function AdminAccess({ onAccessGranted }: AdminAccessProps) {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
       <LuxuryCard variant="glass" className="w-full max-w-md p-8">
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Shield className="w-8 h-8 text-white" />
-          </div>
+          <img
+            src={BRAND_LOGO_SRC}
+            alt=""
+            className="h-16 w-16 object-contain mx-auto mb-4"
+          />
           <h1 className="text-2xl font-bold text-white mb-2">Admin Access</h1>
           <p className="text-gray-300">Enter your credentials to access the admin dashboard</p>
         </div>

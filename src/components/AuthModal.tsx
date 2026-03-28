@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { normalizeConsumerPhone } from '../data/supabase-consumer-profile';
 import { publicSiteBaseUrl } from '../lib/publicSiteUrl';
+import { BRAND_LOGO_SRC } from '../lib/brandAssets';
 
 type Tab = 'signin' | 'signup';
 
@@ -118,10 +119,13 @@ export default function AuthModal() {
         style={{ animationDelay: '40ms' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-gray-100">
-          <h2 className="text-xl font-semibold text-gray-900">
-            {tab === 'signin' ? 'Log in' : 'Sign up'}
-          </h2>
+        <div className="flex items-center justify-between gap-3 px-6 pt-6 pb-4 border-b border-gray-100">
+          <div className="flex items-center gap-3 min-w-0">
+            <img src={BRAND_LOGO_SRC} alt="" className="h-10 w-10 object-contain flex-shrink-0" />
+            <h2 className="text-xl font-semibold text-gray-900 truncate">
+              {tab === 'signin' ? 'Log in' : 'Sign up'}
+            </h2>
+          </div>
           <button
             type="button"
             onClick={closeAuthModal}
