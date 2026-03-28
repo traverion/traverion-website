@@ -96,25 +96,21 @@ export default function SupplierDashboard({ onNavigateToListings, onNavigateToSe
       .reduce((sum, e) => sum + Number(e.amount), 0);
   }, [earnings, thisYear, thisMonth]);
 
-  const earningsPending = useMemo(() => {
-    return earnings
-      .filter((e) => e.status === 'pending')
-      .reduce((sum, e) => sum + Number(e.amount), 0);
-  }, [earnings]);
-
   const currency = earnings[0]?.currency ?? 'USD';
 
+  const netEarningsDisplay = `${currency === 'USD' ? '$' : ''}${earningsThisMonth.toFixed(0)}${currency !== 'USD' ? ` ${currency}` : ''}`;
+
+  /** Order: money and bookings first, then footprint and reputation. */
   const stats = [
-    { label: 'Active listings', value: listingsCount !== null ? String(listingsCount) : '—', icon: MapPin, color: 'bg-finland/10 text-finland' },
+    { label: 'Net earnings this month', value: netEarningsDisplay, icon: DollarSign, color: 'bg-finland/10 text-finland' },
     { label: 'Bookings this month', value: bookingsCountThisMonth !== null ? String(bookingsCountThisMonth) : '—', icon: Calendar, color: 'bg-green-500/10 text-green-600' },
+    { label: 'Active listings', value: listingsCount !== null ? String(listingsCount) : '—', icon: MapPin, color: 'bg-finland/10 text-finland' },
     {
       label: 'Provider rating',
       value: `${providerRating.avg.toFixed(1)} (${providerRating.count} ${providerRating.count === 1 ? 'review' : 'reviews'})`,
       icon: Star,
       color: 'bg-amber-500/10 text-amber-600',
     },
-    { label: 'Earnings this month', value: `${currency === 'USD' ? '$' : ''}${earningsThisMonth.toFixed(0)}${currency !== 'USD' ? ` ${currency}` : ''}`, icon: DollarSign, color: 'bg-finland/10 text-finland' },
-    { label: 'Earnings (pending)', value: `${currency === 'USD' ? '$' : ''}${earningsPending.toFixed(0)}${currency !== 'USD' ? ` ${currency}` : ''}`, icon: DollarSign, color: 'bg-amber-500/10 text-amber-600' },
   ];
 
   const healthChecks = useMemo(() => {
@@ -198,6 +194,23 @@ export default function SupplierDashboard({ onNavigateToListings, onNavigateToSe
         <p className="text-gray-600 mt-1">Overview of your tours and activities</p>
       </div>
 
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {stats.map(({ label, value, icon: Icon, color }) => (
+          <div
+            key={label}
+            className="bg-white border border-gray-200 rounded-xl p-5 flex items-center gap-4"
+          >
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${color}`}>
+              <Icon className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">{label}</p>
+              <p className="text-xl font-semibold text-gray-900">{value}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
       {isSupabase && user && (
         <div className="rounded-xl border-2 border-slate-200 bg-white p-5 sm:p-6 shadow-md ring-1 ring-slate-900/5">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
@@ -260,23 +273,6 @@ export default function SupplierDashboard({ onNavigateToListings, onNavigateToSe
           )}
         </div>
       )}
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map(({ label, value, icon: Icon, color }) => (
-          <div
-            key={label}
-            className="bg-white border border-gray-200 rounded-xl p-5 flex items-center gap-4"
-          >
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${color}`}>
-              <Icon className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">{label}</p>
-              <p className="text-xl font-semibold text-gray-900">{value}</p>
-            </div>
-          </div>
-        ))}
-      </div>
 
       {listingsCount === 0 && (
         <div className="bg-white border border-gray-200 rounded-xl p-8 text-center">
