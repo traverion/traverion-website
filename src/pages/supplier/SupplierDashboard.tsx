@@ -4,7 +4,7 @@ import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { fetchMyListings } from '../../data/supabase-listings';
 import { fetchSupplierEarnings } from '../../data/supabase-earnings';
 import { fetchBookingsForSupplier } from '../../data/supabase-bookings';
-import { fetchReviewsForSupplierListings } from '../../data/supabase-reviews';
+import { aggregateReviewRatings, fetchReviewsForSupplierListings } from '../../data/supabase-reviews';
 import { fetchSupplierProfile } from '../../data/supabase-supplier-profile';
 import { isSupplierBusinessProfileComplete, isSupplierPayoutConfigured } from '../../lib/supplierOnboarding';
 
@@ -26,7 +26,7 @@ export default function SupplierDashboard({ onNavigateToListings, onNavigateToSe
   const [listingsCount, setListingsCount] = useState<number | null>(null);
   const [earnings, setEarnings] = useState<Awaited<ReturnType<typeof fetchSupplierEarnings>>>([]);
   const [bookingsCountThisMonth, setBookingsCountThisMonth] = useState<number | null>(null);
-  const [providerRating, setProviderRating] = useState<{ avg: number; count: number } | null>(null);
+  const [providerRating, setProviderRating] = useState<{ avg: number; count: number }>({ avg: 0, count: 0 });
   const [profile, setProfile] = useState<Awaited<ReturnType<typeof fetchSupplierProfile>> | null>(null);
 
   useEffect(() => {
@@ -69,19 +69,12 @@ export default function SupplierDashboard({ onNavigateToListings, onNavigateToSe
     if (isSupabase && user) {
       fetchReviewsForSupplierListings(user.id)
         .then((reviewRows) => {
-          if (reviewRows.length === 0) {
-            setProviderRating(null);
-            return;
-          }
-          const sum = reviewRows.reduce((a, r) => a + r.rating, 0);
-          setProviderRating({
-            avg: Math.round((sum / reviewRows.length) * 10) / 10,
-            count: reviewRows.length,
-          });
+          const { avg, count } = aggregateReviewRatings(reviewRows.map((r) => r.rating));
+          setProviderRating({ avg, count });
         })
-        .catch(() => setProviderRating(null));
+        .catch(() => setProviderRating({ avg: 0, count: 0 }));
     } else {
-      setProviderRating(null);
+      setProviderRating({ avg: 0, count: 0 });
     }
   }, [isSupabase, user]);
 
@@ -114,7 +107,12 @@ export default function SupplierDashboard({ onNavigateToListings, onNavigateToSe
   const stats = [
     { label: 'Active listings', value: listingsCount !== null ? String(listingsCount) : '—', icon: MapPin, color: 'bg-finland/10 text-finland' },
     { label: 'Bookings this month', value: bookingsCountThisMonth !== null ? String(bookingsCountThisMonth) : '—', icon: Calendar, color: 'bg-green-500/10 text-green-600' },
-    { label: 'Provider rating', value: providerRating ? `${providerRating.avg} (${providerRating.count} reviews)` : '—', icon: Star, color: 'bg-amber-500/10 text-amber-600' },
+    {
+      label: 'Provider rating',
+      value: `${providerRating.avg.toFixed(1)} (${providerRating.count} ${providerRating.count === 1 ? 'review' : 'reviews'})`,
+      icon: Star,
+      color: 'bg-amber-500/10 text-amber-600',
+    },
     { label: 'Earnings this month', value: `${currency === 'USD' ? '$' : ''}${earningsThisMonth.toFixed(0)}${currency !== 'USD' ? ` ${currency}` : ''}`, icon: DollarSign, color: 'bg-finland/10 text-finland' },
     { label: 'Earnings (pending)', value: `${currency === 'USD' ? '$' : ''}${earningsPending.toFixed(0)}${currency !== 'USD' ? ` ${currency}` : ''}`, icon: DollarSign, color: 'bg-amber-500/10 text-amber-600' },
   ];
@@ -124,7 +122,7 @@ export default function SupplierDashboard({ onNavigateToListings, onNavigateToSe
     const hasPayoutMethod = isSupplierPayoutConfigured(profile);
     const hasCompanyProfile = isSupplierBusinessProfileComplete(profile);
     const hasBookingsThisMonth = (bookingsCountThisMonth ?? 0) > 0;
-    const hasReviews = (providerRating?.count ?? 0) > 0;
+    const hasReviews = providerRating.count > 0;
 
     const checks = [
       {
@@ -166,7 +164,7 @@ export default function SupplierDashboard({ onNavigateToListings, onNavigateToSe
         id: 'reviews',
         title: 'Review momentum',
         done: hasReviews,
-        descriptionDone: `${providerRating?.count ?? 0} review${providerRating?.count === 1 ? '' : 's'} with ${providerRating?.avg.toFixed(1)} average rating.`,
+        descriptionDone: `${providerRating.count} review${providerRating.count === 1 ? '' : 's'} with ${providerRating.avg.toFixed(1)} average rating.`,
         descriptionTodo: 'No reviews yet. Ask recent guests for feedback after completed tours.',
       },
     ];
@@ -176,8 +174,8 @@ export default function SupplierDashboard({ onNavigateToListings, onNavigateToSe
     listingsCount,
     profile,
     bookingsCountThisMonth,
-    providerRating?.count,
-    providerRating?.avg,
+    providerRating.count,
+    providerRating.avg,
     onNavigateToListings,
     onNavigateToSettings,
   ]);

@@ -250,7 +250,15 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
                 <div className="flex flex-wrap gap-4 text-sm text-gray-600 mb-6">
                   <span className="flex items-center">
                     <Star size={18} className="text-finland fill-finland mr-1" />
-                    <strong className="text-gray-900">{reviewAggregate?.rating ?? tour.rating}</strong> ({reviewAggregate?.count ?? tour.reviews} reviews)
+                    <strong className="text-gray-900">
+                      {reviewAggregate != null
+                        ? reviewAggregate.count > 0
+                          ? reviewAggregate.rating.toFixed(1)
+                          : '0.0'
+                        : tour.rating}
+                    </strong>{' '}
+                    ({reviewAggregate != null ? reviewAggregate.count : tour.reviews}{' '}
+                    {(reviewAggregate != null ? reviewAggregate.count : tour.reviews) === 1 ? 'review' : 'reviews'})
                   </span>
                   <span className="flex items-center"><Clock size={18} className="mr-1" />{tour.duration}</span>
                   <span className="flex items-center"><Users size={18} className="mr-1" />{tour.groupSize}</span>

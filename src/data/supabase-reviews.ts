@@ -32,17 +32,26 @@ export async function fetchReviewsByListingId(listingId: string): Promise<Review
   }));
 }
 
+/**
+ * Mean of finite numeric ratings, rounded to one decimal. Count is the number of valid ratings used.
+ */
+export function aggregateReviewRatings(ratings: Array<number | string | null | undefined>): { avg: number; count: number } {
+  const nums = ratings.map((x) => Number(x)).filter((n) => Number.isFinite(n));
+  if (nums.length === 0) return { avg: 0, count: 0 };
+  const sum = nums.reduce((a, b) => a + b, 0);
+  return { avg: Math.round((sum / nums.length) * 10) / 10, count: nums.length };
+}
+
 /** Aggregate rating and count for a listing from reviews table. */
 export async function getReviewAggregateForListing(listingId: string): Promise<{ rating: number; count: number }> {
-  if (!supabase) return { rating: 4.5, count: 0 };
+  if (!supabase) return { rating: 0, count: 0 };
   const { data, error } = await supabase
     .from('reviews')
     .select('rating')
     .eq('listing_id', listingId);
-  if (error || !data?.length) return { rating: 4.5, count: 0 };
-  const count = data.length;
-  const sum = data.reduce((acc: number, r: { rating: number }) => acc + Number(r.rating), 0);
-  return { rating: Math.round((sum / count) * 10) / 10, count };
+  if (error || !data?.length) return { rating: 0, count: 0 };
+  const { avg, count } = aggregateReviewRatings(data.map((r: { rating: number }) => r.rating));
+  return { rating: avg, count };
 }
 
 /** Batch aggregates for listing cards (packages, home, destinations). One round-trip per chunk. */
@@ -66,9 +75,8 @@ export async function getReviewAggregatesForListingIds(
       buckets.get(lid)!.push(r);
     }
     for (const [lid, ratings] of buckets) {
-      const count = ratings.length;
-      const sum = ratings.reduce((a, b) => a + b, 0);
-      out.set(lid, { rating: Math.round((sum / count) * 10) / 10, count });
+      const { avg, count } = aggregateReviewRatings(ratings);
+      out.set(lid, { rating: avg, count });
     }
   }
   return out;
