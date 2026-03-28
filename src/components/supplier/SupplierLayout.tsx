@@ -21,13 +21,14 @@ import {
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { upsertSupplierTeamMember, removeSupplierTeamMember } from '../../data/supabase-supplier-team';
 import { BRAND_LOGO_SRC } from '../../lib/brandAssets';
+import { isSupplierBusinessProfileComplete, isSupplierPayoutConfigured } from '../../lib/supplierOnboarding';
 import { publicSiteBaseUrl } from '../../lib/publicSiteUrl';
 
 /** URL path for the supplier login/landing page. Portal is /supplier and /supplier/* */
 export const SUPPLIER_LOGIN_PATH = '/supplier-log-in';
 
 type SupplierSection = 'dashboard' | 'listings' | 'bookings' | 'earnings' | 'reviews' | 'pickup' | 'settings' | 'badges';
-type AccountShortcutTarget = 'company' | 'account' | 'security';
+type AccountShortcutTarget = 'company' | 'account' | 'security' | 'payout';
 type BadgeVariant = 'gold' | 'verified' | 'trusted';
 
 const NAV_ITEMS: { id: SupplierSection; label: string; icon: typeof LayoutDashboard }[] = [
@@ -159,11 +160,11 @@ export default function SupplierLayout() {
         fetchMyListings(user.id),
       ]);
       setOnboardingListingCount(listings.length);
-      setOnboardingHasPayout(!!profile?.payout_method && profile.payout_method !== 'none');
-      setOnboardingHasCompany(!!profile?.company_legal_name?.trim());
+      setOnboardingHasPayout(isSupplierPayoutConfigured(profile));
+      setOnboardingHasCompany(isSupplierBusinessProfileComplete(profile));
     };
     loadOnboardingSignals();
-  }, [user?.id, isSupabase]);
+  }, [user?.id, isSupabase, section]);
 
   useEffect(() => {
     if (section !== 'settings' || !user?.id || !isSupabase) return;
@@ -243,8 +244,22 @@ export default function SupplierLayout() {
   const onPortalPath = isSupplierPortalPath(pathname);
   const onboardingDoneCount = [onboardingListingCount !== null && onboardingListingCount > 0, onboardingHasPayout, onboardingHasCompany].filter(Boolean).length;
   const onboardingComplete = onboardingDoneCount === 3;
-  const onboardingNextLabel = onboardingListingCount !== null && onboardingListingCount <= 0 ? 'Publish your first listing' : !onboardingHasPayout ? 'Add payout details' : 'Complete business profile';
-  const onboardingNextAction = onboardingListingCount !== null && onboardingListingCount <= 0 ? () => handleNavigate('listings') : () => handleNavigate('settings');
+  const onboardingNextLabel =
+    onboardingListingCount !== null && onboardingListingCount <= 0
+      ? 'Publish your first listing'
+      : !onboardingHasPayout
+        ? 'Add payout details'
+        : !onboardingHasCompany
+          ? 'Complete business profile'
+          : 'Open settings';
+  const onboardingNextAction =
+    onboardingListingCount !== null && onboardingListingCount <= 0
+      ? () => handleNavigate('listings')
+      : !onboardingHasPayout
+        ? () => openSettingsFocus('payout')
+        : !onboardingHasCompany
+          ? () => openSettingsFocus('company')
+          : () => handleNavigate('settings');
 
   if (loading) {
     return (
@@ -461,15 +476,15 @@ export default function SupplierLayout() {
         )}
         <main className="p-4 sm:p-6 lg:p-8 overflow-x-hidden">
           {!onboardingComplete && canAccessSection(role, section) && (
-            <div className="mb-4 bg-amber-50 border border-amber-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div className="mb-4 rounded-xl border-2 border-amber-300 bg-amber-50 p-4 shadow-md ring-1 ring-amber-900/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold text-gray-900">Finish supplier setup ({onboardingDoneCount}/3)</p>
-                <p className="text-xs text-amber-800">Complete listing, payout, and business details for smoother operations.</p>
+                <p className="text-xs text-amber-950 mt-0.5">Listing live, payout details saved, and business profile completed in Settings.</p>
               </div>
               <button
                 type="button"
                 onClick={onboardingNextAction}
-                className="inline-flex items-center justify-center px-3 py-2 rounded-lg bg-finland text-white text-sm font-medium hover:bg-finland-dark"
+                className="inline-flex items-center justify-center px-4 py-2.5 rounded-lg border-2 border-finland bg-finland text-white text-sm font-semibold shadow-sm hover:bg-finland-dark"
               >
                 {onboardingNextLabel}
               </button>

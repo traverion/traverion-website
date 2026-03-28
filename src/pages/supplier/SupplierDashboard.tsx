@@ -7,6 +7,7 @@ import { fetchBookingsForSupplier, type BookingRow } from '../../data/supabase-b
 import { fetchReviewsForSupplierListings } from '../../data/supabase-reviews';
 import { fetchSupplierProfile } from '../../data/supabase-supplier-profile';
 import { fetchSupplierBookingEvents, fetchSupplierBookingMessages } from '../../data/supabase-booking-events';
+import { isSupplierBusinessProfileComplete, isSupplierPayoutConfigured } from '../../lib/supplierOnboarding';
 
 interface SupplierDashboardProps {
   onNavigateToListings?: () => void;
@@ -166,8 +167,8 @@ export default function SupplierDashboard({ onNavigateToListings, onNavigateToSe
 
   const healthChecks = useMemo(() => {
     const hasListings = (listingsCount ?? 0) > 0;
-    const hasPayoutMethod = !!profile?.payout_method && profile.payout_method !== 'none';
-    const hasCompanyProfile = !!profile?.company_legal_name?.trim();
+    const hasPayoutMethod = isSupplierPayoutConfigured(profile);
+    const hasCompanyProfile = isSupplierBusinessProfileComplete(profile);
     const hasBookingsThisMonth = (bookingsCountThisMonth ?? 0) > 0;
     const hasReviews = (providerRating?.count ?? 0) > 0;
 
@@ -186,7 +187,7 @@ export default function SupplierDashboard({ onNavigateToListings, onNavigateToSe
         title: 'Payout method configured',
         done: hasPayoutMethod,
         descriptionDone: 'Payout destination is configured.',
-        descriptionTodo: 'Set up bank transfer or PayPal for faster payout processing.',
+        descriptionTodo: 'Choose bank (IBAN + BIC) or PayPal and save your payout details in Settings.',
         cta: 'Open settings',
         onClick: onNavigateToSettings,
       },
@@ -195,7 +196,8 @@ export default function SupplierDashboard({ onNavigateToListings, onNavigateToSe
         title: 'Company profile completed',
         done: hasCompanyProfile,
         descriptionDone: 'Business details are on file.',
-        descriptionTodo: 'Add legal company details to improve trust and verification readiness.',
+        descriptionTodo:
+          'Add business address, type (company/individual), and registration number if you operate as a company.',
         cta: 'Open settings',
         onClick: onNavigateToSettings,
       },
@@ -221,8 +223,7 @@ export default function SupplierDashboard({ onNavigateToListings, onNavigateToSe
     return { checks, setupScore };
   }, [
     listingsCount,
-    profile?.payout_method,
-    profile?.company_legal_name,
+    profile,
     bookingsCountThisMonth,
     providerRating?.count,
     providerRating?.avg,
@@ -263,41 +264,45 @@ export default function SupplierDashboard({ onNavigateToListings, onNavigateToSe
       </div>
 
       {isSupabase && user && (
-        <div className="bg-white border border-gray-200 rounded-xl p-5 sm:p-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+        <div className="rounded-xl border-2 border-slate-200 bg-white p-5 sm:p-6 shadow-md ring-1 ring-slate-900/5">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
             <div>
-              <h2 className="text-base font-semibold text-gray-900">Quick start</h2>
-              <p className="text-sm text-gray-600">Complete these essentials first, then run day-to-day from bookings.</p>
+              <h2 className="text-lg font-semibold text-gray-900">Quick start</h2>
+              <p className="text-sm text-gray-700 mt-0.5">Complete these essentials first, then run day-to-day from bookings.</p>
             </div>
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-finland/10 text-finland text-sm font-semibold">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-finland/25 bg-finland/15 text-finland text-sm font-semibold shadow-sm">
               {quickStart.doneCount}/{quickStart.total} completed
             </div>
           </div>
 
-          <ul className="space-y-2">
+          <ul className="space-y-3">
             {quickStart.checks.map((check) => (
               <li
                 key={check.id}
-                className={`flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 rounded-lg border px-3 py-2.5 ${
-                  check.done ? 'border-green-100 bg-green-50/40' : 'border-amber-100 bg-amber-50/40'
+                className={`flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 rounded-xl border-2 px-4 py-3 shadow-sm ${
+                  check.done
+                    ? 'border-emerald-300 bg-emerald-50'
+                    : 'border-amber-300 bg-amber-50'
                 }`}
               >
                 <div className="flex items-start sm:items-center gap-3 min-w-0">
                   {check.done ? (
-                    <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5 sm:mt-0" />
+                    <CheckCircle className="w-6 h-6 text-emerald-600 flex-shrink-0 mt-0.5 sm:mt-0" strokeWidth={2.25} />
                   ) : (
-                    <Circle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5 sm:mt-0" />
+                    <Circle className="w-6 h-6 text-amber-600 flex-shrink-0 mt-0.5 sm:mt-0" strokeWidth={2} />
                   )}
                   <div className="min-w-0">
-                    <p className={`text-sm font-medium ${check.done ? 'text-gray-700' : 'text-gray-900'}`}>{check.title}</p>
-                    <p className="text-xs text-gray-500">{check.done ? check.descriptionDone : check.descriptionTodo}</p>
+                    <p className={`text-sm font-semibold ${check.done ? 'text-emerald-900' : 'text-amber-950'}`}>{check.title}</p>
+                    <p className={`text-xs mt-0.5 ${check.done ? 'text-emerald-800' : 'text-amber-900/90'}`}>
+                      {check.done ? check.descriptionDone : check.descriptionTodo}
+                    </p>
                   </div>
                 </div>
                 {!check.done && check.onClick && (
                   <button
                     type="button"
                     onClick={check.onClick}
-                    className="sm:ml-auto inline-flex items-center gap-1 text-sm font-medium text-finland hover:underline"
+                    className="sm:ml-auto inline-flex items-center justify-center gap-1 rounded-lg border-2 border-finland bg-finland px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-finland-dark transition-colors"
                   >
                     {check.cta}
                     <ArrowRight className="w-4 h-4" />
@@ -307,11 +312,11 @@ export default function SupplierDashboard({ onNavigateToListings, onNavigateToSe
             ))}
           </ul>
           {quickStart.next && quickStart.next.onClick && (
-            <div className="mt-3">
+            <div className="mt-4 pt-4 border-t border-slate-200">
               <button
                 type="button"
                 onClick={quickStart.next.onClick}
-                className="inline-flex items-center gap-1 text-sm font-medium text-finland hover:underline"
+                className="inline-flex items-center gap-1 text-sm font-semibold text-finland hover:text-finland-dark hover:underline"
               >
                 Continue setup: {quickStart.next.title}
                 <ArrowRight className="w-4 h-4" />
