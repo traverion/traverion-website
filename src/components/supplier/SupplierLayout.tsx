@@ -473,21 +473,6 @@ export default function SupplierLayout() {
           </div>
         )}
         <main className="p-4 sm:p-6 lg:p-8 overflow-x-hidden">
-          {!onboardingComplete && canAccessSection(role, section) && (
-            <div className="mb-4 rounded-xl border-2 border-amber-300 bg-amber-50 p-4 shadow-md ring-1 ring-amber-900/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold text-gray-900">Finish supplier setup ({onboardingDoneCount}/3)</p>
-                <p className="text-xs text-amber-950 mt-0.5">Listing live, payout details saved, and business profile completed in Settings.</p>
-              </div>
-              <button
-                type="button"
-                onClick={onboardingNextAction}
-                className="inline-flex items-center justify-center px-4 py-2.5 rounded-lg border-2 border-finland bg-finland text-white text-sm font-semibold shadow-sm hover:bg-finland-dark"
-              >
-                {onboardingNextLabel}
-              </button>
-            </div>
-          )}
           <div key={section} className="lux-page-enter">
           {!canAccessSection(role, section) && (
             <div className="bg-white border border-amber-200 rounded-xl p-6">
@@ -502,6 +487,10 @@ export default function SupplierLayout() {
               onNavigateToListings={() => handleNavigate('listings')}
               onNavigateToSettings={() => handleNavigate('settings')}
               onNavigateToBookings={() => handleNavigate('bookings')}
+              showSupplierSetupBanner={!onboardingComplete}
+              supplierSetupDoneCount={onboardingDoneCount}
+              supplierSetupNextLabel={onboardingNextLabel}
+              onSupplierSetupNext={onboardingNextAction}
             />
           )}
           {section === 'listings' && canAccessSection(role, section) && <SupplierListings />}

@@ -12,6 +12,11 @@ interface SupplierDashboardProps {
   onNavigateToListings?: () => void;
   onNavigateToSettings?: () => void;
   onNavigateToBookings?: () => void;
+  /** When false, setup is complete and the banner is hidden. */
+  showSupplierSetupBanner?: boolean;
+  supplierSetupDoneCount?: number;
+  supplierSetupNextLabel?: string;
+  onSupplierSetupNext?: () => void;
 }
 
 function isPeriodInMonth(periodStart: string, periodEnd: string, year: number, month: number): boolean {
@@ -46,6 +51,10 @@ export default function SupplierDashboard({
   onNavigateToListings,
   onNavigateToSettings,
   onNavigateToBookings,
+  showSupplierSetupBanner = false,
+  supplierSetupDoneCount = 0,
+  supplierSetupNextLabel = '',
+  onSupplierSetupNext,
 }: SupplierDashboardProps) {
   const { user, isSupabase } = useSupplierAuth();
   const [listingsCount, setListingsCount] = useState<number | null>(null);
@@ -242,6 +251,26 @@ export default function SupplierDashboard({
 
   return (
     <div className="space-y-8">
+      {showSupplierSetupBanner && onSupplierSetupNext && (
+        <div className="rounded-xl border-2 border-amber-300 bg-amber-50 p-4 sm:p-5 shadow-md ring-1 ring-amber-900/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-gray-900">
+              Finish supplier setup ({supplierSetupDoneCount}/3)
+            </p>
+            <p className="text-xs text-amber-950 mt-0.5">
+              Listing live, payout details saved, and business profile completed in Settings.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onSupplierSetupNext}
+            className="inline-flex items-center justify-center px-4 py-2.5 rounded-lg border-2 border-finland bg-finland text-white text-sm font-semibold shadow-sm hover:bg-finland-dark shrink-0"
+          >
+            {supplierSetupNextLabel}
+          </button>
+        </div>
+      )}
+
       <div>
         <h1 className="text-2xl font-semibold text-gray-900">Dashboard</h1>
         <p className="text-gray-600 mt-1">Overview of your tours and activities</p>
