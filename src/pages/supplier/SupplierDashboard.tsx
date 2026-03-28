@@ -1,12 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
-import { BarChart3, Calendar, DollarSign, MapPin, Plus, ArrowRight, Star, CheckCircle, Circle, ListChecks, Activity } from 'lucide-react';
+import { BarChart3, Calendar, DollarSign, MapPin, Plus, ArrowRight, Star, CheckCircle, Circle } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { fetchMyListings } from '../../data/supabase-listings';
 import { fetchSupplierEarnings } from '../../data/supabase-earnings';
-import { fetchBookingsForSupplier, type BookingRow } from '../../data/supabase-bookings';
+import { fetchBookingsForSupplier } from '../../data/supabase-bookings';
 import { fetchReviewsForSupplierListings } from '../../data/supabase-reviews';
 import { fetchSupplierProfile } from '../../data/supabase-supplier-profile';
-import { fetchSupplierBookingEvents, fetchSupplierBookingMessages } from '../../data/supabase-booking-events';
 import { isSupplierBusinessProfileComplete, isSupplierPayoutConfigured } from '../../lib/supplierOnboarding';
 
 interface SupplierDashboardProps {
@@ -29,9 +28,6 @@ export default function SupplierDashboard({ onNavigateToListings, onNavigateToSe
   const [bookingsCountThisMonth, setBookingsCountThisMonth] = useState<number | null>(null);
   const [providerRating, setProviderRating] = useState<{ avg: number; count: number } | null>(null);
   const [profile, setProfile] = useState<Awaited<ReturnType<typeof fetchSupplierProfile>> | null>(null);
-  const [bookings, setBookings] = useState<BookingRow[]>([]);
-  const [reviews, setReviews] = useState<Awaited<ReturnType<typeof fetchReviewsForSupplierListings>>>([]);
-  const [activityItems, setActivityItems] = useState<Array<{ at: string; title: string; details?: string }>>([]);
 
   useEffect(() => {
     if (isSupabase && user) {
@@ -52,12 +48,11 @@ export default function SupplierDashboard({ onNavigateToListings, onNavigateToSe
   useEffect(() => {
     if (isSupabase && user) {
       fetchBookingsForSupplier(user.id)
-        .then((bookings) => {
-          setBookings(bookings);
+        .then((bookingRows) => {
           const now = new Date();
           const y = now.getFullYear();
           const m = now.getMonth() + 1;
-          const count = bookings.filter((b) => {
+          const count = bookingRows.filter((b) => {
             if (!b.booking_date) return false;
             const d = new Date(b.booking_date);
             return d.getFullYear() === y && d.getMonth() + 1 === m;
@@ -73,22 +68,20 @@ export default function SupplierDashboard({ onNavigateToListings, onNavigateToSe
   useEffect(() => {
     if (isSupabase && user) {
       fetchReviewsForSupplierListings(user.id)
-        .then((reviews) => {
-          setReviews(reviews);
-          if (reviews.length === 0) {
+        .then((reviewRows) => {
+          if (reviewRows.length === 0) {
             setProviderRating(null);
             return;
           }
-          const sum = reviews.reduce((a, r) => a + r.rating, 0);
+          const sum = reviewRows.reduce((a, r) => a + r.rating, 0);
           setProviderRating({
-            avg: Math.round((sum / reviews.length) * 10) / 10,
-            count: reviews.length,
+            avg: Math.round((sum / reviewRows.length) * 10) / 10,
+            count: reviewRows.length,
           });
         })
         .catch(() => setProviderRating(null));
     } else {
       setProviderRating(null);
-      setReviews([]);
     }
   }, [isSupabase, user]);
 
@@ -99,45 +92,6 @@ export default function SupplierDashboard({ onNavigateToListings, onNavigateToSe
       setProfile(null);
     }
   }, [isSupabase, user]);
-
-  useEffect(() => {
-    const loadActivity = async () => {
-      if (!isSupabase || !user) {
-        setActivityItems([]);
-        return;
-      }
-      const bookingIds = bookings.map((b) => b.id);
-      const [events, messages] = await Promise.all([
-        fetchSupplierBookingEvents(user.id, bookingIds),
-        fetchSupplierBookingMessages(user.id),
-      ]);
-      const eventItems = events.map((e) => ({
-        at: e.created_at,
-        title:
-          e.event_type === 'acknowledged'
-            ? 'Booking acknowledged'
-            : e.event_type === 'status_confirmed'
-              ? 'Booking confirmed'
-              : e.event_type === 'status_cancelled'
-                ? 'Booking cancelled'
-                : e.event_type === 'note'
-                  ? 'Ops note updated'
-                  : 'Booking event',
-        details: e.details ?? undefined,
-      }));
-      const messageItems = messages.map((m) => ({
-        at: m.created_at,
-        title: `Message ${m.delivery_status ?? 'queued'}: ${m.subject}`,
-        details: `${m.recipients.length} recipient${m.recipients.length === 1 ? '' : 's'}`,
-      }));
-      setActivityItems(
-        [...eventItems, ...messageItems]
-          .sort((a, b) => b.at.localeCompare(a.at))
-          .slice(0, 12)
-      );
-    };
-    loadActivity();
-  }, [isSupabase, user, bookings]);
 
   const now = new Date();
   const thisYear = now.getFullYear();
@@ -217,10 +171,7 @@ export default function SupplierDashboard({ onNavigateToListings, onNavigateToSe
       },
     ];
 
-    const setupChecks = checks.slice(0, 3);
-    const setupScore = Math.round((setupChecks.filter((c) => c.done).length / setupChecks.length) * 100);
-
-    return { checks, setupScore };
+    return { checks };
   }, [
     listingsCount,
     profile,
@@ -230,20 +181,6 @@ export default function SupplierDashboard({ onNavigateToListings, onNavigateToSe
     onNavigateToListings,
     onNavigateToSettings,
   ]);
-
-  const needsAction = useMemo(() => {
-    const today = new Date().toISOString().slice(0, 10);
-    const unacknowledged = bookings.filter((b) => !b.acknowledged_at && b.status !== 'cancelled');
-    const pending = bookings.filter((b) => b.status === 'pending');
-    const todayBookings = bookings.filter((b) => b.booking_date === today && b.status !== 'cancelled');
-    const lowRatingUnreplied = reviews.filter((r) => r.rating <= 3).length;
-    return {
-      unacknowledged,
-      pending,
-      todayBookings,
-      lowRatingUnreplied,
-    };
-  }, [bookings, reviews]);
 
   const quickStart = useMemo(() => {
     const setupChecks = healthChecks.checks.slice(0, 3);
@@ -342,55 +279,6 @@ export default function SupplierDashboard({ onNavigateToListings, onNavigateToSe
           </div>
         ))}
       </div>
-
-      {isSupabase && user && (
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-          <div className="bg-white border border-gray-200 rounded-xl p-5">
-            <div className="flex items-center gap-2 mb-4">
-              <ListChecks className="w-5 h-5 text-finland" />
-              <h2 className="text-base font-semibold text-gray-900">Needs action</h2>
-            </div>
-            <ul className="space-y-2 text-sm">
-              <li className="flex items-center justify-between border border-gray-200 rounded-lg px-3 py-2">
-                <span className="text-gray-700">Unacknowledged bookings</span>
-                <span className="font-semibold text-gray-900">{needsAction.unacknowledged.length}</span>
-              </li>
-              <li className="flex items-center justify-between border border-gray-200 rounded-lg px-3 py-2">
-                <span className="text-gray-700">Pending confirmations</span>
-                <span className="font-semibold text-gray-900">{needsAction.pending.length}</span>
-              </li>
-              <li className="flex items-center justify-between border border-gray-200 rounded-lg px-3 py-2">
-                <span className="text-gray-700">Active bookings today</span>
-                <span className="font-semibold text-gray-900">{needsAction.todayBookings.length}</span>
-              </li>
-              <li className="flex items-center justify-between border border-gray-200 rounded-lg px-3 py-2">
-                <span className="text-gray-700">Low-rating reviews to handle</span>
-                <span className="font-semibold text-gray-900">{needsAction.lowRatingUnreplied}</span>
-              </li>
-            </ul>
-          </div>
-
-          <div className="bg-white border border-gray-200 rounded-xl p-5">
-            <div className="flex items-center gap-2 mb-4">
-              <Activity className="w-5 h-5 text-finland" />
-              <h2 className="text-base font-semibold text-gray-900">Activity feed</h2>
-            </div>
-            {activityItems.length === 0 ? (
-              <p className="text-sm text-gray-500">No recent supplier activity yet.</p>
-            ) : (
-              <ul className="space-y-2 max-h-72 overflow-y-auto pr-1">
-                {activityItems.map((item, idx) => (
-                  <li key={`${item.at}-${idx}`} className="border border-gray-200 rounded-lg px-3 py-2">
-                    <p className="text-sm font-medium text-gray-900">{item.title}</p>
-                    {item.details && <p className="text-xs text-gray-600 mt-0.5">{item.details}</p>}
-                    <p className="text-xs text-gray-400 mt-1">{new Date(item.at).toLocaleString()}</p>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </div>
-      )}
 
       {listingsCount === 0 && (
         <div className="bg-white border border-gray-200 rounded-xl p-8 text-center">

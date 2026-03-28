@@ -403,25 +403,27 @@ export default function SupplierLayout() {
 
       {/* Main content */}
       <div className="flex-1 lg:pl-64">
-        <header className="bg-white/95 backdrop-blur-md border-b border-gray-200 sticky top-0 z-20 h-16 flex items-center px-4 sm:px-6 lg:px-8 supports-[backdrop-filter]:bg-white/90 transition-shadow duration-500 ease-lux">
+        <header className="bg-white/95 backdrop-blur-md border-b border-gray-200 sticky top-0 z-20 h-16 flex items-center px-4 sm:px-6 lg:px-8 supports-[backdrop-filter]:bg-white/90 transition-shadow duration-500 ease-lux relative">
           <button
             type="button"
             onClick={() => setSidebarOpen(true)}
-            className="no-lux-interaction lux-tap-target lg:hidden p-2 -ml-2 text-gray-600 rounded-lg"
+            className="no-lux-interaction lux-tap-target lg:hidden p-1.5 -ml-1.5 text-gray-600 rounded-lg shrink-0 z-10"
           >
             <Menu className="w-6 h-6" />
           </button>
-          <div className="flex-1 flex justify-center lg:hidden min-w-0">
-            <button
-              type="button"
-              onClick={() => handleNavigate('dashboard')}
-              className="flex items-center gap-2 min-w-0"
-              aria-label="Traverion supplier home"
-            >
-              <img src={BRAND_LOGO_SRC} alt="" className="h-10 w-10 object-contain flex-shrink-0" />
-            </button>
-          </div>
-          <div className="flex items-center gap-1 relative lg:ml-auto ml-0">
+          <button
+            type="button"
+            onClick={() => handleNavigate('dashboard')}
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 lg:hidden z-10 p-0.5 min-w-0"
+            aria-label="Traverion supplier home"
+          >
+            <img
+              src={BRAND_LOGO_SRC}
+              alt=""
+              className="h-11 w-11 max-h-[48px] max-w-[48px] object-contain"
+            />
+          </button>
+          <div className="flex items-center gap-1 relative z-10 ml-auto shrink-0">
             <SupplierNotificationCenter />
             <span className="text-xs sm:text-sm text-gray-500 hidden sm:inline" title="You are in the supplier portal">
               Supplier portal
