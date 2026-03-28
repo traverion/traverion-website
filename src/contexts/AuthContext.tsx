@@ -3,7 +3,8 @@ import { User } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { isSignUpEmailAlreadyRegistered } from '../lib/supabaseAuthHelpers';
 import { publicSiteBaseUrl } from '../lib/publicSiteUrl';
-import { ensureConsumerProfile, isConsumerPhoneAvailable, normalizeConsumerPhone } from '../data/supabase-consumer-profile';
+import { ensureConsumerProfile, normalizeConsumerPhone } from '../data/supabase-consumer-profile';
+import { isPhoneAvailableForSignup } from '../data/supabase-phone-signup';
 
 type AuthContextValue = {
   user: User | null;
@@ -74,7 +75,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const normalizedPhone = normalizeConsumerPhone(options?.phoneNumber ?? '');
     if (!normalizedPhone) return { error: 'Phone number is required' };
 
-    const availability = await isConsumerPhoneAvailable(normalizedPhone);
+    const availability = await isPhoneAvailableForSignup(options?.phoneNumber ?? '');
     if (availability.error) return { error: availability.error };
     if (!availability.available) return { error: 'An account with this phone number already exists. Try signing in instead.' };
 

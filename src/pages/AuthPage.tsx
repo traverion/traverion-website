@@ -61,7 +61,11 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
     }
     if (m.includes('invalid login credentials')) return 'Incorrect email or password.';
     if (m.includes('email not confirmed')) return 'Please confirm your email before signing in.';
-    if (m.includes('contact_phone') || m.includes('phone number already exists')) {
+    if (
+      m.includes('contact_phone') ||
+      m.includes('phone number already exists') ||
+      m.includes('consumer_profiles_contact_phone_norm_unique')
+    ) {
       return 'An account with this phone number already exists. Try signing in instead.';
     }
     return message;

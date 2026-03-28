@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { LogIn, UserPlus, Globe, Check, MapPin, Users, CreditCard } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { ensureSupplierProfile } from '../../data/supabase-supplier-profile';
+import { isPhoneAvailableForSignup } from '../../data/supabase-phone-signup';
 import { notifySupplierEvent } from '../../data/supabase-supplier-messaging';
 import { publicSiteBaseUrl } from '../../lib/publicSiteUrl';
 import { isSignUpEmailAlreadyRegistered } from '../../lib/supabaseAuthHelpers';
@@ -55,7 +56,8 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
     }
     if (
       (m.includes('duplicate key') && m.includes('contact_phone')) ||
-      m.includes('supplier_profiles_contact_phone_unique')
+      m.includes('supplier_profiles_contact_phone_unique') ||
+      m.includes('supplier_profiles_contact_phone_norm_unique')
     ) {
       return 'An account with this phone number already exists. Please use another phone number or sign in.';
     }
@@ -96,13 +98,13 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
       if (isSupabase && supabase) {
         if (mode === 'signup') {
           const cleanBusinessName = businessName.trim();
-          const cleanPhoneNumber = normalizePhone(phoneNumber);
-          const { data: existingPhoneRows, error: phoneCheckError } = await supabase
-            .from('supplier_profiles')
-            .select('id')
-            .eq('contact_phone', cleanPhoneNumber)
-            .limit(1);
-          if (!phoneCheckError && (existingPhoneRows?.length ?? 0) > 0) {
+          const cleanPhoneNumber = normalizePhoneNumber(phoneNumber);
+          const phoneAvail = await isPhoneAvailableForSignup(phoneNumber);
+          if (phoneAvail.error) {
+            setError(mapAuthError(phoneAvail.error));
+            return;
+          }
+          if (!phoneAvail.available) {
             setError('An account with this phone number already exists. Please sign in instead.');
             return;
           }
