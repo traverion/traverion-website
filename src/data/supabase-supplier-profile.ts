@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { normalizePhoneNumber } from '../lib/phoneNormalize';
 
 export type SupplierProfileRow = {
   id: string;
@@ -43,6 +44,9 @@ export async function ensureSupplierProfile(
   if (!supabase) return { success: false, error: 'Supabase not configured' };
   const normalizedCompanyName = payload?.company_legal_name?.trim() || null;
   const normalizedDisplayName = payload?.display_name?.trim() || normalizedCompanyName;
+  const normalizedContactPhone = payload?.contact_phone
+    ? normalizePhoneNumber(payload.contact_phone)
+    : '';
   const { error } = await supabase
     .from('supplier_profiles')
     .upsert(
@@ -50,7 +54,7 @@ export async function ensureSupplierProfile(
         id: userId,
         ...(normalizedDisplayName ? { display_name: normalizedDisplayName } : {}),
         ...(normalizedCompanyName ? { company_legal_name: normalizedCompanyName } : {}),
-        ...(payload?.contact_phone ? { contact_phone: payload.contact_phone } : {}),
+        ...(normalizedContactPhone ? { contact_phone: normalizedContactPhone } : {}),
         updated_at: new Date().toISOString(),
       },
       { onConflict: 'id' }

@@ -5,6 +5,7 @@ import { ensureSupplierProfile } from '../../data/supabase-supplier-profile';
 import { notifySupplierEvent } from '../../data/supabase-supplier-messaging';
 import { publicSiteBaseUrl } from '../../lib/publicSiteUrl';
 import { isSignUpEmailAlreadyRegistered } from '../../lib/supabaseAuthHelpers';
+import { normalizePhoneNumber } from '../../lib/phoneNormalize';
 
 /** Fire-and-forget welcome email (Edge Function dedupes via welcome_email_sent_at). */
 function sendSupplierWelcomeEmail(userId: string): void {
@@ -21,14 +22,6 @@ interface SupplierAuthProps {
 }
 
 type Mode = 'signin' | 'signup';
-
-function normalizePhone(phone: string): string {
-  const trimmed = phone.trim();
-  if (!trimmed) return '';
-  const keepLeadingPlus = trimmed.startsWith('+');
-  const digitsOnly = trimmed.replace(/\D/g, '');
-  return keepLeadingPlus ? `+${digitsOnly}` : digitsOnly;
-}
 
 const BENEFITS = [
   { icon: MapPin, text: 'List once — your tours appear on Traverion for travelers worldwide' },
@@ -85,7 +78,7 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
       setError('Phone number is required');
       return;
     }
-    if (mode === 'signup' && normalizePhone(phoneNumber).length < 6) {
+    if (mode === 'signup' && normalizePhoneNumber(phoneNumber).replace(/\D/g, '').length < 9) {
       setError('Enter a valid phone number');
       return;
     }
@@ -176,7 +169,7 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
             const ensured = await ensureSupplierProfile(data.user.id, {
               display_name: userMeta?.supplier_business_name?.trim() || normalizedEmail.split('@')[0] || null,
               company_legal_name: userMeta?.supplier_business_name?.trim() || null,
-              contact_phone: normalizePhone(userMeta?.supplier_phone ?? ''),
+              contact_phone: normalizePhoneNumber(userMeta?.supplier_phone ?? ''),
             });
             if (!ensured.success) {
               await supabase.auth.signOut();

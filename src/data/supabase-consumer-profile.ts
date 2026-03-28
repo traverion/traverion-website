@@ -1,11 +1,8 @@
 import { supabase } from '../lib/supabase';
+import { normalizePhoneNumber } from '../lib/phoneNormalize';
 
 function normalizePhone(phone: string): string {
-  const trimmed = phone.trim();
-  if (!trimmed) return '';
-  const keepLeadingPlus = trimmed.startsWith('+');
-  const digitsOnly = trimmed.replace(/\D/g, '');
-  return keepLeadingPlus ? `+${digitsOnly}` : digitsOnly;
+  return normalizePhoneNumber(phone);
 }
 
 export async function isConsumerPhoneAvailable(phone: string): Promise<{ available: boolean; error?: string }> {

@@ -89,7 +89,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
         setError('Phone number is required');
         return;
       }
-      if (normalizeConsumerPhone(phoneNumber).length < 6) {
+      if (normalizeConsumerPhone(phoneNumber).replace(/\D/g, '').length < 9) {
         setError('Enter a valid phone number');
         return;
       }
