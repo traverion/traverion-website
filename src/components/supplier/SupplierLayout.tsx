@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { LayoutDashboard, MapPin, Calendar, DollarSign, Settings, LogOut, Menu, X, Star, ClipboardList, Lock, UserCircle2, ChevronDown } from 'lucide-react';
+import { LayoutDashboard, MapPin, Calendar, DollarSign, Settings, LogOut, Menu, X, Star, ClipboardList, UserCircle2, ChevronDown } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { supabase } from '../../lib/supabase';
 import SupplierDashboard from '../../pages/supplier/SupplierDashboard';
@@ -40,15 +40,6 @@ const NAV_ITEMS: { id: SupplierSection; label: string; icon: typeof LayoutDashbo
 ];
 const ROUTABLE_SECTIONS = [...NAV_ITEMS.map((n) => n.id), 'badges'] as const;
 type ExtraSupplierSection = (typeof ROUTABLE_SECTIONS)[number];
-
-function canAccessSection(role: SupplierRole, section: SupplierSection): boolean {
-  if (role === 'owner') return true;
-  if (role === 'manager') return section !== 'earnings';
-  if (role === 'ops') return ['dashboard', 'bookings', 'pickup', 'reviews', 'settings', 'badges'].includes(section);
-  if (role === 'finance') return ['dashboard', 'earnings', 'settings', 'badges'].includes(section);
-  // viewer
-  return ['dashboard', 'reviews'].includes(section);
-}
 
 function getSectionFromPath(pathname: string): SupplierSection | null {
   if (pathname === '/supplier' || pathname === '/supplier/') return 'dashboard';
@@ -185,13 +176,6 @@ export default function SupplierLayout() {
   }, []);
 
   useEffect(() => {
-    if (!canAccessSection(role, section)) {
-      setSection('dashboard');
-      window.history.replaceState({}, '', '/supplier');
-    }
-  }, [role, section]);
-
-  useEffect(() => {
     const savedBadge = localStorage.getItem('supplier_badge_state');
     if (savedBadge) {
       try {
@@ -309,18 +293,13 @@ export default function SupplierLayout() {
             <button
               type="button"
               key={item.id}
-              onClick={() => {
-                if (canAccessSection(role, item.id)) handleNavigate(item.id);
-              }}
-              disabled={!canAccessSection(role, item.id)}
+              onClick={() => handleNavigate(item.id)}
               className={`lux-flat w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left text-sm font-medium transition-colors duration-300 ease-lux ${
                 section === item.id ? 'bg-finland/10 text-finland' : 'text-gray-600 hover:bg-gray-100'
               }`}
-              title={!canAccessSection(role, item.id) ? `Restricted for role: ${role}` : undefined}
             >
               <item.icon className="w-5 h-5 flex-shrink-0" />
               {item.label}
-              {!canAccessSection(role, item.id) && <Lock className="w-3.5 h-3.5 ml-auto text-gray-400" />}
             </button>
           ))}
         </nav>
@@ -372,17 +351,15 @@ export default function SupplierLayout() {
               type="button"
               key={item.id}
               onClick={() => {
-                if (canAccessSection(role, item.id)) handleNavigate(item.id);
+                handleNavigate(item.id);
+                setSidebarOpen(false);
               }}
-              disabled={!canAccessSection(role, item.id)}
               className={`lux-flat w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left text-sm font-medium transition-colors duration-300 ease-lux ${
                 section === item.id ? 'bg-finland/10 text-finland' : 'text-gray-600 hover:bg-gray-50'
               }`}
-              title={!canAccessSection(role, item.id) ? `Restricted for role: ${role}` : undefined}
             >
               <item.icon className="w-5 h-5" />
               {item.label}
-              {!canAccessSection(role, item.id) && <Lock className="w-3.5 h-3.5 ml-auto text-gray-400" />}
             </button>
           ))}
         </nav>
@@ -474,15 +451,7 @@ export default function SupplierLayout() {
         )}
         <main className="p-4 sm:p-6 lg:p-8 overflow-x-hidden">
           <div key={section} className="lux-page-enter">
-          {!canAccessSection(role, section) && (
-            <div className="bg-white border border-amber-200 rounded-xl p-6">
-              <h2 className="text-lg font-semibold text-gray-900">Access restricted</h2>
-              <p className="text-sm text-gray-600 mt-1">
-                Your current role (<span className="font-medium">{role}</span>) does not have access to this section.
-              </p>
-            </div>
-          )}
-          {section === 'dashboard' && canAccessSection(role, section) && (
+          {section === 'dashboard' && (
             <SupplierDashboard
               onNavigateToListings={() => handleNavigate('listings')}
               onNavigateToSettings={() => handleNavigate('settings')}
@@ -493,12 +462,12 @@ export default function SupplierLayout() {
               onSupplierSetupNext={onboardingNextAction}
             />
           )}
-          {section === 'listings' && canAccessSection(role, section) && <SupplierListings />}
-          {section === 'bookings' && canAccessSection(role, section) && <SupplierBookings />}
-          {section === 'earnings' && canAccessSection(role, section) && <SupplierEarnings />}
-          {section === 'reviews' && canAccessSection(role, section) && <SupplierReviews />}
-          {section === 'pickup' && canAccessSection(role, section) && <SupplierPickupPlanner />}
-          {section === 'badges' && canAccessSection(role, section) && (
+          {section === 'listings' && <SupplierListings />}
+          {section === 'bookings' && <SupplierBookings />}
+          {section === 'earnings' && <SupplierEarnings />}
+          {section === 'reviews' && <SupplierReviews />}
+          {section === 'pickup' && <SupplierPickupPlanner />}
+          {section === 'badges' && (
             <div className="space-y-6">
               <h1 className="text-2xl font-semibold text-gray-900">Brand assets</h1>
               <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4 max-w-2xl">
@@ -541,7 +510,7 @@ export default function SupplierLayout() {
               </div>
             </div>
           )}
-          {section === 'settings' && canAccessSection(role, section) && (
+          {section === 'settings' && (
             <div className="space-y-6">
               <h1 className="text-2xl font-semibold text-gray-900">Settings</h1>
               <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-5">

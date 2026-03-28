@@ -8,9 +8,14 @@ import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import SupplierListingForm from './SupplierListingForm';
 import { computeListingQuality, listingQualityPercent } from '../../lib/listingQualityScore';
 import { navigateSupplierUrl, openSupplierListingEditor } from '../../lib/supplierPortalNavigation';
+import { isSupplierBusinessProfileComplete } from '../../lib/supplierOnboarding';
+import { canManageBookings } from '../../lib/supplierTeamRoles';
+import { useSupplierRole } from '../../hooks/useSupplierRole';
 
 export default function SupplierListings() {
   const { user, isSupabase } = useSupplierAuth();
+  const { role } = useSupplierRole();
+  const canEditListings = canManageBookings(role);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formFocusSection, setFormFocusSection] = useState<string | null>(null);
@@ -18,10 +23,11 @@ export default function SupplierListings() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedQualityId, setExpandedQualityId] = useState<string | null>(null);
-  const [profileReadyToList, setProfileReadyToList] = useState(true);
+  /** Business profile complete + Traverion verification approved — required to add or publish tours. */
+  const [canPostNewListing, setCanPostNewListing] = useState(false);
   const [profileGateMessage, setProfileGateMessage] = useState<string | null>(null);
   const [missingBusinessDetails, setMissingBusinessDetails] = useState(false);
-  const [missingPayoutDetails, setMissingPayoutDetails] = useState(false);
+  const [verificationStatus, setVerificationStatus] = useState<string | null>(null);
 
   const syncListingsUrlToState = useCallback(() => {
     const params = new URLSearchParams(window.location.search);
@@ -43,6 +49,17 @@ export default function SupplierListings() {
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
   }, [syncListingsUrlToState]);
+
+  useEffect(() => {
+    if (canEditListings) return;
+    setShowForm(false);
+    setEditingId(null);
+    setFormFocusSection(null);
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('edit')) {
+      window.history.replaceState({}, '', '/supplier/listings');
+    }
+  }, [canEditListings]);
 
   useEffect(() => {
     if (loading) return;
@@ -125,21 +142,32 @@ export default function SupplierListings() {
   useEffect(() => {
     const loadProfileGate = async () => {
       if (!isSupabase || !user?.id) {
-        setProfileReadyToList(true);
+        setCanPostNewListing(true);
         setProfileGateMessage(null);
         setMissingBusinessDetails(false);
-        setMissingPayoutDetails(false);
+        setVerificationStatus(null);
         return;
       }
       const profile = await fetchSupplierProfile(user.id);
-      const hasBusinessDetails = !!profile?.company_legal_name?.trim();
-      const hasPayout = !!profile?.payout_method && profile.payout_method !== 'none';
-      const ready = hasBusinessDetails && hasPayout;
-      setMissingBusinessDetails(!hasBusinessDetails);
-      setMissingPayoutDetails(!hasPayout);
-      setProfileReadyToList(ready);
-      if (!ready) {
-        setProfileGateMessage('To create or publish listings, complete Business profile and Payout method in Settings.');
+      const businessComplete = isSupplierBusinessProfileComplete(profile);
+      const v = profile?.verification_status ?? null;
+      setVerificationStatus(v);
+      setMissingBusinessDetails(!businessComplete);
+      const verified = v === 'verified';
+      const canPost = businessComplete && verified;
+      setCanPostNewListing(canPost);
+      if (!businessComplete) {
+        setProfileGateMessage(
+          'Complete your business profile in Settings. After Traverion verifies your business, you can add and publish tours.'
+        );
+      } else if (v === 'rejected') {
+        setProfileGateMessage(
+          'Business verification was not approved. Update your business details in Settings and contact support if you need help before adding tours.'
+        );
+      } else if (!verified) {
+        setProfileGateMessage(
+          'Business details are on file. Once Traverion marks your account as verified, you can add and publish tours.'
+        );
       } else {
         setProfileGateMessage(null);
       }
@@ -154,8 +182,13 @@ export default function SupplierListings() {
   };
 
   const handleSave = async (tour: TourPackage) => {
-    if (isSupabase && !profileReadyToList) {
-      setError('Complete Business profile and Payout method before creating listings.');
+    if (!canEditListings) {
+      setError('Your role can view listings but cannot create or edit them.');
+      setShowForm(false);
+      return;
+    }
+    if (isSupabase && !editingId && !canPostNewListing) {
+      setError('Complete business verification before creating a new listing.');
       setShowForm(false);
       return;
     }
@@ -177,6 +210,7 @@ export default function SupplierListings() {
   };
 
   const handleDelete = async (id: string) => {
+    if (!canEditListings) return;
     if (!window.confirm('Remove this listing?')) return;
     if (isSupabase) {
       await deleteListing(id);
@@ -190,8 +224,12 @@ export default function SupplierListings() {
 
   const handleStatusChange = async (listing: TourPackage, newStatus: 'draft' | 'published') => {
     if (!isSupabase || !user) return;
-    if (newStatus === 'published' && !profileReadyToList) {
-      setError('Complete Business profile and Payout method before publishing listings.');
+    if (!canEditListings) {
+      setError('Your role cannot change listing status.');
+      return;
+    }
+    if (newStatus === 'published' && !canPostNewListing) {
+      setError('Business verification must be approved before publishing listings.');
       return;
     }
     const ok = await updateListingStatus(listing.id, newStatus);
@@ -208,14 +246,21 @@ export default function SupplierListings() {
         <button
           type="button"
           onClick={() => {
-            if (!profileReadyToList) return;
+            if (!canEditListings || !canPostNewListing) return;
             setEditingId(null);
             setShowForm(true);
             setFormFocusSection(null);
             window.history.pushState({}, '', '/supplier/listings');
             window.dispatchEvent(new PopStateEvent('popstate'));
           }}
-          disabled={!profileReadyToList}
+          disabled={!canEditListings || !canPostNewListing}
+          title={
+            !canEditListings
+              ? 'Your role can view listings but cannot add new ones.'
+              : !canPostNewListing
+                ? 'Complete business profile and get verified before adding a tour.'
+                : undefined
+          }
           className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark transition-colors disabled:opacity-50"
         >
           <Plus className="w-5 h-5" />
@@ -223,10 +268,24 @@ export default function SupplierListings() {
         </button>
       </div>
 
-      {!profileReadyToList && (
+      {!canEditListings && (
+        <div className="p-4 rounded-lg bg-slate-50 border border-slate-200 text-slate-800 text-sm">
+          <p className="font-medium text-slate-900">View-only access</p>
+          <p className="mt-1 text-slate-600">
+            You can browse listings on this page. Creating, editing, or publishing requires an owner, manager, or ops role.
+          </p>
+        </div>
+      )}
+
+      {canEditListings && !canPostNewListing && (
         <div className="p-4 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <p>{profileGateMessage}</p>
+            {verificationStatus && (
+              <p className="mt-1 text-xs text-amber-800/90">
+                Current status: <span className="font-semibold capitalize">{verificationStatus}</span>
+              </p>
+            )}
             <div className="mt-2 flex flex-wrap items-center gap-2">
               {missingBusinessDetails && (
                 <button
@@ -234,16 +293,16 @@ export default function SupplierListings() {
                   onClick={() => navigateSupplierUrl('/supplier/settings#supplier-settings-company')}
                   className="text-xs px-2.5 py-1 rounded-full border border-amber-300 bg-white text-amber-800 hover:bg-amber-100"
                 >
-                  Missing: Business profile
+                  Complete business profile
                 </button>
               )}
-              {missingPayoutDetails && (
+              {!missingBusinessDetails && verificationStatus !== 'verified' && (
                 <button
                   type="button"
-                  onClick={() => navigateSupplierUrl('/supplier/settings#supplier-settings-payout')}
+                  onClick={() => navigateSupplierUrl('/supplier/settings#supplier-settings-company')}
                   className="text-xs px-2.5 py-1 rounded-full border border-amber-300 bg-white text-amber-800 hover:bg-amber-100"
                 >
-                  Missing: Payout method
+                  Business profile & verification
                 </button>
               )}
             </div>
@@ -251,9 +310,9 @@ export default function SupplierListings() {
           <button
             type="button"
             onClick={() => navigateSupplierUrl('/supplier/settings')}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark shrink-0"
           >
-            Complete setup
+            Open settings
           </button>
         </div>
       )}
@@ -341,10 +400,17 @@ export default function SupplierListings() {
           <button
             type="button"
             onClick={() => {
-              if (!profileReadyToList) return;
+              if (!canEditListings || !canPostNewListing) return;
               setShowForm(true);
             }}
-            disabled={!profileReadyToList}
+            disabled={!canEditListings || !canPostNewListing}
+            title={
+              !canEditListings
+                ? 'Your role cannot add listings.'
+                : !canPostNewListing
+                  ? 'Complete verification before adding a tour.'
+                  : undefined
+            }
             className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark transition-colors disabled:opacity-50"
           >
             <Plus className="w-5 h-5" />
@@ -416,11 +482,17 @@ export default function SupplierListings() {
                             {listing.status === 'published' ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
                             {listing.status ?? 'published'}
                           </span>
-                          {isSupabase && (
+                          {isSupabase && canEditListings && (
                             <button
                               type="button"
                               onClick={() => handleStatusChange(listing, listing.status === 'published' ? 'draft' : 'published')}
-                              className="ml-2 text-xs text-finland hover:underline"
+                              disabled={listing.status !== 'published' && !canPostNewListing}
+                              title={
+                                listing.status !== 'published' && !canPostNewListing
+                                  ? 'Verification required to publish'
+                                  : undefined
+                              }
+                              className="ml-2 text-xs text-finland hover:underline disabled:opacity-40 disabled:no-underline disabled:cursor-not-allowed"
                             >
                               → {listing.status === 'published' ? 'Draft' : 'Publish'}
                             </button>
@@ -431,16 +503,18 @@ export default function SupplierListings() {
                             <button
                               type="button"
                               onClick={() => openSupplierListingEditor(listing.id)}
-                              className="p-2 rounded-lg text-gray-600 hover:bg-gray-200 hover:text-finland"
-                              title="Edit"
+                              disabled={!canEditListings}
+                              className="p-2 rounded-lg text-gray-600 hover:bg-gray-200 hover:text-finland disabled:opacity-40 disabled:pointer-events-none"
+                              title={canEditListings ? 'Edit' : 'View only'}
                             >
                               <Pencil className="w-4 h-4" />
                             </button>
                             <button
                               type="button"
                               onClick={() => handleDelete(listing.id)}
-                              className="p-2 rounded-lg text-gray-600 hover:bg-red-50 hover:text-red-600"
-                              title="Delete"
+                              disabled={!canEditListings}
+                              className="p-2 rounded-lg text-gray-600 hover:bg-red-50 hover:text-red-600 disabled:opacity-40 disabled:pointer-events-none"
+                              title={canEditListings ? 'Delete' : 'View only'}
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
@@ -457,7 +531,8 @@ export default function SupplierListings() {
                                 onClick={() => {
                                   openSupplierListingEditor(listing.id);
                                 }}
-                                className="inline-flex items-center gap-2 self-start px-3 py-1.5 rounded-lg bg-finland text-white text-sm font-medium hover:bg-finland-dark"
+                                disabled={!canEditListings}
+                                className="inline-flex items-center gap-2 self-start px-3 py-1.5 rounded-lg bg-finland text-white text-sm font-medium hover:bg-finland-dark disabled:opacity-40"
                               >
                                 <Pencil className="w-4 h-4" />
                                 Edit listing
@@ -482,7 +557,7 @@ export default function SupplierListings() {
                                     {!complete && c.tip && (
                                       <p className="text-xs text-gray-600 mt-1">{c.tip}</p>
                                     )}
-                                    {!complete && (
+                                    {!complete && canEditListings && (
                                       <button
                                         type="button"
                                         onClick={() => openSupplierListingEditor(listing.id, c.id)}
