@@ -1,9 +1,10 @@
 import { publicSiteBaseUrl } from './publicSiteUrl';
 
 /**
- * Official Traverion mark: `public/traverionlogotransparent.png`.
+ * Official Traverion mark: `public/traverionlogotransparent.png` (landscape ~922×685).
  * Use BRAND_LOGO_SRC everywhere on the site; keep email templates and index.html favicon links
  * on the same filename if you ever rename the file.
+ * Email HTML: use proportional width/height (e.g. 200×149), never a square box, or the logo looks stretched.
  */
 export const BRAND_LOGO_FILENAME = 'traverionlogotransparent.png';
 
