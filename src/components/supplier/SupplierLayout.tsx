@@ -111,6 +111,11 @@ export default function SupplierLayout() {
   const [passwordMessage, setPasswordMessage] = useState<'success' | 'error' | null>(null);
   const [badgeEnabled, setBadgeEnabled] = useState(false);
   const [badgeVariant, setBadgeVariant] = useState<BadgeVariant>('gold');
+  const [verificationSending, setVerificationSending] = useState(false);
+  const [verificationMessage, setVerificationMessage] = useState<'sent' | 'error' | null>(null);
+
+  const supplierEmail = typeof user?.email === 'string' ? user.email : '';
+  const supplierEmailVerified = Boolean((user as { email_confirmed_at?: string | null } | null)?.email_confirmed_at);
 
   useEffect(() => {
     if (section !== 'settings' || !user?.id || !isSupabase) return;
@@ -568,8 +573,40 @@ export default function SupplierLayout() {
               <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-6">
                 <div id="supplier-settings-account">
                   <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide">Account</h2>
-                  <p className="mt-1 text-gray-900">{user?.email ?? '—'}</p>
+                  <p className="mt-1 text-gray-900">{supplierEmail || '—'}</p>
                   <p className="mt-1 text-xs text-gray-500">Current role: <span className="font-medium text-gray-700">{role}</span></p>
+                  <div className={`mt-3 rounded-lg border px-3 py-2 text-sm ${supplierEmailVerified ? 'border-green-200 bg-green-50 text-green-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                    {supplierEmailVerified ? 'Email verification: Verified' : 'Email verification: Not verified. Verify your email before you can log in.'}
+                  </div>
+                  {!supplierEmailVerified && supplierEmail && isSupabase && (
+                    <div className="mt-2">
+                      <button
+                        type="button"
+                        disabled={verificationSending}
+                        onClick={async () => {
+                          if (!supabase || !supplierEmail) return;
+                          setVerificationMessage(null);
+                          setVerificationSending(true);
+                          const { error } = await supabase.auth.resend({
+                            type: 'signup',
+                            email: supplierEmail.trim().toLowerCase(),
+                            options: { emailRedirectTo: `${window.location.origin}/supplier-log-in` },
+                          });
+                          setVerificationSending(false);
+                          setVerificationMessage(error ? 'error' : 'sent');
+                        }}
+                        className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                      >
+                        {verificationSending ? 'Sending verification…' : 'Resend verification email'}
+                      </button>
+                      {verificationMessage === 'sent' && (
+                        <p className="mt-2 text-xs text-green-700">Verification email sent. Check inbox/spam.</p>
+                      )}
+                      {verificationMessage === 'error' && (
+                        <p className="mt-2 text-xs text-red-600">Could not resend right now. Try again shortly.</p>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div>
