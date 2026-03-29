@@ -104,7 +104,7 @@ export default function SupplierPickupPlanner() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [view, setView] = useState<PlannerView>('table');
-  const prevViewRef = useRef<PlannerView>(view);
+  const prevViewRef = useRef<PlannerView>('table');
   const [calendarRange, setCalendarRange] = useState<CalendarRange>('week');
   const [calendarAnchorDate, setCalendarAnchorDate] = useState<string>(toYmd(new Date()));
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
