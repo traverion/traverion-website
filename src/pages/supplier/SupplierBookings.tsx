@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Calendar, Mail, RefreshCw, CheckCircle, MessageCircle, Trash2, FileText, AlertCircle, Download, Ticket } from 'lucide-react';
+import { Calendar, Mail, RefreshCw, CheckCircle, MessageCircle, Trash2, FileText, AlertCircle, Download, Ticket, ChevronDown } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import {
   fetchBookingsForSupplier,
@@ -57,8 +57,6 @@ const BOOKING_AUDIT_KEY = 'traverion_supplier_booking_audit';
 const VOUCHER_LOG_KEY = 'traverion_supplier_voucher_log';
 const REMINDER_SETTINGS_KEY = 'traverion_supplier_reminder_settings';
 const REMINDER_SENT_KEY = 'traverion_supplier_reminder_sent';
-const FILTER_PRESETS_KEY = 'traverion_supplier_booking_filter_presets';
-
 const MESSAGE_TEMPLATES = [
   {
     id: 'welcome',
@@ -162,17 +160,15 @@ type ReminderRunEntry = {
   mode: 'manual' | 'auto';
 };
 
-type BookingFilterPreset = {
-  id: string;
-  name: string;
-  view: 'all' | 'pending' | 'needs_ack' | 'upcoming' | 'cancelled';
-  listingId: string;
-  dateFrom: string;
-  dateTo: string;
-  createdAt: string;
-};
-
 const OPS_NOTES_KEY = 'traverion_supplier_ops_notes';
+
+function bookingPurchaseDateLocal(iso: string): string {
+  const d = new Date(iso);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
 
 export default function SupplierBookings() {
   const { user, isSupabase } = useSupplierAuth();
@@ -196,8 +192,9 @@ export default function SupplierBookings() {
   const [filterListingId, setFilterListingId] = useState('');
   const [filterDateFrom, setFilterDateFrom] = useState('');
   const [filterDateTo, setFilterDateTo] = useState('');
-  const [filterPresets, setFilterPresets] = useState<BookingFilterPreset[]>([]);
-  const [newPresetName, setNewPresetName] = useState('');
+  const [filterPurchaseDateFrom, setFilterPurchaseDateFrom] = useState('');
+  const [filterPurchaseDateTo, setFilterPurchaseDateTo] = useState('');
+  const [filterQuery, setFilterQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkCancelModal, setBulkCancelModal] = useState(false);
   const [bulkCancelReason, setBulkCancelReason] = useState('');
@@ -421,21 +418,6 @@ export default function SupplierBookings() {
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(FILTER_PRESETS_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as BookingFilterPreset[];
-      if (Array.isArray(parsed)) setFilterPresets(parsed.slice(0, 20));
-    } catch {
-      // Ignore malformed local storage values.
-    }
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem(FILTER_PRESETS_KEY, JSON.stringify(filterPresets.slice(0, 20)));
-  }, [filterPresets]);
-
-  useEffect(() => {
-    try {
       const raw = localStorage.getItem(BOOKING_AUDIT_KEY);
       if (!raw) return;
       const parsed = JSON.parse(raw) as BookingAuditEntry[];
@@ -647,6 +629,7 @@ export default function SupplierBookings() {
   const todayIso = new Date().toISOString().slice(0, 10);
 
   const filteredBookings = useMemo(() => {
+    const q = filterQuery.trim().toLowerCase();
     return bookings.filter((b) => {
       if (view === 'pending' && b.status !== 'pending') return false;
       if (view === 'needs_ack' && !!b.acknowledged_at) return false;
@@ -659,9 +642,32 @@ export default function SupplierBookings() {
       if (filterListingId && b.listing_id !== filterListingId) return false;
       if (filterDateFrom && (!b.booking_date || b.booking_date < filterDateFrom)) return false;
       if (filterDateTo && (!b.booking_date || b.booking_date > filterDateTo)) return false;
+      const purchaseDay = bookingPurchaseDateLocal(b.created_at);
+      if (filterPurchaseDateFrom && purchaseDay < filterPurchaseDateFrom) return false;
+      if (filterPurchaseDateTo && purchaseDay > filterPurchaseDateTo) return false;
+      if (q) {
+        const title = (listingTitles[b.listing_id] ?? '').toLowerCase();
+        const idLower = b.id.toLowerCase();
+        const guestName = (b.guest_name ?? '').toLowerCase();
+        const guestEmail = (b.guest_email ?? '').toLowerCase();
+        const matches =
+          idLower.includes(q) || guestName.includes(q) || guestEmail.includes(q) || title.includes(q);
+        if (!matches) return false;
+      }
       return true;
     });
-  }, [bookings, view, filterListingId, filterDateFrom, filterDateTo, todayIso]);
+  }, [
+    bookings,
+    view,
+    filterListingId,
+    filterDateFrom,
+    filterDateTo,
+    filterPurchaseDateFrom,
+    filterPurchaseDateTo,
+    filterQuery,
+    listingTitles,
+    todayIso,
+  ]);
 
   useEffect(() => {
     if (!highlightBookingId) return;
@@ -676,6 +682,9 @@ export default function SupplierBookings() {
       setFilterListingId('');
       setFilterDateFrom('');
       setFilterDateTo('');
+      setFilterPurchaseDateFrom('');
+      setFilterPurchaseDateTo('');
+      setFilterQuery('');
     }
   }, [highlightBookingId, filteredBookings]);
 
@@ -1700,34 +1709,6 @@ export default function SupplierBookings() {
     }
   };
 
-  const handleSaveFilterPreset = () => {
-    const name = newPresetName.trim();
-    if (!name) return;
-    const preset: BookingFilterPreset = {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      name,
-      view,
-      listingId: filterListingId,
-      dateFrom: filterDateFrom,
-      dateTo: filterDateTo,
-      createdAt: new Date().toISOString(),
-    };
-    setFilterPresets((prev) => [preset, ...prev].slice(0, 20));
-    setNewPresetName('');
-  };
-
-  const applyFilterPreset = (preset: BookingFilterPreset) => {
-    setView(preset.view);
-    setFilterListingId(preset.listingId);
-    setFilterDateFrom(preset.dateFrom);
-    setFilterDateTo(preset.dateTo);
-    setSelectedIds([]);
-  };
-
-  const deleteFilterPreset = (presetId: string) => {
-    setFilterPresets((prev) => prev.filter((p) => p.id !== presetId));
-  };
-
   const bookingTimeline = useMemo(() => {
     if (!timelineBookingId) return [];
     const booking = bookings.find((b) => b.id === timelineBookingId);
@@ -1831,7 +1812,7 @@ export default function SupplierBookings() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">Bookings</h1>
-          <p className="text-gray-600 mt-1">View and manage incoming bookings for your listings.</p>
+          <p className="text-gray-600 mt-1">Filter and work the list below. Reminders, bulk email, exports, and vouchers live under Operations and messaging tools.</p>
           {!canEditBookings && (
             <p className="text-xs text-amber-700 mt-1">
               Your role is {role}. You can view bookings, but edit actions are restricted.
@@ -1860,98 +1841,562 @@ export default function SupplierBookings() {
         </div>
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
-        <div className="flex flex-wrap gap-2">
-          {[
-            { id: 'all', label: 'All' },
-            { id: 'pending', label: 'Pending' },
-            { id: 'needs_ack', label: 'Needs ack' },
-            { id: 'upcoming', label: 'Upcoming' },
-            { id: 'cancelled', label: 'Cancelled' },
-          ].map((v) => (
-            <button
-              key={v.id}
-              type="button"
-              onClick={() => {
-                setView(v.id as typeof view);
-                setSelectedIds([]);
-              }}
-              className={`px-3 py-1.5 rounded-full text-sm border ${
-                view === v.id ? 'bg-finland/10 text-finland border-finland/20' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
-              }`}
-            >
-              {v.label}
-            </button>
-          ))}
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-          <select
-            value={filterListingId}
-            onChange={(e) => setFilterListingId(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white text-sm"
-          >
-            <option value="">All listings</option>
-            {listingOptions.map((o) => (
-              <option key={o.id} value={o.id}>{o.title}</option>
-            ))}
-          </select>
-          <input
-            type="date"
-            value={filterDateFrom}
-            onChange={(e) => setFilterDateFrom(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland text-sm"
-          />
-          <input
-            type="date"
-            value={filterDateTo}
-            onChange={(e) => setFilterDateTo(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland text-sm"
-          />
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-2 items-start">
-          <div className="flex flex-wrap gap-2">
-            {filterPresets.map((preset) => (
-              <div key={preset.id} className="inline-flex items-center gap-1 border border-gray-200 rounded-full px-2 py-1 bg-gray-50">
-                <button
-                  type="button"
-                  onClick={() => applyFilterPreset(preset)}
-                  className="text-xs text-gray-700 hover:text-finland"
-                >
-                  {preset.name}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => deleteFilterPreset(preset.id)}
-                  className="text-xs text-gray-400 hover:text-red-600"
-                  aria-label={`Delete preset ${preset.name}`}
-                >
-                  ×
-                </button>
+      <div className="bg-white border border-gray-200 rounded-xl px-3 py-3 sm:px-4">
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
+            <div className="flex flex-col gap-1 min-w-[min(100%,12rem)] flex-1 sm:flex-none sm:min-w-[11rem]">
+              <label className="text-[11px] font-medium uppercase tracking-wide text-gray-500">Product</label>
+              <select
+                value={filterListingId}
+                onChange={(e) => setFilterListingId(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white text-sm w-full"
+              >
+                <option value="">All products</option>
+                {listingOptions.map((o) => (
+                  <option key={o.id} value={o.id}>{o.title}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] font-medium uppercase tracking-wide text-gray-500">Purchase date</label>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <input
+                  type="date"
+                  value={filterPurchaseDateFrom}
+                  onChange={(e) => setFilterPurchaseDateFrom(e.target.value)}
+                  className="px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland text-sm min-w-0 w-[9.25rem]"
+                  aria-label="Purchase date from"
+                />
+                <span className="text-gray-400 text-sm shrink-0">–</span>
+                <input
+                  type="date"
+                  value={filterPurchaseDateTo}
+                  onChange={(e) => setFilterPurchaseDateTo(e.target.value)}
+                  className="px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland text-sm min-w-0 w-[9.25rem]"
+                  aria-label="Purchase date to"
+                />
               </div>
-            ))}
-            {filterPresets.length === 0 && (
-              <span className="text-xs text-gray-500">No saved views yet.</span>
-            )}
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] font-medium uppercase tracking-wide text-gray-500">Activity date</label>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <input
+                  type="date"
+                  value={filterDateFrom}
+                  onChange={(e) => setFilterDateFrom(e.target.value)}
+                  className="px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland text-sm min-w-0 w-[9.25rem]"
+                  aria-label="Activity date from"
+                />
+                <span className="text-gray-400 text-sm shrink-0">–</span>
+                <input
+                  type="date"
+                  value={filterDateTo}
+                  onChange={(e) => setFilterDateTo(e.target.value)}
+                  className="px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland text-sm min-w-0 w-[9.25rem]"
+                  aria-label="Activity date to"
+                />
+              </div>
+            </div>
+            <div className="flex flex-col gap-1 min-w-[10rem]">
+              <label className="text-[11px] font-medium uppercase tracking-wide text-gray-500">Status</label>
+              <select
+                value={view}
+                onChange={(e) => {
+                  setView(e.target.value as typeof view);
+                  setSelectedIds([]);
+                }}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white text-sm w-full"
+              >
+                <option value="all">All statuses</option>
+                <option value="pending">Pending</option>
+                <option value="needs_ack">Needs acknowledgment</option>
+                <option value="upcoming">Upcoming</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
           </div>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={newPresetName}
-              onChange={(e) => setNewPresetName(e.target.value)}
-              placeholder="Save current view as…"
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
-            />
-            <button
-              type="button"
-              onClick={handleSaveFilterPreset}
-              disabled={!newPresetName.trim()}
-              className="px-3 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-            >
-              Save view
-            </button>
+          <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-2 sm:gap-3">
+            <div className="flex flex-col gap-1 flex-1 min-w-[min(100%,14rem)]">
+              <label className="text-[11px] font-medium uppercase tracking-wide text-gray-500">Search</label>
+              <input
+                type="search"
+                value={filterQuery}
+                onChange={(e) => setFilterQuery(e.target.value)}
+                placeholder="Guest, email, booking ID, product name…"
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland text-sm w-full"
+              />
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={() => {
+                  setFilterListingId('');
+                  setFilterDateFrom('');
+                  setFilterDateTo('');
+                  setFilterPurchaseDateFrom('');
+                  setFilterPurchaseDateTo('');
+                  setFilterQuery('');
+                  setView('all');
+                  setSelectedIds([]);
+                }}
+                className="px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50"
+              >
+                Clear filters
+              </button>
+              {!loading && bookings.length > 0 && (
+                <span className="text-sm text-gray-500 whitespace-nowrap">
+                  {filteredBookings.length} of {bookings.length} shown
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </div>
+
+      {error && (
+        <div className="p-4 rounded-lg bg-red-50 text-red-700 text-sm flex items-center justify-between gap-4">
+          <span className="flex items-center gap-2"><AlertCircle className="w-4 h-4 flex-shrink-0" />{error}</span>
+          <button type="button" onClick={() => load()} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-100 text-red-800 font-medium hover:bg-red-200">Try again</button>
+        </div>
+      )}
+
+      {campaignOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Send bulk campaign</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Send this message to many bookings at once and log campaign delivery.
+            </p>
+            <div className="space-y-3">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="campaign-scope"
+                  checked={campaignScope === 'selected'}
+                  onChange={() => setCampaignScope('selected')}
+                />
+                Selected bookings ({selectedBookings.length})
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="campaign-scope"
+                  checked={campaignScope === 'filtered'}
+                  onChange={() => setCampaignScope('filtered')}
+                />
+                All filtered bookings ({filteredBookings.length})
+              </label>
+              <div className="rounded-lg border border-gray-200 p-3 text-sm text-gray-700">
+                <p>Recipients: <span className="font-medium">{campaignRecipients.length}</span></p>
+                <p>Bookings: <span className="font-medium">{campaignBookings.length}</span></p>
+                <p className="mt-1 text-xs text-gray-500">Subject: [Campaign] {commSubject}</p>
+              </div>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setCampaignOpen(false)}
+                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSendCampaign}
+                disabled={sendingCampaign || campaignRecipients.length === 0 || !commSubject.trim() || !commBody.trim()}
+                className="px-4 py-2 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark disabled:opacity-50"
+              >
+                {sendingCampaign ? 'Sending campaign…' : 'Send campaign'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
+          <p className="text-gray-500">Loading bookings…</p>
+        </div>
+      ) : bookings.length === 0 ? (
+        <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gray-100 text-gray-400 mb-4">
+            <Calendar className="w-7 h-7" />
+          </div>
+          <h2 className="text-lg font-semibold text-gray-900">No bookings yet</h2>
+          <p className="text-gray-500 mt-1 max-w-sm mx-auto">
+            When travelers book your experiences, they’ll appear here as confirmed. You can request cancellation (with reason and refund choice) if needed.
+          </p>
+          <div className="mt-5 flex items-center justify-center gap-2">
+            <button
+              type="button"
+              onClick={() => setView('all')}
+              className="px-4 py-2 rounded-lg bg-finland text-white text-sm font-medium hover:bg-finland-dark"
+            >
+              Refresh view
+            </button>
+          </div>
+        </div>
+      ) : filteredBookings.length === 0 ? (
+        <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
+          <h2 className="text-lg font-semibold text-gray-900">No matching bookings</h2>
+          <p className="text-gray-500 mt-1">Try a different view or clear date/listing filters.</p>
+          <button
+            type="button"
+            onClick={() => {
+              setFilterListingId('');
+              setFilterDateFrom('');
+              setFilterDateTo('');
+              setFilterPurchaseDateFrom('');
+              setFilterPurchaseDateTo('');
+              setFilterQuery('');
+              setView('all');
+            }}
+            className="mt-4 px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50"
+          >
+            Clear filters
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <div className="md:hidden bg-white border border-gray-200 rounded-xl p-4">
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <h2 className="text-sm font-semibold text-gray-900">Mobile quick actions</h2>
+              <span className="text-xs text-gray-500">
+                Today: {todayOpsBookings.length}
+              </span>
+            </div>
+            {todayOpsBookings.length === 0 ? (
+              <p className="text-sm text-gray-500">No active bookings today.</p>
+            ) : (
+              <div className="space-y-2">
+                {todayOpsBookings.map((b) => (
+                  <div key={`mobile-${b.id}`} className="border border-gray-200 rounded-lg p-3 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                          {listingTitles[b.listing_id] ?? 'Listing'}
+                        </p>
+                        <p className="text-xs text-gray-500 truncate">
+                          {b.guest_name ?? b.guest_email ?? 'Guest'} · {b.guests} guest{b.guests === 1 ? '' : 's'}
+                        </p>
+                      </div>
+                      <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
+                        b.status === 'confirmed' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'
+                      }`}>
+                        {b.status}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-600">
+                      {b.special_requests || 'No special requests'}
+                    </p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {!b.acknowledged_at && (
+                        <button
+                          type="button"
+                          onClick={() => handleAcknowledge(b)}
+                          disabled={!canEditBookings || updatingId === b.id}
+                          className="text-xs px-2.5 py-1.5 rounded bg-blue-100 text-blue-700 disabled:opacity-50"
+                        >
+                          Acknowledge
+                        </button>
+                      )}
+                      {b.status !== 'confirmed' && (
+                        <button
+                          type="button"
+                          onClick={() => handleStatusChange(b, 'confirmed')}
+                          disabled={!canEditBookings || updatingId === b.id}
+                          className="text-xs px-2.5 py-1.5 rounded bg-green-100 text-green-700 disabled:opacity-50"
+                        >
+                          Confirm
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setTimelineBookingId(b.id)}
+                        className="text-xs px-2.5 py-1.5 rounded bg-gray-100 text-gray-700"
+                      >
+                        Timeline
+                      </button>
+                      {b.guest_email && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleSendQuickTemplate(b, 'meeting')}
+                            disabled={quickMessageBookingId === b.id}
+                            className="text-xs px-2.5 py-1.5 rounded bg-indigo-100 text-indigo-700 disabled:opacity-50"
+                          >
+                            {quickMessageBookingId === b.id ? 'Sending…' : 'Send reminder'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleSendQuickTemplate(b, 'welcome')}
+                            disabled={quickMessageBookingId === b.id}
+                            className="text-xs px-2.5 py-1.5 rounded bg-violet-100 text-violet-700 disabled:opacity-50"
+                          >
+                            Send welcome
+                          </button>
+                        </>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setCancelModal(b)}
+                        disabled={!canEditBookings || updatingId === b.id}
+                        className="text-xs px-2.5 py-1.5 rounded bg-red-100 text-red-700 disabled:opacity-50"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] text-gray-500 mb-1">Ops note (offline-safe)</label>
+                      <textarea
+                        defaultValue={opsNotes[b.id]?.note ?? ''}
+                        onBlur={async (e) => {
+                          saveOpsNote(b.id, e.target.value);
+                          await syncSingleOpsNote(b.id);
+                        }}
+                        rows={2}
+                        placeholder="Add quick field notes for this booking..."
+                        className="w-full px-2.5 py-2 text-xs border border-gray-200 rounded-md focus:ring-2 focus:ring-finland"
+                      />
+                      {opsNotes[b.id]?.pendingSync && (
+                        <p className="text-[11px] text-amber-700 mt-1">
+                          Saved locally · pending sync
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-200 bg-gray-50/70 flex flex-col gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={toggleSelectAllVisible}
+                className="px-3 py-1.5 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50"
+              >
+                {filteredBookings.length > 0 && filteredBookings.every((b) => selectedIds.includes(b.id)) ? 'Unselect all' : 'Select all'}
+              </button>
+              <span className="text-sm text-gray-600">{selectedIds.length} selected</span>
+              <button
+                type="button"
+                onClick={handleBulkAcknowledge}
+                disabled={!canEditBookings || selectedIds.length === 0 || bulkActionSubmitting}
+                className="px-3 py-1.5 rounded-lg border border-blue-200 text-sm text-blue-700 bg-blue-50 hover:bg-blue-100 disabled:opacity-50"
+              >
+                Acknowledge selected
+              </button>
+              <button
+                type="button"
+                onClick={handleBulkConfirm}
+                disabled={!canEditBookings || selectedIds.length === 0 || bulkActionSubmitting}
+                className="px-3 py-1.5 rounded-lg border border-green-200 text-sm text-green-700 bg-green-50 hover:bg-green-100 disabled:opacity-50"
+              >
+                Confirm selected
+              </button>
+              <button
+                type="button"
+                onClick={() => setBulkCancelModal(true)}
+                disabled={!canEditBookings || selectedIds.length === 0 || bulkActionSubmitting}
+                className="px-3 py-1.5 rounded-lg border border-red-200 text-sm text-red-700 bg-red-50 hover:bg-red-100 disabled:opacity-50"
+              >
+                Cancel selected
+              </button>
+              {selectedIds.length > 0 && (
+                <button type="button" onClick={clearSelection} className="px-3 py-1.5 rounded-lg text-sm text-gray-600 hover:bg-gray-100">
+                  Clear
+                </button>
+              )}
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm text-gray-600">Advanced export:</span>
+              <select
+                value={exportKind}
+                onChange={(e) => setExportKind(e.target.value as 'bookings' | 'ops_summary')}
+                className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white"
+              >
+                <option value="bookings">Detailed bookings</option>
+                <option value="ops_summary">Ops summary</option>
+              </select>
+              <select
+                value={exportScope}
+                onChange={(e) => setExportScope(e.target.value as 'filtered' | 'selected')}
+                className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white"
+              >
+                <option value="filtered">Filtered rows</option>
+                <option value="selected">Selected rows</option>
+              </select>
+              <select
+                value={exportFormat}
+                onChange={(e) => setExportFormat(e.target.value as 'csv' | 'json')}
+                className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white"
+              >
+                <option value="csv">CSV</option>
+                <option value="json">JSON</option>
+              </select>
+              <input
+                type="date"
+                value={exportDateFrom}
+                onChange={(e) => setExportDateFrom(e.target.value)}
+                className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm"
+              />
+              <input
+                type="date"
+                value={exportDateTo}
+                onChange={(e) => setExportDateTo(e.target.value)}
+                className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm"
+              />
+              <button
+                type="button"
+                onClick={handleAdvancedExport}
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50"
+              >
+                <Download className="w-4 h-4" />
+                Export {exportFormat.toUpperCase()}
+              </button>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
+                    <input
+                      type="checkbox"
+                      checked={filteredBookings.length > 0 && filteredBookings.every((b) => selectedIds.includes(b.id))}
+                      onChange={toggleSelectAllVisible}
+                      aria-label="Select all visible bookings"
+                    />
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Listing</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Guest</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Date</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Guests</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Requests</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Status</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wide">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {filteredBookings.map((b) => (
+                  <tr
+                    id={`supplier-booking-row-${b.id}`}
+                    key={b.id}
+                    className={`hover:bg-gray-50/50 ${
+                      highlightBookingId === b.id ? 'ring-2 ring-finland/25 bg-finland/5' : ''
+                    }`}
+                  >
+                    <td className="px-4 py-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(b.id)}
+                        onChange={() => toggleSelected(b.id)}
+                        aria-label={`Select booking ${b.id}`}
+                      />
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-900">
+                      {listingTitles[b.listing_id] ?? <span className="text-gray-400">Listing</span>}
+                    </td>
+                    <td className="px-4 py-3 text-sm">
+                      <div className="flex items-center gap-1.5">
+                        {b.guest_name && <span className="text-gray-900">{b.guest_name}</span>}
+                        {b.guest_email && (
+                          <span className="text-gray-500 flex items-center gap-1">
+                            <Mail className="w-3.5 h-3.5" />
+                            {b.guest_email}
+                          </span>
+                        )}
+                        {!b.guest_name && !b.guest_email && <span className="text-gray-400">—</span>}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {b.booking_date ? new Date(b.booking_date).toLocaleDateString() : '—'}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{b.guests ?? '—'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600 max-w-[180px] truncate" title={b.special_requests ?? undefined}>
+                      {b.special_requests ? b.special_requests : '—'}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full ${
+                          b.status === 'confirmed'
+                            ? 'bg-green-100 text-green-800'
+                            : b.status === 'cancelled'
+                            ? 'bg-gray-100 text-gray-600'
+                            : 'bg-amber-100 text-amber-800'
+                        }`}
+                      >
+                        {b.status}
+                      </span>
+                      {b.acknowledged_at && (
+                        <span className="ml-1 text-xs text-gray-500" title="Acknowledged">✓</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex items-center justify-end gap-1 flex-wrap">
+                          <button
+                            type="button"
+                            onClick={() => setTimelineBookingId(b.id)}
+                            className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-600 hover:bg-gray-200"
+                          >
+                            Timeline
+                          </button>
+                      {b.status !== 'cancelled' && (
+                        <>
+                          {b.guest_email && (
+                            <a
+                              href={`mailto:${b.guest_email}?subject=Your booking – ${listingTitles[b.listing_id] ?? 'Tour'}`}
+                              className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-600 hover:bg-gray-200 inline-flex items-center gap-1"
+                              title="Contact customer"
+                            >
+                              <MessageCircle className="w-3.5 h-3.5" />
+                              Contact
+                            </a>
+                          )}
+                          {!b.acknowledged_at && (
+                            <button
+                              type="button"
+                              onClick={() => handleAcknowledge(b)}
+                              disabled={!canEditBookings || updatingId === b.id}
+                              className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-700 hover:bg-blue-200 inline-flex items-center gap-1 disabled:opacity-50"
+                              title="Acknowledge booking"
+                            >
+                              <CheckCircle className="w-3.5 h-3.5" />
+                              Acknowledge
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setCancelModal(b)}
+                            disabled={!canEditBookings || updatingId === b.id}
+                            className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-600 hover:bg-gray-200"
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        </div>
+      )}
+      <details className="group bg-white border border-gray-200 rounded-xl overflow-hidden">
+        <summary className="cursor-pointer list-none flex items-center justify-between gap-2 px-4 py-3 text-sm font-medium text-gray-800 hover:bg-gray-50/80 [&::-webkit-details-marker]:hidden">
+          <span className="inline-flex items-center gap-2">
+            <ChevronDown className="w-4 h-4 text-gray-500 transition-transform group-open:rotate-180" />
+            Operations and messaging tools
+          </span>
+          <span className="text-xs font-normal text-gray-500">Reminders, email, exports, vouchers</span>
+        </summary>
+        <div className="px-4 pb-4 pt-0 space-y-6 border-t border-gray-100">
 
       {(bookingSlaAlerts.pendingRisk.length > 0 ||
         bookingSlaAlerts.pendingBreach.length > 0 ||
@@ -2529,438 +2974,33 @@ export default function SupplierBookings() {
         </div>
       </div>
 
-      {error && (
-        <div className="p-4 rounded-lg bg-red-50 text-red-700 text-sm flex items-center justify-between gap-4">
-          <span className="flex items-center gap-2"><AlertCircle className="w-4 h-4 flex-shrink-0" />{error}</span>
-          <button type="button" onClick={() => load()} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-100 text-red-800 font-medium hover:bg-red-200">Try again</button>
+      <div className="bg-white border border-gray-200 rounded-xl p-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-2 flex items-center gap-2">
+          <FileText className="w-5 h-5 text-finland" />
+          Sample voucher
+        </h2>
+        <p className="text-sm text-gray-500 mb-4">
+          This is how a booking voucher could look for your guests. When payment is integrated, vouchers can be generated per booking.
+        </p>
+        <div className="border-2 border-dashed border-gray-200 rounded-lg p-6 max-w-md bg-gray-50/50">
+          <div className="text-center border-b border-gray-200 pb-4 mb-4">
+            <p className="text-xs text-gray-500 uppercase tracking-wide">Traverion</p>
+            <p className="text-lg font-semibold text-gray-900 mt-1">Booking voucher</p>
+          </div>
+          <div className="space-y-2 text-sm">
+            <p><span className="text-gray-500">Reference:</span> <span className="font-mono">TRV-XXXXXX</span></p>
+            <p><span className="text-gray-500">Guest:</span> Guest name</p>
+            <p><span className="text-gray-500">Date:</span> —</p>
+            <p><span className="text-gray-500">Experience:</span> Your listing title</p>
+          </div>
+          <div className="mt-6 h-16 bg-gray-200 rounded flex items-center justify-center text-gray-500 text-xs">
+            QR code / Barcode
+          </div>
         </div>
-      )}
+      </div>
 
-      {campaignOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Send bulk campaign</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              Send this message to many bookings at once and log campaign delivery.
-            </p>
-            <div className="space-y-3">
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="radio"
-                  name="campaign-scope"
-                  checked={campaignScope === 'selected'}
-                  onChange={() => setCampaignScope('selected')}
-                />
-                Selected bookings ({selectedBookings.length})
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="radio"
-                  name="campaign-scope"
-                  checked={campaignScope === 'filtered'}
-                  onChange={() => setCampaignScope('filtered')}
-                />
-                All filtered bookings ({filteredBookings.length})
-              </label>
-              <div className="rounded-lg border border-gray-200 p-3 text-sm text-gray-700">
-                <p>Recipients: <span className="font-medium">{campaignRecipients.length}</span></p>
-                <p>Bookings: <span className="font-medium">{campaignBookings.length}</span></p>
-                <p className="mt-1 text-xs text-gray-500">Subject: [Campaign] {commSubject}</p>
-              </div>
-            </div>
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setCampaignOpen(false)}
-                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleSendCampaign}
-                disabled={sendingCampaign || campaignRecipients.length === 0 || !commSubject.trim() || !commBody.trim()}
-                className="px-4 py-2 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark disabled:opacity-50"
-              >
-                {sendingCampaign ? 'Sending campaign…' : 'Send campaign'}
-              </button>
-            </div>
-          </div>
         </div>
-      )}
-
-      {loading ? (
-        <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
-          <p className="text-gray-500">Loading bookings…</p>
-        </div>
-      ) : bookings.length === 0 ? (
-        <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gray-100 text-gray-400 mb-4">
-            <Calendar className="w-7 h-7" />
-          </div>
-          <h2 className="text-lg font-semibold text-gray-900">No bookings yet</h2>
-          <p className="text-gray-500 mt-1 max-w-sm mx-auto">
-            When travelers book your experiences, they’ll appear here as confirmed. You can request cancellation (with reason and refund choice) if needed.
-          </p>
-          <div className="mt-5 flex items-center justify-center gap-2">
-            <button
-              type="button"
-              onClick={() => setView('all')}
-              className="px-4 py-2 rounded-lg bg-finland text-white text-sm font-medium hover:bg-finland-dark"
-            >
-              Refresh view
-            </button>
-          </div>
-        </div>
-      ) : filteredBookings.length === 0 ? (
-        <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
-          <h2 className="text-lg font-semibold text-gray-900">No matching bookings</h2>
-          <p className="text-gray-500 mt-1">Try a different view or clear date/listing filters.</p>
-          <button
-            type="button"
-            onClick={() => {
-              setFilterListingId('');
-              setFilterDateFrom('');
-              setFilterDateTo('');
-              setView('all');
-            }}
-            className="mt-4 px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50"
-          >
-            Clear filters
-          </button>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          <div className="md:hidden bg-white border border-gray-200 rounded-xl p-4">
-            <div className="flex items-center justify-between gap-2 mb-3">
-              <h2 className="text-sm font-semibold text-gray-900">Mobile quick actions</h2>
-              <span className="text-xs text-gray-500">
-                Today: {todayOpsBookings.length}
-              </span>
-            </div>
-            {todayOpsBookings.length === 0 ? (
-              <p className="text-sm text-gray-500">No active bookings today.</p>
-            ) : (
-              <div className="space-y-2">
-                {todayOpsBookings.map((b) => (
-                  <div key={`mobile-${b.id}`} className="border border-gray-200 rounded-lg p-3 space-y-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">
-                          {listingTitles[b.listing_id] ?? 'Listing'}
-                        </p>
-                        <p className="text-xs text-gray-500 truncate">
-                          {b.guest_name ?? b.guest_email ?? 'Guest'} · {b.guests} guest{b.guests === 1 ? '' : 's'}
-                        </p>
-                      </div>
-                      <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
-                        b.status === 'confirmed' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'
-                      }`}>
-                        {b.status}
-                      </span>
-                    </div>
-                    <p className="text-xs text-gray-600">
-                      {b.special_requests || 'No special requests'}
-                    </p>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {!b.acknowledged_at && (
-                        <button
-                          type="button"
-                          onClick={() => handleAcknowledge(b)}
-                          disabled={!canEditBookings || updatingId === b.id}
-                          className="text-xs px-2.5 py-1.5 rounded bg-blue-100 text-blue-700 disabled:opacity-50"
-                        >
-                          Acknowledge
-                        </button>
-                      )}
-                      {b.status !== 'confirmed' && (
-                        <button
-                          type="button"
-                          onClick={() => handleStatusChange(b, 'confirmed')}
-                          disabled={!canEditBookings || updatingId === b.id}
-                          className="text-xs px-2.5 py-1.5 rounded bg-green-100 text-green-700 disabled:opacity-50"
-                        >
-                          Confirm
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => setTimelineBookingId(b.id)}
-                        className="text-xs px-2.5 py-1.5 rounded bg-gray-100 text-gray-700"
-                      >
-                        Timeline
-                      </button>
-                      {b.guest_email && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => handleSendQuickTemplate(b, 'meeting')}
-                            disabled={quickMessageBookingId === b.id}
-                            className="text-xs px-2.5 py-1.5 rounded bg-indigo-100 text-indigo-700 disabled:opacity-50"
-                          >
-                            {quickMessageBookingId === b.id ? 'Sending…' : 'Send reminder'}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleSendQuickTemplate(b, 'welcome')}
-                            disabled={quickMessageBookingId === b.id}
-                            className="text-xs px-2.5 py-1.5 rounded bg-violet-100 text-violet-700 disabled:opacity-50"
-                          >
-                            Send welcome
-                          </button>
-                        </>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => setCancelModal(b)}
-                        disabled={!canEditBookings || updatingId === b.id}
-                        className="text-xs px-2.5 py-1.5 rounded bg-red-100 text-red-700 disabled:opacity-50"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                    <div>
-                      <label className="block text-[11px] text-gray-500 mb-1">Ops note (offline-safe)</label>
-                      <textarea
-                        defaultValue={opsNotes[b.id]?.note ?? ''}
-                        onBlur={async (e) => {
-                          saveOpsNote(b.id, e.target.value);
-                          await syncSingleOpsNote(b.id);
-                        }}
-                        rows={2}
-                        placeholder="Add quick field notes for this booking..."
-                        className="w-full px-2.5 py-2 text-xs border border-gray-200 rounded-md focus:ring-2 focus:ring-finland"
-                      />
-                      {opsNotes[b.id]?.pendingSync && (
-                        <p className="text-[11px] text-amber-700 mt-1">
-                          Saved locally · pending sync
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-200 bg-gray-50/70 flex flex-col gap-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={toggleSelectAllVisible}
-                className="px-3 py-1.5 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50"
-              >
-                {filteredBookings.length > 0 && filteredBookings.every((b) => selectedIds.includes(b.id)) ? 'Unselect all' : 'Select all'}
-              </button>
-              <span className="text-sm text-gray-600">{selectedIds.length} selected</span>
-              <button
-                type="button"
-                onClick={handleBulkAcknowledge}
-                disabled={!canEditBookings || selectedIds.length === 0 || bulkActionSubmitting}
-                className="px-3 py-1.5 rounded-lg border border-blue-200 text-sm text-blue-700 bg-blue-50 hover:bg-blue-100 disabled:opacity-50"
-              >
-                Acknowledge selected
-              </button>
-              <button
-                type="button"
-                onClick={handleBulkConfirm}
-                disabled={!canEditBookings || selectedIds.length === 0 || bulkActionSubmitting}
-                className="px-3 py-1.5 rounded-lg border border-green-200 text-sm text-green-700 bg-green-50 hover:bg-green-100 disabled:opacity-50"
-              >
-                Confirm selected
-              </button>
-              <button
-                type="button"
-                onClick={() => setBulkCancelModal(true)}
-                disabled={!canEditBookings || selectedIds.length === 0 || bulkActionSubmitting}
-                className="px-3 py-1.5 rounded-lg border border-red-200 text-sm text-red-700 bg-red-50 hover:bg-red-100 disabled:opacity-50"
-              >
-                Cancel selected
-              </button>
-              {selectedIds.length > 0 && (
-                <button type="button" onClick={clearSelection} className="px-3 py-1.5 rounded-lg text-sm text-gray-600 hover:bg-gray-100">
-                  Clear
-                </button>
-              )}
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-sm text-gray-600">Advanced export:</span>
-              <select
-                value={exportKind}
-                onChange={(e) => setExportKind(e.target.value as 'bookings' | 'ops_summary')}
-                className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white"
-              >
-                <option value="bookings">Detailed bookings</option>
-                <option value="ops_summary">Ops summary</option>
-              </select>
-              <select
-                value={exportScope}
-                onChange={(e) => setExportScope(e.target.value as 'filtered' | 'selected')}
-                className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white"
-              >
-                <option value="filtered">Filtered rows</option>
-                <option value="selected">Selected rows</option>
-              </select>
-              <select
-                value={exportFormat}
-                onChange={(e) => setExportFormat(e.target.value as 'csv' | 'json')}
-                className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white"
-              >
-                <option value="csv">CSV</option>
-                <option value="json">JSON</option>
-              </select>
-              <input
-                type="date"
-                value={exportDateFrom}
-                onChange={(e) => setExportDateFrom(e.target.value)}
-                className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm"
-              />
-              <input
-                type="date"
-                value={exportDateTo}
-                onChange={(e) => setExportDateTo(e.target.value)}
-                className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm"
-              />
-              <button
-                type="button"
-                onClick={handleAdvancedExport}
-                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50"
-              >
-                <Download className="w-4 h-4" />
-                Export {exportFormat.toUpperCase()}
-              </button>
-            </div>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
-                    <input
-                      type="checkbox"
-                      checked={filteredBookings.length > 0 && filteredBookings.every((b) => selectedIds.includes(b.id))}
-                      onChange={toggleSelectAllVisible}
-                      aria-label="Select all visible bookings"
-                    />
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Listing</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Guest</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Date</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Guests</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Requests</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Status</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wide">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {filteredBookings.map((b) => (
-                  <tr
-                    id={`supplier-booking-row-${b.id}`}
-                    key={b.id}
-                    className={`hover:bg-gray-50/50 ${
-                      highlightBookingId === b.id ? 'ring-2 ring-finland/25 bg-finland/5' : ''
-                    }`}
-                  >
-                    <td className="px-4 py-3">
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.includes(b.id)}
-                        onChange={() => toggleSelected(b.id)}
-                        aria-label={`Select booking ${b.id}`}
-                      />
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-900">
-                      {listingTitles[b.listing_id] ?? <span className="text-gray-400">Listing</span>}
-                    </td>
-                    <td className="px-4 py-3 text-sm">
-                      <div className="flex items-center gap-1.5">
-                        {b.guest_name && <span className="text-gray-900">{b.guest_name}</span>}
-                        {b.guest_email && (
-                          <span className="text-gray-500 flex items-center gap-1">
-                            <Mail className="w-3.5 h-3.5" />
-                            {b.guest_email}
-                          </span>
-                        )}
-                        {!b.guest_name && !b.guest_email && <span className="text-gray-400">—</span>}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
-                      {b.booking_date ? new Date(b.booking_date).toLocaleDateString() : '—'}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{b.guests ?? '—'}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600 max-w-[180px] truncate" title={b.special_requests ?? undefined}>
-                      {b.special_requests ? b.special_requests : '—'}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full ${
-                          b.status === 'confirmed'
-                            ? 'bg-green-100 text-green-800'
-                            : b.status === 'cancelled'
-                            ? 'bg-gray-100 text-gray-600'
-                            : 'bg-amber-100 text-amber-800'
-                        }`}
-                      >
-                        {b.status}
-                      </span>
-                      {b.acknowledged_at && (
-                        <span className="ml-1 text-xs text-gray-500" title="Acknowledged">✓</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-1 flex-wrap">
-                          <button
-                            type="button"
-                            onClick={() => setTimelineBookingId(b.id)}
-                            className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-600 hover:bg-gray-200"
-                          >
-                            Timeline
-                          </button>
-                      {b.status !== 'cancelled' && (
-                        <>
-                          {b.guest_email && (
-                            <a
-                              href={`mailto:${b.guest_email}?subject=Your booking – ${listingTitles[b.listing_id] ?? 'Tour'}`}
-                              className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-600 hover:bg-gray-200 inline-flex items-center gap-1"
-                              title="Contact customer"
-                            >
-                              <MessageCircle className="w-3.5 h-3.5" />
-                              Contact
-                            </a>
-                          )}
-                          {!b.acknowledged_at && (
-                            <button
-                              type="button"
-                              onClick={() => handleAcknowledge(b)}
-                              disabled={!canEditBookings || updatingId === b.id}
-                              className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-700 hover:bg-blue-200 inline-flex items-center gap-1 disabled:opacity-50"
-                              title="Acknowledge booking"
-                            >
-                              <CheckCircle className="w-3.5 h-3.5" />
-                              Acknowledge
-                            </button>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => setCancelModal(b)}
-                            disabled={!canEditBookings || updatingId === b.id}
-                            className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-600 hover:bg-gray-200"
-                          >
-                            Cancel
-                          </button>
-                        </>
-                      )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-        </div>
-      )}
+      </details>
 
       {cancelModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -3241,31 +3281,6 @@ export default function SupplierBookings() {
           </div>
         </div>
       )}
-
-      <div className="bg-white border border-gray-200 rounded-xl p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-2 flex items-center gap-2">
-          <FileText className="w-5 h-5 text-finland" />
-          Sample voucher
-        </h2>
-        <p className="text-sm text-gray-500 mb-4">
-          This is how a booking voucher could look for your guests. When payment is integrated, vouchers can be generated per booking.
-        </p>
-        <div className="border-2 border-dashed border-gray-200 rounded-lg p-6 max-w-md bg-gray-50/50">
-          <div className="text-center border-b border-gray-200 pb-4 mb-4">
-            <p className="text-xs text-gray-500 uppercase tracking-wide">Traverion</p>
-            <p className="text-lg font-semibold text-gray-900 mt-1">Booking voucher</p>
-          </div>
-          <div className="space-y-2 text-sm">
-            <p><span className="text-gray-500">Reference:</span> <span className="font-mono">TRV-XXXXXX</span></p>
-            <p><span className="text-gray-500">Guest:</span> Guest name</p>
-            <p><span className="text-gray-500">Date:</span> —</p>
-            <p><span className="text-gray-500">Experience:</span> Your listing title</p>
-          </div>
-          <div className="mt-6 h-16 bg-gray-200 rounded flex items-center justify-center text-gray-500 text-xs">
-            QR code / Barcode
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
