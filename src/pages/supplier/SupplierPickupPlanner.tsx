@@ -1,7 +1,7 @@
 /**
  * Supplier: pickup planner – bookings with meeting / pickup, filters, CSV, deep link to edit listing pickup fields.
  */
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   ClipboardList,
   AlertCircle,
@@ -37,7 +37,6 @@ function toYmd(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
-type StatusFilter = 'active' | 'confirmed' | 'pending';
 type PlannerView = 'table' | 'calendar';
 type CalendarRange = 'day' | 'week';
 type RefundChoice = 'full_refund' | 'no_refund' | 'reschedule';
@@ -104,8 +103,8 @@ export default function SupplierPickupPlanner() {
   const [loading, setLoading] = useState(true);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('active');
   const [view, setView] = useState<PlannerView>('table');
+  const prevViewRef = useRef<PlannerView>(view);
   const [calendarRange, setCalendarRange] = useState<CalendarRange>('week');
   const [calendarAnchorDate, setCalendarAnchorDate] = useState<string>(toYmd(new Date()));
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
@@ -186,11 +185,10 @@ export default function SupplierPickupPlanner() {
     setDateTo(toYmd(end));
   };
 
+  /** Active pickup work only: hide cancelled (status narrowing was removed as non-essential UI). */
   const filtered = useMemo(() => {
     return bookings.filter((b) => {
-      if (statusFilter === 'active' && b.status === 'cancelled') return false;
-      if (statusFilter === 'confirmed' && b.status !== 'confirmed') return false;
-      if (statusFilter === 'pending' && b.status !== 'pending') return false;
+      if (b.status === 'cancelled') return false;
 
       const bd = b.booking_date;
       if (dateFrom && bd && bd < dateFrom) return false;
@@ -198,7 +196,7 @@ export default function SupplierPickupPlanner() {
       if ((dateFrom || dateTo) && !bd) return false;
       return true;
     });
-  }, [bookings, dateFrom, dateTo, statusFilter]);
+  }, [bookings, dateFrom, dateTo]);
 
   const sorted = useMemo(
     () =>
@@ -279,6 +277,36 @@ export default function SupplierPickupPlanner() {
     });
     return byDate;
   }, [calendarDates, listBookings]);
+
+  /** When switching to Calendar, jump the visible week/day if no bookings fall in the current range (common “toggle does nothing” case). */
+  useEffect(() => {
+    const prev = prevViewRef.current;
+    prevViewRef.current = view;
+    if (prev === 'calendar' || view !== 'calendar' || listBookings.length === 0) return;
+
+    const dated = listBookings
+      .map((b) => b.booking_date)
+      .filter((d): d is string => !!d)
+      .sort();
+    if (dated.length === 0) return;
+
+    const anchor = parseYmdLocal(calendarAnchorDate) ?? new Date();
+    let rangeStartYmd: string;
+    let rangeEndYmd: string;
+    if (calendarRange === 'day') {
+      rangeStartYmd = toYmd(anchor);
+      rangeEndYmd = rangeStartYmd;
+    } else {
+      const wk = startOfWeek(anchor);
+      rangeStartYmd = toYmd(wk);
+      rangeEndYmd = toYmd(addDays(wk, 6));
+    }
+
+    const hasInRange = dated.some((d) => d >= rangeStartYmd && d <= rangeEndYmd);
+    if (!hasInRange) {
+      setCalendarAnchorDate(dated[0]);
+    }
+  }, [view, listBookings, calendarRange, calendarAnchorDate]);
 
   const selectedBooking = useMemo(
     () => sorted.find((b) => b.id === selectedBookingId) ?? null,
@@ -661,18 +689,6 @@ export default function SupplierPickupPlanner() {
               className="mt-0.5 rounded-md border border-gray-300 px-2 py-1.5 text-sm focus:ring-2 focus:ring-finland"
             />
           </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500">Status</label>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
-              className="mt-0.5 min-w-[9rem] rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm focus:ring-2 focus:ring-finland"
-            >
-              <option value="active">Active</option>
-              <option value="confirmed">Confirmed</option>
-              <option value="pending">Pending</option>
-            </select>
-          </div>
           <label className="flex cursor-pointer items-center gap-2 pb-1 text-sm text-gray-700">
             <input
               type="checkbox"
@@ -823,7 +839,7 @@ export default function SupplierPickupPlanner() {
           <div>
             <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Load signals</h3>
             {conflictInsights.length === 0 ? (
-              <p className="text-xs text-gray-500">No pressure signals for the current date and status filters.</p>
+              <p className="text-xs text-gray-500">No pressure signals for the current date filters.</p>
             ) : (
               <div className="overflow-x-auto rounded-md border border-gray-200">
                 <table className="min-w-full text-xs">
@@ -885,16 +901,17 @@ export default function SupplierPickupPlanner() {
         <div className="rounded-lg border border-gray-200 bg-white py-12 text-center">
           <p className="text-sm text-gray-500">Loading…</p>
         </div>
-      ) : sorted.length === 0 ? (
+      ) : view === 'calendar' ? (
+        sorted.length === 0 ? (
         <div className="rounded-lg border border-gray-200 bg-white py-12 text-center">
           <ClipboardList className="mx-auto mb-3 h-12 w-12 text-gray-300" />
           <h2 className="text-lg font-semibold text-gray-900">No bookings match</h2>
           <p className="mt-1 text-sm text-gray-500">
-            Try widening the date range or changing the status filter. Bookings without a tour date are hidden when a date
-            range is set.
+            Try widening the date range or adjusting listing filters. Bookings without an activity date are hidden when a date
+            range is set. Cancelled bookings are excluded here.
           </p>
         </div>
-      ) : view === 'calendar' ? (
+      ) : (
         <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
           <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 flex flex-wrap items-center gap-2 justify-between">
             <div className="inline-flex rounded-lg border border-gray-200 p-0.5 bg-white">
@@ -990,12 +1007,21 @@ export default function SupplierPickupPlanner() {
             })}
           </div>
         </div>
+        )
+      ) : sorted.length === 0 ? (
+        <div className="rounded-lg border border-gray-200 bg-white py-12 text-center">
+          <ClipboardList className="mx-auto mb-3 h-12 w-12 text-gray-300" />
+          <h2 className="text-lg font-semibold text-gray-900">No bookings match</h2>
+          <p className="mt-1 text-sm text-gray-500">
+            Try widening the date range or adjusting listing filters. Bookings without an activity date are hidden when a date
+            range is set. Cancelled bookings are excluded here.
+          </p>
+        </div>
       ) : listBookings.length === 0 ? (
         <div className="rounded-lg border border-gray-200 bg-white py-10 text-center">
           <p className="text-sm font-medium text-gray-900">Nothing in this view</p>
           <p className="mt-1 px-4 text-sm text-gray-500">
-            Clear the listing filter or uncheck &quot;Needs pickup details&quot; to see all rows that match your dates and
-            status.
+            Clear the listing filter or uncheck &quot;Needs pickup details&quot; to see all rows that match your dates.
           </p>
           <button
             type="button"
