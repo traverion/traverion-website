@@ -15,6 +15,7 @@ import {
   X,
   Printer,
   Info,
+  FileText,
 } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import {
@@ -39,6 +40,12 @@ function toYmd(d: Date): string {
 
 type PlannerView = 'table' | 'calendar';
 type CalendarRange = 'day' | 'week';
+
+type ListingGuideMeta = {
+  duration: string;
+  bestTime: string;
+  startLocation: string;
+};
 type RefundChoice = 'full_refund' | 'no_refund' | 'reschedule';
 
 const CANCELLATION_REASONS = [
@@ -88,6 +95,15 @@ function formatPickupSectionDate(ymd: string): string {
   return d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 }
 
+function guideScheduleSummary(meta: ListingGuideMeta | undefined): string {
+  if (!meta) return '';
+  const parts: string[] = [];
+  if (meta.duration && meta.duration !== '—') parts.push(meta.duration);
+  if (meta.bestTime && meta.bestTime !== '—') parts.push(meta.bestTime);
+  if (meta.startLocation && meta.startLocation !== '—') parts.push(meta.startLocation);
+  return parts.join(' · ');
+}
+
 export default function SupplierPickupPlanner() {
   const { user, isSupabase } = useSupplierAuth();
   const { role } = useSupplierRole();
@@ -96,6 +112,7 @@ export default function SupplierPickupPlanner() {
   const [listingTitles, setListingTitles] = useState<Record<string, string>>({});
   const [meetingPoints, setMeetingPoints] = useState<Record<string, string>>({});
   const [pickupInstructions, setPickupInstructions] = useState<Record<string, string>>({});
+  const [listingGuideMeta, setListingGuideMeta] = useState<Record<string, ListingGuideMeta>>({});
   const [loading, setLoading] = useState(true);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -128,22 +145,38 @@ export default function SupplierPickupPlanner() {
       ]);
       setBookings(bookingsList);
       const titles: Record<string, string> = {};
-      listings.forEach((l) => {
-        titles[l.id] = l.title;
-      });
-      setListingTitles(titles);
-      const listingIds = [...new Set(bookingsList.map((b) => b.listing_id))];
       const points: Record<string, string> = {};
       const instructions: Record<string, string> = {};
+      const guideMeta: Record<string, ListingGuideMeta> = {};
+      listings.forEach((l) => {
+        titles[l.id] = l.title;
+        points[l.id] = l.meetingPoint?.trim() ?? '';
+        instructions[l.id] = l.pickupInstructions?.trim() ?? '';
+        guideMeta[l.id] = {
+          duration: l.duration?.trim() || '—',
+          bestTime: l.bestTime?.trim() || '—',
+          startLocation: l.startLocation?.trim() || '—',
+        };
+      });
+      const listingIds = [...new Set(bookingsList.map((b) => b.listing_id))];
       for (const lid of listingIds) {
+        if (titles[lid]) continue;
         const listing = await fetchListingById(lid);
         if (listing) {
-          points[lid] = listing.meetingPoint ?? '';
-          instructions[lid] = listing.pickupInstructions ?? '';
+          titles[lid] = listing.title;
+          points[lid] = listing.meetingPoint?.trim() ?? '';
+          instructions[lid] = listing.pickupInstructions?.trim() ?? '';
+          guideMeta[lid] = {
+            duration: listing.duration?.trim() || '—',
+            bestTime: listing.bestTime?.trim() || '—',
+            startLocation: listing.startLocation?.trim() || '—',
+          };
         }
       }
+      setListingTitles(titles);
       setMeetingPoints(points);
       setPickupInstructions(instructions);
+      setListingGuideMeta(guideMeta);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load pickup data');
     } finally {
@@ -435,6 +468,11 @@ export default function SupplierPickupPlanner() {
     window.print();
   };
 
+  const openTodaysGuideSheet = () => {
+    setPreset('today');
+    setManifestOpen(true);
+  };
+
   const calendarLabel = useMemo(() => {
     if (calendarRange === 'day') {
       return effectiveCalendarDate.toLocaleDateString(undefined, {
@@ -462,7 +500,8 @@ export default function SupplierPickupPlanner() {
       <div>
         <h1 className="text-xl font-semibold tracking-tight text-gray-900">Pickup planner</h1>
         <p className="mt-0.5 text-sm text-gray-600">
-          Scan bookings by activity date, then open a row for actions or jump to pickup fields on the listing.
+          See booking counts per day, spot missing pickup copy, and open the run-sheet to print or save a PDF for guides
+          (filter to one product + Today for a single-tour handout).
         </p>
         {!canEditBookings && (
           <p className="mt-1 text-xs text-amber-700">
@@ -519,15 +558,25 @@ export default function SupplierPickupPlanner() {
             </button>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {listBookings.length > 0 && (
+            {!loading && (
               <>
+                {listBookings.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={exportCsv}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 px-2.5 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  >
+                    <Download className="h-4 w-4" />
+                    Export CSV
+                  </button>
+                )}
                 <button
                   type="button"
-                  onClick={exportCsv}
-                  className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 px-2.5 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  onClick={openTodaysGuideSheet}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-finland/30 bg-finland/5 px-2.5 py-1.5 text-sm font-medium text-finland hover:bg-finland/10"
                 >
-                  <Download className="h-4 w-4" />
-                  Export CSV
+                  <FileText className="h-4 w-4" />
+                  Today for guides
                 </button>
                 <button
                   type="button"
@@ -535,7 +584,7 @@ export default function SupplierPickupPlanner() {
                   className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 px-2.5 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
                 >
                   <Printer className="h-4 w-4" />
-                  Run-sheet
+                  Run-sheet / PDF
                 </button>
               </>
             )}
@@ -699,13 +748,23 @@ export default function SupplierPickupPlanner() {
             {calendarDates.map((d) => {
               const key = toYmd(d);
               const dayBookings = calendarBookingsByDate[key] ?? [];
+              const dayGuests = dayBookings.reduce((sum, b) => sum + Number(b.guests ?? 0), 0);
+              const pickupGaps = dayBookings.filter((b) => needsPickupInfo(b.listing_id)).length;
               const dayName = d.toLocaleDateString(undefined, { weekday: 'short' });
               const dayNumber = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
               return (
                 <section key={key} className="border border-gray-200 rounded-lg overflow-hidden">
-                  <header className="px-3 py-2 border-b border-gray-100 bg-gray-50 flex items-center justify-between gap-2">
-                    <p className="text-sm font-semibold text-gray-800">{dayName}</p>
-                    <p className="text-xs text-gray-500">{dayNumber}</p>
+                  <header className="px-3 py-2 border-b border-gray-100 bg-gray-50 flex flex-col gap-0.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-semibold text-gray-800">{dayName}</p>
+                      <p className="text-xs text-gray-500">{dayNumber}</p>
+                    </div>
+                    <p className="text-[11px] text-gray-500">
+                      {dayBookings.length} booking{dayBookings.length === 1 ? '' : 's'} · {dayGuests} guest{dayGuests === 1 ? '' : 's'}
+                      {pickupGaps > 0 ? (
+                        <span className="text-amber-700 font-medium"> · {pickupGaps} missing pickup/meeting</span>
+                      ) : null}
+                    </p>
                   </header>
                   <div className="p-2 space-y-2 min-h-20">
                     {dayBookings.length === 0 ? (
@@ -732,6 +791,11 @@ export default function SupplierPickupPlanner() {
                           <p className="text-[11px] text-gray-500 mt-0.5 truncate">
                             {meetingPoints[b.listing_id] || 'Meeting point missing'}
                           </p>
+                          {guideScheduleSummary(listingGuideMeta[b.listing_id]) ? (
+                            <p className="text-[10px] text-gray-400 mt-0.5 truncate">
+                              {guideScheduleSummary(listingGuideMeta[b.listing_id])}
+                            </p>
+                          ) : null}
                         </button>
                       ))
                     )}
@@ -778,6 +842,7 @@ export default function SupplierPickupPlanner() {
               {bookingsGroupedByDate.orderedKeys.map((ymd) => {
                 const sectionOpen = dateSectionOpen[ymd] !== false;
                 const dayRows = bookingsGroupedByDate.byDay.get(ymd) ?? [];
+                const dayGuestTotal = dayRows.reduce((sum, b) => sum + Number(b.guests ?? 0), 0);
                 return (
                   <div key={ymd} className="border-b border-gray-100 last:border-b-0">
                     <button
@@ -792,7 +857,8 @@ export default function SupplierPickupPlanner() {
                     >
                       <span className="text-sm font-semibold text-gray-900">{formatPickupSectionDate(ymd)}</span>
                       <span className="flex items-center gap-2 text-xs text-gray-500">
-                        {dayRows.length} booking{dayRows.length === 1 ? '' : 's'}
+                        {dayRows.length} booking{dayRows.length === 1 ? '' : 's'} · {dayGuestTotal} guest
+                        {dayGuestTotal === 1 ? '' : 's'}
                         <ChevronDown
                           className={`h-4 w-4 text-gray-400 transition-transform ${sectionOpen ? 'rotate-0' : '-rotate-90'}`}
                         />
@@ -835,6 +901,11 @@ export default function SupplierPickupPlanner() {
                                 <p className="truncate text-sm font-semibold text-gray-900">
                                   {listingTitles[b.listing_id] ?? 'Listing'}
                                 </p>
+                                {guideScheduleSummary(listingGuideMeta[b.listing_id]) ? (
+                                  <p className="truncate text-xs text-gray-500">
+                                    {guideScheduleSummary(listingGuideMeta[b.listing_id])}
+                                  </p>
+                                ) : null}
                                 <p className="truncate text-xs text-gray-500">
                                   {b.guest_name ?? b.guest_email ?? 'Guest'} · {guestsN} guest{guestsN === 1 ? '' : 's'} ·{' '}
                                   <span className="capitalize">{b.status}</span>
@@ -909,6 +980,11 @@ export default function SupplierPickupPlanner() {
                               <p className="truncate text-sm font-semibold text-gray-900">
                                 {listingTitles[b.listing_id] ?? 'Listing'}
                               </p>
+                              {guideScheduleSummary(listingGuideMeta[b.listing_id]) ? (
+                                <p className="truncate text-xs text-gray-500">
+                                  {guideScheduleSummary(listingGuideMeta[b.listing_id])}
+                                </p>
+                              ) : null}
                               <p className="truncate text-xs text-gray-500">
                                 {b.guest_name ?? b.guest_email ?? 'Guest'} · {guestsN} guest{guestsN === 1 ? '' : 's'} ·{' '}
                                 <span className="capitalize">{b.status}</span>
@@ -969,9 +1045,37 @@ export default function SupplierPickupPlanner() {
                   {listingTitles[selectedBooking.listing_id] ?? '—'}
                 </p>
               </div>
+              {listingGuideMeta[selectedBooking.listing_id] ? (
+                <div className="rounded-lg border border-gray-100 bg-gray-50/80 px-3 py-2.5 space-y-1.5">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Experience timing and location</p>
+                  {guideScheduleSummary(listingGuideMeta[selectedBooking.listing_id]) ? (
+                    <>
+                      <p className="text-sm text-gray-800">
+                        <span className="text-gray-500">Duration:</span>{' '}
+                        {listingGuideMeta[selectedBooking.listing_id].duration}
+                      </p>
+                      <p className="text-sm text-gray-800">
+                        <span className="text-gray-500">Typical time / season:</span>{' '}
+                        {listingGuideMeta[selectedBooking.listing_id].bestTime}
+                      </p>
+                      <p className="text-sm text-gray-800">
+                        <span className="text-gray-500">Start location:</span>{' '}
+                        {listingGuideMeta[selectedBooking.listing_id].startLocation}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-sm text-gray-600">
+                      Add duration, typical time, and start location on the listing so guides see them on the run-sheet.
+                    </p>
+                  )}
+                  <p className="text-[11px] text-gray-500 pt-1 border-t border-gray-200/80">
+                    Exact start times per booking are not stored in Traverion yet; confirm with guests or ops if needed.
+                  </p>
+                </div>
+              ) : null}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Date</p>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Activity date</p>
                   <p className="text-sm text-gray-800 mt-1">
                     {selectedBooking.booking_date ? new Date(selectedBooking.booking_date).toLocaleDateString() : '—'}
                   </p>
@@ -1112,9 +1216,18 @@ export default function SupplierPickupPlanner() {
         <>
           <style>{`
             @media print {
-              body * { visibility: hidden; }
-              #pickup-runsheet-print, #pickup-runsheet-print * { visibility: visible; }
-              #pickup-runsheet-print { position: absolute; left: 0; top: 0; width: 100%; background: white; }
+              body * { visibility: hidden !important; }
+              #pickup-runsheet-print, #pickup-runsheet-print * { visibility: visible !important; }
+              #pickup-runsheet-print {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                background: white;
+                padding: 12mm;
+              }
+              #pickup-runsheet-print .runs-section { break-inside: avoid; page-break-inside: avoid; }
+              #pickup-runsheet-print .runs-listing-block { break-inside: avoid; page-break-inside: avoid; }
             }
           `}</style>
           <button
@@ -1126,9 +1239,9 @@ export default function SupplierPickupPlanner() {
           <aside className="fixed right-0 top-0 h-full w-full lg:w-[56rem] bg-white border-l border-gray-200 shadow-xl z-[60] flex flex-col">
             <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-semibold text-gray-900">Pickup run-sheet</h2>
+                <h2 className="text-lg font-semibold text-gray-900">Guide run-sheet</h2>
                 <p className="text-xs text-gray-500">
-                  Grouped by date and listing. Print to paper or Save as PDF.
+                  Filter to one listing and today for a single-product handout. Print → choose Save as PDF in the dialog.
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -1138,7 +1251,7 @@ export default function SupplierPickupPlanner() {
                   className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-100"
                 >
                   <Printer className="w-4 h-4" />
-                  Print / PDF
+                  Print or save PDF
                 </button>
                 <button
                   type="button"
@@ -1151,15 +1264,44 @@ export default function SupplierPickupPlanner() {
               </div>
             </div>
             <div id="pickup-runsheet-print" className="p-5 overflow-y-auto space-y-6">
+              <div className="print:hidden rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
+                <p className="font-medium text-gray-800">For guides</p>
+                <p className="mt-1">
+                  Use <strong>Print or save PDF</strong>, then in the system dialog set the destination to <strong>Save as PDF</strong>{' '}
+                  to email or message the file.
+                </p>
+              </div>
+
+              <div className="hidden print:block border-b border-gray-300 pb-4 mb-2">
+                <h1 className="text-xl font-bold text-gray-900">Traverion — Guide run-sheet</h1>
+                <p className="text-sm text-gray-600 mt-1">Generated {new Date().toLocaleString()}</p>
+                {dateFrom && dateTo ? (
+                  <p className="text-sm text-gray-600">
+                    Dates: {dateFrom === dateTo ? dateFrom : `${dateFrom} → ${dateTo}`}
+                  </p>
+                ) : null}
+                {listingFilterId ? (
+                  <p className="text-sm text-gray-800 font-medium mt-1">
+                    Product: {listingTitles[listingFilterId] ?? listingFilterId}
+                  </p>
+                ) : (
+                  <p className="text-sm text-gray-600 mt-1">All products (use listing filter for one tour only)</p>
+                )}
+              </div>
+
               {runSheetDates.length === 0 ? (
                 <p className="text-sm text-gray-500">No active dated bookings in current filters.</p>
               ) : (
                 runSheetDates.map((date) => {
                   const byListing = runSheetGroups[date];
                   const listingIds = Object.keys(byListing);
+                  const dateGuests = listingIds.reduce(
+                    (sum, id) => sum + byListing[id].reduce((s, b) => s + Number(b.guests || 0), 0),
+                    0
+                  );
                   return (
-                    <section key={date} className="border border-gray-200 rounded-lg overflow-hidden">
-                      <header className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+                    <section key={date} className="runs-section border border-gray-200 rounded-lg overflow-hidden">
+                      <header className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex flex-wrap items-center justify-between gap-2">
                         <h3 className="text-base font-semibold text-gray-900">
                           {new Date(date).toLocaleDateString(undefined, {
                             weekday: 'long',
@@ -1169,26 +1311,49 @@ export default function SupplierPickupPlanner() {
                           })}
                         </h3>
                         <span className="text-xs text-gray-500">
-                          {listingIds.reduce((sum, id) => sum + byListing[id].length, 0)} bookings
+                          {listingIds.reduce((sum, id) => sum + byListing[id].length, 0)} bookings · {dateGuests} guests
                         </span>
                       </header>
                       <div className="divide-y divide-gray-200">
                         {listingIds.map((listingId) => {
                           const rows = byListing[listingId];
                           const totalGuests = rows.reduce((sum, b) => sum + Number(b.guests || 0), 0);
+                          const gm = listingGuideMeta[listingId];
                           return (
-                            <div key={listingId} className="p-4">
-                              <div className="flex items-center justify-between gap-3 mb-2">
-                                <div>
+                            <div key={listingId} className="runs-listing-block p-4">
+                              <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
+                                <div className="min-w-0">
                                   <p className="text-sm font-semibold text-gray-900">
                                     {listingTitles[listingId] ?? 'Listing'}
                                   </p>
-                                  <p className="text-xs text-gray-500">
-                                    Meeting: {meetingPoints[listingId] || 'Missing'} · Pickup: {pickupInstructions[listingId] || 'Missing'}
+                                  {gm && guideScheduleSummary(gm) ? (
+                                    <ul className="mt-1 text-xs text-gray-600 space-y-0.5">
+                                      <li>
+                                        <span className="font-medium text-gray-500">Duration:</span> {gm.duration}
+                                      </li>
+                                      <li>
+                                        <span className="font-medium text-gray-500">Typical time:</span> {gm.bestTime}
+                                      </li>
+                                      <li>
+                                        <span className="font-medium text-gray-500">Start location:</span> {gm.startLocation}
+                                      </li>
+                                    </ul>
+                                  ) : gm ? (
+                                    <p className="mt-1 text-xs text-gray-500 italic">
+                                      Add duration, typical time, and start location on the listing for this handout.
+                                    </p>
+                                  ) : null}
+                                  <p className="text-xs text-gray-500 mt-2">
+                                    <span className="font-medium text-gray-600">Meeting:</span>{' '}
+                                    {meetingPoints[listingId] || 'Missing'}
+                                  </p>
+                                  <p className="text-xs text-gray-500 mt-1 whitespace-pre-wrap">
+                                    <span className="font-medium text-gray-600">Pickup:</span>{' '}
+                                    {pickupInstructions[listingId] || 'Missing'}
                                   </p>
                                 </div>
-                                <div className="text-right">
-                                  <p className="text-xs text-gray-500">Total guests</p>
+                                <div className="text-right shrink-0">
+                                  <p className="text-xs text-gray-500">Guests (this product)</p>
                                   <p className="text-lg font-semibold text-gray-900">{totalGuests}</p>
                                 </div>
                               </div>
@@ -1196,23 +1361,25 @@ export default function SupplierPickupPlanner() {
                                 <table className="min-w-full text-sm">
                                   <thead>
                                     <tr className="text-left text-xs uppercase tracking-wide text-gray-500 border-b border-gray-200">
-                                      <th className="py-1.5 pr-3">Booking</th>
+                                      <th className="py-1.5 pr-3">Ref</th>
                                       <th className="py-1.5 pr-3">Guest</th>
                                       <th className="py-1.5 pr-3">Guests</th>
                                       <th className="py-1.5 pr-3">Status</th>
-                                      <th className="py-1.5">Special requests</th>
+                                      <th className="py-1.5">Notes / requests</th>
                                     </tr>
                                   </thead>
                                   <tbody>
                                     {rows.map((b) => (
                                       <tr key={b.id} className="border-b border-gray-100 last:border-b-0">
-                                        <td className="py-1.5 pr-3 text-gray-600">{b.id.slice(0, 8)}</td>
+                                        <td className="py-1.5 pr-3 text-gray-600 font-mono text-xs" title={b.id}>
+                                          {b.id.slice(0, 8)}…
+                                        </td>
                                         <td className="py-1.5 pr-3 text-gray-800">
                                           {b.guest_name ?? b.guest_email ?? '—'}
                                         </td>
                                         <td className="py-1.5 pr-3 text-gray-700">{b.guests ?? '—'}</td>
-                                        <td className="py-1.5 pr-3 text-gray-700">{b.status}</td>
-                                        <td className="py-1.5 text-gray-600">
+                                        <td className="py-1.5 pr-3 text-gray-700 capitalize">{b.status}</td>
+                                        <td className="py-1.5 text-gray-600 max-w-[14rem]">
                                           {b.special_requests || '—'}
                                         </td>
                                       </tr>
