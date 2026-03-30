@@ -490,7 +490,9 @@ function BusinessProfilePage(p: Props) {
               )}
               <div className="space-y-3">
                 <p className="text-xs text-gray-500">
-                  Use the address exactly as on your registration certificate—we verify it against your uploaded proof.
+                  Enter the address exactly as on your registration certificate. We check it against your uploaded
+                  document during review; if it does not match, we may return the profile as needing more information
+                  (e.g. mismatching address).
                 </p>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
