@@ -719,6 +719,7 @@ export default function SupplierLayout() {
               setVerificationStatus={setVerificationStatus}
               businessProfileComplete={onboardingHasCompany}
               onCompanyProfileSaved={() => setOnboardingHasCompany(true)}
+              onPayoutSaved={() => setOnboardingHasPayout(true)}
             />
           )}
           </div>

@@ -32,3 +32,14 @@ export function isSupplierBusinessProfileComplete(profile: SupplierProfileRow | 
   }
   return false;
 }
+
+/**
+ * Can create/publish listings: verified by Traverion, company profile complete, payout destination saved.
+ * Business logo/photo is optional (branding only).
+ */
+export function isSupplierReadyToPublishTours(profile: SupplierProfileRow | null | undefined): boolean {
+  if (!profile || profile.verification_status !== 'verified') return false;
+  if (!isSupplierBusinessProfileComplete(profile)) return false;
+  if (!isSupplierPayoutConfigured(profile)) return false;
+  return true;
+}

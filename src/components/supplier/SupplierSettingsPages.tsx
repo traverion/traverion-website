@@ -136,6 +136,8 @@ type Props = {
   businessProfileComplete: boolean;
   /** Call after company details save succeeds so parent can refresh onboarding state from server. */
   onCompanyProfileSaved: () => void;
+  /** Call after payout save succeeds with valid bank or PayPal details. */
+  onPayoutSaved: () => void;
 };
 
 export default function SupplierSettingsPages(props: Props) {
@@ -356,6 +358,7 @@ function BusinessProfilePage(p: Props) {
   const [companyRegUploading, setCompanyRegUploading] = useState(false);
   const [docError, setDocError] = useState<string | null>(null);
   const [companySaveError, setCompanySaveError] = useState<string | null>(null);
+  const [payoutSaveError, setPayoutSaveError] = useState<string | null>(null);
 
   const tabBtn = (active: boolean) =>
     `rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors ${
@@ -889,8 +892,8 @@ function BusinessProfilePage(p: Props) {
           <div id="supplier-business-payout" className="rounded-xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm">
             <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-gray-900">Payment &amp; payouts</h2>
             <p className="text-sm text-gray-600 mt-1.5 mb-5">
-              Add your bank details (IBAN and BIC for transfers) or PayPal first, then choose how often you want to be
-              paid. Stored securely for when payouts are enabled.
+              Saving a payout method is required before you can publish tours: use bank transfer (IBAN and BIC) or
+              PayPal. Payout frequency and threshold are optional. Stored securely for when payouts are enabled.
             </p>
             <div className="space-y-4">
               <div>
@@ -914,7 +917,7 @@ function BusinessProfilePage(p: Props) {
                       type="text"
                       value={p.payoutIban}
                       onChange={(e) => p.setPayoutIban(e.target.value)}
-                      placeholder="e.g. FI12 3456 7890 1234 56"
+                      placeholder="International bank account number"
                       className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
                     />
                   </div>
@@ -924,7 +927,7 @@ function BusinessProfilePage(p: Props) {
                       type="text"
                       value={p.payoutBic}
                       onChange={(e) => p.setPayoutBic(e.target.value)}
-                      placeholder="e.g. NDEAFIHH"
+                      placeholder="Bank identifier (SWIFT/BIC)"
                       className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
                     />
                   </div>
@@ -968,31 +971,54 @@ function BusinessProfilePage(p: Props) {
                   className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
                 />
               </div>
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  disabled={p.payoutSaving || !p.canManageFinance(p.role)}
-                  onClick={async () => {
-                    if (!p.user?.id) return;
-                    p.setPayoutSaving(true);
-                    p.setPayoutMessage(null);
-                    const res = await p.updateSupplierPayout(p.user.id, {
-                      payout_method: p.payoutMethod || null,
-                      payout_iban: p.payoutMethod === 'bank' ? p.payoutIban.trim() || null : null,
-                      payout_bic: p.payoutMethod === 'bank' ? p.payoutBic.trim() || null : null,
-                      payout_paypal_email: p.payoutMethod === 'paypal' ? p.payoutPaypalEmail.trim() || null : null,
-                      payment_cycle: p.paymentCycle || null,
-                      payout_threshold_min: p.payoutThreshold !== '' ? Number(p.payoutThreshold) : null,
-                    });
-                    p.setPayoutSaving(false);
-                    p.setPayoutMessage(res.success ? 'success' : 'error');
-                  }}
-                  className="px-4 py-2 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark disabled:opacity-50"
-                >
-                  {p.payoutSaving ? 'Saving…' : 'Save payout details'}
-                </button>
-                {p.payoutMessage === 'success' && <span className="text-sm text-green-600">Saved.</span>}
-                {p.payoutMessage === 'error' && <span className="text-sm text-red-600">Failed to save.</span>}
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <button
+                    type="button"
+                    disabled={p.payoutSaving || !p.canManageFinance(p.role)}
+                    onClick={async () => {
+                      if (!p.user?.id) return;
+                      setPayoutSaveError(null);
+                      p.setPayoutMessage(null);
+                      if (!p.payoutMethod || p.payoutMethod === 'none') {
+                        setPayoutSaveError('Choose bank transfer or PayPal and fill the required fields before saving.');
+                        return;
+                      }
+                      if (p.payoutMethod === 'bank') {
+                        if (!p.payoutIban.trim() || !p.payoutBic.trim()) {
+                          setPayoutSaveError('Enter both IBAN and BIC before saving bank payout details.');
+                          return;
+                        }
+                      }
+                      if (p.payoutMethod === 'paypal' && !p.payoutPaypalEmail.trim()) {
+                        setPayoutSaveError('Enter your PayPal email before saving.');
+                        return;
+                      }
+                      p.setPayoutSaving(true);
+                      const res = await p.updateSupplierPayout(p.user.id, {
+                        payout_method: p.payoutMethod || null,
+                        payout_iban: p.payoutMethod === 'bank' ? p.payoutIban.trim() || null : null,
+                        payout_bic: p.payoutMethod === 'bank' ? p.payoutBic.trim() || null : null,
+                        payout_paypal_email: p.payoutMethod === 'paypal' ? p.payoutPaypalEmail.trim() || null : null,
+                        payment_cycle: p.paymentCycle || null,
+                        payout_threshold_min: p.payoutThreshold !== '' ? Number(p.payoutThreshold) : null,
+                      });
+                      p.setPayoutSaving(false);
+                      if (res.success) {
+                        p.setPayoutMessage('success');
+                        p.onPayoutSaved();
+                      } else {
+                        p.setPayoutMessage('error');
+                      }
+                    }}
+                    className="px-4 py-2 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark disabled:opacity-50"
+                  >
+                    {p.payoutSaving ? 'Saving…' : 'Save payout details'}
+                  </button>
+                  {p.payoutMessage === 'success' && <span className="text-sm text-green-600">Saved.</span>}
+                  {p.payoutMessage === 'error' && <span className="text-sm text-red-600">Failed to save.</span>}
+                </div>
+                {payoutSaveError && <p className="text-sm text-red-600">{payoutSaveError}</p>}
               </div>
             </div>
           </div>

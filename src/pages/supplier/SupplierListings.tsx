@@ -8,7 +8,11 @@ import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import SupplierListingForm from './SupplierListingForm';
 import { computeListingQuality, listingQualityPercent } from '../../lib/listingQualityScore';
 import { navigateSupplierUrl, openSupplierListingEditor } from '../../lib/supplierPortalNavigation';
-import { isSupplierBusinessProfileComplete } from '../../lib/supplierOnboarding';
+import {
+  isSupplierBusinessProfileComplete,
+  isSupplierPayoutConfigured,
+  isSupplierReadyToPublishTours,
+} from '../../lib/supplierOnboarding';
 import { canManageBookings } from '../../lib/supplierTeamRoles';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { publicTourListingUrl } from '../../lib/publicSiteUrl';
@@ -33,10 +37,12 @@ export default function SupplierListings() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedQualityId, setExpandedQualityId] = useState<string | null>(null);
-  /** Business profile complete + Traverion verification approved — required to add or publish tours. */
+  /** Verified profile + complete business details + payout saved — required to add or publish tours. */
   const [canPostNewListing, setCanPostNewListing] = useState(false);
   const [profileGateMessage, setProfileGateMessage] = useState<string | null>(null);
   const [missingBusinessDetails, setMissingBusinessDetails] = useState(false);
+  /** Verified and business complete, but no bank/PayPal payout saved yet. */
+  const [missingPayoutForPublish, setMissingPayoutForPublish] = useState(false);
   const [verificationStatus, setVerificationStatus] = useState<string | null>(null);
   const [publishGate, setPublishGate] = useState<{ listingId: string; title: string; blockers: string[] } | null>(null);
 
@@ -156,20 +162,22 @@ export default function SupplierListings() {
         setCanPostNewListing(true);
         setProfileGateMessage(null);
         setMissingBusinessDetails(false);
+        setMissingPayoutForPublish(false);
         setVerificationStatus(null);
         return;
       }
       const profile = await fetchSupplierProfile(user.id);
       const businessComplete = isSupplierBusinessProfileComplete(profile);
+      const payoutConfigured = isSupplierPayoutConfigured(profile);
       const v = profile?.verification_status ?? null;
       setVerificationStatus(v);
       setMissingBusinessDetails(!businessComplete);
       const verified = v === 'verified';
-      const canPost = businessComplete && verified;
-      setCanPostNewListing(canPost);
+      setMissingPayoutForPublish(Boolean(businessComplete && verified && !payoutConfigured));
+      setCanPostNewListing(isSupplierReadyToPublishTours(profile));
       if (!businessComplete) {
         setProfileGateMessage(
-          'Add your registered name, address, business registration proof, and payout details in Settings. Companies need an official registration number; individual traders need their business or tax identifier on file (as on their registration). After Traverion verifies your business, you can add and publish tours.'
+          'Add your registered name, address, business registration proof, and payout details in Settings. Companies need an official registration number; individual traders need their business or tax identifier on file (as on their registration). After Traverion verifies your business and your payout method is saved, you can add and publish tours.'
         );
       } else if (v === 'rejected') {
         setProfileGateMessage(
@@ -177,7 +185,11 @@ export default function SupplierListings() {
         );
       } else if (!verified) {
         setProfileGateMessage(
-          'Your documents and details are being reviewed. Once Traverion marks your account as verified, you can add and publish tours.'
+          'Your documents and details are being reviewed. Once Traverion marks your account as verified and your payout details are saved, you can add and publish tours.'
+        );
+      } else if (!payoutConfigured) {
+        setProfileGateMessage(
+          'Save payout details in Settings before publishing: for bank transfer enter IBAN and BIC, or choose PayPal and enter your PayPal email. A profile photo is optional but helps your brand.'
         );
       } else {
         setProfileGateMessage(null);
@@ -199,7 +211,9 @@ export default function SupplierListings() {
       return;
     }
     if (isSupabase && !editingId && !canPostNewListing) {
-      setError('Complete business verification before creating a new listing.');
+      setError(
+        'Complete business verification, save payout details (IBAN and BIC for bank, or PayPal), then try again.'
+      );
       setShowForm(false);
       return;
     }
@@ -240,7 +254,9 @@ export default function SupplierListings() {
       return;
     }
     if (newStatus === 'published' && !canPostNewListing) {
-      setError('Business verification must be approved before publishing listings.');
+      setError(
+        'Complete verification (if not yet) and save payout details (IBAN + BIC) or PayPal before publishing.'
+      );
       return;
     }
     if (newStatus === 'published') {
@@ -278,7 +294,7 @@ export default function SupplierListings() {
             !canEditListings
               ? 'Your role can view listings but cannot add new ones.'
               : !canPostNewListing
-                ? 'Complete business profile and get verified before adding a tour.'
+                ? 'Get verified, complete your business profile, and save payout details (IBAN or PayPal) before adding a tour.'
                 : undefined
           }
           className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark transition-colors disabled:opacity-50"
@@ -303,7 +319,16 @@ export default function SupplierListings() {
             {missingBusinessDetails && (
               <p className="font-semibold text-amber-950">Missing information</p>
             )}
-            <p className={missingBusinessDetails ? 'mt-2' : ''}>{profileGateMessage}</p>
+            {missingPayoutForPublish && (
+              <p className="font-semibold text-amber-950">Payout details required</p>
+            )}
+            <p
+              className={
+                missingBusinessDetails || missingPayoutForPublish ? 'mt-2' : ''
+              }
+            >
+              {profileGateMessage}
+            </p>
             {!missingBusinessDetails && verificationStatus && (
               <p className="mt-1 text-xs text-amber-800/90">
                 Current status: <span className="font-semibold">{verificationStatusLabel(verificationStatus)}</span>
@@ -317,6 +342,15 @@ export default function SupplierListings() {
                   className="text-xs px-2.5 py-1 rounded-full border border-amber-300 bg-white text-amber-800 hover:bg-amber-100"
                 >
                   Complete business profile
+                </button>
+              )}
+              {missingPayoutForPublish && (
+                <button
+                  type="button"
+                  onClick={() => navigateSupplierUrl('/supplier/business-profile#supplier-business-payout')}
+                  className="text-xs px-2.5 py-1 rounded-full border border-amber-300 bg-white text-amber-800 hover:bg-amber-100"
+                >
+                  Add payout details
                 </button>
               )}
               {!missingBusinessDetails && verificationStatus !== 'verified' && (
@@ -466,7 +500,7 @@ export default function SupplierListings() {
               !canEditListings
                 ? 'Your role cannot add listings.'
                 : !canPostNewListing
-                  ? 'Complete verification before adding a tour.'
+                  ? 'Verification, complete profile, and saved payout (IBAN or PayPal) required.'
                   : undefined
             }
             className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark transition-colors disabled:opacity-50"
@@ -547,7 +581,7 @@ export default function SupplierListings() {
                               disabled={listing.status !== 'published' && !canPostNewListing}
                               title={
                                 listing.status !== 'published' && !canPostNewListing
-                                  ? 'Verification required to publish'
+                                  ? 'Verification and payout details required to publish'
                                   : undefined
                               }
                               className="ml-2 text-xs text-finland hover:underline disabled:opacity-40 disabled:no-underline disabled:cursor-not-allowed"
