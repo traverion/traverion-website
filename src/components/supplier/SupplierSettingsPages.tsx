@@ -460,16 +460,17 @@ function BusinessProfilePage(p: Props) {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Registration number</label>
                     <p className="text-xs text-gray-500 mb-2">
                       Official number from your company register, exactly as shown on your registration certificate. We
-                      match this to your uploaded proof. Example (Finland): Y-tunnus{' '}
-                      <span className="font-mono text-gray-700">1234567-8</span>; VAT numbers often look like{' '}
-                      <span className="font-mono text-gray-700">FI1234567-8</span> (country prefix + digits).
+                      match this to your uploaded proof. Formats differ by jurisdiction—enter yours exactly as printed,
+                      including hyphens, spaces, or a country or tax prefix if your certificate shows one (e.g.{' '}
+                      <span className="font-mono text-gray-700">12345678-9</span> or{' '}
+                      <span className="font-mono text-gray-700">AB123456789</span>).
                     </p>
                     <input
                       type="text"
                       value={p.companyRegistrationNumber}
                       disabled={identityFieldsDisabled}
                       onChange={(e) => p.setCompanyRegistrationNumber(e.target.value)}
-                      placeholder="e.g. FI1234567-8"
+                      placeholder="As on your registration certificate"
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland disabled:bg-gray-100 disabled:cursor-not-allowed"
                     />
                   </div>
