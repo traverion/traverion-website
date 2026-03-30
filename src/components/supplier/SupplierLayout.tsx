@@ -268,6 +268,8 @@ export default function SupplierLayout() {
   const [paymentCycle, setPaymentCycle] = useState<'monthly' | 'biweekly' | ''>('');
   const [payoutThreshold, setPayoutThreshold] = useState<string>('');
   const [businessType, setBusinessType] = useState<'company' | 'individual' | ''>('');
+  /** Last server-backed business_type for verification lock (not in-progress dropdown edits). */
+  const [businessTypeAtLastFetch, setBusinessTypeAtLastFetch] = useState<'company' | 'individual' | ''>('');
   const [companyLegalName, setCompanyLegalName] = useState('');
   const [companyRegistrationNumber, setCompanyRegistrationNumber] = useState('');
   const [managingDirectors, setManagingDirectors] = useState('');
@@ -329,7 +331,9 @@ export default function SupplierLayout() {
         setPayoutPaypalEmail(p.payout_paypal_email ?? '');
         setPaymentCycle(p.payment_cycle ?? '');
         setPayoutThreshold(String(p.payout_threshold_min ?? ''));
-        setBusinessType(p.business_type ?? '');
+        const bt = (p.business_type ?? '') as '' | 'company' | 'individual';
+        setBusinessType(bt);
+        setBusinessTypeAtLastFetch(bt);
         setCompanyLegalName(p.company_legal_name ?? '');
         setCompanyRegistrationNumber(p.company_registration_number ?? '');
         setManagingDirectors(p.managing_directors ?? '');
@@ -906,6 +910,7 @@ export default function SupplierLayout() {
               verificationStatus={verificationStatus}
               verificationSubmittedAt={verificationSubmittedAt}
               setVerificationSubmittedAt={setVerificationSubmittedAt}
+              businessTypeAtLastFetch={businessTypeAtLastFetch}
               companySaving={companySaving}
               companyMessage={companyMessage}
               setCompanySaving={setCompanySaving}
@@ -941,6 +946,7 @@ export default function SupplierLayout() {
               setVerificationStatus={setVerificationStatus}
               businessProfileComplete={onboardingHasCompany}
               onCompanyProfileSaved={() => {
+                setBusinessTypeAtLastFetch(businessType);
                 void refreshSupplierOnboardingSignals();
               }}
               onPayoutSaved={() => {

@@ -6,16 +6,21 @@ export const SUPPLIER_SENSITIVE_CHANGES_SUPPORT_EMAIL = 'info@traverion.com';
  * or payout destination (method / IBAN / BIC / PayPal). Matches DB trigger rules.
  *
  * - Verified: always locked.
- * - Pending after `verification_submitted_at` was set (company details saved for review): locked.
- * - Rejected or draft (no submission timestamp): unlocked so they can fix and resubmit.
+ * - Pending after a real company submit: `verification_submitted_at` set **and** `business_type` was saved
+ *   (avoids locking drafts where DB default is `pending` and a migration backfilled the timestamp only).
+ * - Rejected or draft: unlocked so they can fix and resubmit.
+ *
+ * `businessTypeAtLastFetch` must reflect the last **server** value (or the value just saved), not in-progress dropdown edits.
  */
 export function isSupplierSensitiveIdentityLocked(
   verificationStatus: string | null | undefined,
-  verificationSubmittedAt: string | null | undefined
+  verificationSubmittedAt: string | null | undefined,
+  businessTypeAtLastFetch: string | null | undefined
 ): boolean {
   const v = (verificationStatus ?? '').trim().toLowerCase();
   const submitted = (verificationSubmittedAt ?? '').trim() !== '';
+  const typeSaved = (businessTypeAtLastFetch ?? '').trim() !== '';
   if (v === 'verified') return true;
-  if (v === 'pending' && submitted) return true;
+  if (v === 'pending' && submitted && typeSaved) return true;
   return false;
 }

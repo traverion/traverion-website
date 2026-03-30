@@ -106,6 +106,8 @@ type Props = {
   verificationStatus: string;
   verificationSubmittedAt: string;
   setVerificationSubmittedAt: (v: string) => void;
+  /** Server snapshot of business_type for lock UI (see supplierVerificationLocks). */
+  businessTypeAtLastFetch: 'company' | 'individual' | '';
   companySaving: boolean;
   companyMessage: 'success' | 'error' | null;
   setCompanySaving: (v: boolean) => void;
@@ -372,7 +374,11 @@ function BusinessProfilePage(p: Props) {
   const [companySaveError, setCompanySaveError] = useState<string | null>(null);
   const [payoutSaveError, setPayoutSaveError] = useState<string | null>(null);
 
-  const sensitiveLocked = isSupplierSensitiveIdentityLocked(p.verificationStatus, p.verificationSubmittedAt);
+  const sensitiveLocked = isSupplierSensitiveIdentityLocked(
+    p.verificationStatus,
+    p.verificationSubmittedAt,
+    p.businessTypeAtLastFetch
+  );
   const identityFieldsDisabled = sensitiveLocked || !p.canManageFinance(p.role);
   const payoutDestinationLocked = sensitiveLocked;
 

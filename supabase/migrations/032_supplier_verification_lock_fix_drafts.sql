@@ -1,19 +1,10 @@
--- When suppliers have submitted for verification (timestamp set) or are verified, block edits to
--- legal identity and payout destination columns. Traverion staff using the service role JWT bypass this.
+-- Fix drafts that were marked "submitted" because 031 backfilled verification_submitted_at for every `pending` row
+-- (pending is the column default before the supplier saves company type).
 
-alter table public.supplier_profiles
-  add column if not exists verification_submitted_at timestamptz;
-
-comment on column public.supplier_profiles.verification_submitted_at is
-  'Set when supplier saves company details for verification; with pending/verified status, locks sensitive fields.';
-
--- Existing accounts already in review or approved: treat as submitted so they stay protected.
--- Require business_type so we do not mark never-started drafts (pending is the column default) as submitted.
 update public.supplier_profiles
-set verification_submitted_at = coalesce(updated_at, created_at)
-where verification_submitted_at is null
-  and verification_status in ('pending', 'verified')
-  and business_type is not null;
+set verification_submitted_at = null
+where verification_status = 'pending'
+  and business_type is null;
 
 create or replace function public.supplier_profiles_enforce_verification_lock()
 returns trigger
@@ -69,13 +60,6 @@ begin
   return new;
 end;
 $$;
-
-drop trigger if exists supplier_profiles_enforce_verification_lock on public.supplier_profiles;
-
-create trigger supplier_profiles_enforce_verification_lock
-  before update on public.supplier_profiles
-  for each row
-  execute function public.supplier_profiles_enforce_verification_lock();
 
 comment on function public.supplier_profiles_enforce_verification_lock() is
   'Rejects updates to legal/payout columns when verified, or pending after submit with business_type set; service_role bypasses.';
