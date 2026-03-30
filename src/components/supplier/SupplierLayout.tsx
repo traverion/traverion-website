@@ -721,6 +721,8 @@ export default function SupplierLayout() {
               companyRegistrationPath={companyRegistrationPath}
               setCompanyRegistrationPath={setCompanyRegistrationPath}
               setVerificationStatus={setVerificationStatus}
+              businessProfileComplete={onboardingHasCompany}
+              onCompanyProfileSaved={() => setOnboardingHasCompany(true)}
             />
           )}
           </div>

@@ -14,6 +14,14 @@ import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { publicTourListingUrl } from '../../lib/publicSiteUrl';
 import { getListingPublishBlockers } from '../../lib/listingPublishGate';
 
+function verificationStatusLabel(status: string): string {
+  const s = status.toLowerCase();
+  if (s === 'pending') return 'Under verification';
+  if (s === 'rejected') return 'Rejected';
+  if (s === 'verified') return 'Verified';
+  return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
+}
+
 export default function SupplierListings() {
   const { user, isSupabase } = useSupplierAuth();
   const { role } = useSupplierRole();
@@ -161,7 +169,7 @@ export default function SupplierListings() {
       setCanPostNewListing(canPost);
       if (!businessComplete) {
         setProfileGateMessage(
-          'Complete your business profile in Settings: registered name, address, verification documents (ID; and company registration if you are a company), and payout details. After Traverion verifies your business, you can add and publish tours.'
+          'Add your registered name, address, verification documents (ID; and company registration if you are a company), and payout details in Settings. After Traverion verifies your business, you can add and publish tours.'
         );
       } else if (v === 'rejected') {
         setProfileGateMessage(
@@ -292,10 +300,13 @@ export default function SupplierListings() {
       {canEditListings && !canPostNewListing && (
         <div className="p-4 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <p>{profileGateMessage}</p>
-            {verificationStatus && (
+            {missingBusinessDetails && (
+              <p className="font-semibold text-amber-950">Missing information</p>
+            )}
+            <p className={missingBusinessDetails ? 'mt-2' : ''}>{profileGateMessage}</p>
+            {!missingBusinessDetails && verificationStatus && (
               <p className="mt-1 text-xs text-amber-800/90">
-                Current status: <span className="font-semibold capitalize">{verificationStatus}</span>
+                Current status: <span className="font-semibold">{verificationStatusLabel(verificationStatus)}</span>
               </p>
             )}
             <div className="mt-2 flex flex-wrap items-center gap-2">

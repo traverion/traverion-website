@@ -134,6 +134,10 @@ type Props = {
   companyRegistrationPath: string;
   setCompanyRegistrationPath: (v: string) => void;
   setVerificationStatus: (v: string) => void;
+  /** True when required company fields + verification docs are saved (same as DB-backed onboarding check). */
+  businessProfileComplete: boolean;
+  /** Call after company details save succeeds so parent can refresh onboarding state from server. */
+  onCompanyProfileSaved: () => void;
 };
 
 export default function SupplierSettingsPages(props: Props) {
@@ -804,27 +808,50 @@ function BusinessProfilePage(p: Props) {
               </div>
 
               <div className="space-y-2">
-                <p className="text-sm text-gray-700">
-                  Verification status:{' '}
-                  <span className="font-semibold capitalize">{p.verificationStatus || 'pending'}</span>
-                </p>
-                {(p.verificationStatus === 'pending' || p.verificationStatus === '' || !p.verificationStatus) && (
-                  <p className="text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                    While your status is pending, you cannot publish or create listings. We will email you when your
-                    business has been verified.
-                  </p>
+                {!p.businessProfileComplete && (
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800">
+                    <p className="font-medium text-slate-900">Not submitted for verification yet</p>
+                    <p className="text-xs text-slate-600 mt-1">
+                      Complete all required fields and documents below, then save. Your account is not in the review
+                      queue until you submit a complete profile.
+                    </p>
+                  </div>
                 )}
-                {p.verificationStatus === 'verified' && (
-                  <p className="text-sm text-green-800 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
-                    Your business is verified. You can create and publish listings.
-                  </p>
+                {p.businessProfileComplete && p.verificationStatus === 'verified' && (
+                  <div>
+                    <p className="text-sm text-gray-700">
+                      Verification status: <span className="font-semibold text-green-800">Verified</span>
+                    </p>
+                    <p className="text-sm text-green-800 bg-green-50 border border-green-200 rounded-lg px-3 py-2 mt-2">
+                      Your business is verified. You can create and publish listings.
+                    </p>
+                  </div>
                 )}
-                {p.verificationStatus === 'rejected' && (
-                  <p className="text-sm text-red-800 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-                    Verification was not approved. Update your details and documents, then contact support if you need
-                    help.
-                  </p>
+                {p.businessProfileComplete && p.verificationStatus === 'rejected' && (
+                  <div>
+                    <p className="text-sm text-gray-700">
+                      Verification status: <span className="font-semibold text-red-800">Rejected</span>
+                    </p>
+                    <p className="text-sm text-red-800 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mt-2">
+                      Verification was not approved. Update your details and documents, then contact support if you need
+                      help.
+                    </p>
+                  </div>
                 )}
+                {p.businessProfileComplete &&
+                  p.verificationStatus !== 'verified' &&
+                  p.verificationStatus !== 'rejected' && (
+                    <div>
+                      <p className="text-sm text-gray-700">
+                        Verification status:{' '}
+                        <span className="font-semibold text-amber-900">Under verification</span>
+                      </p>
+                      <p className="text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-2">
+                        Traverion is reviewing your details and documents. You cannot publish or create listings until
+                        your business is verified. We will email you when there is an update.
+                      </p>
+                    </div>
+                  )}
               </div>
               <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-3 flex-wrap">
@@ -837,6 +864,18 @@ function BusinessProfilePage(p: Props) {
                       p.setCompanyMessage(null);
                       if (!p.businessType) {
                         setCompanySaveError('Select whether you are a registered company or an individual trader.');
+                        return;
+                      }
+                      if (!p.companyLegalName.trim()) {
+                        setCompanySaveError('Enter your registered business name.');
+                        return;
+                      }
+                      if (!p.businessAddress.trim()) {
+                        setCompanySaveError('Enter your business address.');
+                        return;
+                      }
+                      if (p.businessType === 'company' && !p.companyRegistrationNumber.trim()) {
+                        setCompanySaveError('Enter your company registration number.');
                         return;
                       }
                       if (!p.identityDocumentPath?.trim()) {
@@ -862,6 +901,7 @@ function BusinessProfilePage(p: Props) {
                       if (res.success) {
                         p.setVerificationStatus('pending');
                         p.setCompanyMessage('success');
+                        p.onCompanyProfileSaved();
                       } else {
                         p.setCompanyMessage('error');
                       }
@@ -871,7 +911,9 @@ function BusinessProfilePage(p: Props) {
                     {p.companySaving ? 'Saving…' : 'Save company details'}
                   </button>
                   {p.companyMessage === 'success' && (
-                    <span className="text-sm text-green-600">Saved. Your details are pending review.</span>
+                    <span className="text-sm text-green-600">
+                      Saved. Your business is now under verification by Traverion.
+                    </span>
                   )}
                   {p.companyMessage === 'error' && <span className="text-sm text-red-600">Failed to save.</span>}
                 </div>
