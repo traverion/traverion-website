@@ -16,17 +16,15 @@ export function isSupplierPayoutConfigured(profile: SupplierProfileRow | null | 
 
 /**
  * True only after the supplier has filled real business fields in Settings,
- * uploaded verification documents, and not just the signup business name copied into company_legal_name.
+ * uploaded business registration proof, and not just the signup business name copied into company_legal_name.
  */
 export function isSupplierBusinessProfileComplete(profile: SupplierProfileRow | null | undefined): boolean {
   if (!profile?.company_legal_name?.trim()) return false;
   if (!profile.business_address?.trim()) return false;
   if (!profile.business_type) return false;
-  if (!profile.identity_document_path?.trim()) return false;
+  if (!profile.company_registration_document_path?.trim()) return false;
   if (profile.business_type === 'company') {
-    return Boolean(
-      profile.company_registration_number?.trim() && profile.company_registration_document_path?.trim()
-    );
+    return Boolean(profile.company_registration_number?.trim());
   }
   if (profile.business_type === 'individual') {
     return true;

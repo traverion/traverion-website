@@ -42,11 +42,10 @@ export type SupplierProfileRow = {
 const SUPPLIER_LOGO_BUCKET = 'supplier-logos';
 const VERIFICATION_BUCKET = 'supplier-verification';
 
-/** Upload ID or company registration document (PDF or image). Returns storage path for DB. */
+/** Upload business registration proof (PDF or image). Returns storage path for DB. */
 export async function uploadSupplierVerificationDocument(
   userId: string,
-  file: File,
-  kind: 'identity' | 'company_registration'
+  file: File
 ): Promise<{ path: string | null; error?: string }> {
   if (!supabase) return { path: null, error: 'Supabase not configured' };
   const max = 5 * 1024 * 1024;
@@ -62,8 +61,7 @@ export async function uploadSupplierVerificationDocument(
         : file.type === 'image/png'
           ? 'png'
           : 'webp';
-  const base = kind === 'identity' ? 'identity-document' : 'company-registration';
-  const path = `${userId}/${base}.${ext}`;
+  const path = `${userId}/company-registration.${ext}`;
 
   const { error: upErr } = await supabase.storage
     .from(VERIFICATION_BUCKET)

@@ -169,7 +169,7 @@ export default function SupplierListings() {
       setCanPostNewListing(canPost);
       if (!businessComplete) {
         setProfileGateMessage(
-          'Add your registered name, address, verification documents (ID; and company registration if you are a company), and payout details in Settings. After Traverion verifies your business, you can add and publish tours.'
+          'Add your registered name, address, business registration proof, and payout details in Settings (companies also need a registration number). After Traverion verifies your business, you can add and publish tours.'
         );
       } else if (v === 'rejected') {
         setProfileGateMessage(

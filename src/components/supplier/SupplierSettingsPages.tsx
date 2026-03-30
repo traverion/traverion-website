@@ -129,8 +129,6 @@ type Props = {
   businessLogoUrl: string;
   setBusinessLogoUrl: (v: string) => void;
 
-  identityDocumentPath: string;
-  setIdentityDocumentPath: (v: string) => void;
   companyRegistrationPath: string;
   setCompanyRegistrationPath: (v: string) => void;
   setVerificationStatus: (v: string) => void;
@@ -352,11 +350,9 @@ function AccountSettingsPage(p: Props) {
 
 function BusinessProfilePage(p: Props) {
   const logoInputRef = useRef<HTMLInputElement>(null);
-  const identityDocInputRef = useRef<HTMLInputElement>(null);
   const companyRegInputRef = useRef<HTMLInputElement>(null);
   const [logoUploading, setLogoUploading] = useState(false);
   const [logoError, setLogoError] = useState<string | null>(null);
-  const [identityDocUploading, setIdentityDocUploading] = useState(false);
   const [companyRegUploading, setCompanyRegUploading] = useState(false);
   const [docError, setDocError] = useState<string | null>(null);
   const [companySaveError, setCompanySaveError] = useState<string | null>(null);
@@ -626,15 +622,19 @@ function BusinessProfilePage(p: Props) {
                 <div>
                   <h3 className="text-sm font-semibold text-gray-900">Verification documents</h3>
                   <p className="text-xs text-gray-600 mt-1">
-                    Required for Traverion to confirm your identity and, for companies, your registration. Files are
+                    Upload proof of your business or trade registration so Traverion can verify your account. Files are
                     stored securely and reviewed by our team.
                   </p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Government-issued ID</label>
-                  <p className="text-xs text-gray-500 mb-2">Passport or national ID (PDF or clear photo).</p>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Business registration proof</label>
+                  <p className="text-xs text-gray-500 mb-2">
+                    {p.businessType === 'company'
+                      ? 'Official extract or certificate showing your company name and registration number (PDF or clear photo).'
+                      : 'Official proof of your business or sole trader registration, trade register extract, or equivalent (PDF or clear photo).'}
+                  </p>
                   <input
-                    ref={identityDocInputRef}
+                    ref={companyRegInputRef}
                     type="file"
                     accept="image/jpeg,image/png,image/webp,application/pdf"
                     className="hidden"
@@ -644,24 +644,20 @@ function BusinessProfilePage(p: Props) {
                       if (!file || !p.user?.id || !p.isSupabase) return;
                       if (!p.canManageFinance(p.role)) return;
                       setDocError(null);
-                      setIdentityDocUploading(true);
-                      const { path, error: upErr } = await uploadSupplierVerificationDocument(
-                        p.user.id,
-                        file,
-                        'identity'
-                      );
+                      setCompanyRegUploading(true);
+                      const { path, error: upErr } = await uploadSupplierVerificationDocument(p.user.id, file);
                       if (upErr || !path) {
-                        setIdentityDocUploading(false);
+                        setCompanyRegUploading(false);
                         setDocError(upErr ?? 'Upload failed.');
                         return;
                       }
                       const res = await p.updateSupplierCompanyProfile(p.user.id, {
-                        identity_document_path: path,
+                        company_registration_document_path: path,
                         verification_status: 'pending',
                       });
-                      setIdentityDocUploading(false);
+                      setCompanyRegUploading(false);
                       if (res.success) {
-                        p.setIdentityDocumentPath(path);
+                        p.setCompanyRegistrationPath(path);
                         p.setVerificationStatus('pending');
                       } else setDocError('Could not save document.');
                     }}
@@ -669,19 +665,23 @@ function BusinessProfilePage(p: Props) {
                   <div className="flex flex-wrap items-center gap-2">
                     <button
                       type="button"
-                      disabled={identityDocUploading || !p.canManageFinance(p.role)}
-                      onClick={() => identityDocInputRef.current?.click()}
+                      disabled={companyRegUploading || !p.canManageFinance(p.role)}
+                      onClick={() => companyRegInputRef.current?.click()}
                       className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-800 hover:bg-gray-50 disabled:opacity-50"
                     >
-                      {identityDocUploading ? 'Uploading…' : p.identityDocumentPath ? 'Replace ID' : 'Upload ID'}
+                      {companyRegUploading
+                        ? 'Uploading…'
+                        : p.companyRegistrationPath
+                          ? 'Replace document'
+                          : 'Upload registration'}
                     </button>
-                    {p.identityDocumentPath ? (
+                    {p.companyRegistrationPath ? (
                       <>
                         <button
                           type="button"
                           className="text-sm text-finland hover:underline"
                           onClick={async () => {
-                            const url = await getSignedVerificationDocumentUrl(p.identityDocumentPath);
+                            const url = await getSignedVerificationDocumentUrl(p.companyRegistrationPath);
                             if (url) window.open(url, '_blank', 'noopener,noreferrer');
                           }}
                         >
@@ -689,20 +689,20 @@ function BusinessProfilePage(p: Props) {
                         </button>
                         <button
                           type="button"
-                          disabled={identityDocUploading || !p.canManageFinance(p.role)}
+                          disabled={companyRegUploading || !p.canManageFinance(p.role)}
                           className="text-sm text-red-600 hover:underline disabled:opacity-50"
                           onClick={async () => {
-                            if (!p.user?.id || !p.identityDocumentPath) return;
+                            if (!p.user?.id || !p.companyRegistrationPath) return;
                             setDocError(null);
-                            setIdentityDocUploading(true);
-                            await removeSupplierVerificationDocumentFile(p.identityDocumentPath);
+                            setCompanyRegUploading(true);
+                            await removeSupplierVerificationDocumentFile(p.companyRegistrationPath);
                             const res = await p.updateSupplierCompanyProfile(p.user.id, {
-                              identity_document_path: null,
+                              company_registration_document_path: null,
                               verification_status: 'pending',
                             });
-                            setIdentityDocUploading(false);
+                            setCompanyRegUploading(false);
                             if (res.success) {
-                              p.setIdentityDocumentPath('');
+                              p.setCompanyRegistrationPath('');
                               p.setVerificationStatus('pending');
                             } else setDocError('Could not remove file.');
                           }}
@@ -713,97 +713,6 @@ function BusinessProfilePage(p: Props) {
                     ) : null}
                   </div>
                 </div>
-                {p.businessType === 'company' && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Company registration proof</label>
-                    <p className="text-xs text-gray-500 mb-2">
-                      Official extract or certificate showing your company name and registration number.
-                    </p>
-                    <input
-                      ref={companyRegInputRef}
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp,application/pdf"
-                      className="hidden"
-                      onChange={async (e) => {
-                        const file = e.target.files?.[0];
-                        e.target.value = '';
-                        if (!file || !p.user?.id || !p.isSupabase) return;
-                        if (!p.canManageFinance(p.role)) return;
-                        setDocError(null);
-                        setCompanyRegUploading(true);
-                        const { path, error: upErr } = await uploadSupplierVerificationDocument(
-                          p.user.id,
-                          file,
-                          'company_registration'
-                        );
-                        if (upErr || !path) {
-                          setCompanyRegUploading(false);
-                          setDocError(upErr ?? 'Upload failed.');
-                          return;
-                        }
-                        const res = await p.updateSupplierCompanyProfile(p.user.id, {
-                          company_registration_document_path: path,
-                          verification_status: 'pending',
-                        });
-                        setCompanyRegUploading(false);
-                        if (res.success) {
-                          p.setCompanyRegistrationPath(path);
-                          p.setVerificationStatus('pending');
-                        } else setDocError('Could not save document.');
-                      }}
-                    />
-                    <div className="flex flex-wrap items-center gap-2">
-                      <button
-                        type="button"
-                        disabled={companyRegUploading || !p.canManageFinance(p.role)}
-                        onClick={() => companyRegInputRef.current?.click()}
-                        className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-800 hover:bg-gray-50 disabled:opacity-50"
-                      >
-                        {companyRegUploading
-                          ? 'Uploading…'
-                          : p.companyRegistrationPath
-                            ? 'Replace document'
-                            : 'Upload registration'}
-                      </button>
-                      {p.companyRegistrationPath ? (
-                        <>
-                          <button
-                            type="button"
-                            className="text-sm text-finland hover:underline"
-                            onClick={async () => {
-                              const url = await getSignedVerificationDocumentUrl(p.companyRegistrationPath);
-                              if (url) window.open(url, '_blank', 'noopener,noreferrer');
-                            }}
-                          >
-                            View
-                          </button>
-                          <button
-                            type="button"
-                            disabled={companyRegUploading || !p.canManageFinance(p.role)}
-                            className="text-sm text-red-600 hover:underline disabled:opacity-50"
-                            onClick={async () => {
-                              if (!p.user?.id || !p.companyRegistrationPath) return;
-                              setDocError(null);
-                              setCompanyRegUploading(true);
-                              await removeSupplierVerificationDocumentFile(p.companyRegistrationPath);
-                              const res = await p.updateSupplierCompanyProfile(p.user.id, {
-                                company_registration_document_path: null,
-                                verification_status: 'pending',
-                              });
-                              setCompanyRegUploading(false);
-                              if (res.success) {
-                                p.setCompanyRegistrationPath('');
-                                p.setVerificationStatus('pending');
-                              } else setDocError('Could not remove file.');
-                            }}
-                          >
-                            Remove
-                          </button>
-                        </>
-                      ) : null}
-                    </div>
-                  </div>
-                )}
                 {docError && <p className="text-xs text-red-600">{docError}</p>}
               </div>
 
@@ -878,12 +787,8 @@ function BusinessProfilePage(p: Props) {
                         setCompanySaveError('Enter your company registration number.');
                         return;
                       }
-                      if (!p.identityDocumentPath?.trim()) {
-                        setCompanySaveError('Upload a government-issued ID before saving.');
-                        return;
-                      }
-                      if (p.businessType === 'company' && !p.companyRegistrationPath?.trim()) {
-                        setCompanySaveError('Upload your company registration document before saving.');
+                      if (!p.companyRegistrationPath?.trim()) {
+                        setCompanySaveError('Upload your business registration proof before saving.');
                         return;
                       }
                       p.setCompanySaving(true);
