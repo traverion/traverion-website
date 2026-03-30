@@ -570,14 +570,14 @@ function BusinessProfilePage(p: Props) {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Registration number</label>
                     <p className="text-xs text-gray-500 mb-2">
-                      Official number from your company register (e.g. Finnish Y-tunnus 1234567-8, UK company number, or
-                      your jurisdiction’s equivalent). This is what we check against your uploaded proof.
+                      Official number from your company register, exactly as shown on your registration certificate. We
+                      match this to your uploaded proof.
                     </p>
                     <input
                       type="text"
                       value={p.companyRegistrationNumber}
                       onChange={(e) => p.setCompanyRegistrationNumber(e.target.value)}
-                      placeholder="e.g. 1234567-8"
+                      placeholder="As on your registration"
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
                     />
                   </div>
@@ -613,8 +613,7 @@ function BusinessProfilePage(p: Props) {
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">VAT ID (optional)</label>
                       <p className="text-xs text-gray-500 mb-2">
-                        If you are VAT-registered, e.g. <span className="font-mono text-gray-600">FI12345678</span> in the
-                        EU.
+                        If you are VAT-registered, enter your VAT number in the format your country uses.
                       </p>
                       <input
                         type="text"
@@ -627,7 +626,7 @@ function BusinessProfilePage(p: Props) {
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Other tax ID (optional)</label>
                       <p className="text-xs text-gray-500 mb-2">
-                        Only when your country uses a number different from the registration number (e.g. US EIN).
+                        Only when your jurisdiction issues a tax identifier separate from the registration number above.
                       </p>
                       <input
                         type="text"
@@ -645,22 +644,21 @@ function BusinessProfilePage(p: Props) {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Business ID / tax number</label>
                     <p className="text-xs text-gray-500 mb-2">
-                      Required for verification: the identifier on your trade or tax registration. Examples: Finnish
-                      Y-tunnus or toiminimi number (e.g. <span className="font-mono text-gray-600">1234567-8</span>), UK
-                      UTR, or your country’s official business/tax ID format.
+                      Required for verification: your business or tax identifier exactly as it appears on your trade or tax
+                      registration documents, in the format used in your jurisdiction.
                     </p>
                     <input
                       type="text"
                       value={p.taxId}
                       onChange={(e) => p.setTaxId(e.target.value)}
-                      placeholder="e.g. 1234567-8"
+                      placeholder="As on your registration"
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">VAT ID (optional)</label>
                     <p className="text-xs text-gray-500 mb-2">
-                      Only if you are VAT-registered (e.g. EU VAT number starting with your country code).
+                      Only if you are VAT-registered. Use the format your tax authority issued.
                     </p>
                     <input
                       type="text"
@@ -844,7 +842,7 @@ function BusinessProfilePage(p: Props) {
                       }
                       if (p.businessType === 'individual' && !p.taxId.trim()) {
                         setCompanySaveError(
-                          'Enter your business ID or tax number as it appears on your registration (e.g. Y-tunnus).'
+                          'Enter your business ID or tax number exactly as it appears on your registration.'
                         );
                         return;
                       }

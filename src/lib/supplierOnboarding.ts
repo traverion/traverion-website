@@ -27,7 +27,7 @@ export function isSupplierBusinessProfileComplete(profile: SupplierProfileRow | 
     return Boolean(profile.company_registration_number?.trim());
   }
   if (profile.business_type === 'individual') {
-    /** Y-tunnus, UTR, etc. — matches what appears on trade/tax registration. */
+    /** Business / tax ID as shown on trade or tax registration. */
     return Boolean(profile.tax_id?.trim());
   }
   return false;

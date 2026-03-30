@@ -169,7 +169,7 @@ export default function SupplierListings() {
       setCanPostNewListing(canPost);
       if (!businessComplete) {
         setProfileGateMessage(
-          'Add your registered name, address, business registration proof, and payout details in Settings. Companies need an official registration number; individual traders need their business / tax ID (e.g. Finnish Y-tunnus) on file. After Traverion verifies your business, you can add and publish tours.'
+          'Add your registered name, address, business registration proof, and payout details in Settings. Companies need an official registration number; individual traders need their business or tax identifier on file (as on their registration). After Traverion verifies your business, you can add and publish tours.'
         );
       } else if (v === 'rejected') {
         setProfileGateMessage(
