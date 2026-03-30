@@ -11,6 +11,7 @@ import {
   uploadSupplierBusinessLogo,
   uploadSupplierVerificationDocument,
 } from '../../data/supabase-supplier-profile';
+import { formatSupplierBusinessAddressFromParts } from '../../lib/supplierAddress';
 
 type BusinessProfileTab = 'company' | 'legal';
 
@@ -86,8 +87,14 @@ type Props = {
   setCompanyRegistrationNumber: (v: string) => void;
   managingDirectors: string;
   setManagingDirectors: (v: string) => void;
-  businessAddress: string;
-  setBusinessAddress: (v: string) => void;
+  addressStreet: string;
+  setAddressStreet: (v: string) => void;
+  addressCountry: string;
+  setAddressCountry: (v: string) => void;
+  addressCity: string;
+  setAddressCity: (v: string) => void;
+  addressPostalCode: string;
+  setAddressPostalCode: (v: string) => void;
   taxId: string;
   setTaxId: (v: string) => void;
   vatId: string;
@@ -513,36 +520,73 @@ function BusinessProfilePage(p: Props) {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Registration number</label>
                     <p className="text-xs text-gray-500 mb-2">
                       Official number from your company register, exactly as shown on your registration certificate. We
-                      match this to your uploaded proof.
+                      match this to your uploaded proof. Example (Finland): Y-tunnus{' '}
+                      <span className="font-mono text-gray-700">1234567-8</span>; VAT numbers often look like{' '}
+                      <span className="font-mono text-gray-700">FI1234567-8</span> (country prefix + digits).
                     </p>
                     <input
                       type="text"
                       value={p.companyRegistrationNumber}
                       onChange={(e) => p.setCompanyRegistrationNumber(e.target.value)}
-                      placeholder="As on your registration"
+                      placeholder="e.g. FI1234567-8"
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Managing directors</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Managing director</label>
+                    <p className="text-xs text-gray-500 mb-2">One person named as managing director on your registration.</p>
                     <input
                       type="text"
                       value={p.managingDirectors}
                       onChange={(e) => p.setManagingDirectors(e.target.value)}
-                      placeholder="Names"
+                      placeholder="Full name"
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
                     />
                   </div>
                 </>
               )}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Business address</label>
-                <textarea
-                  value={p.businessAddress}
-                  onChange={(e) => p.setBusinessAddress(e.target.value)}
-                  rows={2}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
-                />
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                  <p className="text-xs text-gray-500 mb-2">Street and building; as on your business registration.</p>
+                  <input
+                    type="text"
+                    value={p.addressStreet}
+                    onChange={(e) => p.setAddressStreet(e.target.value)}
+                    placeholder="Street, number, unit"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
+                  <input
+                    type="text"
+                    value={p.addressCountry}
+                    onChange={(e) => p.setAddressCountry(e.target.value)}
+                    placeholder="Country"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+                  <input
+                    type="text"
+                    value={p.addressCity}
+                    onChange={(e) => p.setAddressCity(e.target.value)}
+                    placeholder="City"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">ZIP / postal code</label>
+                  <input
+                    type="text"
+                    value={p.addressPostalCode}
+                    onChange={(e) => p.setAddressPostalCode(e.target.value)}
+                    placeholder="Postal code"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+                  />
+                </div>
               </div>
               {p.businessType === 'company' && (
                 <div className="rounded-lg border border-slate-200 bg-slate-50/90 p-4 space-y-3">
@@ -774,8 +818,13 @@ function BusinessProfilePage(p: Props) {
                         setCompanySaveError('Enter your registered business name.');
                         return;
                       }
-                      if (!p.businessAddress.trim()) {
-                        setCompanySaveError('Enter your business address.');
+                      if (
+                        !p.addressStreet.trim() ||
+                        !p.addressCountry.trim() ||
+                        !p.addressCity.trim() ||
+                        !p.addressPostalCode.trim()
+                      ) {
+                        setCompanySaveError('Enter your full address: street, country, city, and postal code.');
                         return;
                       }
                       if (p.businessType === 'company' && !p.companyRegistrationNumber.trim()) {
@@ -793,12 +842,22 @@ function BusinessProfilePage(p: Props) {
                         return;
                       }
                       p.setCompanySaving(true);
+                      const combinedAddress = formatSupplierBusinessAddressFromParts({
+                        address_street: p.addressStreet,
+                        address_postal_code: p.addressPostalCode,
+                        address_city: p.addressCity,
+                        address_country: p.addressCountry,
+                      });
                       const res = await p.updateSupplierCompanyProfile(p.user.id, {
                         business_type: p.businessType || null,
                         company_legal_name: p.companyLegalName.trim() || null,
                         company_registration_number: p.companyRegistrationNumber.trim() || null,
                         managing_directors: p.managingDirectors.trim() || null,
-                        business_address: p.businessAddress.trim() || null,
+                        address_street: p.addressStreet.trim() || null,
+                        address_country: p.addressCountry.trim() || null,
+                        address_city: p.addressCity.trim() || null,
+                        address_postal_code: p.addressPostalCode.trim() || null,
+                        business_address: combinedAddress.trim() || null,
                         tax_id: p.taxId.trim() || null,
                         vat_id: p.vatId.trim() || null,
                         verification_status: 'pending',

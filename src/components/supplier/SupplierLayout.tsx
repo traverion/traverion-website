@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, type ReactNode } from 'react';
+import { useState, useEffect, useCallback, useMemo, type ReactNode } from 'react';
 import {
   LayoutDashboard,
   MapPin,
@@ -37,6 +37,7 @@ import {
   defaultPrivacyPolicyTemplate,
   defaultTermsConditionsTemplate,
 } from '../../lib/supplierLegalTemplates';
+import { formatSupplierBusinessAddressFromParts } from '../../lib/supplierAddress';
 import { fetchMyListings } from '../../data/supabase-listings';
 import SupplierLoginPage from './SupplierLoginPage';
 import SupplierSettingsPages from './SupplierSettingsPages';
@@ -270,7 +271,10 @@ export default function SupplierLayout() {
   const [companyLegalName, setCompanyLegalName] = useState('');
   const [companyRegistrationNumber, setCompanyRegistrationNumber] = useState('');
   const [managingDirectors, setManagingDirectors] = useState('');
-  const [businessAddress, setBusinessAddress] = useState('');
+  const [addressStreet, setAddressStreet] = useState('');
+  const [addressCountry, setAddressCountry] = useState('');
+  const [addressCity, setAddressCity] = useState('');
+  const [addressPostalCode, setAddressPostalCode] = useState('');
   const [taxId, setTaxId] = useState('');
   const [vatId, setVatId] = useState('');
   const [verificationStatus, setVerificationStatus] = useState<string>('');
@@ -328,7 +332,22 @@ export default function SupplierLayout() {
         setCompanyLegalName(p.company_legal_name ?? '');
         setCompanyRegistrationNumber(p.company_registration_number ?? '');
         setManagingDirectors(p.managing_directors ?? '');
-        setBusinessAddress(p.business_address ?? '');
+        const hasStructured =
+          (p.address_street ?? '').trim() ||
+          (p.address_city ?? '').trim() ||
+          (p.address_postal_code ?? '').trim() ||
+          (p.address_country ?? '').trim();
+        if (hasStructured) {
+          setAddressStreet(p.address_street ?? '');
+          setAddressCity(p.address_city ?? '');
+          setAddressPostalCode(p.address_postal_code ?? '');
+          setAddressCountry(p.address_country ?? '');
+        } else {
+          setAddressStreet((p.business_address ?? '').trim());
+          setAddressCity('');
+          setAddressPostalCode('');
+          setAddressCountry('');
+        }
         setTaxId(p.tax_id ?? '');
         setVatId(p.vat_id ?? '');
         setVerificationStatus(p.verification_status ?? '');
@@ -435,12 +454,23 @@ export default function SupplierLayout() {
 
   const operatorDisplayName = companyLegalName.trim() || profileDisplayName.trim() || 'Your business';
 
+  const formattedBusinessAddress = useMemo(
+    () =>
+      formatSupplierBusinessAddressFromParts({
+        address_street: addressStreet,
+        address_postal_code: addressPostalCode,
+        address_city: addressCity,
+        address_country: addressCountry,
+      }),
+    [addressStreet, addressPostalCode, addressCity, addressCountry]
+  );
+
   const fillPrivacyTemplate = () => {
     const raw = applyLegalDate(defaultPrivacyPolicyTemplate());
     setPrivacyPolicyText(
       applyLegalPlaceholders(raw, {
         operatorName: operatorDisplayName,
-        businessAddress: businessAddress,
+        businessAddress: formattedBusinessAddress,
       })
     );
   };
@@ -450,7 +480,7 @@ export default function SupplierLayout() {
     setTermsConditionsText(
       applyLegalPlaceholders(raw, {
         operatorName: operatorDisplayName,
-        businessAddress: businessAddress,
+        businessAddress: formattedBusinessAddress,
       })
     );
   };
@@ -857,8 +887,14 @@ export default function SupplierLayout() {
               setCompanyRegistrationNumber={setCompanyRegistrationNumber}
               managingDirectors={managingDirectors}
               setManagingDirectors={setManagingDirectors}
-              businessAddress={businessAddress}
-              setBusinessAddress={setBusinessAddress}
+              addressStreet={addressStreet}
+              setAddressStreet={setAddressStreet}
+              addressCountry={addressCountry}
+              setAddressCountry={setAddressCountry}
+              addressCity={addressCity}
+              setAddressCity={setAddressCity}
+              addressPostalCode={addressPostalCode}
+              setAddressPostalCode={setAddressPostalCode}
               taxId={taxId}
               setTaxId={setTaxId}
               vatId={vatId}

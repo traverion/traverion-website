@@ -14,6 +14,10 @@ export type SupplierProfileRow = {
   company_registration_number: string | null;
   managing_directors: string | null;
   business_address: string | null;
+  address_street: string | null;
+  address_country: string | null;
+  address_city: string | null;
+  address_postal_code: string | null;
   tax_id: string | null;
   vat_id: string | null;
   verification_status: 'pending' | 'verified' | 'rejected' | null;
@@ -208,6 +212,10 @@ export async function updateSupplierCompanyProfile(
     company_registration_number: string | null;
     managing_directors: string | null;
     business_address: string | null;
+    address_street: string | null;
+    address_country: string | null;
+    address_city: string | null;
+    address_postal_code: string | null;
     tax_id: string | null;
     vat_id: string | null;
     verification_status: 'pending' | 'verified' | 'rejected' | null;

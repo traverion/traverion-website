@@ -1,4 +1,5 @@
 import type { SupplierProfileRow } from '../data/supabase-supplier-profile';
+import { isSupplierAddressComplete } from './supplierAddress';
 
 /** Payout method selected and minimum details saved for that method. */
 export function isSupplierPayoutConfigured(profile: SupplierProfileRow | null | undefined): boolean {
@@ -20,7 +21,7 @@ export function isSupplierPayoutConfigured(profile: SupplierProfileRow | null | 
  */
 export function isSupplierBusinessProfileComplete(profile: SupplierProfileRow | null | undefined): boolean {
   if (!profile?.company_legal_name?.trim()) return false;
-  if (!profile.business_address?.trim()) return false;
+  if (!isSupplierAddressComplete(profile)) return false;
   if (!profile.business_type) return false;
   if (!profile.company_registration_document_path?.trim()) return false;
   if (profile.business_type === 'company') {
