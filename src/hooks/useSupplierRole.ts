@@ -1,44 +1,23 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useSupplierAuth } from '../contexts/SupplierAuthContext';
-import {
-  type SupplierRole,
-  type SupplierTeamMember,
-} from '../lib/supplierTeamRoles';
-import { fetchSupplierTeamMembers } from '../data/supabase-supplier-team';
+import { useCallback, useMemo } from 'react';
+import type { SupplierRole, SupplierTeamMember } from '../lib/supplierTeamRoles';
 
+/**
+ * Team/roles are disabled for now: the signed-in user is always treated as the account owner.
+ * (Previously, missing `supplier_team_members` rows defaulted to `viewer` and blocked finance UI.)
+ */
 export function useSupplierRole(): {
   role: SupplierRole;
   members: SupplierTeamMember[];
   refresh: () => Promise<void>;
 } {
-  const { user } = useSupplierAuth();
-  const userId = user?.id ?? 'local-supplier';
+  const refresh = useCallback(async () => {}, []);
 
-  const [members, setMembers] = useState<SupplierTeamMember[]>([]);
-  const refresh = async () => {
-    const next = await fetchSupplierTeamMembers(userId);
-    setMembers(next);
-  };
-
-  useEffect(() => {
-    refresh();
-  }, [userId]);
-
-  useEffect(() => {
-    const onChange = () => {
-      refresh();
-    };
-    window.addEventListener('traverion-supplier-team-roles', onChange);
-    return () => window.removeEventListener('traverion-supplier-team-roles', onChange);
-  }, []);
-
-  return useMemo(() => {
-    const role = members.find((m) => m.id === userId)?.role ?? 'viewer';
-    return {
-      role,
-      members,
+  return useMemo(
+    () => ({
+      role: 'owner',
+      members: [],
       refresh,
-    };
-  }, [userId, members]);
+    }),
+    [refresh]
+  );
 }
-

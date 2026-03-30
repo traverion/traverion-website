@@ -41,13 +41,6 @@ import { formatSupplierBusinessAddressFromParts } from '../../lib/supplierAddres
 import { fetchMyListings } from '../../data/supabase-listings';
 import SupplierLoginPage from './SupplierLoginPage';
 import SupplierSettingsPages from './SupplierSettingsPages';
-import {
-  canManageTeam,
-  canManageFinance,
-  type SupplierRole,
-} from '../../lib/supplierTeamRoles';
-import { useSupplierRole } from '../../hooks/useSupplierRole';
-import { upsertSupplierTeamMember, removeSupplierTeamMember } from '../../data/supabase-supplier-team';
 import { BRAND_LOGO_SRC } from '../../lib/brandAssets';
 import { isSupplierBusinessProfileComplete, isSupplierPayoutConfigured } from '../../lib/supplierOnboarding';
 import { publicSiteBaseUrl } from '../../lib/publicSiteUrl';
@@ -256,7 +249,6 @@ function SupplierSetupProgressStrip({
 
 export default function SupplierLayout() {
   const { user, loading, signOut, isSupabase } = useSupplierAuth();
-  const { role, members: roleMembers } = useSupplierRole();
   const [section, setSection] = useState<SupplierSection>(() => getSectionFromPath(window.location.pathname) ?? 'dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [payoutMethod, setPayoutMethod] = useState<'bank' | 'paypal' | 'none' | ''>('');
@@ -288,10 +280,6 @@ export default function SupplierLayout() {
   const [insuranceProvider, setInsuranceProvider] = useState('');
   const [companySaving, setCompanySaving] = useState(false);
   const [companyMessage, setCompanyMessage] = useState<'success' | 'error' | null>(null);
-  const [teamLabel, setTeamLabel] = useState('');
-  const [teamMemberId, setTeamMemberId] = useState('');
-  const [teamRole, setTeamRole] = useState<SupplierRole>('viewer');
-  const [teamMembers, setTeamMembers] = useState(roleMembers);
   const [onboardingListingCount, setOnboardingListingCount] = useState<number | null>(null);
   const [onboardingHasPayout, setOnboardingHasPayout] = useState(false);
   const [onboardingHasCompany, setOnboardingHasCompany] = useState(false);
@@ -400,10 +388,6 @@ export default function SupplierLayout() {
     window.addEventListener(ev, onRefresh);
     return () => window.removeEventListener(ev, onRefresh);
   }, [refreshSupplierOnboardingSignals]);
-
-  useEffect(() => {
-    setTeamMembers(roleMembers);
-  }, [roleMembers]);
 
   useEffect(() => {
     const syncFromPath = () => {
@@ -839,7 +823,6 @@ export default function SupplierLayout() {
             <SupplierSettingsPages
               variant={section === 'account-settings' ? 'account-settings' : 'business-profile'}
               user={user}
-              role={role}
               isSupabase={isSupabase}
               supabase={supabase}
               supplierEmail={supplierEmail}
@@ -849,17 +832,6 @@ export default function SupplierLayout() {
               setVerificationMessage={setVerificationMessage}
               setVerificationSending={setVerificationSending}
               publicSiteBaseUrl={publicSiteBaseUrl}
-              teamMembers={teamMembers}
-              teamLabel={teamLabel}
-              setTeamLabel={setTeamLabel}
-              teamMemberId={teamMemberId}
-              setTeamMemberId={setTeamMemberId}
-              teamRole={teamRole}
-              setTeamRole={setTeamRole}
-              setTeamMembers={setTeamMembers}
-              canManageTeam={canManageTeam}
-              removeSupplierTeamMember={removeSupplierTeamMember}
-              upsertSupplierTeamMember={upsertSupplierTeamMember}
               newPassword={newPassword}
               setNewPassword={setNewPassword}
               passwordSaving={passwordSaving}
@@ -886,7 +858,6 @@ export default function SupplierLayout() {
               setPayoutSaving={setPayoutSaving}
               setPayoutMessage={setPayoutMessage}
               updateSupplierPayout={updateSupplierPayout}
-              canManageFinance={canManageFinance}
               businessType={businessType}
               setBusinessType={setBusinessType}
               companyLegalName={companyLegalName}

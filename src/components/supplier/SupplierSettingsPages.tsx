@@ -1,7 +1,5 @@
-import type { Dispatch, SetStateAction } from 'react';
 import { useRef, useState } from 'react';
 import { Building2, FileText, ImagePlus, Shield } from 'lucide-react';
-import type { SupplierRole } from '../../lib/supplierTeamRoles';
 import type { User } from '@supabase/supabase-js';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
@@ -24,7 +22,6 @@ type Props = {
   /** Page: business profile */
   variant: 'business-profile' | 'account-settings';
   user: User | null;
-  role: SupplierRole;
   isSupabase: boolean;
   supabase: SupabaseClient | null;
 
@@ -35,23 +32,6 @@ type Props = {
   setVerificationMessage: (v: 'sent' | 'error' | null) => void;
   setVerificationSending: (v: boolean) => void;
   publicSiteBaseUrl: () => string;
-
-  teamMembers: { id: string; label: string; role: SupplierRole; createdAt: string }[];
-  teamLabel: string;
-  setTeamLabel: (v: string) => void;
-  teamMemberId: string;
-  setTeamMemberId: (v: string) => void;
-  teamRole: SupplierRole;
-  setTeamRole: (v: SupplierRole) => void;
-  setTeamMembers: Dispatch<
-    SetStateAction<{ id: string; label: string; role: SupplierRole; createdAt: string }[]>
-  >;
-  canManageTeam: (role: SupplierRole) => boolean;
-  removeSupplierTeamMember: (ownerId: string, memberId: string) => Promise<boolean>;
-  upsertSupplierTeamMember: (
-    ownerId: string,
-    m: { id: string; label: string; role: SupplierRole }
-  ) => Promise<boolean>;
 
   newPassword: string;
   setNewPassword: (v: string) => void;
@@ -82,7 +62,6 @@ type Props = {
   setPayoutSaving: (v: boolean) => void;
   setPayoutMessage: (v: 'success' | 'error' | null) => void;
   updateSupplierPayout: typeof import('../../data/supabase-supplier-profile').updateSupplierPayout;
-  canManageFinance: (role: SupplierRole) => boolean;
 
   businessType: 'company' | 'individual' | '';
   setBusinessType: (v: 'company' | 'individual' | '') => void;
@@ -168,7 +147,7 @@ function AccountSettingsPage(p: Props) {
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-gray-900">Account settings</h1>
         <p className="mt-1.5 text-sm text-gray-600">
-          Sign-in, team access, and password. Business details and payouts live under{' '}
+          Sign-in and password. Business details and payouts live under{' '}
           <span className="font-medium text-gray-800">Business profile</span>.
         </p>
       </div>
@@ -181,7 +160,8 @@ function AccountSettingsPage(p: Props) {
         <p className="text-sm text-gray-600 mt-1.5 mb-5">Sign-in email and verification status.</p>
         <p className="text-gray-900 font-medium">{p.supplierEmail || '—'}</p>
         <p className="mt-1 text-xs text-gray-500">
-          Current role: <span className="font-medium text-gray-700">{p.role}</span>
+          You are signed in as the <span className="font-medium text-gray-700">account owner</span> for this supplier
+          account.
         </p>
         <div
           className={`mt-3 rounded-lg border px-3 py-2 text-sm ${
@@ -223,97 +203,6 @@ function AccountSettingsPage(p: Props) {
             )}
           </div>
         )}
-      </div>
-
-      <div className="rounded-xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm">
-        <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-gray-900">Team & roles</h2>
-        <p className="text-sm text-gray-600 mt-1.5 mb-5">
-          Assign roles so colleagues can manage bookings, operations, or finance without sharing one login.
-        </p>
-        <div className="space-y-3 max-w-2xl">
-          {p.teamMembers.map((m) => (
-            <div key={m.id} className="flex items-center justify-between gap-3 border border-gray-200 rounded-lg p-3">
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate">{m.label}</p>
-                <p className="text-xs text-gray-500 truncate">{m.id}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-700">{m.role}</span>
-                {p.canManageTeam(p.role) && m.id !== (p.user?.id ?? 'local-supplier') && (
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      const currentUserId = p.user?.id ?? 'local-supplier';
-                      const ok = await p.removeSupplierTeamMember(currentUserId, m.id);
-                      if (ok) {
-                        p.setTeamMembers((prev) => prev.filter((x) => x.id !== m.id));
-                      }
-                    }}
-                    className="text-xs text-red-600 hover:underline"
-                  >
-                    Remove
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
-          {p.canManageTeam(p.role) ? (
-            <div className="border border-dashed border-gray-300 rounded-lg p-3 space-y-2 bg-gray-50/50">
-              <p className="text-xs font-bold uppercase tracking-[0.12em] text-gray-800">Add member</p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                <input
-                  type="text"
-                  value={p.teamLabel}
-                  onChange={(e) => p.setTeamLabel(e.target.value)}
-                  placeholder="Display name"
-                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                />
-                <input
-                  type="text"
-                  value={p.teamMemberId}
-                  onChange={(e) => p.setTeamMemberId(e.target.value)}
-                  placeholder="User id or email"
-                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                />
-                <select
-                  value={p.teamRole}
-                  onChange={(e) => p.setTeamRole(e.target.value as SupplierRole)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
-                >
-                  <option value="manager">manager</option>
-                  <option value="ops">ops</option>
-                  <option value="finance">finance</option>
-                  <option value="viewer">viewer</option>
-                </select>
-              </div>
-              <button
-                type="button"
-                onClick={async () => {
-                  const id = p.teamMemberId.trim();
-                  if (!id) return;
-                  const label = p.teamLabel.trim() || id;
-                  const currentUserId = p.user?.id ?? 'local-supplier';
-                  const ok = await p.upsertSupplierTeamMember(currentUserId, { id, label, role: p.teamRole });
-                  if (ok) {
-                    const next = [
-                      ...p.teamMembers.filter((m) => m.id !== id),
-                      { id, label, role: p.teamRole, createdAt: new Date().toISOString() },
-                    ];
-                    p.setTeamMembers(next);
-                    p.setTeamLabel('');
-                    p.setTeamMemberId('');
-                    p.setTeamRole('viewer');
-                  }
-                }}
-                className="px-3 py-2 rounded-lg bg-finland text-white text-sm font-medium hover:bg-finland-dark"
-              >
-                Add member
-              </button>
-            </div>
-          ) : (
-            <p className="text-xs text-gray-500">Only owners can manage team roles.</p>
-          )}
-        </div>
       </div>
 
       <div id="supplier-account-security" className="rounded-xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm">
@@ -380,7 +269,7 @@ function BusinessProfilePage(p: Props) {
     p.verificationSubmittedAt,
     p.businessTypeAtLastFetch
   );
-  const identityFieldsDisabled = sensitiveLocked || !p.canManageFinance(p.role);
+  const identityFieldsDisabled = sensitiveLocked;
   const payoutDestinationLocked = sensitiveLocked;
 
   const tabBtn = (active: boolean) =>
@@ -487,7 +376,6 @@ function BusinessProfilePage(p: Props) {
                         const file = e.target.files?.[0];
                         e.target.value = '';
                         if (!file || !p.user?.id || !p.isSupabase) return;
-                        if (!p.canManageFinance(p.role)) return;
                         setLogoError(null);
                         setLogoUploading(true);
                         const { publicUrl, error: upErr } = await uploadSupplierBusinessLogo(p.user.id, file);
@@ -505,7 +393,7 @@ function BusinessProfilePage(p: Props) {
                     <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
-                        disabled={logoUploading || !p.canManageFinance(p.role)}
+                        disabled={logoUploading}
                         onClick={() => logoInputRef.current?.click()}
                         className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-800 hover:bg-gray-50 disabled:opacity-50"
                       >
@@ -515,7 +403,7 @@ function BusinessProfilePage(p: Props) {
                       {p.businessLogoUrl ? (
                         <button
                           type="button"
-                          disabled={logoUploading || !p.canManageFinance(p.role)}
+                          disabled={logoUploading}
                           onClick={async () => {
                             if (!p.user?.id) return;
                             setLogoError(null);
@@ -533,9 +421,6 @@ function BusinessProfilePage(p: Props) {
                       ) : null}
                     </div>
                     {logoError && <p className="text-xs text-red-600">{logoError}</p>}
-                    {!p.canManageFinance(p.role) && (
-                      <p className="text-xs text-gray-500">Your role cannot change business profile photos.</p>
-                    )}
                   </div>
                 </div>
               </div>
@@ -746,7 +631,7 @@ function BusinessProfilePage(p: Props) {
                       const file = e.target.files?.[0];
                       e.target.value = '';
                       if (!file || !p.user?.id || !p.isSupabase) return;
-                      if (sensitiveLocked || !p.canManageFinance(p.role)) return;
+                      if (sensitiveLocked) return;
                       setDocError(null);
                       setCompanyRegUploading(true);
                       const { path, error: upErr } = await uploadSupplierVerificationDocument(p.user.id, file);
@@ -974,7 +859,7 @@ function BusinessProfilePage(p: Props) {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Method</label>
                 <select
                   value={p.payoutMethod}
-                  disabled={payoutDestinationLocked || !p.canManageFinance(p.role)}
+                  disabled={payoutDestinationLocked}
                   onChange={(e) => p.setPayoutMethod(e.target.value as 'bank' | 'paypal' | 'none' | '')}
                   className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
                 >
@@ -1004,7 +889,7 @@ function BusinessProfilePage(p: Props) {
                     <input
                       type="text"
                       value={p.payoutIban}
-                      disabled={payoutDestinationLocked || !p.canManageFinance(p.role)}
+                      disabled={payoutDestinationLocked}
                       onChange={(e) => p.setPayoutIban(e.target.value)}
                       placeholder="International bank account number (IBAN)"
                       className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
@@ -1015,7 +900,7 @@ function BusinessProfilePage(p: Props) {
                     <input
                       type="text"
                       value={p.payoutBic}
-                      disabled={payoutDestinationLocked || !p.canManageFinance(p.role)}
+                      disabled={payoutDestinationLocked}
                       onChange={(e) => p.setPayoutBic(e.target.value)}
                       placeholder="Bank identifier (SWIFT/BIC)"
                       className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
@@ -1029,7 +914,7 @@ function BusinessProfilePage(p: Props) {
                   <input
                     type="email"
                     value={p.payoutPaypalEmail}
-                    disabled={payoutDestinationLocked || !p.canManageFinance(p.role)}
+                    disabled={payoutDestinationLocked}
                     onChange={(e) => p.setPayoutPaypalEmail(e.target.value)}
                     placeholder="you@example.com"
                     className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland disabled:bg-gray-100 disabled:cursor-not-allowed"
@@ -1041,7 +926,6 @@ function BusinessProfilePage(p: Props) {
                 <p className="text-xs text-gray-500 mb-1.5">How often we settle payouts once they are enabled.</p>
                 <select
                   value={p.paymentCycle}
-                  disabled={!p.canManageFinance(p.role)}
                   onChange={(e) => p.setPaymentCycle(e.target.value as 'monthly' | 'biweekly' | '')}
                   className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
                 >
@@ -1058,7 +942,6 @@ function BusinessProfilePage(p: Props) {
                   type="number"
                   min={0}
                   value={p.payoutThreshold}
-                  disabled={!p.canManageFinance(p.role)}
                   onChange={(e) => p.setPayoutThreshold(e.target.value)}
                   placeholder="0"
                   className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland disabled:bg-gray-100 disabled:cursor-not-allowed"
@@ -1068,7 +951,7 @@ function BusinessProfilePage(p: Props) {
                 <div className="flex items-center gap-3 flex-wrap">
                   <button
                     type="button"
-                    disabled={p.payoutSaving || !p.canManageFinance(p.role)}
+                    disabled={p.payoutSaving}
                     onClick={async () => {
                       if (!p.user?.id) return;
                       setPayoutSaveError(null);
@@ -1244,7 +1127,7 @@ function BusinessProfilePage(p: Props) {
           <div className="flex items-center gap-3 flex-wrap">
             <button
               type="button"
-              disabled={p.legalSaving || !p.canManageFinance(p.role)}
+              disabled={p.legalSaving}
               onClick={async () => {
                 if (!p.user?.id) return;
                 p.setLegalSaving(true);
