@@ -6,7 +6,12 @@ import { useState, useEffect, useCallback } from 'react';
 import { Calendar, Users, MapPin, LogIn, RefreshCw, XCircle, ArrowLeft, Clock } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
-import { fetchMyBookings, cancelBookingAsCustomer, type BookingRow } from '../data/supabase-bookings';
+import {
+  fetchMyBookings,
+  cancelBookingAsCustomer,
+  updateGuestBookingSpecialRequests,
+  type BookingRow,
+} from '../data/supabase-bookings';
 import { fetchListingTitlesByIds, pgTimeToHm } from '../data/supabase-listings';
 import { decrementAvailabilityBooked } from '../data/supabase-availability';
 import PageHero from '../components/PageHero';
@@ -25,6 +30,8 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   const [error, setError] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [cancelConfirm, setCancelConfirm] = useState<BookingRow | null>(null);
+  const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
+  const [noteSavingId, setNoteSavingId] = useState<string | null>(null);
 
   /** Tour start is within 24 hours from now → no refund. Otherwise full refund. */
   const getRefundChoiceForCancel = useCallback((bookingDate: string | null): 'full_refund' | 'no_refund' => {
@@ -54,6 +61,30 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
       setLoading(false);
     }
   }, [user?.email]);
+
+  useEffect(() => {
+    const next: Record<string, string> = {};
+    for (const b of bookings) {
+      next[b.id] = b.special_requests ?? '';
+    }
+    setNoteDrafts(next);
+  }, [bookings]);
+
+  const handleSaveNote = useCallback(
+    async (b: BookingRow) => {
+      setError(null);
+      const text = noteDrafts[b.id] ?? '';
+      if (text.trim() === (b.special_requests ?? '').trim()) {
+        return;
+      }
+      setNoteSavingId(b.id);
+      const res = await updateGuestBookingSpecialRequests(b.id, text);
+      setNoteSavingId(null);
+      if (res.success) await load();
+      else setError(res.error ?? 'Could not save your note.');
+    },
+    [noteDrafts, load]
+  );
 
   const handleCancelBooking = useCallback(async (b: BookingRow) => {
     setCancellingId(b.id);
@@ -240,8 +271,39 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                       </span>
                     )}
                   </div>
-                  {b.special_requests && (
-                    <p className="mt-2 text-sm text-gray-500 line-clamp-2">{b.special_requests}</p>
+                  {b.status === 'cancelled' && b.special_requests && (
+                    <p className="mt-2 text-sm text-gray-500 line-clamp-3">{b.special_requests}</p>
+                  )}
+                  {(b.status === 'pending' || b.status === 'confirmed') && (
+                    <div className="mt-3 w-full max-w-lg">
+                      <label htmlFor={`guest-note-${b.id}`} className="block text-xs font-medium text-gray-700 mb-1">
+                        Note for the host
+                      </label>
+                      <textarea
+                        id={`guest-note-${b.id}`}
+                        rows={3}
+                        value={noteDrafts[b.id] ?? ''}
+                        onChange={(e) =>
+                          setNoteDrafts((d) => ({
+                            ...d,
+                            [b.id]: e.target.value,
+                          }))
+                        }
+                        placeholder="Pickup details, dietary needs, questions…"
+                        className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 text-gray-800 placeholder:text-gray-400 focus:ring-2 focus:ring-finland/40 focus:border-finland"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleSaveNote(b)}
+                        disabled={noteSavingId === b.id}
+                        className="mt-2 text-sm px-3 py-1.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark disabled:opacity-50"
+                      >
+                        {noteSavingId === b.id ? 'Saving…' : 'Save note'}
+                      </button>
+                      <p className="mt-1 text-xs text-gray-500">
+                        The supplier receives an email when you save. You can edit again anytime before the tour.
+                      </p>
+                    </div>
                   )}
                 </div>
                 <div className="flex flex-col items-start sm:items-center gap-1 sm:flex-row sm:gap-3 sm:flex-shrink-0">

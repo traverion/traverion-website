@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, Fragment } from 'react';
-import { Plus, MapPin, Pencil, Trash2, Eye, EyeOff, AlertCircle, RefreshCw, ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
+import { Plus, MapPin, Pencil, Trash2, Eye, EyeOff, AlertCircle, RefreshCw, ChevronDown, ChevronUp, Sparkles, ExternalLink } from 'lucide-react';
 import { TourPackage } from '../../types/tour';
 import { getSupplierListings, setSupplierListings } from '../../data/listings';
 import { fetchMyListings, insertListing, updateListing, updateListingStatus, deleteListing } from '../../data/supabase-listings';
@@ -11,6 +11,8 @@ import { navigateSupplierUrl, openSupplierListingEditor } from '../../lib/suppli
 import { isSupplierBusinessProfileComplete } from '../../lib/supplierOnboarding';
 import { canManageBookings } from '../../lib/supplierTeamRoles';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
+import { publicTourListingUrl } from '../../lib/publicSiteUrl';
+import { getListingPublishBlockers } from '../../lib/listingPublishGate';
 
 export default function SupplierListings() {
   const { user, isSupabase } = useSupplierAuth();
@@ -28,6 +30,7 @@ export default function SupplierListings() {
   const [profileGateMessage, setProfileGateMessage] = useState<string | null>(null);
   const [missingBusinessDetails, setMissingBusinessDetails] = useState(false);
   const [verificationStatus, setVerificationStatus] = useState<string | null>(null);
+  const [publishGate, setPublishGate] = useState<{ listingId: string; title: string; blockers: string[] } | null>(null);
 
   const syncListingsUrlToState = useCallback(() => {
     const params = new URLSearchParams(window.location.search);
@@ -232,6 +235,15 @@ export default function SupplierListings() {
       setError('Business verification must be approved before publishing listings.');
       return;
     }
+    if (newStatus === 'published') {
+      const blockers = getListingPublishBlockers(listing);
+      if (blockers.length > 0) {
+        setPublishGate({ listingId: listing.id, title: listing.title, blockers });
+        setError(null);
+        return;
+      }
+    }
+    setPublishGate(null);
     const ok = await updateListingStatus(listing.id, newStatus);
     if (ok) loadListings();
   };
@@ -290,7 +302,7 @@ export default function SupplierListings() {
               {missingBusinessDetails && (
                 <button
                   type="button"
-                  onClick={() => navigateSupplierUrl('/supplier/settings#supplier-settings-company')}
+                  onClick={() => navigateSupplierUrl('/supplier/business-profile#supplier-business-company')}
                   className="text-xs px-2.5 py-1 rounded-full border border-amber-300 bg-white text-amber-800 hover:bg-amber-100"
                 >
                   Complete business profile
@@ -299,7 +311,7 @@ export default function SupplierListings() {
               {!missingBusinessDetails && verificationStatus !== 'verified' && (
                 <button
                   type="button"
-                  onClick={() => navigateSupplierUrl('/supplier/settings#supplier-settings-company')}
+                  onClick={() => navigateSupplierUrl('/supplier/business-profile#supplier-business-company')}
                   className="text-xs px-2.5 py-1 rounded-full border border-amber-300 bg-white text-amber-800 hover:bg-amber-100"
                 >
                   Business profile & verification
@@ -309,11 +321,46 @@ export default function SupplierListings() {
           </div>
           <button
             type="button"
-            onClick={() => navigateSupplierUrl('/supplier/settings')}
+            onClick={() => navigateSupplierUrl('/supplier/business-profile')}
             className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark shrink-0"
           >
             Open settings
           </button>
+        </div>
+      )}
+
+      {publishGate && (
+        <div className="p-4 rounded-lg bg-amber-50 border border-amber-200 text-amber-950 text-sm">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+            <div>
+              <p className="font-medium text-amber-900">Complete these before publishing “{publishGate.title}”</p>
+              <ul className="mt-2 list-disc list-inside space-y-1 text-amber-900/90">
+                {publishGate.blockers.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+            </div>
+            <div className="flex flex-wrap gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  openSupplierListingEditor(publishGate.listingId);
+                  setPublishGate(null);
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-finland text-white text-sm font-medium hover:bg-finland-dark"
+              >
+                <Pencil className="w-4 h-4" />
+                Edit listing
+              </button>
+              <button
+                type="button"
+                onClick={() => setPublishGate(null)}
+                className="px-3 py-2 rounded-lg border border-amber-300 text-amber-900 text-sm hover:bg-amber-100/80"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -499,7 +546,17 @@ export default function SupplierListings() {
                           )}
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <div className="flex items-center justify-end gap-1">
+                          <div className="flex items-center justify-end flex-wrap gap-1">
+                            <a
+                              href={publicTourListingUrl(listing.id)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium text-finland border border-finland/30 hover:bg-finland/5"
+                              title="Opens the public tour page on Traverion"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" />
+                              View on site
+                            </a>
                             <button
                               type="button"
                               onClick={() => openSupplierListingEditor(listing.id)}

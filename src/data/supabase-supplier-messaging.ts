@@ -21,7 +21,13 @@ export async function sendSupplierEmailViaEdge(params: {
   };
 }
 
-type SupplierEventType = 'new_booking' | 'booking_cancelled' | 'new_review' | 'supplier_welcome';
+type SupplierEventType =
+  | 'new_booking'
+  | 'booking_cancelled'
+  | 'new_review'
+  | 'supplier_welcome'
+  | 'guest_message'
+  | 'booking_detail_changed';
 
 export async function notifySupplierEvent(params: {
   supplierId: string;
@@ -36,6 +42,10 @@ export async function notifySupplierEvent(params: {
   reviewTitle?: string;
   /** Base URL for links in supplier_welcome email (e.g. https://www.traverion.com) */
   portalBaseUrl?: string;
+  /** guest_message — short preview of the guest note */
+  messagePreview?: string;
+  /** booking_detail_changed — human-readable summary */
+  changeSummary?: string;
 }): Promise<{ success: boolean; notified?: number; error?: string }> {
   if (!supabase) return { success: false, error: 'Supabase not configured' };
   const { data, error } = await supabase.functions.invoke('notify-supplier-event', {

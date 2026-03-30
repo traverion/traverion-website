@@ -22,6 +22,10 @@ export type SupplierProfileRow = {
   insurance_start: string | null;
   insurance_end: string | null;
   insurance_provider: string | null;
+  /** Operator-authored; public read for guests on listings/bookings */
+  privacy_policy_text: string | null;
+  /** Operator-authored; public read for guests on listings/bookings */
+  terms_conditions_text: string | null;
   payment_cycle: 'monthly' | 'biweekly' | null;
   payout_threshold_min: number | null;
   welcome_email_sent_at: string | null;
@@ -119,6 +123,8 @@ export async function updateSupplierCompanyProfile(
     insurance_start: string | null;
     insurance_end: string | null;
     insurance_provider: string | null;
+    privacy_policy_text: string | null;
+    terms_conditions_text: string | null;
   }>
 ): Promise<{ success: boolean; error?: string }> {
   if (!supabase) return { success: false, error: 'Supabase not configured' };
@@ -136,4 +142,32 @@ export async function updateSupplierCompanyProfile(
     );
   if (error) return { success: false, error: error.message };
   return { success: true };
+}
+
+/** Public fields for listing/booking UIs (RLS allows select for all). */
+export async function fetchSupplierPublicLegal(
+  supplierId: string
+): Promise<{
+  display_name: string | null;
+  company_legal_name: string | null;
+  business_address: string | null;
+  privacy_policy_text: string | null;
+  terms_conditions_text: string | null;
+} | null> {
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from('supplier_profiles')
+    .select(
+      'display_name, company_legal_name, business_address, privacy_policy_text, terms_conditions_text'
+    )
+    .eq('id', supplierId)
+    .maybeSingle();
+  if (error || !data) return null;
+  return data as {
+    display_name: string | null;
+    company_legal_name: string | null;
+    business_address: string | null;
+    privacy_policy_text: string | null;
+    terms_conditions_text: string | null;
+  };
 }

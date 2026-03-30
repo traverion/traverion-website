@@ -8,3 +8,10 @@ export function publicSiteBaseUrl(): string {
   if (typeof v === 'string' && v.trim()) return v.replace(/\/$/, '');
   return 'https://www.traverion.com';
 }
+
+/** Public tour page (packages + tour id). Opens TourDetails when the main app loads. */
+export function publicTourListingUrl(listingId: string): string {
+  const base = publicSiteBaseUrl();
+  const q = new URLSearchParams({ tour: listingId });
+  return `${base}/packages?${q.toString()}`;
+}

@@ -11,6 +11,14 @@ import {
   type ReviewDisplay,
   type ReviewReplyRow,
 } from '../../data/supabase-reviews';
+
+/** Star-only reviews have no title or comment; suppliers cannot reply and they do not count as “need reply”. */
+function reviewHasWrittenFeedback(r: ReviewDisplay & { listing_title?: string }): boolean {
+  const title = (r.title ?? '').trim();
+  const comment = (r.comment ?? '').trim();
+  return title.length > 0 || comment.length > 0;
+}
+
 export default function SupplierReviews() {
   const { user, isSupabase } = useSupplierAuth();
   const [reviews, setReviews] = useState<(ReviewDisplay & { listing_title?: string })[]>([]);
@@ -103,23 +111,9 @@ export default function SupplierReviews() {
     return `Hi ${guest}! Thank you so much for the lovely review on ${listing}. We're really happy you joined us, and your feedback means a lot to our team. Hope to see you again soon!`;
   };
 
-  const averageResponseHours = (() => {
-    const deltas: number[] = [];
-    for (const r of reviews) {
-      const reply = replies[r.id];
-      if (!reply) continue;
-      const reviewAt = new Date(r.created_at).getTime();
-      const replyAt = new Date(reply.created_at).getTime();
-      if (Number.isFinite(reviewAt) && Number.isFinite(replyAt) && replyAt >= reviewAt) {
-        deltas.push((replyAt - reviewAt) / (1000 * 60 * 60));
-      }
-    }
-    if (deltas.length === 0) return null;
-    const avg = deltas.reduce((a, b) => a + b, 0) / deltas.length;
-    return Math.round(avg * 10) / 10;
-  })();
-
-  const unrepliedCount = reviews.filter((r) => !replies[r.id]).length;
+  const unrepliedCount = reviews.filter(
+    (r) => reviewHasWrittenFeedback(r) && !replies[r.id]
+  ).length;
 
   if (!user) return null;
 
@@ -131,20 +125,15 @@ export default function SupplierReviews() {
       </div>
 
       {!loading && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xl">
           <div className="bg-white border border-gray-200 rounded-xl p-4">
             <p className="text-xs uppercase tracking-wide text-gray-500 font-medium">Total reviews</p>
             <p className="text-2xl font-semibold text-gray-900 mt-1">{reviews.length}</p>
           </div>
           <div className="bg-white border border-amber-200 bg-amber-50/40 rounded-xl p-4">
-            <p className="text-xs uppercase tracking-wide text-amber-800 font-medium">Need reply</p>
+            <p className="text-xs uppercase tracking-wide text-amber-800 font-medium">Not replied</p>
             <p className="text-2xl font-semibold text-amber-900 mt-1">{unrepliedCount}</p>
-          </div>
-          <div className="bg-white border border-blue-200 bg-blue-50/40 rounded-xl p-4">
-            <p className="text-xs uppercase tracking-wide text-blue-800 font-medium">Avg response time</p>
-            <p className="text-2xl font-semibold text-blue-900 mt-1">
-              {averageResponseHours == null ? '—' : `${averageResponseHours}h`}
-            </p>
+            <p className="text-xs text-amber-800/80 mt-1">Written reviews only; star-only ratings are excluded.</p>
           </div>
         </div>
       )}
@@ -186,7 +175,7 @@ export default function SupplierReviews() {
               className={`bg-white border rounded-xl p-6 transition-shadow ${
                 highlightReviewId === r.id
                   ? 'border-finland ring-2 ring-finland/25 shadow-md'
-                  : !replies[r.id]
+                  : reviewHasWrittenFeedback(r) && !replies[r.id]
                     ? 'border-amber-200 bg-amber-50/20'
                     : 'border-gray-200'
               }`}
@@ -212,7 +201,13 @@ export default function SupplierReviews() {
                     ))}
                   </div>
                   {r.title && <p className="font-medium text-gray-900 mb-1">{r.title}</p>}
-                  <p className="text-gray-700">{r.comment}</p>
+                  {reviewHasWrittenFeedback(r) ? (
+                    (r.comment ?? '').trim() ? (
+                      <p className="text-gray-700 whitespace-pre-wrap">{r.comment}</p>
+                    ) : null
+                  ) : (
+                    <p className="text-sm text-gray-500 italic">No written review — rating only.</p>
+                  )}
                 </div>
               </div>
 
@@ -224,6 +219,10 @@ export default function SupplierReviews() {
                     {new Date(replies[r.id].created_at).toLocaleDateString()}
                   </p>
                 </div>
+              ) : !reviewHasWrittenFeedback(r) ? (
+                <p className="mt-4 text-sm text-gray-500">
+                  Replies are available when the guest leaves a title or written comment with their rating.
+                </p>
               ) : (
                 <div className="mt-4">
                   <label className="block text-sm font-medium text-gray-700 mb-1">

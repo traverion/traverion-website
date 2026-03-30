@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { TourPackage } from '../../types/tour';
 import ListingDiscounts from '../../components/supplier/ListingDiscounts';
+import { getListingPublishBlockers } from '../../lib/listingPublishGate';
 
 const TAG_OPTIONS = [
   { id: 'free-cancellation', label: 'Free cancellation' },
@@ -147,6 +148,7 @@ export default function SupplierListingForm({
 }: SupplierListingFormProps) {
   const [form, setForm] = useState<ListingFormState>(emptyForm);
   const [submitting, setSubmitting] = useState(false);
+  const [publishBlockers, setPublishBlockers] = useState<string[] | null>(null);
   const [stepIdx, setStepIdx] = useState(0);
   const lastFocused = useRef<string | null>(null);
   const stepContainerRef = useRef<HTMLDivElement | null>(null);
@@ -217,6 +219,10 @@ export default function SupplierListingForm({
   }, [editingId]);
 
   useEffect(() => {
+    if (form.status === 'draft') setPublishBlockers(null);
+  }, [form.status]);
+
+  useEffect(() => {
     if (!focusSection || !editingId) return;
     const targetStep = focusToStep[focusSection];
     if (typeof targetStep === 'number') {
@@ -246,6 +252,15 @@ export default function SupplierListingForm({
       return;
     }
     const listing = buildListingFromForm(form, editingId ?? undefined);
+    if (form.status === 'published') {
+      const blockers = getListingPublishBlockers(listing);
+      if (blockers.length > 0) {
+        setPublishBlockers(blockers);
+        setStepIdx(0);
+        return;
+      }
+    }
+    setPublishBlockers(null);
     setSubmitting(true);
     try {
       await onSave(listing);
@@ -305,6 +320,24 @@ export default function SupplierListingForm({
             <p className="mt-1 text-xs text-gray-500">Step {stepIdx + 1} of {steps.length}</p>
           </div>
         </div>
+
+        {publishBlockers && publishBlockers.length > 0 && (
+          <div className="mx-4 sm:mx-6 mt-3 p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-950">
+            <p className="font-medium text-amber-900">Finish these before publishing</p>
+            <ul className="mt-2 list-disc list-inside space-y-1">
+              {publishBlockers.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+            <button
+              type="button"
+              onClick={() => setPublishBlockers(null)}
+              className="mt-2 text-xs font-medium text-finland hover:underline"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
 
         <div ref={stepContainerRef} className="px-4 sm:px-6 py-4 sm:py-5 overflow-y-auto flex-1">
           {stepIdx === 0 && (

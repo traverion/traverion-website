@@ -39,6 +39,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import AuthModal from './components/AuthModal';
 import { setPageMetaWithOg, setCanonicalUrl, setOrganizationJsonLd } from './lib/seo';
 import { parsePathname, shouldClearSelectedTour } from './lib/appRouting';
+import { getListingByIdAsync } from './data/listings';
 import { TourPackage as TourPackageType } from './types/tour';
 
 function App() {
@@ -55,10 +56,14 @@ function App() {
   // Sync internal route from the URL (initial load + browser back/forward)
   const syncRouteFromUrl = useCallback(() => {
     if (isSupplierArea) return;
+    const params = new URLSearchParams(window.location.search);
+    const tourParam = params.get('tour');
     const { page, destinationSlug } = parsePathname(window.location.pathname);
     setCurrentPage(page);
     setDestinationSlug(destinationSlug);
-    if (shouldClearSelectedTour(page)) {
+    const keepTourForDeepLink =
+      page === 'packages' && tourParam && /^[0-9a-f-]{36}$/i.test(tourParam);
+    if (shouldClearSelectedTour(page) && !keepTourForDeepLink) {
       setSelectedTour(null);
     }
   }, [isSupplierArea]);
@@ -67,6 +72,28 @@ function App() {
     if (isSupplierArea) return;
     syncRouteFromUrl();
   }, [syncRouteFromUrl, isSupplierArea]);
+
+  /** Deep link: /packages?tour=<listing-uuid> opens TourDetails (shareable supplier “View on site” links). */
+  useEffect(() => {
+    if (isSupplierArea) return;
+    let cancelled = false;
+    const run = () => {
+      const path = window.location.pathname.replace(/\/$/, '') || '/';
+      const tourParam = new URLSearchParams(window.location.search).get('tour');
+      if (path !== '/packages' || !tourParam || !/^[0-9a-f-]{36}$/i.test(tourParam)) return;
+      void getListingByIdAsync(tourParam).then((t) => {
+        if (cancelled || !t) return;
+        setSelectedTour(t);
+        setCurrentPage('tour-details');
+      });
+    };
+    run();
+    window.addEventListener('popstate', run);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('popstate', run);
+    };
+  }, [isSupplierArea]);
 
   /** Supabase puts confirm/recovery failures in the URL hash; redirect root loads would hide them. */
   useEffect(() => {
@@ -101,6 +128,14 @@ function App() {
   // Update URL when page changes
   useEffect(() => {
     if (isSupplierArea) return;
+    if (currentPage === 'tour-details' && selectedTour) {
+      const qs = new URLSearchParams({ tour: selectedTour.id }).toString();
+      const next = `/packages?${qs}`;
+      if (window.location.pathname !== '/packages' || window.location.search !== `?${qs}`) {
+        window.history.replaceState({}, '', next);
+      }
+      return;
+    }
     const urlMapping: { [key: string]: string } = {
       'thailand-vietnam-14-day': '/14-vietnam-thailand',
       'vietnam-9-day': '/9-vietnam',
@@ -133,9 +168,9 @@ function App() {
         ? `/destinations/${destinationSlug || ''}`
         : (urlMapping[currentPage] ?? '/');
     if (window.location.pathname !== newUrl) {
-      window.history.pushState({}, '', newUrl);
+      window.history.replaceState({}, '', newUrl);
     }
-  }, [currentPage, destinationSlug, isSupplierArea]);
+  }, [currentPage, destinationSlug, selectedTour, isSupplierArea]);
 
   // Scroll to top when page changes
   useEffect(() => {
@@ -195,6 +230,7 @@ function App() {
   const handleBackToTours = () => {
     setSelectedTour(null);
     setCurrentPage('packages');
+    window.history.replaceState({}, '', '/packages');
   };
 
   const handleBookTour = (tour: TourPackageType) => {

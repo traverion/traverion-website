@@ -18,6 +18,7 @@ import {
   type ReviewDisplay,
 } from '../data/supabase-reviews';
 import { addToCart } from '../data/supabase-cart';
+import { fetchSupplierPublicLegal } from '../data/supabase-supplier-profile';
 import { setPageMetaWithOg, setTourJsonLd, clearTourJsonLd } from '../lib/seo';
 import { Skeleton } from '../components/ui/Skeleton';
 
@@ -48,6 +49,12 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
   const [bookingDate, setBookingDate] = useState('');
   const [guests, setGuests] = useState(2);
   const [discountsByListing, setDiscountsByListing] = useState<Map<string, import('../data/supabase-discounts').ListingDiscount[]>>(new Map());
+  const [supplierLegal, setSupplierLegal] = useState<{
+    operatorName: string;
+    privacy_policy_text: string | null;
+    terms_conditions_text: string | null;
+  } | null>(null);
+  const [legalModal, setLegalModal] = useState<'privacy' | 'terms' | null>(null);
 
   useEffect(() => {
     setTourLoadError(null);
@@ -67,6 +74,26 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
     if (!tour?.id || !isSupabaseListingId(tour.id)) return;
     fetchDiscountsByListingIds([tour.id]).then(setDiscountsByListing);
   }, [tour?.id]);
+
+  useEffect(() => {
+    if (!tour?.supplierId || !isSupabaseConfigured()) {
+      setSupplierLegal(null);
+      return;
+    }
+    fetchSupplierPublicLegal(tour.supplierId).then((row) => {
+      if (!row) {
+        setSupplierLegal(null);
+        return;
+      }
+      const operatorName =
+        row.company_legal_name?.trim() || row.display_name?.trim() || 'Operator';
+      setSupplierLegal({
+        operatorName,
+        privacy_policy_text: row.privacy_policy_text,
+        terms_conditions_text: row.terms_conditions_text,
+      });
+    });
+  }, [tour?.supplierId]);
 
   const loadReviews = useCallback(() => {
     if (!tourId || !isSupabaseConfigured()) return;
@@ -266,6 +293,38 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
                 </div>
                 <p className="text-gray-700 leading-relaxed">{tour.description}</p>
               </div>
+
+              {supplierLegal &&
+                (supplierLegal.privacy_policy_text?.trim() || supplierLegal.terms_conditions_text?.trim()) && (
+                  <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+                    <h2 className="text-xs font-bold uppercase tracking-[0.12em] text-gray-900">
+                      Policies from {supplierLegal.operatorName}
+                    </h2>
+                    <p className="text-sm text-gray-600 mt-1.5 mb-4">
+                      Privacy and booking terms for this experience provider.
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {supplierLegal.privacy_policy_text?.trim() ? (
+                        <button
+                          type="button"
+                          onClick={() => setLegalModal('privacy')}
+                          className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm font-medium text-gray-800 hover:bg-gray-100"
+                        >
+                          Privacy policy
+                        </button>
+                      ) : null}
+                      {supplierLegal.terms_conditions_text?.trim() ? (
+                        <button
+                          type="button"
+                          onClick={() => setLegalModal('terms')}
+                          className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm font-medium text-gray-800 hover:bg-gray-100"
+                        >
+                          Terms & conditions
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                )}
             </div>
 
             {/* Right: Sticky booking card */}
@@ -529,6 +588,36 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
           )}
         </div>
       </section>
+
+      {legalModal && supplierLegal && (
+        <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/40"
+            aria-label="Close"
+            onClick={() => setLegalModal(null)}
+          />
+          <div className="relative bg-white rounded-t-xl sm:rounded-xl shadow-xl border border-gray-200 w-full max-w-2xl max-h-[85vh] flex flex-col z-[71]">
+            <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900">
+                {legalModal === 'privacy' ? 'Privacy policy' : 'Terms & conditions'}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setLegalModal(null)}
+                className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 text-sm font-medium"
+              >
+                Close
+              </button>
+            </div>
+            <div className="p-5 overflow-y-auto text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
+              {legalModal === 'privacy'
+                ? supplierLegal.privacy_policy_text
+                : supplierLegal.terms_conditions_text}
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

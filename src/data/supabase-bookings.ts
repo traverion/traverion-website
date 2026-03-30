@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { publicSiteBaseUrl } from '../lib/publicSiteUrl';
 import { notifySupplierEvent } from './supabase-supplier-messaging';
 import { hmToPgTime } from './supabase-listings';
 
@@ -82,6 +83,53 @@ export async function submitBooking(
       bookingDate: data.departure_date,
       guests: data.travelers,
       guestName: data.customer_name,
+      portalBaseUrl: publicSiteBaseUrl(),
+    });
+  }
+  return { success: true };
+}
+
+/**
+ * Guest updates the note / special requests on their booking. Notifies the supplier by email (guest_message).
+ */
+export async function updateGuestBookingSpecialRequests(
+  bookingId: string,
+  specialRequests: string
+): Promise<{ success: boolean; error?: string }> {
+  if (!supabase) return { success: false, error: 'Supabase not configured' };
+  const { data: ok, error: rpcError } = await supabase.rpc('update_guest_booking_special_requests', {
+    p_booking_id: bookingId,
+    p_special_requests: specialRequests,
+  });
+  if (rpcError) return { success: false, error: rpcError.message };
+  if (!ok) return { success: false, error: 'Could not update this booking.' };
+
+  const { data: row } = await supabase
+    .from('bookings')
+    .select('id, listing_id, booking_date, guests, guest_name')
+    .eq('id', bookingId)
+    .maybeSingle();
+  if (!row?.listing_id) return { success: true };
+
+  const { data: listingData } = await supabase
+    .from('listings')
+    .select('supplier_id, title')
+    .eq('id', row.listing_id)
+    .maybeSingle();
+  if (listingData?.supplier_id) {
+    const preview =
+      specialRequests.trim().length > 400 ? `${specialRequests.trim().slice(0, 400)}…` : specialRequests.trim();
+    void notifySupplierEvent({
+      supplierId: listingData.supplier_id,
+      eventType: 'guest_message',
+      listingId: row.listing_id,
+      listingTitle: listingData.title ?? undefined,
+      bookingId: row.id,
+      bookingDate: row.booking_date ?? undefined,
+      guests: Number(row.guests ?? 0),
+      guestName: row.guest_name ?? undefined,
+      messagePreview: preview || '(empty note)',
+      portalBaseUrl: publicSiteBaseUrl(),
     });
   }
   return { success: true };
@@ -222,6 +270,7 @@ export async function cancelBookingAsCustomer(
         bookingDate: bookingMeta.booking_date ?? undefined,
         guests: Number(bookingMeta.guests ?? 0),
         guestName: bookingMeta.guest_name ?? undefined,
+        portalBaseUrl: publicSiteBaseUrl(),
       });
     }
   }

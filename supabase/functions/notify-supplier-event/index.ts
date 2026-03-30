@@ -2,7 +2,13 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 
-type EventType = 'new_booking' | 'booking_cancelled' | 'new_review' | 'supplier_welcome';
+type EventType =
+  | 'new_booking'
+  | 'booking_cancelled'
+  | 'new_review'
+  | 'supplier_welcome'
+  | 'guest_message'
+  | 'booking_detail_changed';
 
 type Payload = {
   supplierId: string;
@@ -17,6 +23,10 @@ type Payload = {
   reviewTitle?: string;
   /** Base site URL (no trailing slash), e.g. https://www.traverion.com — used in supplier_welcome body */
   portalBaseUrl?: string;
+  /** Short preview of a guest message (guest_message) */
+  messagePreview?: string;
+  /** Human-readable summary of what changed (booking_detail_changed) */
+  changeSummary?: string;
 };
 
 function json(body: unknown, status = 200): Response {
@@ -26,17 +36,35 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function siteBase(payload: Payload): string {
+  return (payload.portalBaseUrl ?? 'https://www.traverion.com').replace(/\/$/, '');
+}
+
+function logoUrl(base: string): string {
+  return `${base}/traverionlogotransparent.png?v=3`;
+}
+
 function eventSubject(payload: Payload): string {
   if (payload.eventType === 'supplier_welcome') return 'Welcome to Traverion for suppliers';
   const listing = payload.listingTitle ?? 'your listing';
   if (payload.eventType === 'new_booking') return `New booking request: ${listing}`;
   if (payload.eventType === 'booking_cancelled') return `Booking cancelled: ${listing}`;
+  if (payload.eventType === 'guest_message') return `Message from a guest: ${listing}`;
+  if (payload.eventType === 'booking_detail_changed') return `Booking updated: ${listing}`;
   return `New review received: ${listing}`;
 }
 
 function eventBody(payload: Payload): string {
   if (payload.eventType === 'supplier_welcome') {
-    const base = (payload.portalBaseUrl ?? 'https://www.traverion.com').replace(/\/$/, '');
+    const base = siteBase(payload);
     return [
       'Thanks for creating a supplier account on Traverion.',
       '',
@@ -57,9 +85,122 @@ function eventBody(payload: Payload): string {
   if (payload.guestName) lines.push(`Guest: ${payload.guestName}`);
   if (typeof payload.reviewRating === 'number' && payload.reviewRating > 0) lines.push(`Rating: ${payload.reviewRating}/5`);
   if (payload.reviewTitle) lines.push(`Review: ${payload.reviewTitle}`);
+  if (payload.messagePreview) lines.push(`Message: ${payload.messagePreview}`);
+  if (payload.changeSummary) lines.push(`Changes: ${payload.changeSummary}`);
   lines.push('');
   lines.push('Open your supplier portal to review and take action.');
   return lines.join('\n');
+}
+
+function eventHtml(payload: Payload): string {
+  const base = siteBase(payload);
+  const logo = logoUrl(base);
+  const portal = `${base}/supplier`;
+  const bookingsUrl = `${base}/supplier/bookings`;
+
+  if (payload.eventType === 'supplier_welcome') {
+    const bodyText = escapeHtml(eventBody(payload)).replace(/\n/g, '<br/>');
+    return `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f4f6f8;font-family:Georgia,serif;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f6f8;padding:24px 12px;">
+<tr><td align="center">
+<table role="presentation" width="560" cellspacing="0" cellpadding="0" style="background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
+<tr><td style="padding:28px 28px 16px;text-align:center;background:#ffffff;">
+<img src="${logo}" width="200" height="auto" alt="Traverion" style="display:block;margin:0 auto;max-width:85%;height:auto;border:0;"/>
+</td></tr>
+<tr><td style="padding:0 32px 32px;font-size:15px;line-height:1.6;color:#1f2937;">
+${bodyText}
+<p style="margin:20px 0 0;"><a href="${portal}" style="display:inline-block;padding:12px 20px;background:#003580;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;font-family:system-ui,sans-serif;">Open supplier portal</a></p>
+</td></tr>
+</table>
+<p style="font-size:12px;color:#9ca3af;margin-top:16px;font-family:system-ui,sans-serif;"><a href="${base}" style="color:#003580;">traverion.com</a></p>
+</td></tr></table></body></html>`;
+  }
+
+  const listing = escapeHtml(payload.listingTitle ?? 'Your listing');
+  let headline = 'Notification';
+  let sub = '';
+  if (payload.eventType === 'new_booking') {
+    headline = 'New booking request';
+    sub = 'A traveler submitted a booking for one of your listings.';
+  } else if (payload.eventType === 'booking_cancelled') {
+    headline = 'Booking cancelled';
+    sub = 'A booking was cancelled.';
+  } else if (payload.eventType === 'new_review') {
+    headline = 'New review';
+    sub = 'Someone left a review on your experience.';
+  } else if (payload.eventType === 'guest_message') {
+    headline = 'Message from a guest';
+    sub = 'A guest added or updated a note on their booking.';
+  } else if (payload.eventType === 'booking_detail_changed') {
+    headline = 'Booking details updated';
+    sub = 'Details changed for a booking — review in your dashboard.';
+  }
+
+  const rows: string[] = [];
+  rows.push(`<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;width:120px;vertical-align:top;">Experience</td><td style="padding:6px 0;font-size:14px;color:#111827;font-weight:600;">${listing}</td></tr>`);
+  if (payload.bookingId) {
+    rows.push(
+      `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;">Booking</td><td style="padding:6px 0;font-size:14px;color:#111827;font-family:ui-monospace,monospace;">${escapeHtml(payload.bookingId)}</td></tr>`,
+    );
+  }
+  if (payload.bookingDate) {
+    rows.push(
+      `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;">Date</td><td style="padding:6px 0;font-size:14px;color:#111827;">${escapeHtml(payload.bookingDate)}</td></tr>`,
+    );
+  }
+  if (typeof payload.guests === 'number' && payload.guests > 0) {
+    rows.push(
+      `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;">Guests</td><td style="padding:6px 0;font-size:14px;color:#111827;">${payload.guests}</td></tr>`,
+    );
+  }
+  if (payload.guestName) {
+    rows.push(
+      `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;">Guest</td><td style="padding:6px 0;font-size:14px;color:#111827;">${escapeHtml(payload.guestName)}</td></tr>`,
+    );
+  }
+  if (typeof payload.reviewRating === 'number' && payload.reviewRating > 0) {
+    rows.push(
+      `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;">Rating</td><td style="padding:6px 0;font-size:14px;color:#111827;">${payload.reviewRating} / 5</td></tr>`,
+    );
+  }
+  if (payload.reviewTitle) {
+    rows.push(
+      `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;">Review</td><td style="padding:6px 0;font-size:14px;color:#111827;">${escapeHtml(payload.reviewTitle)}</td></tr>`,
+    );
+  }
+  if (payload.messagePreview) {
+    rows.push(
+      `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;vertical-align:top;">Message</td><td style="padding:6px 0;font-size:14px;color:#111827;line-height:1.5;">${escapeHtml(payload.messagePreview)}</td></tr>`,
+    );
+  }
+  if (payload.changeSummary) {
+    rows.push(
+      `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;vertical-align:top;">Changes</td><td style="padding:6px 0;font-size:14px;color:#111827;line-height:1.5;">${escapeHtml(payload.changeSummary)}</td></tr>`,
+    );
+  }
+
+  return `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f4f6f8;font-family:system-ui,-apple-system,sans-serif;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f6f8;padding:24px 12px;">
+<tr><td align="center">
+<table role="presentation" width="560" cellspacing="0" cellpadding="0" style="background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
+<tr><td style="padding:28px 28px 12px;text-align:center;background:#ffffff;">
+<img src="${logo}" width="200" height="auto" alt="Traverion" style="display:block;margin:0 auto;max-width:85%;height:auto;border:0;"/>
+</td></tr>
+<tr><td style="padding:8px 32px 8px;font-size:20px;font-weight:700;color:#003580;font-family:Georgia,serif;">${escapeHtml(headline)}</td></tr>
+<tr><td style="padding:0 32px 16px;font-size:14px;line-height:1.5;color:#4b5563;">${escapeHtml(sub)}</td></tr>
+<tr><td style="padding:0 32px 24px;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-top:1px solid #e5e7eb;padding-top:16px;">
+${rows.join('')}
+</table>
+</td></tr>
+<tr><td style="padding:0 32px 32px;">
+<a href="${bookingsUrl}" style="display:inline-block;padding:12px 20px;background:#003580;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">View in supplier dashboard</a>
+<a href="${portal}" style="display:inline-block;margin-left:8px;padding:12px 16px;color:#003580;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;border:1px solid #003580;">Supplier home</a>
+</td></tr>
+</table>
+<p style="font-size:12px;color:#9ca3af;margin-top:16px;">You are receiving this because you manage listings on Traverion.</p>
+<p style="font-size:12px;color:#9ca3af;"><a href="${base}" style="color:#003580;">traverion.com</a></p>
+</td></tr></table></body></html>`;
 }
 
 serve(async (req) => {
@@ -123,6 +264,9 @@ serve(async (req) => {
       return json({ success: false, error: 'No recipient emails found for supplier' }, 400);
     }
 
+    const textBody = eventBody(payload);
+    const htmlBody = eventHtml(payload);
+
     const resendResp = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -133,7 +277,8 @@ serve(async (req) => {
         from: fromEmail,
         to: [...recipients],
         subject: eventSubject(payload),
-        text: eventBody(payload),
+        text: textBody,
+        html: htmlBody,
       }),
     });
     const resendJson: any = await resendResp.json();

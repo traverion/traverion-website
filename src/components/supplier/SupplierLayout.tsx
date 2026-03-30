@@ -1,5 +1,19 @@
 import { useState, useEffect } from 'react';
-import { LayoutDashboard, MapPin, Calendar, DollarSign, Settings, LogOut, Menu, X, Star, ClipboardList, UserCircle2, ChevronDown } from 'lucide-react';
+import {
+  LayoutDashboard,
+  MapPin,
+  Calendar,
+  DollarSign,
+  Building2,
+  Users,
+  LogOut,
+  Menu,
+  X,
+  Star,
+  ClipboardList,
+  UserCircle2,
+  ChevronDown,
+} from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { supabase } from '../../lib/supabase';
 import SupplierDashboard from '../../pages/supplier/SupplierDashboard';
@@ -8,9 +22,20 @@ import SupplierBookings from '../../pages/supplier/SupplierBookings';
 import SupplierEarnings from '../../pages/supplier/SupplierEarnings';
 import SupplierReviews from '../../pages/supplier/SupplierReviews';
 import SupplierPickupPlanner from '../../pages/supplier/SupplierPickupPlanner';
-import { fetchSupplierProfile, updateSupplierPayout, updateSupplierCompanyProfile } from '../../data/supabase-supplier-profile';
+import {
+  fetchSupplierProfile,
+  updateSupplierPayout,
+  updateSupplierCompanyProfile,
+} from '../../data/supabase-supplier-profile';
+import {
+  applyLegalPlaceholders,
+  applyLegalDate,
+  defaultPrivacyPolicyTemplate,
+  defaultTermsConditionsTemplate,
+} from '../../lib/supplierLegalTemplates';
 import { fetchMyListings } from '../../data/supabase-listings';
 import SupplierLoginPage from './SupplierLoginPage';
+import SupplierSettingsPages from './SupplierSettingsPages';
 import {
   canManageTeam,
   canManageFinance,
@@ -25,8 +50,18 @@ import { publicSiteBaseUrl } from '../../lib/publicSiteUrl';
 /** URL path for the supplier login/landing page. Portal is /supplier and /supplier/* */
 export const SUPPLIER_LOGIN_PATH = '/supplier-log-in';
 
-type SupplierSection = 'dashboard' | 'listings' | 'bookings' | 'earnings' | 'reviews' | 'pickup' | 'settings' | 'badges';
-type AccountShortcutTarget = 'company' | 'account' | 'security' | 'payout';
+type SupplierSection =
+  | 'dashboard'
+  | 'listings'
+  | 'bookings'
+  | 'earnings'
+  | 'reviews'
+  | 'pickup'
+  | 'business-profile'
+  | 'account-settings'
+  | 'badges';
+type AccountShortcutTarget = 'company' | 'legal' | 'account' | 'security' | 'payout';
+type BusinessProfileTab = 'company' | 'legal';
 type BadgeVariant = 'gold' | 'verified' | 'trusted';
 
 const NAV_ITEMS: { id: SupplierSection; label: string; icon: typeof LayoutDashboard }[] = [
@@ -36,7 +71,8 @@ const NAV_ITEMS: { id: SupplierSection; label: string; icon: typeof LayoutDashbo
   { id: 'earnings', label: 'Earnings', icon: DollarSign },
   { id: 'reviews', label: 'Reviews', icon: Star },
   { id: 'pickup', label: 'Pickup planner', icon: ClipboardList },
-  { id: 'settings', label: 'Settings', icon: Settings },
+  { id: 'business-profile', label: 'Business profile', icon: Building2 },
+  { id: 'account-settings', label: 'Account settings', icon: Users },
 ];
 const ROUTABLE_SECTIONS = [...NAV_ITEMS.map((n) => n.id), 'badges'] as const;
 type ExtraSupplierSection = (typeof ROUTABLE_SECTIONS)[number];
@@ -45,6 +81,7 @@ function getSectionFromPath(pathname: string): SupplierSection | null {
   if (pathname === '/supplier' || pathname === '/supplier/') return 'dashboard';
   const match = pathname.match(/^\/supplier\/([a-z-]+)/);
   if (!match) return null;
+  if (match[1] === 'settings') return 'business-profile';
   const section = match[1] as ExtraSupplierSection;
   return ROUTABLE_SECTIONS.includes(section) ? (section as SupplierSection) : 'dashboard';
 }
@@ -97,6 +134,13 @@ export default function SupplierLayout() {
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [mobileAccountOpen, setMobileAccountOpen] = useState(false);
   const [settingsFocus, setSettingsFocus] = useState<AccountShortcutTarget | null>(null);
+  const [profileDisplayName, setProfileDisplayName] = useState('');
+  const [businessProfileTab, setBusinessProfileTab] = useState<BusinessProfileTab>('company');
+  const [privacyPolicyText, setPrivacyPolicyText] = useState('');
+  const [termsConditionsText, setTermsConditionsText] = useState('');
+  const [legalSaving, setLegalSaving] = useState(false);
+  const [legalMessage, setLegalMessage] = useState<'success' | 'error' | null>(null);
+  const [legalDocModal, setLegalDocModal] = useState<'privacy' | 'terms' | null>(null);
   const [newPassword, setNewPassword] = useState('');
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [passwordMessage, setPasswordMessage] = useState<'success' | 'error' | null>(null);
@@ -109,9 +153,10 @@ export default function SupplierLayout() {
   const supplierEmailVerified = Boolean((user as { email_confirmed_at?: string | null } | null)?.email_confirmed_at);
 
   useEffect(() => {
-    if (section !== 'settings' || !user?.id || !isSupabase) return;
+    if ((section !== 'business-profile' && section !== 'account-settings') || !user?.id || !isSupabase) return;
     fetchSupplierProfile(user.id).then((p) => {
       if (p) {
+        setProfileDisplayName(p.display_name ?? '');
         setPayoutMethod((p.payout_method as 'bank' | 'paypal' | 'none') ?? '');
         setPayoutIban(p.payout_iban ?? '');
         setPayoutBic(p.payout_bic ?? '');
@@ -131,6 +176,8 @@ export default function SupplierLayout() {
         setInsuranceStart(p.insurance_start ?? '');
         setInsuranceEnd(p.insurance_end ?? '');
         setInsuranceProvider(p.insurance_provider ?? '');
+        setPrivacyPolicyText(p.privacy_policy_text ?? '');
+        setTermsConditionsText(p.terms_conditions_text ?? '');
       }
     });
   }, [section, user?.id, isSupabase]);
@@ -155,7 +202,7 @@ export default function SupplierLayout() {
   }, [user?.id, isSupabase, section]);
 
   useEffect(() => {
-    if (section !== 'settings' || !user?.id || !isSupabase) return;
+    if ((section !== 'business-profile' && section !== 'account-settings') || !user?.id || !isSupabase) return;
     fetchMyListings(user.id)
       .then((rows) => setSettingsListingsCount(rows.length))
       .catch(() => setSettingsListingsCount(0));
@@ -191,14 +238,56 @@ export default function SupplierLayout() {
   }, []);
 
   useEffect(() => {
-    if (section !== 'settings' || !settingsFocus) return;
-    const el = document.getElementById(`supplier-settings-${settingsFocus}`);
+    if (!settingsFocus) return;
+    if (settingsFocus === 'legal' && section === 'business-profile' && businessProfileTab !== 'legal') return;
+    const idMap: Record<AccountShortcutTarget, string> = {
+      company: 'supplier-business-company',
+      legal: 'supplier-business-legal',
+      account: 'supplier-account-email',
+      security: 'supplier-account-security',
+      payout: 'supplier-business-payout',
+    };
+    const el = document.getElementById(idMap[settingsFocus]);
     if (!el) return;
     requestAnimationFrame(() => {
       el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
     setSettingsFocus(null);
-  }, [section, settingsFocus]);
+  }, [section, settingsFocus, businessProfileTab]);
+
+  useEffect(() => {
+    if (section !== 'business-profile') return;
+    const applyHash = () => {
+      const h = window.location.hash.replace(/^#/, '');
+      if (h === 'legal') setBusinessProfileTab('legal');
+      else setBusinessProfileTab('company');
+    };
+    applyHash();
+    window.addEventListener('hashchange', applyHash);
+    return () => window.removeEventListener('hashchange', applyHash);
+  }, [section]);
+
+  const operatorDisplayName = companyLegalName.trim() || profileDisplayName.trim() || 'Your business';
+
+  const fillPrivacyTemplate = () => {
+    const raw = applyLegalDate(defaultPrivacyPolicyTemplate());
+    setPrivacyPolicyText(
+      applyLegalPlaceholders(raw, {
+        operatorName: operatorDisplayName,
+        businessAddress: businessAddress,
+      })
+    );
+  };
+
+  const fillTermsTemplate = () => {
+    const raw = applyLegalDate(defaultTermsConditionsTemplate());
+    setTermsConditionsText(
+      applyLegalPlaceholders(raw, {
+        operatorName: operatorDisplayName,
+        businessAddress: businessAddress,
+      })
+    );
+  };
 
   const handleNavigate = (s: SupplierSection) => {
     setSection(s);
@@ -212,7 +301,18 @@ export default function SupplierLayout() {
 
   const openSettingsFocus = (target: AccountShortcutTarget) => {
     setSettingsFocus(target);
-    handleNavigate('settings');
+    if (target === 'account' || target === 'security') {
+      handleNavigate('account-settings');
+    } else {
+      handleNavigate('business-profile');
+      if (target === 'legal') {
+        window.location.hash = 'legal';
+        setBusinessProfileTab('legal');
+      } else {
+        window.location.hash = 'company';
+        setBusinessProfileTab('company');
+      }
+    }
   };
 
   const handleAuthenticated = () => {
@@ -232,7 +332,7 @@ export default function SupplierLayout() {
         ? 'Add payout details'
         : !onboardingHasCompany
           ? 'Complete business profile'
-          : 'Open settings';
+          : 'Open business profile';
   const onboardingNextAction =
     onboardingListingCount !== null && onboardingListingCount <= 0
       ? () => handleNavigate('listings')
@@ -240,7 +340,7 @@ export default function SupplierLayout() {
         ? () => openSettingsFocus('payout')
         : !onboardingHasCompany
           ? () => openSettingsFocus('company')
-          : () => handleNavigate('settings');
+          : () => handleNavigate('business-profile');
 
   if (loading) {
     return (
@@ -423,6 +523,7 @@ export default function SupplierLayout() {
               <div className="hidden lg:block absolute right-0 top-12 w-72 bg-white border border-gray-200 rounded-xl shadow-lg p-2 z-50">
                 <p className="px-3 pt-2 pb-1 text-xs uppercase tracking-wide text-gray-500">Traverion supplier account</p>
                 <button type="button" onClick={() => openSettingsFocus('company')} className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-sm">Business profile</button>
+                <button type="button" onClick={() => openSettingsFocus('legal')} className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-sm">Legal obligations</button>
                 <button type="button" onClick={() => openSettingsFocus('account')} className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-sm">Account settings</button>
                 <button type="button" onClick={() => openSettingsFocus('security')} className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-sm">Security and password</button>
                 <button type="button" onClick={() => handleNavigate('badges')} className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-sm">Brand assets</button>
@@ -442,6 +543,7 @@ export default function SupplierLayout() {
             <div className="p-4 space-y-2">
               <p className="px-1 pt-1 pb-2 text-xs uppercase tracking-wide text-gray-500">Traverion supplier account</p>
               <button type="button" onClick={() => openSettingsFocus('company')} className="w-full text-left px-4 py-3 rounded-xl border border-gray-200">Business profile</button>
+              <button type="button" onClick={() => openSettingsFocus('legal')} className="w-full text-left px-4 py-3 rounded-xl border border-gray-200">Legal obligations</button>
               <button type="button" onClick={() => openSettingsFocus('account')} className="w-full text-left px-4 py-3 rounded-xl border border-gray-200">Account settings</button>
               <button type="button" onClick={() => openSettingsFocus('security')} className="w-full text-left px-4 py-3 rounded-xl border border-gray-200">Security and password</button>
               <button type="button" onClick={() => handleNavigate('badges')} className="w-full text-left px-4 py-3 rounded-xl border border-gray-200">Brand assets</button>
@@ -454,7 +556,7 @@ export default function SupplierLayout() {
           {section === 'dashboard' && (
             <SupplierDashboard
               onNavigateToListings={() => handleNavigate('listings')}
-              onNavigateToSettings={() => handleNavigate('settings')}
+              onNavigateToSettings={() => handleNavigate('business-profile')}
               onNavigateToBookings={() => handleNavigate('bookings')}
               showSupplierSetupBanner={!onboardingComplete}
               supplierSetupDoneCount={onboardingDoneCount}
@@ -510,484 +612,103 @@ export default function SupplierLayout() {
               </div>
             </div>
           )}
-          {section === 'settings' && (
-            <div className="space-y-6">
-              <h1 className="text-2xl font-semibold text-gray-900">Settings</h1>
-              <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-5">
-                {(() => {
-                  const hasListing = (settingsListingsCount ?? 0) > 0;
-                  const hasPayout = !!payoutMethod && payoutMethod !== 'none';
-                  const hasCompany = !!companyLegalName.trim();
-                  const done = [hasListing, hasPayout, hasCompany].filter(Boolean).length;
-                  return (
-                    <>
-                      <div className="flex items-center justify-between gap-3 mb-3">
-                        <div>
-                          <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">Setup progress</h2>
-                          <p className="text-xs text-gray-500 mt-0.5">Minimum steps for smooth onboarding.</p>
-                        </div>
-                        <span className="text-sm font-semibold text-finland">{done}/3</span>
-                      </div>
-                      <ul className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm">
-                        <li className={`rounded-lg border px-3 py-2 ${hasListing ? 'border-green-100 bg-green-50/40 text-gray-700' : 'border-amber-100 bg-amber-50/40 text-gray-900'}`}>
-                          {hasListing ? 'Done' : 'Todo'} · Publish listing
-                        </li>
-                        <li className={`rounded-lg border px-3 py-2 ${hasPayout ? 'border-green-100 bg-green-50/40 text-gray-700' : 'border-amber-100 bg-amber-50/40 text-gray-900'}`}>
-                          {hasPayout ? 'Done' : 'Todo'} · Payout details
-                        </li>
-                        <li className={`rounded-lg border px-3 py-2 ${hasCompany ? 'border-green-100 bg-green-50/40 text-gray-700' : 'border-amber-100 bg-amber-50/40 text-gray-900'}`}>
-                          {hasCompany ? 'Done' : 'Todo'} · Business profile
-                        </li>
-                      </ul>
-                      {!hasListing && (
-                        <div className="mt-3">
-                          <button
-                            type="button"
-                            onClick={() => handleNavigate('listings')}
-                            className="inline-flex items-center gap-1 text-sm font-medium text-finland hover:underline"
-                          >
-                            Go to listings
-                          </button>
-                        </div>
-                      )}
-                    </>
-                  );
-                })()}
-              </div>
-              <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-6">
-                <div id="supplier-settings-account">
-                  <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide">Account</h2>
-                  <p className="mt-1 text-gray-900">{supplierEmail || '—'}</p>
-                  <p className="mt-1 text-xs text-gray-500">Current role: <span className="font-medium text-gray-700">{role}</span></p>
-                  <div className={`mt-3 rounded-lg border px-3 py-2 text-sm ${supplierEmailVerified ? 'border-green-200 bg-green-50 text-green-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
-                    {supplierEmailVerified ? 'Email verification: Verified' : 'Email verification: Not verified. Verify your email before you can log in.'}
-                  </div>
-                  {!supplierEmailVerified && supplierEmail && isSupabase && (
-                    <div className="mt-2">
-                      <button
-                        type="button"
-                        disabled={verificationSending}
-                        onClick={async () => {
-                          if (!supabase || !supplierEmail) return;
-                          setVerificationMessage(null);
-                          setVerificationSending(true);
-                          const { error } = await supabase.auth.resend({
-                            type: 'signup',
-                            email: supplierEmail.trim().toLowerCase(),
-                            options: { emailRedirectTo: `${publicSiteBaseUrl()}/supplier-log-in` },
-                          });
-                          setVerificationSending(false);
-                          setVerificationMessage(error ? 'error' : 'sent');
-                        }}
-                        className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                      >
-                        {verificationSending ? 'Sending verification…' : 'Resend verification email'}
-                      </button>
-                      {verificationMessage === 'sent' && (
-                        <p className="mt-2 text-xs text-green-700">Verification email sent. Check inbox/spam.</p>
-                      )}
-                      {verificationMessage === 'error' && (
-                        <p className="mt-2 text-xs text-red-600">Could not resend right now. Try again shortly.</p>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3">Team & roles</h2>
-                  <p className="text-sm text-gray-500 mb-4">Assign supplier roles to control who can manage bookings, operations, and finance.</p>
-                  <div className="space-y-3 max-w-2xl">
-                    {teamMembers.map((m) => (
-                      <div key={m.id} className="flex items-center justify-between gap-3 border border-gray-200 rounded-lg p-3">
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-gray-900 truncate">{m.label}</p>
-                          <p className="text-xs text-gray-500 truncate">{m.id}</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-700">{m.role}</span>
-                          {canManageTeam(role) && m.id !== (user?.id ?? 'local-supplier') && (
-                            <button
-                              type="button"
-                              onClick={async () => {
-                                const currentUserId = user?.id ?? 'local-supplier';
-                                const ok = await removeSupplierTeamMember(currentUserId, m.id);
-                                if (ok) {
-                                  setTeamMembers((prev) => prev.filter((x) => x.id !== m.id));
-                                }
-                              }}
-                              className="text-xs text-red-600 hover:underline"
-                            >
-                              Remove
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                    {canManageTeam(role) ? (
-                      <div className="border border-dashed border-gray-300 rounded-lg p-3 space-y-2">
-                        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Add member</p>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                          <input
-                            type="text"
-                            value={teamLabel}
-                            onChange={(e) => setTeamLabel(e.target.value)}
-                            placeholder="Display name"
-                            className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                          />
-                          <input
-                            type="text"
-                            value={teamMemberId}
-                            onChange={(e) => setTeamMemberId(e.target.value)}
-                            placeholder="User id or email"
-                            className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                          />
-                          <select
-                            value={teamRole}
-                            onChange={(e) => setTeamRole(e.target.value as SupplierRole)}
-                            className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
-                          >
-                            <option value="manager">manager</option>
-                            <option value="ops">ops</option>
-                            <option value="finance">finance</option>
-                            <option value="viewer">viewer</option>
-                          </select>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            const id = teamMemberId.trim();
-                            if (!id) return;
-                            const label = teamLabel.trim() || id;
-                            const currentUserId = user?.id ?? 'local-supplier';
-                            const ok = await upsertSupplierTeamMember(currentUserId, { id, label, role: teamRole });
-                            if (ok) {
-                              const next = [
-                                ...teamMembers.filter((m) => m.id !== id),
-                                { id, label, role: teamRole, createdAt: new Date().toISOString() },
-                              ];
-                              setTeamMembers(next);
-                              setTeamLabel('');
-                              setTeamMemberId('');
-                              setTeamRole('viewer');
-                            }
-                          }}
-                          className="px-3 py-2 rounded-lg bg-finland text-white text-sm font-medium hover:bg-finland-dark"
-                        >
-                          Add member
-                        </button>
-                      </div>
-                    ) : (
-                      <p className="text-xs text-gray-500">Only owners can manage team roles.</p>
-                    )}
-                  </div>
-                </div>
-
-                <div id="supplier-settings-company">
-                  <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3">Business profile</h2>
-                  <p className="text-sm text-gray-500 mb-4">Business details for verification and invoicing.</p>
-                  <div className="space-y-4 max-w-xl">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Business type</label>
-                      <select
-                        value={businessType}
-                        onChange={(e) => setBusinessType(e.target.value as 'company' | 'individual' | '')}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
-                      >
-                        <option value="">Not set</option>
-                        <option value="company">Registered company</option>
-                        <option value="individual">Individual trader</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Legal name / Company name</label>
-                      <input
-                        type="text"
-                        value={companyLegalName}
-                        onChange={(e) => setCompanyLegalName(e.target.value)}
-                        placeholder="Legal or company name"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
-                      />
-                    </div>
-                    {businessType === 'company' && (
-                      <>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Registration number</label>
-                          <input
-                            type="text"
-                            value={companyRegistrationNumber}
-                            onChange={(e) => setCompanyRegistrationNumber(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Managing directors</label>
-                          <input
-                            type="text"
-                            value={managingDirectors}
-                            onChange={(e) => setManagingDirectors(e.target.value)}
-                            placeholder="Names"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
-                          />
-                        </div>
-                      </>
-                    )}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Business address</label>
-                      <textarea
-                        value={businessAddress}
-                        onChange={(e) => setBusinessAddress(e.target.value)}
-                        rows={2}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
-                      />
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Tax ID (TIN)</label>
-                        <input
-                          type="text"
-                          value={taxId}
-                          onChange={(e) => setTaxId(e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">VAT ID (if registered)</label>
-                        <input
-                          type="text"
-                          value={vatId}
-                          onChange={(e) => setVatId(e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
-                        />
-                      </div>
-                    </div>
-                    {verificationStatus && (
-                      <p className="text-sm text-gray-600">Verification status: <span className="font-medium">{verificationStatus}</span></p>
-                    )}
-                    <div className="border-t border-gray-200 pt-4">
-                      <h3 className="text-sm font-medium text-gray-700 mb-2">Insurance (optional)</h3>
-                      <div className="space-y-2">
-                        <input
-                          type="text"
-                          value={insurancePolicyNumber}
-                          onChange={(e) => setInsurancePolicyNumber(e.target.value)}
-                          placeholder="Policy number"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
-                        />
-                        <input
-                          type="text"
-                          value={insuranceCoverage}
-                          onChange={(e) => setInsuranceCoverage(e.target.value)}
-                          placeholder="Coverage details"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
-                        />
-                        <div className="grid grid-cols-2 gap-2">
-                          <input
-                            type="date"
-                            value={insuranceStart}
-                            onChange={(e) => setInsuranceStart(e.target.value)}
-                            placeholder="Start"
-                            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
-                          />
-                          <input
-                            type="date"
-                            value={insuranceEnd}
-                            onChange={(e) => setInsuranceEnd(e.target.value)}
-                            placeholder="End"
-                            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
-                          />
-                        </div>
-                        <input
-                          type="text"
-                          value={insuranceProvider}
-                          onChange={(e) => setInsuranceProvider(e.target.value)}
-                          placeholder="Provider name"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
-                        />
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <button
-                        type="button"
-                        disabled={companySaving || !canManageFinance(role)}
-                        onClick={async () => {
-                          if (!user?.id) return;
-                          setCompanySaving(true);
-                          setCompanyMessage(null);
-                          const res = await updateSupplierCompanyProfile(user.id, {
-                            business_type: businessType || null,
-                            company_legal_name: companyLegalName.trim() || null,
-                            company_registration_number: companyRegistrationNumber.trim() || null,
-                            managing_directors: managingDirectors.trim() || null,
-                            business_address: businessAddress.trim() || null,
-                            tax_id: taxId.trim() || null,
-                            vat_id: vatId.trim() || null,
-                            insurance_policy_number: insurancePolicyNumber.trim() || null,
-                            insurance_coverage: insuranceCoverage.trim() || null,
-                            insurance_start: insuranceStart || null,
-                            insurance_end: insuranceEnd || null,
-                            insurance_provider: insuranceProvider.trim() || null,
-                          });
-                          setCompanySaving(false);
-                          setCompanyMessage(res.success ? 'success' : 'error');
-                        }}
-                        className="px-4 py-2 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark disabled:opacity-50"
-                      >
-                        {companySaving ? 'Saving…' : 'Save business profile'}
-                      </button>
-                      {companyMessage === 'success' && <span className="text-sm text-green-600">Saved.</span>}
-                      {companyMessage === 'error' && <span className="text-sm text-red-600">Failed to save.</span>}
-                    </div>
-                  </div>
-                </div>
-
-                <div id="supplier-settings-security">
-                  <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3">Security and password</h2>
-                  <p className="text-sm text-gray-500 mb-4">Update your supplier account password.</p>
-                  <div className="space-y-3 max-w-md">
-                    <input
-                      type="password"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder="New password (min 8 characters)"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
-                    />
-                    <div className="flex items-center gap-3">
-                      <button
-                        type="button"
-                        disabled={passwordSaving || newPassword.trim().length < 8}
-                        onClick={async () => {
-                          if (!isSupabase || !supabase) {
-                            setPasswordMessage('error');
-                            return;
-                          }
-                          setPasswordSaving(true);
-                          setPasswordMessage(null);
-                          const { error } = await supabase.auth.updateUser({ password: newPassword.trim() });
-                          setPasswordSaving(false);
-                          if (error) {
-                            setPasswordMessage('error');
-                            return;
-                          }
-                          setNewPassword('');
-                          setPasswordMessage('success');
-                        }}
-                        className="px-4 py-2 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark disabled:opacity-50"
-                      >
-                        {passwordSaving ? 'Saving…' : 'Update password'}
-                      </button>
-                      {!isSupabase && <span className="text-xs text-amber-700">Enable Supabase auth to update password.</span>}
-                      {passwordMessage === 'success' && <span className="text-sm text-green-600">Password updated.</span>}
-                      {passwordMessage === 'error' && <span className="text-sm text-red-600">Could not update password.</span>}
-                    </div>
-                  </div>
-                </div>
-
-                <div id="supplier-settings-payout">
-                  <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3">Payout method</h2>
-                  <p className="text-sm text-gray-500 mb-4">How you’d like to receive payouts when they’re enabled. This is stored securely and used when we integrate payments.</p>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Method</label>
-                      <select
-                        value={payoutMethod}
-                        onChange={(e) => setPayoutMethod(e.target.value as 'bank' | 'paypal' | 'none' | '')}
-                        className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
-                      >
-                        <option value="">Not set</option>
-                        <option value="bank">Bank transfer (IBAN)</option>
-                        <option value="paypal">PayPal</option>
-                        <option value="none">None / later</option>
-                      </select>
-                    </div>
-                    {payoutMethod === 'bank' && (
-                      <>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">IBAN</label>
-                          <input
-                            type="text"
-                            value={payoutIban}
-                            onChange={(e) => setPayoutIban(e.target.value)}
-                            placeholder="e.g. FI12 3456 7890 1234 56"
-                            className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">BIC / SWIFT</label>
-                          <input
-                            type="text"
-                            value={payoutBic}
-                            onChange={(e) => setPayoutBic(e.target.value)}
-                            placeholder="e.g. NDEAFIHH"
-                            className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
-                          />
-                        </div>
-                      </>
-                    )}
-                    {payoutMethod === 'paypal' && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">PayPal email</label>
-                        <input
-                          type="email"
-                          value={payoutPaypalEmail}
-                          onChange={(e) => setPayoutPaypalEmail(e.target.value)}
-                          placeholder="you@example.com"
-                          className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
-                        />
-                      </div>
-                    )}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Payment cycle</label>
-                      <select
-                        value={paymentCycle}
-                        onChange={(e) => setPaymentCycle(e.target.value as 'monthly' | 'biweekly' | '')}
-                        className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
-                      >
-                        <option value="">Not set</option>
-                        <option value="monthly">Monthly</option>
-                        <option value="biweekly">Bi-weekly</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Minimum payout threshold (e.g. 50)</label>
-                      <input
-                        type="number"
-                        min={0}
-                        value={payoutThreshold}
-                        onChange={(e) => setPayoutThreshold(e.target.value)}
-                        placeholder="0"
-                        className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
-                      />
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <button
-                        type="button"
-                        disabled={payoutSaving || !canManageFinance(role)}
-                        onClick={async () => {
-                          if (!user?.id) return;
-                          setPayoutSaving(true);
-                          setPayoutMessage(null);
-                          const res = await updateSupplierPayout(user.id, {
-                            payout_method: payoutMethod || null,
-                            payout_iban: payoutMethod === 'bank' ? payoutIban.trim() || null : null,
-                            payout_bic: payoutMethod === 'bank' ? payoutBic.trim() || null : null,
-                            payout_paypal_email: payoutMethod === 'paypal' ? payoutPaypalEmail.trim() || null : null,
-                            payment_cycle: paymentCycle || null,
-                            payout_threshold_min: payoutThreshold !== '' ? Number(payoutThreshold) : null,
-                          });
-                          setPayoutSaving(false);
-                          setPayoutMessage(res.success ? 'success' : 'error');
-                        }}
-                        className="px-4 py-2 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark disabled:opacity-50"
-                      >
-                        {payoutSaving ? 'Saving…' : 'Save payout details'}
-                      </button>
-                      {payoutMessage === 'success' && <span className="text-sm text-green-600">Saved.</span>}
-                      {payoutMessage === 'error' && <span className="text-sm text-red-600">Failed to save.</span>}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+          {(section === 'business-profile' || section === 'account-settings') && (
+            <SupplierSettingsPages
+              variant={section === 'account-settings' ? 'account-settings' : 'business-profile'}
+              user={user}
+              role={role}
+              isSupabase={isSupabase}
+              supabase={supabase}
+              supplierEmail={supplierEmail}
+              supplierEmailVerified={supplierEmailVerified}
+              verificationSending={verificationSending}
+              verificationMessage={verificationMessage}
+              setVerificationMessage={setVerificationMessage}
+              setVerificationSending={setVerificationSending}
+              publicSiteBaseUrl={publicSiteBaseUrl}
+              teamMembers={teamMembers}
+              teamLabel={teamLabel}
+              setTeamLabel={setTeamLabel}
+              teamMemberId={teamMemberId}
+              setTeamMemberId={setTeamMemberId}
+              teamRole={teamRole}
+              setTeamRole={setTeamRole}
+              setTeamMembers={setTeamMembers}
+              canManageTeam={canManageTeam}
+              removeSupplierTeamMember={removeSupplierTeamMember}
+              upsertSupplierTeamMember={upsertSupplierTeamMember}
+              newPassword={newPassword}
+              setNewPassword={setNewPassword}
+              passwordSaving={passwordSaving}
+              passwordMessage={passwordMessage}
+              setPasswordMessage={setPasswordMessage}
+              setPasswordSaving={setPasswordSaving}
+              settingsListingsCount={settingsListingsCount}
+              handleNavigate={handleNavigate}
+              businessProfileTab={businessProfileTab}
+              setBusinessProfileTab={setBusinessProfileTab}
+              payoutMethod={payoutMethod}
+              setPayoutMethod={setPayoutMethod}
+              payoutIban={payoutIban}
+              setPayoutIban={setPayoutIban}
+              payoutBic={payoutBic}
+              setPayoutBic={setPayoutBic}
+              payoutPaypalEmail={payoutPaypalEmail}
+              setPayoutPaypalEmail={setPayoutPaypalEmail}
+              paymentCycle={paymentCycle}
+              setPaymentCycle={setPaymentCycle}
+              payoutThreshold={payoutThreshold}
+              setPayoutThreshold={setPayoutThreshold}
+              payoutSaving={payoutSaving}
+              payoutMessage={payoutMessage}
+              setPayoutSaving={setPayoutSaving}
+              setPayoutMessage={setPayoutMessage}
+              updateSupplierPayout={updateSupplierPayout}
+              canManageFinance={canManageFinance}
+              businessType={businessType}
+              setBusinessType={setBusinessType}
+              companyLegalName={companyLegalName}
+              setCompanyLegalName={setCompanyLegalName}
+              companyRegistrationNumber={companyRegistrationNumber}
+              setCompanyRegistrationNumber={setCompanyRegistrationNumber}
+              managingDirectors={managingDirectors}
+              setManagingDirectors={setManagingDirectors}
+              businessAddress={businessAddress}
+              setBusinessAddress={setBusinessAddress}
+              taxId={taxId}
+              setTaxId={setTaxId}
+              vatId={vatId}
+              setVatId={setVatId}
+              verificationStatus={verificationStatus}
+              companySaving={companySaving}
+              companyMessage={companyMessage}
+              setCompanySaving={setCompanySaving}
+              setCompanyMessage={setCompanyMessage}
+              updateSupplierCompanyProfile={updateSupplierCompanyProfile}
+              insurancePolicyNumber={insurancePolicyNumber}
+              setInsurancePolicyNumber={setInsurancePolicyNumber}
+              insuranceCoverage={insuranceCoverage}
+              setInsuranceCoverage={setInsuranceCoverage}
+              insuranceStart={insuranceStart}
+              setInsuranceStart={setInsuranceStart}
+              insuranceEnd={insuranceEnd}
+              setInsuranceEnd={setInsuranceEnd}
+              insuranceProvider={insuranceProvider}
+              setInsuranceProvider={setInsuranceProvider}
+              privacyPolicyText={privacyPolicyText}
+              setPrivacyPolicyText={setPrivacyPolicyText}
+              termsConditionsText={termsConditionsText}
+              setTermsConditionsText={setTermsConditionsText}
+              legalSaving={legalSaving}
+              legalMessage={legalMessage}
+              setLegalSaving={setLegalSaving}
+              setLegalMessage={setLegalMessage}
+              legalDocModal={legalDocModal}
+              setLegalDocModal={setLegalDocModal}
+              operatorDisplayName={operatorDisplayName}
+              fillPrivacyTemplate={fillPrivacyTemplate}
+              fillTermsTemplate={fillTermsTemplate}
+            />
           )}
           </div>
         </main>
