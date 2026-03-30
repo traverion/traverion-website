@@ -279,7 +279,7 @@ export default function SupplierListings() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6 w-full min-w-0">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">My listings</h1>
@@ -487,7 +487,7 @@ export default function SupplierListings() {
       {loading ? (
         <p className="text-gray-500">Loading listings…</p>
       ) : listings.length === 0 && !showForm ? (
-        <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
+        <div className="bg-white border border-gray-200 rounded-xl p-8 sm:p-12 text-center">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gray-100 text-gray-400 mb-4">
             <MapPin className="w-7 h-7" />
           </div>
@@ -519,17 +519,17 @@ export default function SupplierListings() {
         listings.length > 0 && (
           <div className="space-y-3">
             <h2 className="text-lg font-medium text-gray-900">Your listings ({listings.length})</h2>
-            <div className="border border-gray-200 rounded-xl bg-white overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="min-w-full">
+            <div className="border border-gray-200 rounded-xl bg-white overflow-hidden -mx-1 sm:mx-0">
+              <div className="overflow-x-auto touch-pan-x overscroll-x-contain">
+                <table className="min-w-[640px] w-full">
                   <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Listing</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Location · Duration</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Price</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quality</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                      <th className="px-2 py-2 sm:px-4 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase">Listing</th>
+                      <th className="px-2 py-2 sm:px-4 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Location · Duration</th>
+                      <th className="px-2 py-2 sm:px-4 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase">Price</th>
+                      <th className="px-2 py-2 sm:px-4 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase">Quality</th>
+                      <th className="px-2 py-2 sm:px-4 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                      <th className="px-2 py-2 sm:px-4 sm:py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
@@ -541,17 +541,17 @@ export default function SupplierListings() {
                       return (
                       <Fragment key={listing.id}>
                       <tr className="hover:bg-gray-50/50">
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-3">
-                            <img src={listing.image} alt="" className="w-14 h-14 rounded-lg object-cover flex-shrink-0" />
-                            <p className="font-medium text-gray-900 truncate max-w-[200px]">{listing.title}</p>
+                        <td className="px-2 py-2 sm:px-4 sm:py-3">
+                          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                            <img src={listing.image} alt="" className="w-11 h-11 sm:w-14 sm:h-14 rounded-lg object-cover flex-shrink-0" />
+                            <p className="font-medium text-gray-900 truncate max-w-[9rem] xs:max-w-[12rem] sm:max-w-[200px]">{listing.title}</p>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
+                        <td className="px-2 py-2 sm:px-4 sm:py-3 text-sm text-gray-600 whitespace-nowrap">
                           {listing.city && `${listing.city}, `}{listing.country ?? listing.destination} · {listing.duration}
                         </td>
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900">From ${listing.price.startingFrom}</td>
-                        <td className="px-4 py-3">
+                        <td className="px-2 py-2 sm:px-4 sm:py-3 text-sm font-medium text-gray-900 whitespace-nowrap">From ${listing.price.startingFrom}</td>
+                        <td className="px-2 py-2 sm:px-4 sm:py-3">
                           <div className="flex items-center gap-2">
                             <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full tabular-nums ${tone}`}>
                               {pct}%
@@ -561,7 +561,7 @@ export default function SupplierListings() {
                               onClick={() =>
                                 setExpandedQualityId((id) => (id === listing.id ? null : listing.id))
                               }
-                              className="p-1 rounded-lg text-gray-500 hover:bg-gray-100"
+                              className="touch-manipulation p-2 -m-1 rounded-lg text-gray-500 hover:bg-gray-100 min-w-[40px] min-h-[40px] inline-flex items-center justify-center"
                               title="Show quality checklist"
                               aria-expanded={expandedQualityId === listing.id}
                             >
@@ -573,7 +573,7 @@ export default function SupplierListings() {
                             </button>
                           </div>
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-2 py-2 sm:px-4 sm:py-3 align-top">
                           <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full ${
                             listing.status === 'published' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
                           }`}>
@@ -590,29 +590,30 @@ export default function SupplierListings() {
                                   ? 'Verification and payout details required to publish'
                                   : undefined
                               }
-                              className="ml-2 text-xs text-finland hover:underline disabled:opacity-40 disabled:no-underline disabled:cursor-not-allowed"
+                              className="mt-1 block sm:ml-2 sm:mt-0 sm:inline text-xs text-finland hover:underline disabled:opacity-40 disabled:no-underline disabled:cursor-not-allowed touch-manipulation min-h-[44px] sm:min-h-0 py-1"
                             >
                               → {listing.status === 'published' ? 'Draft' : 'Publish'}
                             </button>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-right">
+                        <td className="px-2 py-2 sm:px-4 sm:py-3 text-right align-top">
                           <div className="flex items-center justify-end flex-wrap gap-1">
                             <a
                               href={publicTourListingUrl(listing.id)}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium text-finland border border-finland/30 hover:bg-finland/5"
+                              className="touch-manipulation inline-flex items-center gap-1 px-2 py-2 sm:py-1.5 rounded-lg text-xs font-medium text-finland border border-finland/30 hover:bg-finland/5 min-h-[40px] sm:min-h-0"
                               title="Opens the public tour page on Traverion"
                             >
                               <ExternalLink className="w-3.5 h-3.5" />
-                              View on site
+                              <span className="hidden xs:inline">View on site</span>
+                              <span className="xs:hidden">View</span>
                             </a>
                             <button
                               type="button"
                               onClick={() => openSupplierListingEditor(listing.id)}
                               disabled={!canEditListings}
-                              className="p-2 rounded-lg text-gray-600 hover:bg-gray-200 hover:text-finland disabled:opacity-40 disabled:pointer-events-none"
+                              className="touch-manipulation p-2.5 rounded-lg text-gray-600 hover:bg-gray-200 hover:text-finland disabled:opacity-40 disabled:pointer-events-none min-w-[44px] min-h-[44px] inline-flex items-center justify-center"
                               title={canEditListings ? 'Edit' : 'View only'}
                             >
                               <Pencil className="w-4 h-4" />
@@ -621,7 +622,7 @@ export default function SupplierListings() {
                               type="button"
                               onClick={() => handleDelete(listing.id)}
                               disabled={!canEditListings}
-                              className="p-2 rounded-lg text-gray-600 hover:bg-red-50 hover:text-red-600 disabled:opacity-40 disabled:pointer-events-none"
+                              className="touch-manipulation p-2.5 rounded-lg text-gray-600 hover:bg-red-50 hover:text-red-600 disabled:opacity-40 disabled:pointer-events-none min-w-[44px] min-h-[44px] inline-flex items-center justify-center"
                               title={canEditListings ? 'Delete' : 'View only'}
                             >
                               <Trash2 className="w-4 h-4" />

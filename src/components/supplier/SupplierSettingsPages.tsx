@@ -148,7 +148,7 @@ export default function SupplierSettingsPages(props: Props) {
 
 function AccountSettingsPage(p: Props) {
   return (
-    <div className="space-y-5 max-w-4xl">
+    <div className="space-y-5 max-w-4xl w-full min-w-0">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-gray-900">Account settings</h1>
         <p className="mt-1.5 text-sm text-gray-600">
@@ -365,7 +365,7 @@ function BusinessProfilePage(p: Props) {
     }`;
 
   return (
-    <div className="space-y-5 max-w-4xl">
+    <div className="space-y-5 max-w-4xl w-full min-w-0">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-gray-900">Business profile</h1>
         <p className="mt-1.5 text-sm text-gray-600">

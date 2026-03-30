@@ -258,7 +258,7 @@ export default function SupplierDashboard({
   }, [healthChecks.checks]);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8 w-full min-w-0">
       {showSupplierSetupBanner && onSupplierSetupNext && (
         <div className="rounded-xl border-2 border-amber-300 bg-amber-50 p-4 sm:p-5 shadow-md ring-1 ring-amber-900/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>

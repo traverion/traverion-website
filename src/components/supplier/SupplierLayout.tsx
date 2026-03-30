@@ -132,12 +132,8 @@ function SupplierSetupProgressStrip({
         ? 'Review in progress.'
         : 'Submit profile for review.';
 
-  const doneCount = [hasListing, hasPayout, verified].filter(Boolean).length;
-  const steps = [
-    hasListing,
-    hasPayout,
-    verified,
-  ] as const;
+  const doneCount = [verified, hasPayout, hasListing].filter(Boolean).length;
+  const steps = [verified, hasPayout, hasListing] as const;
 
   const chip = (
     done: boolean,
@@ -160,12 +156,12 @@ function SupplierSetupProgressStrip({
       <button
         type="button"
         onClick={onClick}
-        className={`group flex min-w-0 flex-1 items-center gap-2 rounded-lg border px-2 py-1.5 text-left text-xs transition-colors ${t}`}
+        className={`touch-manipulation group flex min-w-0 flex-1 items-center gap-1.5 rounded-md border px-1.5 py-1 text-left text-xs transition-colors active:scale-[0.99] ${t}`}
       >
-        <span className="shrink-0 opacity-90 [&_svg]:w-4 [&_svg]:h-4">{icon}</span>
+        <span className="shrink-0 opacity-90 [&_svg]:w-3.5 [&_svg]:h-3.5">{icon}</span>
         <span className="min-w-0">
           <span className="block font-semibold leading-tight tracking-tight">{title}</span>
-          <span className="mt-0.5 block text-[11px] leading-snug text-slate-600 group-hover:text-slate-700">{hint}</span>
+          <span className="mt-0.5 block text-[10px] leading-snug text-slate-600 group-hover:text-slate-700">{hint}</span>
         </span>
       </button>
     );
@@ -173,7 +169,7 @@ function SupplierSetupProgressStrip({
 
   return (
     <div
-      className="mb-4 overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm ring-1 ring-slate-900/[0.04]"
+      className="mb-3 overflow-hidden rounded-lg border border-slate-200/90 bg-white shadow-sm ring-1 ring-slate-900/[0.04]"
       role="region"
       aria-label="Supplier setup progress"
     >
@@ -181,20 +177,20 @@ function SupplierSetupProgressStrip({
         className="h-0.5 bg-gradient-to-r from-finland via-indigo-500 to-violet-500"
         aria-hidden
       />
-      <div className="px-3 py-2.5 sm:px-4">
-        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+      <div className="px-2.5 py-2 sm:px-3">
+        <div className="mb-1.5 flex flex-wrap items-center justify-between gap-1.5">
           <div className="min-w-0">
             <p className="text-sm font-semibold tracking-tight text-slate-900">Supplier setup</p>
             <p className="mt-0.5 hidden text-[11px] leading-snug text-slate-500 sm:block">
-              Verification turns green only after Traverion approves—not when you save the form.
+              Flow: verify → bank (IBAN) → publish. Green only after Traverion approves.
             </p>
           </div>
-          <span className="inline-flex shrink-0 items-center rounded-full bg-finland/12 px-2.5 py-0.5 text-xs font-bold tabular-nums text-finland ring-1 ring-finland/20">
+          <span className="inline-flex shrink-0 items-center rounded-full bg-finland/12 px-2 py-0.5 text-[11px] font-bold tabular-nums text-finland ring-1 ring-finland/20">
             {doneCount}/3
           </span>
         </div>
         <div
-          className="mb-2 flex h-1 gap-px overflow-hidden rounded-full bg-slate-100 p-px"
+          className="mb-1.5 flex h-1 gap-px overflow-hidden rounded-full bg-slate-100 p-px"
           aria-hidden
         >
           {steps.map((s, i) => (
@@ -204,36 +200,8 @@ function SupplierSetupProgressStrip({
             />
           ))}
         </div>
-        <ul className="flex flex-col gap-1.5 sm:flex-row sm:gap-2">
-          <li className="min-w-0 flex-1">
-            {chip(
-              hasListing,
-              'emerald',
-              onListings,
-              hasListing ? (
-                <CheckCircle2 className="text-emerald-600" aria-hidden />
-              ) : (
-                <Circle className="text-slate-400" aria-hidden />
-              ),
-              hasListing ? 'Listing added' : 'First listing',
-              hasListing ? 'At least one tour on file.' : 'Create a listing (draft is fine).'
-            )}
-          </li>
-          <li className="min-w-0 flex-1">
-            {chip(
-              hasPayout,
-              'emerald',
-              onPayout,
-              hasPayout ? (
-                <CheckCircle2 className="text-emerald-600" aria-hidden />
-              ) : (
-                <Circle className="text-slate-400" aria-hidden />
-              ),
-              hasPayout ? 'Payout saved' : 'Payout',
-              hasPayout ? 'IBAN + BIC or PayPal on file.' : 'Bank or PayPal before publish.'
-            )}
-          </li>
-          <li className="min-w-0 flex-1">
+        <ul className="grid grid-cols-1 gap-1 sm:grid-cols-3 sm:gap-1">
+          <li className="min-w-0">
             {chip(
               verified,
               verified ? 'emerald' : inReview ? 'sky' : rejected ? 'red' : 'amber',
@@ -249,6 +217,34 @@ function SupplierSetupProgressStrip({
               ),
               verified ? 'Verified' : rejected ? 'Needs update' : inReview ? 'In review' : 'Verification',
               verificationDetail
+            )}
+          </li>
+          <li className="min-w-0">
+            {chip(
+              hasPayout,
+              'emerald',
+              onPayout,
+              hasPayout ? (
+                <CheckCircle2 className="text-emerald-600" aria-hidden />
+              ) : (
+                <Circle className="text-slate-400" aria-hidden />
+              ),
+              hasPayout ? 'Bank details saved' : 'Payment details',
+              hasPayout ? 'IBAN + BIC on file.' : 'Add IBAN and BIC before publish.'
+            )}
+          </li>
+          <li className="min-w-0">
+            {chip(
+              hasListing,
+              'emerald',
+              onListings,
+              hasListing ? (
+                <CheckCircle2 className="text-emerald-600" aria-hidden />
+              ) : (
+                <Circle className="text-slate-400" aria-hidden />
+              ),
+              hasListing ? 'Listing live' : 'Publish a listing',
+              hasListing ? 'At least one tour on file.' : 'Create a tour (draft is fine).'
             )}
           </li>
         </ul>
@@ -499,25 +495,25 @@ export default function SupplierLayout() {
     .length;
   const onboardingComplete = onboardingDoneCount === 3;
   const onboardingNextLabel =
-    !onboardingHasListing
-      ? 'Publish your first listing'
+    !onboardingBusinessVerified
+      ? onboardingVerificationStatus.trim().toLowerCase() === 'rejected'
+        ? 'Update profile after rejection'
+        : onboardingHasCompany &&
+            ['pending', ''].includes(onboardingVerificationStatus.trim().toLowerCase())
+          ? 'Verification in progress'
+          : 'Complete business profile'
       : !onboardingHasPayout
-        ? 'Add payout details'
-        : !onboardingBusinessVerified
-          ? onboardingVerificationStatus.trim().toLowerCase() === 'rejected'
-            ? 'Update profile after rejection'
-            : onboardingHasCompany &&
-                ['pending', ''].includes(onboardingVerificationStatus.trim().toLowerCase())
-              ? 'Verification in progress'
-              : 'Complete business profile'
+        ? 'Add bank details (IBAN + BIC)'
+        : !onboardingHasListing
+          ? 'Publish your first listing'
           : 'Open business profile';
   const onboardingNextAction =
-    !onboardingHasListing
-      ? () => handleNavigate('listings')
+    !onboardingBusinessVerified
+      ? () => openSettingsFocus('company')
       : !onboardingHasPayout
         ? () => openSettingsFocus('payout')
-        : !onboardingBusinessVerified
-          ? () => openSettingsFocus('company')
+        : !onboardingHasListing
+          ? () => handleNavigate('listings')
           : () => handleNavigate('business-profile');
 
   if (loading) {
@@ -551,7 +547,7 @@ export default function SupplierLayout() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-[100dvh] min-h-screen bg-gray-50 flex">
       {/* Sidebar - desktop */}
       <aside className="hidden lg:flex flex-col w-64 bg-white border-r border-gray-200 fixed inset-y-0 left-0 z-30">
         <div className="p-4 border-b border-gray-200">
@@ -602,7 +598,7 @@ export default function SupplierLayout() {
         />
       )}
       <aside
-        className={`lg:hidden fixed top-0 left-0 w-64 h-full bg-white border-r border-gray-200 z-50 transform transition-transform duration-250 ease-out-smooth ${
+        className={`lg:hidden fixed top-0 left-0 w-[min(18rem,100vw)] h-full max-h-[100dvh] bg-white border-r border-gray-200 z-50 transform transition-transform duration-250 ease-out-smooth ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -623,7 +619,7 @@ export default function SupplierLayout() {
             <X className="w-5 h-5" />
           </button>
         </div>
-        <nav className="p-3 space-y-0.5">
+        <nav className="p-3 space-y-0.5 overflow-y-auto overscroll-contain pb-[env(safe-area-inset-bottom)]">
           {NAV_ITEMS.map((item) => (
             <button
               type="button"
@@ -632,7 +628,7 @@ export default function SupplierLayout() {
                 handleNavigate(item.id);
                 setSidebarOpen(false);
               }}
-              className={`lux-flat w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left text-sm font-medium transition-colors duration-300 ease-lux ${
+              className={`touch-manipulation lux-flat w-full flex items-center gap-3 px-3 py-3 min-h-[44px] rounded-lg text-left text-sm font-medium transition-colors duration-300 ease-lux ${
                 section === item.id ? 'bg-finland/10 text-finland' : 'text-gray-600 hover:bg-gray-50'
               }`}
             >
@@ -655,7 +651,7 @@ export default function SupplierLayout() {
 
       {/* Main content */}
       <div className="flex-1 lg:pl-64">
-        <header className="bg-white/95 backdrop-blur-md border-b border-gray-200 sticky top-0 z-20 h-16 flex items-center px-4 sm:px-6 lg:px-8 supports-[backdrop-filter]:bg-white/90 transition-shadow duration-500 ease-lux relative">
+        <header className="bg-white/95 backdrop-blur-md border-b border-gray-200 sticky top-0 z-20 min-h-[3.5rem] flex items-center px-3 sm:px-6 lg:px-8 pt-[env(safe-area-inset-top)] supports-[backdrop-filter]:bg-white/90 transition-shadow duration-500 ease-lux relative">
           <button
             type="button"
             onClick={() => setSidebarOpen(true)}
@@ -711,25 +707,25 @@ export default function SupplierLayout() {
           </div>
         </header>
         {mobileAccountOpen && (
-          <div className="lg:hidden fixed inset-0 z-50 bg-white">
-            <div className="h-16 px-4 border-b border-gray-200 flex items-center justify-between">
+          <div className="lg:hidden fixed inset-0 z-50 bg-white pt-[env(safe-area-inset-top)]">
+            <div className="h-14 px-4 border-b border-gray-200 flex items-center justify-between">
               <h2 className="font-semibold text-gray-900">Account</h2>
               <button type="button" onClick={() => setMobileAccountOpen(false)} className="p-2 rounded-lg text-gray-600">
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="p-4 space-y-2">
+            <div className="p-4 space-y-2 overflow-y-auto max-h-[calc(100dvh-3.5rem)] pb-[max(1rem,env(safe-area-inset-bottom))]">
               <p className="px-1 pt-1 pb-2 text-xs uppercase tracking-wide text-gray-500">Traverion supplier account</p>
-              <button type="button" onClick={() => openSettingsFocus('company')} className="w-full text-left px-4 py-3 rounded-xl border border-gray-200">Business profile</button>
-              <button type="button" onClick={() => openSettingsFocus('legal')} className="w-full text-left px-4 py-3 rounded-xl border border-gray-200">Legal obligations</button>
-              <button type="button" onClick={() => openSettingsFocus('account')} className="w-full text-left px-4 py-3 rounded-xl border border-gray-200">Account settings</button>
-              <button type="button" onClick={() => openSettingsFocus('security')} className="w-full text-left px-4 py-3 rounded-xl border border-gray-200">Security and password</button>
-              <button type="button" onClick={() => handleNavigate('badges')} className="w-full text-left px-4 py-3 rounded-xl border border-gray-200">Brand assets</button>
-              <button type="button" onClick={() => signOut()} className="w-full text-left px-4 py-3 rounded-xl border border-red-200 text-red-600">Log out</button>
+              <button type="button" onClick={() => openSettingsFocus('company')} className="touch-manipulation w-full text-left px-4 py-3.5 min-h-[44px] rounded-xl border border-gray-200 active:bg-gray-50">Business profile</button>
+              <button type="button" onClick={() => openSettingsFocus('legal')} className="touch-manipulation w-full text-left px-4 py-3.5 min-h-[44px] rounded-xl border border-gray-200 active:bg-gray-50">Legal obligations</button>
+              <button type="button" onClick={() => openSettingsFocus('account')} className="touch-manipulation w-full text-left px-4 py-3.5 min-h-[44px] rounded-xl border border-gray-200 active:bg-gray-50">Account settings</button>
+              <button type="button" onClick={() => openSettingsFocus('security')} className="touch-manipulation w-full text-left px-4 py-3.5 min-h-[44px] rounded-xl border border-gray-200 active:bg-gray-50">Security and password</button>
+              <button type="button" onClick={() => handleNavigate('badges')} className="touch-manipulation w-full text-left px-4 py-3.5 min-h-[44px] rounded-xl border border-gray-200 active:bg-gray-50">Brand assets</button>
+              <button type="button" onClick={() => signOut()} className="touch-manipulation w-full text-left px-4 py-3.5 min-h-[44px] rounded-xl border border-red-200 text-red-600 active:bg-red-50">Log out</button>
             </div>
           </div>
         )}
-        <main className="p-4 sm:p-6 lg:p-8 overflow-x-hidden">
+        <main className="w-full max-w-[100vw] overflow-x-hidden px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-1 sm:px-6 sm:pb-6 sm:pt-0 lg:px-8 lg:pb-8">
           {isSupabase && user && !onboardingComplete && (
             <SupplierSetupProgressStrip
               listingCount={onboardingListingCount}

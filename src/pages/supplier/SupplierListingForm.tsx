@@ -284,8 +284,11 @@ export default function SupplierListingForm({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm p-3 sm:p-6">
-      <form onSubmit={handleSubmit} className="bg-white border border-gray-200 rounded-2xl shadow-xl w-full max-w-3xl mx-auto h-[calc(100vh-24px)] sm:h-[calc(100vh-48px)] flex flex-col">
+    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex flex-col p-2 sm:p-6 sm:justify-center pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+      <form
+        onSubmit={handleSubmit}
+        className="bg-white border border-gray-200 rounded-xl sm:rounded-2xl shadow-xl w-full max-w-3xl mx-auto flex flex-col flex-1 min-h-0 max-h-full sm:max-h-[calc(100dvh-3rem)] sm:flex-none"
+      >
         <div className="px-5 sm:px-6 py-4 border-b border-gray-200">
           <div className="flex items-center justify-between gap-3 mb-4">
             <h2 className="text-xl font-semibold text-gray-900">{editingId ? 'Edit listing' : 'Create listing'}</h2>
@@ -293,13 +296,13 @@ export default function SupplierListingForm({
               Close
             </button>
           </div>
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2">
             {steps.map((step, idx) => (
               <button
                 key={step.id}
                 type="button"
                 onClick={() => setStepIdx(idx)}
-                className={`flex items-center gap-2 rounded-lg border px-2 py-2 text-left ${
+                className={`touch-manipulation flex items-center gap-1.5 sm:gap-2 rounded-lg border px-2 py-2 min-h-[44px] sm:min-h-0 text-left ${
                   idx === stepIdx ? 'border-finland bg-finland/5 text-finland' : 'border-gray-200 text-gray-600 hover:bg-gray-50'
                 }`}
               >
@@ -493,31 +496,39 @@ export default function SupplierListingForm({
           )}
         </div>
 
-        <div className="px-4 sm:px-6 py-3 sm:py-4 border-t border-gray-200 flex items-center justify-between gap-3">
+        <div className="px-4 sm:px-6 py-3 sm:py-4 border-t border-gray-200 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 shrink-0">
           <button
             type="button"
             onClick={() => setStepIdx((s) => Math.max(0, s - 1))}
             disabled={stepIdx === 0}
-            className="px-4 py-2.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            className="touch-manipulation w-full sm:w-auto px-4 py-3 sm:py-2.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 min-h-[44px]"
           >
             Back
           </button>
-          <div className="flex items-center gap-2">
+          <div className="flex items-stretch sm:items-center gap-2 w-full sm:w-auto">
             {stepIdx < steps.length - 1 ? (
               <button
                 type="button"
                 onClick={() => setStepIdx((s) => Math.min(steps.length - 1, s + 1))}
                 disabled={!canContinueStep()}
-                className="px-4 py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark disabled:opacity-50"
+                className="touch-manipulation flex-1 sm:flex-none px-4 py-3 sm:py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark disabled:opacity-50 min-h-[44px]"
               >
                 Continue
               </button>
             ) : (
-              <button type="submit" disabled={submitting || !canContinueStep()} className="px-4 py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark disabled:opacity-50">
+              <button
+                type="submit"
+                disabled={submitting || !canContinueStep()}
+                className="touch-manipulation flex-1 sm:flex-none px-4 py-3 sm:py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark disabled:opacity-50 min-h-[44px]"
+              >
                 {submitting ? 'Saving…' : editingId ? 'Save changes' : 'Add listing'}
               </button>
             )}
-            <button type="button" onClick={onCancel} className="px-4 py-2.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="touch-manipulation flex-1 sm:flex-none px-4 py-3 sm:py-2.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 min-h-[44px]"
+            >
               Cancel
             </button>
           </div>
