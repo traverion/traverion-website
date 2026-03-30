@@ -51,6 +51,7 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
   const [discountsByListing, setDiscountsByListing] = useState<Map<string, import('../data/supabase-discounts').ListingDiscount[]>>(new Map());
   const [supplierLegal, setSupplierLegal] = useState<{
     operatorName: string;
+    business_logo_url: string | null;
     privacy_policy_text: string | null;
     terms_conditions_text: string | null;
   } | null>(null);
@@ -89,6 +90,7 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
         row.company_legal_name?.trim() || row.display_name?.trim() || 'Operator';
       setSupplierLegal({
         operatorName,
+        business_logo_url: row.business_logo_url?.trim() || null,
         privacy_policy_text: row.privacy_policy_text,
         terms_conditions_text: row.terms_conditions_text,
       });
@@ -292,14 +294,44 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
                   <span className="flex items-center"><Plane size={18} className="mr-1" />{tour.difficulty}</span>
                 </div>
                 <p className="text-gray-700 leading-relaxed">{tour.description}</p>
+
+                {supplierLegal && (
+                  <div className="mt-6 flex items-center gap-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                    {supplierLegal.business_logo_url ? (
+                      <img
+                        src={supplierLegal.business_logo_url}
+                        alt={`${supplierLegal.operatorName} logo`}
+                        className="w-16 h-16 sm:w-[4.5rem] sm:h-[4.5rem] rounded-xl object-cover border border-gray-100 flex-shrink-0 shadow-sm"
+                      />
+                    ) : (
+                      <div className="w-16 h-16 sm:w-[4.5rem] sm:h-[4.5rem] rounded-xl bg-finland/10 flex items-center justify-center flex-shrink-0 border border-finland/15">
+                        <Users className="w-8 h-8 text-finland" aria-hidden />
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Run by</p>
+                      <p className="text-lg font-semibold text-gray-900 truncate">{supplierLegal.operatorName}</p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {supplierLegal &&
                 (supplierLegal.privacy_policy_text?.trim() || supplierLegal.terms_conditions_text?.trim()) && (
                   <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-                    <h2 className="text-xs font-bold uppercase tracking-[0.12em] text-gray-900">
-                      Policies from {supplierLegal.operatorName}
-                    </h2>
+                    <div className="flex items-start gap-3 mb-1">
+                      {supplierLegal.business_logo_url ? (
+                        <img
+                          src={supplierLegal.business_logo_url}
+                          alt=""
+                          className="w-10 h-10 rounded-lg object-cover border border-gray-100 flex-shrink-0 hidden sm:block"
+                          aria-hidden
+                        />
+                      ) : null}
+                      <h2 className="text-xs font-bold uppercase tracking-[0.12em] text-gray-900">
+                        Policies from {supplierLegal.operatorName}
+                      </h2>
+                    </div>
                     <p className="text-sm text-gray-600 mt-1.5 mb-4">
                       Privacy and booking terms for this experience provider.
                     </p>

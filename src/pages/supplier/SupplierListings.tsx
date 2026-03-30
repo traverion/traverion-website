@@ -161,7 +161,7 @@ export default function SupplierListings() {
       setCanPostNewListing(canPost);
       if (!businessComplete) {
         setProfileGateMessage(
-          'Complete your business profile in Settings. After Traverion verifies your business, you can add and publish tours.'
+          'Complete your business profile in Settings: registered name, address, verification documents (ID; and company registration if you are a company), and payout details. After Traverion verifies your business, you can add and publish tours.'
         );
       } else if (v === 'rejected') {
         setProfileGateMessage(
@@ -169,7 +169,7 @@ export default function SupplierListings() {
         );
       } else if (!verified) {
         setProfileGateMessage(
-          'Business details are on file. Once Traverion marks your account as verified, you can add and publish tours.'
+          'Your documents and details are being reviewed. Once Traverion marks your account as verified, you can add and publish tours.'
         );
       } else {
         setProfileGateMessage(null);

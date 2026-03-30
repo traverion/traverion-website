@@ -271,9 +271,22 @@ export default function SupplierDashboard({
         </div>
       )}
 
-      <div>
-        <h1 className="text-2xl font-semibold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600 mt-1">Key metrics and today&apos;s schedule</p>
+      <div className="flex items-start gap-4">
+        {profile?.business_logo_url ? (
+          <img
+            src={profile.business_logo_url}
+            alt={
+              profile.company_legal_name?.trim() ||
+              profile.display_name?.trim() ||
+              'Your business logo'
+            }
+            className="w-14 h-14 rounded-xl object-cover border border-gray-200 bg-white shadow-sm flex-shrink-0"
+          />
+        ) : null}
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold text-gray-900">Dashboard</h1>
+          <p className="text-gray-600 mt-1">Key metrics and today&apos;s schedule</p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

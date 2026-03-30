@@ -29,9 +29,104 @@ export type SupplierProfileRow = {
   payment_cycle: 'monthly' | 'biweekly' | null;
   payout_threshold_min: number | null;
   welcome_email_sent_at: string | null;
+  /** Public Storage URL; shown on tour page and supplier dashboard */
+  business_logo_url: string | null;
+  /** Private bucket path for ID proof */
+  identity_document_path: string | null;
+  /** Private bucket path for company registration extract (company suppliers) */
+  company_registration_document_path: string | null;
   created_at: string;
   updated_at: string;
 };
+
+const SUPPLIER_LOGO_BUCKET = 'supplier-logos';
+const VERIFICATION_BUCKET = 'supplier-verification';
+
+/** Upload ID or company registration document (PDF or image). Returns storage path for DB. */
+export async function uploadSupplierVerificationDocument(
+  userId: string,
+  file: File,
+  kind: 'identity' | 'company_registration'
+): Promise<{ path: string | null; error?: string }> {
+  if (!supabase) return { path: null, error: 'Supabase not configured' };
+  const max = 5 * 1024 * 1024;
+  if (file.size > max) return { path: null, error: 'File must be 5 MB or smaller.' };
+  const allowed = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+  if (!allowed.includes(file.type)) return { path: null, error: 'Use PDF, JPEG, PNG, or WebP.' };
+
+  const ext =
+    file.type === 'application/pdf'
+      ? 'pdf'
+      : file.type === 'image/jpeg'
+        ? 'jpg'
+        : file.type === 'image/png'
+          ? 'png'
+          : 'webp';
+  const base = kind === 'identity' ? 'identity-document' : 'company-registration';
+  const path = `${userId}/${base}.${ext}`;
+
+  const { error: upErr } = await supabase.storage
+    .from(VERIFICATION_BUCKET)
+    .upload(path, file, { upsert: true, contentType: file.type, cacheControl: '3600' });
+  if (upErr) return { path: null, error: upErr.message };
+  return { path };
+}
+
+export async function removeSupplierVerificationDocumentFile(path: string): Promise<void> {
+  if (!supabase || !path.trim()) return;
+  await supabase.storage.from(VERIFICATION_BUCKET).remove([path]);
+}
+
+export async function getSignedVerificationDocumentUrl(
+  path: string,
+  expiresIn = 3600
+): Promise<string | null> {
+  if (!supabase || !path.trim()) return null;
+  const { data, error } = await supabase.storage
+    .from(VERIFICATION_BUCKET)
+    .createSignedUrl(path, expiresIn);
+  if (error || !data?.signedUrl) return null;
+  return data.signedUrl;
+}
+
+/** Upload a business profile photo; returns public URL to store on supplier_profiles.business_logo_url */
+export async function uploadSupplierBusinessLogo(
+  userId: string,
+  file: File
+): Promise<{ publicUrl: string | null; error?: string }> {
+  if (!supabase) return { publicUrl: null, error: 'Supabase not configured' };
+  const max = 2 * 1024 * 1024;
+  if (file.size > max) return { publicUrl: null, error: 'Image must be 2 MB or smaller.' };
+  const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+  if (!allowed.includes(file.type)) return { publicUrl: null, error: 'Use JPEG, PNG, WebP, or GIF.' };
+
+  const ext =
+    file.type === 'image/jpeg'
+      ? 'jpg'
+      : file.type === 'image/png'
+        ? 'png'
+        : file.type === 'image/webp'
+          ? 'webp'
+          : 'gif';
+  const path = `${userId}/business-logo.${ext}`;
+
+  const { error: upErr } = await supabase.storage
+    .from(SUPPLIER_LOGO_BUCKET)
+    .upload(path, file, { upsert: true, contentType: file.type, cacheControl: '3600' });
+  if (upErr) return { publicUrl: null, error: upErr.message };
+
+  const { data } = supabase.storage.from(SUPPLIER_LOGO_BUCKET).getPublicUrl(path);
+  return { publicUrl: data.publicUrl };
+}
+
+/** Remove all files in the supplier's logo folder (e.g. before clearing profile URL). */
+export async function removeSupplierBusinessLogoFiles(userId: string): Promise<void> {
+  if (!supabase) return;
+  const { data: files } = await supabase.storage.from(SUPPLIER_LOGO_BUCKET).list(userId);
+  if (!files?.length) return;
+  const paths = files.map((f) => `${userId}/${f.name}`);
+  await supabase.storage.from(SUPPLIER_LOGO_BUCKET).remove(paths);
+}
 
 /**
  * Ensure base supplier profile row exists for authenticated supplier.
@@ -125,6 +220,9 @@ export async function updateSupplierCompanyProfile(
     insurance_provider: string | null;
     privacy_policy_text: string | null;
     terms_conditions_text: string | null;
+    business_logo_url: string | null;
+    identity_document_path: string | null;
+    company_registration_document_path: string | null;
   }>
 ): Promise<{ success: boolean; error?: string }> {
   if (!supabase) return { success: false, error: 'Supabase not configured' };
@@ -151,6 +249,7 @@ export async function fetchSupplierPublicLegal(
   display_name: string | null;
   company_legal_name: string | null;
   business_address: string | null;
+  business_logo_url: string | null;
   privacy_policy_text: string | null;
   terms_conditions_text: string | null;
 } | null> {
@@ -158,7 +257,7 @@ export async function fetchSupplierPublicLegal(
   const { data, error } = await supabase
     .from('supplier_profiles')
     .select(
-      'display_name, company_legal_name, business_address, privacy_policy_text, terms_conditions_text'
+      'display_name, company_legal_name, business_address, business_logo_url, privacy_policy_text, terms_conditions_text'
     )
     .eq('id', supplierId)
     .maybeSingle();
@@ -167,6 +266,7 @@ export async function fetchSupplierPublicLegal(
     display_name: string | null;
     company_legal_name: string | null;
     business_address: string | null;
+    business_logo_url: string | null;
     privacy_policy_text: string | null;
     terms_conditions_text: string | null;
   };

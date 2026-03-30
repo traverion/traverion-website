@@ -1,8 +1,16 @@
 import type { Dispatch, SetStateAction } from 'react';
-import { FileText, Shield } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { Building2, FileText, ImagePlus, Shield } from 'lucide-react';
 import type { SupplierRole } from '../../lib/supplierTeamRoles';
 import type { User } from '@supabase/supabase-js';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import {
+  getSignedVerificationDocumentUrl,
+  removeSupplierBusinessLogoFiles,
+  removeSupplierVerificationDocumentFile,
+  uploadSupplierBusinessLogo,
+  uploadSupplierVerificationDocument,
+} from '../../data/supabase-supplier-profile';
 
 type BusinessProfileTab = 'company' | 'legal';
 
@@ -117,6 +125,15 @@ type Props = {
   operatorDisplayName: string;
   fillPrivacyTemplate: () => void;
   fillTermsTemplate: () => void;
+
+  businessLogoUrl: string;
+  setBusinessLogoUrl: (v: string) => void;
+
+  identityDocumentPath: string;
+  setIdentityDocumentPath: (v: string) => void;
+  companyRegistrationPath: string;
+  setCompanyRegistrationPath: (v: string) => void;
+  setVerificationStatus: (v: string) => void;
 };
 
 export default function SupplierSettingsPages(props: Props) {
@@ -330,6 +347,16 @@ function AccountSettingsPage(p: Props) {
 }
 
 function BusinessProfilePage(p: Props) {
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const identityDocInputRef = useRef<HTMLInputElement>(null);
+  const companyRegInputRef = useRef<HTMLInputElement>(null);
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [logoError, setLogoError] = useState<string | null>(null);
+  const [identityDocUploading, setIdentityDocUploading] = useState(false);
+  const [companyRegUploading, setCompanyRegUploading] = useState(false);
+  const [docError, setDocError] = useState<string | null>(null);
+  const [companySaveError, setCompanySaveError] = useState<string | null>(null);
+
   const tabBtn = (active: boolean) =>
     `rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors ${
       active ? 'bg-finland text-white shadow-sm' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -435,6 +462,81 @@ function BusinessProfilePage(p: Props) {
             <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-gray-900">Company details</h2>
             <p className="text-sm text-gray-600 mt-1.5 mb-5">Verification and invoicing. Insurance and policies are under Legal obligations.</p>
             <div className="space-y-4 max-w-xl">
+              <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Business profile photo</label>
+                <p className="text-xs text-gray-500 mb-3">
+                  Optional. Shown on your tour pages next to your business name so guests recognize your brand.
+                </p>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                  <div className="w-24 h-24 rounded-xl border-2 border-gray-200 bg-white overflow-hidden flex items-center justify-center flex-shrink-0 shadow-sm">
+                    {p.businessLogoUrl ? (
+                      <img src={p.businessLogoUrl} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <Building2 className="w-10 h-10 text-gray-300" aria-hidden />
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-2 min-w-0">
+                    <input
+                      ref={logoInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        e.target.value = '';
+                        if (!file || !p.user?.id || !p.isSupabase) return;
+                        if (!p.canManageFinance(p.role)) return;
+                        setLogoError(null);
+                        setLogoUploading(true);
+                        const { publicUrl, error: upErr } = await uploadSupplierBusinessLogo(p.user.id, file);
+                        if (upErr || !publicUrl) {
+                          setLogoUploading(false);
+                          setLogoError(upErr ?? 'Upload failed.');
+                          return;
+                        }
+                        const res = await p.updateSupplierCompanyProfile(p.user.id, { business_logo_url: publicUrl });
+                        setLogoUploading(false);
+                        if (res.success) p.setBusinessLogoUrl(publicUrl);
+                        else setLogoError('Could not save photo URL.');
+                      }}
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        disabled={logoUploading || !p.canManageFinance(p.role)}
+                        onClick={() => logoInputRef.current?.click()}
+                        className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-800 hover:bg-gray-50 disabled:opacity-50"
+                      >
+                        <ImagePlus className="w-4 h-4" />
+                        {logoUploading ? 'Uploading…' : p.businessLogoUrl ? 'Replace photo' : 'Upload photo'}
+                      </button>
+                      {p.businessLogoUrl ? (
+                        <button
+                          type="button"
+                          disabled={logoUploading || !p.canManageFinance(p.role)}
+                          onClick={async () => {
+                            if (!p.user?.id) return;
+                            setLogoError(null);
+                            setLogoUploading(true);
+                            await removeSupplierBusinessLogoFiles(p.user.id);
+                            const res = await p.updateSupplierCompanyProfile(p.user.id, { business_logo_url: null });
+                            setLogoUploading(false);
+                            if (res.success) p.setBusinessLogoUrl('');
+                            else setLogoError('Could not remove photo.');
+                          }}
+                          className="inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+                        >
+                          Remove
+                        </button>
+                      ) : null}
+                    </div>
+                    {logoError && <p className="text-xs text-red-600">{logoError}</p>}
+                    {!p.canManageFinance(p.role) && (
+                      <p className="text-xs text-gray-500">Your role cannot change business profile photos.</p>
+                    )}
+                  </div>
+                </div>
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Business type</label>
                 <select
@@ -448,12 +550,18 @@ function BusinessProfilePage(p: Props) {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Legal name / Company name</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Registered business name (legal name)
+                </label>
+                <p className="text-xs text-gray-500 mb-2">
+                  Enter the name exactly as registered with authorities. Our team checks that it matches your
+                  registration documents before your account can go live.
+                </p>
                 <input
                   type="text"
                   value={p.companyLegalName}
                   onChange={(e) => p.setCompanyLegalName(e.target.value)}
-                  placeholder="Legal or company name"
+                  placeholder="As on your business / trade registration"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
                 />
               </div>
@@ -509,45 +617,274 @@ function BusinessProfilePage(p: Props) {
                   />
                 </div>
               </div>
-              {p.verificationStatus && (
-                <p className="text-sm text-gray-600">
-                  Verification status: <span className="font-medium">{p.verificationStatus}</span>
+
+              <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-4 space-y-4">
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900">Verification documents</h3>
+                  <p className="text-xs text-gray-600 mt-1">
+                    Required for Traverion to confirm your identity and, for companies, your registration. Files are
+                    stored securely and reviewed by our team.
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Government-issued ID</label>
+                  <p className="text-xs text-gray-500 mb-2">Passport or national ID (PDF or clear photo).</p>
+                  <input
+                    ref={identityDocInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,application/pdf"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      e.target.value = '';
+                      if (!file || !p.user?.id || !p.isSupabase) return;
+                      if (!p.canManageFinance(p.role)) return;
+                      setDocError(null);
+                      setIdentityDocUploading(true);
+                      const { path, error: upErr } = await uploadSupplierVerificationDocument(
+                        p.user.id,
+                        file,
+                        'identity'
+                      );
+                      if (upErr || !path) {
+                        setIdentityDocUploading(false);
+                        setDocError(upErr ?? 'Upload failed.');
+                        return;
+                      }
+                      const res = await p.updateSupplierCompanyProfile(p.user.id, {
+                        identity_document_path: path,
+                        verification_status: 'pending',
+                      });
+                      setIdentityDocUploading(false);
+                      if (res.success) {
+                        p.setIdentityDocumentPath(path);
+                        p.setVerificationStatus('pending');
+                      } else setDocError('Could not save document.');
+                    }}
+                  />
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={identityDocUploading || !p.canManageFinance(p.role)}
+                      onClick={() => identityDocInputRef.current?.click()}
+                      className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-800 hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      {identityDocUploading ? 'Uploading…' : p.identityDocumentPath ? 'Replace ID' : 'Upload ID'}
+                    </button>
+                    {p.identityDocumentPath ? (
+                      <>
+                        <button
+                          type="button"
+                          className="text-sm text-finland hover:underline"
+                          onClick={async () => {
+                            const url = await getSignedVerificationDocumentUrl(p.identityDocumentPath);
+                            if (url) window.open(url, '_blank', 'noopener,noreferrer');
+                          }}
+                        >
+                          View
+                        </button>
+                        <button
+                          type="button"
+                          disabled={identityDocUploading || !p.canManageFinance(p.role)}
+                          className="text-sm text-red-600 hover:underline disabled:opacity-50"
+                          onClick={async () => {
+                            if (!p.user?.id || !p.identityDocumentPath) return;
+                            setDocError(null);
+                            setIdentityDocUploading(true);
+                            await removeSupplierVerificationDocumentFile(p.identityDocumentPath);
+                            const res = await p.updateSupplierCompanyProfile(p.user.id, {
+                              identity_document_path: null,
+                              verification_status: 'pending',
+                            });
+                            setIdentityDocUploading(false);
+                            if (res.success) {
+                              p.setIdentityDocumentPath('');
+                              p.setVerificationStatus('pending');
+                            } else setDocError('Could not remove file.');
+                          }}
+                        >
+                          Remove
+                        </button>
+                      </>
+                    ) : null}
+                  </div>
+                </div>
+                {p.businessType === 'company' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Company registration proof</label>
+                    <p className="text-xs text-gray-500 mb-2">
+                      Official extract or certificate showing your company name and registration number.
+                    </p>
+                    <input
+                      ref={companyRegInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,application/pdf"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        e.target.value = '';
+                        if (!file || !p.user?.id || !p.isSupabase) return;
+                        if (!p.canManageFinance(p.role)) return;
+                        setDocError(null);
+                        setCompanyRegUploading(true);
+                        const { path, error: upErr } = await uploadSupplierVerificationDocument(
+                          p.user.id,
+                          file,
+                          'company_registration'
+                        );
+                        if (upErr || !path) {
+                          setCompanyRegUploading(false);
+                          setDocError(upErr ?? 'Upload failed.');
+                          return;
+                        }
+                        const res = await p.updateSupplierCompanyProfile(p.user.id, {
+                          company_registration_document_path: path,
+                          verification_status: 'pending',
+                        });
+                        setCompanyRegUploading(false);
+                        if (res.success) {
+                          p.setCompanyRegistrationPath(path);
+                          p.setVerificationStatus('pending');
+                        } else setDocError('Could not save document.');
+                      }}
+                    />
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        disabled={companyRegUploading || !p.canManageFinance(p.role)}
+                        onClick={() => companyRegInputRef.current?.click()}
+                        className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-800 hover:bg-gray-50 disabled:opacity-50"
+                      >
+                        {companyRegUploading
+                          ? 'Uploading…'
+                          : p.companyRegistrationPath
+                            ? 'Replace document'
+                            : 'Upload registration'}
+                      </button>
+                      {p.companyRegistrationPath ? (
+                        <>
+                          <button
+                            type="button"
+                            className="text-sm text-finland hover:underline"
+                            onClick={async () => {
+                              const url = await getSignedVerificationDocumentUrl(p.companyRegistrationPath);
+                              if (url) window.open(url, '_blank', 'noopener,noreferrer');
+                            }}
+                          >
+                            View
+                          </button>
+                          <button
+                            type="button"
+                            disabled={companyRegUploading || !p.canManageFinance(p.role)}
+                            className="text-sm text-red-600 hover:underline disabled:opacity-50"
+                            onClick={async () => {
+                              if (!p.user?.id || !p.companyRegistrationPath) return;
+                              setDocError(null);
+                              setCompanyRegUploading(true);
+                              await removeSupplierVerificationDocumentFile(p.companyRegistrationPath);
+                              const res = await p.updateSupplierCompanyProfile(p.user.id, {
+                                company_registration_document_path: null,
+                                verification_status: 'pending',
+                              });
+                              setCompanyRegUploading(false);
+                              if (res.success) {
+                                p.setCompanyRegistrationPath('');
+                                p.setVerificationStatus('pending');
+                              } else setDocError('Could not remove file.');
+                            }}
+                          >
+                            Remove
+                          </button>
+                        </>
+                      ) : null}
+                    </div>
+                  </div>
+                )}
+                {docError && <p className="text-xs text-red-600">{docError}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-sm text-gray-700">
+                  Verification status:{' '}
+                  <span className="font-semibold capitalize">{p.verificationStatus || 'pending'}</span>
                 </p>
-              )}
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  disabled={p.companySaving || !p.canManageFinance(p.role)}
-                  onClick={async () => {
-                    if (!p.user?.id) return;
-                    p.setCompanySaving(true);
-                    p.setCompanyMessage(null);
-                    const res = await p.updateSupplierCompanyProfile(p.user.id, {
-                      business_type: p.businessType || null,
-                      company_legal_name: p.companyLegalName.trim() || null,
-                      company_registration_number: p.companyRegistrationNumber.trim() || null,
-                      managing_directors: p.managingDirectors.trim() || null,
-                      business_address: p.businessAddress.trim() || null,
-                      tax_id: p.taxId.trim() || null,
-                      vat_id: p.vatId.trim() || null,
-                    });
-                    p.setCompanySaving(false);
-                    p.setCompanyMessage(res.success ? 'success' : 'error');
-                  }}
-                  className="px-4 py-2 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark disabled:opacity-50"
-                >
-                  {p.companySaving ? 'Saving…' : 'Save company details'}
-                </button>
-                {p.companyMessage === 'success' && <span className="text-sm text-green-600">Saved.</span>}
-                {p.companyMessage === 'error' && <span className="text-sm text-red-600">Failed to save.</span>}
+                {(p.verificationStatus === 'pending' || p.verificationStatus === '' || !p.verificationStatus) && (
+                  <p className="text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                    While your status is pending, you cannot publish or create listings. We will email you when your
+                    business has been verified.
+                  </p>
+                )}
+                {p.verificationStatus === 'verified' && (
+                  <p className="text-sm text-green-800 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                    Your business is verified. You can create and publish listings.
+                  </p>
+                )}
+                {p.verificationStatus === 'rejected' && (
+                  <p className="text-sm text-red-800 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                    Verification was not approved. Update your details and documents, then contact support if you need
+                    help.
+                  </p>
+                )}
+              </div>
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <button
+                    type="button"
+                    disabled={p.companySaving || !p.canManageFinance(p.role)}
+                    onClick={async () => {
+                      if (!p.user?.id) return;
+                      setCompanySaveError(null);
+                      p.setCompanyMessage(null);
+                      if (!p.businessType) {
+                        setCompanySaveError('Select whether you are a registered company or an individual trader.');
+                        return;
+                      }
+                      if (!p.identityDocumentPath?.trim()) {
+                        setCompanySaveError('Upload a government-issued ID before saving.');
+                        return;
+                      }
+                      if (p.businessType === 'company' && !p.companyRegistrationPath?.trim()) {
+                        setCompanySaveError('Upload your company registration document before saving.');
+                        return;
+                      }
+                      p.setCompanySaving(true);
+                      const res = await p.updateSupplierCompanyProfile(p.user.id, {
+                        business_type: p.businessType || null,
+                        company_legal_name: p.companyLegalName.trim() || null,
+                        company_registration_number: p.companyRegistrationNumber.trim() || null,
+                        managing_directors: p.managingDirectors.trim() || null,
+                        business_address: p.businessAddress.trim() || null,
+                        tax_id: p.taxId.trim() || null,
+                        vat_id: p.vatId.trim() || null,
+                        verification_status: 'pending',
+                      });
+                      p.setCompanySaving(false);
+                      if (res.success) {
+                        p.setVerificationStatus('pending');
+                        p.setCompanyMessage('success');
+                      } else {
+                        p.setCompanyMessage('error');
+                      }
+                    }}
+                    className="px-4 py-2 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark disabled:opacity-50"
+                  >
+                    {p.companySaving ? 'Saving…' : 'Save company details'}
+                  </button>
+                  {p.companyMessage === 'success' && (
+                    <span className="text-sm text-green-600">Saved. Your details are pending review.</span>
+                  )}
+                  {p.companyMessage === 'error' && <span className="text-sm text-red-600">Failed to save.</span>}
+                </div>
+                {companySaveError && <p className="text-sm text-red-600">{companySaveError}</p>}
               </div>
             </div>
           </div>
 
           <div id="supplier-business-payout" className="rounded-xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm">
-            <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-gray-900">Payout method</h2>
+            <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-gray-900">Payment &amp; payouts</h2>
             <p className="text-sm text-gray-600 mt-1.5 mb-5">
-              How you’d like to receive payouts when they’re enabled. Stored securely for when payments are integrated.
+              Add your bank details (IBAN and BIC for transfers) or PayPal first, then choose how often you want to be
+              paid. Stored securely for when payouts are enabled.
             </p>
             <div className="space-y-4">
               <div>
@@ -600,7 +937,8 @@ function BusinessProfilePage(p: Props) {
                 </div>
               )}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Payment cycle</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Payout frequency</label>
+                <p className="text-xs text-gray-500 mb-1.5">How often we settle payouts once they are enabled.</p>
                 <select
                   value={p.paymentCycle}
                   onChange={(e) => p.setPaymentCycle(e.target.value as 'monthly' | 'biweekly' | '')}

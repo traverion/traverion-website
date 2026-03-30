@@ -148,6 +148,9 @@ export default function SupplierLayout() {
   const [badgeVariant, setBadgeVariant] = useState<BadgeVariant>('gold');
   const [verificationSending, setVerificationSending] = useState(false);
   const [verificationMessage, setVerificationMessage] = useState<'sent' | 'error' | null>(null);
+  const [businessLogoUrl, setBusinessLogoUrl] = useState<string>('');
+  const [identityDocumentPath, setIdentityDocumentPath] = useState('');
+  const [companyRegistrationPath, setCompanyRegistrationPath] = useState('');
 
   const supplierEmail = typeof user?.email === 'string' ? user.email : '';
   const supplierEmailVerified = Boolean((user as { email_confirmed_at?: string | null } | null)?.email_confirmed_at);
@@ -178,6 +181,9 @@ export default function SupplierLayout() {
         setInsuranceProvider(p.insurance_provider ?? '');
         setPrivacyPolicyText(p.privacy_policy_text ?? '');
         setTermsConditionsText(p.terms_conditions_text ?? '');
+        setBusinessLogoUrl((p.business_logo_url ?? '').trim());
+        setIdentityDocumentPath((p.identity_document_path ?? '').trim());
+        setCompanyRegistrationPath((p.company_registration_document_path ?? '').trim());
       }
     });
   }, [section, user?.id, isSupabase]);
@@ -708,6 +714,13 @@ export default function SupplierLayout() {
               operatorDisplayName={operatorDisplayName}
               fillPrivacyTemplate={fillPrivacyTemplate}
               fillTermsTemplate={fillTermsTemplate}
+              businessLogoUrl={businessLogoUrl}
+              setBusinessLogoUrl={setBusinessLogoUrl}
+              identityDocumentPath={identityDocumentPath}
+              setIdentityDocumentPath={setIdentityDocumentPath}
+              companyRegistrationPath={companyRegistrationPath}
+              setCompanyRegistrationPath={setCompanyRegistrationPath}
+              setVerificationStatus={setVerificationStatus}
             />
           )}
           </div>

@@ -324,12 +324,16 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
             {mode === 'signup' && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Business name</label>
+                <p className="text-xs text-gray-500 mb-2">
+                  Use your <span className="font-medium text-gray-700">registered business name</span> as it appears on
+                  official documents. Our team will verify that it matches your registration before you can go live.
+                </p>
                 <input
                   type="text"
                   name="organization"
                   value={businessName}
                   onChange={(e) => setBusinessName(e.target.value)}
-                  placeholder="Your company / operator name"
+                  placeholder="Registered legal / trading name"
                   className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland"
                   autoComplete="organization"
                   required
