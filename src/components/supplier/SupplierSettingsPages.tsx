@@ -569,10 +569,15 @@ function BusinessProfilePage(p: Props) {
                 <>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Registration number</label>
+                    <p className="text-xs text-gray-500 mb-2">
+                      Official number from your company register (e.g. Finnish Y-tunnus 1234567-8, UK company number, or
+                      your jurisdiction’s equivalent). This is what we check against your uploaded proof.
+                    </p>
                     <input
                       type="text"
                       value={p.companyRegistrationNumber}
                       onChange={(e) => p.setCompanyRegistrationNumber(e.target.value)}
+                      placeholder="e.g. 1234567-8"
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
                     />
                   </div>
@@ -597,26 +602,76 @@ function BusinessProfilePage(p: Props) {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
                 />
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Tax ID (TIN)</label>
-                  <input
-                    type="text"
-                    value={p.taxId}
-                    onChange={(e) => p.setTaxId(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
-                  />
+              {p.businessType === 'company' && (
+                <div className="rounded-lg border border-slate-200 bg-slate-50/90 p-4 space-y-3">
+                  <p className="text-xs text-slate-700">
+                    You do not need a separate “tax ID” for verification if your{' '}
+                    <span className="font-medium text-slate-900">registration number</span> above is complete. Use the
+                    fields below only if you want VAT or another tax reference stored for payouts or invoicing.
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">VAT ID (optional)</label>
+                      <p className="text-xs text-gray-500 mb-2">
+                        If you are VAT-registered, e.g. <span className="font-mono text-gray-600">FI12345678</span> in the
+                        EU.
+                      </p>
+                      <input
+                        type="text"
+                        value={p.vatId}
+                        onChange={(e) => p.setVatId(e.target.value)}
+                        placeholder="Leave blank if not VAT-registered"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Other tax ID (optional)</label>
+                      <p className="text-xs text-gray-500 mb-2">
+                        Only when your country uses a number different from the registration number (e.g. US EIN).
+                      </p>
+                      <input
+                        type="text"
+                        value={p.taxId}
+                        onChange={(e) => p.setTaxId(e.target.value)}
+                        placeholder="Optional"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">VAT ID (if registered)</label>
-                  <input
-                    type="text"
-                    value={p.vatId}
-                    onChange={(e) => p.setVatId(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
-                  />
+              )}
+              {p.businessType === 'individual' && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Business ID / tax number</label>
+                    <p className="text-xs text-gray-500 mb-2">
+                      Required for verification: the identifier on your trade or tax registration. Examples: Finnish
+                      Y-tunnus or toiminimi number (e.g. <span className="font-mono text-gray-600">1234567-8</span>), UK
+                      UTR, or your country’s official business/tax ID format.
+                    </p>
+                    <input
+                      type="text"
+                      value={p.taxId}
+                      onChange={(e) => p.setTaxId(e.target.value)}
+                      placeholder="e.g. 1234567-8"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">VAT ID (optional)</label>
+                    <p className="text-xs text-gray-500 mb-2">
+                      Only if you are VAT-registered (e.g. EU VAT number starting with your country code).
+                    </p>
+                    <input
+                      type="text"
+                      value={p.vatId}
+                      onChange={(e) => p.setVatId(e.target.value)}
+                      placeholder="Leave blank if not VAT-registered"
+                      className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-4 space-y-4">
                 <div>
@@ -785,6 +840,12 @@ function BusinessProfilePage(p: Props) {
                       }
                       if (p.businessType === 'company' && !p.companyRegistrationNumber.trim()) {
                         setCompanySaveError('Enter your company registration number.');
+                        return;
+                      }
+                      if (p.businessType === 'individual' && !p.taxId.trim()) {
+                        setCompanySaveError(
+                          'Enter your business ID or tax number as it appears on your registration (e.g. Y-tunnus).'
+                        );
                         return;
                       }
                       if (!p.companyRegistrationPath?.trim()) {
