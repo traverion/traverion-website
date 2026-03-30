@@ -179,6 +179,10 @@ export default function SupplierDashboard({
     const hasListings = (listingsCount ?? 0) > 0;
     const hasPayoutMethod = isSupplierPayoutConfigured(profile);
     const hasCompanyProfile = isSupplierBusinessProfileComplete(profile);
+    const verificationStatus = (profile?.verification_status ?? '').trim().toLowerCase();
+    const businessVerifiedByTraverion = verificationStatus === 'verified';
+    const verificationInReview =
+      hasCompanyProfile && !businessVerifiedByTraverion && verificationStatus !== 'rejected';
     const hasBookingsThisMonth = bookingsCountThisMonth > 0;
     const hasReviews = providerRating.count > 0;
 
@@ -203,11 +207,15 @@ export default function SupplierDashboard({
       },
       {
         id: 'company',
-        title: 'Company profile completed',
-        done: hasCompanyProfile,
-        descriptionDone: 'Business details are on file.',
+        title: 'Business verified by Traverion',
+        done: businessVerifiedByTraverion,
+        descriptionDone: 'Your business has been approved; you can publish when payout is saved.',
         descriptionTodo:
-          'Add business address, type (company/individual), and registration number if you operate as a company.',
+          verificationStatus === 'rejected'
+            ? 'Verification was not approved—update your business profile and documents in Settings.'
+            : verificationInReview
+              ? 'Your profile is submitted and under review by Traverion.'
+              : 'Complete your business profile and documents in Settings, then wait for manual approval.',
         cta: 'Open settings',
         onClick: onNavigateToSettings,
       },

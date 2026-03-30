@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   LayoutDashboard,
   MapPin,
@@ -13,6 +13,10 @@ import {
   ClipboardList,
   UserCircle2,
   ChevronDown,
+  CheckCircle2,
+  Circle,
+  Clock,
+  AlertTriangle,
 } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { supabase } from '../../lib/supabase';
@@ -95,6 +99,148 @@ function isSupplierPortalPath(pathname: string): boolean {
   return pathname === '/supplier' || pathname === '/supplier/' || pathname.startsWith('/supplier/');
 }
 
+type SetupStripProps = {
+  listingCount: number | null;
+  hasPayout: boolean;
+  verificationStatus: string;
+  profileComplete: boolean;
+  onListings: () => void;
+  onPayout: () => void;
+  onProfile: () => void;
+};
+
+function SupplierSetupProgressStrip({
+  listingCount,
+  hasPayout,
+  verificationStatus,
+  profileComplete,
+  onListings,
+  onPayout,
+  onProfile,
+}: SetupStripProps) {
+  const hasListing = listingCount !== null && listingCount > 0;
+  const v = verificationStatus.trim().toLowerCase();
+  const verified = v === 'verified';
+  const rejected = v === 'rejected';
+  const inReview = profileComplete && !verified && !rejected && (v === 'pending' || v === '');
+
+  const verificationHeadline = verified
+    ? 'Verified'
+    : rejected
+      ? 'Action needed'
+      : inReview
+        ? 'In review'
+        : 'To do';
+  const verificationDetail = verified
+    ? 'Traverion has approved your business.'
+    : rejected
+      ? 'Update your profile and documents, then resubmit.'
+      : inReview
+        ? 'We are reviewing your submission.'
+        : 'Complete and save your profile, then wait for approval.';
+
+  const doneCount = [hasListing, hasPayout, verified].filter(Boolean).length;
+
+  const chipBase = 'rounded-xl border-2 px-3 py-3 text-left transition-shadow hover:shadow-md w-full';
+  const listingCls = hasListing
+    ? `${chipBase} border-emerald-500 bg-emerald-100/90 text-emerald-950`
+    : `${chipBase} border-amber-400 bg-amber-100 text-amber-950`;
+  const payoutCls = hasPayout
+    ? `${chipBase} border-emerald-500 bg-emerald-100/90 text-emerald-950`
+    : `${chipBase} border-amber-400 bg-amber-100 text-amber-950`;
+  let verifyCls = `${chipBase} border-amber-400 bg-amber-100 text-amber-950`;
+  if (verified) verifyCls = `${chipBase} border-emerald-500 bg-emerald-100/90 text-emerald-950`;
+  else if (inReview) verifyCls = `${chipBase} border-sky-500 bg-sky-100 text-sky-950`;
+  else if (rejected) verifyCls = `${chipBase} border-red-400 bg-red-100 text-red-950`;
+
+  return (
+    <div
+      className="mb-6 rounded-2xl border-2 border-finland/35 bg-gradient-to-br from-finland/[0.14] via-white to-amber-50/70 shadow-lg ring-1 ring-gray-900/5 px-4 py-4 sm:px-5 sm:py-5"
+      role="region"
+      aria-label="Supplier setup progress"
+    >
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-4 mb-4">
+        <div>
+          <p className="text-lg sm:text-xl font-bold text-gray-900 tracking-tight">Finish supplier setup</p>
+          <p className="text-sm text-gray-800 mt-1 max-w-3xl leading-snug">
+            Track the three steps below. Listing and payout can be done anytime; <span className="font-semibold">verification</span>{' '}
+            only shows complete after Traverion approves your business—not when you only save the form.
+          </p>
+        </div>
+        <div className="flex items-baseline gap-1 shrink-0">
+          <span className="text-3xl font-black tabular-nums text-finland leading-none">{doneCount}</span>
+          <span className="text-lg font-bold text-gray-500">/3</span>
+        </div>
+      </div>
+      <ul className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <li>
+          <button type="button" onClick={onListings} className={listingCls}>
+            <span className="flex items-start gap-2">
+              {hasListing ? (
+                <CheckCircle2 className="w-5 h-5 text-emerald-700 shrink-0 mt-0.5" aria-hidden />
+              ) : (
+                <Circle className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" aria-hidden />
+              )}
+              <span>
+                <span className="block font-bold text-sm uppercase tracking-wide">
+                  {hasListing ? 'Done' : 'To do'} · First listing
+                </span>
+                <span className="block text-xs mt-1 font-medium opacity-90">
+                  {hasListing
+                    ? 'You have at least one tour or activity on file.'
+                    : 'Create your first listing (you can keep it as a draft until you are verified).'}
+                </span>
+              </span>
+            </span>
+          </button>
+        </li>
+        <li>
+          <button type="button" onClick={onPayout} className={payoutCls}>
+            <span className="flex items-start gap-2">
+              {hasPayout ? (
+                <CheckCircle2 className="w-5 h-5 text-emerald-700 shrink-0 mt-0.5" aria-hidden />
+              ) : (
+                <Circle className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" aria-hidden />
+              )}
+              <span>
+                <span className="block font-bold text-sm uppercase tracking-wide">
+                  {hasPayout ? 'Done' : 'To do'} · Payout details
+                </span>
+                <span className="block text-xs mt-1 font-medium opacity-90">
+                  {hasPayout
+                    ? 'Bank (IBAN + BIC) or PayPal is saved.'
+                    : 'Save bank transfer (IBAN + BIC) or PayPal—required before you can publish.'}
+                </span>
+              </span>
+            </span>
+          </button>
+        </li>
+        <li>
+          <button type="button" onClick={onProfile} className={verifyCls}>
+            <span className="flex items-start gap-2">
+              {verified ? (
+                <CheckCircle2 className="w-5 h-5 text-emerald-700 shrink-0 mt-0.5" aria-hidden />
+              ) : inReview ? (
+                <Clock className="w-5 h-5 text-sky-800 shrink-0 mt-0.5" aria-hidden />
+              ) : rejected ? (
+                <AlertTriangle className="w-5 h-5 text-red-800 shrink-0 mt-0.5" aria-hidden />
+              ) : (
+                <Circle className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" aria-hidden />
+              )}
+              <span>
+                <span className="block font-bold text-sm uppercase tracking-wide">
+                  {verificationHeadline} · Business verification
+                </span>
+                <span className="block text-xs mt-1 font-medium opacity-90">{verificationDetail}</span>
+              </span>
+            </span>
+          </button>
+        </li>
+      </ul>
+    </div>
+  );
+}
+
 export default function SupplierLayout() {
   const { user, loading, signOut, isSupabase } = useSupplierAuth();
   const { role, members: roleMembers } = useSupplierRole();
@@ -127,10 +273,11 @@ export default function SupplierLayout() {
   const [teamMemberId, setTeamMemberId] = useState('');
   const [teamRole, setTeamRole] = useState<SupplierRole>('viewer');
   const [teamMembers, setTeamMembers] = useState(roleMembers);
-  const [settingsListingsCount, setSettingsListingsCount] = useState<number | null>(null);
   const [onboardingListingCount, setOnboardingListingCount] = useState<number | null>(null);
   const [onboardingHasPayout, setOnboardingHasPayout] = useState(false);
   const [onboardingHasCompany, setOnboardingHasCompany] = useState(false);
+  /** Server verification_status for onboarding strip (independent of form state on other pages). */
+  const [onboardingVerificationStatus, setOnboardingVerificationStatus] = useState('');
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [mobileAccountOpen, setMobileAccountOpen] = useState(false);
   const [settingsFocus, setSettingsFocus] = useState<AccountShortcutTarget | null>(null);
@@ -186,31 +333,34 @@ export default function SupplierLayout() {
     });
   }, [section, user?.id, isSupabase]);
 
-  useEffect(() => {
-    const loadOnboardingSignals = async () => {
-      if (!user?.id || !isSupabase) {
-        setOnboardingListingCount(0);
-        setOnboardingHasPayout(false);
-        setOnboardingHasCompany(false);
-        return;
-      }
-      const [profile, listings] = await Promise.all([
-        fetchSupplierProfile(user.id),
-        fetchMyListings(user.id),
-      ]);
-      setOnboardingListingCount(listings.length);
-      setOnboardingHasPayout(isSupplierPayoutConfigured(profile));
-      setOnboardingHasCompany(isSupplierBusinessProfileComplete(profile));
-    };
-    loadOnboardingSignals();
-  }, [user?.id, isSupabase, section]);
+  const refreshSupplierOnboardingSignals = useCallback(async () => {
+    if (!user?.id || !isSupabase) {
+      setOnboardingListingCount(0);
+      setOnboardingHasPayout(false);
+      setOnboardingHasCompany(false);
+      setOnboardingVerificationStatus('');
+      return;
+    }
+    const [profile, listings] = await Promise.all([
+      fetchSupplierProfile(user.id),
+      fetchMyListings(user.id),
+    ]);
+    setOnboardingListingCount(listings.length);
+    setOnboardingHasPayout(isSupplierPayoutConfigured(profile));
+    setOnboardingHasCompany(isSupplierBusinessProfileComplete(profile));
+    setOnboardingVerificationStatus((profile?.verification_status ?? '').trim());
+  }, [user?.id, isSupabase]);
 
   useEffect(() => {
-    if ((section !== 'business-profile' && section !== 'account-settings') || !user?.id || !isSupabase) return;
-    fetchMyListings(user.id)
-      .then((rows) => setSettingsListingsCount(rows.length))
-      .catch(() => setSettingsListingsCount(0));
-  }, [section, user?.id, isSupabase]);
+    void refreshSupplierOnboardingSignals();
+  }, [refreshSupplierOnboardingSignals, section]);
+
+  useEffect(() => {
+    const ev = 'traverion:supplier-onboarding-refresh';
+    const onRefresh = () => void refreshSupplierOnboardingSignals();
+    window.addEventListener(ev, onRefresh);
+    return () => window.removeEventListener(ev, onRefresh);
+  }, [refreshSupplierOnboardingSignals]);
 
   useEffect(() => {
     setTeamMembers(roleMembers);
@@ -327,22 +477,30 @@ export default function SupplierLayout() {
   const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
   const onLoginPath = isSupplierLoginPath(pathname);
   const onPortalPath = isSupplierPortalPath(pathname);
-  const onboardingDoneCount = [onboardingListingCount !== null && onboardingListingCount > 0, onboardingHasPayout, onboardingHasCompany].filter(Boolean).length;
+  const onboardingHasListing = onboardingListingCount !== null && onboardingListingCount > 0;
+  const onboardingBusinessVerified = onboardingVerificationStatus.trim().toLowerCase() === 'verified';
+  const onboardingDoneCount = [onboardingHasListing, onboardingHasPayout, onboardingBusinessVerified].filter(Boolean)
+    .length;
   const onboardingComplete = onboardingDoneCount === 3;
   const onboardingNextLabel =
-    onboardingListingCount !== null && onboardingListingCount <= 0
+    !onboardingHasListing
       ? 'Publish your first listing'
       : !onboardingHasPayout
         ? 'Add payout details'
-        : !onboardingHasCompany
-          ? 'Complete business profile'
+        : !onboardingBusinessVerified
+          ? onboardingVerificationStatus.trim().toLowerCase() === 'rejected'
+            ? 'Update profile after rejection'
+            : onboardingHasCompany &&
+                ['pending', ''].includes(onboardingVerificationStatus.trim().toLowerCase())
+              ? 'Verification in progress'
+              : 'Complete business profile'
           : 'Open business profile';
   const onboardingNextAction =
-    onboardingListingCount !== null && onboardingListingCount <= 0
+    !onboardingHasListing
       ? () => handleNavigate('listings')
       : !onboardingHasPayout
         ? () => openSettingsFocus('payout')
-        : !onboardingHasCompany
+        : !onboardingBusinessVerified
           ? () => openSettingsFocus('company')
           : () => handleNavigate('business-profile');
 
@@ -556,13 +714,24 @@ export default function SupplierLayout() {
           </div>
         )}
         <main className="p-4 sm:p-6 lg:p-8 overflow-x-hidden">
+          {isSupabase && user && !onboardingComplete && (
+            <SupplierSetupProgressStrip
+              listingCount={onboardingListingCount}
+              hasPayout={onboardingHasPayout}
+              verificationStatus={onboardingVerificationStatus}
+              profileComplete={onboardingHasCompany}
+              onListings={() => handleNavigate('listings')}
+              onPayout={() => openSettingsFocus('payout')}
+              onProfile={() => openSettingsFocus('company')}
+            />
+          )}
           <div key={section} className="lux-page-enter">
           {section === 'dashboard' && (
             <SupplierDashboard
               onNavigateToListings={() => handleNavigate('listings')}
               onNavigateToSettings={() => handleNavigate('business-profile')}
               onNavigateToBookings={() => handleNavigate('bookings')}
-              showSupplierSetupBanner={!onboardingComplete}
+              showSupplierSetupBanner={false}
               supplierSetupDoneCount={onboardingDoneCount}
               supplierSetupNextLabel={onboardingNextLabel}
               onSupplierSetupNext={onboardingNextAction}
@@ -647,7 +816,6 @@ export default function SupplierLayout() {
               passwordMessage={passwordMessage}
               setPasswordMessage={setPasswordMessage}
               setPasswordSaving={setPasswordSaving}
-              settingsListingsCount={settingsListingsCount}
               handleNavigate={handleNavigate}
               businessProfileTab={businessProfileTab}
               setBusinessProfileTab={setBusinessProfileTab}
@@ -718,8 +886,12 @@ export default function SupplierLayout() {
               setCompanyRegistrationPath={setCompanyRegistrationPath}
               setVerificationStatus={setVerificationStatus}
               businessProfileComplete={onboardingHasCompany}
-              onCompanyProfileSaved={() => setOnboardingHasCompany(true)}
-              onPayoutSaved={() => setOnboardingHasPayout(true)}
+              onCompanyProfileSaved={() => {
+                void refreshSupplierOnboardingSignals();
+              }}
+              onPayoutSaved={() => {
+                void refreshSupplierOnboardingSignals();
+              }}
             />
           )}
           </div>

@@ -202,6 +202,9 @@ export default function SupplierListings() {
     loadListings();
     setShowForm(false);
     setEditingId(null);
+    if (isSupabase) {
+      window.dispatchEvent(new Event('traverion:supplier-onboarding-refresh'));
+    }
   };
 
   const handleSave = async (tour: TourPackage) => {
@@ -269,7 +272,10 @@ export default function SupplierListings() {
     }
     setPublishGate(null);
     const ok = await updateListingStatus(listing.id, newStatus);
-    if (ok) loadListings();
+    if (ok) {
+      loadListings();
+      window.dispatchEvent(new Event('traverion:supplier-onboarding-refresh'));
+    }
   };
 
   return (

@@ -54,7 +54,6 @@ type Props = {
   setPasswordMessage: (v: 'success' | 'error' | null) => void;
   setPasswordSaving: (v: boolean) => void;
 
-  settingsListingsCount: number | null;
   handleNavigate: (s: string) => void;
 
   businessProfileTab: BusinessProfileTab;
@@ -372,66 +371,6 @@ function BusinessProfilePage(p: Props) {
         <p className="mt-1.5 text-sm text-gray-600">
           Company details, payouts, and legal documents guests see when they book your experiences.
         </p>
-      </div>
-
-      <div className="rounded-xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm">
-        {(() => {
-          const hasListing = (p.settingsListingsCount ?? 0) > 0;
-          const hasPayout = !!p.payoutMethod && p.payoutMethod !== 'none';
-          const hasCompany = !!p.companyLegalName.trim();
-          const done = [hasListing, hasPayout, hasCompany].filter(Boolean).length;
-          return (
-            <>
-              <div className="flex items-center justify-between gap-3 mb-4">
-                <div>
-                  <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-gray-900">Setup progress</h2>
-                  <p className="text-sm text-gray-600 mt-1.5">Minimum steps for smooth onboarding.</p>
-                </div>
-                <span className="text-sm font-bold tabular-nums text-finland">{done}/3</span>
-              </div>
-              <ul className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm">
-                <li
-                  className={`rounded-lg border px-3 py-2 ${
-                    hasListing
-                      ? 'border-green-100 bg-green-50/40 text-gray-700'
-                      : 'border-amber-100 bg-amber-50/40 text-gray-900'
-                  }`}
-                >
-                  {hasListing ? 'Done' : 'Todo'} · Publish listing
-                </li>
-                <li
-                  className={`rounded-lg border px-3 py-2 ${
-                    hasPayout
-                      ? 'border-green-100 bg-green-50/40 text-gray-700'
-                      : 'border-amber-100 bg-amber-50/40 text-gray-900'
-                  }`}
-                >
-                  {hasPayout ? 'Done' : 'Todo'} · Payout details
-                </li>
-                <li
-                  className={`rounded-lg border px-3 py-2 ${
-                    hasCompany
-                      ? 'border-green-100 bg-green-50/40 text-gray-700'
-                      : 'border-amber-100 bg-amber-50/40 text-gray-900'
-                  }`}
-                >
-                  {hasCompany ? 'Done' : 'Todo'} · Business profile
-                </li>
-              </ul>
-              {!hasListing && (
-                <div className="mt-3">
-                  <button
-                    type="button"
-                    onClick={() => p.handleNavigate('listings')}
-                    className="inline-flex items-center gap-1 text-sm font-medium text-finland hover:underline"
-                  >
-                    Go to listings
-                  </button>
-                </div>
-              )}
-            </>
-          );
-        })()}
       </div>
 
       <div className="rounded-xl border border-gray-200 bg-white p-1 shadow-sm">
