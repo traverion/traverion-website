@@ -489,6 +489,9 @@ function BusinessProfilePage(p: Props) {
                 </>
               )}
               <div className="space-y-3">
+                <p className="text-xs text-gray-500">
+                  Use the address exactly as on your registration certificate—we verify it against your uploaded proof.
+                </p>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
                   <p className="text-xs text-gray-500 mb-2">Street and building; as on your business registration.</p>
@@ -641,13 +644,13 @@ function BusinessProfilePage(p: Props) {
                         setDocError(upErr ?? 'Upload failed.');
                         return;
                       }
-                      const res = await p.updateSupplierCompanyProfile(p.user.id, {
+                      const res = await patchSupplierProfile(p.user.id, {
                         company_registration_document_path: path,
                       });
                       setCompanyRegUploading(false);
                       if (res.success) {
                         p.setCompanyRegistrationPath(path);
-                      } else setDocError('Could not save document.');
+                      } else setDocError(res.error ?? 'Could not save document.');
                     }}
                   />
                   <div className="flex flex-wrap items-center gap-2">
@@ -684,13 +687,13 @@ function BusinessProfilePage(p: Props) {
                             setDocError(null);
                             setCompanyRegUploading(true);
                             await removeSupplierVerificationDocumentFile(p.companyRegistrationPath);
-                            const res = await p.updateSupplierCompanyProfile(p.user.id, {
+                            const res = await patchSupplierProfile(p.user.id, {
                               company_registration_document_path: null,
                             });
                             setCompanyRegUploading(false);
                             if (res.success) {
                               p.setCompanyRegistrationPath('');
-                            } else setDocError('Could not remove file.');
+                            } else setDocError(res.error ?? 'Could not remove file.');
                           }}
                         >
                           Remove
