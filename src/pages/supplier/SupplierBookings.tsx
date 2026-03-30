@@ -8,7 +8,7 @@ import {
   batchCancelBookings,
   type BookingRow,
 } from '../../data/supabase-bookings';
-import { fetchMyListings } from '../../data/supabase-listings';
+import { fetchMyListings, pgTimeToHm } from '../../data/supabase-listings';
 import { decrementAvailabilityBooked } from '../../data/supabase-availability';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { canManageBookings } from '../../lib/supplierTeamRoles';
@@ -1470,6 +1470,8 @@ export default function SupplierBookings() {
         guest_name: b.guest_name ?? '',
         guest_email: b.guest_email ?? '',
         booking_date: b.booking_date ?? '',
+        start_time: b.start_time ? pgTimeToHm(b.start_time) ?? '' : '',
+        pickup_time: b.pickup_time ? pgTimeToHm(b.pickup_time) ?? '' : '',
         guests: b.guests ?? '',
         status: b.status,
         acknowledged: b.acknowledged_at ? 'yes' : 'no',
@@ -1812,7 +1814,7 @@ export default function SupplierBookings() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">Bookings</h1>
-          <p className="text-gray-600 mt-1">Filter and work the list below. Reminders, bulk email, exports, and vouchers live under Operations and messaging tools.</p>
+          <p className="text-gray-600 mt-1">Filter the table below. Expand Operations and messaging tools for reminders, email, exports, and vouchers.</p>
           {!canEditBookings && (
             <p className="text-xs text-amber-700 mt-1">
               Your role is {role}. You can view bookings, but edit actions are restricted.
@@ -2274,6 +2276,8 @@ export default function SupplierBookings() {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Listing</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Guest</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Date</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Start</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Pickup</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Guests</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Requests</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Status</th>
@@ -2314,6 +2318,12 @@ export default function SupplierBookings() {
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600">
                       {b.booking_date ? new Date(b.booking_date).toLocaleDateString() : '—'}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
+                      {b.start_time ? pgTimeToHm(b.start_time) ?? '—' : '—'}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
+                      {b.pickup_time ? pgTimeToHm(b.pickup_time) ?? '—' : '—'}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600">{b.guests ?? '—'}</td>
                     <td className="px-4 py-3 text-sm text-gray-600 max-w-[180px] truncate" title={b.special_requests ?? undefined}>

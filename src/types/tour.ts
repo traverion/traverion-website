@@ -67,6 +67,12 @@ export interface TourPackage {
   meetingPoint?: string;
   /** Pickup instructions for the guest. */
   pickupInstructions?: string;
+  /** Local start time (HH:MM) applied every day this experience runs; copied to new bookings. */
+  defaultStartTime?: string;
+  /** Pickup may occur between this many minutes before start (inclusive). */
+  pickupWindowMinutesBeforeMin?: number;
+  /** Pickup may occur up to this many minutes before start (inclusive). */
+  pickupWindowMinutesBeforeMax?: number;
 }
 
 export interface DayPlan {

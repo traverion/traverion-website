@@ -26,6 +26,9 @@ type ListingFormState = {
   cancellationPolicy: string;
   meetingPoint: string;
   pickupInstructions: string;
+  defaultStartTime: string;
+  pickupWindowMinutesBeforeMin: number;
+  pickupWindowMinutesBeforeMax: number;
 };
 
 function buildListingFromForm(form: {
@@ -44,6 +47,9 @@ function buildListingFromForm(form: {
   cancellationPolicy: string;
   meetingPoint: string;
   pickupInstructions: string;
+  defaultStartTime: string;
+  pickupWindowMinutesBeforeMin: number;
+  pickupWindowMinutesBeforeMax: number;
 }, existingId?: string): TourPackage {
   const id = existingId ?? `supplier-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
   return {
@@ -89,6 +95,12 @@ function buildListingFromForm(form: {
     cancellationPolicy: form.cancellationPolicy.trim() || undefined,
     meetingPoint: form.meetingPoint.trim() || undefined,
     pickupInstructions: form.pickupInstructions.trim() || undefined,
+    defaultStartTime: form.defaultStartTime.trim() || undefined,
+    pickupWindowMinutesBeforeMin: form.pickupWindowMinutesBeforeMin,
+    pickupWindowMinutesBeforeMax: Math.max(
+      form.pickupWindowMinutesBeforeMin,
+      form.pickupWindowMinutesBeforeMax
+    ),
   };
 }
 
@@ -108,6 +120,9 @@ const emptyForm: ListingFormState = {
   cancellationPolicy: '',
   meetingPoint: '',
   pickupInstructions: '',
+  defaultStartTime: '',
+  pickupWindowMinutesBeforeMin: 0,
+  pickupWindowMinutesBeforeMax: 30,
 };
 
 interface SupplierListingFormProps {
@@ -159,6 +174,7 @@ export default function SupplierListingForm({
       cancellation: 2,
       meeting: 2,
       pickup: 2,
+      schedule: 2,
       image: 3,
       description: 3,
     }),
@@ -185,6 +201,9 @@ export default function SupplierListingForm({
           cancellationPolicy: existing.cancellationPolicy ?? '',
           meetingPoint: existing.meetingPoint ?? '',
           pickupInstructions: existing.pickupInstructions ?? '',
+          defaultStartTime: existing.defaultStartTime ?? '',
+          pickupWindowMinutesBeforeMin: existing.pickupWindowMinutesBeforeMin ?? 0,
+          pickupWindowMinutesBeforeMax: existing.pickupWindowMinutesBeforeMax ?? 30,
         });
       }
     } else {
@@ -222,6 +241,10 @@ export default function SupplierListingForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (form.pickupWindowMinutesBeforeMax < form.pickupWindowMinutesBeforeMin) {
+      setStepIdx(2);
+      return;
+    }
     const listing = buildListingFromForm(form, editingId ?? undefined);
     setSubmitting(true);
     try {
@@ -365,6 +388,53 @@ export default function SupplierListingForm({
               <div id="supplier-listing-field-pickup">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Pickup instructions</label>
                 <textarea value={form.pickupInstructions} onChange={e => setForm(f => ({ ...f, pickupInstructions: e.target.value }))} rows={3} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland" placeholder="Instructions for the guest" />
+              </div>
+              <div id="supplier-listing-field-schedule" className="rounded-lg border border-gray-100 bg-gray-50/80 p-4 space-y-4">
+                <p className="text-sm font-medium text-gray-900">Daily timing (optional)</p>
+                <p className="text-xs text-gray-600">
+                  Set the usual start time for this experience. After a customer books, you assign the exact pickup time within the window below (minutes before start).
+                </p>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Default start time</label>
+                  <input
+                    type="time"
+                    value={form.defaultStartTime}
+                    onChange={(e) => setForm((f) => ({ ...f, defaultStartTime: e.target.value }))}
+                    className="w-full max-w-[12rem] px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Applied to each booked day unless you change it on the booking.</p>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Pickup window — earliest (minutes before start)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={24 * 60}
+                      value={form.pickupWindowMinutesBeforeMin}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, pickupWindowMinutesBeforeMin: Math.max(0, Number(e.target.value) || 0) }))
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Pickup window — latest (minutes before start)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={24 * 60}
+                      value={form.pickupWindowMinutesBeforeMax}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, pickupWindowMinutesBeforeMax: Math.max(0, Number(e.target.value) || 0) }))
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                    />
+                  </div>
+                </div>
+                {form.pickupWindowMinutesBeforeMax < form.pickupWindowMinutesBeforeMin && (
+                  <p className="text-sm text-red-600">Latest pickup offset must be greater than or equal to the earliest.</p>
+                )}
               </div>
             </div>
           )}

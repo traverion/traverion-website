@@ -3,11 +3,11 @@
  * RLS ensures only rows where guest_email = auth user email are returned.
  */
 import { useState, useEffect, useCallback } from 'react';
-import { Calendar, Users, MapPin, LogIn, RefreshCw, XCircle, ArrowLeft } from 'lucide-react';
+import { Calendar, Users, MapPin, LogIn, RefreshCw, XCircle, ArrowLeft, Clock } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { fetchMyBookings, cancelBookingAsCustomer, type BookingRow } from '../data/supabase-bookings';
-import { fetchListingTitlesByIds } from '../data/supabase-listings';
+import { fetchListingTitlesByIds, pgTimeToHm } from '../data/supabase-listings';
 import { decrementAvailabilityBooked } from '../data/supabase-availability';
 import PageHero from '../components/PageHero';
 import { HERO_IMG } from '../lib/heroImages';
@@ -231,6 +231,14 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                       <Users className="w-4 h-4" />
                       {b.guests} {b.guests === 1 ? 'guest' : 'guests'}
                     </span>
+                    {(b.start_time || b.pickup_time) && (
+                      <span className="flex items-center gap-1 text-gray-700">
+                        <Clock className="w-4 h-4 shrink-0" />
+                        {b.start_time ? `Start ${pgTimeToHm(b.start_time) ?? ''}` : null}
+                        {b.start_time && b.pickup_time ? ' · ' : null}
+                        {b.pickup_time ? `Pickup ${pgTimeToHm(b.pickup_time) ?? ''}` : null}
+                      </span>
+                    )}
                   </div>
                   {b.special_requests && (
                     <p className="mt-2 text-sm text-gray-500 line-clamp-2">{b.special_requests}</p>

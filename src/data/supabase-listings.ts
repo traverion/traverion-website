@@ -35,9 +35,27 @@ export type ListingRow = {
   cancellation_policy: string | null;
   meeting_point: string | null;
   pickup_instructions: string | null;
+  default_start_time?: string | null;
+  pickup_window_minutes_before_min?: number | null;
+  pickup_window_minutes_before_max?: number | null;
   created_at: string;
   updated_at: string;
 };
+
+/** Postgres time string -> HH:MM for inputs and display. */
+export function pgTimeToHm(value: string | null | undefined): string | undefined {
+  if (value == null || value === '') return undefined;
+  const s = String(value);
+  return s.length >= 5 ? s.slice(0, 5) : s;
+}
+
+/** Form HH:MM or empty -> Postgres time (null clears). */
+export function hmToPgTime(value: string | null | undefined): string | null {
+  if (value == null) return null;
+  const v = String(value).trim();
+  if (!v) return null;
+  return v.length === 5 ? `${v}:00` : v;
+}
 
 const defaultItinerary = [
   { day: 1, title: 'Tour', description: '', meals: 'None', location: '', activities: ['Tour'] },
@@ -89,6 +107,9 @@ export function rowToTourPackage(row: ListingRow): TourPackage {
     cancellationPolicy: row.cancellation_policy ?? undefined,
     meetingPoint: row.meeting_point ?? undefined,
     pickupInstructions: row.pickup_instructions ?? undefined,
+    defaultStartTime: pgTimeToHm(row.default_start_time ?? null),
+    pickupWindowMinutesBeforeMin: row.pickup_window_minutes_before_min ?? 0,
+    pickupWindowMinutesBeforeMax: row.pickup_window_minutes_before_max ?? 30,
   };
 }
 
@@ -126,6 +147,12 @@ export function tourPackageToRow(tour: Partial<TourPackage> & { title: string; d
     cancellation_policy: tour.cancellationPolicy ?? null,
     meeting_point: tour.meetingPoint ?? null,
     pickup_instructions: tour.pickupInstructions ?? null,
+    default_start_time: hmToPgTime(tour.defaultStartTime ?? null),
+    pickup_window_minutes_before_min: tour.pickupWindowMinutesBeforeMin ?? 0,
+    pickup_window_minutes_before_max: Math.max(
+      tour.pickupWindowMinutesBeforeMin ?? 0,
+      tour.pickupWindowMinutesBeforeMax ?? 30
+    ),
   };
 }
 

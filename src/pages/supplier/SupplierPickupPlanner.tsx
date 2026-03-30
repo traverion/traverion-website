@@ -22,9 +22,9 @@ import {
   fetchBookingsForSupplier,
   updateBookingStatus,
   acknowledgeBooking,
+  updateBookingSchedule,
 } from '../../data/supabase-bookings';
-import { fetchMyListings } from '../../data/supabase-listings';
-import { fetchListingById } from '../../data/supabase-listings';
+import { fetchMyListings, fetchListingById, pgTimeToHm } from '../../data/supabase-listings';
 import type { BookingRow } from '../../data/supabase-bookings';
 import { openSupplierListingEditor, openSupplierBooking } from '../../lib/supplierPortalNavigation';
 import { decrementAvailabilityBooked } from '../../data/supabase-availability';
@@ -45,6 +45,9 @@ type ListingGuideMeta = {
   duration: string;
   bestTime: string;
   startLocation: string;
+  defaultStartTime?: string;
+  pickupWindowMin: number;
+  pickupWindowMax: number;
 };
 type RefundChoice = 'full_refund' | 'no_refund' | 'reschedule';
 
@@ -100,8 +103,21 @@ function guideScheduleSummary(meta: ListingGuideMeta | undefined): string {
   const parts: string[] = [];
   if (meta.duration && meta.duration !== '—') parts.push(meta.duration);
   if (meta.bestTime && meta.bestTime !== '—') parts.push(meta.bestTime);
+  if (meta.defaultStartTime) {
+    parts.push(`Start ${meta.defaultStartTime}`);
+    parts.push(`Pickup ${meta.pickupWindowMin}–${meta.pickupWindowMax} min before`);
+  }
   if (meta.startLocation && meta.startLocation !== '—') parts.push(meta.startLocation);
   return parts.join(' · ');
+}
+
+function bookingTimesLine(b: BookingRow): string | null {
+  const s = b.start_time ? pgTimeToHm(b.start_time) : '';
+  const p = b.pickup_time ? pgTimeToHm(b.pickup_time) : '';
+  if (!s && !p) return null;
+  if (s && p) return `Start ${s} · Pickup ${p}`;
+  if (s) return `Start ${s}`;
+  return `Pickup ${p}`;
 }
 
 export default function SupplierPickupPlanner() {
@@ -130,6 +146,7 @@ export default function SupplierPickupPlanner() {
   const [needsPickupOnly, setNeedsPickupOnly] = useState(false);
   const [sortDate, setSortDate] = useState<'asc' | 'desc'>('asc');
   const [dateSectionOpen, setDateSectionOpen] = useState<Record<string, boolean>>({});
+  const [scheduleDraft, setScheduleDraft] = useState({ start: '', pickup: '' });
 
   const load = useCallback(async () => {
     if (!isSupabase || !user) {
@@ -156,6 +173,9 @@ export default function SupplierPickupPlanner() {
           duration: l.duration?.trim() || '—',
           bestTime: l.bestTime?.trim() || '—',
           startLocation: l.startLocation?.trim() || '—',
+          defaultStartTime: l.defaultStartTime,
+          pickupWindowMin: l.pickupWindowMinutesBeforeMin ?? 0,
+          pickupWindowMax: l.pickupWindowMinutesBeforeMax ?? 30,
         };
       });
       const listingIds = [...new Set(bookingsList.map((b) => b.listing_id))];
@@ -170,6 +190,9 @@ export default function SupplierPickupPlanner() {
             duration: listing.duration?.trim() || '—',
             bestTime: listing.bestTime?.trim() || '—',
             startLocation: listing.startLocation?.trim() || '—',
+            defaultStartTime: listing.defaultStartTime,
+            pickupWindowMin: listing.pickupWindowMinutesBeforeMin ?? 0,
+            pickupWindowMax: listing.pickupWindowMinutesBeforeMax ?? 30,
           };
         }
       }
@@ -342,6 +365,14 @@ export default function SupplierPickupPlanner() {
     [sorted, selectedBookingId]
   );
 
+  useEffect(() => {
+    if (!selectedBooking) return;
+    setScheduleDraft({
+      start: selectedBooking.start_time ? pgTimeToHm(selectedBooking.start_time) ?? '' : '',
+      pickup: selectedBooking.pickup_time ? pgTimeToHm(selectedBooking.pickup_time) ?? '' : '',
+    });
+  }, [selectedBooking?.id, selectedBooking?.start_time, selectedBooking?.pickup_time]);
+
   const runSheetGroups = useMemo(() => {
     const groups: Record<string, Record<string, BookingRow[]>> = {};
     for (const b of listBookings) {
@@ -372,8 +403,43 @@ export default function SupplierPickupPlanner() {
     }
   }, [selectedBookingId]);
 
+  const handleSaveScheduleTimes = async () => {
+    if (!canEditBookings || !selectedBooking || selectedBooking.status === 'cancelled') return;
+    setUpdatingId(selectedBooking.id);
+    const startTrim = scheduleDraft.start.trim();
+    const pickupTrim = scheduleDraft.pickup.trim();
+    const ok = await updateBookingSchedule(selectedBooking.id, {
+      start_time: startTrim || null,
+      pickup_time: pickupTrim || null,
+    });
+    if (ok) {
+      setBookings((prev) =>
+        prev.map((b) =>
+          b.id === selectedBooking.id
+            ? {
+                ...b,
+                start_time: startTrim ? `${startTrim}:00` : null,
+                pickup_time: pickupTrim ? `${pickupTrim}:00` : null,
+              }
+            : b
+        )
+      );
+    }
+    setUpdatingId(null);
+  };
+
   const exportCsv = () => {
-    const headers = ['Date', 'Status', 'Listing', 'Guest', 'Guests', 'Meeting point', 'Pickup instructions'];
+    const headers = [
+      'Date',
+      'Status',
+      'Listing',
+      'Guest',
+      'Guests',
+      'Start time',
+      'Pickup time',
+      'Meeting point',
+      'Pickup instructions',
+    ];
     const escape = (s: string) => `"${s.replace(/"/g, '""')}"`;
     const rows = listBookings.map((b) =>
       [
@@ -382,6 +448,8 @@ export default function SupplierPickupPlanner() {
         listingTitles[b.listing_id] ?? '',
         b.guest_name ?? b.guest_email ?? '',
         String(b.guests ?? ''),
+        b.start_time ? pgTimeToHm(b.start_time) ?? '' : '',
+        b.pickup_time ? pgTimeToHm(b.pickup_time) ?? '' : '',
         meetingPoints[b.listing_id] ?? '',
         pickupInstructions[b.listing_id] ?? '',
       ].map((c) => escape(String(c))).join(',')
@@ -791,6 +859,9 @@ export default function SupplierPickupPlanner() {
                           <p className="text-[11px] text-gray-500 mt-0.5 truncate">
                             {meetingPoints[b.listing_id] || 'Meeting point missing'}
                           </p>
+                          {bookingTimesLine(b) ? (
+                            <p className="text-[11px] text-finland/90 font-medium mt-0.5 truncate">{bookingTimesLine(b)}</p>
+                          ) : null}
                           {guideScheduleSummary(listingGuideMeta[b.listing_id]) ? (
                             <p className="text-[10px] text-gray-400 mt-0.5 truncate">
                               {guideScheduleSummary(listingGuideMeta[b.listing_id])}
@@ -906,6 +977,9 @@ export default function SupplierPickupPlanner() {
                                     {guideScheduleSummary(listingGuideMeta[b.listing_id])}
                                   </p>
                                 ) : null}
+                                {bookingTimesLine(b) ? (
+                                  <p className="truncate text-xs text-finland/90 font-medium">{bookingTimesLine(b)}</p>
+                                ) : null}
                                 <p className="truncate text-xs text-gray-500">
                                   {b.guest_name ?? b.guest_email ?? 'Guest'} · {guestsN} guest{guestsN === 1 ? '' : 's'} ·{' '}
                                   <span className="capitalize">{b.status}</span>
@@ -984,6 +1058,9 @@ export default function SupplierPickupPlanner() {
                                 <p className="truncate text-xs text-gray-500">
                                   {guideScheduleSummary(listingGuideMeta[b.listing_id])}
                                 </p>
+                              ) : null}
+                              {bookingTimesLine(b) ? (
+                                <p className="truncate text-xs text-finland/90 font-medium">{bookingTimesLine(b)}</p>
                               ) : null}
                               <p className="truncate text-xs text-gray-500">
                                 {b.guest_name ?? b.guest_email ?? 'Guest'} · {guestsN} guest{guestsN === 1 ? '' : 's'} ·{' '}
@@ -1068,11 +1145,59 @@ export default function SupplierPickupPlanner() {
                       Add duration, typical time, and start location on the listing so guides see them on the run-sheet.
                     </p>
                   )}
-                  <p className="text-[11px] text-gray-500 pt-1 border-t border-gray-200/80">
-                    Exact start times per booking are not stored in Traverion yet; confirm with guests or ops if needed.
-                  </p>
+                  {listingGuideMeta[selectedBooking.listing_id].defaultStartTime ? (
+                    <p className="text-[11px] text-gray-600 pt-1 border-t border-gray-200/80">
+                      Listing default start {listingGuideMeta[selectedBooking.listing_id].defaultStartTime}. Assign guest
+                      pickup between{' '}
+                      {listingGuideMeta[selectedBooking.listing_id].pickupWindowMin}–
+                      {listingGuideMeta[selectedBooking.listing_id].pickupWindowMax} minutes before that time.
+                    </p>
+                  ) : (
+                    <p className="text-[11px] text-gray-500 pt-1 border-t border-gray-200/80">
+                      Set a default start time and pickup window on the listing to standardize timing across bookings.
+                    </p>
+                  )}
                 </div>
               ) : null}
+              {selectedBooking.status !== 'cancelled' && (
+                <div className="rounded-lg border border-gray-200 bg-white px-3 py-3 space-y-3">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">This booking — times</p>
+                  <p className="text-[11px] text-gray-500">
+                    Start time is copied from the listing when the booking is created; adjust here if this instance differs.
+                    Set pickup once you know where the guest is staying.
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Start</label>
+                      <input
+                        type="time"
+                        value={scheduleDraft.start}
+                        onChange={(e) => setScheduleDraft((d) => ({ ...d, start: e.target.value }))}
+                        disabled={!canEditBookings}
+                        className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-finland disabled:opacity-60"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Pickup</label>
+                      <input
+                        type="time"
+                        value={scheduleDraft.pickup}
+                        onChange={(e) => setScheduleDraft((d) => ({ ...d, pickup: e.target.value }))}
+                        disabled={!canEditBookings}
+                        className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-finland disabled:opacity-60"
+                      />
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleSaveScheduleTimes}
+                    disabled={!canEditBookings || updatingId === selectedBooking.id}
+                    className="w-full sm:w-auto px-3 py-2 rounded-lg bg-finland text-white text-sm font-medium hover:bg-finland-dark disabled:opacity-50"
+                  >
+                    {updatingId === selectedBooking.id ? 'Saving…' : 'Save times'}
+                  </button>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Activity date</p>
@@ -1198,6 +1323,13 @@ export default function SupplierPickupPlanner() {
                 className="px-3 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-100"
               >
                 Edit meeting
+              </button>
+              <button
+                type="button"
+                onClick={() => openSupplierListingEditor(selectedBooking.listing_id, 'schedule')}
+                className="px-3 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-100"
+              >
+                Edit listing schedule
               </button>
               <button
                 type="button"
@@ -1334,6 +1466,14 @@ export default function SupplierPickupPlanner() {
                                       <li>
                                         <span className="font-medium text-gray-500">Typical time:</span> {gm.bestTime}
                                       </li>
+                                      {gm.defaultStartTime ? (
+                                        <li>
+                                          <span className="font-medium text-gray-500">Default start:</span> {gm.defaultStartTime}{' '}
+                                          <span className="text-gray-500">
+                                            (pickup {gm.pickupWindowMin}–{gm.pickupWindowMax} min before)
+                                          </span>
+                                        </li>
+                                      ) : null}
                                       <li>
                                         <span className="font-medium text-gray-500">Start location:</span> {gm.startLocation}
                                       </li>
@@ -1364,6 +1504,8 @@ export default function SupplierPickupPlanner() {
                                       <th className="py-1.5 pr-3">Ref</th>
                                       <th className="py-1.5 pr-3">Guest</th>
                                       <th className="py-1.5 pr-3">Guests</th>
+                                      <th className="py-1.5 pr-3">Start</th>
+                                      <th className="py-1.5 pr-3">Pickup</th>
                                       <th className="py-1.5 pr-3">Status</th>
                                       <th className="py-1.5">Notes / requests</th>
                                     </tr>
@@ -1378,6 +1520,12 @@ export default function SupplierPickupPlanner() {
                                           {b.guest_name ?? b.guest_email ?? '—'}
                                         </td>
                                         <td className="py-1.5 pr-3 text-gray-700">{b.guests ?? '—'}</td>
+                                        <td className="py-1.5 pr-3 text-gray-700 whitespace-nowrap">
+                                          {b.start_time ? pgTimeToHm(b.start_time) ?? '—' : '—'}
+                                        </td>
+                                        <td className="py-1.5 pr-3 text-gray-700 whitespace-nowrap">
+                                          {b.pickup_time ? pgTimeToHm(b.pickup_time) ?? '—' : '—'}
+                                        </td>
                                         <td className="py-1.5 pr-3 text-gray-700 capitalize">{b.status}</td>
                                         <td className="py-1.5 text-gray-600 max-w-[14rem]">
                                           {b.special_requests || '—'}

@@ -11,6 +11,8 @@ export function qualityCheckIdToFormFocus(checkId: string): string {
       return 'description';
     case 'meeting':
       return 'meeting';
+    case 'schedule':
+      return 'schedule';
     default:
       return checkId;
   }

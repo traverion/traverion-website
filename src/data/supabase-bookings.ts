@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { notifySupplierEvent } from './supabase-supplier-messaging';
+import { hmToPgTime } from './supabase-listings';
 
 /** Shape used by BookingForm (legacy). Mapped to public.bookings in DB. */
 export type Booking = {
@@ -38,7 +39,14 @@ export type BookingRow = {
   cancelled_at?: string | null;
   acknowledged_at?: string | null;
   created_at: string;
+  /** Local experience start time (Postgres time, e.g. 18:30:00). */
+  start_time?: string | null;
+  /** Assigned guest pickup time (local). */
+  pickup_time?: string | null;
 };
+
+const BOOKING_LIST_COLUMNS =
+  'id, listing_id, guest_email, guest_name, guests, booking_date, status, special_requests, cancellation_reason, refund_choice, cancelled_at, acknowledged_at, created_at, start_time, pickup_time';
 
 export async function submitBooking(
   data: Omit<Booking, 'id' | 'created_at' | 'updated_at'>
@@ -91,7 +99,7 @@ export async function fetchBookingsForSupplier(supplierId: string): Promise<Book
   if (ids.length === 0) return [];
   const { data, error } = await supabase
     .from('bookings')
-    .select('id, listing_id, guest_email, guest_name, guests, booking_date, status, special_requests, cancellation_reason, refund_choice, cancelled_at, acknowledged_at, created_at')
+    .select(BOOKING_LIST_COLUMNS)
     .in('listing_id', ids)
     .order('created_at', { ascending: false });
   if (error) throw new Error(error.message);
@@ -115,6 +123,20 @@ export async function updateBookingStatus(
     .from('bookings')
     .update(payload)
     .eq('id', bookingId);
+  return !error;
+}
+
+/** Set per-booking start and pickup times (supplier; RLS: own listing’s bookings). Times are HH:MM or empty to clear. */
+export async function updateBookingSchedule(
+  bookingId: string,
+  params: { start_time?: string | null; pickup_time?: string | null }
+): Promise<boolean> {
+  if (!supabase) return false;
+  const payload: Record<string, unknown> = {};
+  if ('start_time' in params) payload.start_time = hmToPgTime(params.start_time ?? null);
+  if ('pickup_time' in params) payload.pickup_time = hmToPgTime(params.pickup_time ?? null);
+  if (Object.keys(payload).length === 0) return true;
+  const { error } = await supabase.from('bookings').update(payload).eq('id', bookingId);
   return !error;
 }
 
@@ -211,7 +233,7 @@ export async function fetchMyBookings(): Promise<BookingRow[]> {
   if (!supabase) return [];
   const { data, error } = await supabase
     .from('bookings')
-    .select('id, listing_id, guest_email, guest_name, guests, booking_date, status, special_requests, cancellation_reason, refund_choice, cancelled_at, acknowledged_at, created_at')
+    .select(BOOKING_LIST_COLUMNS)
     .order('created_at', { ascending: false });
   if (error) throw new Error(error.message);
   return (data ?? []) as BookingRow[];
