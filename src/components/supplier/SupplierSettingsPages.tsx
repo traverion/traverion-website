@@ -10,6 +10,7 @@ import {
   removeSupplierVerificationDocumentFile,
   uploadSupplierBusinessLogo,
   uploadSupplierVerificationDocument,
+  patchSupplierProfile,
 } from '../../data/supabase-supplier-profile';
 import { formatSupplierBusinessAddressFromParts } from '../../lib/supplierAddress';
 import {
@@ -495,10 +496,10 @@ function BusinessProfilePage(p: Props) {
                           setLogoError(upErr ?? 'Upload failed.');
                           return;
                         }
-                        const res = await p.updateSupplierCompanyProfile(p.user.id, { business_logo_url: publicUrl });
+                        const res = await patchSupplierProfile(p.user.id, { business_logo_url: publicUrl });
                         setLogoUploading(false);
                         if (res.success) p.setBusinessLogoUrl(publicUrl);
-                        else setLogoError('Could not save photo URL.');
+                        else setLogoError(res.error ?? 'Could not save photo URL.');
                       }}
                     />
                     <div className="flex flex-wrap gap-2">
@@ -520,10 +521,10 @@ function BusinessProfilePage(p: Props) {
                             setLogoError(null);
                             setLogoUploading(true);
                             await removeSupplierBusinessLogoFiles(p.user.id);
-                            const res = await p.updateSupplierCompanyProfile(p.user.id, { business_logo_url: null });
+                            const res = await patchSupplierProfile(p.user.id, { business_logo_url: null });
                             setLogoUploading(false);
                             if (res.success) p.setBusinessLogoUrl('');
-                            else setLogoError('Could not remove photo.');
+                            else setLogoError(res.error ?? 'Could not remove photo.');
                           }}
                           className="inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
                         >

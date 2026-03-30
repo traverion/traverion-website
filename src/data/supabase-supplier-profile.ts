@@ -204,6 +204,26 @@ export async function updateSupplierPayout(
   return { success: true };
 }
 
+/**
+ * Partial update by id (no upsert). Prefer for single fields like business_logo_url so we do not rely on
+ * upsert merge behaviour for optional columns.
+ */
+export async function patchSupplierProfile(
+  userId: string,
+  patch: Record<string, unknown>
+): Promise<{ success: boolean; error?: string }> {
+  if (!supabase) return { success: false, error: 'Supabase not configured' };
+  const { error } = await supabase
+    .from('supplier_profiles')
+    .update({
+      ...patch,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', userId);
+  if (error) return { success: false, error: error.message };
+  return { success: true };
+}
+
 /** Update full company/business profile (business type, legal name, address, tax, verification, insurance). */
 export async function updateSupplierCompanyProfile(
   userId: string,
