@@ -12,6 +12,10 @@ import {
   uploadSupplierVerificationDocument,
 } from '../../data/supabase-supplier-profile';
 import { formatSupplierBusinessAddressFromParts } from '../../lib/supplierAddress';
+import {
+  isSupplierSensitiveIdentityLocked,
+  SUPPLIER_SENSITIVE_CHANGES_SUPPORT_EMAIL,
+} from '../../lib/supplierVerificationLocks';
 
 type BusinessProfileTab = 'company' | 'legal';
 
@@ -100,6 +104,8 @@ type Props = {
   vatId: string;
   setVatId: (v: string) => void;
   verificationStatus: string;
+  verificationSubmittedAt: string;
+  setVerificationSubmittedAt: (v: string) => void;
   companySaving: boolean;
   companyMessage: 'success' | 'error' | null;
   setCompanySaving: (v: boolean) => void;
@@ -366,6 +372,10 @@ function BusinessProfilePage(p: Props) {
   const [companySaveError, setCompanySaveError] = useState<string | null>(null);
   const [payoutSaveError, setPayoutSaveError] = useState<string | null>(null);
 
+  const sensitiveLocked = isSupplierSensitiveIdentityLocked(p.verificationStatus, p.verificationSubmittedAt);
+  const identityFieldsDisabled = sensitiveLocked || !p.canManageFinance(p.role);
+  const payoutDestinationLocked = sensitiveLocked;
+
   const tabBtn = (active: boolean) =>
     `rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors ${
       active ? 'bg-finland text-white shadow-sm' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -411,6 +421,42 @@ function BusinessProfilePage(p: Props) {
             <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-gray-900">Company details</h2>
             <p className="text-sm text-gray-600 mt-1.5 mb-5">Verification and invoicing. Insurance and policies are under Legal obligations.</p>
             <div className="space-y-4 max-w-xl">
+              {sensitiveLocked && (
+                <div className="rounded-lg border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-800">
+                  <p className="font-medium text-slate-900">
+                    {p.verificationStatus.trim().toLowerCase() === 'verified'
+                      ? 'Registration and payout details are locked'
+                      : 'Profile under review'}
+                  </p>
+                  <p className="mt-1.5 text-xs text-slate-700 leading-relaxed">
+                    {p.verificationStatus.trim().toLowerCase() === 'verified' ? (
+                      <>
+                        You cannot change your legal business information, registration proof, or payout bank details
+                        here. You can still update your profile photo, payout frequency, and minimum payout threshold. To
+                        change anything else, email{' '}
+                        <a
+                          href={`mailto:${SUPPLIER_SENSITIVE_CHANGES_SUPPORT_EMAIL}?subject=Supplier%20profile%20change%20request`}
+                          className="font-medium text-finland hover:underline"
+                        >
+                          {SUPPLIER_SENSITIVE_CHANGES_SUPPORT_EMAIL}
+                        </a>
+                        .
+                      </>
+                    ) : (
+                      <>
+                        You cannot edit business registration or payout bank details while Traverion reviews your
+                        submission. You can still update your profile photo, payout frequency, and threshold. Questions?{' '}
+                        <a
+                          href={`mailto:${SUPPLIER_SENSITIVE_CHANGES_SUPPORT_EMAIL}`}
+                          className="font-medium text-finland hover:underline"
+                        >
+                          {SUPPLIER_SENSITIVE_CHANGES_SUPPORT_EMAIL}
+                        </a>
+                      </>
+                    )}
+                  </p>
+                </div>
+              )}
               <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-4">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Business profile photo</label>
                 <p className="text-xs text-gray-500 mb-3">
@@ -490,8 +536,9 @@ function BusinessProfilePage(p: Props) {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Business type</label>
                 <select
                   value={p.businessType}
+                  disabled={identityFieldsDisabled}
                   onChange={(e) => p.setBusinessType(e.target.value as 'company' | 'individual' | '')}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
                 >
                   <option value="">Not set</option>
                   <option value="company">Registered company</option>
@@ -509,9 +556,10 @@ function BusinessProfilePage(p: Props) {
                 <input
                   type="text"
                   value={p.companyLegalName}
+                  disabled={identityFieldsDisabled}
                   onChange={(e) => p.setCompanyLegalName(e.target.value)}
                   placeholder="As on your business / trade registration"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland disabled:bg-gray-100 disabled:cursor-not-allowed"
                 />
               </div>
               {p.businessType === 'company' && (
@@ -527,9 +575,10 @@ function BusinessProfilePage(p: Props) {
                     <input
                       type="text"
                       value={p.companyRegistrationNumber}
+                      disabled={identityFieldsDisabled}
                       onChange={(e) => p.setCompanyRegistrationNumber(e.target.value)}
                       placeholder="e.g. FI1234567-8"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland disabled:bg-gray-100 disabled:cursor-not-allowed"
                     />
                   </div>
                   <div>
@@ -538,9 +587,10 @@ function BusinessProfilePage(p: Props) {
                     <input
                       type="text"
                       value={p.managingDirectors}
+                      disabled={identityFieldsDisabled}
                       onChange={(e) => p.setManagingDirectors(e.target.value)}
                       placeholder="Full name"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland disabled:bg-gray-100 disabled:cursor-not-allowed"
                     />
                   </div>
                 </>
@@ -552,9 +602,10 @@ function BusinessProfilePage(p: Props) {
                   <input
                     type="text"
                     value={p.addressStreet}
+                    disabled={identityFieldsDisabled}
                     onChange={(e) => p.setAddressStreet(e.target.value)}
                     placeholder="Street, number, unit"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland disabled:bg-gray-100 disabled:cursor-not-allowed"
                   />
                 </div>
                 <div>
@@ -562,9 +613,10 @@ function BusinessProfilePage(p: Props) {
                   <input
                     type="text"
                     value={p.addressCountry}
+                    disabled={identityFieldsDisabled}
                     onChange={(e) => p.setAddressCountry(e.target.value)}
                     placeholder="Country"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland disabled:bg-gray-100 disabled:cursor-not-allowed"
                   />
                 </div>
                 <div>
@@ -572,9 +624,10 @@ function BusinessProfilePage(p: Props) {
                   <input
                     type="text"
                     value={p.addressCity}
+                    disabled={identityFieldsDisabled}
                     onChange={(e) => p.setAddressCity(e.target.value)}
                     placeholder="City"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland disabled:bg-gray-100 disabled:cursor-not-allowed"
                   />
                 </div>
                 <div>
@@ -582,9 +635,10 @@ function BusinessProfilePage(p: Props) {
                   <input
                     type="text"
                     value={p.addressPostalCode}
+                    disabled={identityFieldsDisabled}
                     onChange={(e) => p.setAddressPostalCode(e.target.value)}
                     placeholder="Postal code"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland disabled:bg-gray-100 disabled:cursor-not-allowed"
                   />
                 </div>
               </div>
@@ -604,9 +658,10 @@ function BusinessProfilePage(p: Props) {
                       <input
                         type="text"
                         value={p.vatId}
+                        disabled={identityFieldsDisabled}
                         onChange={(e) => p.setVatId(e.target.value)}
                         placeholder="Leave blank if not VAT-registered"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
                       />
                     </div>
                     <div>
@@ -617,9 +672,10 @@ function BusinessProfilePage(p: Props) {
                       <input
                         type="text"
                         value={p.taxId}
+                        disabled={identityFieldsDisabled}
                         onChange={(e) => p.setTaxId(e.target.value)}
                         placeholder="Optional"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
                       />
                     </div>
                   </div>
@@ -636,9 +692,10 @@ function BusinessProfilePage(p: Props) {
                     <input
                       type="text"
                       value={p.taxId}
+                      disabled={identityFieldsDisabled}
                       onChange={(e) => p.setTaxId(e.target.value)}
                       placeholder="As on your registration"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland disabled:bg-gray-100 disabled:cursor-not-allowed"
                     />
                   </div>
                   <div>
@@ -649,9 +706,10 @@ function BusinessProfilePage(p: Props) {
                     <input
                       type="text"
                       value={p.vatId}
+                      disabled={identityFieldsDisabled}
                       onChange={(e) => p.setVatId(e.target.value)}
                       placeholder="Leave blank if not VAT-registered"
-                      className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+                      className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland disabled:bg-gray-100 disabled:cursor-not-allowed"
                     />
                   </div>
                 </div>
@@ -681,7 +739,7 @@ function BusinessProfilePage(p: Props) {
                       const file = e.target.files?.[0];
                       e.target.value = '';
                       if (!file || !p.user?.id || !p.isSupabase) return;
-                      if (!p.canManageFinance(p.role)) return;
+                      if (sensitiveLocked || !p.canManageFinance(p.role)) return;
                       setDocError(null);
                       setCompanyRegUploading(true);
                       const { path, error: upErr } = await uploadSupplierVerificationDocument(p.user.id, file);
@@ -692,19 +750,17 @@ function BusinessProfilePage(p: Props) {
                       }
                       const res = await p.updateSupplierCompanyProfile(p.user.id, {
                         company_registration_document_path: path,
-                        verification_status: 'pending',
                       });
                       setCompanyRegUploading(false);
                       if (res.success) {
                         p.setCompanyRegistrationPath(path);
-                        p.setVerificationStatus('pending');
                       } else setDocError('Could not save document.');
                     }}
                   />
                   <div className="flex flex-wrap items-center gap-2">
                     <button
                       type="button"
-                      disabled={companyRegUploading || !p.canManageFinance(p.role)}
+                      disabled={companyRegUploading || identityFieldsDisabled}
                       onClick={() => companyRegInputRef.current?.click()}
                       className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-800 hover:bg-gray-50 disabled:opacity-50"
                     >
@@ -728,7 +784,7 @@ function BusinessProfilePage(p: Props) {
                         </button>
                         <button
                           type="button"
-                          disabled={companyRegUploading || !p.canManageFinance(p.role)}
+                          disabled={companyRegUploading || identityFieldsDisabled}
                           className="text-sm text-red-600 hover:underline disabled:opacity-50"
                           onClick={async () => {
                             if (!p.user?.id || !p.companyRegistrationPath) return;
@@ -737,12 +793,10 @@ function BusinessProfilePage(p: Props) {
                             await removeSupplierVerificationDocumentFile(p.companyRegistrationPath);
                             const res = await p.updateSupplierCompanyProfile(p.user.id, {
                               company_registration_document_path: null,
-                              verification_status: 'pending',
                             });
                             setCompanyRegUploading(false);
                             if (res.success) {
                               p.setCompanyRegistrationPath('');
-                              p.setVerificationStatus('pending');
                             } else setDocError('Could not remove file.');
                           }}
                         >
@@ -805,9 +859,15 @@ function BusinessProfilePage(p: Props) {
                 <div className="flex items-center gap-3 flex-wrap">
                   <button
                     type="button"
-                    disabled={p.companySaving || !p.canManageFinance(p.role)}
+                    disabled={p.companySaving || identityFieldsDisabled}
                     onClick={async () => {
                       if (!p.user?.id) return;
+                      if (sensitiveLocked) {
+                        setCompanySaveError(
+                          `These details are locked. Email ${SUPPLIER_SENSITIVE_CHANGES_SUPPORT_EMAIL} to request a change.`
+                        );
+                        return;
+                      }
                       setCompanySaveError(null);
                       p.setCompanyMessage(null);
                       if (!p.businessType) {
@@ -848,6 +908,7 @@ function BusinessProfilePage(p: Props) {
                         address_city: p.addressCity,
                         address_country: p.addressCountry,
                       });
+                      const submittedNow = new Date().toISOString();
                       const res = await p.updateSupplierCompanyProfile(p.user.id, {
                         business_type: p.businessType || null,
                         company_legal_name: p.companyLegalName.trim() || null,
@@ -861,10 +922,12 @@ function BusinessProfilePage(p: Props) {
                         tax_id: p.taxId.trim() || null,
                         vat_id: p.vatId.trim() || null,
                         verification_status: 'pending',
+                        verification_submitted_at: submittedNow,
                       });
                       p.setCompanySaving(false);
                       if (res.success) {
                         p.setVerificationStatus('pending');
+                        p.setVerificationSubmittedAt(submittedNow);
                         p.setCompanyMessage('success');
                         p.onCompanyProfileSaved();
                       } else {
@@ -894,12 +957,19 @@ function BusinessProfilePage(p: Props) {
               PayPal. Payout frequency and threshold are optional. Stored securely for when payouts are enabled.
             </p>
             <div className="space-y-4">
+              {sensitiveLocked && (
+                <p className="text-xs text-slate-700 rounded-lg bg-slate-50 border border-slate-200 px-3 py-2">
+                  Payout method and account details (IBAN, BIC, PayPal) are locked while your profile is under review or
+                  after verification. You can still change payout frequency and minimum threshold below.
+                </p>
+              )}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Method</label>
                 <select
                   value={p.payoutMethod}
+                  disabled={payoutDestinationLocked || !p.canManageFinance(p.role)}
                   onChange={(e) => p.setPayoutMethod(e.target.value as 'bank' | 'paypal' | 'none' | '')}
-                  className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                  className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
                 >
                   <option value="">Not set</option>
                   <option value="bank">Bank transfer (IBAN)</option>
@@ -927,9 +997,10 @@ function BusinessProfilePage(p: Props) {
                     <input
                       type="text"
                       value={p.payoutIban}
+                      disabled={payoutDestinationLocked || !p.canManageFinance(p.role)}
                       onChange={(e) => p.setPayoutIban(e.target.value)}
                       placeholder="International bank account number (IBAN)"
-                      className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                      className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
                     />
                   </div>
                   <div>
@@ -937,9 +1008,10 @@ function BusinessProfilePage(p: Props) {
                     <input
                       type="text"
                       value={p.payoutBic}
+                      disabled={payoutDestinationLocked || !p.canManageFinance(p.role)}
                       onChange={(e) => p.setPayoutBic(e.target.value)}
                       placeholder="Bank identifier (SWIFT/BIC)"
-                      className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                      className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
                     />
                   </div>
                 </div>
@@ -950,9 +1022,10 @@ function BusinessProfilePage(p: Props) {
                   <input
                     type="email"
                     value={p.payoutPaypalEmail}
+                    disabled={payoutDestinationLocked || !p.canManageFinance(p.role)}
                     onChange={(e) => p.setPayoutPaypalEmail(e.target.value)}
                     placeholder="you@example.com"
-                    className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+                    className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland disabled:bg-gray-100 disabled:cursor-not-allowed"
                   />
                 </div>
               )}
@@ -961,8 +1034,9 @@ function BusinessProfilePage(p: Props) {
                 <p className="text-xs text-gray-500 mb-1.5">How often we settle payouts once they are enabled.</p>
                 <select
                   value={p.paymentCycle}
+                  disabled={!p.canManageFinance(p.role)}
                   onChange={(e) => p.setPaymentCycle(e.target.value as 'monthly' | 'biweekly' | '')}
-                  className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                  className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
                 >
                   <option value="">Not set</option>
                   <option value="monthly">Monthly</option>
@@ -977,9 +1051,10 @@ function BusinessProfilePage(p: Props) {
                   type="number"
                   min={0}
                   value={p.payoutThreshold}
+                  disabled={!p.canManageFinance(p.role)}
                   onChange={(e) => p.setPayoutThreshold(e.target.value)}
                   placeholder="0"
-                  className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+                  className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland disabled:bg-gray-100 disabled:cursor-not-allowed"
                 />
               </div>
               <div className="flex flex-col gap-2">
@@ -991,37 +1066,44 @@ function BusinessProfilePage(p: Props) {
                       if (!p.user?.id) return;
                       setPayoutSaveError(null);
                       p.setPayoutMessage(null);
-                      if (!p.payoutMethod || p.payoutMethod === 'none') {
-                        if (p.payoutIban.trim() || p.payoutBic.trim()) {
-                          setPayoutSaveError(
-                            'Select Bank transfer (IBAN) as the method to save your IBAN and BIC.'
-                          );
-                        } else {
-                          setPayoutSaveError(
-                            'Choose bank transfer or PayPal and fill the required fields before saving.'
-                          );
+                      if (!payoutDestinationLocked) {
+                        if (!p.payoutMethod || p.payoutMethod === 'none') {
+                          if (p.payoutIban.trim() || p.payoutBic.trim()) {
+                            setPayoutSaveError(
+                              'Select Bank transfer (IBAN) as the method to save your IBAN and BIC.'
+                            );
+                          } else {
+                            setPayoutSaveError(
+                              'Choose bank transfer or PayPal and fill the required fields before saving.'
+                            );
+                          }
+                          return;
                         }
-                        return;
-                      }
-                      if (p.payoutMethod === 'bank') {
-                        if (!p.payoutIban.trim() || !p.payoutBic.trim()) {
-                          setPayoutSaveError('Enter both IBAN and BIC before saving bank payout details.');
+                        if (p.payoutMethod === 'bank') {
+                          if (!p.payoutIban.trim() || !p.payoutBic.trim()) {
+                            setPayoutSaveError('Enter both IBAN and BIC before saving bank payout details.');
+                            return;
+                          }
+                        }
+                        if (p.payoutMethod === 'paypal' && !p.payoutPaypalEmail.trim()) {
+                          setPayoutSaveError('Enter your PayPal email before saving.');
                           return;
                         }
                       }
-                      if (p.payoutMethod === 'paypal' && !p.payoutPaypalEmail.trim()) {
-                        setPayoutSaveError('Enter your PayPal email before saving.');
-                        return;
-                      }
                       p.setPayoutSaving(true);
-                      const res = await p.updateSupplierPayout(p.user.id, {
-                        payout_method: p.payoutMethod || null,
-                        payout_iban: p.payoutMethod === 'bank' ? p.payoutIban.trim() || null : null,
-                        payout_bic: p.payoutMethod === 'bank' ? p.payoutBic.trim() || null : null,
-                        payout_paypal_email: p.payoutMethod === 'paypal' ? p.payoutPaypalEmail.trim() || null : null,
-                        payment_cycle: p.paymentCycle || null,
-                        payout_threshold_min: p.payoutThreshold !== '' ? Number(p.payoutThreshold) : null,
-                      });
+                      const res = payoutDestinationLocked
+                        ? await p.updateSupplierPayout(p.user.id, {
+                            payment_cycle: p.paymentCycle || null,
+                            payout_threshold_min: p.payoutThreshold !== '' ? Number(p.payoutThreshold) : null,
+                          })
+                        : await p.updateSupplierPayout(p.user.id, {
+                            payout_method: p.payoutMethod || null,
+                            payout_iban: p.payoutMethod === 'bank' ? p.payoutIban.trim() || null : null,
+                            payout_bic: p.payoutMethod === 'bank' ? p.payoutBic.trim() || null : null,
+                            payout_paypal_email: p.payoutMethod === 'paypal' ? p.payoutPaypalEmail.trim() || null : null,
+                            payment_cycle: p.paymentCycle || null,
+                            payout_threshold_min: p.payoutThreshold !== '' ? Number(p.payoutThreshold) : null,
+                          });
                       p.setPayoutSaving(false);
                       if (res.success) {
                         p.setPayoutMessage('success');

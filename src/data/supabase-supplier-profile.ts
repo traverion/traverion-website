@@ -21,6 +21,7 @@ export type SupplierProfileRow = {
   tax_id: string | null;
   vat_id: string | null;
   verification_status: 'pending' | 'verified' | 'rejected' | null;
+  verification_submitted_at: string | null;
   insurance_policy_number: string | null;
   insurance_coverage: string | null;
   insurance_start: string | null;
@@ -219,6 +220,7 @@ export async function updateSupplierCompanyProfile(
     tax_id: string | null;
     vat_id: string | null;
     verification_status: 'pending' | 'verified' | 'rejected' | null;
+    verification_submitted_at: string | null;
     insurance_policy_number: string | null;
     insurance_coverage: string | null;
     insurance_start: string | null;

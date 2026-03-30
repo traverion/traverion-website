@@ -278,6 +278,7 @@ export default function SupplierLayout() {
   const [taxId, setTaxId] = useState('');
   const [vatId, setVatId] = useState('');
   const [verificationStatus, setVerificationStatus] = useState<string>('');
+  const [verificationSubmittedAt, setVerificationSubmittedAt] = useState<string>('');
   const [insurancePolicyNumber, setInsurancePolicyNumber] = useState('');
   const [insuranceCoverage, setInsuranceCoverage] = useState('');
   const [insuranceStart, setInsuranceStart] = useState('');
@@ -351,6 +352,9 @@ export default function SupplierLayout() {
         setTaxId(p.tax_id ?? '');
         setVatId(p.vat_id ?? '');
         setVerificationStatus(p.verification_status ?? '');
+        setVerificationSubmittedAt(
+          p.verification_submitted_at ? String(p.verification_submitted_at) : ''
+        );
         setInsurancePolicyNumber(p.insurance_policy_number ?? '');
         setInsuranceCoverage(p.insurance_coverage ?? '');
         setInsuranceStart(p.insurance_start ?? '');
@@ -900,6 +904,8 @@ export default function SupplierLayout() {
               vatId={vatId}
               setVatId={setVatId}
               verificationStatus={verificationStatus}
+              verificationSubmittedAt={verificationSubmittedAt}
+              setVerificationSubmittedAt={setVerificationSubmittedAt}
               companySaving={companySaving}
               companyMessage={companyMessage}
               setCompanySaving={setCompanySaving}
