@@ -907,16 +907,29 @@ function BusinessProfilePage(p: Props) {
                   <option value="none">None / later</option>
                 </select>
               </div>
-              {p.payoutMethod === 'bank' && (
-                <>
+              {(p.payoutMethod === 'bank' || p.payoutMethod === '') && (
+                <div className="rounded-lg border border-gray-200 bg-gray-50/80 p-4 space-y-4">
+                  <p className="text-xs text-gray-600">
+                    {p.payoutMethod === '' ? (
+                      <>
+                        <span className="font-medium text-gray-800">Bank transfer:</span> enter your IBAN and BIC here,
+                        then choose <span className="font-medium text-gray-800">Bank transfer (IBAN)</span> in Method
+                        above before saving.
+                      </>
+                    ) : (
+                      <>
+                        <span className="font-medium text-gray-800">Bank transfer:</span> your payout account details.
+                      </>
+                    )}
+                  </p>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">IBAN</label>
                     <input
                       type="text"
                       value={p.payoutIban}
                       onChange={(e) => p.setPayoutIban(e.target.value)}
-                      placeholder="International bank account number"
-                      className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+                      placeholder="International bank account number (IBAN)"
+                      className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
                     />
                   </div>
                   <div>
@@ -926,10 +939,10 @@ function BusinessProfilePage(p: Props) {
                       value={p.payoutBic}
                       onChange={(e) => p.setPayoutBic(e.target.value)}
                       placeholder="Bank identifier (SWIFT/BIC)"
-                      className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+                      className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
                     />
                   </div>
-                </>
+                </div>
               )}
               {p.payoutMethod === 'paypal' && (
                 <div>
@@ -979,7 +992,15 @@ function BusinessProfilePage(p: Props) {
                       setPayoutSaveError(null);
                       p.setPayoutMessage(null);
                       if (!p.payoutMethod || p.payoutMethod === 'none') {
-                        setPayoutSaveError('Choose bank transfer or PayPal and fill the required fields before saving.');
+                        if (p.payoutIban.trim() || p.payoutBic.trim()) {
+                          setPayoutSaveError(
+                            'Select Bank transfer (IBAN) as the method to save your IBAN and BIC.'
+                          );
+                        } else {
+                          setPayoutSaveError(
+                            'Choose bank transfer or PayPal and fill the required fields before saving.'
+                          );
+                        }
                         return;
                       }
                       if (p.payoutMethod === 'bank') {
