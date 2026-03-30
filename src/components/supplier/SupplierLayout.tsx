@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, type ReactNode } from 'react';
 import {
   LayoutDashboard,
   MapPin,
@@ -124,119 +124,135 @@ function SupplierSetupProgressStrip({
   const rejected = v === 'rejected';
   const inReview = profileComplete && !verified && !rejected && (v === 'pending' || v === '');
 
-  const verificationHeadline = verified
-    ? 'Verified'
-    : rejected
-      ? 'Action needed'
-      : inReview
-        ? 'In review'
-        : 'To do';
   const verificationDetail = verified
-    ? 'Traverion has approved your business.'
+    ? 'Approved by Traverion.'
     : rejected
-      ? 'Update your profile and documents, then resubmit.'
+      ? 'Update and resubmit.'
       : inReview
-        ? 'We are reviewing your submission.'
-        : 'Complete and save your profile, then wait for approval.';
+        ? 'Review in progress.'
+        : 'Submit profile for review.';
 
   const doneCount = [hasListing, hasPayout, verified].filter(Boolean).length;
+  const steps = [
+    hasListing,
+    hasPayout,
+    verified,
+  ] as const;
 
-  const chipBase = 'rounded-xl border-2 px-3 py-3 text-left transition-shadow hover:shadow-md w-full';
-  const listingCls = hasListing
-    ? `${chipBase} border-emerald-500 bg-emerald-100/90 text-emerald-950`
-    : `${chipBase} border-amber-400 bg-amber-100 text-amber-950`;
-  const payoutCls = hasPayout
-    ? `${chipBase} border-emerald-500 bg-emerald-100/90 text-emerald-950`
-    : `${chipBase} border-amber-400 bg-amber-100 text-amber-950`;
-  let verifyCls = `${chipBase} border-amber-400 bg-amber-100 text-amber-950`;
-  if (verified) verifyCls = `${chipBase} border-emerald-500 bg-emerald-100/90 text-emerald-950`;
-  else if (inReview) verifyCls = `${chipBase} border-sky-500 bg-sky-100 text-sky-950`;
-  else if (rejected) verifyCls = `${chipBase} border-red-400 bg-red-100 text-red-950`;
+  const chip = (
+    done: boolean,
+    tone: 'emerald' | 'amber' | 'sky' | 'red',
+    onClick: () => void,
+    icon: ReactNode,
+    title: string,
+    hint: string
+  ) => {
+    const tones = {
+      emerald: done
+        ? 'border-emerald-200/90 bg-emerald-50/80 text-emerald-900 hover:bg-emerald-50'
+        : 'border-slate-200/90 bg-slate-50/80 text-slate-700 hover:bg-slate-50',
+      amber: 'border-amber-200/90 bg-amber-50/90 text-amber-950 hover:bg-amber-50',
+      sky: 'border-sky-200/90 bg-sky-50/90 text-sky-950 hover:bg-sky-50/80',
+      red: 'border-red-200/90 bg-red-50/90 text-red-950 hover:bg-red-50/80',
+    };
+    const t = done && tone === 'emerald' ? tones.emerald : tones[tone];
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className={`group flex min-w-0 flex-1 items-center gap-2 rounded-lg border px-2 py-1.5 text-left text-xs transition-colors ${t}`}
+      >
+        <span className="shrink-0 opacity-90 [&_svg]:w-4 [&_svg]:h-4">{icon}</span>
+        <span className="min-w-0">
+          <span className="block font-semibold leading-tight tracking-tight">{title}</span>
+          <span className="mt-0.5 block text-[11px] leading-snug text-slate-600 group-hover:text-slate-700">{hint}</span>
+        </span>
+      </button>
+    );
+  };
 
   return (
     <div
-      className="mb-6 rounded-2xl border-2 border-finland/35 bg-gradient-to-br from-finland/[0.14] via-white to-amber-50/70 shadow-lg ring-1 ring-gray-900/5 px-4 py-4 sm:px-5 sm:py-5"
+      className="mb-4 overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm ring-1 ring-slate-900/[0.04]"
       role="region"
       aria-label="Supplier setup progress"
     >
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-4 mb-4">
-        <div>
-          <p className="text-lg sm:text-xl font-bold text-gray-900 tracking-tight">Finish supplier setup</p>
-          <p className="text-sm text-gray-800 mt-1 max-w-3xl leading-snug">
-            Track the three steps below. Listing and payout can be done anytime; <span className="font-semibold">verification</span>{' '}
-            only shows complete after Traverion approves your business—not when you only save the form.
-          </p>
+      <div
+        className="h-0.5 bg-gradient-to-r from-finland via-indigo-500 to-violet-500"
+        aria-hidden
+      />
+      <div className="px-3 py-2.5 sm:px-4">
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold tracking-tight text-slate-900">Supplier setup</p>
+            <p className="mt-0.5 hidden text-[11px] leading-snug text-slate-500 sm:block">
+              Verification turns green only after Traverion approves—not when you save the form.
+            </p>
+          </div>
+          <span className="inline-flex shrink-0 items-center rounded-full bg-finland/12 px-2.5 py-0.5 text-xs font-bold tabular-nums text-finland ring-1 ring-finland/20">
+            {doneCount}/3
+          </span>
         </div>
-        <div className="flex items-baseline gap-1 shrink-0">
-          <span className="text-3xl font-black tabular-nums text-finland leading-none">{doneCount}</span>
-          <span className="text-lg font-bold text-gray-500">/3</span>
+        <div
+          className="mb-2 flex h-1 gap-px overflow-hidden rounded-full bg-slate-100 p-px"
+          aria-hidden
+        >
+          {steps.map((s, i) => (
+            <div
+              key={i}
+              className={`h-full flex-1 rounded-full transition-colors ${s ? 'bg-finland' : 'bg-slate-200'}`}
+            />
+          ))}
         </div>
-      </div>
-      <ul className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <li>
-          <button type="button" onClick={onListings} className={listingCls}>
-            <span className="flex items-start gap-2">
-              {hasListing ? (
-                <CheckCircle2 className="w-5 h-5 text-emerald-700 shrink-0 mt-0.5" aria-hidden />
+        <ul className="flex flex-col gap-1.5 sm:flex-row sm:gap-2">
+          <li className="min-w-0 flex-1">
+            {chip(
+              hasListing,
+              'emerald',
+              onListings,
+              hasListing ? (
+                <CheckCircle2 className="text-emerald-600" aria-hidden />
               ) : (
-                <Circle className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" aria-hidden />
-              )}
-              <span>
-                <span className="block font-bold text-sm uppercase tracking-wide">
-                  {hasListing ? 'Done' : 'To do'} · First listing
-                </span>
-                <span className="block text-xs mt-1 font-medium opacity-90">
-                  {hasListing
-                    ? 'You have at least one tour or activity on file.'
-                    : 'Create your first listing (you can keep it as a draft until you are verified).'}
-                </span>
-              </span>
-            </span>
-          </button>
-        </li>
-        <li>
-          <button type="button" onClick={onPayout} className={payoutCls}>
-            <span className="flex items-start gap-2">
-              {hasPayout ? (
-                <CheckCircle2 className="w-5 h-5 text-emerald-700 shrink-0 mt-0.5" aria-hidden />
+                <Circle className="text-slate-400" aria-hidden />
+              ),
+              hasListing ? 'Listing added' : 'First listing',
+              hasListing ? 'At least one tour on file.' : 'Create a listing (draft is fine).'
+            )}
+          </li>
+          <li className="min-w-0 flex-1">
+            {chip(
+              hasPayout,
+              'emerald',
+              onPayout,
+              hasPayout ? (
+                <CheckCircle2 className="text-emerald-600" aria-hidden />
               ) : (
-                <Circle className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" aria-hidden />
-              )}
-              <span>
-                <span className="block font-bold text-sm uppercase tracking-wide">
-                  {hasPayout ? 'Done' : 'To do'} · Payout details
-                </span>
-                <span className="block text-xs mt-1 font-medium opacity-90">
-                  {hasPayout
-                    ? 'Bank (IBAN + BIC) or PayPal is saved.'
-                    : 'Save bank transfer (IBAN + BIC) or PayPal—required before you can publish.'}
-                </span>
-              </span>
-            </span>
-          </button>
-        </li>
-        <li>
-          <button type="button" onClick={onProfile} className={verifyCls}>
-            <span className="flex items-start gap-2">
-              {verified ? (
-                <CheckCircle2 className="w-5 h-5 text-emerald-700 shrink-0 mt-0.5" aria-hidden />
+                <Circle className="text-slate-400" aria-hidden />
+              ),
+              hasPayout ? 'Payout saved' : 'Payout',
+              hasPayout ? 'IBAN + BIC or PayPal on file.' : 'Bank or PayPal before publish.'
+            )}
+          </li>
+          <li className="min-w-0 flex-1">
+            {chip(
+              verified,
+              verified ? 'emerald' : inReview ? 'sky' : rejected ? 'red' : 'amber',
+              onProfile,
+              verified ? (
+                <CheckCircle2 className="text-emerald-600" aria-hidden />
               ) : inReview ? (
-                <Clock className="w-5 h-5 text-sky-800 shrink-0 mt-0.5" aria-hidden />
+                <Clock className="text-sky-600" aria-hidden />
               ) : rejected ? (
-                <AlertTriangle className="w-5 h-5 text-red-800 shrink-0 mt-0.5" aria-hidden />
+                <AlertTriangle className="text-red-600" aria-hidden />
               ) : (
-                <Circle className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" aria-hidden />
-              )}
-              <span>
-                <span className="block font-bold text-sm uppercase tracking-wide">
-                  {verificationHeadline} · Business verification
-                </span>
-                <span className="block text-xs mt-1 font-medium opacity-90">{verificationDetail}</span>
-              </span>
-            </span>
-          </button>
-        </li>
-      </ul>
+                <Circle className="text-slate-400" aria-hidden />
+              ),
+              verified ? 'Verified' : rejected ? 'Needs update' : inReview ? 'In review' : 'Verification',
+              verificationDetail
+            )}
+          </li>
+        </ul>
+      </div>
     </div>
   );
 }
