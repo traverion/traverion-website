@@ -60,6 +60,11 @@
       "destination": "/index.html"
     },
     {
+      "source": "/robots.txt",
+      "has": [{ "type": "host", "value": "admin.traverion.com" }],
+      "destination": "/robots-admin.txt"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
@@ -109,6 +114,16 @@
     }
   ],
   "headers": [
+    {
+      "source": "/(.*)",
+      "has": [{ "type": "host", "value": "admin.traverion.com" }],
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive, nosnippet, noimageindex"
+        }
+      ]
+    },
     {
       "source": "/assets/(.*)",
       "headers": [

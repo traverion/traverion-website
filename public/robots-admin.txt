@@ -1,0 +1,3 @@
+# Served only on admin.traverion.com via vercel.json rewrite
+User-agent: *
+Disallow: /

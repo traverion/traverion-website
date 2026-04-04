@@ -45,7 +45,7 @@ export default function AdminDashboard() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-wrap justify-between items-center gap-4 py-6">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Traverion admin</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Dashboard</h1>
               <p className="text-gray-600 text-sm mt-1">
                 Signed in as <span className="font-medium text-gray-800">{user?.email ?? '—'}</span>
               </p>
@@ -129,7 +129,7 @@ export default function AdminDashboard() {
                     <p className="text-3xl font-bold text-amber-800 mt-1">
                       {statsLoading ? '…' : stats?.pending_business_submissions ?? '—'}
                     </p>
-                    <p className="text-xs text-gray-500 mt-2">Submitted, awaiting staff</p>
+                    <p className="text-xs text-gray-500 mt-2">Submitted, awaiting review</p>
                   </div>
                   <div className="w-12 h-12 bg-amber-100 rounded-lg flex items-center justify-center shrink-0">
                     <ClipboardCheck className="w-6 h-6 text-amber-700" />

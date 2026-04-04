@@ -67,14 +67,45 @@ export function setPageMetaWithOg(title: string, description?: string, og?: OgMe
   ensureMeta('twitter:image', 'name').setAttribute('content', image);
 }
 
+/** Strongest practical directive for non-public app surfaces (staff tools, etc.). */
+const NON_INDEX_ROBOTS =
+  'noindex, nofollow, noarchive, nosnippet, noimageindex, max-snippet:0, max-image-preview:none';
+
 /** Hide sensitive routes from search engines (SPA: toggle when entering/leaving the route). */
 export function setRobotsNoIndex(enabled: boolean) {
   if (typeof document === 'undefined') return;
   if (enabled) {
-    ensureMeta('robots', 'name').setAttribute('content', 'noindex, nofollow');
+    ensureMeta('robots', 'name').setAttribute('content', NON_INDEX_ROBOTS);
+    ensureMeta('googlebot', 'name').setAttribute('content', NON_INDEX_ROBOTS);
   } else {
     document.querySelector('meta[name="robots"]')?.remove();
+    document.querySelector('meta[name="googlebot"]')?.remove();
   }
+}
+
+/** Title/meta/OG without the public “ · Traverion” suffix (non-discoverable routes). */
+export function setPrivateAppRouteHead(title: string, description: string) {
+  if (typeof document === 'undefined') return;
+  document.title = title;
+  const descMeta = document.querySelector('meta[name="description"]');
+  if (descMeta) descMeta.setAttribute('content', description);
+  const href = typeof window !== 'undefined' ? window.location.href : getBaseUrl();
+  ensureMeta('og:title', 'property').setAttribute('content', title);
+  ensureMeta('og:description', 'property').setAttribute('content', description);
+  ensureMeta('og:url', 'property').setAttribute('content', href);
+  ensureMeta('og:type', 'property').setAttribute('content', 'website');
+  ensureMeta('twitter:title', 'name').setAttribute('content', title);
+  ensureMeta('twitter:description', 'name').setAttribute('content', description);
+}
+
+export function removeCanonicalLink() {
+  if (typeof document === 'undefined') return;
+  document.querySelector('link[rel="canonical"]')?.remove();
+}
+
+export function clearOrganizationJsonLd() {
+  if (typeof document === 'undefined') return;
+  document.getElementById('traverion-org-jsonld')?.remove();
 }
 
 /** Inject JSON-LD for a single tour (Product schema). Call from tour detail page. */

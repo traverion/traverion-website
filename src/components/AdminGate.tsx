@@ -1,6 +1,7 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { canAccessTraverionAdmin } from '../lib/adminAuth';
+import { verifyTraverionPanelAccess } from '../lib/adminAuth';
+import { supabase } from '../lib/supabase';
 import AdminDashboard from '../pages/AdminDashboard';
 import AdminStaffLogin from './admin/AdminStaffLogin';
 import LuxuryButton from './ui/LuxuryButton';
@@ -19,6 +20,7 @@ type AdminGateProps = {
 
 export default function AdminGate({ mode = 'gate' }: AdminGateProps) {
   const { user, loading, signOut } = useAuth();
+  const [panelAllowed, setPanelAllowed] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (mode !== 'dashboard-only') return;
@@ -29,6 +31,21 @@ export default function AdminGate({ mode = 'gate' }: AdminGateProps) {
     }
   }, [mode, loading, user]);
 
+  useEffect(() => {
+    if (loading || !user || !supabase) {
+      setPanelAllowed(null);
+      return;
+    }
+    let cancelled = false;
+    setPanelAllowed(null);
+    void verifyTraverionPanelAccess(supabase, user).then((ok) => {
+      if (!cancelled) setPanelAllowed(ok);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [loading, user]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-slate-900 text-gray-300">
@@ -38,7 +55,16 @@ export default function AdminGate({ mode = 'gate' }: AdminGateProps) {
     );
   }
 
-  if (canAccessTraverionAdmin(user)) {
+  if (user && panelAllowed === null) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-slate-900 text-gray-300">
+        <Loader2 className="w-8 h-8 animate-spin text-sky-400" aria-hidden />
+        <p className="text-sm">Verifying access…</p>
+      </div>
+    );
+  }
+
+  if (user && panelAllowed === true) {
     return <AdminDashboard />;
   }
 
@@ -50,7 +76,7 @@ export default function AdminGate({ mode = 'gate' }: AdminGateProps) {
           <h1 className="text-xl font-bold text-white mb-2">Access denied</h1>
           <p className="text-gray-300 text-sm mb-6">
             Signed in as <span className="text-white font-medium">{user.email}</span>, but this account is not
-            authorized for Traverion staff tools (admin role and allowlisted email in Supabase).
+            authorized to use this area.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <LuxuryButton variant="outline" size="sm" onClick={() => void signOut()}>
@@ -73,7 +99,7 @@ export default function AdminGate({ mode = 'gate' }: AdminGateProps) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-slate-900 text-gray-300">
         <Loader2 className="w-8 h-8 animate-spin text-sky-400" aria-hidden />
-        <p className="text-sm">Redirecting to sign-in…</p>
+        <p className="text-sm">Redirecting…</p>
       </div>
     );
   }

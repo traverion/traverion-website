@@ -37,7 +37,15 @@ import { TranslationProvider } from './contexts/TranslationContext';
 import { SupplierAuthProvider } from './contexts/SupplierAuthContext';
 import { AuthProvider } from './contexts/AuthContext';
 import AuthModal from './components/AuthModal';
-import { setPageMetaWithOg, setCanonicalUrl, setOrganizationJsonLd, setRobotsNoIndex } from './lib/seo';
+import {
+  setPageMetaWithOg,
+  setCanonicalUrl,
+  setOrganizationJsonLd,
+  setRobotsNoIndex,
+  setPrivateAppRouteHead,
+  removeCanonicalLink,
+  clearOrganizationJsonLd,
+} from './lib/seo';
 import { parsePathname, shouldClearSelectedTour } from './lib/appRouting';
 import {
   isTraverionAdminHost,
@@ -206,15 +214,28 @@ function App() {
     window.scrollTo(0, 0);
   }, [currentPage, isSupplierArea]);
 
-  // Organization JSON-LD once on mount
+  // Organization JSON-LD once on mount (not on staff subdomain — avoid linking private host to brand graph)
   useEffect(() => {
     if (isSupplierArea) return;
+    if (isTraverionAdminHost()) return;
     setOrganizationJsonLd();
   }, [isSupplierArea]);
 
   // Document title, meta, OG/Twitter, and canonical URL per page
   useEffect(() => {
     if (isSupplierArea) return;
+
+    const privateStaffPage =
+      currentPage === 'admin' || currentPage === 'admin-login' || currentPage === 'admin-app';
+    if (privateStaffPage) {
+      clearOrganizationJsonLd();
+      const title = currentPage === 'admin-app' ? 'Dashboard' : 'Sign in';
+      setPrivateAppRouteHead(title, 'Private access.');
+      setRobotsNoIndex(true);
+      removeCanonicalLink();
+      return;
+    }
+
     const metaByPage: Record<string, { title: string; description?: string }> = {
       home: { title: 'Traverion', description: 'Book tours and activities worldwide. Find and reserve experiences with free cancellation.' },
       packages: { title: 'Tours & activities', description: 'Browse and book tours and activities worldwide. Filter by destination, price, and more.' },
@@ -234,33 +255,17 @@ function App() {
       affiliate: { title: 'Affiliate program', description: 'Partner with Traverion and earn commissions.' },
       'content-creator': { title: 'Content creators', description: 'Collaborate with Traverion on travel content.' },
       destination: { title: 'Destination', description: 'Tours and activities in this destination.' },
-      admin: {
-        title: 'Staff sign-in',
-        description: 'Traverion staff only. Sign in with an authorized account.',
-      },
-      'admin-login': {
-        title: 'Staff sign-in',
-        description: 'Traverion staff sign-in.',
-      },
-      'admin-app': {
-        title: 'Staff dashboard',
-        description: 'Traverion staff dashboard.',
-      },
     };
     const meta = metaByPage[currentPage];
     if (meta) setPageMetaWithOg(meta.title, meta.description);
     else setPageMetaWithOg('Traverion', 'Tours & activities worldwide.');
 
-    setRobotsNoIndex(
-      currentPage === 'admin' || currentPage === 'admin-login' || currentPage === 'admin-app'
-    );
+    setRobotsNoIndex(false);
 
     const pathMap: Record<string, string> = {
       home: '/', packages: '/packages', auth: '/auth', cart: '/cart', account: '/account', wishlist: '/wishlist', bookings: '/bookings',
       blog: '/blog', contact: '/contact', privacy: '/privacy', terms: '/terms', cookies: '/cookies',
-      about: '/about', sitemap: '/sitemap', admin: '/admin',
-      'admin-login': '/login',
-      'admin-app': '/admin',
+      about: '/about', sitemap: '/sitemap',
       'legal-notice': '/legal-notice', affiliate: '/affiliate', 'content-creator': '/content-creator',
     };
     const path = currentPage === 'destination' ? `/destinations/${destinationSlug || ''}` : (pathMap[currentPage] ?? '/');
@@ -378,7 +383,7 @@ function App() {
         if (typeof window !== 'undefined' && isPublicTraverionMarketingHost()) {
           return (
             <div className="min-h-screen flex flex-col items-center justify-center gap-2 bg-slate-900 text-gray-300">
-              <p className="text-sm">Opening staff sign-in…</p>
+              <p className="text-sm">Redirecting…</p>
             </div>
           );
         }

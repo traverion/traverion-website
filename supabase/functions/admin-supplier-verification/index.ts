@@ -6,8 +6,7 @@
  * Grant admin: run supabase/manual/grant_traverion_admin.sql for your staff email.
  *
  * Secrets: SUPABASE_SERVICE_ROLE_KEY (auto).
- * Required: TRAVERION_ADMIN_EMAILS — comma-separated lowercase staff emails. JWT user must be role admin and
- * on this list, or every action returns 403/503.
+ * Access: JWT must have app_metadata.role === 'admin' and email must match the single row in public.admin.
  */
 // deno-lint-ignore-file no-explicit-any
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
@@ -44,31 +43,29 @@ function isAdminUser(user: { app_metadata?: Record<string, unknown> } | null): b
   return user?.app_metadata?.role === 'admin';
 }
 
-/** Non-empty allowlist from secret; otherwise callers cannot use the API (misconfiguration). */
-function requiredAdminEmailAllowlist(): Set<string> | Response {
-  const raw = Deno.env.get('TRAVERION_ADMIN_EMAILS')?.trim();
-  if (!raw) {
+/** public.admin must contain exactly one row; JWT email must match it. */
+async function assertSoleAdminRowEmail(
+  adminClient: ReturnType<typeof createClient>,
+  jwtEmail: string | null | undefined
+): Promise<Response | null> {
+  const e = jwtEmail?.trim().toLowerCase();
+  if (!e) return json({ error: 'Forbidden' }, 403);
+  const { data, error } = await adminClient.from('admin').select('email');
+  if (error) {
+    return json({ error: 'Admin configuration error' }, 500);
+  }
+  if (!data || data.length !== 1) {
     return json(
-      {
-        error:
-          'Admin API disabled: set Supabase secret TRAVERION_ADMIN_EMAILS (comma-separated staff emails, same as VITE_TRAVERION_ADMIN_EMAILS).',
-      },
+      { error: 'Admin API misconfigured: public.admin must contain exactly one row (see migration 037).' },
       503
     );
   }
-  const allow = new Set(
-    raw
-      .split(',')
-      .map((s) => s.trim().toLowerCase())
-      .filter(Boolean)
-  );
-  if (allow.size === 0) {
-    return json(
-      { error: 'Admin API disabled: TRAVERION_ADMIN_EMAILS must list at least one email.' },
-      503
-    );
+  const row = data[0] as { email?: string | null };
+  const allowed = row.email?.trim().toLowerCase();
+  if (!allowed || allowed !== e) {
+    return json({ error: 'Forbidden: email not allowed for admin API.' }, 403);
   }
-  return allow;
+  return null;
 }
 
 async function assertAdmin(
@@ -89,12 +86,8 @@ async function assertAdmin(
   if (!isAdminUser(userData.user)) {
     return json({ error: 'Forbidden: Traverion admin role required (see grant_traverion_admin.sql).' }, 403);
   }
-  const allowOrErr = requiredAdminEmailAllowlist();
-  if (allowOrErr instanceof Response) return allowOrErr;
-  const email = userData.user.email?.trim().toLowerCase();
-  if (!email || !allowOrErr.has(email)) {
-    return json({ error: 'Forbidden: email not allowed for admin API.' }, 403);
-  }
+  const block = await assertSoleAdminRowEmail(admin, userData.user.email);
+  if (block) return block;
   return { admin, userId: userData.user.id };
 }
 

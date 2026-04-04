@@ -6,7 +6,7 @@ import LuxuryInput from '../ui/LuxuryInput';
 import { BRAND_LOGO_SRC } from '../../lib/brandAssets';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { canAccessTraverionAdmin } from '../../lib/adminAuth';
+import { verifyTraverionPanelAccess } from '../../lib/adminAuth';
 import { isTraverionAdminHost, publicMarketingSiteUrl } from '../../lib/adminHost';
 
 type Props = {
@@ -15,7 +15,7 @@ type Props = {
 };
 
 /**
- * Staff sign-in (no public sign-up). Used on staff host at /login or embedded in AdminGate on /admin (dev).
+ * Private sign-in (no public sign-up). Staff host: /login; local dev: /admin gate.
  */
 export default function AdminStaffLogin({ onSignedIn }: Props) {
   const { signIn, user } = useAuth();
@@ -25,9 +25,15 @@ export default function AdminStaffLogin({ onSignedIn }: Props) {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!user || !canAccessTraverionAdmin(user)) return;
+    if (!user || !supabase) return;
     if (!isTraverionAdminHost()) return;
-    window.location.replace('/admin');
+    let cancelled = false;
+    void verifyTraverionPanelAccess(supabase, user).then((ok) => {
+      if (!cancelled && ok) window.location.replace('/admin');
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -51,12 +57,11 @@ export default function AdminStaffLogin({ onSignedIn }: Props) {
     }
 
     const { data: { session } } = await supabase.auth.getSession();
-    if (!canAccessTraverionAdmin(session?.user ?? null)) {
+    const ok = await verifyTraverionPanelAccess(supabase, session?.user ?? null);
+    if (!ok) {
       await supabase.auth.signOut();
       setIsLoading(false);
-      setError(
-        'Wrong account or not authorized for staff tools. Use the Traverion staff email and ensure admin role + allowlist are set in Supabase.'
-      );
+      setError('This account is not authorized to use this area.');
       return;
     }
 
@@ -73,9 +78,9 @@ export default function AdminStaffLogin({ onSignedIn }: Props) {
       <LuxuryCard variant="glass" className="w-full max-w-md p-8">
         <div className="text-center mb-8">
           <img src={BRAND_LOGO_SRC} alt="" className="h-16 w-16 object-contain mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-white mb-2">Traverion staff</h1>
+          <h1 className="text-2xl font-bold text-white mb-2">Sign in</h1>
           <p className="text-gray-300 text-sm">
-            Private area. Sign in with the staff account only you control. There is no sign-up on this page.
+            Private access. Authorized users only. There is no sign-up on this page.
           </p>
         </div>
 
@@ -83,7 +88,7 @@ export default function AdminStaffLogin({ onSignedIn }: Props) {
           <LuxuryInput
             type="email"
             autoComplete="username"
-            placeholder="Staff email"
+            placeholder="Email"
             value={credentials.email}
             onChange={(e) => setCredentials({ ...credentials, email: e.target.value })}
             icon={<User className="w-5 h-5" />}
@@ -133,7 +138,7 @@ export default function AdminStaffLogin({ onSignedIn }: Props) {
             ) : (
               <span className="flex items-center justify-center gap-2">
                 <Key className="w-5 h-5" />
-                Sign in to staff dashboard
+                Continue
               </span>
             )}
           </LuxuryButton>
