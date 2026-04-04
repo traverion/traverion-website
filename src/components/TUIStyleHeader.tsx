@@ -1,4 +1,4 @@
-import { Menu, X, Search, User, Heart, ShoppingBag, Shield, ChevronDown, Plane, MapPin, Star, Calendar } from 'lucide-react';
+import { Menu, X, Search, User, Heart, ShoppingBag, ChevronDown, Plane, MapPin, Star, Calendar } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import LuxuryButton from './ui/LuxuryButton';
 import ContactInfoHeader from './ContactInfoHeader';
@@ -180,16 +180,6 @@ export default function TUIStyleHeader({ currentPage, onNavigate }: TUIStyleHead
                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
                   3
                 </span>
-              </button>
-
-
-              {/* Hidden Admin Access */}
-              <button
-                onClick={() => onNavigate('admin')}
-                className="p-2 text-transparent hover:text-gray-400 transition-colors duration-300 hover:bg-gray-50 rounded-lg opacity-0 hover:opacity-100"
-                title="Admin Access"
-              >
-                <Shield size={20} />
               </button>
 
               {/* CTA Button */}

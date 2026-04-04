@@ -1,4 +1,4 @@
-import { Menu, X, Search, User, Heart, ShoppingBag, Globe, Shield } from 'lucide-react';
+import { Menu, X, Search, User, Heart, ShoppingBag, Globe } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import LuxuryButton from './ui/LuxuryButton';
 import LuxuryInput from './ui/LuxuryInput';
@@ -175,27 +175,6 @@ export default function Header({ currentPage, onNavigate }: HeaderProps) {
               </select>
               <Globe size={20} className="absolute right-0 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
             </div>
-
-            {/* Hidden Admin Access - Triple click to access */}
-            <button
-              onClick={() => {
-                // Triple click detection for admin access
-                let clickCount = 0;
-                const timer = setTimeout(() => {
-                  clickCount = 0;
-                }, 500);
-                
-                clickCount++;
-                if (clickCount === 3) {
-                  clearTimeout(timer);
-                  onNavigate('admin');
-                }
-              }}
-              className="p-2 text-transparent hover:text-gray-400 transition-colors duration-300 hover:bg-gray-50 rounded-lg opacity-0 hover:opacity-100"
-              title="Admin Access (Triple Click)"
-            >
-              <Shield size={20} />
-            </button>
 
             {/* CTA Button */}
             <LuxuryButton

@@ -40,10 +40,6 @@
       "destination": "/index.html"
     },
     {
-      "source": "/admin",
-      "destination": "/index.html"
-    },
-    {
       "source": "/privacy",
       "destination": "/index.html"
     },
@@ -69,6 +65,18 @@
     }
   ],
   "redirects": [
+    {
+      "source": "/admin",
+      "has": [{ "type": "host", "value": "www.traverion.com" }],
+      "destination": "https://admin.traverion.com/login",
+      "permanent": true
+    },
+    {
+      "source": "/admin",
+      "has": [{ "type": "host", "value": "traverion.com" }],
+      "destination": "https://admin.traverion.com/login",
+      "permanent": true
+    },
     {
       "source": "/thailand-vietnam-14-day",
       "destination": "/14-vietnam-thailand",

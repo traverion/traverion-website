@@ -80,7 +80,6 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
       'account',
       'wishlist',
       'contact',
-      'admin',
     ]);
     return allowed.has(next) ? next : 'cart';
   }, [next]);

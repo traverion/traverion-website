@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Eye, EyeOff, Lock, User, Key } from 'lucide-react';
 import LuxuryButton from '../ui/LuxuryButton';
 import LuxuryCard from '../ui/LuxuryCard';
@@ -7,17 +7,28 @@ import { BRAND_LOGO_SRC } from '../../lib/brandAssets';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { canAccessTraverionAdmin } from '../../lib/adminAuth';
+import { isTraverionAdminHost, publicMarketingSiteUrl } from '../../lib/adminHost';
+
+type Props = {
+  /** After successful staff sign-in (e.g. navigate to /admin on staff host). */
+  onSignedIn?: () => void;
+};
 
 /**
- * Staff-only gate on /admin: same Supabase user as the rest of the site, but no public sign-up here.
- * Only accounts with role=admin + email allowlist reach the dashboard (see AdminGate).
+ * Staff sign-in (no public sign-up). Used on staff host at /login or embedded in AdminGate on /admin (dev).
  */
-export default function AdminStaffLogin() {
-  const { signIn } = useAuth();
+export default function AdminStaffLogin({ onSignedIn }: Props) {
+  const { signIn, user } = useAuth();
   const [isVisible, setIsVisible] = useState(false);
   const [credentials, setCredentials] = useState({ email: '', password: '' });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!user || !canAccessTraverionAdmin(user)) return;
+    if (!isTraverionAdminHost()) return;
+    window.location.replace('/admin');
+  }, [user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,6 +61,10 @@ export default function AdminStaffLogin() {
     }
 
     setIsLoading(false);
+    if (onSignedIn) {
+      onSignedIn();
+      return;
+    }
     window.location.reload();
   };
 
@@ -125,7 +140,7 @@ export default function AdminStaffLogin() {
         </form>
 
         <p className="mt-8 text-center text-xs text-slate-400">
-          <a href="/" className="underline hover:text-slate-200">
+          <a href={publicMarketingSiteUrl()} className="underline hover:text-slate-200">
             Back to public site
           </a>
         </p>

@@ -5,6 +5,7 @@ import { isSignUpEmailAlreadyRegistered } from '../lib/supabaseAuthHelpers';
 import { publicSiteBaseUrl } from '../lib/publicSiteUrl';
 import { ensureConsumerProfile, normalizeConsumerPhone } from '../data/supabase-consumer-profile';
 import { isPhoneAvailableForSignup } from '../data/supabase-phone-signup';
+import { isTraverionAdminUser } from '../lib/adminAuth';
 
 type AuthContextValue = {
   user: User | null;
@@ -55,7 +56,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await supabase.auth.signOut();
       return { error: 'Please confirm your email before signing in.' };
     }
-    if (data.user) {
+    if (data.user && !isTraverionAdminUser(data.user)) {
       const userMeta = data.user.user_metadata as { phone?: string; customer_phone?: string } | undefined;
       const ensured = await ensureConsumerProfile(data.user.id, {
         display_name: normalizedEmail.split('@')[0] ?? null,

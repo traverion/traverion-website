@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback } from 'react';
 import UnifiedHeader from './components/UnifiedHeader';
 import StickyBookingButton from './components/StickyBookingButton';
 import Footer from './components/Footer';
@@ -24,6 +24,7 @@ import Contact from './pages/Contact';
 import AuthPage from './pages/AuthPage';
 import DestinationPage from './pages/DestinationPage';
 import AdminGate from './components/AdminGate';
+import AdminStaffLogin from './components/admin/AdminStaffLogin';
 import Privacy from './pages/Privacy';
 import Terms from './pages/Terms';
 import Cookies from './pages/Cookies';
@@ -38,12 +39,26 @@ import { AuthProvider } from './contexts/AuthContext';
 import AuthModal from './components/AuthModal';
 import { setPageMetaWithOg, setCanonicalUrl, setOrganizationJsonLd, setRobotsNoIndex } from './lib/seo';
 import { parsePathname, shouldClearSelectedTour } from './lib/appRouting';
+import {
+  isTraverionAdminHost,
+  isPublicTraverionMarketingHost,
+  redirectIfInAppAdminOnPublicMarketingSite,
+} from './lib/adminHost';
 import { getListingByIdAsync } from './data/listings';
 import { TourPackage as TourPackageType } from './types/tour';
 
+function readInitialRoute(): { page: string; destinationSlug: string | null } {
+  if (typeof window === 'undefined') return { page: 'home', destinationSlug: null };
+  if (isTraverionAdminHost()) {
+    return parsePathname(window.location.pathname, { adminHost: true });
+  }
+  return parsePathname(window.location.pathname);
+}
+
 function App() {
-  const [currentPage, setCurrentPage] = useState('home');
-  const [destinationSlug, setDestinationSlug] = useState<string | null>(null);
+  const initialRoute = readInitialRoute();
+  const [currentPage, setCurrentPage] = useState(initialRoute.page);
+  const [destinationSlug, setDestinationSlug] = useState<string | null>(initialRoute.destinationSlug);
   const [selectedTour, setSelectedTour] = useState<TourPackageType | null>(null);
   // Supplier portal: /supplier/* and dedicated login URL (must mount SupplierLayout for both)
   const supplierPath =
@@ -55,11 +70,12 @@ function App() {
     if (isSupplierArea) return;
     const params = new URLSearchParams(window.location.search);
     const tourParam = params.get('tour');
-    const { page, destinationSlug } = parsePathname(window.location.pathname);
+    const adminHost = isTraverionAdminHost();
+    const { page, destinationSlug } = parsePathname(window.location.pathname, { adminHost });
     setCurrentPage(page);
     setDestinationSlug(destinationSlug);
     const keepTourForDeepLink =
-      page === 'packages' && tourParam && /^[0-9a-f-]{36}$/i.test(tourParam);
+      !adminHost && page === 'packages' && tourParam && /^[0-9a-f-]{36}$/i.test(tourParam);
     if (shouldClearSelectedTour(page) && !keepTourForDeepLink) {
       setSelectedTour(null);
     }
@@ -73,6 +89,7 @@ function App() {
   /** Deep link: /packages?tour=<listing-uuid> opens TourDetails (shareable supplier “View on site” links). */
   useEffect(() => {
     if (isSupplierArea) return;
+    if (isTraverionAdminHost()) return;
     let cancelled = false;
     const run = () => {
       const path = window.location.pathname.replace(/\/$/, '') || '/';
@@ -95,6 +112,7 @@ function App() {
   /** Supabase puts confirm/recovery failures in the URL hash; redirect root loads would hide them. */
   useEffect(() => {
     if (isSupplierArea) return;
+    if (isTraverionAdminHost()) return;
     const raw = window.location.hash?.replace(/^#/, '') ?? '';
     if (!raw.includes('error=')) return;
     const p = new URLSearchParams(raw);
@@ -122,9 +140,22 @@ function App() {
     return () => window.removeEventListener('popstate', onPopState);
   }, [syncRouteFromUrl, isSupplierArea]);
 
+  useLayoutEffect(() => {
+    if (isSupplierArea) return;
+    redirectIfInAppAdminOnPublicMarketingSite(currentPage);
+  }, [currentPage, isSupplierArea]);
+
   // Update URL when page changes
   useEffect(() => {
     if (isSupplierArea) return;
+    if (isTraverionAdminHost()) {
+      if (currentPage === 'admin-login' && window.location.pathname !== '/login') {
+        window.history.replaceState({}, '', '/login');
+      } else if (currentPage === 'admin-app' && window.location.pathname !== '/admin') {
+        window.history.replaceState({}, '', '/admin');
+      }
+      return;
+    }
     if (currentPage === 'tour-details' && selectedTour) {
       const qs = new URLSearchParams({ tour: selectedTour.id }).toString();
       const next = `/packages?${qs}`;
@@ -207,17 +238,29 @@ function App() {
         title: 'Staff sign-in',
         description: 'Traverion staff only. Sign in with an authorized account.',
       },
+      'admin-login': {
+        title: 'Staff sign-in',
+        description: 'Traverion staff sign-in.',
+      },
+      'admin-app': {
+        title: 'Staff dashboard',
+        description: 'Traverion staff dashboard.',
+      },
     };
     const meta = metaByPage[currentPage];
     if (meta) setPageMetaWithOg(meta.title, meta.description);
     else setPageMetaWithOg('Traverion', 'Tours & activities worldwide.');
 
-    setRobotsNoIndex(currentPage === 'admin');
+    setRobotsNoIndex(
+      currentPage === 'admin' || currentPage === 'admin-login' || currentPage === 'admin-app'
+    );
 
     const pathMap: Record<string, string> = {
       home: '/', packages: '/packages', auth: '/auth', cart: '/cart', account: '/account', wishlist: '/wishlist', bookings: '/bookings',
       blog: '/blog', contact: '/contact', privacy: '/privacy', terms: '/terms', cookies: '/cookies',
       about: '/about', sitemap: '/sitemap', admin: '/admin',
+      'admin-login': '/login',
+      'admin-app': '/admin',
       'legal-notice': '/legal-notice', affiliate: '/affiliate', 'content-creator': '/content-creator',
     };
     const path = currentPage === 'destination' ? `/destinations/${destinationSlug || ''}` : (pathMap[currentPage] ?? '/');
@@ -332,7 +375,25 @@ function App() {
       case 'sitemap':
         return <Sitemap onNavigate={setCurrentPage} />;
       case 'admin':
-        return <AdminGate />;
+        if (typeof window !== 'undefined' && isPublicTraverionMarketingHost()) {
+          return (
+            <div className="min-h-screen flex flex-col items-center justify-center gap-2 bg-slate-900 text-gray-300">
+              <p className="text-sm">Opening staff sign-in…</p>
+            </div>
+          );
+        }
+        return <AdminGate mode="gate" />;
+      case 'admin-login':
+        return (
+          <AdminStaffLogin
+            onSignedIn={() => {
+              setCurrentPage('admin-app');
+              window.history.replaceState({}, '', '/admin');
+            }}
+          />
+        );
+      case 'admin-app':
+        return <AdminGate mode="dashboard-only" />;
       default:
         return <SimpleHome onTourSelect={handleTourSelect} onNavigate={setCurrentPage} />;
     }
@@ -348,12 +409,16 @@ function App() {
     );
   }
 
-  const adminRoute = currentPage === 'admin';
+  const staffShell =
+    currentPage === 'admin' ||
+    currentPage === 'admin-login' ||
+    currentPage === 'admin-app' ||
+    isTraverionAdminHost();
 
   return (
     <TranslationProvider>
       <AuthProvider>
-        {adminRoute ? (
+        {staffShell ? (
           <>
             {renderPage()}
             <AuthModal />

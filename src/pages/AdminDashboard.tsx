@@ -6,6 +6,7 @@ import AdminSupplierVerificationPanel from '../components/admin/AdminSupplierVer
 import { useAuth } from '../contexts/AuthContext';
 import { invokeAdminEdgeFunction, type AdminStatsPayload } from '../lib/adminEdgeFunction';
 import { isSupabaseConfigured } from '../lib/supabase';
+import { publicMarketingSiteUrl } from '../lib/adminHost';
 
 export default function AdminDashboard() {
   const { user, signOut } = useAuth();
@@ -51,7 +52,7 @@ export default function AdminDashboard() {
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <a
-                href="/"
+                href={publicMarketingSiteUrl()}
                 className="text-sm text-gray-600 hover:text-gray-900 underline-offset-2 hover:underline px-2 py-1.5"
               >
                 Public site

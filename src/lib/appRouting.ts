@@ -16,7 +16,6 @@ const PATH_TO_PAGE: Record<string, string> = {
   '/bookings': 'bookings',
   '/blog': 'blog',
   '/contact': 'contact',
-  '/admin': 'admin',
   '/privacy': 'privacy',
   '/terms': 'terms',
   '/cookies': 'cookies',
@@ -34,9 +33,30 @@ export interface ParsedRoute {
 
 const TOUR_FLOW_PAGES = new Set(['tour-details', 'booking', 'tour-package']);
 
-export function parsePathname(pathname: string): ParsedRoute {
+export type ParsePathnameOptions = {
+  /** When true, only /login and /admin are staff routes; everything else maps to staff login. */
+  adminHost?: boolean;
+};
+
+export function parsePathname(pathname: string, options?: ParsePathnameOptions): ParsedRoute {
   const normalized =
     pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
+
+  if (options?.adminHost) {
+    if (normalized === '/login') return { page: 'admin-login', destinationSlug: null };
+    if (normalized === '/admin') return { page: 'admin-app', destinationSlug: null };
+    if (normalized === '/' || normalized === '') return { page: 'admin-login', destinationSlug: null };
+    return { page: 'admin-login', destinationSlug: null };
+  }
+
+  /** Staff UI lives on admin.traverion.com; /admin on the public app is not a route (→ home + URL cleanup). */
+  if (normalized === '/admin') {
+    const h = typeof window !== 'undefined' ? window.location.hostname : '';
+    if (h === 'localhost' || h === '127.0.0.1') {
+      return { page: 'admin', destinationSlug: null };
+    }
+    return { page: 'home', destinationSlug: null };
+  }
 
   const mapped = PATH_TO_PAGE[normalized];
   if (mapped) {
