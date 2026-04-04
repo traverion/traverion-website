@@ -178,6 +178,8 @@ export default function SupplierDashboard({
   const healthChecks = useMemo(() => {
     const hasListings = (listingsCount ?? 0) > 0;
     const hasPayoutMethod = isSupplierPayoutConfigured(profile);
+    const payoutVerifiedByTraverion =
+      (profile?.payout_verification_status ?? '').trim().toLowerCase() === 'verified';
     const hasCompanyProfile = isSupplierBusinessProfileComplete(profile);
     const verificationStatus = (profile?.verification_status ?? '').trim().toLowerCase();
     const businessVerifiedByTraverion = verificationStatus === 'verified';
@@ -198,10 +200,13 @@ export default function SupplierDashboard({
       },
       {
         id: 'payout',
-        title: 'Payout method configured',
-        done: hasPayoutMethod,
-        descriptionDone: 'Payout destination is configured.',
-        descriptionTodo: 'Choose bank (IBAN + BIC) or PayPal and save your payout details in Settings.',
+        title: 'Payout verified by Traverion',
+        done: hasPayoutMethod && payoutVerifiedByTraverion,
+        descriptionDone: 'IBAN/BIC approved for payouts.',
+        descriptionTodo:
+          hasPayoutMethod && !payoutVerifiedByTraverion
+            ? 'Your bank details are saved and under review (or were rejected—update and save again in Settings).'
+            : 'Enter IBAN and BIC under Payment & payouts in Settings and save to submit for verification.',
         cta: 'Open settings',
         onClick: onNavigateToSettings,
       },
@@ -209,7 +214,7 @@ export default function SupplierDashboard({
         id: 'company',
         title: 'Business verified by Traverion',
         done: businessVerifiedByTraverion,
-        descriptionDone: 'Your business has been approved; you can publish when payout is saved.',
+        descriptionDone: 'Your business information is approved (separate from payout verification).',
         descriptionTodo:
           verificationStatus === 'rejected'
             ? 'Verification was not approved—update your business profile and documents in Settings.'

@@ -89,6 +89,9 @@ alter table public.supplier_profiles
 comment on column public.supplier_profiles.verification_submitted_at is
   'Set when supplier saves company details for verification; with pending/verified status, locks sensitive fields.';
 
+-- Re-runs: trigger must be off before touching locked rows (e.g. verification_submitted_at backfill).
+drop trigger if exists supplier_profiles_enforce_verification_lock on public.supplier_profiles;
+
 -- Clear mistaken timestamps on drafts (pending default, never chose business type)
 update public.supplier_profiles
 set verification_submitted_at = null
@@ -112,6 +115,11 @@ declare
 begin
   jwt_role := coalesce((select auth.jwt()) ->> 'role', '');
   if jwt_role = 'service_role' then
+    return new;
+  end if;
+
+  -- SQL Editor / maintenance: no service_role JWT; allow postgres (dashboard) only.
+  if current_user in ('postgres', 'supabase_admin') then
     return new;
   end if;
 
@@ -157,6 +165,7 @@ begin
 end;
 $$;
 
+-- Idempotent when applying only this block after edits.
 drop trigger if exists supplier_profiles_enforce_verification_lock on public.supplier_profiles;
 
 create trigger supplier_profiles_enforce_verification_lock
@@ -165,4 +174,4 @@ create trigger supplier_profiles_enforce_verification_lock
   execute function public.supplier_profiles_enforce_verification_lock();
 
 comment on function public.supplier_profiles_enforce_verification_lock() is
-  'Rejects updates to legal/payout columns when verified, or pending after submit with business_type set; service_role bypasses.';
+  'Rejects updates to legal/payout columns when verified, or pending after submit with business_type set; service_role JWT or postgres/supabase_admin (SQL Editor) bypasses.';

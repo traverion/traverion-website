@@ -41,9 +41,11 @@ export default function SupplierListings() {
   const [canPostNewListing, setCanPostNewListing] = useState(false);
   const [profileGateMessage, setProfileGateMessage] = useState<string | null>(null);
   const [missingBusinessDetails, setMissingBusinessDetails] = useState(false);
-  /** Verified and business complete, but no bank/PayPal payout saved yet. */
+  /** Business verified and complete, but payout missing, rejected, or not yet verified by Traverion. */
   const [missingPayoutForPublish, setMissingPayoutForPublish] = useState(false);
   const [verificationStatus, setVerificationStatus] = useState<string | null>(null);
+  const [payoutVerificationStatus, setPayoutVerificationStatus] = useState<string | null>(null);
+  const [payoutOnFile, setPayoutOnFile] = useState(false);
   const [publishGate, setPublishGate] = useState<{ listingId: string; title: string; blockers: string[] } | null>(null);
 
   const syncListingsUrlToState = useCallback(() => {
@@ -164,32 +166,48 @@ export default function SupplierListings() {
         setMissingBusinessDetails(false);
         setMissingPayoutForPublish(false);
         setVerificationStatus(null);
+        setPayoutVerificationStatus(null);
+        setPayoutOnFile(false);
         return;
       }
       const profile = await fetchSupplierProfile(user.id);
       const businessComplete = isSupplierBusinessProfileComplete(profile);
       const payoutConfigured = isSupplierPayoutConfigured(profile);
       const v = profile?.verification_status ?? null;
+      const pv = profile?.payout_verification_status ?? null;
       setVerificationStatus(v);
+      setPayoutVerificationStatus(pv);
       setMissingBusinessDetails(!businessComplete);
-      const verified = v === 'verified';
-      setMissingPayoutForPublish(Boolean(businessComplete && verified && !payoutConfigured));
+      const businessVerified = v === 'verified';
+      const payoutVerified = (pv ?? '').trim().toLowerCase() === 'verified';
+      setPayoutOnFile(payoutConfigured);
+      setMissingPayoutForPublish(
+        Boolean(businessComplete && businessVerified && (!payoutConfigured || !payoutVerified))
+      );
       setCanPostNewListing(isSupplierReadyToPublishTours(profile));
       if (!businessComplete) {
         setProfileGateMessage(
-          'Add your registered name, address, business registration proof, and payout details in Settings. Companies need an official registration number; individual traders need their business or tax identifier on file (as on their registration). After Traverion verifies your business and your payout method is saved, you can add and publish tours.'
+          'Complete your business profile in Settings: registered name, address, registration proof, and tax or company identifiers as required. Payout bank details (IBAN and BIC) are verified separately; you can add them anytime. Publishing requires Traverion to approve both business and payout.'
         );
       } else if (v === 'rejected') {
         setProfileGateMessage(
-          'Business verification was not approved. Update your business details in Settings and contact support if you need help before adding tours.'
+          'Business verification was not approved. Update your business details in Settings and save again. Your payout section is separate—fix bank details there if needed.'
         );
-      } else if (!verified) {
+      } else if (!businessVerified) {
         setProfileGateMessage(
-          'Your documents and details are being reviewed. Once Traverion marks your account as verified and your payout details are saved, you can add and publish tours.'
+          'Your business details are under review. You can still add or update IBAN and BIC under Payment & payouts in Settings. Publishing requires both business verification and payout verification.'
         );
       } else if (!payoutConfigured) {
         setProfileGateMessage(
-          'Save payout details in Settings before publishing: for bank transfer enter IBAN and BIC, or choose PayPal and enter your PayPal email. A profile photo is optional but helps your brand.'
+          'Business is verified. Add IBAN and BIC under Payment & payouts in Settings and save to submit your bank details for verification.'
+        );
+      } else if ((pv ?? '').trim().toLowerCase() === 'rejected') {
+        setProfileGateMessage(
+          'Payout verification was not approved. Update IBAN and BIC in Settings and save again to resubmit.'
+        );
+      } else if (!payoutVerified) {
+        setProfileGateMessage(
+          'Your bank details are under review. After Traverion verifies your payout, you can publish (business must already be verified).'
         );
       } else {
         setProfileGateMessage(null);
@@ -215,7 +233,7 @@ export default function SupplierListings() {
     }
     if (isSupabase && !editingId && !canPostNewListing) {
       setError(
-        'Complete business verification, save payout details (IBAN and BIC for bank, or PayPal), then try again.'
+        'Traverion must verify both your business profile and your payout (IBAN + BIC). Finish both in Settings, then try again.'
       );
       setShowForm(false);
       return;
@@ -258,7 +276,7 @@ export default function SupplierListings() {
     }
     if (newStatus === 'published' && !canPostNewListing) {
       setError(
-        'Complete verification (if not yet) and save payout details (IBAN + BIC) or PayPal before publishing.'
+        'Publishing needs business verification and payout verification (IBAN + BIC) approved by Traverion. Check Settings.'
       );
       return;
     }
@@ -300,7 +318,7 @@ export default function SupplierListings() {
             !canEditListings
               ? 'Your role can view listings but cannot add new ones.'
               : !canPostNewListing
-                ? 'Get verified, complete your business profile, and save payout details (IBAN or PayPal) before adding a tour.'
+                ? 'Traverion must approve your business and your payout (IBAN + BIC) before you can add a tour.'
                 : undefined
           }
           className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark transition-colors disabled:opacity-50"
@@ -325,8 +343,14 @@ export default function SupplierListings() {
             {missingBusinessDetails && (
               <p className="font-semibold text-amber-950">Missing information</p>
             )}
-            {missingPayoutForPublish && (
-              <p className="font-semibold text-amber-950">Payout details required</p>
+            {missingPayoutForPublish && !missingBusinessDetails && (
+              <p className="font-semibold text-amber-950">
+                {!payoutOnFile
+                  ? 'Payout bank details required'
+                  : (payoutVerificationStatus ?? '').trim().toLowerCase() === 'rejected'
+                    ? 'Payout verification needs an update'
+                    : 'Payout verification in progress'}
+              </p>
             )}
             <p
               className={
@@ -337,7 +361,16 @@ export default function SupplierListings() {
             </p>
             {!missingBusinessDetails && verificationStatus && (
               <p className="mt-1 text-xs text-amber-800/90">
-                Current status: <span className="font-semibold">{verificationStatusLabel(verificationStatus)}</span>
+                Business: <span className="font-semibold">{verificationStatusLabel(verificationStatus)}</span>
+                {payoutOnFile ? (
+                  <>
+                    {' · '}
+                    Payout:{' '}
+                    <span className="font-semibold">
+                      {verificationStatusLabel((payoutVerificationStatus ?? 'pending').trim() || 'pending')}
+                    </span>
+                  </>
+                ) : null}
               </p>
             )}
             <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -356,7 +389,7 @@ export default function SupplierListings() {
                   onClick={() => navigateSupplierUrl('/supplier/business-profile#supplier-business-payout')}
                   className="text-xs px-2.5 py-1 rounded-full border border-amber-300 bg-white text-amber-800 hover:bg-amber-100"
                 >
-                  Add payout details
+                  {payoutOnFile ? 'Payment & payouts' : 'Add IBAN & BIC'}
                 </button>
               )}
               {!missingBusinessDetails && verificationStatus !== 'verified' && (
@@ -506,7 +539,7 @@ export default function SupplierListings() {
               !canEditListings
                 ? 'Your role cannot add listings.'
                 : !canPostNewListing
-                  ? 'Verification, complete profile, and saved payout (IBAN or PayPal) required.'
+                  ? 'Business verification and payout verification (IBAN + BIC) required.'
                   : undefined
             }
             className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark transition-colors disabled:opacity-50"
@@ -587,7 +620,7 @@ export default function SupplierListings() {
                               disabled={listing.status !== 'published' && !canPostNewListing}
                               title={
                                 listing.status !== 'published' && !canPostNewListing
-                                  ? 'Verification and payout details required to publish'
+                                  ? 'Business and payout verification required to publish'
                                   : undefined
                               }
                               className="mt-1 block sm:ml-2 sm:mt-0 sm:inline text-xs text-finland hover:underline disabled:opacity-40 disabled:no-underline disabled:cursor-not-allowed touch-manipulation min-h-[44px] sm:min-h-0 py-1"

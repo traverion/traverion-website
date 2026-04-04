@@ -95,7 +95,9 @@ function isSupplierPortalPath(pathname: string): boolean {
 
 type SetupStripProps = {
   listingCount: number | null;
-  hasPayout: boolean;
+  hasPayoutConfigured: boolean;
+  payoutVerificationStatus: string;
+  payoutVerificationSubmittedAt: string;
   verificationStatus: string;
   profileComplete: boolean;
   onListings: () => void;
@@ -105,7 +107,9 @@ type SetupStripProps = {
 
 function SupplierSetupProgressStrip({
   listingCount,
-  hasPayout,
+  hasPayoutConfigured,
+  payoutVerificationStatus,
+  payoutVerificationSubmittedAt,
   verificationStatus,
   profileComplete,
   onListings,
@@ -126,8 +130,25 @@ function SupplierSetupProgressStrip({
         ? 'Review in progress.'
         : 'Submit profile for review.';
 
-  const doneCount = [verified, hasPayout, hasListing].filter(Boolean).length;
-  const steps = [verified, hasPayout, hasListing] as const;
+  const pv = payoutVerificationStatus.trim().toLowerCase();
+  const payoutSubmitted = (payoutVerificationSubmittedAt ?? '').trim() !== '';
+  const payoutVerified = pv === 'verified';
+  const payoutRejected = pv === 'rejected';
+  const payoutInReview =
+    hasPayoutConfigured && !payoutVerified && !payoutRejected && pv === 'pending' && payoutSubmitted;
+
+  const payoutDetail = payoutVerified
+    ? 'IBAN/BIC approved by Traverion.'
+    : payoutRejected
+      ? 'Update bank details and save again.'
+      : payoutInReview
+        ? 'Review in progress.'
+        : hasPayoutConfigured
+          ? 'Save payout details in Settings to submit for verification.'
+          : 'Add IBAN and BIC in Settings.';
+
+  const doneCount = [verified, payoutVerified, hasListing].filter(Boolean).length;
+  const steps = [verified, payoutVerified, hasListing] as const;
 
   const chip = (
     done: boolean,
@@ -176,7 +197,7 @@ function SupplierSetupProgressStrip({
           <div className="min-w-0">
             <p className="text-sm font-semibold tracking-tight text-slate-900">Supplier setup</p>
             <p className="mt-0.5 hidden text-[11px] leading-snug text-slate-500 sm:block">
-              Flow: verify → bank (IBAN) → publish. Green only after Traverion approves.
+              Business and payout are verified separately. Publish only after Traverion approves both.
             </p>
           </div>
           <span className="inline-flex shrink-0 items-center rounded-full bg-finland/12 px-2 py-0.5 text-[11px] font-bold tabular-nums text-finland ring-1 ring-finland/20">
@@ -215,16 +236,26 @@ function SupplierSetupProgressStrip({
           </li>
           <li className="min-w-0">
             {chip(
-              hasPayout,
-              'emerald',
+              payoutVerified,
+              payoutVerified ? 'emerald' : payoutInReview ? 'sky' : payoutRejected ? 'red' : 'amber',
               onPayout,
-              hasPayout ? (
+              payoutVerified ? (
                 <CheckCircle2 className="text-emerald-600" aria-hidden />
+              ) : payoutInReview ? (
+                <Clock className="text-sky-600" aria-hidden />
+              ) : payoutRejected ? (
+                <AlertTriangle className="text-red-600" aria-hidden />
               ) : (
                 <Circle className="text-slate-400" aria-hidden />
               ),
-              hasPayout ? 'Bank details saved' : 'Payment details',
-              hasPayout ? 'IBAN + BIC on file.' : 'Add IBAN and BIC before publish.'
+              payoutVerified
+                ? 'Payout verified'
+                : payoutRejected
+                  ? 'Payout needs update'
+                  : payoutInReview
+                    ? 'Payout in review'
+                    : 'Payout details',
+              payoutDetail
             )}
           </li>
           <li className="min-w-0">
@@ -251,10 +282,12 @@ export default function SupplierLayout() {
   const { user, loading, signOut, isSupabase } = useSupplierAuth();
   const [section, setSection] = useState<SupplierSection>(() => getSectionFromPath(window.location.pathname) ?? 'dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [payoutMethod, setPayoutMethod] = useState<'bank' | 'paypal' | 'none' | ''>('');
   const [payoutIban, setPayoutIban] = useState('');
   const [payoutBic, setPayoutBic] = useState('');
-  const [payoutPaypalEmail, setPayoutPaypalEmail] = useState('');
+  const [payoutVerificationStatus, setPayoutVerificationStatus] = useState('');
+  const [payoutVerificationSubmittedAt, setPayoutVerificationSubmittedAt] = useState('');
+  const [businessVerificationFeedback, setBusinessVerificationFeedback] = useState('');
+  const [payoutVerificationFeedback, setPayoutVerificationFeedback] = useState('');
   const [payoutSaving, setPayoutSaving] = useState(false);
   const [payoutMessage, setPayoutMessage] = useState<'success' | 'error' | null>(null);
   const [paymentCycle, setPaymentCycle] = useState<'monthly' | 'biweekly' | ''>('');
@@ -283,8 +316,6 @@ export default function SupplierLayout() {
   const [onboardingListingCount, setOnboardingListingCount] = useState<number | null>(null);
   const [onboardingHasPayout, setOnboardingHasPayout] = useState(false);
   const [onboardingHasCompany, setOnboardingHasCompany] = useState(false);
-  /** Server verification_status for onboarding strip (independent of form state on other pages). */
-  const [onboardingVerificationStatus, setOnboardingVerificationStatus] = useState('');
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [mobileAccountOpen, setMobileAccountOpen] = useState(false);
   const [settingsFocus, setSettingsFocus] = useState<AccountShortcutTarget | null>(null);
@@ -313,10 +344,14 @@ export default function SupplierLayout() {
     fetchSupplierProfile(user.id).then((p) => {
       if (p) {
         setProfileDisplayName(p.display_name ?? '');
-        setPayoutMethod((p.payout_method as 'bank' | 'paypal' | 'none') ?? '');
         setPayoutIban(p.payout_iban ?? '');
         setPayoutBic(p.payout_bic ?? '');
-        setPayoutPaypalEmail(p.payout_paypal_email ?? '');
+        setPayoutVerificationStatus((p.payout_verification_status ?? '').trim());
+        setPayoutVerificationSubmittedAt(
+          p.payout_verification_submitted_at ? String(p.payout_verification_submitted_at) : ''
+        );
+        setBusinessVerificationFeedback((p.business_verification_feedback ?? '').trim());
+        setPayoutVerificationFeedback((p.payout_verification_feedback ?? '').trim());
         setPaymentCycle(p.payment_cycle ?? '');
         setPayoutThreshold(String(p.payout_threshold_min ?? ''));
         const bt = (p.business_type ?? '') as '' | 'company' | 'individual';
@@ -365,7 +400,12 @@ export default function SupplierLayout() {
       setOnboardingListingCount(0);
       setOnboardingHasPayout(false);
       setOnboardingHasCompany(false);
-      setOnboardingVerificationStatus('');
+      setVerificationStatus('');
+      setVerificationSubmittedAt('');
+      setPayoutVerificationStatus('');
+      setPayoutVerificationSubmittedAt('');
+      setBusinessVerificationFeedback('');
+      setPayoutVerificationFeedback('');
       return;
     }
     const [profile, listings] = await Promise.all([
@@ -375,7 +415,16 @@ export default function SupplierLayout() {
     setOnboardingListingCount(listings.length);
     setOnboardingHasPayout(isSupplierPayoutConfigured(profile));
     setOnboardingHasCompany(isSupplierBusinessProfileComplete(profile));
-    setOnboardingVerificationStatus((profile?.verification_status ?? '').trim());
+    setVerificationStatus((profile?.verification_status ?? '').trim());
+    setVerificationSubmittedAt(
+      profile?.verification_submitted_at ? String(profile.verification_submitted_at) : ''
+    );
+    setPayoutVerificationStatus((profile?.payout_verification_status ?? '').trim());
+    setPayoutVerificationSubmittedAt(
+      profile?.payout_verification_submitted_at ? String(profile.payout_verification_submitted_at) : ''
+    );
+    setBusinessVerificationFeedback((profile?.business_verification_feedback ?? '').trim());
+    setPayoutVerificationFeedback((profile?.payout_verification_feedback ?? '').trim());
   }, [user?.id, isSupabase]);
 
   useEffect(() => {
@@ -512,31 +561,42 @@ export default function SupplierLayout() {
   const onLoginPath = isSupplierLoginPath(pathname);
   const onPortalPath = isSupplierPortalPath(pathname);
   const onboardingHasListing = onboardingListingCount !== null && onboardingListingCount > 0;
-  const onboardingBusinessVerified = onboardingVerificationStatus.trim().toLowerCase() === 'verified';
-  const onboardingDoneCount = [onboardingHasListing, onboardingHasPayout, onboardingBusinessVerified].filter(Boolean)
-    .length;
+  const onboardingBusinessVerified = verificationStatus.trim().toLowerCase() === 'verified';
+  const onboardingPayoutVerified = payoutVerificationStatus.trim().toLowerCase() === 'verified';
+  const onboardingDoneCount = [onboardingHasListing, onboardingPayoutVerified, onboardingBusinessVerified].filter(
+    Boolean
+  ).length;
   const onboardingComplete = onboardingDoneCount === 3;
+  const payoutSubmittedForReview = (payoutVerificationSubmittedAt ?? '').trim() !== '';
+  const payoutV = payoutVerificationStatus.trim().toLowerCase();
   const onboardingNextLabel =
     !onboardingBusinessVerified
-      ? onboardingVerificationStatus.trim().toLowerCase() === 'rejected'
+      ? verificationStatus.trim().toLowerCase() === 'rejected'
         ? 'Update profile after rejection'
-        : onboardingHasCompany &&
-            ['pending', ''].includes(onboardingVerificationStatus.trim().toLowerCase())
-          ? 'Verification in progress'
+        : onboardingHasCompany && ['pending', ''].includes(verificationStatus.trim().toLowerCase())
+          ? 'Business verification in progress'
           : 'Complete business profile'
       : !onboardingHasPayout
         ? 'Add bank details (IBAN + BIC)'
-        : !onboardingHasListing
-          ? 'Publish your first listing'
-          : 'Open business profile';
+        : !onboardingPayoutVerified
+          ? payoutV === 'rejected'
+            ? 'Update payout details after rejection'
+            : payoutV === 'pending' && payoutSubmittedForReview
+              ? 'Payout verification in progress'
+              : 'Save payout details for verification'
+          : !onboardingHasListing
+            ? 'Publish your first listing'
+            : 'Open business profile';
   const onboardingNextAction =
     !onboardingBusinessVerified
       ? () => openSettingsFocus('company')
       : !onboardingHasPayout
         ? () => openSettingsFocus('payout')
-        : !onboardingHasListing
-          ? () => handleNavigate('listings')
-          : () => handleNavigate('business-profile');
+        : !onboardingPayoutVerified
+          ? () => openSettingsFocus('payout')
+          : !onboardingHasListing
+            ? () => handleNavigate('listings')
+            : () => handleNavigate('business-profile');
 
   if (loading) {
     return (
@@ -751,8 +811,10 @@ export default function SupplierLayout() {
           {isSupabase && user && !onboardingComplete && (
             <SupplierSetupProgressStrip
               listingCount={onboardingListingCount}
-              hasPayout={onboardingHasPayout}
-              verificationStatus={onboardingVerificationStatus}
+              hasPayoutConfigured={onboardingHasPayout}
+              payoutVerificationStatus={payoutVerificationStatus}
+              payoutVerificationSubmittedAt={payoutVerificationSubmittedAt}
+              verificationStatus={verificationStatus}
               profileComplete={onboardingHasCompany}
               onListings={() => handleNavigate('listings')}
               onPayout={() => openSettingsFocus('payout')}
@@ -841,14 +903,18 @@ export default function SupplierLayout() {
               handleNavigate={handleNavigate}
               businessProfileTab={businessProfileTab}
               setBusinessProfileTab={setBusinessProfileTab}
-              payoutMethod={payoutMethod}
-              setPayoutMethod={setPayoutMethod}
               payoutIban={payoutIban}
               setPayoutIban={setPayoutIban}
               payoutBic={payoutBic}
               setPayoutBic={setPayoutBic}
-              payoutPaypalEmail={payoutPaypalEmail}
-              setPayoutPaypalEmail={setPayoutPaypalEmail}
+              payoutVerificationStatus={payoutVerificationStatus}
+              payoutVerificationSubmittedAt={payoutVerificationSubmittedAt}
+              setPayoutVerificationStatus={setPayoutVerificationStatus}
+              setPayoutVerificationSubmittedAt={setPayoutVerificationSubmittedAt}
+              businessVerificationFeedback={businessVerificationFeedback}
+              payoutVerificationFeedback={payoutVerificationFeedback}
+              setBusinessVerificationFeedback={setBusinessVerificationFeedback}
+              setPayoutVerificationFeedback={setPayoutVerificationFeedback}
               paymentCycle={paymentCycle}
               setPaymentCycle={setPaymentCycle}
               payoutThreshold={payoutThreshold}
@@ -915,7 +981,6 @@ export default function SupplierLayout() {
               companyRegistrationPath={companyRegistrationPath}
               setCompanyRegistrationPath={setCompanyRegistrationPath}
               setVerificationStatus={setVerificationStatus}
-              businessProfileComplete={onboardingHasCompany}
               onCompanyProfileSaved={() => {
                 setBusinessTypeAtLastFetch(businessType);
                 void refreshSupplierOnboardingSignals();

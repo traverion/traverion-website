@@ -4,17 +4,14 @@ import LuxuryButton from './ui/LuxuryButton';
 import LuxuryCard from './ui/LuxuryCard';
 import LuxuryInput from './ui/LuxuryInput';
 import { BRAND_LOGO_SRC } from '../lib/brandAssets';
+import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
+import { isTraverionAdminUser } from '../lib/adminAuth';
 
-interface AdminAccessProps {
-  onAccessGranted: () => void;
-}
-
-export default function AdminAccess({ onAccessGranted }: AdminAccessProps) {
+export default function AdminAccess() {
+  const { signIn } = useAuth();
   const [isVisible, setIsVisible] = useState(false);
-  const [credentials, setCredentials] = useState({
-    username: '',
-    password: ''
-  });
+  const [credentials, setCredentials] = useState({ email: '', password: '' });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -23,40 +20,51 @@ export default function AdminAccess({ onAccessGranted }: AdminAccessProps) {
     setIsLoading(true);
     setError('');
 
-    // Simple authentication - in production, this would be a real API call
-    if (credentials.username === 'admin' && credentials.password === 'traverion2024') {
-      setTimeout(() => {
-        setIsLoading(false);
-        onAccessGranted();
-      }, 1000);
-    } else {
-      setTimeout(() => {
-        setIsLoading(false);
-        setError('Invalid credentials. Please try again.');
-      }, 1000);
+    if (!supabase) {
+      setIsLoading(false);
+      setError('Supabase is not configured.');
+      return;
     }
+
+    const email = credentials.email.trim().toLowerCase();
+    const password = credentials.password;
+    const result = await signIn(email, password);
+    if (result.error) {
+      setIsLoading(false);
+      setError(result.error);
+      return;
+    }
+
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!isTraverionAdminUser(session?.user ?? null)) {
+      await supabase.auth.signOut();
+      setIsLoading(false);
+      setError(
+        'This account is not authorized for Traverion admin. Ask the project owner to run grant_traverion_admin.sql for your email in Supabase SQL Editor.'
+      );
+      return;
+    }
+
+    setIsLoading(false);
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
       <LuxuryCard variant="glass" className="w-full max-w-md p-8">
         <div className="text-center mb-8">
-          <img
-            src={BRAND_LOGO_SRC}
-            alt=""
-            className="h-16 w-16 object-contain mx-auto mb-4"
-          />
-          <h1 className="text-2xl font-bold text-white mb-2">Admin Access</h1>
-          <p className="text-gray-300">Enter your credentials to access the admin dashboard</p>
+          <img src={BRAND_LOGO_SRC} alt="" className="h-16 w-16 object-contain mx-auto mb-4" />
+          <h1 className="text-2xl font-bold text-white mb-2">Traverion admin</h1>
+          <p className="text-gray-300">Sign in with a staff account that has the admin role in Supabase.</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={(e) => void handleSubmit(e)} className="space-y-6">
           <div>
             <LuxuryInput
-              type="text"
-              placeholder="Username"
-              value={credentials.username}
-              onChange={(e) => setCredentials({ ...credentials, username: e.target.value })}
+              type="email"
+              autoComplete="username"
+              placeholder="Work email"
+              value={credentials.email}
+              onChange={(e) => setCredentials({ ...credentials, email: e.target.value })}
               icon={<User className="w-5 h-5" />}
               required
               className="w-full"
@@ -66,6 +74,7 @@ export default function AdminAccess({ onAccessGranted }: AdminAccessProps) {
           <div className="relative">
             <LuxuryInput
               type={isVisible ? 'text' : 'password'}
+              autoComplete="current-password"
               placeholder="Password"
               value={credentials.password}
               onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
@@ -77,6 +86,7 @@ export default function AdminAccess({ onAccessGranted }: AdminAccessProps) {
               type="button"
               onClick={() => setIsVisible(!isVisible)}
               className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              aria-label={isVisible ? 'Hide password' : 'Show password'}
             >
               {isVisible ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
             </button>
@@ -92,37 +102,32 @@ export default function AdminAccess({ onAccessGranted }: AdminAccessProps) {
             type="submit"
             variant="gradient"
             size="lg"
-            disabled={isLoading || !credentials.username || !credentials.password}
+            disabled={isLoading || !credentials.email || !credentials.password}
             className="w-full"
           >
             {isLoading ? (
               <div className="flex items-center">
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                Authenticating...
+                Signing in…
               </div>
             ) : (
               <div className="flex items-center">
                 <Key className="w-5 h-5 mr-2" />
-                Access Dashboard
+                Continue
               </div>
             )}
           </LuxuryButton>
         </form>
 
-        <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <h3 className="font-medium text-blue-900 mb-2">Demo Credentials</h3>
-          <div className="text-sm text-blue-700 space-y-1">
-            <p><strong>Username:</strong> admin</p>
-            <p><strong>Password:</strong> traverion2024</p>
-          </div>
-          <p className="text-xs text-blue-600 mt-2">
-            In production, these would be secure credentials with proper authentication.
+        <div className="mt-8 p-4 bg-slate-800/80 border border-slate-600 rounded-lg text-left">
+          <h3 className="font-medium text-white mb-2 text-sm">First-time staff setup</h3>
+          <p className="text-xs text-slate-300 leading-relaxed">
+            Create your user in Supabase Authentication (or sign up on the main site), then in the SQL Editor run{' '}
+            <code className="text-sky-300">supabase/manual/grant_traverion_admin.sql</code> with your email. The admin
+            dashboard calls the Edge Function using your session — no separate operations secret in the browser.
           </p>
         </div>
       </LuxuryCard>
     </div>
   );
 }
-
-
-

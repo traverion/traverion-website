@@ -1,18 +1,22 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Building2, FileText, ImagePlus, Shield } from 'lucide-react';
 import type { User } from '@supabase/supabase-js';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
-  getSignedVerificationDocumentUrl,
+  getVerificationDocumentDisplayLabel,
+  openVerificationDocumentPreview,
   removeSupplierBusinessLogoFiles,
   removeSupplierVerificationDocumentFile,
   uploadSupplierBusinessLogo,
   uploadSupplierVerificationDocument,
   patchSupplierProfile,
+  verificationDocumentBasename,
 } from '../../data/supabase-supplier-profile';
 import { formatSupplierBusinessAddressFromParts } from '../../lib/supplierAddress';
+import { getSupplierBusinessProfileMissingReasons } from '../../lib/supplierOnboarding';
 import {
-  isSupplierSensitiveIdentityLocked,
+  isSupplierBusinessIdentityLocked,
+  isSupplierPayoutDetailsLocked,
   SUPPLIER_SENSITIVE_CHANGES_SUPPORT_EMAIL,
 } from '../../lib/supplierVerificationLocks';
 
@@ -45,14 +49,18 @@ type Props = {
   businessProfileTab: BusinessProfileTab;
   setBusinessProfileTab: (t: BusinessProfileTab) => void;
 
-  payoutMethod: 'bank' | 'paypal' | 'none' | '';
-  setPayoutMethod: (v: 'bank' | 'paypal' | 'none' | '') => void;
   payoutIban: string;
   setPayoutIban: (v: string) => void;
   payoutBic: string;
   setPayoutBic: (v: string) => void;
-  payoutPaypalEmail: string;
-  setPayoutPaypalEmail: (v: string) => void;
+  payoutVerificationStatus: string;
+  payoutVerificationSubmittedAt: string;
+  setPayoutVerificationStatus: (v: string) => void;
+  setPayoutVerificationSubmittedAt: (v: string) => void;
+  businessVerificationFeedback: string;
+  payoutVerificationFeedback: string;
+  setBusinessVerificationFeedback: (v: string) => void;
+  setPayoutVerificationFeedback: (v: string) => void;
   paymentCycle: 'monthly' | 'biweekly' | '';
   setPaymentCycle: (v: 'monthly' | 'biweekly' | '') => void;
   payoutThreshold: string;
@@ -126,11 +134,9 @@ type Props = {
   companyRegistrationPath: string;
   setCompanyRegistrationPath: (v: string) => void;
   setVerificationStatus: (v: string) => void;
-  /** True when required company fields + verification docs are saved (same as DB-backed onboarding check). */
-  businessProfileComplete: boolean;
   /** Call after company details save succeeds so parent can refresh onboarding state from server. */
   onCompanyProfileSaved: () => void;
-  /** Call after payout save succeeds with valid bank or PayPal details. */
+  /** Call after payout save succeeds. */
   onPayoutSaved: () => void;
 };
 
@@ -260,17 +266,57 @@ function BusinessProfilePage(p: Props) {
   const [logoUploading, setLogoUploading] = useState(false);
   const [logoError, setLogoError] = useState<string | null>(null);
   const [companyRegUploading, setCompanyRegUploading] = useState(false);
+  const [companyRegDisplayName, setCompanyRegDisplayName] = useState('');
   const [docError, setDocError] = useState<string | null>(null);
   const [companySaveError, setCompanySaveError] = useState<string | null>(null);
   const [payoutSaveError, setPayoutSaveError] = useState<string | null>(null);
 
-  const sensitiveLocked = isSupplierSensitiveIdentityLocked(
+  const businessLocked = isSupplierBusinessIdentityLocked(
     p.verificationStatus,
     p.verificationSubmittedAt,
     p.businessTypeAtLastFetch
   );
-  const identityFieldsDisabled = sensitiveLocked;
-  const payoutDestinationLocked = sensitiveLocked;
+  const payoutLocked = isSupplierPayoutDetailsLocked(
+    p.payoutVerificationStatus,
+    p.payoutVerificationSubmittedAt
+  );
+  const identityFieldsDisabled = businessLocked;
+  const payoutDestinationLocked = payoutLocked;
+
+  const businessProfileMissingReasons = getSupplierBusinessProfileMissingReasons({
+    company_legal_name: p.companyLegalName,
+    address_street: p.addressStreet,
+    address_city: p.addressCity,
+    address_postal_code: p.addressPostalCode,
+    address_country: p.addressCountry,
+    business_type: p.businessType || null,
+    company_registration_number: p.companyRegistrationNumber,
+    tax_id: p.taxId,
+    company_registration_document_path: p.companyRegistrationPath,
+  });
+  const draftBusinessComplete = businessProfileMissingReasons.length === 0;
+  const vBus = p.verificationStatus.trim().toLowerCase();
+  const businessInReviewQueue =
+    vBus !== 'verified' &&
+    vBus !== 'rejected' &&
+    (p.verificationSubmittedAt ?? '').trim() !== '' &&
+    (p.businessTypeAtLastFetch ?? '').trim() !== '';
+
+  useEffect(() => {
+    let cancelled = false;
+    const path = p.companyRegistrationPath?.trim() ?? '';
+    if (!path) {
+      setCompanyRegDisplayName('');
+      return;
+    }
+    setCompanyRegDisplayName(verificationDocumentBasename(path));
+    void getVerificationDocumentDisplayLabel(path).then((label) => {
+      if (!cancelled && label) setCompanyRegDisplayName(label);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [p.companyRegistrationPath]);
 
   const tabBtn = (active: boolean) =>
     `rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors ${
@@ -317,19 +363,19 @@ function BusinessProfilePage(p: Props) {
             <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-gray-900">Company details</h2>
             <p className="text-sm text-gray-600 mt-1.5 mb-5">Verification and invoicing. Insurance and policies are under Legal obligations.</p>
             <div className="space-y-4 max-w-xl">
-              {sensitiveLocked && (
+              {businessLocked && (
                 <div className="rounded-lg border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-800">
                   <p className="font-medium text-slate-900">
                     {p.verificationStatus.trim().toLowerCase() === 'verified'
-                      ? 'Registration and payout details are locked'
-                      : 'Profile under review'}
+                      ? 'Business registration is locked'
+                      : 'Business profile under review'}
                   </p>
                   <p className="mt-1.5 text-xs text-slate-700 leading-relaxed">
                     {p.verificationStatus.trim().toLowerCase() === 'verified' ? (
                       <>
-                        You cannot change your legal business information, registration proof, or payout bank details
-                        here. You can still update your profile photo, payout frequency, and minimum payout threshold. To
-                        change anything else, email{' '}
+                        You cannot change your legal business information or registration proof here. Payout bank
+                        details are managed separately below. You can still update your profile photo, payout frequency,
+                        and minimum payout threshold. To change locked business details, email{' '}
                         <a
                           href={`mailto:${SUPPLIER_SENSITIVE_CHANGES_SUPPORT_EMAIL}?subject=Supplier%20profile%20change%20request`}
                           className="font-medium text-finland hover:underline"
@@ -340,8 +386,9 @@ function BusinessProfilePage(p: Props) {
                       </>
                     ) : (
                       <>
-                        You cannot edit business registration or payout bank details while Traverion reviews your
-                        submission. You can still update your profile photo, payout frequency, and threshold. Questions?{' '}
+                        You cannot edit business registration or verification documents while Traverion reviews your
+                        business submission. You can still add or update payout bank details (IBAN/BIC) below, and you
+                        can change your profile photo, payout frequency, and threshold. Questions?{' '}
                         <a
                           href={`mailto:${SUPPLIER_SENSITIVE_CHANGES_SUPPORT_EMAIL}`}
                           className="font-medium text-finland hover:underline"
@@ -637,7 +684,7 @@ function BusinessProfilePage(p: Props) {
                       const file = e.target.files?.[0];
                       e.target.value = '';
                       if (!file || !p.user?.id || !p.isSupabase) return;
-                      if (sensitiveLocked) return;
+                      if (businessLocked) return;
                       setDocError(null);
                       setCompanyRegUploading(true);
                       const { path, error: upErr } = await uploadSupplierVerificationDocument(p.user.id, file);
@@ -646,6 +693,7 @@ function BusinessProfilePage(p: Props) {
                         setDocError(upErr ?? 'Upload failed.');
                         return;
                       }
+                      setCompanyRegDisplayName(file.name.trim() || verificationDocumentBasename(path));
                       const res = await patchSupplierProfile(p.user.id, {
                         company_registration_document_path: path,
                       });
@@ -674,8 +722,11 @@ function BusinessProfilePage(p: Props) {
                           type="button"
                           className="text-sm text-finland hover:underline"
                           onClick={async () => {
-                            const url = await getSignedVerificationDocumentUrl(p.companyRegistrationPath);
-                            if (url) window.open(url, '_blank', 'noopener,noreferrer');
+                            setDocError(null);
+                            const { error: viewErr } = await openVerificationDocumentPreview(
+                              p.companyRegistrationPath
+                            );
+                            if (viewErr) setDocError(viewErr);
                           }}
                         >
                           View
@@ -695,6 +746,7 @@ function BusinessProfilePage(p: Props) {
                             setCompanyRegUploading(false);
                             if (res.success) {
                               p.setCompanyRegistrationPath('');
+                              setCompanyRegDisplayName('');
                             } else setDocError(res.error ?? 'Could not remove file.');
                           }}
                         >
@@ -703,55 +755,96 @@ function BusinessProfilePage(p: Props) {
                       </>
                     ) : null}
                   </div>
+                  {p.companyRegistrationPath && companyRegDisplayName ? (
+                    <p
+                      className="mt-2 text-xs text-gray-600 break-all"
+                      title={companyRegDisplayName}
+                    >
+                      <span className="font-medium text-gray-700">Uploaded file: </span>
+                      {companyRegDisplayName}
+                    </p>
+                  ) : null}
                 </div>
                 {docError && <p className="text-xs text-red-600">{docError}</p>}
               </div>
 
               <div className="space-y-2">
-                {!p.businessProfileComplete && (
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800">
-                    <p className="font-medium text-slate-900">Not submitted for verification yet</p>
-                    <p className="text-xs text-slate-600 mt-1">
-                      Complete all required fields and documents below, then save. Your account is not in the review
-                      queue until you submit a complete profile.
-                    </p>
-                  </div>
-                )}
-                {p.businessProfileComplete && p.verificationStatus === 'verified' && (
+                {p.verificationStatus.trim().toLowerCase() === 'verified' && (
                   <div>
                     <p className="text-sm text-gray-700">
-                      Verification status: <span className="font-semibold text-green-800">Verified</span>
+                      Business verification: <span className="font-semibold text-green-800">Verified</span>
                     </p>
                     <p className="text-sm text-green-800 bg-green-50 border border-green-200 rounded-lg px-3 py-2 mt-2">
-                      Your business is verified. You can create and publish listings.
+                      {p.payoutVerificationStatus.trim().toLowerCase() === 'verified'
+                        ? 'Your business details are approved and your payout (IBAN/BIC) is verified. You can publish listings when your tours meet listing quality checks.'
+                        : 'Your business details are approved. You still need Traverion to verify your payout (IBAN/BIC) before you can publish listings; use Payment & payouts below.'}
                     </p>
                   </div>
                 )}
-                {p.businessProfileComplete && p.verificationStatus === 'rejected' && (
+                {p.verificationStatus.trim().toLowerCase() === 'rejected' && (
                   <div>
                     <p className="text-sm text-gray-700">
-                      Verification status: <span className="font-semibold text-red-800">Rejected</span>
+                      Business verification: <span className="font-semibold text-red-800">Rejected</span>
                     </p>
                     <p className="text-sm text-red-800 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mt-2">
-                      Verification was not approved. Update your details and documents, then contact support if you need
-                      help.
+                      Business verification was not approved. Update your details and documents here, then save again.
+                      Your payout section stays independent—contact support if you need help.
+                    </p>
+                    {p.businessVerificationFeedback.trim() ? (
+                      <div className="mt-2 rounded-lg border border-red-200 bg-white px-3 py-2 text-sm text-red-950">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-red-800 mb-1">
+                          Message from Traverion
+                        </p>
+                        <p className="text-sm text-red-900 whitespace-pre-wrap">{p.businessVerificationFeedback.trim()}</p>
+                      </div>
+                    ) : null}
+                  </div>
+                )}
+                {vBus !== 'verified' && vBus !== 'rejected' && businessInReviewQueue && (
+                  <div>
+                    <p className="text-sm text-gray-700">
+                      Business verification:{' '}
+                      <span className="font-semibold text-amber-900">Under verification</span>
+                    </p>
+                    <p className="text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-2">
+                      Traverion is reviewing the business details and documents you submitted. You can still add or
+                      update payout bank details below; each side is verified separately. We will email you when there
+                      is an update.
                     </p>
                   </div>
                 )}
-                {p.businessProfileComplete &&
-                  p.verificationStatus !== 'verified' &&
-                  p.verificationStatus !== 'rejected' && (
-                    <div>
-                      <p className="text-sm text-gray-700">
-                        Verification status:{' '}
-                        <span className="font-semibold text-amber-900">Under verification</span>
+                {vBus !== 'verified' && vBus !== 'rejected' && !businessInReviewQueue && !draftBusinessComplete && (
+                  <div>
+                    <p className="text-sm text-gray-700">
+                      Business verification: <span className="font-semibold text-slate-800">Incomplete</span>
+                    </p>
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800">
+                      <p className="text-xs text-slate-700">
+                        Complete everything below, then use <span className="font-medium">Save company details</span> to
+                        submit for review.
                       </p>
-                      <p className="text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-2">
-                        Traverion is reviewing your details and documents. You cannot publish or create listings until
-                        your business is verified. We will email you when there is an update.
-                      </p>
+                      <p className="text-xs font-medium text-slate-900 mt-2">Still needed:</p>
+                      <ul className="mt-1.5 list-disc list-inside text-xs text-slate-700 space-y-1">
+                        {businessProfileMissingReasons.map((line) => (
+                          <li key={line}>{line}</li>
+                        ))}
+                      </ul>
                     </div>
-                  )}
+                  </div>
+                )}
+                {vBus !== 'verified' && vBus !== 'rejected' && !businessInReviewQueue && draftBusinessComplete && (
+                  <div>
+                    <p className="text-sm text-gray-700">
+                      Business verification: <span className="font-semibold text-sky-900">Ready to submit</span>
+                    </p>
+                    <p className="text-sm text-sky-900 bg-sky-50 border border-sky-200 rounded-lg px-3 py-2 mt-2">
+                      Required company fields and registration proof look complete. Click{' '}
+                      <span className="font-medium">Save company details</span> below to send them to Traverion for
+                      review. Until you save, you are not in the verification queue (for example after a reset in our
+                      systems).
+                    </p>
+                  </div>
+                )}
               </div>
               <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-3 flex-wrap">
@@ -760,9 +853,9 @@ function BusinessProfilePage(p: Props) {
                     disabled={p.companySaving || identityFieldsDisabled}
                     onClick={async () => {
                       if (!p.user?.id) return;
-                      if (sensitiveLocked) {
+                      if (businessLocked) {
                         setCompanySaveError(
-                          `These details are locked. Email ${SUPPLIER_SENSITIVE_CHANGES_SUPPORT_EMAIL} to request a change.`
+                          `These business details are locked. Email ${SUPPLIER_SENSITIVE_CHANGES_SUPPORT_EMAIL} to request a change.`
                         );
                         return;
                       }
@@ -821,11 +914,13 @@ function BusinessProfilePage(p: Props) {
                         vat_id: p.vatId.trim() || null,
                         verification_status: 'pending',
                         verification_submitted_at: submittedNow,
+                        business_verification_feedback: null,
                       });
                       p.setCompanySaving(false);
                       if (res.success) {
                         p.setVerificationStatus('pending');
                         p.setVerificationSubmittedAt(submittedNow);
+                        p.setBusinessVerificationFeedback('');
                         p.setCompanyMessage('success');
                         p.onCompanyProfileSaved();
                       } else {
@@ -851,82 +946,116 @@ function BusinessProfilePage(p: Props) {
           <div id="supplier-business-payout" className="rounded-xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm">
             <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-gray-900">Payment &amp; payouts</h2>
             <p className="text-sm text-gray-600 mt-1.5 mb-5">
-              Saving a payout method is required before you can publish tours: use bank transfer (IBAN and BIC) or
-              PayPal. Payout frequency and threshold are optional. Stored securely for when payouts are enabled.
+              Payouts are by bank transfer only (IBAN and BIC). Traverion verifies your bank details separately from your
+              business profile. Both must be verified before you can publish listings. Payout frequency and threshold are
+              optional.
             </p>
             <div className="space-y-4">
-              {sensitiveLocked && (
-                <p className="text-xs text-slate-700 rounded-lg bg-slate-50 border border-slate-200 px-3 py-2">
-                  Payout method and account details (IBAN, BIC, PayPal) are locked while your profile is under review or
-                  after verification. You can still change payout frequency and minimum threshold below.
-                </p>
-              )}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Method</label>
-                <select
-                  value={p.payoutMethod}
-                  disabled={payoutDestinationLocked}
-                  onChange={(e) => p.setPayoutMethod(e.target.value as 'bank' | 'paypal' | 'none' | '')}
-                  className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
-                >
-                  <option value="">Not set</option>
-                  <option value="bank">Bank transfer (IBAN)</option>
-                  <option value="paypal">PayPal</option>
-                  <option value="none">None / later</option>
-                </select>
-              </div>
-              {(p.payoutMethod === 'bank' || p.payoutMethod === '') && (
-                <div className="rounded-lg border border-gray-200 bg-gray-50/80 p-4 space-y-4">
-                  <p className="text-xs text-gray-600">
-                    {p.payoutMethod === '' ? (
+              {payoutLocked && (
+                <div className="rounded-lg border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-800">
+                  <p className="font-medium text-slate-900">
+                    {p.payoutVerificationStatus.trim().toLowerCase() === 'verified'
+                      ? 'Payout bank details are locked'
+                      : 'Payout details under review'}
+                  </p>
+                  <p className="mt-1.5 text-xs text-slate-700 leading-relaxed">
+                    {p.payoutVerificationStatus.trim().toLowerCase() === 'verified' ? (
                       <>
-                        <span className="font-medium text-gray-800">Bank transfer:</span> enter your IBAN and BIC here,
-                        then choose <span className="font-medium text-gray-800">Bank transfer (IBAN)</span> in Method
-                        above before saving.
+                        You cannot change IBAN or BIC here. Business details are managed separately above. You can still
+                        change payout frequency and minimum threshold. To change bank details, email{' '}
+                        <a
+                          href={`mailto:${SUPPLIER_SENSITIVE_CHANGES_SUPPORT_EMAIL}?subject=Supplier%20payout%20change%20request`}
+                          className="font-medium text-finland hover:underline"
+                        >
+                          {SUPPLIER_SENSITIVE_CHANGES_SUPPORT_EMAIL}
+                        </a>
+                        .
                       </>
                     ) : (
                       <>
-                        <span className="font-medium text-gray-800">Bank transfer:</span> your payout account details.
+                        IBAN and BIC cannot be edited while Traverion reviews your payout submission. You can still
+                        update payout frequency and threshold.
                       </>
                     )}
                   </p>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">IBAN</label>
-                    <input
-                      type="text"
-                      value={p.payoutIban}
-                      disabled={payoutDestinationLocked}
-                      onChange={(e) => p.setPayoutIban(e.target.value)}
-                      placeholder="International bank account number (IBAN)"
-                      className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">BIC / SWIFT</label>
-                    <input
-                      type="text"
-                      value={p.payoutBic}
-                      disabled={payoutDestinationLocked}
-                      onChange={(e) => p.setPayoutBic(e.target.value)}
-                      placeholder="Bank identifier (SWIFT/BIC)"
-                      className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
-                    />
-                  </div>
                 </div>
               )}
-              {p.payoutMethod === 'paypal' && (
+              <div className="rounded-lg border border-gray-200 bg-gray-50/80 p-4 space-y-4">
+                <p className="text-xs text-gray-600">
+                  <span className="font-medium text-gray-800">Bank transfer:</span> enter the account that should receive
+                  payouts. Saving valid IBAN and BIC submits them for Traverion verification (independent of business
+                  verification).
+                </p>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">PayPal email</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">IBAN</label>
                   <input
-                    type="email"
-                    value={p.payoutPaypalEmail}
+                    type="text"
+                    value={p.payoutIban}
                     disabled={payoutDestinationLocked}
-                    onChange={(e) => p.setPayoutPaypalEmail(e.target.value)}
-                    placeholder="you@example.com"
-                    className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    onChange={(e) => p.setPayoutIban(e.target.value)}
+                    placeholder="International bank account number (IBAN)"
+                    className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
                   />
                 </div>
-              )}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">BIC / SWIFT</label>
+                  <input
+                    type="text"
+                    value={p.payoutBic}
+                    disabled={payoutDestinationLocked}
+                    onChange={(e) => p.setPayoutBic(e.target.value)}
+                    placeholder="Bank identifier (SWIFT/BIC)"
+                    className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                {p.payoutIban.trim() && p.payoutBic.trim() && p.payoutVerificationStatus.trim().toLowerCase() === 'verified' && (
+                  <div>
+                    <p className="text-sm text-gray-700">
+                      Payout verification: <span className="font-semibold text-green-800">Verified</span>
+                    </p>
+                    <p className="text-sm text-green-800 bg-green-50 border border-green-200 rounded-lg px-3 py-2 mt-2">
+                      Your bank details are approved. You still need business verification (above) before you can publish
+                      listings.
+                    </p>
+                  </div>
+                )}
+                {p.payoutIban.trim() && p.payoutBic.trim() && p.payoutVerificationStatus.trim().toLowerCase() === 'rejected' && (
+                  <div>
+                    <p className="text-sm text-gray-700">
+                      Payout verification: <span className="font-semibold text-red-800">Rejected</span>
+                    </p>
+                    <p className="text-sm text-red-800 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mt-2">
+                      Payout details were not approved. Update IBAN and BIC and save again to resubmit.
+                    </p>
+                    {p.payoutVerificationFeedback.trim() ? (
+                      <div className="mt-2 rounded-lg border border-red-200 bg-white px-3 py-2 text-sm text-red-950">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-red-800 mb-1">
+                          Message from Traverion
+                        </p>
+                        <p className="text-sm text-red-900 whitespace-pre-wrap">{p.payoutVerificationFeedback.trim()}</p>
+                      </div>
+                    ) : null}
+                  </div>
+                )}
+                {p.payoutIban.trim() &&
+                  p.payoutBic.trim() &&
+                  p.payoutVerificationStatus.trim().toLowerCase() !== 'verified' &&
+                  p.payoutVerificationStatus.trim().toLowerCase() !== 'rejected' &&
+                  (p.payoutVerificationSubmittedAt ?? '').trim() !== '' && (
+                    <div>
+                      <p className="text-sm text-gray-700">
+                        Payout verification:{' '}
+                        <span className="font-semibold text-amber-900">Under verification</span>
+                      </p>
+                      <p className="text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-2">
+                        Traverion is reviewing your bank details. You can still work on business verification above if
+                        needed. We will email you when there is an update.
+                      </p>
+                    </div>
+                  )}
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Payout frequency</label>
                 <p className="text-xs text-gray-500 mb-1.5">How often we settle payouts once they are enabled.</p>
@@ -963,45 +1092,36 @@ function BusinessProfilePage(p: Props) {
                       setPayoutSaveError(null);
                       p.setPayoutMessage(null);
                       if (!payoutDestinationLocked) {
-                        if (!p.payoutMethod || p.payoutMethod === 'none') {
-                          if (p.payoutIban.trim() || p.payoutBic.trim()) {
-                            setPayoutSaveError(
-                              'Select Bank transfer (IBAN) as the method to save your IBAN and BIC.'
-                            );
-                          } else {
-                            setPayoutSaveError(
-                              'Choose bank transfer or PayPal and fill the required fields before saving.'
-                            );
-                          }
-                          return;
-                        }
-                        if (p.payoutMethod === 'bank') {
-                          if (!p.payoutIban.trim() || !p.payoutBic.trim()) {
-                            setPayoutSaveError('Enter both IBAN and BIC before saving bank payout details.');
-                            return;
-                          }
-                        }
-                        if (p.payoutMethod === 'paypal' && !p.payoutPaypalEmail.trim()) {
-                          setPayoutSaveError('Enter your PayPal email before saving.');
+                        if (!p.payoutIban.trim() || !p.payoutBic.trim()) {
+                          setPayoutSaveError('Enter both IBAN and BIC before saving payout details.');
                           return;
                         }
                       }
                       p.setPayoutSaving(true);
+                      const submittedNow = new Date().toISOString();
                       const res = payoutDestinationLocked
                         ? await p.updateSupplierPayout(p.user.id, {
                             payment_cycle: p.paymentCycle || null,
                             payout_threshold_min: p.payoutThreshold !== '' ? Number(p.payoutThreshold) : null,
                           })
                         : await p.updateSupplierPayout(p.user.id, {
-                            payout_method: p.payoutMethod || null,
-                            payout_iban: p.payoutMethod === 'bank' ? p.payoutIban.trim() || null : null,
-                            payout_bic: p.payoutMethod === 'bank' ? p.payoutBic.trim() || null : null,
-                            payout_paypal_email: p.payoutMethod === 'paypal' ? p.payoutPaypalEmail.trim() || null : null,
+                            payout_method: 'bank',
+                            payout_iban: p.payoutIban.trim() || null,
+                            payout_bic: p.payoutBic.trim() || null,
+                            payout_paypal_email: null,
+                            payout_verification_status: 'pending',
+                            payout_verification_submitted_at: submittedNow,
+                            payout_verification_feedback: null,
                             payment_cycle: p.paymentCycle || null,
                             payout_threshold_min: p.payoutThreshold !== '' ? Number(p.payoutThreshold) : null,
                           });
                       p.setPayoutSaving(false);
                       if (res.success) {
+                        if (!payoutDestinationLocked) {
+                          p.setPayoutVerificationStatus('pending');
+                          p.setPayoutVerificationSubmittedAt(submittedNow);
+                          p.setPayoutVerificationFeedback('');
+                        }
                         p.setPayoutMessage('success');
                         p.onPayoutSaved();
                       } else {

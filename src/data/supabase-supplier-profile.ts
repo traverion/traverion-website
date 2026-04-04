@@ -22,6 +22,13 @@ export type SupplierProfileRow = {
   vat_id: string | null;
   verification_status: 'pending' | 'verified' | 'rejected' | null;
   verification_submitted_at: string | null;
+  /** Traverion approval of IBAN/BIC; independent from business verification_status. */
+  payout_verification_status: 'pending' | 'verified' | 'rejected' | null;
+  payout_verification_submitted_at: string | null;
+  /** Staff note shown to supplier when business is rejected; cleared on resubmit. */
+  business_verification_feedback: string | null;
+  /** Staff note shown to supplier when payout is rejected; cleared on resubmit. */
+  payout_verification_feedback: string | null;
   insurance_policy_number: string | null;
   insurance_coverage: string | null;
   insurance_start: string | null;
@@ -67,10 +74,15 @@ export async function uploadSupplierVerificationDocument(
           ? 'png'
           : 'webp';
   const path = `${userId}/company-registration.${ext}`;
+  const originalName =
+    file.name.trim().slice(0, 200) || `company-registration.${ext}`;
 
-  const { error: upErr } = await supabase.storage
-    .from(VERIFICATION_BUCKET)
-    .upload(path, file, { upsert: true, contentType: file.type, cacheControl: '3600' });
+  const { error: upErr } = await supabase.storage.from(VERIFICATION_BUCKET).upload(path, file, {
+    upsert: true,
+    contentType: file.type,
+    cacheControl: '3600',
+    metadata: { original_filename: originalName },
+  });
   if (upErr) return { path: null, error: upErr.message };
   return { path };
 }
@@ -90,6 +102,59 @@ export async function getSignedVerificationDocumentUrl(
     .createSignedUrl(path, expiresIn);
   if (error || !data?.signedUrl) return null;
   return data.signedUrl;
+}
+
+/** Last segment of a storage path (e.g. company-registration.pdf). */
+export function verificationDocumentBasename(storagePath: string): string {
+  const parts = storagePath.trim().split('/').filter(Boolean);
+  return parts.length ? parts[parts.length - 1]! : '';
+}
+
+/**
+ * Human-readable file label: original name from upload metadata when present, else storage basename.
+ */
+export async function getVerificationDocumentDisplayLabel(storagePath: string): Promise<string> {
+  const fallback = verificationDocumentBasename(storagePath);
+  if (!supabase || !storagePath.trim()) return fallback;
+
+  const segments = storagePath.trim().split('/').filter(Boolean);
+  if (segments.length < 2) return fallback;
+  const objectName = segments[segments.length - 1]!;
+  const folder = segments.slice(0, -1).join('/');
+
+  const { data, error } = await supabase.storage.from(VERIFICATION_BUCKET).list(folder, { limit: 100 });
+  if (error || !data?.length) return fallback;
+
+  const row = data.find((f) => f.name === objectName);
+  const meta = (row?.metadata ?? {}) as Record<string, unknown>;
+  const orig = meta.original_filename;
+  if (typeof orig === 'string' && orig.trim()) return orig.trim();
+  return fallback;
+}
+
+/**
+ * Open verification file in a new tab without navigating to supabase.co: fetch signed URL, then blob URL on this origin.
+ */
+export async function openVerificationDocumentPreview(storagePath: string): Promise<{ error?: string }> {
+  const signed = await getSignedVerificationDocumentUrl(storagePath);
+  if (!signed) return { error: 'Could not open document.' };
+
+  try {
+    const res = await fetch(signed);
+    if (!res.ok) return { error: 'Could not load document.' };
+    const blob = await res.blob();
+    const objUrl = URL.createObjectURL(blob);
+    const win = window.open(objUrl, '_blank', 'noopener,noreferrer');
+    if (!win) {
+      URL.revokeObjectURL(objUrl);
+      return { error: 'Popup blocked. Allow popups for this site to view the document.' };
+    }
+    window.setTimeout(() => URL.revokeObjectURL(objUrl), 600_000);
+    return {};
+  } catch {
+    window.open(signed, '_blank', 'noopener,noreferrer');
+    return {};
+  }
 }
 
 /** Upload a business profile photo; returns public URL to store on supplier_profiles.business_logo_url */
@@ -187,6 +252,9 @@ export async function updateSupplierPayout(
     payout_paypal_email?: string | null;
     payment_cycle?: 'monthly' | 'biweekly' | null;
     payout_threshold_min?: number | null;
+    payout_verification_status?: 'pending' | 'verified' | 'rejected' | null;
+    payout_verification_submitted_at?: string | null;
+    payout_verification_feedback?: string | null;
   }
 ): Promise<{ success: boolean; error?: string }> {
   if (!supabase) return { success: false, error: 'Supabase not configured' };
@@ -241,6 +309,7 @@ export async function updateSupplierCompanyProfile(
     vat_id: string | null;
     verification_status: 'pending' | 'verified' | 'rejected' | null;
     verification_submitted_at: string | null;
+    business_verification_feedback: string | null;
     insurance_policy_number: string | null;
     insurance_coverage: string | null;
     insurance_start: string | null;

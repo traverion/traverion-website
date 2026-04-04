@@ -23,8 +23,7 @@ import ThailandVietnam14Day from './pages/ThailandVietnam14Day';
 import Contact from './pages/Contact';
 import AuthPage from './pages/AuthPage';
 import DestinationPage from './pages/DestinationPage';
-import AdminDashboard from './pages/AdminDashboard';
-import AdminAccess from './components/AdminAccess';
+import AdminGate from './components/AdminGate';
 import Privacy from './pages/Privacy';
 import Terms from './pages/Terms';
 import Cookies from './pages/Cookies';
@@ -46,8 +45,6 @@ function App() {
   const [currentPage, setCurrentPage] = useState('home');
   const [destinationSlug, setDestinationSlug] = useState<string | null>(null);
   const [selectedTour, setSelectedTour] = useState<TourPackageType | null>(null);
-  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
-
   // Supplier portal: /supplier/* and dedicated login URL (must mount SupplierLayout for both)
   const supplierPath =
     typeof window !== 'undefined' ? window.location.pathname.replace(/\/$/, '') || '/' : '';
@@ -330,7 +327,7 @@ function App() {
       case 'sitemap':
         return <Sitemap onNavigate={setCurrentPage} />;
       case 'admin':
-        return isAdminAuthenticated ? <AdminDashboard /> : <AdminAccess onAccessGranted={() => setIsAdminAuthenticated(true)} />;
+        return <AdminGate />;
       default:
         return <SimpleHome onTourSelect={handleTourSelect} onNavigate={setCurrentPage} />;
     }
