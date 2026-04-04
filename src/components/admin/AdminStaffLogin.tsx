@@ -6,8 +6,16 @@ import LuxuryInput from '../ui/LuxuryInput';
 import { BRAND_LOGO_SRC } from '../../lib/brandAssets';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { verifyTraverionPanelAccess } from '../../lib/adminAuth';
+import { isTraverionAdminUser } from '../../lib/adminAuth';
 import { isTraverionAdminHost, publicMarketingSiteUrl } from '../../lib/adminHost';
+
+function formatAuthSignInError(message: string): string {
+  const m = message.toLowerCase();
+  if (m.includes('invalid login') || m.includes('invalid credentials')) {
+    return 'Email or password was not accepted. Use the same Supabase project as this site, the user from Authentication → Users, and the password set there (not the public.admin table).';
+  }
+  return message;
+}
 
 type Props = {
   /** After successful staff sign-in (e.g. navigate to /admin on staff host). */
@@ -18,7 +26,7 @@ type Props = {
  * Private sign-in (no public sign-up). Staff host: /login; local dev: /admin gate.
  */
 export default function AdminStaffLogin({ onSignedIn }: Props) {
-  const { signIn, user } = useAuth();
+  const { user } = useAuth();
   const [isVisible, setIsVisible] = useState(false);
   const [credentials, setCredentials] = useState({ email: '', password: '' });
   const [isLoading, setIsLoading] = useState(false);
@@ -28,9 +36,12 @@ export default function AdminStaffLogin({ onSignedIn }: Props) {
     if (!user || !supabase) return;
     if (!isTraverionAdminHost()) return;
     let cancelled = false;
-    void verifyTraverionPanelAccess(supabase, user).then((ok) => {
-      if (!cancelled && ok) window.location.replace('/admin');
-    });
+    void (async () => {
+      if (!isTraverionAdminUser(user)) return;
+      const { data: rpcOk, error: rpcErr } = await supabase.rpc('is_traverion_panel_admin');
+      if (cancelled) return;
+      if (!rpcErr && rpcOk === true) window.location.replace('/admin');
+    })();
     return () => {
       cancelled = true;
     };
@@ -49,19 +60,59 @@ export default function AdminStaffLogin({ onSignedIn }: Props) {
 
     const email = credentials.email.trim().toLowerCase();
     const password = credentials.password;
-    const result = await signIn(email, password);
-    if (result.error) {
+
+    // Do not use AuthContext.signIn here: it runs consumer profile setup for non-admin users and can
+    // interfere. Panel login only needs Auth + role + public.admin RPC.
+    const { data: signData, error: signErr } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    if (signErr) {
       setIsLoading(false);
-      setError(result.error);
+      setError(formatAuthSignInError(signErr.message));
       return;
     }
 
-    const { data: { session } } = await supabase.auth.getSession();
-    const ok = await verifyTraverionPanelAccess(supabase, session?.user ?? null);
-    if (!ok) {
+    const signedUser = signData.user;
+    if (!signedUser) {
+      setIsLoading(false);
+      setError('Sign-in did not return a user. Try again.');
+      return;
+    }
+
+    if (!signedUser.email_confirmed_at) {
       await supabase.auth.signOut();
       setIsLoading(false);
-      setError('This account is not authorized to use this area.');
+      setError(
+        'This email is not confirmed yet. In Supabase: Authentication → Users, confirm the user or set email_confirmed_at.'
+      );
+      return;
+    }
+
+    if (!isTraverionAdminUser(signedUser)) {
+      await supabase.auth.signOut();
+      setIsLoading(false);
+      setError(
+        'This account does not have the panel role. Run supabase/manual/grant_traverion_admin.sql in the SQL editor for your email.'
+      );
+      return;
+    }
+
+    const { data: rpcOk, error: rpcErr } = await supabase.rpc('is_traverion_panel_admin');
+    if (rpcErr) {
+      await supabase.auth.signOut();
+      setIsLoading(false);
+      setError(
+        `Panel database check failed: ${rpcErr.message}. Apply migration 037 (public.admin + is_traverion_panel_admin).`
+      );
+      return;
+    }
+    if (rpcOk !== true) {
+      await supabase.auth.signOut();
+      setIsLoading(false);
+      setError(
+        'This email is not allowed for the panel. The public.admin table must list exactly this email (migration 037).'
+      );
       return;
     }
 
