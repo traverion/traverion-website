@@ -6,7 +6,7 @@ import LuxuryInput from './ui/LuxuryInput';
 import { BRAND_LOGO_SRC } from '../lib/brandAssets';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { isTraverionAdminUser } from '../lib/adminAuth';
+import { canAccessTraverionAdmin } from '../lib/adminAuth';
 
 export default function AdminAccess() {
   const { signIn } = useAuth();
@@ -36,11 +36,11 @@ export default function AdminAccess() {
     }
 
     const { data: { session } } = await supabase.auth.getSession();
-    if (!isTraverionAdminUser(session?.user ?? null)) {
+    if (!canAccessTraverionAdmin(session?.user ?? null)) {
       await supabase.auth.signOut();
       setIsLoading(false);
       setError(
-        'This account is not authorized for Traverion admin. Ask the project owner to run grant_traverion_admin.sql for your email in Supabase SQL Editor.'
+        'This account is not allowed to use Traverion admin. You need the admin role in Supabase and, if configured, an email on the staff allowlist (VITE_TRAVERION_ADMIN_EMAILS / TRAVERION_ADMIN_EMAILS).'
       );
       return;
     }
@@ -53,8 +53,11 @@ export default function AdminAccess() {
       <LuxuryCard variant="glass" className="w-full max-w-md p-8">
         <div className="text-center mb-8">
           <img src={BRAND_LOGO_SRC} alt="" className="h-16 w-16 object-contain mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-white mb-2">Traverion admin</h1>
-          <p className="text-gray-300">Sign in with a staff account that has the admin role in Supabase.</p>
+          <h1 className="text-2xl font-bold text-white mb-2">Staff sign-in</h1>
+          <p className="text-gray-300">
+            This area is not part of the public site. Sign in with a Traverion staff account that has the{' '}
+            <span className="text-white/90 font-medium">admin</span> role in Supabase.
+          </p>
         </div>
 
         <form onSubmit={(e) => void handleSubmit(e)} className="space-y-6">

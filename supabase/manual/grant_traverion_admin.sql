@@ -2,6 +2,9 @@
 -- 1. Create the user in Supabase Auth (Dashboard → Authentication → Users) or sign up on the site first.
 -- 2. Replace the email below with your staff account (lowercase).
 -- 3. Run in SQL Editor as postgres.
+--
+-- For strict access: also set VITE_TRAVERION_ADMIN_EMAILS (Vercel/local .env) and Edge secret TRAVERION_ADMIN_EMAILS
+-- to the same comma-separated email(s). Password is whatever you set in Supabase Auth for that user (sign-up or Dashboard).
 
 update auth.users
 set raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb) || jsonb_build_object('role', 'admin')

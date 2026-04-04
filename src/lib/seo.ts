@@ -67,6 +67,16 @@ export function setPageMetaWithOg(title: string, description?: string, og?: OgMe
   ensureMeta('twitter:image', 'name').setAttribute('content', image);
 }
 
+/** Hide sensitive routes from search engines (SPA: toggle when entering/leaving the route). */
+export function setRobotsNoIndex(enabled: boolean) {
+  if (typeof document === 'undefined') return;
+  if (enabled) {
+    ensureMeta('robots', 'name').setAttribute('content', 'noindex, nofollow');
+  } else {
+    document.querySelector('meta[name="robots"]')?.remove();
+  }
+}
+
 /** Inject JSON-LD for a single tour (Product schema). Call from tour detail page. */
 export function setTourJsonLd(tour: {
   id: string;

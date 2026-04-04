@@ -5,7 +5,9 @@
  *
  * Grant admin: run supabase/manual/grant_traverion_admin.sql for your staff email.
  *
- * Secrets: SUPABASE_SERVICE_ROLE_KEY (auto). TRAVERION_VERIFICATION_ADMIN_SECRET is no longer used.
+ * Secrets: SUPABASE_SERVICE_ROLE_KEY (auto).
+ * Optional: TRAVERION_ADMIN_EMAILS — comma-separated lowercase emails; if set, JWT user email must match
+ * (in addition to app_metadata.role === 'admin'). Recommended in production so only your inbox can call the API.
  */
 // deno-lint-ignore-file no-explicit-any
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
@@ -42,6 +44,24 @@ function isAdminUser(user: { app_metadata?: Record<string, unknown> } | null): b
   return user?.app_metadata?.role === 'admin';
 }
 
+/** If TRAVERION_ADMIN_EMAILS is set, caller email must be in the list. */
+function emailAllowlistBlock(user: { email?: string | null }): Response | null {
+  const raw = Deno.env.get('TRAVERION_ADMIN_EMAILS')?.trim();
+  if (!raw) return null;
+  const allow = new Set(
+    raw
+      .split(',')
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean)
+  );
+  if (allow.size === 0) return null;
+  const email = user.email?.trim().toLowerCase();
+  if (!email || !allow.has(email)) {
+    return json({ error: 'Forbidden: email not allowed for admin API.' }, 403);
+  }
+  return null;
+}
+
 async function assertAdmin(
   req: Request,
   serviceKey: string,
@@ -60,6 +80,8 @@ async function assertAdmin(
   if (!isAdminUser(userData.user)) {
     return json({ error: 'Forbidden: Traverion admin role required (see grant_traverion_admin.sql).' }, 403);
   }
+  const block = emailAllowlistBlock(userData.user);
+  if (block) return block;
   return { admin, userId: userData.user.id };
 }
 

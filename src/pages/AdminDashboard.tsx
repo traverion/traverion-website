@@ -49,10 +49,18 @@ export default function AdminDashboard() {
                 Signed in as <span className="font-medium text-gray-800">{user?.email ?? '—'}</span>
               </p>
             </div>
-            <LuxuryButton variant="outline" size="sm" onClick={() => void signOut()}>
-              <LogOut className="w-4 h-4 mr-2" />
-              Sign out
-            </LuxuryButton>
+            <div className="flex flex-wrap items-center gap-2">
+              <a
+                href="/"
+                className="text-sm text-gray-600 hover:text-gray-900 underline-offset-2 hover:underline px-2 py-1.5"
+              >
+                Public site
+              </a>
+              <LuxuryButton variant="outline" size="sm" onClick={() => void signOut()}>
+                <LogOut className="w-4 h-4 mr-2" />
+                Sign out
+              </LuxuryButton>
+            </div>
           </div>
         </div>
       </div>
@@ -85,8 +93,14 @@ export default function AdminDashboard() {
             )}
 
             <div className="flex items-center gap-2">
-              <LuxuryButton variant="outline" size="sm" onClick={() => void loadStats()} disabled={statsLoading}>
-                {statsLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+              <LuxuryButton
+                variant="outline"
+                size="sm"
+                onClick={() => void loadStats()}
+                disabled={statsLoading}
+                className="inline-flex items-center gap-2"
+              >
+                {statsLoading ? <Loader2 className="w-4 h-4 animate-spin shrink-0" aria-hidden /> : null}
                 Refresh numbers
               </LuxuryButton>
             </div>

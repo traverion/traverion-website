@@ -36,7 +36,7 @@ import { TranslationProvider } from './contexts/TranslationContext';
 import { SupplierAuthProvider } from './contexts/SupplierAuthContext';
 import { AuthProvider } from './contexts/AuthContext';
 import AuthModal from './components/AuthModal';
-import { setPageMetaWithOg, setCanonicalUrl, setOrganizationJsonLd } from './lib/seo';
+import { setPageMetaWithOg, setCanonicalUrl, setOrganizationJsonLd, setRobotsNoIndex } from './lib/seo';
 import { parsePathname, shouldClearSelectedTour } from './lib/appRouting';
 import { getListingByIdAsync } from './data/listings';
 import { TourPackage as TourPackageType } from './types/tour';
@@ -203,11 +203,16 @@ function App() {
       affiliate: { title: 'Affiliate program', description: 'Partner with Traverion and earn commissions.' },
       'content-creator': { title: 'Content creators', description: 'Collaborate with Traverion on travel content.' },
       destination: { title: 'Destination', description: 'Tours and activities in this destination.' },
-      admin: { title: 'Admin', description: 'Traverion admin.' },
+      admin: {
+        title: 'Staff sign-in',
+        description: 'Traverion staff only. Sign in with an authorized account.',
+      },
     };
     const meta = metaByPage[currentPage];
     if (meta) setPageMetaWithOg(meta.title, meta.description);
     else setPageMetaWithOg('Traverion', 'Tours & activities worldwide.');
+
+    setRobotsNoIndex(currentPage === 'admin');
 
     const pathMap: Record<string, string> = {
       home: '/', packages: '/packages', auth: '/auth', cart: '/cart', account: '/account', wishlist: '/wishlist', bookings: '/bookings',
@@ -343,20 +348,29 @@ function App() {
     );
   }
 
+  const adminRoute = currentPage === 'admin';
+
   return (
     <TranslationProvider>
       <AuthProvider>
-        <div className="min-h-screen bg-white relative flex flex-col">
-          <UnifiedHeader currentPage={currentPage} onNavigate={setCurrentPage} />
-          <main className="flex-grow overflow-x-hidden">
-            <div key={currentPage} className="lux-page-enter min-h-[min(50vh,480px)]">
-              {renderPage()}
-            </div>
-          </main>
-          <Footer onNavigate={setCurrentPage} />
-          <StickyBookingButton onNavigate={setCurrentPage} />
-        </div>
-        <AuthModal />
+        {adminRoute ? (
+          <>
+            {renderPage()}
+            <AuthModal />
+          </>
+        ) : (
+          <div className="min-h-screen bg-white relative flex flex-col">
+            <UnifiedHeader currentPage={currentPage} onNavigate={setCurrentPage} />
+            <main className="flex-grow overflow-x-hidden">
+              <div key={currentPage} className="lux-page-enter min-h-[min(50vh,480px)]">
+                {renderPage()}
+              </div>
+            </main>
+            <Footer onNavigate={setCurrentPage} />
+            <StickyBookingButton onNavigate={setCurrentPage} />
+            <AuthModal />
+          </div>
+        )}
       </AuthProvider>
     </TranslationProvider>
   );
