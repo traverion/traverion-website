@@ -1,15 +1,30 @@
 import { FunctionsHttpError } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 
-async function parseFunctionsHttpError(error: FunctionsHttpError): Promise<string | null> {
-  const res = error.context as Response | undefined;
-  if (!res || typeof res.json !== 'function') return null;
+async function parseFunctionsHttpError(error: unknown): Promise<string | null> {
+  const ctx =
+    error &&
+    typeof error === 'object' &&
+    'context' in error &&
+    (error as { context: unknown }).context instanceof Response
+      ? ((error as { context: Response }).context)
+      : null;
+  if (!ctx) return null;
+  const clone = ctx.clone();
   try {
-    const j = (await res.clone().json()) as { error?: string };
-    return typeof j?.error === 'string' ? j.error : null;
+    const ct = clone.headers.get('content-type') ?? '';
+    if (ct.includes('application/json')) {
+      const j = (await clone.json()) as { error?: string; message?: string };
+      if (typeof j?.error === 'string') return j.error;
+      if (typeof j?.message === 'string') return j.message;
+    } else {
+      const text = (await clone.text()).trim();
+      if (text) return text.slice(0, 500);
+    }
   } catch {
-    return null;
+    /* ignore */
   }
+  return `HTTP ${ctx.status} from Edge Function`;
 }
 
 /** Calls `admin-supplier-verification` with the current session JWT. */
@@ -30,12 +45,15 @@ export async function invokeAdminEdgeFunction<T>(body: Record<string, unknown>):
   });
 
   if (error) {
-    const fromHttp = error instanceof FunctionsHttpError ? await parseFunctionsHttpError(error) : null;
+    const fromHttp =
+      error instanceof FunctionsHttpError || (error as Error)?.name === 'FunctionsHttpError'
+        ? await parseFunctionsHttpError(error)
+        : null;
     const bodyError =
       data && typeof data === 'object' && data !== null && 'error' in data && typeof (data as { error: unknown }).error === 'string'
         ? (data as { error: string }).error
         : null;
-    throw new Error(fromHttp || bodyError || error.message || 'Request failed');
+    throw new Error(fromHttp || bodyError || (error as Error).message || 'Request failed');
   }
 
   if (data && typeof data === 'object' && data !== null && 'error' in data && typeof (data as { error: unknown }).error === 'string') {

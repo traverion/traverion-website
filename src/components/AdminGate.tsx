@@ -1,26 +1,17 @@
-import { useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { canAccessTraverionAdmin } from '../lib/adminAuth';
 import AdminDashboard from '../pages/AdminDashboard';
+import AdminStaffLogin from './admin/AdminStaffLogin';
 import LuxuryButton from './ui/LuxuryButton';
 import LuxuryCard from './ui/LuxuryCard';
 import { BRAND_LOGO_SRC } from '../lib/brandAssets';
 import { Loader2, LogOut } from 'lucide-react';
 
-const AUTH_SIGNIN_ADMIN = '/auth?tab=signin&next=admin';
-
 /**
- * Staff area: no UI until Supabase session exists. Unauthenticated visitors are sent to /auth
- * (same login as the rest of the site); only then can they reach /admin, and only if role+email allow.
+ * /admin: staff login first (no public sign-up). Dashboard only after Supabase session + admin role + email allowlist.
  */
 export default function AdminGate() {
   const { user, loading, signOut } = useAuth();
-
-  useEffect(() => {
-    if (loading) return;
-    if (user) return;
-    window.location.replace(AUTH_SIGNIN_ADMIN);
-  }, [loading, user]);
 
   if (loading) {
     return (
@@ -62,10 +53,5 @@ export default function AdminGate() {
     );
   }
 
-  return (
-    <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-slate-900 text-gray-300">
-      <Loader2 className="w-8 h-8 animate-spin text-sky-400" aria-hidden />
-      <p className="text-sm">Redirecting to sign-in…</p>
-    </div>
-  );
+  return <AdminStaffLogin />;
 }
