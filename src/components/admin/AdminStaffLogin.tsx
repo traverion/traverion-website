@@ -13,7 +13,13 @@ import { subscribePasswordRecovery, updatePasswordAfterRecovery } from '../../li
 function formatAuthSignInError(message: string): string {
   const m = message.toLowerCase();
   if (m.includes('invalid login') || m.includes('invalid credentials')) {
-    return 'Email or password was not accepted. Use the same Supabase project as this site, the user from Authentication → Users, and the password set there (not the public.admin table).';
+    return [
+      'Supabase rejected this email/password. That usually means one of:',
+      '• Wrong password (try reset via email), or a typo.',
+      '• The user does not exist in the Supabase project this site is using.',
+      '• admin.traverion.com uses different VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY than www—in Vercel, set those env vars for all domains on the same deployment.',
+      `Supabase said: ${message}`,
+    ].join(' ');
   }
   return message;
 }
