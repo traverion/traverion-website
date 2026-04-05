@@ -31,10 +31,18 @@ async function parseFunctionsHttpError(error: unknown): Promise<string | null> {
 export async function invokeAdminEdgeFunction<T>(body: Record<string, unknown>): Promise<T> {
   if (!supabase) throw new Error('Supabase is not configured.');
 
-  const { data: sessionData } = await supabase.auth.getSession();
-  const token = sessionData.session?.access_token;
+  // Prefer a freshly minted access token — cached session JWTs are often expired, which Edge
+  // Functions report as "Invalid JWT" even though the user still looks signed in.
+  const { data: refreshed, error: refreshErr } = await supabase.auth.refreshSession();
+  let token = refreshed.session?.access_token;
   if (!token) {
-    throw new Error('Not signed in. Sign out and sign in again, then retry.');
+    const { data: fallback } = await supabase.auth.getSession();
+    token = fallback.session?.access_token;
+  }
+  if (!token) {
+    throw new Error(
+      refreshErr?.message || 'Not signed in. Sign out and sign in again, then retry.'
+    );
   }
 
   const { data, error } = await supabase.functions.invoke<T>('admin-supplier-verification', {
