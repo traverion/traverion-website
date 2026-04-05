@@ -389,14 +389,7 @@ function App() {
         }
         return <AdminGate mode="gate" />;
       case 'admin-login':
-        return (
-          <AdminStaffLogin
-            onSignedIn={() => {
-              setCurrentPage('admin-app');
-              window.history.replaceState({}, '', '/admin');
-            }}
-          />
-        );
+        return <AdminStaffLogin />;
       case 'admin-app':
         return <AdminGate mode="dashboard-only" />;
       default:

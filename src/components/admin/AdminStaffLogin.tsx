@@ -24,15 +24,10 @@ function formatAuthSignInError(message: string): string {
   return message;
 }
 
-type Props = {
-  /** After successful staff sign-in (e.g. navigate to /admin on staff host). */
-  onSignedIn?: () => void;
-};
-
 /**
  * Private sign-in (no public sign-up). Staff host: /login; local dev: /admin gate.
  */
-export default function AdminStaffLogin({ onSignedIn }: Props) {
+export default function AdminStaffLogin() {
   const { user } = useAuth();
   const [isVisible, setIsVisible] = useState(false);
   const [credentials, setCredentials] = useState({ email: '', password: '' });
@@ -162,8 +157,10 @@ export default function AdminStaffLogin({ onSignedIn }: Props) {
     }
 
     setIsLoading(false);
-    if (onSignedIn) {
-      onSignedIn();
+    // Full navigation so AuthProvider loads the new session from storage. In-app navigation
+    // raced dashboard-only AdminGate (user still null → redirect back to /login).
+    if (isTraverionAdminHost()) {
+      window.location.assign('/admin');
       return;
     }
     window.location.reload();
