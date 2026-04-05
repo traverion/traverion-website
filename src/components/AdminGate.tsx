@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { verifyTraverionPanelAccess } from '../lib/adminAuth';
 import { supabase } from '../lib/supabase';
@@ -21,6 +21,8 @@ type AdminGateProps = {
 export default function AdminGate({ mode = 'gate' }: AdminGateProps) {
   const { user, loading, signOut } = useAuth();
   const [panelAllowed, setPanelAllowed] = useState<boolean | null>(null);
+  /** Avoid re-running panel verify on every `user` object reference change (TOKEN_REFRESHED, etc.). */
+  const panelVerifyUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (mode !== 'dashboard-only') return;
@@ -29,22 +31,30 @@ export default function AdminGate({ mode = 'gate' }: AdminGateProps) {
     if (window.location.pathname.replace(/\/$/, '') !== '/login') {
       window.location.replace('/login');
     }
-  }, [mode, loading, user]);
+  }, [mode, loading, user?.id]);
 
   useEffect(() => {
     if (loading || !user || !supabase) {
+      if (!user) panelVerifyUserIdRef.current = null;
       setPanelAllowed(null);
       return;
     }
+    const uid = user.id;
+    const newSubject = panelVerifyUserIdRef.current !== uid;
+    if (newSubject) {
+      panelVerifyUserIdRef.current = uid;
+      setPanelAllowed(null);
+    }
+
     let cancelled = false;
-    setPanelAllowed(null);
     void verifyTraverionPanelAccess(supabase, user).then((ok) => {
       if (!cancelled) setPanelAllowed(ok);
     });
     return () => {
       cancelled = true;
     };
-  }, [loading, user]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- verify when session subject (id) changes, not token refresh object identity
+  }, [loading, user?.id]);
 
   if (loading) {
     return (

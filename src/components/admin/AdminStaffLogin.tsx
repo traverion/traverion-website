@@ -118,7 +118,8 @@ export default function AdminStaffLogin() {
     return () => {
       cancelled = true;
     };
-  }, [user, recoveryMode, authLoading]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- same user id after TOKEN_REFRESHED must not re-run RPC / replace
+  }, [user?.id, recoveryMode, authLoading]);
 
   const handleRecoverySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
