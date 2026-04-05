@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Eye, EyeOff, Lock, User, Key, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Lock, User, Key, Loader2, ShieldAlert } from 'lucide-react';
 import LuxuryButton from '../ui/LuxuryButton';
 import LuxuryCard from '../ui/LuxuryCard';
 import LuxuryInput from '../ui/LuxuryInput';
@@ -12,17 +12,46 @@ import { subscribePasswordRecovery, updatePasswordAfterRecovery } from '../../li
 import { normalizeStaffSignInEmail, normalizeStaffSignInPassword } from '../../lib/staffSignInCredentials';
 import { hostedSupabaseEnvPairingStatus } from '../../lib/supabaseEnvPairing';
 
-function formatAuthSignInError(message: string): string {
+function isInvalidCredentialsAuthMessage(message: string): boolean {
   const m = message.toLowerCase();
-  if (m.includes('invalid login') || m.includes('invalid credentials')) {
-    return [
-      'Invalid email or password for this app’s Supabase project (Auth rejected the sign-in).',
-      'Reset the password from the dashboard (Authentication → Users) or use the recovery email; pick a new password that is not the same as the previous one.',
-      'Also confirm this exact address exists under Users for the same project as in the token request URL (e.g. …supabase.co).',
-      `Supabase: ${message}`,
-    ].join(' ');
-  }
-  return message;
+  return m.includes('invalid login') || m.includes('invalid credentials');
+}
+
+function StaffAccessDeniedBanner() {
+  return (
+    <div
+      role="alert"
+      aria-live="polite"
+      className="relative overflow-hidden rounded-xl border border-red-400/40 bg-gradient-to-b from-red-950/55 via-slate-900/85 to-slate-950/95 px-5 py-6 text-center animate-admin-denied-glow"
+    >
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_0%,rgba(248,113,113,0.12),transparent_55%)]" />
+      <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-red-400/70 to-transparent" />
+      <ShieldAlert
+        className="relative z-[1] mx-auto h-11 w-11 text-red-400 drop-shadow-[0_0_14px_rgba(248,113,113,0.5)] animate-[pulse_2.5s_cubic-bezier(0.4,0,0.6,1)_infinite]"
+        aria-hidden
+      />
+      <div className="relative z-[1] mt-4 flex flex-wrap items-center justify-center gap-x-2 sm:gap-x-3">
+        <span
+          className="text-base font-semibold uppercase tracking-[0.28em] text-red-100 sm:text-lg sm:tracking-[0.38em] animate-fade-in-up"
+          style={{ animationDelay: '40ms', animationFillMode: 'both' }}
+        >
+          Access
+        </span>
+        <span
+          className="text-base font-bold uppercase tracking-[0.28em] text-red-400 sm:text-lg sm:tracking-[0.38em] animate-fade-in-up"
+          style={{ animationDelay: '180ms', animationFillMode: 'both' }}
+        >
+          denied
+        </span>
+      </div>
+      <p
+        className="relative z-[1] mt-3 text-xs font-medium text-red-200/80 animate-fade-in-up"
+        style={{ animationDelay: '280ms', animationFillMode: 'both' }}
+      >
+        Wrong email or password.
+      </p>
+    </div>
+  );
 }
 
 /**
@@ -40,6 +69,9 @@ export default function AdminStaffLogin() {
   const [credentials, setCredentials] = useState({ email: '', password: '' });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [accessDenied, setAccessDenied] = useState(false);
+  /** Bumps so the access-denied animation replays on each failed password attempt. */
+  const [accessDeniedTick, setAccessDeniedTick] = useState(0);
   const [successMessage, setSuccessMessage] = useState('');
   const [recoveryMode, setRecoveryMode] = useState(false);
   const [recoveryPassword, setRecoveryPassword] = useState('');
@@ -91,6 +123,7 @@ export default function AdminStaffLogin() {
   const handleRecoverySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setAccessDenied(false);
     setSuccessMessage('');
     if (!supabase) return;
     const recoveryPw = normalizeStaffSignInPassword(recoveryPassword);
@@ -103,7 +136,14 @@ export default function AdminStaffLogin() {
     try {
       const { error: err } = await updatePasswordAfterRecovery(supabase, recoveryPw, { minLength: 8 });
       if (err) {
-        setError(formatAuthSignInError(err));
+        if (isInvalidCredentialsAuthMessage(err)) {
+          setAccessDeniedTick((t) => t + 1);
+          setAccessDenied(true);
+          setError('');
+        } else {
+          setAccessDenied(false);
+          setError(err);
+        }
         return;
       }
       await supabase.auth.signOut();
@@ -120,6 +160,7 @@ export default function AdminStaffLogin() {
     e.preventDefault();
     setIsLoading(true);
     setError('');
+    setAccessDenied(false);
     setSuccessMessage('');
 
     if (!supabase) {
@@ -144,7 +185,14 @@ export default function AdminStaffLogin() {
     });
     if (signErr) {
       setIsLoading(false);
-      setError(formatAuthSignInError(signErr.message));
+      if (isInvalidCredentialsAuthMessage(signErr.message)) {
+        setAccessDeniedTick((t) => t + 1);
+        setAccessDenied(true);
+        setError('');
+      } else {
+        setAccessDenied(false);
+        setError(signErr.message || 'Sign-in failed.');
+      }
       return;
     }
 
@@ -247,8 +295,11 @@ export default function AdminStaffLogin() {
               type={isVisible ? 'text' : 'password'}
               autoComplete="new-password"
               placeholder="New password (min 8 characters)"
-              value={recoveryPassword}
-              onChange={(e) => setRecoveryPassword(e.target.value)}
+            value={recoveryPassword}
+            onChange={(e) => {
+              setAccessDenied(false);
+              setRecoveryPassword(e.target.value);
+            }}
               icon={<Lock className="w-5 h-5" />}
               required
               className="w-full"
@@ -257,13 +308,17 @@ export default function AdminStaffLogin() {
               type={isVisible ? 'text' : 'password'}
               autoComplete="new-password"
               placeholder="Confirm new password"
-              value={recoveryConfirm}
-              onChange={(e) => setRecoveryConfirm(e.target.value)}
+            value={recoveryConfirm}
+            onChange={(e) => {
+              setAccessDenied(false);
+              setRecoveryConfirm(e.target.value);
+            }}
               icon={<Lock className="w-5 h-5" />}
               required
               className="w-full"
             />
-            {error && (
+            {accessDenied && <StaffAccessDeniedBanner key={accessDeniedTick} />}
+            {error && !accessDenied && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-3">
                 <p className="text-red-600 text-sm">{error}</p>
               </div>
@@ -290,7 +345,10 @@ export default function AdminStaffLogin() {
             autoComplete="username"
             placeholder="Email"
             value={credentials.email}
-            onChange={(e) => setCredentials({ ...credentials, email: e.target.value })}
+            onChange={(e) => {
+              setAccessDenied(false);
+              setCredentials({ ...credentials, email: e.target.value });
+            }}
             icon={<User className="w-5 h-5" />}
             required
             className="w-full"
@@ -302,7 +360,10 @@ export default function AdminStaffLogin() {
               autoComplete="current-password"
               placeholder="Password"
               value={credentials.password}
-              onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
+              onChange={(e) => {
+                setAccessDenied(false);
+                setCredentials({ ...credentials, password: e.target.value });
+              }}
               icon={<Lock className="w-5 h-5" />}
               required
               className="w-full pr-12"
@@ -317,7 +378,8 @@ export default function AdminStaffLogin() {
             </button>
           </div>
 
-          {error && (
+          {accessDenied && <StaffAccessDeniedBanner key={accessDeniedTick} />}
+          {error && !accessDenied && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-3">
               <p className="text-red-600 text-sm">{error}</p>
             </div>

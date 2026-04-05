@@ -76,6 +76,11 @@ export default {
           '35%': { opacity: '0.35' },
           '100%': { transform: 'translateX(220%) skewX(-12deg)', opacity: '0' },
         },
+        /** Staff login: invalid password */
+        'admin-denied-glow': {
+          '0%, 100%': { boxShadow: '0 0 16px rgba(248, 113, 113, 0.18)' },
+          '50%': { boxShadow: '0 0 28px rgba(248, 113, 113, 0.42)' },
+        },
       },
       animation: {
         'fade-in': 'fade-in 0.25s cubic-bezier(0.25, 0.1, 0.25, 1) forwards',
@@ -88,6 +93,7 @@ export default {
         'lux-page-in': 'lux-page-in 0.58s cubic-bezier(0.22, 1, 0.36, 1) both',
         'lux-page-in-subtle': 'lux-page-in-subtle 0.35s ease-out both',
         'lux-shine': 'lux-shine 0.85s cubic-bezier(0.22, 1, 0.36, 1) forwards',
+        'admin-denied-glow': 'admin-denied-glow 2.4s ease-in-out infinite',
       },
       transitionDuration: {
         '150': '150ms',
