@@ -168,16 +168,14 @@ export default function AuthModal() {
         </div>
 
         <p className="px-6 pt-3 pb-1 text-xs text-gray-500 leading-relaxed border-b border-gray-50">
-          Traveler account (bookings &amp; cart) — not the partner dashboard. Same inbox can use +labels for a second
-          login. Partners:{' '}
+          Traveler account — bookings and cart, not the partner dashboard. Want to be a supplier?{' '}
           <a
             href={supplierPortalHref('/login')}
             className="text-finland font-medium hover:underline"
             onClick={() => closeAuthModal()}
           >
-            supplier sign-in
+            Join here
           </a>
-          .
         </p>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">

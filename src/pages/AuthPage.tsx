@@ -3,7 +3,6 @@ import { ArrowLeft, LogIn, UserPlus, Mail } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { normalizeConsumerPhone } from '../data/supabase-consumer-profile';
-import PageHero from '../components/PageHero';
 import { HERO_IMG } from '../lib/heroImages';
 import { publicSiteBaseUrl } from '../lib/publicSiteUrl';
 import { BRAND_LOGO_SRC } from '../lib/brandAssets';
@@ -234,13 +233,17 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-20">
-      <PageHero
-        imageSrc={HERO_IMG.vacation}
-        overlay="slateSoft"
-        title="Your account"
-        subtitle="Traveler sign-in: cart, bookings, and your profile on Traverion. Listing tours as a partner uses a separate portal."
-      />
+    <div className="relative min-h-screen pt-20">
+      <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+        <div
+          className="absolute inset-0 bg-cover bg-center scale-110"
+          style={{
+            backgroundImage: `url(${HERO_IMG.vacation})`,
+            filter: 'blur(12px)',
+          }}
+        />
+        <div className="absolute inset-0 bg-white/55" />
+      </div>
       <div className="max-w-md mx-auto px-4 py-8 pb-12">
         <button
           type="button"
@@ -266,12 +269,10 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
                 </p>
                 {!recoveryMode && (
                   <p className="text-xs text-gray-500 mt-2">
-                    Want to <strong className="font-medium text-gray-600">list tours</strong>? Use the{' '}
+                    Want to be a supplier?{' '}
                     <a href={supplierPortalHref('/login')} className="text-finland font-medium hover:underline">
-                      supplier portal
-                    </a>{' '}
-                    (separate account). One email can only be one role in our system; use an inbox alias (e.g.{' '}
-                    <span className="font-mono text-[11px]">you+travel@gmail.com</span>) if you need both.
+                      Join here
+                    </a>
                   </p>
                 )}
               </div>
