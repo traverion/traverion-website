@@ -7,6 +7,7 @@ import PageHero from '../components/PageHero';
 import { HERO_IMG } from '../lib/heroImages';
 import { publicSiteBaseUrl } from '../lib/publicSiteUrl';
 import { BRAND_LOGO_SRC } from '../lib/brandAssets';
+import { subscribePasswordRecovery, updatePasswordAfterRecovery } from '../lib/passwordRecoveryFlow';
 
 type AuthTab = 'signin' | 'signup';
 
@@ -37,6 +38,15 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
   const [submitting, setSubmitting] = useState(false);
   const [resetSending, setResetSending] = useState(false);
   const [resendSending, setResendSending] = useState(false);
+  const [recoveryMode, setRecoveryMode] = useState(false);
+  const [recoveryPassword, setRecoveryPassword] = useState('');
+  const [recoveryConfirm, setRecoveryConfirm] = useState('');
+  const [recoverySubmitting, setRecoverySubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!supabase) return;
+    return subscribePasswordRecovery(supabase, () => setRecoveryMode(true));
+  }, []);
 
   useEffect(() => {
     try {
@@ -189,6 +199,33 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
     setSuccessMessage('Password reset email sent. Check your inbox.');
   };
 
+  const handleRecoverySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSuccessMessage(null);
+    if (!supabase) return;
+    if (recoveryPassword !== recoveryConfirm) {
+      setError('Passwords do not match.');
+      return;
+    }
+    setRecoverySubmitting(true);
+    try {
+      const { error: err } = await updatePasswordAfterRecovery(supabase, recoveryPassword, { minLength: 6 });
+      if (err) {
+        setError(mapAuthError(err));
+        return;
+      }
+      await supabase.auth.signOut();
+      setRecoveryMode(false);
+      setRecoveryPassword('');
+      setRecoveryConfirm('');
+      setTab('signin');
+      setSuccessMessage('Your password was updated. Sign in with your new password.');
+    } finally {
+      setRecoverySubmitting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 pt-20">
       <PageHero
@@ -213,13 +250,65 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
               <img src={BRAND_LOGO_SRC} alt="" className="h-12 w-12 sm:h-14 sm:w-14 object-contain flex-shrink-0" />
               <div className="min-w-0">
                 <h1 className="text-2xl font-semibold text-gray-900">
-                  {tab === 'signin' ? 'Sign in' : 'Sign up'}
+                  {recoveryMode ? 'Set a new password' : tab === 'signin' ? 'Sign in' : 'Sign up'}
                 </h1>
-                <p className="text-sm text-gray-600 mt-0.5">Access your bookings and cart.</p>
+                <p className="text-sm text-gray-600 mt-0.5">
+                  {recoveryMode
+                    ? 'Choose a new password for your account, then sign in.'
+                    : 'Access your bookings and cart.'}
+                </p>
               </div>
             </div>
           </div>
 
+          {recoveryMode ? (
+            <form onSubmit={(e) => void handleRecoverySubmit(e)} className="p-6 space-y-4">
+              <div>
+                <label htmlFor="auth-recovery-password" className="block text-sm font-medium text-gray-700 mb-1">
+                  New password
+                </label>
+                <input
+                  id="auth-recovery-password"
+                  type="password"
+                  name="new-password"
+                  value={recoveryPassword}
+                  onChange={(e) => setRecoveryPassword(e.target.value)}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland outline-none"
+                  autoComplete="new-password"
+                  required
+                  minLength={6}
+                />
+              </div>
+              <div>
+                <label htmlFor="auth-recovery-confirm" className="block text-sm font-medium text-gray-700 mb-1">
+                  Confirm new password
+                </label>
+                <input
+                  id="auth-recovery-confirm"
+                  type="password"
+                  name="confirm-password"
+                  value={recoveryConfirm}
+                  onChange={(e) => setRecoveryConfirm(e.target.value)}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland outline-none"
+                  autoComplete="new-password"
+                  required
+                  minLength={6}
+                />
+              </div>
+              {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
+              {successMessage && (
+                <p className="text-sm text-gray-700 bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">{successMessage}</p>
+              )}
+              <button
+                type="submit"
+                disabled={recoverySubmitting}
+                className="w-full py-3 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark transition-colors disabled:opacity-60"
+              >
+                {recoverySubmitting ? 'Saving…' : 'Update password'}
+              </button>
+            </form>
+          ) : (
+            <>
           <div className="flex border-b border-gray-100">
             <button
               type="button"
@@ -352,6 +441,8 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
               )}
             </button>
           </form>
+            </>
+          )}
         </div>
       </div>
     </div>

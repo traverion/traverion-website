@@ -8,6 +8,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { isTraverionAdminUser } from '../../lib/adminAuth';
 import { isTraverionAdminHost, publicMarketingSiteUrl } from '../../lib/adminHost';
+import { subscribePasswordRecovery, updatePasswordAfterRecovery } from '../../lib/passwordRecoveryFlow';
 
 function formatAuthSignInError(message: string): string {
   const m = message.toLowerCase();
@@ -31,8 +32,19 @@ export default function AdminStaffLogin({ onSignedIn }: Props) {
   const [credentials, setCredentials] = useState({ email: '', password: '' });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+  const [recoveryMode, setRecoveryMode] = useState(false);
+  const [recoveryPassword, setRecoveryPassword] = useState('');
+  const [recoveryConfirm, setRecoveryConfirm] = useState('');
+  const [recoverySubmitting, setRecoverySubmitting] = useState(false);
 
   useEffect(() => {
+    if (!supabase) return;
+    return subscribePasswordRecovery(supabase, () => setRecoveryMode(true));
+  }, []);
+
+  useEffect(() => {
+    if (recoveryMode) return;
     if (!user || !supabase) return;
     if (!isTraverionAdminHost()) return;
     let cancelled = false;
@@ -45,12 +57,39 @@ export default function AdminStaffLogin({ onSignedIn }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [user, recoveryMode]);
+
+  const handleRecoverySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setSuccessMessage('');
+    if (!supabase) return;
+    if (recoveryPassword !== recoveryConfirm) {
+      setError('Passwords do not match.');
+      return;
+    }
+    setRecoverySubmitting(true);
+    try {
+      const { error: err } = await updatePasswordAfterRecovery(supabase, recoveryPassword, { minLength: 8 });
+      if (err) {
+        setError(formatAuthSignInError(err));
+        return;
+      }
+      await supabase.auth.signOut();
+      setRecoveryMode(false);
+      setRecoveryPassword('');
+      setRecoveryConfirm('');
+      setSuccessMessage('Password updated. Sign in with your new password.');
+    } finally {
+      setRecoverySubmitting(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
+    setSuccessMessage('');
 
     if (!supabase) {
       setIsLoading(false);
@@ -129,12 +168,57 @@ export default function AdminStaffLogin({ onSignedIn }: Props) {
       <LuxuryCard variant="glass" className="w-full max-w-md p-8">
         <div className="text-center mb-8">
           <img src={BRAND_LOGO_SRC} alt="" className="h-16 w-16 object-contain mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-white mb-2">Sign in</h1>
+          <h1 className="text-2xl font-bold text-white mb-2">{recoveryMode ? 'Set a new password' : 'Sign in'}</h1>
           <p className="text-gray-300 text-sm">
-            Private access. Authorized users only. There is no sign-up on this page.
+            {recoveryMode
+              ? 'Choose a new password, then sign in below.'
+              : 'Private access. Authorized users only. There is no sign-up on this page.'}
           </p>
         </div>
 
+        {recoveryMode ? (
+          <form onSubmit={(e) => void handleRecoverySubmit(e)} className="space-y-6">
+            <LuxuryInput
+              type={isVisible ? 'text' : 'password'}
+              autoComplete="new-password"
+              placeholder="New password (min 8 characters)"
+              value={recoveryPassword}
+              onChange={(e) => setRecoveryPassword(e.target.value)}
+              icon={<Lock className="w-5 h-5" />}
+              required
+              className="w-full"
+            />
+            <LuxuryInput
+              type={isVisible ? 'text' : 'password'}
+              autoComplete="new-password"
+              placeholder="Confirm new password"
+              value={recoveryConfirm}
+              onChange={(e) => setRecoveryConfirm(e.target.value)}
+              icon={<Lock className="w-5 h-5" />}
+              required
+              className="w-full"
+            />
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                <p className="text-red-600 text-sm">{error}</p>
+              </div>
+            )}
+            {successMessage && (
+              <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+                <p className="text-emerald-800 text-sm">{successMessage}</p>
+              </div>
+            )}
+            <LuxuryButton
+              type="submit"
+              variant="gradient"
+              size="lg"
+              disabled={recoverySubmitting || !recoveryPassword || !recoveryConfirm}
+              className="w-full"
+            >
+              {recoverySubmitting ? 'Saving…' : 'Update password'}
+            </LuxuryButton>
+          </form>
+        ) : (
         <form onSubmit={(e) => void handleSubmit(e)} className="space-y-6">
           <LuxuryInput
             type="email"
@@ -173,6 +257,11 @@ export default function AdminStaffLogin({ onSignedIn }: Props) {
               <p className="text-red-600 text-sm">{error}</p>
             </div>
           )}
+          {successMessage && (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+              <p className="text-emerald-800 text-sm">{successMessage}</p>
+            </div>
+          )}
 
           <LuxuryButton
             type="submit"
@@ -194,6 +283,7 @@ export default function AdminStaffLogin({ onSignedIn }: Props) {
             )}
           </LuxuryButton>
         </form>
+        )}
 
         <p className="mt-8 text-center text-xs text-slate-400">
           <a href={publicMarketingSiteUrl()} className="underline hover:text-slate-200">

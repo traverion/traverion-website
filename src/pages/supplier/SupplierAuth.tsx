@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { LogIn, UserPlus, Globe, Check, MapPin, Users, CreditCard } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { ensureSupplierProfile } from '../../data/supabase-supplier-profile';
@@ -7,6 +7,7 @@ import { notifySupplierEvent } from '../../data/supabase-supplier-messaging';
 import { publicSiteBaseUrl } from '../../lib/publicSiteUrl';
 import { isSignUpEmailAlreadyRegistered } from '../../lib/supabaseAuthHelpers';
 import { normalizePhoneNumber } from '../../lib/phoneNormalize';
+import { subscribePasswordRecovery, updatePasswordAfterRecovery } from '../../lib/passwordRecoveryFlow';
 
 /** Fire-and-forget welcome email (Edge Function dedupes via welcome_email_sent_at). */
 function sendSupplierWelcomeEmail(userId: string): void {
@@ -42,6 +43,15 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
   const [submitting, setSubmitting] = useState(false);
   const [resetSending, setResetSending] = useState(false);
   const [resendSending, setResendSending] = useState(false);
+  const [recoveryMode, setRecoveryMode] = useState(false);
+  const [recoveryPassword, setRecoveryPassword] = useState('');
+  const [recoveryConfirm, setRecoveryConfirm] = useState('');
+  const [recoverySubmitting, setRecoverySubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!isSupabase || !supabase) return;
+    return subscribePasswordRecovery(supabase, () => setRecoveryMode(true));
+  }, [isSupabase]);
 
   const mapAuthError = (message: string): string => {
     const m = message.toLowerCase();
@@ -242,6 +252,33 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
     setSuccessMessage('Confirmation email resent. Check inbox/spam.');
   };
 
+  const handleRecoverySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSuccessMessage(null);
+    if (!supabase) return;
+    if (recoveryPassword !== recoveryConfirm) {
+      setError('Passwords do not match.');
+      return;
+    }
+    setRecoverySubmitting(true);
+    try {
+      const { error: err } = await updatePasswordAfterRecovery(supabase, recoveryPassword, { minLength: 8 });
+      if (err) {
+        setError(mapAuthError(err));
+        return;
+      }
+      await supabase.auth.signOut();
+      setRecoveryMode(false);
+      setRecoveryPassword('');
+      setRecoveryConfirm('');
+      setMode('signin');
+      setSuccessMessage('Your password was updated. Sign in with your new password.');
+    } finally {
+      setRecoverySubmitting(false);
+    }
+  };
+
   return (
     <div className="w-full flex flex-col lg:flex-row lg:items-stretch xl:items-center lg:justify-between xl:justify-center gap-10 lg:gap-12 xl:gap-16 2xl:gap-20 px-0 sm:px-2 py-6 sm:py-8">
       {/* Left: value prop + benefits (GYG/Viator style) */}
@@ -273,6 +310,56 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
       {/* Right: Sign up / Sign in card — wider on desktop, full width on mobile */}
       <div className="w-full max-w-md sm:max-w-lg xl:max-w-xl 2xl:max-w-[28rem] mx-auto lg:mx-0 flex-shrink-0">
         <div className="bg-white border border-gray-200 rounded-2xl shadow-lg overflow-hidden xl:shadow-xl">
+          {recoveryMode ? (
+            <form onSubmit={(e) => void handleRecoverySubmit(e)} className="p-6 sm:p-8 space-y-4 sm:space-y-5">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Set a new password</h2>
+                <p className="text-sm text-gray-600 mt-1">Then sign in to the supplier portal.</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">New password</label>
+                <input
+                  type="password"
+                  name="new-password"
+                  value={recoveryPassword}
+                  onChange={(e) => setRecoveryPassword(e.target.value)}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland"
+                  autoComplete="new-password"
+                  required
+                  minLength={8}
+                />
+                <p className="text-xs text-gray-500 mt-1">At least 8 characters</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Confirm new password</label>
+                <input
+                  type="password"
+                  name="confirm-password"
+                  value={recoveryConfirm}
+                  onChange={(e) => setRecoveryConfirm(e.target.value)}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland"
+                  autoComplete="new-password"
+                  required
+                  minLength={8}
+                />
+              </div>
+              {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
+              {successMessage && (
+                <div className="flex items-start gap-2 p-3 rounded-lg bg-green-50 text-green-800 text-sm">
+                  <Check className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                  <span>{successMessage}</span>
+                </div>
+              )}
+              <button
+                type="submit"
+                disabled={recoverySubmitting}
+                className="w-full py-3 rounded-lg bg-finland text-white font-semibold hover:bg-finland-dark transition-colors disabled:opacity-50"
+              >
+                {recoverySubmitting ? 'Saving…' : 'Update password'}
+              </button>
+            </form>
+          ) : (
+            <>
           {/* Tabs */}
           <div className="flex border-b border-gray-200">
             <button
@@ -429,6 +516,8 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
               )}
             </button>
           </form>
+            </>
+          )}
         </div>
         <p className="text-center text-sm text-gray-500 mt-4">
           By continuing, you agree to list your offerings on Traverion and to our terms of use.
