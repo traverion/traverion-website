@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Eye, EyeOff, Lock, User, Key } from 'lucide-react';
+import { Eye, EyeOff, Lock, User, Key, Loader2 } from 'lucide-react';
 import LuxuryButton from '../ui/LuxuryButton';
 import LuxuryCard from '../ui/LuxuryCard';
 import LuxuryInput from '../ui/LuxuryInput';
@@ -33,8 +33,10 @@ export default function AdminStaffLogin() {
   const viteSupabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
   const supabaseEnvPairing = hostedSupabaseEnvPairingStatus(viteSupabaseUrl, viteSupabaseAnonKey);
 
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [isVisible, setIsVisible] = useState(false);
+  /** On staff host only: false until we know there is no redirect-worthy session (prevents “any password” confusion). */
+  const [loginFormAllowed, setLoginFormAllowed] = useState(() => !isTraverionAdminHost());
   const [credentials, setCredentials] = useState({ email: '', password: '' });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -50,20 +52,41 @@ export default function AdminStaffLogin() {
   }, []);
 
   useEffect(() => {
-    if (recoveryMode) return;
-    if (!user || !supabase) return;
-    if (!isTraverionAdminHost()) return;
+    if (recoveryMode) {
+      setLoginFormAllowed(true);
+      return;
+    }
+    if (!isTraverionAdminHost() || !supabase) {
+      setLoginFormAllowed(true);
+      return;
+    }
+    if (authLoading) {
+      setLoginFormAllowed(false);
+      return;
+    }
+    if (!user) {
+      setLoginFormAllowed(true);
+      return;
+    }
+    setLoginFormAllowed(false);
     let cancelled = false;
     void (async () => {
-      if (!isTraverionAdminUser(user)) return;
+      if (!isTraverionAdminUser(user)) {
+        if (!cancelled) setLoginFormAllowed(true);
+        return;
+      }
       const { data: rpcOk, error: rpcErr } = await supabase.rpc('is_traverion_panel_admin');
       if (cancelled) return;
-      if (!rpcErr && rpcOk === true) window.location.replace('/admin');
+      if (!rpcErr && rpcOk === true) {
+        window.location.replace('/admin');
+        return;
+      }
+      if (!cancelled) setLoginFormAllowed(true);
     })();
     return () => {
       cancelled = true;
     };
-  }, [user, recoveryMode]);
+  }, [user, recoveryMode, authLoading]);
 
   const handleRecoverySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -178,6 +201,9 @@ export default function AdminStaffLogin() {
     window.location.reload();
   };
 
+  const showSpinnerOnly =
+    authLoading || (isTraverionAdminHost() && !recoveryMode && !loginFormAllowed);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
       <LuxuryCard variant="glass" className="w-full max-w-md p-8">
@@ -191,6 +217,21 @@ export default function AdminStaffLogin() {
           </p>
         </div>
 
+        {showSpinnerOnly && (
+          <div className="flex flex-col items-center justify-center gap-3 py-12 text-gray-300">
+            <Loader2 className="w-10 h-10 animate-spin text-sky-400" aria-hidden />
+            <p className="text-sm text-center">
+              {authLoading
+                ? 'Checking session…'
+                : user
+                  ? 'Already signed in. Opening dashboard…'
+                  : 'Checking…'}
+            </p>
+          </div>
+        )}
+
+        {!showSpinnerOnly && (
+          <>
         {supabaseEnvPairing === 'mismatch' && (
           <div className="mb-6 rounded-lg border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-left text-sm text-amber-100">
             <strong className="font-semibold">Configuration error:</strong> the anon key in this build does not
@@ -307,6 +348,8 @@ export default function AdminStaffLogin() {
             )}
           </LuxuryButton>
         </form>
+        )}
+          </>
         )}
 
         <p className="mt-8 text-center text-xs text-slate-400">
