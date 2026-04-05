@@ -9,16 +9,16 @@ import { supabase } from '../../lib/supabase';
 import { isTraverionAdminUser } from '../../lib/adminAuth';
 import { isTraverionAdminHost, publicMarketingSiteUrl } from '../../lib/adminHost';
 import { subscribePasswordRecovery, updatePasswordAfterRecovery } from '../../lib/passwordRecoveryFlow';
+import { normalizeStaffSignInEmail, normalizeStaffSignInPassword } from '../../lib/staffSignInCredentials';
 
 function formatAuthSignInError(message: string): string {
   const m = message.toLowerCase();
   if (m.includes('invalid login') || m.includes('invalid credentials')) {
     return [
-      'Supabase rejected this email/password. That usually means one of:',
-      '• Wrong password (try reset via email), or a typo.',
-      '• The user does not exist in the Supabase project this site is using.',
-      '• admin.traverion.com uses different VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY than www—in Vercel, set those env vars for all domains on the same deployment.',
-      `Supabase said: ${message}`,
+      'Invalid email or password for this app’s Supabase project (Auth rejected the sign-in).',
+      'Reset the password from the dashboard (Authentication → Users) or use the recovery email; pick a new password that is not the same as the previous one.',
+      'Also confirm this exact address exists under Users for the same project as in the token request URL (e.g. …supabase.co).',
+      `Supabase: ${message}`,
     ].join(' ');
   }
   return message;
@@ -65,13 +65,15 @@ export default function AdminStaffLogin() {
     setError('');
     setSuccessMessage('');
     if (!supabase) return;
-    if (recoveryPassword !== recoveryConfirm) {
+    const recoveryPw = normalizeStaffSignInPassword(recoveryPassword);
+    const recoveryPw2 = normalizeStaffSignInPassword(recoveryConfirm);
+    if (recoveryPw !== recoveryPw2) {
       setError('Passwords do not match.');
       return;
     }
     setRecoverySubmitting(true);
     try {
-      const { error: err } = await updatePasswordAfterRecovery(supabase, recoveryPassword, { minLength: 8 });
+      const { error: err } = await updatePasswordAfterRecovery(supabase, recoveryPw, { minLength: 8 });
       if (err) {
         setError(formatAuthSignInError(err));
         return;
@@ -98,8 +100,13 @@ export default function AdminStaffLogin() {
       return;
     }
 
-    const email = credentials.email.trim().toLowerCase();
-    const password = credentials.password;
+    const email = normalizeStaffSignInEmail(credentials.email);
+    const password = normalizeStaffSignInPassword(credentials.password);
+    if (!password) {
+      setIsLoading(false);
+      setError('Enter your password.');
+      return;
+    }
 
     // Do not use AuthContext.signIn here: it runs consumer profile setup for non-admin users and can
     // interfere. Panel login only needs Auth + role + public.admin RPC.
