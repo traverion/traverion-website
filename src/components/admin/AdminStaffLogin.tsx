@@ -10,6 +10,7 @@ import { isTraverionAdminUser } from '../../lib/adminAuth';
 import { isTraverionAdminHost, publicMarketingSiteUrl } from '../../lib/adminHost';
 import { subscribePasswordRecovery, updatePasswordAfterRecovery } from '../../lib/passwordRecoveryFlow';
 import { normalizeStaffSignInEmail, normalizeStaffSignInPassword } from '../../lib/staffSignInCredentials';
+import { hostedSupabaseEnvPairingStatus } from '../../lib/supabaseEnvPairing';
 
 function formatAuthSignInError(message: string): string {
   const m = message.toLowerCase();
@@ -28,6 +29,10 @@ function formatAuthSignInError(message: string): string {
  * Private sign-in (no public sign-up). Staff host: /login; local dev: /admin gate.
  */
 export default function AdminStaffLogin() {
+  const viteSupabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+  const viteSupabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+  const supabaseEnvPairing = hostedSupabaseEnvPairingStatus(viteSupabaseUrl, viteSupabaseAnonKey);
+
   const { user } = useAuth();
   const [isVisible, setIsVisible] = useState(false);
   const [credentials, setCredentials] = useState({ email: '', password: '' });
@@ -185,6 +190,15 @@ export default function AdminStaffLogin() {
               : 'Private access. Authorized users only. There is no sign-up on this page.'}
           </p>
         </div>
+
+        {supabaseEnvPairing === 'mismatch' && (
+          <div className="mb-6 rounded-lg border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-left text-sm text-amber-100">
+            <strong className="font-semibold">Configuration error:</strong> the anon key in this build does not
+            match the project in <code className="text-xs opacity-90">VITE_SUPABASE_URL</code>. Update both values
+            from the same Supabase project (Settings → API) in your host env, then redeploy. This is unrelated to
+            using a subdomain.
+          </div>
+        )}
 
         {recoveryMode ? (
           <form onSubmit={(e) => void handleRecoverySubmit(e)} className="space-y-6">
