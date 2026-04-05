@@ -401,7 +401,7 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
                   <button
                     onClick={() => {
                       if (isSupabaseConfigured() && !user) {
-                        window.location.href = '/auth?tab=signup&next=packages';
+                        window.location.href = '/sign-up?next=packages';
                         return;
                       }
                       analytics.bookStart(tour.id);

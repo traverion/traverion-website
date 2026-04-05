@@ -90,7 +90,7 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
             <button
               type="button"
               onClick={() => {
-                window.history.pushState({}, '', '/auth?tab=signup&next=wishlist');
+                window.history.pushState({}, '', '/sign-up?next=wishlist');
                 onNavigate('auth');
               }}
               className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark"

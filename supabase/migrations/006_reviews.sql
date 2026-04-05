@@ -24,21 +24,25 @@ create index if not exists reviews_created_at on public.reviews(created_at desc)
 alter table public.reviews enable row level security;
 
 -- Anyone can read reviews
+drop policy if exists "Reviews are viewable by everyone" on public.reviews;
 create policy "Reviews are viewable by everyone"
   on public.reviews for select
   using (true);
 
 -- Authenticated users can insert their own review (one per listing per user enforced in app or unique constraint)
+drop policy if exists "Users can insert own review" on public.reviews;
 create policy "Users can insert own review"
   on public.reviews for insert
   with check (auth.uid() = user_id);
 
 -- Users can update/delete only their own review
+drop policy if exists "Users can update own review" on public.reviews;
 create policy "Users can update own review"
   on public.reviews for update
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
+drop policy if exists "Users can delete own review" on public.reviews;
 create policy "Users can delete own review"
   on public.reviews for delete
   using (auth.uid() = user_id);

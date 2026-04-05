@@ -14,6 +14,7 @@ alter table public.bookings
 comment on column public.bookings.guest_name is 'Customer name from booking form';
 
 -- Suppliers can update status of bookings for their own listings
+drop policy if exists "Suppliers can update booking status for their listings" on public.bookings;
 create policy "Suppliers can update booking status for their listings"
   on public.bookings for update
   using (

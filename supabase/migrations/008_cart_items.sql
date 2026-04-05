@@ -15,19 +15,23 @@ create index if not exists cart_items_listing_id on public.cart_items(listing_id
 
 alter table public.cart_items enable row level security;
 
+drop policy if exists "Users can view own cart" on public.cart_items;
 create policy "Users can view own cart"
   on public.cart_items for select
   using (auth.uid() = user_id);
 
+drop policy if exists "Users can add to own cart" on public.cart_items;
 create policy "Users can add to own cart"
   on public.cart_items for insert
   with check (auth.uid() = user_id);
 
+drop policy if exists "Users can update own cart items" on public.cart_items;
 create policy "Users can update own cart items"
   on public.cart_items for update
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
+drop policy if exists "Users can delete own cart items" on public.cart_items;
 create policy "Users can delete own cart items"
   on public.cart_items for delete
   using (auth.uid() = user_id);

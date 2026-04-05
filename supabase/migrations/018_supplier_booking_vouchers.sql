@@ -23,14 +23,17 @@ create index if not exists supplier_booking_vouchers_booking_idx
 
 alter table public.supplier_booking_vouchers enable row level security;
 
+drop policy if exists "Suppliers can read own vouchers" on public.supplier_booking_vouchers;
 create policy "Suppliers can read own vouchers"
   on public.supplier_booking_vouchers
   for select using (supplier_id = auth.uid());
 
+drop policy if exists "Suppliers can write own vouchers" on public.supplier_booking_vouchers;
 create policy "Suppliers can write own vouchers"
   on public.supplier_booking_vouchers
   for insert with check (supplier_id = auth.uid());
 
+drop policy if exists "Suppliers can update own vouchers" on public.supplier_booking_vouchers;
 create policy "Suppliers can update own vouchers"
   on public.supplier_booking_vouchers
   for update using (supplier_id = auth.uid())

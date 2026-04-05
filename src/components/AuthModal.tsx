@@ -5,6 +5,8 @@ import { supabase } from '../lib/supabase';
 import { normalizeConsumerPhone } from '../data/supabase-consumer-profile';
 import { publicSiteBaseUrl } from '../lib/publicSiteUrl';
 import { BRAND_LOGO_SRC } from '../lib/brandAssets';
+import { TRAVELER_EMAIL_ALREADY_REGISTERED } from '../lib/customerSupplierAuthMessages';
+import { supplierPortalHref } from '../lib/partnerHost';
 
 type Tab = 'signin' | 'signup';
 
@@ -24,7 +26,7 @@ export default function AuthModal() {
     const m = message.toLowerCase();
     if (m.includes('not configured')) return 'Authentication is currently unavailable. Please try again shortly.';
     if (m.includes('already registered') || m.includes('already been registered') || m.includes('user already exists')) {
-      return 'This email is already in use. Try logging in instead.';
+      return TRAVELER_EMAIL_ALREADY_REGISTERED;
     }
     if (m.includes('invalid login credentials')) return 'Incorrect email or password.';
     if (m.includes('email not confirmed')) return 'Please confirm your email before logging in.';
@@ -99,7 +101,7 @@ export default function AuthModal() {
     }
     setResetSending(true);
     const { error: err } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-      redirectTo: `${publicSiteBaseUrl()}/auth?tab=signin&next=account`,
+      redirectTo: `${publicSiteBaseUrl()}/log-in?next=account`,
     });
     setResetSending(false);
     if (err) {
@@ -164,6 +166,19 @@ export default function AuthModal() {
             Sign up
           </button>
         </div>
+
+        <p className="px-6 pt-3 pb-1 text-xs text-gray-500 leading-relaxed border-b border-gray-50">
+          Traveler account (bookings &amp; cart) — not the partner dashboard. Same inbox can use +labels for a second
+          login. Partners:{' '}
+          <a
+            href={supplierPortalHref('/login')}
+            className="text-finland font-medium hover:underline"
+            onClick={() => closeAuthModal()}
+          >
+            supplier sign-in
+          </a>
+          .
+        </p>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>

@@ -35,18 +35,22 @@ create index if not exists supplier_booking_messages_supplier_idx
 alter table public.supplier_booking_events enable row level security;
 alter table public.supplier_booking_messages enable row level security;
 
+drop policy if exists "Suppliers can read own booking events" on public.supplier_booking_events;
 create policy "Suppliers can read own booking events"
   on public.supplier_booking_events
   for select using (supplier_id = auth.uid());
 
+drop policy if exists "Suppliers can write own booking events" on public.supplier_booking_events;
 create policy "Suppliers can write own booking events"
   on public.supplier_booking_events
   for insert with check (supplier_id = auth.uid());
 
+drop policy if exists "Suppliers can read own booking messages" on public.supplier_booking_messages;
 create policy "Suppliers can read own booking messages"
   on public.supplier_booking_messages
   for select using (supplier_id = auth.uid());
 
+drop policy if exists "Suppliers can write own booking messages" on public.supplier_booking_messages;
 create policy "Suppliers can write own booking messages"
   on public.supplier_booking_messages
   for insert with check (supplier_id = auth.uid());

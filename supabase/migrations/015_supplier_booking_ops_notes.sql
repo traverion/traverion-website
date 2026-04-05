@@ -12,22 +12,26 @@ create index if not exists supplier_booking_ops_notes_supplier_idx
 
 alter table public.supplier_booking_ops_notes enable row level security;
 
+drop policy if exists "Suppliers can read own booking notes" on public.supplier_booking_ops_notes;
 create policy "Suppliers can read own booking notes"
   on public.supplier_booking_ops_notes
   for select
   using (supplier_id = auth.uid());
 
+drop policy if exists "Suppliers can upsert own booking notes" on public.supplier_booking_ops_notes;
 create policy "Suppliers can upsert own booking notes"
   on public.supplier_booking_ops_notes
   for insert
   with check (supplier_id = auth.uid());
 
+drop policy if exists "Suppliers can update own booking notes" on public.supplier_booking_ops_notes;
 create policy "Suppliers can update own booking notes"
   on public.supplier_booking_ops_notes
   for update
   using (supplier_id = auth.uid())
   with check (supplier_id = auth.uid());
 
+drop policy if exists "Suppliers can delete own booking notes" on public.supplier_booking_ops_notes;
 create policy "Suppliers can delete own booking notes"
   on public.supplier_booking_ops_notes
   for delete

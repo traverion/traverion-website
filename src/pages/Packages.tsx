@@ -12,6 +12,7 @@ import { getDisplayPrice, isSupabaseListingId } from '../lib/discount-display';
 import { setListingsJsonLd } from '../lib/seo';
 import { SkeletonCardGrid } from '../components/ui/Skeleton';
 import { ListingCardRating } from '../components/ListingCardRating';
+import { supplierPortalHref } from '../lib/partnerHost';
 
 type SortOption = 'recommended' | 'price-asc' | 'price-desc' | 'rating' | 'duration';
 
@@ -802,7 +803,7 @@ export default function Packages({ onTourSelect }: PackagesProps) {
                 Refresh
               </button>
               <a
-                href="/supplier"
+                href={supplierPortalHref('/login')}
                 className="inline-flex items-center gap-2 border border-gray-300 text-gray-700 font-semibold px-6 py-3 rounded-xl hover:bg-gray-50 transition-colors"
               >
                 <PlusCircle className="w-5 h-5" />

@@ -82,32 +82,39 @@ alter table public.contact_inquiries enable row level security;
 alter table public.supplier_profiles enable row level security;
 
 -- Contact: anyone can insert
+drop policy if exists "Anyone can submit contact inquiry" on public.contact_inquiries;
 create policy "Anyone can submit contact inquiry"
   on public.contact_inquiries for insert
   with check (true);
 
 -- Listings: anyone can read; only owner can insert/update/delete
+drop policy if exists "Listings are viewable by everyone" on public.listings;
 create policy "Listings are viewable by everyone"
   on public.listings for select
   using (true);
 
+drop policy if exists "Suppliers can insert own listings" on public.listings;
 create policy "Suppliers can insert own listings"
   on public.listings for insert
   with check (auth.uid() = supplier_id);
 
+drop policy if exists "Suppliers can update own listings" on public.listings;
 create policy "Suppliers can update own listings"
   on public.listings for update
   using (auth.uid() = supplier_id);
 
+drop policy if exists "Suppliers can delete own listings" on public.listings;
 create policy "Suppliers can delete own listings"
   on public.listings for delete
   using (auth.uid() = supplier_id);
 
 -- Bookings: anyone can create; listing owner can read their listing's bookings
+drop policy if exists "Anyone can create bookings" on public.bookings;
 create policy "Anyone can create bookings"
   on public.bookings for insert
   with check (true);
 
+drop policy if exists "Suppliers can view bookings for their listings" on public.bookings;
 create policy "Suppliers can view bookings for their listings"
   on public.bookings for select
   using (
@@ -119,14 +126,17 @@ create policy "Suppliers can view bookings for their listings"
   );
 
 -- Supplier profiles: public read, own write
+drop policy if exists "Profiles are viewable by everyone" on public.supplier_profiles;
 create policy "Profiles are viewable by everyone"
   on public.supplier_profiles for select
   using (true);
 
+drop policy if exists "Users can insert own profile" on public.supplier_profiles;
 create policy "Users can insert own profile"
   on public.supplier_profiles for insert
   with check (auth.uid() = id);
 
+drop policy if exists "Users can update own profile" on public.supplier_profiles;
 create policy "Users can update own profile"
   on public.supplier_profiles for update
   using (auth.uid() = id);

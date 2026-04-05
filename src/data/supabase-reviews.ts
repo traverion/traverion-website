@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import { publicSiteBaseUrl } from '../lib/publicSiteUrl';
+import { supplierPortalPublicBaseUrl } from '../lib/partnerHost';
 import { notifySupplierEvent } from './supabase-supplier-messaging';
 
 export type ReviewRow = {
@@ -121,7 +121,7 @@ export async function submitReview(params: {
       reviewRating: params.rating,
       reviewTitle: params.title,
       guestName: params.guestName,
-      portalBaseUrl: publicSiteBaseUrl(),
+      portalBaseUrl: supplierPortalPublicBaseUrl(),
     });
   }
   return { success: true };

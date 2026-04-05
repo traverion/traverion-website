@@ -48,9 +48,11 @@ create index if not exists review_replies_supplier_id on public.review_replies(s
 
 alter table public.review_replies enable row level security;
 
+drop policy if exists "Anyone can read review replies" on public.review_replies;
 create policy "Anyone can read review replies"
   on public.review_replies for select using (true);
 
+drop policy if exists "Suppliers can insert reply for own listing's review" on public.review_replies;
 create policy "Suppliers can insert reply for own listing's review"
   on public.review_replies for insert
   with check (
@@ -62,6 +64,7 @@ create policy "Suppliers can insert reply for own listing's review"
     )
   );
 
+drop policy if exists "Suppliers can update own reply" on public.review_replies;
 create policy "Suppliers can update own reply"
   on public.review_replies for update
   using (auth.uid() = supplier_id)

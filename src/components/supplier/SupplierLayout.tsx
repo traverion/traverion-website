@@ -43,10 +43,12 @@ import SupplierLoginPage from './SupplierLoginPage';
 import SupplierSettingsPages from './SupplierSettingsPages';
 import { BRAND_LOGO_SRC } from '../../lib/brandAssets';
 import { isSupplierBusinessProfileComplete, isSupplierPayoutConfigured } from '../../lib/supplierOnboarding';
-import { publicSiteBaseUrl } from '../../lib/publicSiteUrl';
+import { userHasSupplierProfile } from '../../lib/supplierPortalAccess';
+import { PARTNER_APP_BASE, PARTNER_LOGIN_PATH } from '../../lib/partnerPortalPaths';
+import SupplierPortalTravelerNotice from './SupplierPortalTravelerNotice';
 
-/** URL path for the supplier login/landing page. Portal is /supplier and /supplier/* */
-export const SUPPLIER_LOGIN_PATH = '/supplier-log-in';
+/** @deprecated Use PARTNER_LOGIN_PATH from partnerPortalPaths */
+export const SUPPLIER_LOGIN_PATH = PARTNER_LOGIN_PATH;
 
 type SupplierSection =
   | 'dashboard'
@@ -76,8 +78,9 @@ const ROUTABLE_SECTIONS = [...NAV_ITEMS.map((n) => n.id), 'badges'] as const;
 type ExtraSupplierSection = (typeof ROUTABLE_SECTIONS)[number];
 
 function getSectionFromPath(pathname: string): SupplierSection | null {
-  if (pathname === '/supplier' || pathname === '/supplier/') return 'dashboard';
-  const match = pathname.match(/^\/supplier\/([a-z-]+)/);
+  const base = PARTNER_APP_BASE;
+  if (pathname === base || pathname === `${base}/`) return 'dashboard';
+  const match = pathname.match(new RegExp(`^${base}/([a-z-]+)`));
   if (!match) return null;
   if (match[1] === 'settings') return 'business-profile';
   const section = match[1] as ExtraSupplierSection;
@@ -86,11 +89,15 @@ function getSectionFromPath(pathname: string): SupplierSection | null {
 
 function isSupplierLoginPath(pathname: string): boolean {
   const p = pathname.replace(/\/$/, '');
-  return p === SUPPLIER_LOGIN_PATH;
+  return p === PARTNER_LOGIN_PATH;
 }
 
 function isSupplierPortalPath(pathname: string): boolean {
-  return pathname === '/supplier' || pathname === '/supplier/' || pathname.startsWith('/supplier/');
+  return (
+    pathname === PARTNER_APP_BASE ||
+    pathname === `${PARTNER_APP_BASE}/` ||
+    pathname.startsWith(`${PARTNER_APP_BASE}/`)
+  );
 }
 
 type SetupStripProps = {
@@ -280,6 +287,7 @@ function SupplierSetupProgressStrip({
 
 export default function SupplierLayout() {
   const { user, loading, signOut, isSupabase } = useSupplierAuth();
+  const [hasSupplierProfile, setHasSupplierProfile] = useState<boolean | null>(null);
   const [section, setSection] = useState<SupplierSection>(() => getSectionFromPath(window.location.pathname) ?? 'dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [payoutIban, setPayoutIban] = useState('');
@@ -338,6 +346,21 @@ export default function SupplierLayout() {
 
   const supplierEmail = typeof user?.email === 'string' ? user.email : '';
   const supplierEmailVerified = Boolean((user as { email_confirmed_at?: string | null } | null)?.email_confirmed_at);
+
+  useEffect(() => {
+    if (!user?.id || !isSupabase || !supabase) {
+      setHasSupplierProfile(null);
+      return;
+    }
+    let cancelled = false;
+    setHasSupplierProfile(null);
+    void userHasSupplierProfile(supabase, user.id).then((ok) => {
+      if (!cancelled) setHasSupplierProfile(ok);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, isSupabase]);
 
   useEffect(() => {
     if ((section !== 'business-profile' && section !== 'account-settings') || !user?.id || !isSupabase) return;
@@ -528,7 +551,7 @@ export default function SupplierLayout() {
 
   const handleNavigate = (s: SupplierSection) => {
     setSection(s);
-    const path = s === 'dashboard' ? '/supplier' : `/supplier/${s}`;
+    const path = s === 'dashboard' ? PARTNER_APP_BASE : `${PARTNER_APP_BASE}/${s}`;
     window.history.pushState({}, '', path);
     window.dispatchEvent(new PopStateEvent('popstate'));
     setSidebarOpen(false);
@@ -554,7 +577,7 @@ export default function SupplierLayout() {
 
   const handleAuthenticated = () => {
     setSection('dashboard');
-    window.location.replace('/supplier');
+    window.location.replace(PARTNER_APP_BASE);
   };
 
   const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
@@ -615,8 +638,27 @@ export default function SupplierLayout() {
     );
   }
 
+  const needsPartnerProfileGate = Boolean(user && (onPortalPath || onLoginPath));
+  if (needsPartnerProfileGate) {
+    if (hasSupplierProfile === null) {
+      return (
+        <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-3 text-gray-500">
+          <p className="text-sm">Checking partner account…</p>
+        </div>
+      );
+    }
+    if (!hasSupplierProfile) {
+      return (
+        <SupplierPortalTravelerNotice
+          email={typeof user?.email === 'string' ? user.email : null}
+          onSignOut={() => void signOut()}
+        />
+      );
+    }
+  }
+
   if (onLoginPath && user) {
-    window.location.replace('/supplier');
+    window.location.replace(PARTNER_APP_BASE);
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <p className="text-gray-500">Redirecting...</p>
@@ -893,7 +935,6 @@ export default function SupplierLayout() {
               verificationMessage={verificationMessage}
               setVerificationMessage={setVerificationMessage}
               setVerificationSending={setVerificationSending}
-              publicSiteBaseUrl={publicSiteBaseUrl}
               newPassword={newPassword}
               setNewPassword={setNewPassword}
               passwordSaving={passwordSaving}

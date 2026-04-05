@@ -83,6 +83,54 @@
       "permanent": true
     },
     {
+      "source": "/supplier-log-in",
+      "has": [{ "type": "host", "value": "www.traverion.com" }],
+      "destination": "https://partner.traverion.com/login",
+      "permanent": true
+    },
+    {
+      "source": "/supplier-log-in",
+      "has": [{ "type": "host", "value": "traverion.com" }],
+      "destination": "https://partner.traverion.com/login",
+      "permanent": true
+    },
+    {
+      "source": "/supplier",
+      "has": [{ "type": "host", "value": "www.traverion.com" }],
+      "destination": "https://partner.traverion.com/partner",
+      "permanent": true
+    },
+    {
+      "source": "/supplier",
+      "has": [{ "type": "host", "value": "traverion.com" }],
+      "destination": "https://partner.traverion.com/partner",
+      "permanent": true
+    },
+    {
+      "source": "/supplier/:path*",
+      "has": [{ "type": "host", "value": "www.traverion.com" }],
+      "destination": "https://partner.traverion.com/partner/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/supplier/:path*",
+      "has": [{ "type": "host", "value": "traverion.com" }],
+      "destination": "https://partner.traverion.com/partner/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/login",
+      "has": [{ "type": "host", "value": "www.traverion.com" }],
+      "destination": "https://partner.traverion.com/login",
+      "permanent": true
+    },
+    {
+      "source": "/login",
+      "has": [{ "type": "host", "value": "traverion.com" }],
+      "destination": "https://partner.traverion.com/login",
+      "permanent": true
+    },
+    {
       "source": "/thailand-vietnam-14-day",
       "destination": "/14-vietnam-thailand",
       "permanent": true

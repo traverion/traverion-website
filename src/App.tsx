@@ -53,6 +53,7 @@ import {
   redirectIfInAppAdminOnPublicMarketingSite,
 } from './lib/adminHost';
 import { getListingByIdAsync } from './data/listings';
+import { isPartnerPortalPath } from './lib/partnerPortalPaths';
 import { TourPackage as TourPackageType } from './types/tour';
 
 function readInitialRoute(): { page: string; destinationSlug: string | null } {
@@ -68,11 +69,14 @@ function App() {
   const [currentPage, setCurrentPage] = useState(initialRoute.page);
   const [destinationSlug, setDestinationSlug] = useState<string | null>(initialRoute.destinationSlug);
   const [selectedTour, setSelectedTour] = useState<TourPackageType | null>(null);
-  // Supplier portal: /supplier/* and dedicated login URL (must mount SupplierLayout for both)
+  // Partner portal: /login + /partner/* (and legacy /supplier* on localhost until migrated)
   const supplierPath =
     typeof window !== 'undefined' ? window.location.pathname.replace(/\/$/, '') || '/' : '';
   const isSupplierArea =
-    supplierPath.startsWith('/supplier') || supplierPath === '/supplier-log-in';
+    isPartnerPortalPath(supplierPath) ||
+    supplierPath === '/supplier-log-in' ||
+    supplierPath === '/supplier' ||
+    supplierPath.startsWith('/supplier/');
   // Sync internal route from the URL (initial load + browser back/forward)
   const syncRouteFromUrl = useCallback(() => {
     if (isSupplierArea) return;
@@ -135,9 +139,10 @@ function App() {
     } catch {
       /* ignore quota / private mode */
     }
-    const onAuth = (window.location.pathname.replace(/\/$/, '') || '/') === '/auth';
-    const qs = onAuth && window.location.search ? window.location.search : '?tab=signin&next=account';
-    window.history.replaceState({}, '', `/auth${qs}`);
+    const path = window.location.pathname.replace(/\/$/, '') || '/';
+    const onTravelerAuth = path === '/auth' || path === '/sign-up' || path === '/log-in';
+    const qs = onTravelerAuth && window.location.search ? window.location.search : '?next=account';
+    window.history.replaceState({}, '', `/log-in${qs}`);
     setCurrentPage('auth');
   }, [isSupplierArea]);
 
@@ -170,6 +175,9 @@ function App() {
       if (window.location.pathname !== '/packages' || window.location.search !== `?${qs}`) {
         window.history.replaceState({}, '', next);
       }
+      return;
+    }
+    if (currentPage === 'auth') {
       return;
     }
     const urlMapping: { [key: string]: string } = {

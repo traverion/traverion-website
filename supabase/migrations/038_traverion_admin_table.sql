@@ -1,7 +1,7 @@
 -- Single Traverion panel account listing (email). Authentication uses Supabase Auth (password there only).
 -- The `password` column is a non-auth placeholder (default empty); set the real password in Dashboard → Authentication → Users.
 
-CREATE TABLE public.admin (
+CREATE TABLE IF NOT EXISTS public.admin (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   email text NOT NULL UNIQUE,
   password text NOT NULL DEFAULT '',
@@ -12,7 +12,8 @@ COMMENT ON TABLE public.admin IS 'Panel allowlist: only emails in this table may
 COMMENT ON COLUMN public.admin.password IS 'Not used for sign-in. Use Supabase Authentication for this user password. Leave empty unless you use this field for internal notes only.';
 
 INSERT INTO public.admin (email, password)
-VALUES (lower(trim('info.traverion@gmail.com')), '');
+VALUES (lower(trim('info.traverion@gmail.com')), '')
+ON CONFLICT (email) DO NOTHING;
 
 ALTER TABLE public.admin ENABLE ROW LEVEL SECURITY;
 

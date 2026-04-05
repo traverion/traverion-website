@@ -13,14 +13,17 @@ create index if not exists wishlist_listing_id on public.wishlist(listing_id);
 
 alter table public.wishlist enable row level security;
 
+drop policy if exists "Users can view own wishlist" on public.wishlist;
 create policy "Users can view own wishlist"
   on public.wishlist for select
   using (auth.uid() = user_id);
 
+drop policy if exists "Users can add to own wishlist" on public.wishlist;
 create policy "Users can add to own wishlist"
   on public.wishlist for insert
   with check (auth.uid() = user_id);
 
+drop policy if exists "Users can remove from own wishlist" on public.wishlist;
 create policy "Users can remove from own wishlist"
   on public.wishlist for delete
   using (auth.uid() = user_id);

@@ -8,6 +8,8 @@ import { HERO_IMG } from '../lib/heroImages';
 import { publicSiteBaseUrl } from '../lib/publicSiteUrl';
 import { BRAND_LOGO_SRC } from '../lib/brandAssets';
 import { subscribePasswordRecovery, updatePasswordAfterRecovery } from '../lib/passwordRecoveryFlow';
+import { TRAVELER_EMAIL_ALREADY_REGISTERED } from '../lib/customerSupplierAuthMessages';
+import { supplierPortalHref } from '../lib/partnerHost';
 
 type AuthTab = 'signin' | 'signup';
 
@@ -16,11 +18,16 @@ interface AuthPageProps {
 }
 
 function readAuthQuery(): { tab: AuthTab; next: string } {
+  const path = window.location.pathname.replace(/\/$/, '') || '/';
   const params = new URLSearchParams(window.location.search);
   const tabParam = params.get('tab');
+  let tab: AuthTab = 'signup';
+  if (path === '/log-in') tab = 'signin';
+  else if (path === '/sign-up') tab = 'signup';
+  else if (tabParam === 'signin') tab = 'signin';
   const nextParam = params.get('next');
   return {
-    tab: tabParam === 'signin' ? 'signin' : 'signup',
+    tab,
     next: nextParam || 'cart',
   };
 }
@@ -67,7 +74,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
     const m = message.toLowerCase();
     if (m.includes('not configured')) return 'Authentication is currently unavailable. Please try again shortly.';
     if (m.includes('already registered') || m.includes('already been registered') || m.includes('user already exists')) {
-      return 'This email is already in use. Try signing in instead.';
+      return TRAVELER_EMAIL_ALREADY_REGISTERED;
     }
     if (m.includes('invalid login credentials')) return 'Incorrect email or password.';
     if (m.includes('email not confirmed')) return 'Please confirm your email before signing in.';
@@ -95,10 +102,10 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
   }, [next]);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    params.set('tab', tab);
+    const params = new URLSearchParams();
     params.set('next', nextPage);
-    window.history.replaceState({}, '', `/auth?${params.toString()}`);
+    const path = tab === 'signup' ? '/sign-up' : '/log-in';
+    window.history.replaceState({}, '', `${path}?${params.toString()}`);
   }, [tab, nextPage]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -166,7 +173,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
     const { error: err } = await supabase.auth.resend({
       type: 'signup',
       email: email.trim().toLowerCase(),
-      options: { emailRedirectTo: `${publicSiteBaseUrl()}/auth?tab=signin&next=account` },
+      options: { emailRedirectTo: `${publicSiteBaseUrl()}/log-in?next=account` },
     });
     setResendSending(false);
     if (err) {
@@ -189,7 +196,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
     }
     setResetSending(true);
     const { error: err } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-      redirectTo: `${publicSiteBaseUrl()}/auth?tab=signin&next=${encodeURIComponent(nextPage)}`,
+      redirectTo: `${publicSiteBaseUrl()}/log-in?next=${encodeURIComponent(nextPage)}`,
     });
     setResetSending(false);
     if (err) {
@@ -232,7 +239,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
         imageSrc={HERO_IMG.vacation}
         overlay="slateSoft"
         title="Your account"
-        subtitle="Sign in or create an account to use your cart, bookings, and tour requests in one place."
+        subtitle="Traveler sign-in: cart, bookings, and your profile on Traverion. Listing tours as a partner uses a separate portal."
       />
       <div className="max-w-md mx-auto px-4 py-8 pb-12">
         <button
@@ -255,8 +262,18 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
                 <p className="text-sm text-gray-600 mt-0.5">
                   {recoveryMode
                     ? 'Choose a new password for your account, then sign in.'
-                    : 'Access your bookings and cart.'}
+                    : 'Book trips, save your cart, and manage bookings — not the partner dashboard.'}
                 </p>
+                {!recoveryMode && (
+                  <p className="text-xs text-gray-500 mt-2">
+                    Want to <strong className="font-medium text-gray-600">list tours</strong>? Use the{' '}
+                    <a href={supplierPortalHref('/login')} className="text-finland font-medium hover:underline">
+                      supplier portal
+                    </a>{' '}
+                    (separate account). One email can only be one role in our system; use an inbox alias (e.g.{' '}
+                    <span className="font-mono text-[11px]">you+travel@gmail.com</span>) if you need both.
+                  </p>
+                )}
               </div>
             </div>
           </div>

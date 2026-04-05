@@ -7,6 +7,7 @@ import { fetchSupplierProfile } from '../../data/supabase-supplier-profile';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import SupplierListingForm from './SupplierListingForm';
 import { computeListingQuality, listingQualityPercent } from '../../lib/listingQualityScore';
+import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { navigateSupplierUrl, openSupplierListingEditor } from '../../lib/supplierPortalNavigation';
 import {
   isSupplierBusinessProfileComplete,
@@ -76,7 +77,7 @@ export default function SupplierListings() {
     setFormFocusSection(null);
     const params = new URLSearchParams(window.location.search);
     if (params.get('edit')) {
-      window.history.replaceState({}, '', '/supplier/listings');
+      window.history.replaceState({}, '', `${PARTNER_APP_BASE}/listings`);
     }
   }, [canEditListings]);
 
@@ -95,7 +96,7 @@ export default function SupplierListings() {
       setShowForm(false);
       setEditingId(null);
       setFormFocusSection(null);
-      window.history.replaceState({}, '', '/supplier/listings');
+      window.history.replaceState({}, '', `${PARTNER_APP_BASE}/listings`);
     }
   }, [listings, loading]);
 
@@ -310,7 +311,7 @@ export default function SupplierListings() {
             setEditingId(null);
             setShowForm(true);
             setFormFocusSection(null);
-            window.history.pushState({}, '', '/supplier/listings');
+            window.history.pushState({}, '', `${PARTNER_APP_BASE}/listings`);
             window.dispatchEvent(new PopStateEvent('popstate'));
           }}
           disabled={!canEditListings || !canPostNewListing}
@@ -377,7 +378,7 @@ export default function SupplierListings() {
               {missingBusinessDetails && (
                 <button
                   type="button"
-                  onClick={() => navigateSupplierUrl('/supplier/business-profile#supplier-business-company')}
+                  onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/business-profile#supplier-business-company`)}
                   className="text-xs px-2.5 py-1 rounded-full border border-amber-300 bg-white text-amber-800 hover:bg-amber-100"
                 >
                   Complete business profile
@@ -386,7 +387,7 @@ export default function SupplierListings() {
               {missingPayoutForPublish && (
                 <button
                   type="button"
-                  onClick={() => navigateSupplierUrl('/supplier/business-profile#supplier-business-payout')}
+                  onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/business-profile#supplier-business-payout`)}
                   className="text-xs px-2.5 py-1 rounded-full border border-amber-300 bg-white text-amber-800 hover:bg-amber-100"
                 >
                   {payoutOnFile ? 'Payment & payouts' : 'Add IBAN & BIC'}
@@ -395,7 +396,7 @@ export default function SupplierListings() {
               {!missingBusinessDetails && verificationStatus !== 'verified' && (
                 <button
                   type="button"
-                  onClick={() => navigateSupplierUrl('/supplier/business-profile#supplier-business-company')}
+                  onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/business-profile#supplier-business-company`)}
                   className="text-xs px-2.5 py-1 rounded-full border border-amber-300 bg-white text-amber-800 hover:bg-amber-100"
                 >
                   Business profile & verification
@@ -405,7 +406,7 @@ export default function SupplierListings() {
           </div>
           <button
             type="button"
-            onClick={() => navigateSupplierUrl('/supplier/business-profile')}
+            onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/business-profile`)}
             className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark shrink-0"
           >
             Open settings
@@ -509,7 +510,7 @@ export default function SupplierListings() {
             setShowForm(false);
             setEditingId(null);
             setFormFocusSection(null);
-            window.history.pushState({}, '', '/supplier/listings');
+            window.history.pushState({}, '', `${PARTNER_APP_BASE}/listings`);
             window.dispatchEvent(new PopStateEvent('popstate'));
           }}
           focusSection={formFocusSection}

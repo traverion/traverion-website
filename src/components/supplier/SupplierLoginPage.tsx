@@ -1,6 +1,5 @@
 /**
- * Supplier login/landing at /supplier-log-in. Shown when not logged in.
- * After successful login, onAuthenticated is called (redirect to /supplier).
+ * Partner login at /login (partner.traverion.com). After auth, redirect to /partner dashboard.
  */
 import { MapPin, Users, BarChart3, Sparkles } from 'lucide-react';
 import SupplierAuth from '../../pages/supplier/SupplierAuth';

@@ -9,6 +9,7 @@ import { fetchDiscountsByListingIds } from '../data/supabase-discounts';
 import { getReviewAggregatesForListingIds } from '../data/supabase-reviews';
 import { getDisplayPrice, isSupabaseListingId } from '../lib/discount-display';
 import { ListingCardRating } from '../components/ListingCardRating';
+import { supplierPortalHref } from '../lib/partnerHost';
 
 const TAG_LABELS: Record<string, string> = {
   'free-cancellation': 'Free cancellation',
@@ -233,7 +234,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
             <div className="text-center py-12 bg-white rounded-2xl border border-gray-100">
               <p className="text-gray-500 mb-6">No tours listed yet.</p>
               <a
-                href="/supplier"
+                href={supplierPortalHref('/login')}
                 className="inline-flex items-center gap-2 bg-finland text-white font-semibold px-6 py-3 rounded-xl hover:bg-finland-dark transition-colors"
               >
                 List your tour

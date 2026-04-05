@@ -117,7 +117,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
               type="button"
               onClick={() => {
                 if (isSupabaseConfigured() && !user) {
-                  window.history.pushState({}, '', '/auth?tab=signup&next=cart');
+                  window.history.pushState({}, '', '/sign-up?next=cart');
                   onNavigate('auth');
                 } else onNavigate('cart');
               }}
@@ -207,7 +207,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                       type="button"
                       onClick={() => {
                         setIsUserMenuOpen(false);
-                        window.history.pushState({}, '', '/auth?tab=signup&next=home');
+                        window.history.pushState({}, '', '/log-in?next=home');
                         onNavigate('auth');
                       }}
                       className="lux-flat w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 text-left rounded-lg"
@@ -302,7 +302,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                 <button
                   onClick={() => {
                     if (!user) {
-                      window.history.pushState({}, '', '/auth?tab=signup&next=cart');
+                      window.history.pushState({}, '', '/sign-up?next=cart');
                       onNavigate('auth');
                     } else onNavigate('cart');
                     setIsMobileMenuOpen(false);
@@ -341,7 +341,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                 {isSupabaseConfigured() && !user && (
                   <button
                     onClick={() => {
-                      window.history.pushState({}, '', '/auth?tab=signup&next=home');
+                      window.history.pushState({}, '', '/log-in?next=home');
                       onNavigate('auth');
                       setIsMobileMenuOpen(false);
                     }}

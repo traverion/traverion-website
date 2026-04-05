@@ -3,9 +3,9 @@ import LuxuryButton from '../components/ui/LuxuryButton';
 import PageHero from '../components/PageHero';
 import { HERO_IMG } from '../lib/heroImages';
 import { navigateBackOrFallback } from '../lib/appRouting';
+import { supplierPortalHref } from '../lib/partnerHost';
 
-/** Matches supplier portal login path (see SupplierLayout). */
-const SUPPLIER_LOGIN_HREF = '/supplier-log-in';
+const partnerPortalLoginHref = supplierPortalHref('/login');
 
 type SitemapLink = { label: string; page?: string; href?: string; external?: boolean };
 
@@ -24,7 +24,7 @@ const SECTIONS: SitemapSection[] = [
   {
     title: 'Account',
     items: [
-      { label: 'Sign in / Sign up', page: 'auth' },
+      { label: 'Sign in / Sign up', href: '/log-in?next=account' },
       { label: 'My account', page: 'account' },
       { label: 'Cart', page: 'cart' },
       { label: 'Wishlist', page: 'wishlist' },
@@ -51,7 +51,7 @@ const SECTIONS: SitemapSection[] = [
     items: [
       { label: 'Become an affiliate', page: 'affiliate' },
       { label: 'Become a content creator', page: 'content-creator' },
-      { label: 'Become a supplier', href: SUPPLIER_LOGIN_HREF },
+      { label: 'Become a supplier', href: partnerPortalLoginHref },
     ],
   },
 ];

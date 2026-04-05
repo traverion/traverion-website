@@ -19,6 +19,7 @@ import {
   isSupplierPayoutDetailsLocked,
   SUPPLIER_SENSITIVE_CHANGES_SUPPORT_EMAIL,
 } from '../../lib/supplierVerificationLocks';
+import { supplierPortalPublicBaseUrl } from '../../lib/partnerHost';
 
 type BusinessProfileTab = 'company' | 'legal';
 
@@ -35,7 +36,6 @@ type Props = {
   verificationMessage: 'sent' | 'error' | null;
   setVerificationMessage: (v: 'sent' | 'error' | null) => void;
   setVerificationSending: (v: boolean) => void;
-  publicSiteBaseUrl: () => string;
 
   newPassword: string;
   setNewPassword: (v: string) => void;
@@ -192,7 +192,7 @@ function AccountSettingsPage(p: Props) {
                 const { error } = await p.supabase.auth.resend({
                   type: 'signup',
                   email: p.supplierEmail.trim().toLowerCase(),
-                  options: { emailRedirectTo: `${p.publicSiteBaseUrl()}/supplier-log-in` },
+                  options: { emailRedirectTo: `${supplierPortalPublicBaseUrl()}/login` },
                 });
                 p.setVerificationSending(false);
                 p.setVerificationMessage(error ? 'error' : 'sent');

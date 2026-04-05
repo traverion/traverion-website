@@ -19,10 +19,12 @@ create index if not exists listing_availability_listing_date on public.listing_a
 
 alter table public.listing_availability enable row level security;
 
+drop policy if exists "Listing availability is viewable by everyone" on public.listing_availability;
 create policy "Listing availability is viewable by everyone"
   on public.listing_availability for select
   using (true);
 
+drop policy if exists "Suppliers can manage availability for own listings" on public.listing_availability;
 create policy "Suppliers can manage availability for own listings"
   on public.listing_availability for insert
   with check (
@@ -33,6 +35,7 @@ create policy "Suppliers can manage availability for own listings"
     )
   );
 
+drop policy if exists "Suppliers can update availability for own listings" on public.listing_availability;
 create policy "Suppliers can update availability for own listings"
   on public.listing_availability for update
   using (
@@ -50,6 +53,7 @@ create policy "Suppliers can update availability for own listings"
     )
   );
 
+drop policy if exists "Suppliers can delete availability for own listings" on public.listing_availability;
 create policy "Suppliers can delete availability for own listings"
   on public.listing_availability for delete
   using (

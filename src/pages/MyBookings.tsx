@@ -161,7 +161,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
             <button
               type="button"
               onClick={() => {
-                window.history.pushState({}, '', '/auth?tab=signin&next=account');
+                window.history.pushState({}, '', '/log-in?next=account');
                 onNavigate('auth');
               }}
               className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark"

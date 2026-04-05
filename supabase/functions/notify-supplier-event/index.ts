@@ -45,7 +45,7 @@ function escapeHtml(s: string): string {
 }
 
 function siteBase(payload: Payload): string {
-  return (payload.portalBaseUrl ?? 'https://www.traverion.com').replace(/\/$/, '');
+  return (payload.portalBaseUrl ?? 'https://partner.traverion.com').replace(/\/$/, '');
 }
 
 function logoUrl(base: string): string {
@@ -72,7 +72,7 @@ function eventBody(payload: Payload): string {
       '1. Complete your business profile and payout details in Settings.',
       '2. Create and publish your first listing when you are ready.',
       '',
-      `Open your supplier portal: ${base}/supplier`,
+      `Open your supplier portal: ${base}/partner`,
       '',
       '— Traverion',
     ].join('\n');
@@ -95,8 +95,8 @@ function eventBody(payload: Payload): string {
 function eventHtml(payload: Payload): string {
   const base = siteBase(payload);
   const logo = logoUrl(base);
-  const portal = `${base}/supplier`;
-  const bookingsUrl = `${base}/supplier/bookings`;
+  const portal = `${base}/partner`;
+  const bookingsUrl = `${base}/partner/bookings`;
 
   if (payload.eventType === 'supplier_welcome') {
     const bodyText = escapeHtml(eventBody(payload)).replace(/\n/g, '<br/>');

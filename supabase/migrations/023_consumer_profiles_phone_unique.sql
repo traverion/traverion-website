@@ -9,14 +9,17 @@ create table if not exists public.consumer_profiles (
 
 alter table public.consumer_profiles enable row level security;
 
+drop policy if exists "Consumers can read own profile" on public.consumer_profiles;
 create policy "Consumers can read own profile"
   on public.consumer_profiles for select
   using (auth.uid() = id);
 
+drop policy if exists "Consumers can insert own profile" on public.consumer_profiles;
 create policy "Consumers can insert own profile"
   on public.consumer_profiles for insert
   with check (auth.uid() = id);
 
+drop policy if exists "Consumers can update own profile" on public.consumer_profiles;
 create policy "Consumers can update own profile"
   on public.consumer_profiles for update
   using (auth.uid() = id);

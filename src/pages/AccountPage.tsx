@@ -10,12 +10,18 @@ import {
   ChevronRight,
   LogIn,
   LayoutDashboard,
+  UserRound,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { fetchMyBookings } from '../data/supabase-bookings';
 import { fetchWishlistListingIds } from '../data/supabase-wishlist';
 import { fetchCartCount } from '../data/supabase-cart';
+import {
+  fetchConsumerProfileRow,
+  saveConsumerProfile,
+  normalizeConsumerPhone,
+} from '../data/supabase-consumer-profile';
 interface AccountPageProps {
   onNavigate: (page: string) => void;
 }
@@ -26,6 +32,11 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
   const { user } = useAuth();
   const [stats, setStats] = useState<HubStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
+  const [displayName, setDisplayName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileMessage, setProfileMessage] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
 
   const loadStats = useCallback(async () => {
     if (!isSupabaseConfigured() || !user?.id || !user.email) {
@@ -55,6 +66,30 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
     if (user) loadStats();
     else setStats(null);
   }, [user, loadStats]);
+
+  const loadProfile = useCallback(async () => {
+    if (!isSupabaseConfigured() || !user?.id) return;
+    setProfileLoading(true);
+    setProfileMessage(null);
+    try {
+      const row = await fetchConsumerProfileRow(user.id);
+      const meta = user.user_metadata as { customer_phone?: string; phone?: string } | undefined;
+      const fallbackPhone = meta?.customer_phone ?? meta?.phone ?? '';
+      setDisplayName((row?.display_name ?? user.email?.split('@')[0] ?? '').trim());
+      setPhone(row?.contact_phone?.trim() || fallbackPhone || '');
+    } finally {
+      setProfileLoading(false);
+    }
+  }, [user?.id, user?.email, user?.user_metadata]);
+
+  useEffect(() => {
+    if (user) void loadProfile();
+    else {
+      setDisplayName('');
+      setPhone('');
+      setProfileMessage(null);
+    }
+  }, [user, loadProfile]);
 
   if (!isSupabaseConfigured()) {
     return (
@@ -99,7 +134,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
             <button
               type="button"
               onClick={() => {
-                window.history.pushState({}, '', '/auth?tab=signin&next=account');
+                window.history.pushState({}, '', '/log-in?next=account');
                 onNavigate('auth');
               }}
               className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark"
@@ -171,6 +206,108 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
             Everything you need as a guest: trips you booked, ideas you saved, and cart requests.
           </p>
         </div>
+
+        <section className="mb-8 rounded-xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm">
+          <div className="flex items-start gap-3 mb-4">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-finland/10 text-finland">
+              <UserRound className="w-5 h-5" />
+            </span>
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Profile & contact</h2>
+              <p className="text-sm text-gray-500 mt-0.5">
+                How we reach you about bookings. Only you can edit this — it is stored on your account.
+              </p>
+            </div>
+          </div>
+          {profileLoading ? (
+            <p className="text-sm text-gray-500">Loading profile…</p>
+          ) : (
+            <form
+              className="space-y-4 max-w-lg"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!user?.id) return;
+                setProfileSaving(true);
+                setProfileMessage(null);
+                void (async () => {
+                  const digits = normalizeConsumerPhone(phone).replace(/\D/g, '');
+                  if (digits.length < 9) {
+                    setProfileMessage({ kind: 'err', text: 'Enter a valid phone number (at least 9 digits).' });
+                    setProfileSaving(false);
+                    return;
+                  }
+                  const res = await saveConsumerProfile(user.id, { displayName, phone });
+                  setProfileSaving(false);
+                  if (res.success) {
+                    setProfileMessage({ kind: 'ok', text: 'Profile saved.' });
+                    await loadProfile();
+                  } else {
+                    setProfileMessage({ kind: 'err', text: res.error ?? 'Could not save.' });
+                  }
+                })();
+              }}
+            >
+              <div>
+                <label htmlFor="account-email" className="block text-sm font-medium text-gray-700 mb-1">
+                  Email
+                </label>
+                <input
+                  id="account-email"
+                  type="email"
+                  value={user.email ?? ''}
+                  readOnly
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-gray-50 text-gray-600 text-sm"
+                />
+                <p className="text-xs text-gray-500 mt-1">Sign-in email — change via password reset or support.</p>
+              </div>
+              <div>
+                <label htmlFor="account-display-name" className="block text-sm font-medium text-gray-700 mb-1">
+                  Display name
+                </label>
+                <input
+                  id="account-display-name"
+                  type="text"
+                  name="name"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  autoComplete="name"
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-finland focus:border-finland outline-none text-sm"
+                  placeholder="Your name"
+                />
+              </div>
+              <div>
+                <label htmlFor="account-phone" className="block text-sm font-medium text-gray-700 mb-1">
+                  Phone
+                </label>
+                <input
+                  id="account-phone"
+                  type="tel"
+                  name="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  autoComplete="tel"
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-finland focus:border-finland outline-none text-sm"
+                  placeholder="+358 40 123 4567"
+                />
+              </div>
+              {profileMessage && (
+                <p
+                  className={`text-sm ${profileMessage.kind === 'ok' ? 'text-green-700' : 'text-red-600'}`}
+                  role={profileMessage.kind === 'err' ? 'alert' : undefined}
+                >
+                  {profileMessage.text}
+                </p>
+              )}
+              <button
+                type="submit"
+                disabled={profileSaving}
+                className="px-4 py-2.5 rounded-lg bg-finland text-white text-sm font-medium hover:bg-finland-dark disabled:opacity-50"
+              >
+                {profileSaving ? 'Saving…' : 'Save profile'}
+              </button>
+            </form>
+          )}
+        </section>
 
         <ul className="grid gap-3 sm:grid-cols-2">
           {tiles.map((tile) => {

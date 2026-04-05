@@ -4,7 +4,7 @@
  * Override per deploy with VITE_SITE_URL (e.g. staging preview URL).
  *
  * In Supabase → Authentication → URL configuration, add Redirect URLs including:
- * https://www.traverion.com/auth**, https://www.traverion.com/supplier-log-in**, https://admin.traverion.com/login**
+ * https://www.traverion.com/log-in**, https://partner.traverion.com/login**, https://partner.traverion.com/partner**, https://admin.traverion.com/login**
  * (and apex variants if you use them). Reset links must land on those paths so the app can show “set new password”.
  */
 export function publicSiteBaseUrl(): string {

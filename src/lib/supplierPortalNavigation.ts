@@ -1,6 +1,8 @@
 /**
- * Supplier portal URL helpers (pathname + query; layout uses pathname for section).
+ * Partner portal URL helpers (pathname + query; layout uses pathname for section).
  */
+
+import { PARTNER_APP_BASE } from './partnerPortalPaths';
 
 /** Map listing quality check id → SupplierListingForm section id (see supplier-listing-field-*). */
 export function qualityCheckIdToFormFocus(checkId: string): string {
@@ -26,7 +28,7 @@ export function navigateSupplierUrl(pathnameAndSearch: string): void {
 
 /** Open listings section with edit form and optional quality deep-link focus. */
 export function openSupplierListingEditor(listingId: string, qualityCheckId?: string): void {
-  const path = '/supplier/listings';
+  const path = `${PARTNER_APP_BASE}/listings`;
   const q = new URLSearchParams();
   q.set('edit', listingId);
   if (qualityCheckId) {
@@ -37,7 +39,7 @@ export function openSupplierListingEditor(listingId: string, qualityCheckId?: st
 
 /** Open supplier bookings and optionally focus a specific booking row. */
 export function openSupplierBooking(bookingId?: string): void {
-  const path = '/supplier/bookings';
+  const path = `${PARTNER_APP_BASE}/bookings`;
   if (!bookingId) {
     navigateSupplierUrl(path);
     return;

@@ -3,9 +3,11 @@ import { User } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { isSignUpEmailAlreadyRegistered } from '../lib/supabaseAuthHelpers';
 import { publicSiteBaseUrl } from '../lib/publicSiteUrl';
-import { ensureConsumerProfile, normalizeConsumerPhone } from '../data/supabase-consumer-profile';
+import { ensureConsumerProfile, fetchConsumerProfile, normalizeConsumerPhone } from '../data/supabase-consumer-profile';
+import { fetchSupplierProfile } from '../data/supabase-supplier-profile';
 import { isPhoneAvailableForSignup } from '../data/supabase-phone-signup';
 import { isTraverionAdminUser } from '../lib/adminAuth';
+import { SUPPLIER_ONLY_TRAVELER_SIGN_IN, TRAVELER_EMAIL_ALREADY_REGISTERED } from '../lib/customerSupplierAuthMessages';
 
 type AuthContextValue = {
   user: User | null;
@@ -57,6 +59,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { error: 'Please confirm your email before signing in.' };
     }
     if (data.user && !isTraverionAdminUser(data.user)) {
+      const [supplierRow, consumerRow] = await Promise.all([
+        fetchSupplierProfile(data.user.id),
+        fetchConsumerProfile(data.user.id),
+      ]);
+      if (supplierRow && !consumerRow) {
+        await supabase.auth.signOut();
+        return { error: SUPPLIER_ONLY_TRAVELER_SIGN_IN };
+      }
       const userMeta = data.user.user_metadata as { phone?: string; customer_phone?: string } | undefined;
       const ensured = await ensureConsumerProfile(data.user.id, {
         display_name: normalizedEmail.split('@')[0] ?? null,
@@ -80,7 +90,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (availability.error) return { error: availability.error };
     if (!availability.available) return { error: 'An account with this phone number already exists. Try signing in instead.' };
 
-    const redirectTo = options?.redirectTo ?? `${publicSiteBaseUrl()}/auth?tab=signin&next=account`;
+    const redirectTo = options?.redirectTo ?? `${publicSiteBaseUrl()}/log-in?next=account`;
     const { data, error } = await supabase.auth.signUp({
       email: normalizedEmail,
       password,
@@ -89,10 +99,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         data: { customer_phone: normalizedPhone },
       },
     });
-    if (error) return { error: error.message, hasSession: false };
+    if (error) {
+      const em = error.message.toLowerCase();
+      if (em.includes('already registered') || em.includes('user already exists')) {
+        return { error: TRAVELER_EMAIL_ALREADY_REGISTERED, hasSession: false };
+      }
+      return { error: error.message, hasSession: false };
+    }
 
     if (isSignUpEmailAlreadyRegistered(data.user)) {
-      return { error: 'This email is already in use. Try signing in instead.', hasSession: false };
+      return { error: TRAVELER_EMAIL_ALREADY_REGISTERED, hasSession: false };
     }
 
     if (data.session) {

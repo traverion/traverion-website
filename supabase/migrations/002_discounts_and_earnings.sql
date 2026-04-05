@@ -15,9 +15,11 @@ create index if not exists listing_discounts_valid on public.listing_discounts(v
 
 alter table public.listing_discounts enable row level security;
 
+drop policy if exists "Listings discounts: public read" on public.listing_discounts;
 create policy "Listings discounts: public read"
   on public.listing_discounts for select using (true);
 
+drop policy if exists "Suppliers can insert discounts for own listings" on public.listing_discounts;
 create policy "Suppliers can insert discounts for own listings"
   on public.listing_discounts for insert
   with check (
@@ -28,6 +30,7 @@ create policy "Suppliers can insert discounts for own listings"
     )
   );
 
+drop policy if exists "Suppliers can update/delete own listing discounts" on public.listing_discounts;
 create policy "Suppliers can update/delete own listing discounts"
   on public.listing_discounts for update
   using (
@@ -38,6 +41,7 @@ create policy "Suppliers can update/delete own listing discounts"
     )
   );
 
+drop policy if exists "Suppliers can delete own listing discounts" on public.listing_discounts;
 create policy "Suppliers can delete own listing discounts"
   on public.listing_discounts for delete
   using (
@@ -65,12 +69,15 @@ create index if not exists supplier_earnings_supplier_id on public.supplier_earn
 
 alter table public.supplier_earnings enable row level security;
 
+drop policy if exists "Suppliers can view own earnings" on public.supplier_earnings;
 create policy "Suppliers can view own earnings"
   on public.supplier_earnings for select
   using (auth.uid() = supplier_id);
 
+drop policy if exists "Suppliers cannot insert/update earnings (system only)" on public.supplier_earnings;
 create policy "Suppliers cannot insert/update earnings (system only)"
   on public.supplier_earnings for insert with check (false);
+drop policy if exists "Supplier earnings no update" on public.supplier_earnings;
 create policy "Supplier earnings no update"
   on public.supplier_earnings for update using (false);
 

@@ -17,6 +17,7 @@ create index if not exists supplier_team_members_user_id_idx
 alter table public.supplier_team_members enable row level security;
 
 -- Read team rows if you are a member of that supplier.
+drop policy if exists "Team members can read own supplier team" on public.supplier_team_members;
 create policy "Team members can read own supplier team"
   on public.supplier_team_members
   for select
@@ -30,6 +31,7 @@ create policy "Team members can read own supplier team"
   );
 
 -- Any authenticated user can create their own owner row for first-time bootstrap.
+drop policy if exists "Users can bootstrap own owner membership" on public.supplier_team_members;
 create policy "Users can bootstrap own owner membership"
   on public.supplier_team_members
   for insert
@@ -40,6 +42,7 @@ create policy "Users can bootstrap own owner membership"
   );
 
 -- Owners can manage team for their supplier.
+drop policy if exists "Owners can add team members" on public.supplier_team_members;
 create policy "Owners can add team members"
   on public.supplier_team_members
   for insert
@@ -53,6 +56,7 @@ create policy "Owners can add team members"
     )
   );
 
+drop policy if exists "Owners can update team members" on public.supplier_team_members;
 create policy "Owners can update team members"
   on public.supplier_team_members
   for update
@@ -75,6 +79,7 @@ create policy "Owners can update team members"
     )
   );
 
+drop policy if exists "Owners can delete team members" on public.supplier_team_members;
 create policy "Owners can delete team members"
   on public.supplier_team_members
   for delete

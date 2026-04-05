@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import { publicSiteBaseUrl } from '../lib/publicSiteUrl';
+import { supplierPortalPublicBaseUrl } from '../lib/partnerHost';
 import { notifySupplierEvent } from './supabase-supplier-messaging';
 import { hmToPgTime } from './supabase-listings';
 
@@ -61,9 +61,17 @@ export async function submitBooking(
     .select('supplier_id, title')
     .eq('id', data.tour_id)
     .maybeSingle();
+
+  const guestEmailNorm = (data.customer_email ?? '').trim().toLowerCase() || null;
+  const { data: authData } = await supabase.auth.getUser();
+  const sessionUser = authData?.user;
+  const sessionEmail = sessionUser?.email?.trim().toLowerCase() ?? '';
+  const guest_user_id =
+    sessionUser?.id && guestEmailNorm && sessionEmail === guestEmailNorm ? sessionUser.id : null;
+
   const { data: inserted, error } = await supabase.from('bookings').insert({
     listing_id: data.tour_id,
-    guest_email: data.customer_email ?? null,
+    guest_email: guestEmailNorm,
     guest_name: data.customer_name ?? null,
     guests: data.travelers ?? 1,
     booking_date: data.departure_date || null,
@@ -71,6 +79,7 @@ export async function submitBooking(
     special_requests: data.special_requests ?? null,
     total_amount: totalAmount ?? null,
     currency: data.currency ?? 'USD',
+    guest_user_id,
   }).select('id').maybeSingle();
   if (error) return { success: false, error: error.message };
   if (listingData?.supplier_id) {
@@ -83,7 +92,7 @@ export async function submitBooking(
       bookingDate: data.departure_date,
       guests: data.travelers,
       guestName: data.customer_name,
-      portalBaseUrl: publicSiteBaseUrl(),
+      portalBaseUrl: supplierPortalPublicBaseUrl(),
     });
   }
   return { success: true };
@@ -129,7 +138,7 @@ export async function updateGuestBookingSpecialRequests(
       guests: Number(row.guests ?? 0),
       guestName: row.guest_name ?? undefined,
       messagePreview: preview || '(empty note)',
-      portalBaseUrl: publicSiteBaseUrl(),
+      portalBaseUrl: supplierPortalPublicBaseUrl(),
     });
   }
   return { success: true };
@@ -270,7 +279,7 @@ export async function cancelBookingAsCustomer(
         bookingDate: bookingMeta.booking_date ?? undefined,
         guests: Number(bookingMeta.guests ?? 0),
         guestName: bookingMeta.guest_name ?? undefined,
-        portalBaseUrl: publicSiteBaseUrl(),
+        portalBaseUrl: supplierPortalPublicBaseUrl(),
       });
     }
   }

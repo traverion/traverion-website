@@ -1,20 +1,21 @@
 import { useState, useEffect } from 'react';
 import { LogIn, UserPlus, Globe, Check, MapPin, Users, CreditCard } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import { ensureSupplierProfile } from '../../data/supabase-supplier-profile';
+import { ensureSupplierProfile, fetchSupplierProfile } from '../../data/supabase-supplier-profile';
 import { isPhoneAvailableForSignup } from '../../data/supabase-phone-signup';
 import { notifySupplierEvent } from '../../data/supabase-supplier-messaging';
-import { publicSiteBaseUrl } from '../../lib/publicSiteUrl';
+import { supplierPortalPublicBaseUrl } from '../../lib/partnerHost';
 import { isSignUpEmailAlreadyRegistered } from '../../lib/supabaseAuthHelpers';
 import { normalizePhoneNumber } from '../../lib/phoneNormalize';
 import { subscribePasswordRecovery, updatePasswordAfterRecovery } from '../../lib/passwordRecoveryFlow';
+import { PARTNER_EMAIL_ALREADY_REGISTERED } from '../../lib/customerSupplierAuthMessages';
 
 /** Fire-and-forget welcome email (Edge Function dedupes via welcome_email_sent_at). */
 function sendSupplierWelcomeEmail(userId: string): void {
   void notifySupplierEvent({
     supplierId: userId,
     eventType: 'supplier_welcome',
-    portalBaseUrl: publicSiteBaseUrl(),
+    portalBaseUrl: supplierPortalPublicBaseUrl(),
   });
 }
 
@@ -59,7 +60,7 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
       return 'Supplier authentication is currently unavailable. Please try again shortly.';
     }
     if (m.includes('already registered') || m.includes('already been registered') || m.includes('user already exists')) {
-      return 'This email is already in use. Try signing in instead.';
+      return PARTNER_EMAIL_ALREADY_REGISTERED;
     }
     if (m.includes('invalid login credentials')) {
       return 'Incorrect email or password.';
@@ -122,7 +123,7 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
             email: normalizedEmail,
             password,
             options: {
-              emailRedirectTo: `${publicSiteBaseUrl()}/supplier-log-in`,
+              emailRedirectTo: `${supplierPortalPublicBaseUrl()}/login`,
               data: {
                 supplier_business_name: cleanBusinessName,
                 supplier_phone: cleanPhoneNumber,
@@ -134,7 +135,7 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
             return;
           }
           if (isSignUpEmailAlreadyRegistered(data.user)) {
-            setError('This email is already registered. Please sign in instead.');
+            setError(PARTNER_EMAIL_ALREADY_REGISTERED);
             setSuccessMessage(null);
             setMode('signin');
             return;
@@ -178,6 +179,20 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
             const userMeta = data.user.user_metadata as
               | { supplier_business_name?: string; supplier_phone?: string }
               | undefined;
+            const existingProfile = await fetchSupplierProfile(data.user.id);
+            if (existingProfile) {
+              onAuthenticated();
+              return;
+            }
+            const signedUpAsPartner =
+              Boolean(userMeta?.supplier_business_name?.trim()) || Boolean(userMeta?.supplier_phone?.trim());
+            if (!signedUpAsPartner) {
+              await supabase.auth.signOut();
+              setError(
+                'This account is for travelers (main site). To book tours, sign in at traverion.com. To list tours, use Partner sign up below or a separate partner email.'
+              );
+              return;
+            }
             const ensured = await ensureSupplierProfile(data.user.id, {
               display_name: userMeta?.supplier_business_name?.trim() || normalizedEmail.split('@')[0] || null,
               company_legal_name: userMeta?.supplier_business_name?.trim() || null,
@@ -189,6 +204,8 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
               return;
             }
             sendSupplierWelcomeEmail(data.user.id);
+            onAuthenticated();
+            return;
           }
           onAuthenticated();
         }
@@ -217,7 +234,7 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
     }
     setResetSending(true);
     const { error: err } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-      redirectTo: `${publicSiteBaseUrl()}/supplier-log-in`,
+      redirectTo: `${supplierPortalPublicBaseUrl()}/login`,
     });
     setResetSending(false);
     if (err) {
@@ -242,7 +259,7 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
     const { error: err } = await supabase.auth.resend({
       type: 'signup',
       email: normalizedEmail,
-      options: { emailRedirectTo: `${publicSiteBaseUrl()}/supplier-log-in` },
+      options: { emailRedirectTo: `${supplierPortalPublicBaseUrl()}/login` },
     });
     setResendSending(false);
     if (err) {
@@ -397,6 +414,13 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
             )}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              {mode === 'signup' && (
+                <p className="text-xs text-gray-500 mb-2">
+                  Partner login is separate from the traveler site. If this email is already used for bookings, use a
+                  different address or an inbox alias (e.g. <span className="font-mono text-[11px]">you+partner@gmail.com</span>
+                  ).
+                </p>
+              )}
               <input
                 type="email"
                 name="email"
