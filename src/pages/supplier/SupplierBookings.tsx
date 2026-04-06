@@ -1812,32 +1812,34 @@ export default function SupplierBookings() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Bookings</h1>
-          <p className="text-gray-600 mt-1">Filter and manage bookings in the table below.</p>
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Bookings</h1>
+          <p className="text-sm sm:text-base text-gray-600 mt-1">
+            Filter and manage bookings — cards on your phone, full table on larger screens.
+          </p>
           {!canEditBookings && (
             <p className="text-xs text-amber-700 mt-1">
               Your role is {role}. You can view bookings, but edit actions are restricted.
             </p>
           )}
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
           <button
             type="button"
             onClick={() => setBatchModal(true)}
             disabled={!canEditBookings}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
+            className="touch-manipulation inline-flex items-center justify-center gap-2 px-4 py-3 sm:py-2 min-h-[48px] rounded-xl border border-gray-300 text-gray-800 font-medium hover:bg-gray-50 active:scale-[0.99]"
           >
-            <Trash2 className="w-4 h-4" />
+            <Trash2 className="w-4 h-4 shrink-0" />
             Batch cancel
           </button>
           <button
             type="button"
             onClick={load}
             disabled={loading}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            className="touch-manipulation inline-flex items-center justify-center gap-2 px-4 py-3 sm:py-2 min-h-[48px] rounded-xl border border-gray-300 text-gray-800 font-medium hover:bg-gray-50 disabled:opacity-50 active:scale-[0.99]"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-4 h-4 shrink-0 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </button>
         </div>
@@ -2100,7 +2102,133 @@ export default function SupplierBookings() {
             )}
           </div>
 
-        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+          <div className="md:hidden space-y-3">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide px-0.5">
+              Bookings ({filteredBookings.length})
+            </p>
+            {filteredBookings.map((b) => (
+              <article
+                key={`mcard-${b.id}`}
+                id={`supplier-booking-row-${b.id}`}
+                className={`rounded-2xl border border-gray-200 bg-white p-4 shadow-sm space-y-3 ${
+                  highlightBookingId === b.id ? 'ring-2 ring-finland/30 bg-finland/[0.04]' : ''
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    className="mt-1 rounded border-gray-300 text-finland focus:ring-finland"
+                    checked={selectedIds.includes(b.id)}
+                    onChange={() => toggleSelected(b.id)}
+                    aria-label={`Select booking ${b.id}`}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-gray-900 leading-snug">
+                      {listingTitles[b.listing_id] ?? 'Listing'}
+                    </p>
+                    <p className="text-xs text-gray-600 mt-1">
+                      {b.guest_name && <span className="font-medium text-gray-800">{b.guest_name}</span>}
+                      {b.guest_name && b.guest_email && ' · '}
+                      {b.guest_email && <span className="break-all">{b.guest_email}</span>}
+                      {!b.guest_name && !b.guest_email && '—'}
+                    </p>
+                    <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-xs text-gray-600">
+                      <span>
+                        Date: {b.booking_date ? new Date(b.booking_date).toLocaleDateString() : '—'}
+                      </span>
+                      <span>Guests: {b.guests ?? '—'}</span>
+                      {(b.start_time || b.pickup_time) && (
+                        <span className="text-gray-700">
+                          {b.start_time && `Start ${pgTimeToHm(b.start_time) ?? ''}`}
+                          {b.start_time && b.pickup_time && ' · '}
+                          {b.pickup_time && `Pickup ${pgTimeToHm(b.pickup_time) ?? ''}`}
+                        </span>
+                      )}
+                    </div>
+                    {b.special_requests ? (
+                      <p className="text-xs text-gray-600 mt-2 line-clamp-3" title={b.special_requests}>
+                        {b.special_requests}
+                      </p>
+                    ) : null}
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <span
+                      className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full ${
+                        b.status === 'confirmed'
+                          ? 'bg-green-100 text-green-800'
+                          : b.status === 'cancelled'
+                            ? 'bg-gray-100 text-gray-600'
+                            : 'bg-amber-100 text-amber-800'
+                      }`}
+                    >
+                      {b.status}
+                    </span>
+                    {b.acknowledged_at && (
+                      <span className="block text-[10px] text-gray-500 mt-1">Acknowledged</span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setTimelineBookingId(b.id)}
+                    className="touch-manipulation min-h-[40px] px-3 py-2 rounded-xl bg-gray-100 text-gray-800 text-xs font-semibold active:scale-[0.98]"
+                  >
+                    Timeline
+                  </button>
+                  {b.status !== 'cancelled' && (
+                    <>
+                      {b.guest_email && (
+                        <a
+                          href={`mailto:${b.guest_email}?subject=Your booking – ${listingTitles[b.listing_id] ?? 'Tour'}`}
+                          className="touch-manipulation inline-flex items-center justify-center gap-1 min-h-[40px] px-3 py-2 rounded-xl bg-gray-100 text-gray-800 text-xs font-semibold"
+                        >
+                          <MessageCircle className="w-3.5 h-3.5" />
+                          Contact
+                        </a>
+                      )}
+                      {!b.acknowledged_at && (
+                        <button
+                          type="button"
+                          onClick={() => handleAcknowledge(b)}
+                          disabled={!canEditBookings || updatingId === b.id}
+                          className="touch-manipulation min-h-[40px] px-3 py-2 rounded-xl bg-blue-100 text-blue-800 text-xs font-semibold disabled:opacity-50"
+                        >
+                          Acknowledge
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setCancelModal(b)}
+                        disabled={!canEditBookings || updatingId === b.id}
+                        className="touch-manipulation min-h-[40px] px-3 py-2 rounded-xl border border-red-200 text-red-700 text-xs font-semibold disabled:opacity-50"
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-[11px] font-medium text-gray-500 mb-1">Ops note</label>
+                  <textarea
+                    defaultValue={opsNotes[b.id]?.note ?? ''}
+                    onBlur={async (e) => {
+                      saveOpsNote(b.id, e.target.value);
+                      await syncSingleOpsNote(b.id);
+                    }}
+                    rows={2}
+                    placeholder="Field notes…"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-finland"
+                  />
+                  {opsNotes[b.id]?.pendingSync && (
+                    <p className="text-[11px] text-amber-700 mt-1">Saved locally · pending sync</p>
+                  )}
+                </div>
+              </article>
+            ))}
+          </div>
+
+        <div className="hidden md:block bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
           <div className="px-4 py-3 border-b border-gray-200 bg-gray-50/70 flex flex-col gap-3">
             <div className="flex flex-wrap items-center gap-2">
               <button
@@ -2328,8 +2456,8 @@ export default function SupplierBookings() {
       )}
 
       {cancelModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-xl shadow-xl max-w-md w-full p-5 sm:p-6 max-h-[min(92dvh,100%)] overflow-y-auto pb-[max(1.25rem,env(safe-area-inset-bottom))]">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Request cancellation</h3>
             <p className="text-sm text-gray-600 mb-4">
               Cancel booking for {listingTitles[cancelModal.listing_id]} – {cancelModal.guest_email ?? cancelModal.guest_name ?? 'Guest'}?
@@ -2390,8 +2518,8 @@ export default function SupplierBookings() {
       )}
 
       {timelineBookingId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-xl w-full p-6 max-h-[80vh] overflow-hidden flex flex-col">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-xl shadow-xl max-w-xl w-full p-5 sm:p-6 max-h-[min(90dvh,100%)] sm:max-h-[80vh] overflow-hidden flex flex-col pb-[env(safe-area-inset-bottom)] sm:pb-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">Booking timeline</h3>
               <button
@@ -2461,8 +2589,8 @@ export default function SupplierBookings() {
       )}
 
       {batchModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-xl shadow-xl max-w-md w-full p-5 sm:p-6 max-h-[min(92dvh,100%)] overflow-y-auto pb-[max(1.25rem,env(safe-area-inset-bottom))]">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Batch cancel</h3>
             <p className="text-sm text-gray-600 mb-4">Cancel all bookings for one listing in a date range.</p>
             <div className="space-y-4">
@@ -2548,8 +2676,8 @@ export default function SupplierBookings() {
       )}
 
       {bulkCancelModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-xl shadow-xl max-w-md w-full p-5 sm:p-6 max-h-[min(92dvh,100%)] overflow-y-auto pb-[max(1.25rem,env(safe-area-inset-bottom))]">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Cancel selected bookings</h3>
             <p className="text-sm text-gray-600 mb-4">
               You are cancelling {selectedBookings.filter((b) => b.status !== 'cancelled').length} selected booking(s).

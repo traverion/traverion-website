@@ -5,6 +5,12 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer utilities {
+  .partner-app-shell {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
 @layer base {
   html {
     font-family: 'Open Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;

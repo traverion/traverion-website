@@ -354,7 +354,7 @@ function BusinessProfilePage(p: Props) {
   }, [p.legalDocModal]);
 
   const tabBtn = (active: boolean) =>
-    `rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors ${
+    `touch-manipulation rounded-xl px-4 py-3 sm:py-2.5 min-h-[44px] sm:min-h-0 text-sm font-semibold transition-colors active:scale-[0.99] ${
       active ? 'bg-finland text-white shadow-sm' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
     }`;
 

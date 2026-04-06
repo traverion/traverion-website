@@ -1,4 +1,12 @@
+/** Legacy preset values still parsed from stored `listing_extras` JSON. */
 export type CancellationPreset = 'free_24h' | 'free_48h' | 'free_7d' | 'non_refundable' | 'custom';
+
+/**
+ * Standard Traverion cancellation terms for all listings (not supplier-editable).
+ * Saved on every listing create/update from the partner form.
+ */
+export const TRAVERION_STANDARD_CANCELLATION_POLICY =
+  'You may cancel free of charge up to 24 hours before the scheduled start time. After that, guest-initiated cancellations are not available. If the operator cancels or needs to reschedule (for example due to weather or safety), that is handled from your booking details.';
 
 export type VenueSetting = 'unspecified' | 'indoor' | 'outdoor' | 'mixed';
 
@@ -14,44 +22,6 @@ export interface ListingExtras {
   galleryImageUrls?: string[];
   cancellationPreset?: CancellationPreset;
   cancellationExtra?: string;
-  /** Short note e.g. max guests per departure (not enforced as inventory). */
-  capacityNote?: string;
-}
-
-const PRESET_BASE: Record<Exclude<CancellationPreset, 'custom'>, string> = {
-  free_24h: 'Free cancellation up to 24 hours before the scheduled start time.',
-  free_48h: 'Free cancellation up to 48 hours before the scheduled start time.',
-  free_7d: 'Free cancellation up to 7 days before the scheduled start time.',
-  non_refundable: 'Non-refundable once booked.',
-};
-
-export function cancellationPresetLabel(preset: CancellationPreset): string {
-  if (preset === 'custom') return '';
-  return PRESET_BASE[preset];
-}
-
-export function composeCancellationPolicy(
-  preset: CancellationPreset,
-  extra: string,
-  customFull: string
-): string {
-  const extraTrim = extra.trim();
-  const suffix = extraTrim ? ` ${extraTrim}` : '';
-  if (preset === 'custom') {
-    const core = customFull.trim();
-    return (core + suffix).trim() || 'See the operator’s terms for cancellation details.';
-  }
-  return (PRESET_BASE[preset] + suffix).trim();
-}
-
-export function inferCancellationPreset(policy: string | undefined | null): CancellationPreset {
-  const p = (policy ?? '').toLowerCase();
-  if (!p.trim()) return 'custom';
-  if (p.includes('non-refundable') || p.includes('non refundable')) return 'non_refundable';
-  if (p.includes('7 day') || p.includes('seven day')) return 'free_7d';
-  if (p.includes('48 hour')) return 'free_48h';
-  if (p.includes('24 hour')) return 'free_24h';
-  return 'custom';
 }
 
 export function parseListingExtras(raw: unknown): ListingExtras {
@@ -89,14 +59,11 @@ export function parseListingExtras(raw: unknown): ListingExtras {
   if (typeof o.cancellationExtra === 'string' && o.cancellationExtra.trim()) {
     out.cancellationExtra = o.cancellationExtra.trim();
   }
-  if (typeof o.capacityNote === 'string' && o.capacityNote.trim()) {
-    out.capacityNote = o.capacityNote.trim();
-  }
 
   return out;
 }
 
-/** Persist non-empty listing extras (includes cancellation preset for re-opening the editor). */
+/** Persist non-empty listing extras (cancellation preset/extra are legacy-only in DB; no longer written). */
 export function listingExtrasToDb(extras: ListingExtras | undefined): Record<string, unknown> | null {
   if (!extras) return null;
   const payload: Record<string, unknown> = {};
@@ -107,8 +74,5 @@ export function listingExtrasToDb(extras: ListingExtras | undefined): Record<str
   if (extras.scheduleStyle) payload.scheduleStyle = extras.scheduleStyle;
   if (extras.typicalTimelineNotes?.trim()) payload.typicalTimelineNotes = extras.typicalTimelineNotes.trim();
   if (extras.galleryImageUrls?.length) payload.galleryImageUrls = extras.galleryImageUrls;
-  if (extras.cancellationPreset) payload.cancellationPreset = extras.cancellationPreset;
-  if (extras.cancellationExtra?.trim()) payload.cancellationExtra = extras.cancellationExtra.trim();
-  if (extras.capacityNote?.trim()) payload.capacityNote = extras.capacityNote.trim();
   return Object.keys(payload).length > 0 ? payload : null;
 }

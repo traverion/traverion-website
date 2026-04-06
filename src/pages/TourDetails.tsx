@@ -20,6 +20,7 @@ import { getListingById, getListingByIdAsync } from '../data/listings';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { analytics } from '../lib/analytics';
 import { TourPackage } from '../types/tour';
+import { TRAVERION_STANDARD_CANCELLATION_POLICY } from '../types/listingExtras';
 import { fetchDiscountsByListingIds } from '../data/supabase-discounts';
 import { getDisplayPrice, isSupabaseListingId } from '../lib/discount-display';
 import {
@@ -362,8 +363,7 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
                     Boolean(venueLabel) ||
                     langExtra.length > 0 ||
                     Boolean(scheduleLabel) ||
-                    Boolean(x?.typicalTimelineNotes?.trim()) ||
-                    Boolean(x?.capacityNote?.trim());
+                    Boolean(x?.typicalTimelineNotes?.trim());
                   if (!hasGoodToKnow) return null;
                   return (
                     <div className="mt-8 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
@@ -400,12 +400,6 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
                           <li>
                             <span className="font-medium text-gray-900">Also offered in: </span>
                             {langExtra.join(', ')}
-                          </li>
-                        )}
-                        {x?.capacityNote?.trim() && (
-                          <li>
-                            <span className="font-medium text-gray-900">Capacity: </span>
-                            {x.capacityNote.trim()}
                           </li>
                         )}
                         {x?.accessibilitySummary?.trim() && (
@@ -556,9 +550,10 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
                   {addToCartMessage === 'success' && <p className="text-sm text-green-600">Added to cart.</p>}
                   {addToCartMessage === 'error' && <p className="text-sm text-red-600">Select a date first or try again.</p>}
                   <div className="mt-3 space-y-1.5 text-xs text-gray-600">
-                    {(tour.cancellationPolicy || tour.tags?.includes('free-cancellation')) && (
-                      <p className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 flex-shrink-0" /> {tour.cancellationPolicy || 'Free cancellation up to 24 hours before'}</p>
-                    )}
+                    <p className="flex items-center gap-2">
+                      <CheckCircle className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />{' '}
+                      {tour.cancellationPolicy?.trim() || TRAVERION_STANDARD_CANCELLATION_POLICY}
+                    </p>
                     <p className="flex items-center gap-2"><Shield className="w-3.5 h-3.5 text-finland flex-shrink-0" /> Best price guarantee</p>
                     <p className="flex items-center gap-2"><Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500 flex-shrink-0" /> Reserve now, pay later</p>
                   </div>

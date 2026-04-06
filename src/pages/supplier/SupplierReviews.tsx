@@ -118,19 +118,19 @@ export default function SupplierReviews() {
   if (!user) return null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6 w-full min-w-0">
       <div>
-        <h1 className="text-2xl font-semibold text-gray-900">Reviews</h1>
-        <p className="text-gray-600 mt-1">See and respond to customer reviews for your listings.</p>
+        <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Reviews</h1>
+        <p className="text-sm sm:text-base text-gray-600 mt-1">See and respond to customer reviews for your listings.</p>
       </div>
 
       {!loading && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xl">
-          <div className="bg-white border border-gray-200 rounded-xl p-4">
+        <div className="grid grid-cols-2 sm:grid-cols-2 gap-3 max-w-xl">
+          <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
             <p className="text-xs uppercase tracking-wide text-gray-500 font-medium">Total reviews</p>
             <p className="text-2xl font-semibold text-gray-900 mt-1">{reviews.length}</p>
           </div>
-          <div className="bg-white border border-amber-200 bg-amber-50/40 rounded-xl p-4">
+          <div className="bg-white border border-amber-200 bg-amber-50/40 rounded-2xl p-4 shadow-sm">
             <p className="text-xs uppercase tracking-wide text-amber-800 font-medium">Not replied</p>
             <p className="text-2xl font-semibold text-amber-900 mt-1">{unrepliedCount}</p>
             <p className="text-xs text-amber-800/80 mt-1">Written reviews only; star-only ratings are excluded.</p>

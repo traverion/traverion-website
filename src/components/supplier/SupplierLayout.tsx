@@ -825,7 +825,7 @@ export default function SupplierLayout() {
   }
 
   return (
-    <div className="min-h-[100dvh] min-h-screen bg-gray-50 flex">
+    <div className="partner-app-shell min-h-[100dvh] min-h-screen bg-slate-100 flex text-slate-900">
       {/* Sidebar - desktop */}
       <aside className="hidden lg:flex flex-col w-64 bg-white border-r border-gray-200 fixed inset-y-0 left-0 z-30">
         <div className="p-4 border-b border-gray-200">
@@ -929,7 +929,7 @@ export default function SupplierLayout() {
 
       {/* Main content */}
       <div className="flex-1 lg:pl-64">
-        <header className="bg-white/95 backdrop-blur-md border-b border-gray-200 sticky top-0 z-20 min-h-[3.5rem] flex items-center px-3 sm:px-6 lg:px-8 pt-[env(safe-area-inset-top)] supports-[backdrop-filter]:bg-white/90 transition-shadow duration-500 ease-lux relative">
+        <header className="bg-white/95 backdrop-blur-md border-b border-slate-200/90 sticky top-0 z-20 min-h-[3.25rem] sm:min-h-[3.5rem] flex items-center px-3 sm:px-6 lg:px-8 pt-[env(safe-area-inset-top)] supports-[backdrop-filter]:bg-white/90 shadow-sm lg:shadow-none transition-shadow duration-300 relative">
           <button
             type="button"
             onClick={() => setSidebarOpen(true)}
@@ -992,7 +992,7 @@ export default function SupplierLayout() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="p-4 space-y-2 overflow-y-auto max-h-[calc(100dvh-3.5rem)] pb-[max(1rem,env(safe-area-inset-bottom))]">
+            <div className="p-4 space-y-2 overflow-y-auto max-h-[calc(100dvh-3.5rem)] pb-[max(1rem,calc(5.25rem+env(safe-area-inset-bottom)))]">
               <p className="px-1 pt-1 pb-2 text-xs uppercase tracking-wide text-gray-500">Traverion supplier account</p>
               <button type="button" onClick={() => openSettingsFocus('company')} className="touch-manipulation w-full text-left px-4 py-3.5 min-h-[44px] rounded-xl border border-gray-200 active:bg-gray-50">Business profile</button>
               <button type="button" onClick={() => openSettingsFocus('legal')} className="touch-manipulation w-full text-left px-4 py-3.5 min-h-[44px] rounded-xl border border-gray-200 active:bg-gray-50">Legal obligations</button>
@@ -1003,7 +1003,7 @@ export default function SupplierLayout() {
             </div>
           </div>
         )}
-        <main className="w-full max-w-[100vw] overflow-x-hidden px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-1 sm:px-6 sm:pb-6 sm:pt-0 lg:px-8 lg:pb-8">
+        <main className="w-full max-w-[100vw] overflow-x-hidden px-3 pt-1 pb-[max(1rem,calc(5.25rem+env(safe-area-inset-bottom)))] sm:px-6 sm:pt-0 sm:pb-[max(1.25rem,calc(5.25rem+env(safe-area-inset-bottom)))] lg:px-8 lg:pb-8">
           {isSupabase && user && !onboardingComplete && (
             <SupplierSetupProgressStrip
               listingCount={onboardingListingCount}
@@ -1188,6 +1188,52 @@ export default function SupplierLayout() {
           </div>
         </main>
       </div>
+
+      <nav
+        className={`lg:hidden fixed bottom-0 inset-x-0 z-40 border-t border-slate-200/90 bg-white/95 backdrop-blur-xl pb-[env(safe-area-inset-bottom)] pt-1 shadow-[0_-10px_40px_rgba(15,23,42,0.07)] ${
+          sidebarOpen ? 'hidden' : ''
+        }`}
+        aria-label="Primary navigation"
+      >
+        <div className="flex items-stretch justify-around max-w-md mx-auto px-1">
+          {(
+            [
+              { id: 'dashboard' as SupplierSection, label: 'Home', icon: LayoutDashboard },
+              { id: 'listings' as SupplierSection, label: 'Listings', icon: MapPin },
+              { id: 'bookings' as SupplierSection, label: 'Bookings', icon: Calendar },
+              { id: 'earnings' as SupplierSection, label: 'Earn', icon: DollarSign },
+            ] as const
+          ).map((tab) => {
+            const active = section === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => handleNavigate(tab.id)}
+                className={`touch-manipulation flex flex-1 flex-col items-center justify-center gap-0.5 py-2 min-h-[52px] max-w-[5.25rem] rounded-xl transition-transform active:scale-[0.96] ${
+                  active ? 'text-finland' : 'text-slate-500'
+                }`}
+              >
+                <tab.icon className="w-[22px] h-[22px]" strokeWidth={active ? 2.5 : 2} aria-hidden />
+                <span className="text-[10px] font-semibold leading-tight tracking-tight">{tab.label}</span>
+              </button>
+            );
+          })}
+          <button
+            type="button"
+            onClick={() => {
+              setSidebarOpen(false);
+              setMobileAccountOpen(true);
+            }}
+            className={`touch-manipulation flex flex-1 flex-col items-center justify-center gap-0.5 py-2 min-h-[52px] max-w-[5.25rem] rounded-xl transition-transform active:scale-[0.96] ${
+              mobileAccountOpen ? 'text-finland' : 'text-slate-500'
+            }`}
+          >
+            <UserCircle2 className="w-[22px] h-[22px]" strokeWidth={mobileAccountOpen ? 2.5 : 2} aria-hidden />
+            <span className="text-[10px] font-semibold leading-tight tracking-tight">Account</span>
+          </button>
+        </div>
+      </nav>
     </div>
   );
 }

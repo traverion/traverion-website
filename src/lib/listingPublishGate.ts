@@ -1,5 +1,5 @@
 import type { TourPackage } from '../types/tour';
-import { LISTING_PLACEHOLDER_IMAGE } from './listingQualityScore';
+import { LISTING_PLACEHOLDER_IMAGE, MIN_LISTING_DESCRIPTION_LENGTH } from './listingQualityScore';
 
 /**
  * Human-readable blockers before publishing a listing. Keeps the bar reasonable for a first tour.
@@ -17,8 +17,10 @@ export function getListingPublishBlockers(listing: TourPackage): string[] {
     out.push('Subtitle must be 300 characters or fewer.');
   }
   const desc = listing.description?.trim() ?? '';
-  if (desc.length < 60) {
-    out.push('Description is too short — aim for at least a short paragraph (60+ characters) so guests know what they book.');
+  if (desc.length < MIN_LISTING_DESCRIPTION_LENGTH) {
+    out.push(
+      `Description is too short — use at least ${MIN_LISTING_DESCRIPTION_LENGTH} characters so guests know what they book.`
+    );
   }
   if (desc.length > 2000) {
     out.push('Main description must be 2000 characters or fewer.');
@@ -36,6 +38,10 @@ export function getListingPublishBlockers(listing: TourPackage): string[] {
   if (!city || !country) {
     out.push('Add both city and country so the listing can be discovered and trusted.');
   }
+  const groupSize = (listing.groupSize ?? '').trim();
+  if (groupSize.length < 3) {
+    out.push('Set group size (for example min–max guests or “up to X”) so guests know what to expect.');
+  }
   const meet = (listing.meetingPoint ?? '').trim().length;
   const pickup = (listing.pickupInstructions ?? '').trim().length;
   if (meet + pickup < 12) {
@@ -48,13 +54,6 @@ export function getListingPublishBlockers(listing: TourPackage): string[] {
   }
   if (exc.length < 1) {
     out.push('Add at least one “not included” item (for example meals or tickets) to set expectations.');
-  }
-  const preset = listing.listingExtras?.cancellationPreset;
-  if (preset === 'custom') {
-    const pol = (listing.cancellationPolicy ?? '').trim();
-    if (pol.length < 12) {
-      out.push('Write your cancellation policy (custom) in a bit more detail for guests.');
-    }
   }
   const gallery = (listing.listingExtras?.galleryImageUrls ?? []).map((u) => String(u).trim()).filter(Boolean);
   if (gallery.length === 0) {

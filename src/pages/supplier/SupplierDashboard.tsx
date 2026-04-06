@@ -302,18 +302,18 @@ export default function SupplierDashboard({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {stats.map(({ label, value, icon: Icon, color }) => (
           <div
             key={label}
-            className="bg-white border border-gray-200 rounded-xl p-5 flex items-center gap-4"
+            className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-5 flex items-center gap-3 sm:gap-4 min-w-0 shadow-sm"
           >
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${color}`}>
-              <Icon className="w-6 h-6" />
+            <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center shrink-0 ${color}`}>
+              <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
-            <div>
-              <p className="text-sm text-gray-500">{label}</p>
-              <p className="text-xl font-semibold text-gray-900">{value}</p>
+            <div className="min-w-0">
+              <p className="text-xs sm:text-sm text-gray-500 leading-snug">{label}</p>
+              <p className="text-lg sm:text-xl font-semibold text-gray-900 tabular-nums truncate">{value}</p>
             </div>
           </div>
         ))}

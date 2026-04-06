@@ -241,9 +241,21 @@ export async function fetchMyListings(supplierId: string): Promise<TourPackage[]
   return (data as ListingRow[]).map(rowToTourPackage);
 }
 
+export type ListingSaveResult =
+  | { ok: true; tour: TourPackage }
+  | { ok: false; error: string };
+
+export type ListingStatusResult = { ok: true } | { ok: false; error: string };
+
+function formatSupabaseListingError(prefix: string, error: { message?: string; details?: string; hint?: string }): string {
+  const parts = [error.message, error.details, error.hint].filter(Boolean);
+  const detail = parts.length ? parts.join(' — ') : 'Unknown error';
+  return `${prefix}: ${detail}`;
+}
+
 /** Insert a new listing (requires auth; supplier_id = current user). */
-export async function insertListing(tour: TourPackage, supplierId: string): Promise<TourPackage | null> {
-  if (!supabase) return null;
+export async function insertListing(tour: TourPackage, supplierId: string): Promise<ListingSaveResult> {
+  if (!supabase) return { ok: false, error: 'Supabase is not configured.' };
   const row = tourPackageToRow(tour);
   const { data, error } = await supabase
     .from('listings')
@@ -252,14 +264,14 @@ export async function insertListing(tour: TourPackage, supplierId: string): Prom
     .single();
   if (error) {
     console.error('Supabase insert listing:', error);
-    return null;
+    return { ok: false, error: formatSupabaseListingError('Could not create listing', error) };
   }
-  return rowToTourPackage(data as ListingRow);
+  return { ok: true, tour: rowToTourPackage(data as ListingRow) };
 }
 
 /** Update an existing listing (requires auth; must be owner). */
-export async function updateListing(id: string, tour: Partial<TourPackage>): Promise<TourPackage | null> {
-  if (!supabase) return null;
+export async function updateListing(id: string, tour: Partial<TourPackage>): Promise<ListingSaveResult> {
+  if (!supabase) return { ok: false, error: 'Supabase is not configured.' };
   const row = tourPackageToRow(tour as Parameters<typeof tourPackageToRow>[0]);
   const { data, error } = await supabase
     .from('listings')
@@ -269,9 +281,9 @@ export async function updateListing(id: string, tour: Partial<TourPackage>): Pro
     .single();
   if (error) {
     console.error('Supabase update listing:', error);
-    return null;
+    return { ok: false, error: formatSupabaseListingError('Could not update listing', error) };
   }
-  return rowToTourPackage(data as ListingRow);
+  return { ok: true, tour: rowToTourPackage(data as ListingRow) };
 }
 
 /** Delete a listing (requires auth; must be owner). */
@@ -286,10 +298,17 @@ export async function deleteListing(id: string): Promise<boolean> {
 }
 
 /** Update only listing status (draft/published). */
-export async function updateListingStatus(id: string, status: 'draft' | 'published'): Promise<boolean> {
-  if (!supabase) return false;
-  const { error } = await supabase.from('listings').update({ status }).eq('id', id);
-  return !error;
+export async function updateListingStatus(id: string, status: 'draft' | 'published'): Promise<ListingStatusResult> {
+  if (!supabase) return { ok: false, error: 'Supabase is not configured.' };
+  const { data, error } = await supabase.from('listings').update({ status }).eq('id', id).select('id').maybeSingle();
+  if (error) {
+    console.error('Supabase update listing status:', error);
+    return { ok: false, error: formatSupabaseListingError('Could not update status', error) };
+  }
+  if (!data) {
+    return { ok: false, error: 'Listing not found or you do not have permission to change it.' };
+  }
+  return { ok: true };
 }
 
 /** Fetch a single listing by id (public). Throws on Supabase error; returns null only if not found. */

@@ -12,13 +12,15 @@ export function qualityCheckIdToFormFocus(checkId: string): string {
     case 'excludes':
       return 'excludes';
     case 'cancellation':
-      return 'cancellation';
+      return 'includes';
     case 'highlights':
       return 'highlights';
     case 'meeting':
       return 'meeting';
     case 'schedule':
       return 'schedule';
+    case 'capacity':
+      return 'group';
     default:
       return checkId;
   }

@@ -5,7 +5,7 @@ import { getSupplierListings, setSupplierListings } from '../../data/listings';
 import { fetchMyListings, insertListing, updateListing, updateListingStatus, deleteListing } from '../../data/supabase-listings';
 import { fetchSupplierProfile } from '../../data/supabase-supplier-profile';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
-import SupplierListingForm from './SupplierListingForm';
+import SupplierListingForm, { type ListingEditorSaveResult } from './SupplierListingForm';
 import { computeListingQuality, listingQualityPercent } from '../../lib/listingQualityScore';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { navigateSupplierUrl, openSupplierListingEditor } from '../../lib/supplierPortalNavigation';
@@ -227,34 +227,38 @@ export default function SupplierListings() {
     }
   };
 
-  const handleSave = async (tour: TourPackage) => {
+  const handleSave = async (tour: TourPackage): Promise<ListingEditorSaveResult> => {
     if (!canEditListings) {
-      setError('Your role can view listings but cannot create or edit them.');
+      const msg = 'Your role can view listings but cannot create or edit them.';
+      setError(msg);
       setShowForm(false);
-      return;
+      return { success: false, error: msg };
     }
-    if (isSupabase && !editingId && !canPostNewListing) {
-      setError(
-        'Traverion must verify both your business profile and your payout (IBAN + BIC). Finish both in Settings, then try again.'
-      );
-      setShowForm(false);
-      return;
+    if (tour.status === 'published' && !canPostNewListing) {
+      const msg =
+        'Publishing needs Traverion to verify your business and your payout (IBAN + BIC). Finish both in Settings, then try again.';
+      setError(msg);
+      return { success: false, error: msg };
     }
+    setPublishGate(null);
     if (isSupabase && user) {
-      if (editingId) {
-        await updateListing(editingId, tour);
-      } else {
-        await insertListing(tour, user.id);
+      const res = editingId ? await updateListing(editingId, tour) : await insertListing(tour, user.id);
+      if (!res.ok) {
+        setError(res.error);
+        return { success: false, error: res.error };
       }
+      setError(null);
       refresh();
-    } else {
-      const list = getSupplierListings();
-      const index = list.findIndex(t => t.id === tour.id);
-      const next = index >= 0 ? [...list] : [...list, tour];
-      if (index >= 0) next[index] = tour;
-      setSupplierListings(next);
-      refresh();
+      return { success: true };
     }
+    const list = getSupplierListings();
+    const index = list.findIndex(t => t.id === tour.id);
+    const next = index >= 0 ? [...list] : [...list, tour];
+    if (index >= 0) next[index] = tour;
+    setSupplierListings(next);
+    setError(null);
+    refresh();
+    return { success: true };
   };
 
   const handleDelete = async (id: string) => {
@@ -291,19 +295,22 @@ export default function SupplierListings() {
       }
     }
     setPublishGate(null);
-    const ok = await updateListingStatus(listing.id, newStatus);
-    if (ok) {
+    const res = await updateListingStatus(listing.id, newStatus);
+    if (res.ok) {
+      setError(null);
       loadListings();
       window.dispatchEvent(new Event('traverion:supplier-onboarding-refresh'));
+    } else {
+      setError(res.error);
     }
   };
 
   return (
     <div className="space-y-5 sm:space-y-6 w-full min-w-0">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-gray-900">My listings</h1>
-          <p className="text-gray-600 mt-1">Manage your tours and activities. They appear on the main site for all travelers.</p>
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">My listings</h1>
+          <p className="text-sm sm:text-base text-gray-600 mt-1">Manage your tours and activities. They appear on the main site for all travelers.</p>
         </div>
         <button
           type="button"
@@ -323,9 +330,9 @@ export default function SupplierListings() {
                 ? 'Traverion must approve your business and your payout (IBAN + BIC) before you can add a tour.'
                 : undefined
           }
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark transition-colors disabled:opacity-50"
+          className="inline-flex items-center justify-center gap-2 w-full sm:w-auto px-4 py-3 sm:py-2.5 min-h-[48px] rounded-xl bg-finland text-white font-semibold hover:bg-finland-dark transition-colors disabled:opacity-50 touch-manipulation shadow-sm active:scale-[0.99]"
         >
-          <Plus className="w-5 h-5" />
+          <Plus className="w-5 h-5 shrink-0" />
           Add listing
         </button>
       </div>
@@ -511,13 +518,10 @@ export default function SupplierListings() {
           onSaveDraft={async (tour) => {
             if (!isSupabase || !user?.id || !canEditListings) return false;
             const draft = normalizeListingForDraftSave(tour);
-            if (editingId) {
-              const updated = await updateListing(editingId, draft);
-              if (!updated) return false;
-            } else {
-              const inserted = await insertListing(draft, user.id);
-              if (!inserted) return false;
-            }
+            const res = editingId
+              ? await updateListing(editingId, draft)
+              : await insertListing(draft, user.id);
+            if (!res.ok) return false;
             loadListings();
             window.dispatchEvent(new Event('traverion:supplier-onboarding-refresh'));
             return true;
@@ -569,8 +573,8 @@ export default function SupplierListings() {
         listings.length > 0 && (
           <div className="space-y-3">
             <h2 className="text-lg font-medium text-gray-900">Your listings ({listings.length})</h2>
-            <div className="border border-gray-200 rounded-xl bg-white overflow-hidden -mx-1 sm:mx-0">
-              <div className="overflow-x-auto touch-pan-x overscroll-x-contain">
+            <div className="border border-gray-200 rounded-2xl bg-white overflow-hidden shadow-sm -mx-0.5 sm:mx-0">
+              <div className="overflow-x-auto touch-pan-x overscroll-x-contain [-webkit-overflow-scrolling:touch]">
                 <table className="min-w-[640px] w-full">
                   <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>

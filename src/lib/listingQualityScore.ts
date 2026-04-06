@@ -1,8 +1,12 @@
 import type { TourPackage } from '../types/tour';
+import { TRAVERION_STANDARD_CANCELLATION_POLICY } from '../types/listingExtras';
 
 /** Default image used when none set — replacing it improves trust. */
 export const LISTING_PLACEHOLDER_IMAGE =
   'https://images.pexels.com/photos/346885/pexels-photo-346885.jpeg';
+
+/** Minimum main description length to publish (aligned with partner form and publish gate). */
+export const MIN_LISTING_DESCRIPTION_LENGTH = 100;
 
 export type ListingQualityCheck = {
   id: string;
@@ -57,9 +61,12 @@ export function computeListingQuality(listing: TourPackage): {
     else if (len >= 140) {
       earned = 9;
       tip = 'Expand the description with what’s included, pace, and who it’s for.';
-    } else if (len >= 60) {
+    } else if (len >= MIN_LISTING_DESCRIPTION_LENGTH) {
       earned = 4;
       tip = 'Longer descriptions convert better — target 200+ words where possible.';
+    } else if (len >= 60) {
+      earned = 2;
+      tip = `Reach at least ${MIN_LISTING_DESCRIPTION_LENGTH} characters to publish — add what guests do, what’s included, and practical notes.`;
     } else {
       tip = 'Add a full description: itinerary feel, inclusions, meeting point hints.';
     }
@@ -139,14 +146,17 @@ export function computeListingQuality(listing: TourPackage): {
     let earned = 0;
     let tip = '';
     if (city && country) earned = max;
-    else if (city || country) {
-      earned = 6;
-      tip = 'Add both city and country when possible for search and trust.';
-    } else if (dest && dest.length >= 3) {
+    else if (country && !city) {
       earned = 4;
-      tip = 'Add structured city and country fields for clearer discovery.';
+      tip = 'Add the main base or starting city (required with country).';
+    } else if (city && !country) {
+      earned = 4;
+      tip = 'Add the country for this experience.';
+    } else if (dest && dest.length >= 3) {
+      earned = 3;
+      tip = 'Add city and country in the structured fields for discovery and trust.';
     } else {
-      tip = 'Add country (and city if there is a main base), or an optional place label under Logistics for multi-stop tours.';
+      tip = 'Add city and country — use Logistics for route detail if the experience spans a wider area.';
     }
     checks.push({ id: 'location', label: 'Location details', max, earned, tip });
   }
@@ -179,20 +189,29 @@ export function computeListingQuality(listing: TourPackage): {
     });
   }
 
-  // Cancellation (9)
+  // Cancellation (9) — Traverion standard terms apply; legacy custom text still scores if present.
   {
     const max = 9;
     const c = listing.cancellationPolicy?.trim() ?? '';
+    const usesStandard = c === TRAVERION_STANDARD_CANCELLATION_POLICY;
+    const legacyOk = c.length >= 24;
+    const pendingDefault = c.length === 0;
     let earned = 0;
     let tip = '';
-    if (c.length >= 24) earned = max;
+    if (usesStandard || legacyOk || pendingDefault) earned = max;
     else if (c.length >= 10) {
       earned = 5;
-      tip = 'Spell out cancellation windows and refund rules more clearly.';
+      tip = 'Save the listing to refresh cancellation copy to Traverion’s standard terms, or extend your policy text.';
     } else {
-      tip = 'Add a cancellation policy — it strongly affects booking confidence.';
+      tip = 'Cancellation follows Traverion’s standard terms; save the listing so guests see the full wording.';
     }
-    checks.push({ id: 'cancellation', label: 'Cancellation policy', max, earned, tip });
+    checks.push({
+      id: 'cancellation',
+      label: 'Cancellation terms',
+      max,
+      earned,
+      tip,
+    });
   }
 
   // Meeting / pickup (5)

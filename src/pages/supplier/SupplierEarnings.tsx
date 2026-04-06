@@ -99,10 +99,10 @@ export default function SupplierEarnings() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6 w-full min-w-0">
       <div>
-        <h1 className="text-2xl font-semibold text-gray-900">Earnings</h1>
-        <p className="text-gray-600 mt-1">Payouts and transaction history</p>
+        <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Earnings</h1>
+        <p className="text-sm sm:text-base text-gray-600 mt-1">Payouts and transaction history</p>
       </div>
 
       {error && (
@@ -114,12 +114,12 @@ export default function SupplierEarnings() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white border border-gray-200 rounded-xl p-5 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+        <div className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-5 flex items-center gap-3 sm:gap-4 shadow-sm">
+          <div className="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0">
             <TrendingUp className="w-6 h-6" />
           </div>
-          <div>
+          <div className="min-w-0">
             <p className="text-sm text-gray-500">Pending payout</p>
             <p className="text-xl font-semibold text-gray-900 tabular-nums">{formatMoney(pending, primaryCurrency)}</p>
             {payoutProgressPct !== null && (
@@ -135,20 +135,20 @@ export default function SupplierEarnings() {
             )}
           </div>
         </div>
-        <div className="bg-white border border-gray-200 rounded-xl p-5 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-green-500/10 text-green-600 flex items-center justify-center">
+        <div className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-5 flex items-center gap-3 sm:gap-4 shadow-sm">
+          <div className="w-12 h-12 rounded-xl bg-green-500/10 text-green-600 flex items-center justify-center shrink-0">
             <DollarSign className="w-6 h-6" />
           </div>
-          <div>
+          <div className="min-w-0">
             <p className="text-sm text-gray-500">Paid out</p>
             <p className="text-xl font-semibold text-gray-900 tabular-nums">{formatMoney(paid, primaryCurrency)}</p>
           </div>
         </div>
-        <div className="bg-white border border-gray-200 rounded-xl p-5 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-gray-100 text-gray-600 flex items-center justify-center">
+        <div className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-5 flex items-center gap-3 sm:gap-4 shadow-sm">
+          <div className="w-12 h-12 rounded-xl bg-gray-100 text-gray-600 flex items-center justify-center shrink-0">
             <Receipt className="w-6 h-6" />
           </div>
-          <div>
+          <div className="min-w-0">
             <p className="text-sm text-gray-500">Cancelled / adjusted</p>
             <p className="text-xl font-semibold text-gray-900 tabular-nums">{formatMoney(cancelled, primaryCurrency)}</p>
             <p className="text-xs text-gray-400 mt-1">Reversals or voided accruals</p>
@@ -163,7 +163,7 @@ export default function SupplierEarnings() {
         </div>
       )}
 
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+      <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
         <div className="px-4 py-3 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-center gap-2">
             <Calendar className="w-5 h-5 text-gray-500" />
