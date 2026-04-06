@@ -5,6 +5,7 @@ import { ensureSupplierProfile, fetchSupplierProfile } from '../../data/supabase
 import { isPhoneAvailableForSignup } from '../../data/supabase-phone-signup';
 import { notifySupplierEvent } from '../../data/supabase-supplier-messaging';
 import { supplierPortalPublicBaseUrl } from '../../lib/partnerHost';
+import { PARTNER_EMAIL_VERIFIED_PATH, PARTNER_LOGIN_PATH } from '../../lib/partnerPortalPaths';
 import { isSignUpEmailAlreadyRegistered } from '../../lib/supabaseAuthHelpers';
 import { normalizePhoneNumber } from '../../lib/phoneNormalize';
 import { subscribePasswordRecovery, updatePasswordAfterRecovery } from '../../lib/passwordRecoveryFlow';
@@ -123,7 +124,7 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
             email: normalizedEmail,
             password,
             options: {
-              emailRedirectTo: `${supplierPortalPublicBaseUrl()}/login`,
+              emailRedirectTo: `${supplierPortalPublicBaseUrl()}${PARTNER_EMAIL_VERIFIED_PATH}`,
               data: {
                 supplier_business_name: cleanBusinessName,
                 supplier_phone: cleanPhoneNumber,
@@ -234,7 +235,7 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
     }
     setResetSending(true);
     const { error: err } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-      redirectTo: `${supplierPortalPublicBaseUrl()}/login`,
+      redirectTo: `${supplierPortalPublicBaseUrl()}${PARTNER_LOGIN_PATH}`,
     });
     setResetSending(false);
     if (err) {
@@ -259,7 +260,7 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
     const { error: err } = await supabase.auth.resend({
       type: 'signup',
       email: normalizedEmail,
-      options: { emailRedirectTo: `${supplierPortalPublicBaseUrl()}/login` },
+      options: { emailRedirectTo: `${supplierPortalPublicBaseUrl()}${PARTNER_EMAIL_VERIFIED_PATH}` },
     });
     setResendSending(false);
     if (err) {

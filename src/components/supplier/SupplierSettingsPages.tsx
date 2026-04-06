@@ -20,6 +20,7 @@ import {
   SUPPLIER_SENSITIVE_CHANGES_SUPPORT_EMAIL,
 } from '../../lib/supplierVerificationLocks';
 import { supplierPortalPublicBaseUrl } from '../../lib/partnerHost';
+import { PARTNER_EMAIL_VERIFIED_PATH } from '../../lib/partnerPortalPaths';
 
 type BusinessProfileTab = 'company' | 'legal';
 
@@ -192,7 +193,7 @@ function AccountSettingsPage(p: Props) {
                 const { error } = await p.supabase.auth.resend({
                   type: 'signup',
                   email: p.supplierEmail.trim().toLowerCase(),
-                  options: { emailRedirectTo: `${supplierPortalPublicBaseUrl()}/login` },
+                  options: { emailRedirectTo: `${supplierPortalPublicBaseUrl()}${PARTNER_EMAIL_VERIFIED_PATH}` },
                 });
                 p.setVerificationSending(false);
                 p.setVerificationMessage(error ? 'error' : 'sent');

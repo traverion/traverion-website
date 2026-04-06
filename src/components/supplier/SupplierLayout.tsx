@@ -47,10 +47,12 @@ import { userHasSupplierProfile } from '../../lib/supplierPortalAccess';
 import { isPartnerMarketingPathForCurrentHost } from '../../lib/partnerHost';
 import {
   PARTNER_APP_BASE,
+  PARTNER_EMAIL_VERIFIED_PATH,
   PARTNER_LOGIN_PATH,
   partnerMarketingPageFromPathname,
 } from '../../lib/partnerPortalPaths';
 import PartnerMarketingStaticPage from './PartnerMarketingStaticPage';
+import PartnerEmailVerifiedPage from './PartnerEmailVerifiedPage';
 import SupplierPortalTravelerNotice from './SupplierPortalTravelerNotice';
 
 /** @deprecated Use PARTNER_LOGIN_PATH from partnerPortalPaths */
@@ -631,6 +633,11 @@ export default function SupplierLayout() {
           : !onboardingHasListing
             ? () => handleNavigate('listings')
             : () => handleNavigate('business-profile');
+
+  const normalizedPathForVerify = pathname.replace(/\/$/, '') || '/';
+  if (normalizedPathForVerify === PARTNER_EMAIL_VERIFIED_PATH) {
+    return <PartnerEmailVerifiedPage />;
+  }
 
   if (loading) {
     return (

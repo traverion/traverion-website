@@ -2,6 +2,9 @@
 
 export const PARTNER_LOGIN_PATH = '/login';
 
+/** Email confirmation links land here (hash tokens); not useful without Supabase’s signed fragment. */
+export const PARTNER_EMAIL_VERIFIED_PATH = '/email-verified';
+
 /** Dashboard at /partner; sections at /partner/listings, /partner/bookings, … */
 export const PARTNER_APP_BASE = '/partner';
 
@@ -52,6 +55,7 @@ export function isPartnerPortalPath(pathname: string): boolean {
   const p = normalizePartnerPath(pathname);
   return (
     p === PARTNER_LOGIN_PATH ||
+    p === PARTNER_EMAIL_VERIFIED_PATH ||
     p === PARTNER_APP_BASE ||
     p.startsWith(`${PARTNER_APP_BASE}/`)
   );
