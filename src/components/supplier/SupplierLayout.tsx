@@ -44,6 +44,11 @@ import SupplierSettingsPages from './SupplierSettingsPages';
 import { BRAND_LOGO_SRC } from '../../lib/brandAssets';
 import { isSupplierBusinessProfileComplete, isSupplierPayoutConfigured } from '../../lib/supplierOnboarding';
 import { userHasSupplierProfile } from '../../lib/supplierPortalAccess';
+
+type PartnerProfileGate =
+  | { kind: 'pending'; forUserId: string }
+  | { kind: 'resolved'; forUserId: string; allowed: boolean }
+  | { kind: 'failed'; forUserId: string };
 import { isPartnerMarketingPathForCurrentHost } from '../../lib/partnerHost';
 import {
   PARTNER_APP_BASE,
@@ -295,7 +300,8 @@ function SupplierSetupProgressStrip({
 
 export default function SupplierLayout() {
   const { user, loading, signOut, isSupabase } = useSupplierAuth();
-  const [hasSupplierProfile, setHasSupplierProfile] = useState<boolean | null>(null);
+  const [partnerProfileGate, setPartnerProfileGate] = useState<PartnerProfileGate | null>(null);
+  const [partnerGateRetryKey, setPartnerGateRetryKey] = useState(0);
   const [section, setSection] = useState<SupplierSection>(() => getSectionFromPath(window.location.pathname) ?? 'dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [payoutIban, setPayoutIban] = useState('');
@@ -358,18 +364,39 @@ export default function SupplierLayout() {
 
   useEffect(() => {
     if (!user?.id || !isSupabase || !supabase) {
-      setHasSupplierProfile(null);
+      setPartnerProfileGate(null);
       return;
     }
+    const uid = user.id;
     let cancelled = false;
-    setHasSupplierProfile(null);
-    void userHasSupplierProfile(supabase, user.id).then((ok) => {
-      if (!cancelled) setHasSupplierProfile(ok);
-    });
+    setPartnerProfileGate({ kind: 'pending', forUserId: uid });
+
+    const run = async () => {
+      for (let attempt = 0; attempt < 3 && !cancelled; attempt++) {
+        const ok = await userHasSupplierProfile(supabase, uid);
+        if (cancelled) return;
+        if (ok !== null) {
+          setPartnerProfileGate({ kind: 'resolved', forUserId: uid, allowed: ok });
+          return;
+        }
+        await new Promise((r) => setTimeout(r, 140 * (attempt + 1)));
+      }
+      if (!cancelled) setPartnerProfileGate({ kind: 'failed', forUserId: uid });
+    };
+
+    void run();
     return () => {
       cancelled = true;
     };
-  }, [user?.id, isSupabase]);
+  }, [user?.id, isSupabase, partnerGateRetryKey]);
+
+  const partnerGateView = (() => {
+    if (!user?.id) return 'anon' as const;
+    if (!partnerProfileGate || partnerProfileGate.forUserId !== user.id) return 'checking' as const;
+    if (partnerProfileGate.kind === 'pending') return 'checking' as const;
+    if (partnerProfileGate.kind === 'failed') return 'error' as const;
+    return partnerProfileGate.allowed ? ('allowed' as const) : ('blocked' as const);
+  })();
 
   useEffect(() => {
     if ((section !== 'business-profile' && section !== 'account-settings') || !user?.id || !isSupabase) return;
@@ -662,14 +689,39 @@ export default function SupplierLayout() {
 
   const needsPartnerProfileGate = Boolean(user && (onPortalPath || onLoginPath));
   if (needsPartnerProfileGate) {
-    if (hasSupplierProfile === null) {
+    if (partnerGateView === 'checking') {
       return (
         <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-3 text-gray-500">
           <p className="text-sm">Checking partner account…</p>
         </div>
       );
     }
-    if (!hasSupplierProfile) {
+    if (partnerGateView === 'error') {
+      return (
+        <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-4 p-6 text-center">
+          <p className="text-sm text-gray-600 max-w-md">
+            We could not verify your partner account. Check your connection and try again.
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={() => setPartnerGateRetryKey((k) => k + 1)}
+              className="rounded-xl bg-finland px-4 py-2.5 text-sm font-semibold text-white hover:bg-finland-dark transition-colors"
+            >
+              Try again
+            </button>
+            <button
+              type="button"
+              onClick={() => void signOut()}
+              className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              Sign out
+            </button>
+          </div>
+        </div>
+      );
+    }
+    if (partnerGateView === 'blocked') {
       return (
         <SupplierPortalTravelerNotice
           email={typeof user?.email === 'string' ? user.email : null}

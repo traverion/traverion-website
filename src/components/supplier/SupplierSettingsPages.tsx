@@ -319,6 +319,40 @@ function BusinessProfilePage(p: Props) {
     };
   }, [p.companyRegistrationPath]);
 
+  useEffect(() => {
+    if (!p.legalDocModal) return;
+    const html = document.documentElement;
+    const body = document.body;
+    const prevHtmlOverflow = html.style.overflow;
+    const prevHtmlOverscroll = html.style.overscrollBehavior;
+    const prevBodyOverflow = body.style.overflow;
+    const prevBodyPosition = body.style.position;
+    const prevBodyTop = body.style.top;
+    const prevBodyLeft = body.style.left;
+    const prevBodyRight = body.style.right;
+    const prevBodyWidth = body.style.width;
+    const scrollY = window.scrollY;
+    html.style.overflow = 'hidden';
+    html.style.overscrollBehavior = 'none';
+    body.style.overflow = 'hidden';
+    body.style.position = 'fixed';
+    body.style.top = `-${scrollY}px`;
+    body.style.left = '0';
+    body.style.right = '0';
+    body.style.width = '100%';
+    return () => {
+      html.style.overflow = prevHtmlOverflow;
+      html.style.overscrollBehavior = prevHtmlOverscroll;
+      body.style.overflow = prevBodyOverflow;
+      body.style.position = prevBodyPosition;
+      body.style.top = prevBodyTop;
+      body.style.left = prevBodyLeft;
+      body.style.right = prevBodyRight;
+      body.style.width = prevBodyWidth;
+      window.scrollTo(0, scrollY);
+    };
+  }, [p.legalDocModal]);
+
   const tabBtn = (active: boolean) =>
     `rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors ${
       active ? 'bg-finland text-white shadow-sm' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -1282,15 +1316,15 @@ function BusinessProfilePage(p: Props) {
       )}
 
       {p.legalDocModal && (
-        <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-hidden overscroll-none">
           <button
             type="button"
-            className="absolute inset-0 bg-black/40"
-            aria-label="Close"
+            className="absolute inset-0 bg-slate-900/35 backdrop-blur-md supports-[backdrop-filter]:bg-slate-900/25"
+            aria-label="Close editor"
             onClick={() => p.setLegalDocModal(null)}
           />
-          <div className="relative bg-white rounded-t-xl sm:rounded-xl shadow-xl border border-gray-200 w-full max-w-3xl max-h-[90vh] flex flex-col z-[71]">
-            <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
+          <div className="relative z-[71] flex max-h-[90dvh] w-full max-w-3xl min-h-0 flex-col rounded-t-xl border border-gray-200 bg-white shadow-xl sm:max-h-[90vh] sm:rounded-xl">
+            <div className="flex shrink-0 items-center justify-between border-b border-gray-200 px-5 py-4">
               <h3 className="text-lg font-semibold text-gray-900">
                 {p.legalDocModal === 'privacy' ? 'Privacy policy' : 'Terms & conditions'}
               </h3>
@@ -1302,9 +1336,9 @@ function BusinessProfilePage(p: Props) {
                 Close
               </button>
             </div>
-            <div className="p-4 flex-1 overflow-y-auto">
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4">
               <textarea
-                className="w-full min-h-[min(50vh,420px)] px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono text-gray-800 leading-relaxed focus:ring-2 focus:ring-finland"
+                className="min-h-[min(50vh,420px)] w-full resize-y rounded-lg border border-gray-300 px-3 py-2 font-mono text-sm leading-relaxed text-gray-800 focus:ring-2 focus:ring-finland"
                 value={p.legalDocModal === 'privacy' ? p.privacyPolicyText : p.termsConditionsText}
                 onChange={(e) =>
                   p.legalDocModal === 'privacy'
@@ -1316,7 +1350,7 @@ function BusinessProfilePage(p: Props) {
                 Not legal advice. Have counsel review before relying on this text.
               </p>
             </div>
-            <div className="px-4 py-3 border-t border-gray-200 flex flex-wrap gap-2 justify-end bg-gray-50 rounded-b-xl">
+            <div className="flex shrink-0 flex-wrap justify-end gap-2 rounded-b-xl border-t border-gray-200 bg-gray-50 px-4 py-3">
               <button
                 type="button"
                 onClick={() => (p.legalDocModal === 'privacy' ? p.fillPrivacyTemplate() : p.fillTermsTemplate())}
