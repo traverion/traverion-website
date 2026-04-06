@@ -629,7 +629,7 @@ function BusinessProfilePage(p: Props) {
               {p.businessType === 'individual' && (
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Business ID / tax number</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Tax or registration number</label>
                     <p className="text-xs text-gray-500 mb-2">
                       Required for verification: your business or tax identifier exactly as it appears on your trade or tax
                       registration documents, in the format used in your jurisdiction.
@@ -884,7 +884,7 @@ function BusinessProfilePage(p: Props) {
                       }
                       if (p.businessType === 'individual' && !p.taxId.trim()) {
                         setCompanySaveError(
-                          'Enter your business ID or tax number exactly as it appears on your registration.'
+                          'Enter your tax or registration number exactly as it appears on your official documents.'
                         );
                         return;
                       }

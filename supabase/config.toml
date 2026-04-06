@@ -7,3 +7,6 @@ verify_jwt = false
 
 [functions.notify-staff-verification-queue]
 verify_jwt = false
+
+[functions.notify-contact-inquiry]
+verify_jwt = false

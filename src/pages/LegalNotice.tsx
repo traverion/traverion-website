@@ -60,8 +60,8 @@ export default function LegalNotice({ onNavigate }: LegalNoticeProps) {
                 .
               </p>
               <p className="mt-4 leading-relaxed">
-                Specific company registration details (business ID, full legal entity name, and registered
-                address) can be provided on request for contractual or regulatory purposes. For general
+                Specific company registration details (legal entity name, registered address, and official
+                registration identifiers used in your jurisdiction) can be provided on request for contractual or regulatory purposes. For general
                 enquiries, use the contact details below.
               </p>
             </section>

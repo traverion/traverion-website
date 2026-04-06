@@ -9,7 +9,12 @@
  * Optional env: VITE_PARTNER_PORTAL_URL (staging).
  */
 
-import { PARTNER_LOGIN_PATH, isPartnerPortalPath, legacySupplierPathToPartnerPath } from './partnerPortalPaths';
+import {
+  PARTNER_LOGIN_PATH,
+  isPartnerMarketingStaticPath,
+  isPartnerPortalPath,
+  legacySupplierPathToPartnerPath,
+} from './partnerPortalPaths';
 
 export const PARTNER_HOSTNAME = 'partner.traverion.com';
 
@@ -18,6 +23,20 @@ const TRAVELER_MARKETING_HOSTNAMES = new Set(['www.traverion.com', 'traverion.co
 export function isTraverionPartnerHost(): boolean {
   if (typeof window === 'undefined') return false;
   return window.location.hostname === PARTNER_HOSTNAME;
+}
+
+/**
+ * Marketing/legal paths (e.g. /termsofservice) belong to the partner SPA on partner.traverion.com.
+ * On localhost, the same paths are served for preview except /contact (reserved for the consumer contact page).
+ */
+export function isPartnerMarketingPathForCurrentHost(pathname: string): boolean {
+  if (typeof window === 'undefined') return false;
+  if (!isPartnerMarketingStaticPath(pathname)) return false;
+  if (isTraverionPartnerHost()) return true;
+  const p = pathname.replace(/\/$/, '') || '/';
+  if (p === '/contact') return false;
+  const h = window.location.hostname;
+  return h === 'localhost' || h === '127.0.0.1';
 }
 
 function isTravelerMarketingHost(): boolean {
@@ -56,6 +75,7 @@ export function normalizePartnerHostForSupplierSpa(): void {
   if (!isTraverionPartnerHost()) return;
   const p = window.location.pathname.replace(/\/$/, '') || '/';
   if (isPartnerPortalPath(p)) return;
+  if (isTraverionPartnerHost() && isPartnerMarketingStaticPath(p)) return;
   const qs = window.location.search;
   const hash = window.location.hash;
   window.history.replaceState({}, '', `${PARTNER_LOGIN_PATH}${qs}${hash}`);

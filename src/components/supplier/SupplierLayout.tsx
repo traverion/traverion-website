@@ -44,7 +44,13 @@ import SupplierSettingsPages from './SupplierSettingsPages';
 import { BRAND_LOGO_SRC } from '../../lib/brandAssets';
 import { isSupplierBusinessProfileComplete, isSupplierPayoutConfigured } from '../../lib/supplierOnboarding';
 import { userHasSupplierProfile } from '../../lib/supplierPortalAccess';
-import { PARTNER_APP_BASE, PARTNER_LOGIN_PATH } from '../../lib/partnerPortalPaths';
+import { isPartnerMarketingPathForCurrentHost } from '../../lib/partnerHost';
+import {
+  PARTNER_APP_BASE,
+  PARTNER_LOGIN_PATH,
+  partnerMarketingPageFromPathname,
+} from '../../lib/partnerPortalPaths';
+import PartnerMarketingStaticPage from './PartnerMarketingStaticPage';
 import SupplierPortalTravelerNotice from './SupplierPortalTravelerNotice';
 
 /** @deprecated Use PARTNER_LOGIN_PATH from partnerPortalPaths */
@@ -343,6 +349,7 @@ export default function SupplierLayout() {
   const [verificationMessage, setVerificationMessage] = useState<'sent' | 'error' | null>(null);
   const [businessLogoUrl, setBusinessLogoUrl] = useState<string>('');
   const [companyRegistrationPath, setCompanyRegistrationPath] = useState('');
+  const [pathEpoch, setPathEpoch] = useState(0);
 
   const supplierEmail = typeof user?.email === 'string' ? user.email : '';
   const supplierEmailVerified = Boolean((user as { email_confirmed_at?: string | null } | null)?.email_confirmed_at);
@@ -462,13 +469,15 @@ export default function SupplierLayout() {
   }, [refreshSupplierOnboardingSignals]);
 
   useEffect(() => {
-    const syncFromPath = () => {
+    const syncFromPath = (fromPop: boolean) => {
       const s = getSectionFromPath(window.location.pathname);
       if (s) setSection(s);
+      if (fromPop) setPathEpoch((e) => e + 1);
     };
-    syncFromPath();
-    window.addEventListener('popstate', syncFromPath);
-    return () => window.removeEventListener('popstate', syncFromPath);
+    syncFromPath(false);
+    const onPop = () => syncFromPath(true);
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
   }, []);
 
   useEffect(() => {
@@ -580,9 +589,11 @@ export default function SupplierLayout() {
     window.location.replace(PARTNER_APP_BASE);
   };
 
+  void pathEpoch;
   const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
   const onLoginPath = isSupplierLoginPath(pathname);
   const onPortalPath = isSupplierPortalPath(pathname);
+  const partnerMarketingPage = partnerMarketingPageFromPathname(pathname);
   const onboardingHasListing = onboardingListingCount !== null && onboardingListingCount > 0;
   const onboardingBusinessVerified = verificationStatus.trim().toLowerCase() === 'verified';
   const onboardingPayoutVerified = payoutVerificationStatus.trim().toLowerCase() === 'verified';
@@ -627,6 +638,10 @@ export default function SupplierLayout() {
         <p className="text-gray-500">Loading...</p>
       </div>
     );
+  }
+
+  if (partnerMarketingPage && isPartnerMarketingPathForCurrentHost(pathname)) {
+    return <PartnerMarketingStaticPage pageId={partnerMarketingPage} />;
   }
 
   if (onPortalPath && !user) {

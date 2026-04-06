@@ -33,5 +33,22 @@ export async function submitContactInquiry(
     status: data.status ?? 'new',
   });
   if (error) return { success: false, error: error.message };
+
+  try {
+    const { error: fnError } = await supabase.functions.invoke('notify-contact-inquiry', {
+      body: {
+        name: data.name,
+        email: data.email,
+        phone: data.phone ?? '',
+        subject: data.subject,
+        message: data.message,
+        inquiry_type: data.inquiry_type ?? 'general',
+      },
+    });
+    if (fnError) console.error('notify-contact-inquiry:', fnError.message);
+  } catch (e) {
+    console.error('notify-contact-inquiry:', e);
+  }
+
   return { success: true };
 }

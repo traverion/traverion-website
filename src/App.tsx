@@ -53,6 +53,7 @@ import {
   redirectIfInAppAdminOnPublicMarketingSite,
 } from './lib/adminHost';
 import { getListingByIdAsync } from './data/listings';
+import { isPartnerMarketingPathForCurrentHost } from './lib/partnerHost';
 import { isPartnerPortalPath } from './lib/partnerPortalPaths';
 import { TourPackage as TourPackageType } from './types/tour';
 
@@ -74,6 +75,7 @@ function App() {
     typeof window !== 'undefined' ? window.location.pathname.replace(/\/$/, '') || '/' : '';
   const isSupplierArea =
     isPartnerPortalPath(supplierPath) ||
+    isPartnerMarketingPathForCurrentHost(supplierPath) ||
     supplierPath === '/supplier-log-in' ||
     supplierPath === '/supplier' ||
     supplierPath.startsWith('/supplier/');

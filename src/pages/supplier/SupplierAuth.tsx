@@ -544,7 +544,11 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
           )}
         </div>
         <p className="text-center text-sm text-gray-500 mt-4">
-          By continuing, you agree to list your offerings on Traverion and to our terms of use.
+          By continuing, you agree to list your offerings on Traverion and to our{' '}
+          <a href="/termsofservice" className="text-finland font-medium hover:underline">
+            partner terms of service
+          </a>
+          .
         </p>
       </div>
     </div>

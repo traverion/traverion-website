@@ -1,6 +1,7 @@
 import { Instagram } from 'lucide-react';
 import { BRAND_LOGO_SRC } from '../lib/brandAssets';
 import { supplierPortalHref } from '../lib/partnerHost';
+import { publicSiteBaseUrl } from '../lib/publicSiteUrl';
 
 /** TikTok logo (Lucide has no brand icon). */
 function TikTokIcon({ className }: { className?: string }) {
@@ -16,6 +17,10 @@ const linkClass =
 
 /** Footer: Support, Company, Work With Us — partner login is on partner.traverion.com/login when live. */
 export default function Footer({ onNavigate }: { onNavigate?: (page: string) => void }) {
+  const travelerSite = publicSiteBaseUrl();
+  const affiliateUrl = `${travelerSite}/affiliate`;
+  const contentCreatorUrl = `${travelerSite}/content-creator`;
+
   const nav = (page: string) => {
     if (onNavigate) {
       onNavigate(page);
@@ -65,8 +70,16 @@ export default function Footer({ onNavigate }: { onNavigate?: (page: string) => 
           <div>
             <h3 className="font-semibold text-white mb-3 text-sm uppercase tracking-wide">Want to work with us?</h3>
             <ul className="space-y-2">
-              <li><button type="button" onClick={() => nav('affiliate')} className={`${linkClass} text-left bg-transparent border-0 cursor-pointer`}>Become an affiliate</button></li>
-              <li><button type="button" onClick={() => nav('content-creator')} className={`${linkClass} text-left bg-transparent border-0 cursor-pointer`}>Become a content creator</button></li>
+              <li>
+                <a href={affiliateUrl} className={linkClass}>
+                  Become an affiliate
+                </a>
+              </li>
+              <li>
+                <a href={contentCreatorUrl} className={linkClass}>
+                  Become a content creator
+                </a>
+              </li>
               <li><a href={supplierPortalHref('/login')} className={linkClass}>Become a supplier</a></li>
             </ul>
           </div>

@@ -20,9 +20,22 @@ Submissions are stored in Supabase table **`contact_inquiries`**.
 
 General **Contact** form (no separate subject field): subject is **`[Traverion · Contact] Contact form message`** (body is the message textarea only).
 
-## Trigger ideas
+## Email to operations (`info@traverion.com`)
 
-1. **Supabase Database Webhook** on `INSERT` into `contact_inquiries` → Edge Function → Resend API.
-2. **Supabase Edge Function** called from the client after insert (less ideal: exposes keys unless proxied).
+The app calls the Edge Function **`notify-contact-inquiry`** after each successful insert into `contact_inquiries`. Configure in Supabase (same project as other functions):
 
-Use the row’s **`subject`** as-is for the outgoing Resend `subject` so it matches what you see in the database.
+| Secret / env | Purpose |
+|--------------|---------|
+| `RESEND_API_KEY` | Required — same as supplier notification emails |
+| `CONTACT_INQUIRY_TO` | Optional — defaults to **`info@traverion.com`** |
+| `CONTACT_EMAIL_FROM` or `SUPPLIER_EMAIL_FROM` | From header (must be a verified domain in Resend) |
+
+Deploy: `supabase functions deploy notify-contact-inquiry`  
+CLI: `[functions.notify-contact-inquiry]` has `verify_jwt = false` so the public site can invoke it after form submit (Resend key stays server-side).
+
+The outgoing email uses the row’s **`subject`** as-is and sets **Reply-To** to the submitter’s address.
+
+## Other trigger ideas
+
+1. **Supabase Database Webhook** on `INSERT` into `contact_inquiries` → duplicate or replace the client invoke (optional).
+2. **Footer links** for affiliate and content creator point to **`https://www.traverion.com/affiliate`** and **`/content-creator`** (`VITE_SITE_URL` when set) so partner.traverion.com visitors land on the traveler site forms.
