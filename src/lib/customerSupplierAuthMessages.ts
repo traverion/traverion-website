@@ -1,10 +1,12 @@
-/** Copy for strict separation: traveler vs partner use different Supabase users (one email per account; same inbox via +aliases). */
+/** Shared traveler / partner auth error copy. URLs are passed in so staging (VITE_PARTNER_PORTAL_URL) stays correct. */
 
-export const SUPPLIER_ONLY_TRAVELER_SIGN_IN =
-  'This login is for a Traverion partner account. Manage listings at the supplier portal. To book as a traveler, create a separate traveler account. With Gmail and many providers you can use an alias such as you+travel@gmail.com so mail still reaches the same inbox.';
+export const EMAIL_ALREADY_IN_USE =
+  'This email is already in use. Try signing in instead, or use another email.';
 
-export const TRAVELER_EMAIL_ALREADY_REGISTERED =
-  'This email is already in use. If you have a traveler account, sign in. Partners sign in on the supplier portal. To hold both roles you need two accounts; many inboxes support +labels (e.g. you+partner@gmail.com).';
+export function customerSignInPartnerOnlyMessage(partnerLoginUrl: string): string {
+  return `This email is registered for the Traverion partner (supplier) portal, not for booking trips here. Sign in at ${partnerLoginUrl} to manage your listings.`;
+}
 
-export const PARTNER_EMAIL_ALREADY_REGISTERED =
-  'This email is already registered. If you use Traverion as a traveler, partner sign-up needs a different login — try an alias such as you+partner@gmail.com — or sign in here if you already have a supplier account.';
+export function partnerSignInTravelerOnlyMessage(travelerSignInUrl: string): string {
+  return `This email is registered as a traveler on traverion.com. Sign in at ${travelerSignInUrl} to book and manage your trips.`;
+}

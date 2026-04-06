@@ -7,7 +7,9 @@ import { ensureConsumerProfile, fetchConsumerProfile, normalizeConsumerPhone } f
 import { fetchSupplierProfile } from '../data/supabase-supplier-profile';
 import { isPhoneAvailableForSignup } from '../data/supabase-phone-signup';
 import { isTraverionAdminUser } from '../lib/adminAuth';
-import { SUPPLIER_ONLY_TRAVELER_SIGN_IN, TRAVELER_EMAIL_ALREADY_REGISTERED } from '../lib/customerSupplierAuthMessages';
+import { customerSignInPartnerOnlyMessage, EMAIL_ALREADY_IN_USE } from '../lib/customerSupplierAuthMessages';
+import { supplierPortalPublicBaseUrl } from '../lib/partnerHost';
+import { PARTNER_LOGIN_PATH } from '../lib/partnerPortalPaths';
 
 type AuthContextValue = {
   user: User | null;
@@ -65,7 +67,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       ]);
       if (supplierRow && !consumerRow) {
         await supabase.auth.signOut();
-        return { error: SUPPLIER_ONLY_TRAVELER_SIGN_IN };
+        const partnerLoginUrl = `${supplierPortalPublicBaseUrl()}${PARTNER_LOGIN_PATH}`;
+        return { error: customerSignInPartnerOnlyMessage(partnerLoginUrl) };
       }
       const userMeta = data.user.user_metadata as { phone?: string; customer_phone?: string } | undefined;
       const ensured = await ensureConsumerProfile(data.user.id, {
@@ -102,13 +105,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (error) {
       const em = error.message.toLowerCase();
       if (em.includes('already registered') || em.includes('user already exists')) {
-        return { error: TRAVELER_EMAIL_ALREADY_REGISTERED, hasSession: false };
+        return { error: EMAIL_ALREADY_IN_USE, hasSession: false };
       }
       return { error: error.message, hasSession: false };
     }
 
     if (isSignUpEmailAlreadyRegistered(data.user)) {
-      return { error: TRAVELER_EMAIL_ALREADY_REGISTERED, hasSession: false };
+      return { error: EMAIL_ALREADY_IN_USE, hasSession: false };
     }
 
     if (data.session) {

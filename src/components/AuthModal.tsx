@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase';
 import { normalizeConsumerPhone } from '../data/supabase-consumer-profile';
 import { publicSiteBaseUrl } from '../lib/publicSiteUrl';
 import { BRAND_LOGO_SRC } from '../lib/brandAssets';
-import { TRAVELER_EMAIL_ALREADY_REGISTERED } from '../lib/customerSupplierAuthMessages';
+import { EMAIL_ALREADY_IN_USE } from '../lib/customerSupplierAuthMessages';
 import { supplierPortalHref } from '../lib/partnerHost';
 
 type Tab = 'signin' | 'signup';
@@ -26,7 +26,7 @@ export default function AuthModal() {
     const m = message.toLowerCase();
     if (m.includes('not configured')) return 'Authentication is currently unavailable. Please try again shortly.';
     if (m.includes('already registered') || m.includes('already been registered') || m.includes('user already exists')) {
-      return TRAVELER_EMAIL_ALREADY_REGISTERED;
+      return EMAIL_ALREADY_IN_USE;
     }
     if (m.includes('invalid login credentials')) return 'Incorrect email or password.';
     if (m.includes('email not confirmed')) return 'Please confirm your email before logging in.';
