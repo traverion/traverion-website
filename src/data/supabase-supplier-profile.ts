@@ -272,7 +272,7 @@ export async function fetchSupplierProfile(userId: string): Promise<SupplierProf
   return data as SupplierProfileRow;
 }
 
-/** Update payout fields. Creates row if not exists (insert with id = userId). */
+/** Update payout fields on an existing supplier_profiles row (profile must already exist). */
 export async function updateSupplierPayout(
   userId: string,
   payload: {
@@ -288,17 +288,17 @@ export async function updateSupplierPayout(
   }
 ): Promise<{ success: boolean; error?: string }> {
   if (!supabase) return { success: false, error: 'Supabase not configured' };
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('supplier_profiles')
-    .upsert(
-      {
-        id: userId,
-        ...payload,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'id' }
-    );
+    .update({
+      ...payload,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', userId)
+    .select('id')
+    .maybeSingle();
   if (error) return { success: false, error: error.message };
+  if (!data) return { success: false, error: 'Supplier profile not found' };
   return { success: true };
 }
 
@@ -354,18 +354,18 @@ export async function updateSupplierCompanyProfile(
 ): Promise<{ success: boolean; error?: string }> {
   if (!supabase) return { success: false, error: 'Supabase not configured' };
   const normalizedCompanyName = payload.company_legal_name?.trim();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('supplier_profiles')
-    .upsert(
-      {
-        id: userId,
-        ...payload,
-        ...(normalizedCompanyName ? { display_name: normalizedCompanyName, company_legal_name: normalizedCompanyName } : {}),
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'id' }
-    );
+    .update({
+      ...payload,
+      ...(normalizedCompanyName ? { display_name: normalizedCompanyName, company_legal_name: normalizedCompanyName } : {}),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', userId)
+    .select('id')
+    .maybeSingle();
   if (error) return { success: false, error: error.message };
+  if (!data) return { success: false, error: 'Supplier profile not found' };
   return { success: true };
 }
 

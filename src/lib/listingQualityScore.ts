@@ -146,7 +146,7 @@ export function computeListingQuality(listing: TourPackage): {
       earned = 4;
       tip = 'Add structured city and country fields for clearer discovery.';
     } else {
-      tip = 'Set destination, city, and country.';
+      tip = 'Add country (and city if there is a main base), or an optional place label under Logistics for multi-stop tours.';
     }
     checks.push({ id: 'location', label: 'Location details', max, earned, tip });
   }

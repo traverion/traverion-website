@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { TourPackage } from '../../types/tour';
 import ListingDiscounts from '../../components/supplier/ListingDiscounts';
 import { getListingPublishBlockers } from '../../lib/listingPublishGate';
+import { computeListingQuality, listingQualityPercent } from '../../lib/listingQualityScore';
 
 const TAG_OPTIONS = [
   { id: 'free-cancellation', label: 'Free cancellation' },
@@ -33,6 +34,23 @@ type ListingFormState = {
   pickupWindowMinutesBeforeMax: number;
 };
 
+/**
+ * Stored `destination` on the listing (DB + public cards). Optional custom label in the form;
+ * otherwise derived from city/country, or "Various locations" for multi-stop / roaming tours.
+ */
+function resolveListingDestinationLabel(
+  form: Pick<ListingFormState, 'destination' | 'city' | 'country'>
+): string {
+  const custom = form.destination.trim();
+  if (custom) return custom;
+  const city = form.city.trim();
+  const country = form.country.trim();
+  if (city && country) return `${city}, ${country}`;
+  if (country) return country;
+  if (city) return city;
+  return 'Various locations';
+}
+
 function buildListingFromForm(form: {
   title: string;
   destination: string;
@@ -54,14 +72,15 @@ function buildListingFromForm(form: {
   pickupWindowMinutesBeforeMax: number;
 }, existingId?: string): TourPackage {
   const id = existingId ?? `supplier-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+  const resolvedDestination = resolveListingDestinationLabel(form);
   return {
     id,
     title: form.title,
-    destination: form.destination,
+    destination: resolvedDestination,
     duration: form.duration,
     style: 'Tour',
-    startLocation: form.city || form.destination,
-    endLocation: form.city || form.destination,
+    startLocation: form.city.trim() || resolvedDestination,
+    endLocation: form.city.trim() || resolvedDestination,
     price: {
       startingFrom: form.price,
       currency: 'USD',
@@ -78,7 +97,14 @@ function buildListingFromForm(form: {
     description: form.description,
     highlights: form.description ? [form.description.slice(0, 80) + '…'] : [],
     itinerary: [
-      { day: 1, title: form.title, description: form.description, meals: 'None', location: form.city || form.destination, activities: ['Tour'] },
+      {
+        day: 1,
+        title: form.title,
+        description: form.description,
+        meals: 'None',
+        location: form.city.trim() || resolvedDestination,
+        activities: ['Tour'],
+      },
     ],
     includes: ['Guide', 'As described'],
     excludes: ['Personal expenses'],
@@ -106,6 +132,23 @@ function buildListingFromForm(form: {
   };
 }
 
+function serializeListingFormState(f: ListingFormState): string {
+  return JSON.stringify(f);
+}
+
+function isStepSatisfied(idx: number, form: ListingFormState): boolean {
+  if (idx === 0) {
+    return (
+      form.title.trim().length > 0 &&
+      form.country.trim().length > 0 &&
+      form.duration.trim().length > 0
+    );
+  }
+  if (idx === 1) return form.price > 0;
+  if (idx === 2) return true;
+  return form.description.trim().length > 0;
+}
+
 const emptyForm: ListingFormState = {
   title: '',
   destination: '',
@@ -131,6 +174,9 @@ interface SupplierListingFormProps {
   editingId: string | null;
   existingListings: TourPackage[];
   onSave: (tour: TourPackage) => void | Promise<void>;
+  /** When closing the sheet, persist a draft if the form changed (Supabase only; parent implements save). */
+  enableDraftOnClose?: boolean;
+  onSaveDraft?: (tour: TourPackage) => Promise<boolean>;
   onCancel: () => void;
   /** Deep link: scroll/focus this section (see supplier-listing-field-* ids). */
   focusSection?: string | null;
@@ -143,6 +189,8 @@ export default function SupplierListingForm({
   editingId,
   existingListings,
   onSave,
+  enableDraftOnClose = false,
+  onSaveDraft,
   onCancel,
   focusSection,
   onFocusConsumed,
@@ -151,8 +199,12 @@ export default function SupplierListingForm({
   const [submitting, setSubmitting] = useState(false);
   const [publishBlockers, setPublishBlockers] = useState<string[] | null>(null);
   const [stepIdx, setStepIdx] = useState(0);
+  const [draftCloseBusy, setDraftCloseBusy] = useState(false);
+  const [draftCloseError, setDraftCloseError] = useState<string | null>(null);
   const lastFocused = useRef<string | null>(null);
   const stepContainerRef = useRef<HTMLDivElement | null>(null);
+  const initialFormSnapshotRef = useRef<string>(serializeListingFormState(emptyForm));
+  const closeIntentRunningRef = useRef(false);
 
   const steps = useMemo(
     () => [
@@ -168,7 +220,7 @@ export default function SupplierListingForm({
     () => ({
       title: 0,
       location: 0,
-      destination: 0,
+      destination: 2,
       duration: 0,
       price: 1,
       published: 1,
@@ -188,7 +240,7 @@ export default function SupplierListingForm({
     if (editingId) {
       const existing = existingListings.find(t => t.id === editingId);
       if (existing) {
-        setForm({
+        const next: ListingFormState = {
           title: existing.title,
           destination: existing.destination,
           duration: existing.duration,
@@ -207,9 +259,12 @@ export default function SupplierListingForm({
           defaultStartTime: existing.defaultStartTime ?? '',
           pickupWindowMinutesBeforeMin: existing.pickupWindowMinutesBeforeMin ?? 0,
           pickupWindowMinutesBeforeMax: existing.pickupWindowMinutesBeforeMax ?? 30,
-        });
+        };
+        initialFormSnapshotRef.current = serializeListingFormState(next);
+        setForm(next);
       }
     } else {
+      initialFormSnapshotRef.current = serializeListingFormState(emptyForm);
       setForm(emptyForm);
     }
   }, [editingId, existingListings]);
@@ -279,6 +334,55 @@ export default function SupplierListingForm({
     };
   }, []);
 
+  const isDirty = useCallback(() => {
+    return serializeListingFormState(form) !== initialFormSnapshotRef.current;
+  }, [form]);
+
+  const draftListingPreview = useMemo(() => {
+    return buildListingFromForm(form, editingId ?? undefined);
+  }, [form, editingId]);
+
+  const listingQualityPct = useMemo(() => {
+    const { score, maxScore } = computeListingQuality(draftListingPreview);
+    return listingQualityPercent(score, maxScore);
+  }, [draftListingPreview]);
+
+  const publishBlockersPreview = useMemo(
+    () => getListingPublishBlockers(draftListingPreview),
+    [draftListingPreview]
+  );
+
+  const handleCloseIntent = useCallback(async () => {
+    if (closeIntentRunningRef.current || submitting) return;
+    setDraftCloseError(null);
+    if (enableDraftOnClose && onSaveDraft && isDirty()) {
+      closeIntentRunningRef.current = true;
+      setDraftCloseBusy(true);
+      try {
+        const listing = buildListingFromForm({ ...form, status: 'draft' }, editingId ?? undefined);
+        const ok = await onSaveDraft(listing);
+        if (!ok) {
+          setDraftCloseError('Could not save your draft. Check your connection and try again.');
+          return;
+        }
+      } finally {
+        setDraftCloseBusy(false);
+        closeIntentRunningRef.current = false;
+      }
+    }
+    onCancel();
+  }, [enableDraftOnClose, onSaveDraft, isDirty, form, editingId, submitting, onCancel]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      void handleCloseIntent();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [handleCloseIntent]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (form.pickupWindowMinutesBeforeMax < form.pickupWindowMinutesBeforeMin) {
@@ -310,12 +414,7 @@ export default function SupplierListingForm({
     }));
   };
 
-  const canContinueStep = () => {
-    if (stepIdx === 0) return form.title.trim().length > 0 && form.country.trim().length > 0 && form.destination.trim().length > 0 && form.duration.trim().length > 0;
-    if (stepIdx === 1) return form.price > 0;
-    if (stepIdx === 2) return true;
-    return form.description.trim().length > 0;
-  };
+  const canContinueStep = () => isStepSatisfied(stepIdx, form);
 
   const shell = (
     <div
@@ -324,49 +423,109 @@ export default function SupplierListingForm({
       aria-modal="true"
       aria-labelledby="supplier-listing-editor-title"
     >
-      <div
-        className="absolute inset-0 bg-slate-900/35 backdrop-blur-md motion-safe:animate-fade-in supports-[backdrop-filter]:bg-slate-900/25"
-        aria-hidden
+      <button
+        type="button"
+        className="absolute inset-0 z-[80] bg-slate-900/35 backdrop-blur-md motion-safe:animate-fade-in supports-[backdrop-filter]:bg-slate-900/25 cursor-pointer border-0 p-0"
+        aria-label="Close listing editor"
+        onClick={() => void handleCloseIntent()}
       />
-      <div className="relative z-[81] flex min-h-0 w-full flex-1 flex-col px-0 py-0 sm:justify-center sm:p-3 sm:px-4">
+      <div className="relative z-[81] flex min-h-0 w-full flex-1 flex-col justify-end sm:justify-center px-0 py-0 sm:p-3 sm:px-4 pointer-events-none">
         <form
           onSubmit={handleSubmit}
-          className="motion-safe:animate-slide-up motion-reduce:animate-none flex h-full min-h-0 w-full max-w-none flex-col overflow-hidden border-0 border-gray-200 bg-white shadow-2xl sm:mx-auto sm:h-[min(100dvh-1.5rem,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem))] sm:max-h-[min(100dvh-1.5rem,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem))] sm:max-w-4xl sm:rounded-2xl sm:border sm:border-gray-200"
+          onClick={(e) => e.stopPropagation()}
+          className="pointer-events-auto motion-safe:animate-slide-up motion-reduce:animate-none flex min-h-0 w-full max-w-none flex-col overflow-hidden border-0 border-gray-200 bg-white shadow-2xl rounded-t-3xl sm:rounded-2xl sm:mx-auto h-[min(96dvh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)))] sm:h-[min(100dvh-1.5rem,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem))] sm:max-h-[min(100dvh-1.5rem,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem))] sm:max-w-4xl sm:border sm:border-gray-200"
         >
+        <div className="sm:hidden flex justify-center pt-2 pb-1 shrink-0" aria-hidden>
+          <div className="h-1.5 w-12 rounded-full bg-gray-300" />
+        </div>
         <div className="shrink-0 border-b border-gray-200 px-5 py-4 sm:px-6">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <h2 id="supplier-listing-editor-title" className="text-xl font-semibold text-gray-900">
-              {editingId ? 'Edit listing' : 'Create listing'}
-            </h2>
-            <button type="button" onClick={onCancel} className="px-3 py-1.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50">
-              Close
+          <div className="mb-3 flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h2 id="supplier-listing-editor-title" className="text-xl font-semibold text-gray-900">
+                {editingId ? 'Edit listing' : 'Create listing'}
+              </h2>
+              <p className="text-xs text-gray-500 mt-1">
+                This is what travelers will see on Traverion once you publish. Close anytime — your work saves as a draft when
+                you have unsaved changes.
+              </p>
+            </div>
+            <button
+              type="button"
+              disabled={draftCloseBusy || submitting}
+              onClick={() => void handleCloseIntent()}
+              className="shrink-0 px-3 py-1.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            >
+              {draftCloseBusy ? 'Saving…' : 'Close'}
             </button>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2">
-            {steps.map((step, idx) => (
-              <button
-                key={step.id}
-                type="button"
-                onClick={() => setStepIdx(idx)}
-                className={`touch-manipulation flex items-center gap-1.5 sm:gap-2 rounded-lg border px-2 py-2 min-h-[44px] sm:min-h-0 text-left ${
-                  idx === stepIdx ? 'border-finland bg-finland/5 text-finland' : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-                }`}
-              >
-                <span className={`w-6 h-6 rounded-full inline-flex items-center justify-center text-xs font-semibold ${idx === stepIdx ? 'bg-finland text-white' : 'bg-gray-100 text-gray-600'}`}>
-                  {idx + 1}
-                </span>
-                <span className="text-xs sm:text-sm font-medium truncate">{step.label}</span>
-              </button>
-            ))}
-          </div>
-          <div className="mt-3">
+          {draftCloseError && (
+            <p className="mb-3 text-sm text-red-600 rounded-lg border border-red-200 bg-red-50 px-3 py-2">{draftCloseError}</p>
+          )}
+          <nav aria-label="Listing setup steps" className="mb-3">
+            <ol className="flex items-center w-full list-none m-0 p-0 gap-0">
+              {steps.map((step, idx) => {
+                const done = isStepSatisfied(idx, form);
+                const current = idx === stepIdx;
+                return (
+                  <li key={step.id} className="flex flex-1 items-center min-w-0 last:flex-none last:w-auto">
+                    {idx > 0 && (
+                      <div
+                        className={`self-center h-0.5 flex-1 rounded-full min-w-[6px] mx-0.5 sm:mx-1 ${
+                          isStepSatisfied(idx - 1, form) ? 'bg-finland/50' : 'bg-gray-200'
+                        }`}
+                        aria-hidden
+                      />
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setStepIdx(idx)}
+                      className="touch-manipulation flex flex-col items-center gap-1.5 min-w-[3.5rem] sm:min-w-[4.5rem] group"
+                      aria-current={current ? 'step' : undefined}
+                    >
+                      <span
+                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold border-2 transition-colors ${
+                          done
+                            ? 'bg-finland text-white border-finland'
+                            : current
+                              ? 'border-finland bg-finland/10 text-finland'
+                              : 'border-gray-200 bg-white text-gray-400 group-hover:border-gray-300'
+                        }`}
+                      >
+                        {done ? '✓' : idx + 1}
+                      </span>
+                      <span
+                        className={`text-[10px] sm:text-xs font-medium text-center leading-tight max-w-[4.5rem] sm:max-w-none ${
+                          current ? 'text-finland' : 'text-gray-600'
+                        }`}
+                      >
+                        {step.label}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ol>
+          </nav>
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <p className="text-xs font-medium text-gray-700">
+                Listing strength <span className="tabular-nums text-finland">{listingQualityPct}%</span>
+              </p>
+              <p className="text-xs text-gray-500">
+                {publishBlockersPreview.length === 0
+                  ? 'Meets basic publish checks — choose Published when you are ready.'
+                  : `${publishBlockersPreview.length} item${publishBlockersPreview.length === 1 ? '' : 's'} left before publish`}
+              </p>
+            </div>
             <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
               <div
-                className="h-full bg-finland transition-all duration-500 ease-out"
-                style={{ width: `${((stepIdx + 1) / steps.length) * 100}%` }}
+                className="h-full bg-finland/80 transition-all duration-500 ease-out"
+                style={{ width: `${listingQualityPct}%` }}
               />
             </div>
-            <p className="mt-1 text-xs text-gray-500">Step {stepIdx + 1} of {steps.length}</p>
+            <p className="text-[11px] text-gray-400">
+              Step {stepIdx + 1} of {steps.length} · progress reflects how complete your listing looks to guests
+            </p>
           </div>
         </div>
 
@@ -401,17 +560,18 @@ export default function SupplierListingForm({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" id="supplier-listing-field-location">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
-                  <input type="text" value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland" placeholder="e.g. Barcelona" />
+                  <input type="text" value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland" placeholder="e.g. Rovaniemi — or leave blank if no fixed base" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Country *</label>
-                  <input type="text" value={form.country} onChange={e => setForm(f => ({ ...f, country: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland" placeholder="e.g. Spain" required />
+                  <input type="text" value={form.country} onChange={e => setForm(f => ({ ...f, country: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland" placeholder="e.g. Finland" required />
                 </div>
               </div>
-              <div id="supplier-listing-field-destination">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Destination (short) *</label>
-                <input type="text" value={form.destination} onChange={e => setForm(f => ({ ...f, destination: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland" placeholder="e.g. Barcelona, Spain" required />
-              </div>
+              <p className="text-xs text-gray-500 -mt-2">
+                Roaming or multi-stop tours (e.g. Northern Lights) often have no single city — country alone is fine. You can add
+                a custom route label under <span className="font-medium text-gray-700">Logistics</span>, and later we’ll add a
+                fuller itinerary with stops and one-way / round-trip.
+              </p>
               <div id="supplier-listing-field-duration">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Duration *</label>
                 <input type="text" value={form.duration} onChange={e => setForm(f => ({ ...f, duration: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland" placeholder="e.g. 3 hours or 1 day" required />
@@ -462,6 +622,20 @@ export default function SupplierListingForm({
 
           {stepIdx === 2 && (
             <div className="space-y-4 transition-all duration-300 ease-out opacity-100 translate-y-0">
+              <div id="supplier-listing-field-destination">
+                <label className="block text-sm font-medium text-gray-700 mb-1">How it shows as a place (optional)</label>
+                <input
+                  type="text"
+                  value={form.destination}
+                  onChange={(e) => setForm((f) => ({ ...f, destination: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+                  placeholder="e.g. Finnish Lapland · multi-stop, Arctic route, or leave blank"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  If you skip this, we use city + country when both exist, otherwise country only, otherwise “Various locations”
+                  on cards and search. Use this for routes that don’t fit a single city.
+                </p>
+              </div>
               <div id="supplier-listing-field-cancellation">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Cancellation policy</label>
                 <input type="text" value={form.cancellationPolicy} onChange={e => setForm(f => ({ ...f, cancellationPolicy: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland" placeholder="e.g. Free cancellation up to 24 hours before" />
@@ -549,7 +723,7 @@ export default function SupplierListingForm({
           <button
             type="button"
             onClick={() => setStepIdx((s) => Math.max(0, s - 1))}
-            disabled={stepIdx === 0}
+            disabled={stepIdx === 0 || draftCloseBusy || submitting}
             className="touch-manipulation w-full sm:w-auto px-4 py-3 sm:py-2.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 min-h-[44px]"
           >
             Back
@@ -559,7 +733,7 @@ export default function SupplierListingForm({
               <button
                 type="button"
                 onClick={() => setStepIdx((s) => Math.min(steps.length - 1, s + 1))}
-                disabled={!canContinueStep()}
+                disabled={!canContinueStep() || draftCloseBusy || submitting}
                 className="touch-manipulation flex-1 sm:flex-none px-4 py-3 sm:py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark disabled:opacity-50 min-h-[44px]"
               >
                 Continue
@@ -567,7 +741,7 @@ export default function SupplierListingForm({
             ) : (
               <button
                 type="submit"
-                disabled={submitting || !canContinueStep()}
+                disabled={submitting || draftCloseBusy || !canContinueStep()}
                 className="touch-manipulation flex-1 sm:flex-none px-4 py-3 sm:py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark disabled:opacity-50 min-h-[44px]"
               >
                 {submitting ? 'Saving…' : editingId ? 'Save changes' : 'Add listing'}
@@ -575,10 +749,11 @@ export default function SupplierListingForm({
             )}
             <button
               type="button"
-              onClick={onCancel}
-              className="touch-manipulation flex-1 sm:flex-none px-4 py-3 sm:py-2.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 min-h-[44px]"
+              disabled={draftCloseBusy || submitting}
+              onClick={() => void handleCloseIntent()}
+              className="touch-manipulation flex-1 sm:flex-none px-4 py-3 sm:py-2.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 min-h-[44px] disabled:opacity-50"
             >
-              Cancel
+              {draftCloseBusy ? 'Saving draft…' : 'Cancel'}
             </button>
           </div>
         </div>

@@ -18,6 +18,7 @@ import { canManageBookings } from '../../lib/supplierTeamRoles';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { publicTourListingUrl } from '../../lib/publicSiteUrl';
 import { getListingPublishBlockers } from '../../lib/listingPublishGate';
+import { normalizeListingForDraftSave } from '../../lib/listingDraftUtils';
 
 function verificationStatusLabel(status: string): string {
   const s = status.toLowerCase();
@@ -506,6 +507,21 @@ export default function SupplierListings() {
           editingId={editingId}
           existingListings={listings}
           onSave={handleSave}
+          enableDraftOnClose={Boolean(isSupabase && canEditListings)}
+          onSaveDraft={async (tour) => {
+            if (!isSupabase || !user?.id || !canEditListings) return false;
+            const draft = normalizeListingForDraftSave(tour);
+            if (editingId) {
+              const updated = await updateListing(editingId, draft);
+              if (!updated) return false;
+            } else {
+              const inserted = await insertListing(draft, user.id);
+              if (!inserted) return false;
+            }
+            loadListings();
+            window.dispatchEvent(new Event('traverion:supplier-onboarding-refresh'));
+            return true;
+          }}
           onCancel={() => {
             setShowForm(false);
             setEditingId(null);

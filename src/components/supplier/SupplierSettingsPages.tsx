@@ -1293,7 +1293,7 @@ function BusinessProfilePage(p: Props) {
                 if (!p.user?.id) return;
                 p.setLegalSaving(true);
                 p.setLegalMessage(null);
-                const res = await p.updateSupplierCompanyProfile(p.user.id, {
+                const res = await patchSupplierProfile(p.user.id, {
                   insurance_policy_number: p.insurancePolicyNumber.trim() || null,
                   insurance_coverage: p.insuranceCoverage.trim() || null,
                   insurance_start: p.insuranceStart || null,

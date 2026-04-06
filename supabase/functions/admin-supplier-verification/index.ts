@@ -30,6 +30,7 @@ type Body = {
   action:
     | 'stats'
     | 'list'
+    | 'list_verified'
     | 'detail'
     | 'approve_business'
     | 'reject_business'
@@ -200,6 +201,18 @@ serve(async (req) => {
       (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
     );
     return json({ items });
+  }
+
+  if (body.action === 'list_verified') {
+    const { data, error } = await admin
+      .from('supplier_profiles')
+      .select(listSel)
+      .eq('verification_status', 'verified')
+      .eq('payout_verification_status', 'verified')
+      .order('updated_at', { ascending: false })
+      .limit(300);
+    if (error) return json({ error: error.message }, 500);
+    return json({ items: data ?? [] });
   }
 
   if (body.action === 'detail') {
