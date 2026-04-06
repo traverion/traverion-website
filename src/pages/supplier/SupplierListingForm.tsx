@@ -11,6 +11,7 @@ import { isSupabaseConfigured } from '../../lib/supabase';
 import {
   computeListingQuality,
   listingQualityPercent,
+  LISTING_PLACEHOLDER_IMAGE,
   MIN_LISTING_DESCRIPTION_LENGTH,
 } from '../../lib/listingQualityScore';
 
@@ -26,7 +27,7 @@ const EXPERIENCE_START_OPTIONS: {
   value: 'unspecified' | 'fixed_meeting_place' | 'operator_pickup' | 'either_available';
   label: string;
 }[] = [
-  { value: 'unspecified', label: 'Not sure yet — I will describe it under Logistics' },
+  { value: 'unspecified', label: 'Not sure yet — I will describe it under Meeting & pickup' },
   { value: 'fixed_meeting_place', label: 'Guests meet us at a fixed meeting point' },
   { value: 'operator_pickup', label: 'We pick guests up (for example from their accommodation area)' },
   { value: 'either_available', label: 'Both meeting at a set place and pickup are available' },
@@ -83,7 +84,7 @@ function normalizeLineSlots(count: number, fromDb: string[] | undefined): string
 
 const SCHEDULE_STYLE_OPTIONS: { value: ScheduleStyle; label: string; hint: string }[] = [
   { value: 'flexible', label: 'Flexible timing', hint: 'Start time can vary or you confirm after booking.' },
-  { value: 'fixed_slots', label: 'Fixed daily start', hint: 'You usually run at set times (use default start time in Logistics).' },
+  { value: 'fixed_slots', label: 'Fixed daily start', hint: 'You usually run at set times (set default start time under Meeting & pickup).' },
   { value: 'on_request', label: 'On request / private', hint: 'Guests arrange timing with you directly.' },
 ];
 
@@ -335,6 +336,21 @@ function serializeListingFormState(f: ListingFormState): string {
   return JSON.stringify(f);
 }
 
+/** Matches publish gate: real hero (not default stock) + ≥1 gallery URL. */
+function listingPhotosStepComplete(form: ListingFormState): boolean {
+  const img = form.image.trim();
+  if (!img || img === LISTING_PLACEHOLDER_IMAGE || img.includes('pexels.com/photos/346885')) {
+    return false;
+  }
+  const galleryCount = form.galleryUrls.map((s) => s.trim()).filter(Boolean).length;
+  return galleryCount >= 1;
+}
+
+/** Matches publish gate for where guests go (combined length). */
+function meetingPickupStepComplete(form: ListingFormState): boolean {
+  return form.meetingPoint.trim().length + form.pickupInstructions.trim().length >= 12;
+}
+
 function isStepSatisfied(idx: number, form: ListingFormState): boolean {
   if (idx === 0) {
     return form.experienceLanguage.trim().length > 0 && form.title.trim().length > 0;
@@ -368,8 +384,15 @@ function isStepSatisfied(idx: number, form: ListingFormState): boolean {
     const g = form.groupSize.trim();
     return form.price > 0 && g.length >= 3;
   }
-  if (idx === 6) return true;
-  if (idx === 7) return true;
+  if (idx === 6) {
+    return meetingPickupStepComplete(form);
+  }
+  if (idx === 7) {
+    return listingPhotosStepComplete(form);
+  }
+  if (idx === 8) {
+    return true;
+  }
   return true;
 }
 
@@ -431,6 +454,7 @@ type StepId =
   | 'location_start'
   | 'pricing'
   | 'logistics'
+  | 'photos'
   | 'content';
 
 export default function SupplierListingForm({
@@ -466,8 +490,9 @@ export default function SupplierListingForm({
       { id: 'inclusions_info' as StepId, label: 'Inclusions & Info' },
       { id: 'location_start' as StepId, label: 'Location & start' },
       { id: 'pricing' as StepId, label: 'Pricing' },
-      { id: 'logistics' as StepId, label: 'Logistics' },
-      { id: 'content' as StepId, label: 'Content' },
+      { id: 'logistics' as StepId, label: 'Meeting & pickup' },
+      { id: 'photos' as StepId, label: 'Tour photos' },
+      { id: 'content' as StepId, label: 'Discounts & save' },
     ],
     []
   );
@@ -501,6 +526,8 @@ export default function SupplierListingForm({
       pickup_timing: 6,
       image: 7,
       gallery: 7,
+      hero: 7,
+      photos: 7,
     }),
     []
   );
@@ -715,7 +742,10 @@ export default function SupplierListingForm({
     }));
   };
 
-  const canContinueStep = () => isStepSatisfied(stepIdx, form);
+  const canContinueStep = () => {
+    if (stepIdx >= steps.length - 1) return true;
+    return isStepSatisfied(stepIdx, form);
+  };
 
   const shell = (
     <div
@@ -768,39 +798,50 @@ export default function SupplierListingForm({
             </p>
           )}
           <nav aria-label="Listing setup steps" className="mb-3 -mx-1 overflow-x-auto overflow-y-hidden pb-1">
-            <ol className="flex items-center w-full min-w-max sm:min-w-0 list-none m-0 p-0 gap-0">
+            <ol className="flex w-full min-w-[800px] list-none m-0 p-0 sm:min-w-0">
               {steps.map((step, idx) => {
                 const done = isStepSatisfied(idx, form);
                 const current = idx === stepIdx;
+                const n = steps.length;
                 return (
-                  <li key={step.id} className="flex flex-1 items-center min-w-0 last:flex-none last:w-auto">
-                    {idx > 0 && (
-                      <div
-                        className={`self-center h-0.5 flex-1 rounded-full min-w-[6px] mx-0.5 sm:mx-1 ${
-                          isStepSatisfied(idx - 1, form) ? 'bg-finland/50' : 'bg-gray-200'
-                        }`}
-                        aria-hidden
-                      />
-                    )}
+                  <li key={step.id} className="relative min-w-0 flex-1 list-none">
                     <button
                       type="button"
                       onClick={() => setStepIdx(idx)}
-                      className="touch-manipulation flex flex-col items-center gap-1.5 min-w-[3.5rem] sm:min-w-[4.5rem] group"
+                      className="touch-manipulation group flex w-full flex-col items-center rounded-lg px-0.5 py-0.5 outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2"
                       aria-current={current ? 'step' : undefined}
                     >
+                      <div className="relative flex h-8 w-full items-center justify-center">
+                        {idx > 0 && (
+                          <div
+                            className={`pointer-events-none absolute left-0 top-1/2 z-0 h-0.5 w-[calc(50%-1rem)] -translate-y-1/2 rounded-full ${
+                              isStepSatisfied(idx - 1, form) ? 'bg-finland/50' : 'bg-gray-200'
+                            }`}
+                            aria-hidden
+                          />
+                        )}
+                        {idx < n - 1 && (
+                          <div
+                            className={`pointer-events-none absolute right-0 top-1/2 z-0 h-0.5 w-[calc(50%-1rem)] -translate-y-1/2 rounded-full ${
+                              isStepSatisfied(idx, form) ? 'bg-finland/50' : 'bg-gray-200'
+                            }`}
+                            aria-hidden
+                          />
+                        )}
+                        <span
+                          className={`relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold border-2 transition-colors ${
+                            done
+                              ? 'bg-finland text-white border-finland'
+                              : current
+                                ? 'border-finland bg-finland/10 text-finland'
+                                : 'border-gray-200 bg-white text-gray-400 group-hover:border-gray-300'
+                          }`}
+                        >
+                          {done ? '✓' : idx + 1}
+                        </span>
+                      </div>
                       <span
-                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold border-2 transition-colors ${
-                          done
-                            ? 'bg-finland text-white border-finland'
-                            : current
-                              ? 'border-finland bg-finland/10 text-finland'
-                              : 'border-gray-200 bg-white text-gray-400 group-hover:border-gray-300'
-                        }`}
-                      >
-                        {done ? '✓' : idx + 1}
-                      </span>
-                      <span
-                        className={`text-[10px] sm:text-xs font-medium text-center leading-tight max-w-[4.5rem] sm:max-w-none ${
+                        className={`mt-1.5 text-center text-[10px] font-medium leading-tight sm:text-xs ${
                           current ? 'text-finland' : 'text-gray-600'
                         }`}
                       >
@@ -1144,7 +1185,7 @@ export default function SupplierListingForm({
                     value={form.city}
                     onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
-                    placeholder="e.g. Rovaniemi — main base or starting point"
+                    placeholder="e.g. Lisbon — main base or starting point"
                     required
                   />
                 </div>
@@ -1162,7 +1203,7 @@ export default function SupplierListingForm({
               </div>
               <p className="text-xs text-gray-500 -mt-2">
                 Use the main base or usual starting city. For wider or multi-stop routes, add a clearer route label under{' '}
-                <span className="font-medium text-gray-700">Logistics</span>.
+                <span className="font-medium text-gray-700">Meeting &amp; pickup</span>.
               </p>
               <div id="supplier-listing-field-duration">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Duration *</label>
@@ -1194,7 +1235,7 @@ export default function SupplierListingForm({
                   ))}
                 </select>
                 <p className="text-xs text-gray-500 mt-1">
-                  Add addresses, areas, and timing under Logistics. Guests use this to know whether to meet you or expect pickup.
+                  Add addresses, areas, and timing under Meeting &amp; pickup. Guests use this to know whether to meet you or expect pickup.
                 </p>
               </div>
               <div id="supplier-listing-field-schedule" className="rounded-xl border border-gray-100 bg-gray-50/80 p-4 space-y-3">
@@ -1436,6 +1477,28 @@ export default function SupplierListingForm({
 
           {stepIdx === 7 && (
             <div className="space-y-4 transition-all duration-300 ease-out opacity-100 translate-y-0">
+              <div className="rounded-xl border border-gray-200 bg-white p-4 sm:p-5 space-y-4 shadow-sm">
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900">Tour photos</h3>
+                  <p className="mt-1 text-xs text-gray-600">
+                    These images are what travelers see on your tour page — main photo at the top and gallery shots below. Add a
+                    real main image and at least one extra gallery photo before publishing.
+                  </p>
+                </div>
+                <ListingImageFields
+                  heroUrl={form.image}
+                  galleryUrls={form.galleryUrls}
+                  onHeroUrl={(url) => setForm((f) => ({ ...f, image: url }))}
+                  onGalleryUrls={(urls) => setForm((f) => ({ ...f, galleryUrls: urls }))}
+                  userId={user?.id}
+                  uploadsEnabled={isSupabaseConfigured() && !!user?.id}
+                />
+              </div>
+            </div>
+          )}
+
+          {stepIdx === 8 && (
+            <div className="space-y-4 transition-all duration-300 ease-out opacity-100 translate-y-0">
               {form.status === 'published' && editingId && !publishChecklistDismissed && publishChecklistKey && (
                 <div className="rounded-xl border border-finland/30 bg-finland/5 p-4 text-sm text-gray-800">
                   <div className="flex items-start justify-between gap-2">
@@ -1458,18 +1521,20 @@ export default function SupplierListingForm({
                   </ul>
                 </div>
               )}
-              <ListingImageFields
-                heroUrl={form.image}
-                galleryUrls={form.galleryUrls}
-                onHeroUrl={(url) => setForm((f) => ({ ...f, image: url }))}
-                onGalleryUrls={(urls) => setForm((f) => ({ ...f, galleryUrls: urls }))}
-                userId={user?.id}
-                uploadsEnabled={isSupabaseConfigured() && !!user?.id}
-              />
-              {editingId && (
-                <div className="mt-2 border-t border-gray-100 pt-4">
-                  <p className="text-sm font-medium text-gray-900 mb-3">Discounts</p>
+              {editingId ? (
+                <div className="rounded-xl border border-gray-100 bg-gray-50/80 p-4 sm:p-5">
+                  <p className="text-sm font-semibold text-gray-900 mb-1">Discounts</p>
+                  <p className="text-xs text-gray-600 mb-4">
+                    Optional pricing rules for this listing. Meeting details and tour photos are in their own steps above.
+                  </p>
                   <ListingDiscounts listingId={editingId} />
+                </div>
+              ) : (
+                <div className="rounded-xl border border-gray-100 bg-gray-50/80 p-4 sm:p-5 text-sm text-gray-700">
+                  <p className="font-medium text-gray-900">Almost done</p>
+                  <p className="mt-2 text-xs text-gray-600 leading-relaxed">
+                    Save your listing to create it. You can add discounts and change tour photos anytime from your listings list.
+                  </p>
                 </div>
               )}
             </div>
