@@ -140,7 +140,6 @@ This project is proprietary and confidential.
 
 For support and questions, contact:
 - Email: info@traverion.com
-- Phone: +358 45 8803060
 
 ---
 

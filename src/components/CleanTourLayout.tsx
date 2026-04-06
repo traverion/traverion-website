@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { MapPin, Calendar, Users, Star, Clock, Plane, Shield, Heart, Share2, BookOpen, CheckCircle, Globe, Bed, Mail, Phone, User, Send } from 'lucide-react';
+import { MapPin, Calendar, Users, Star, Clock, Plane, Shield, Heart, Share2, BookOpen, CheckCircle, Globe, Bed, Mail, User, Send } from 'lucide-react';
 import { useTranslation } from '../contexts/TranslationContext';
 import LuxuryButton from './ui/LuxuryButton';
 import LuxuryCard from './ui/LuxuryCard';
@@ -343,12 +343,6 @@ export default function CleanTourLayout({ tour, onBack }: CleanTourLayoutProps) 
                     <Mail className="w-4 h-4" />
                     <a href="mailto:info@traverion.com" className="hover:text-sky-600 transition-colors">
                       info@traverion.com
-                    </a>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Phone className="w-4 h-4" />
-                    <a href="tel:+358458803060" className="hover:text-sky-600 transition-colors">
-                      +358 45 8803060
                     </a>
                   </div>
                 </div>

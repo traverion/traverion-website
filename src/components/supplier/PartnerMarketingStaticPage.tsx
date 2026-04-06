@@ -1,5 +1,5 @@
 import { useLayoutEffect } from 'react';
-import { ArrowLeft, Mail, Phone } from 'lucide-react';
+import { ArrowLeft, Mail } from 'lucide-react';
 import PartnerPortalFooter from './PartnerPortalFooter';
 import { BRAND_LOGO_SRC } from '../../lib/brandAssets';
 import { publicSiteBaseUrl } from '../../lib/publicSiteUrl';
@@ -13,8 +13,6 @@ import {
 
 const LAST_UPDATED = '2026-04-06';
 const SUPPORT_EMAIL = 'info@traverion.com';
-const SUPPORT_PHONE_DISPLAY = '+358 45 8803060';
-const SUPPORT_PHONE_TEL = '+358458803060';
 
 const navLink = 'text-finland font-medium hover:underline';
 
@@ -310,15 +308,6 @@ function PartnerLegalNoticeContent() {
               </a>
             </span>
           </p>
-          <p className="flex items-start gap-3">
-            <Phone className="w-5 h-5 text-finland shrink-0 mt-0.5" />
-            <span>
-              <strong className="text-gray-900">Phone:</strong>{' '}
-              <a href={`tel:${SUPPORT_PHONE_TEL}`} className={navLink}>
-                {SUPPORT_PHONE_DISPLAY}
-              </a>
-            </span>
-          </p>
           <p>
             <strong className="text-gray-900">Postal / mailing address:</strong> available on request via{' '}
             <a href={`mailto:${SUPPORT_EMAIL}`} className={navLink}>
@@ -375,14 +364,6 @@ function PartnerContactContent() {
           <Mail className="w-5 h-5 text-finland shrink-0 mt-0.5" />
           <a href={`mailto:${SUPPORT_EMAIL}`} className={`${navLink} text-base`}>
             {SUPPORT_EMAIL}
-          </a>
-        </p>
-      </Section>
-      <Section title="Phone">
-        <p className="flex items-start gap-3">
-          <Phone className="w-5 h-5 text-finland shrink-0 mt-0.5" />
-          <a href={`tel:${SUPPORT_PHONE_TEL}`} className={`${navLink} text-base`}>
-            {SUPPORT_PHONE_DISPLAY}
           </a>
         </p>
       </Section>

@@ -115,12 +115,6 @@ export default function Cookies({ onNavigate }: CookiesProps) {
                     info@traverion.com
                   </a>
                 </p>
-                <p>
-                  <strong>Phone:</strong>{' '}
-                  <a href="tel:+358458803060" className="text-sky-700 hover:underline">
-                    +358 45 8803060
-                  </a>
-                </p>
                 <p><strong>Address:</strong> TRAVERION Travel Agency, Finland</p>
               </div>
             </div>

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Mail, Phone, Clock, Globe, Search, Heart, ChevronDown } from 'lucide-react';
+import { Mail, Clock, Globe, Search, Heart, ChevronDown } from 'lucide-react';
 import { useTranslation } from '../contexts/TranslationContext';
 import { BRAND_LOGO_SRC } from '../lib/brandAssets';
 
@@ -28,12 +28,6 @@ export default function UnifiedFooter({ currentPage, onNavigate }: UnifiedFooter
               <Mail className="w-4 h-4 text-gray-300" />
               <a href="mailto:info@traverion.com" className="hover:text-gray-200 transition-colors duration-300 font-medium">
                 info@traverion.com
-              </a>
-            </div>
-            <div className="flex items-center gap-2">
-              <Phone className="w-4 h-4 text-gray-300" />
-              <a href="tel:+358458803060" className="hover:text-gray-200 transition-colors duration-300 font-medium">
-                +358 45 8803060
               </a>
             </div>
             <div className="flex items-center gap-2">

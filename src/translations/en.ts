@@ -146,7 +146,7 @@ export const en = {
       cookiePolicy: 'Cookie Policy',
     },
     contact: {
-      phone: '+358 45 8803060',
+      phone: '',
       phoneHours: 'Mon-Fri 9:00-18:00',
       email: 'info@traverion.com',
       emailResponse: '24h response time',

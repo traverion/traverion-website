@@ -1,4 +1,4 @@
-import { ArrowLeft, Building2, Mail, Phone } from 'lucide-react';
+import { ArrowLeft, Building2, Mail } from 'lucide-react';
 import LuxuryButton from '../components/ui/LuxuryButton';
 import PageHero from '../components/PageHero';
 import { HERO_IMG } from '../lib/heroImages';
@@ -75,15 +75,6 @@ export default function LegalNotice({ onNavigate }: LegalNoticeProps) {
                     <strong className="text-gray-900">Email:</strong>{' '}
                     <a href="mailto:info@traverion.com" className="text-finland hover:underline">
                       info@traverion.com
-                    </a>
-                  </span>
-                </p>
-                <p className="flex items-start gap-3">
-                  <Phone className="w-5 h-5 text-finland shrink-0 mt-0.5" />
-                  <span>
-                    <strong className="text-gray-900">Phone:</strong>{' '}
-                    <a href="tel:+358458803060" className="text-finland hover:underline">
-                      +358 45 8803060
                     </a>
                   </span>
                 </p>

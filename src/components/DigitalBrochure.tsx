@@ -117,7 +117,6 @@ export default function DigitalBrochure({ tourId, className = '' }: DigitalBroch
       title: 'Contact',
       type: 'contact',
       content: {
-        phone: '+1 (555) 123-4567',
         email: 'info@traverion.com',
         website: 'www.traverion.com'
       }
@@ -377,15 +376,7 @@ export default function DigitalBrochure({ tourId, className = '' }: DigitalBroch
                 Ready to Book Your Journey?
               </h2>
               
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
-                <div className="bg-white p-6 rounded-xl shadow-lg">
-                  <div className="w-12 h-12 bg-sky-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <span className="text-2xl">📞</span>
-                  </div>
-                  <h3 className="font-semibold text-gray-900 mb-2">Call Us</h3>
-                  <p className="text-sky-600 font-medium">{page.content.phone}</p>
-                </div>
-                
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12 max-w-2xl mx-auto">
                 <div className="bg-white p-6 rounded-xl shadow-lg">
                   <div className="w-12 h-12 bg-sky-100 rounded-full flex items-center justify-center mx-auto mb-4">
                     <span className="text-2xl">✉️</span>

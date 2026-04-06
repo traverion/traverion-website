@@ -236,7 +236,6 @@ npm run lint
 ## 📞 Support
 
 - **Email**: info@traverion.com
-- **Phone**: +358 45 8803060
 - **Vercel Docs**: [vercel.com/docs](https://vercel.com/docs)
 
 ---

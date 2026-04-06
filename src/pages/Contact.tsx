@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Mail, Phone, Send, CheckCircle } from 'lucide-react';
+import { Mail, Send, CheckCircle } from 'lucide-react';
 import LuxuryButton from '../components/ui/LuxuryButton';
 import LuxuryCard from '../components/ui/LuxuryCard';
 import LuxuryInput from '../components/ui/LuxuryInput';
@@ -220,18 +220,7 @@ export default function Contact({ onNavigate }: ContactProps) {
           </LuxuryCard>
         </div>
 
-        <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="bg-white border border-gray-200 rounded-xl p-5 flex items-center gap-3">
-            <span className="w-10 h-10 rounded-full bg-finland/10 text-finland flex items-center justify-center">
-              <Phone className="w-5 h-5" />
-            </span>
-            <div>
-              <p className="text-xs uppercase tracking-wide text-gray-500">Phone</p>
-              <a href="tel:+358458803060" className="text-gray-900 font-medium hover:text-finland">
-                +358 45 8803060
-              </a>
-            </div>
-          </div>
+        <div className="mt-10 grid grid-cols-1 sm:max-w-md gap-4">
           <div className="bg-white border border-gray-200 rounded-xl p-5 flex items-center gap-3">
             <span className="w-10 h-10 rounded-full bg-finland/10 text-finland flex items-center justify-center">
               <Mail className="w-5 h-5" />
