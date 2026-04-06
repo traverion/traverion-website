@@ -1,5 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ArrowLeft, MapPin, Calendar, Users, Star, Clock, Plane, Shield, Share2, CheckCircle, XCircle, ShoppingCart } from 'lucide-react';
+import {
+  ArrowLeft,
+  MapPin,
+  Users,
+  Star,
+  Clock,
+  Plane,
+  Shield,
+  Share2,
+  CheckCircle,
+  XCircle,
+  ShoppingCart,
+  Info,
+} from 'lucide-react';
 import { useTranslation } from '../contexts/TranslationContext';
 import { useAuth } from '../contexts/AuthContext';
 import LuxuryButton from '../components/ui/LuxuryButton';
@@ -198,12 +211,19 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
     );
   }
 
-  const images = [
-    tour.image,
+  const galleryExtras = (tour.listingExtras?.galleryImageUrls ?? [])
+    .map((u) => String(u).trim())
+    .filter(Boolean)
+    .slice(0, 3);
+  const hero = (tour.image ?? '').trim();
+  const uniqueGallery = [hero, ...galleryExtras].filter((u, i, arr) => u && arr.indexOf(u) === i);
+  const stockFallback = [
     'https://images.pexels.com/photos/346885/pexels-photo-346885.jpeg',
     'https://images.pexels.com/photos/1285625/pexels-photo-1285625.jpeg',
     'https://images.pexels.com/photos/2506923/pexels-photo-2506923.jpeg',
   ];
+  const images =
+    uniqueGallery.length > 0 ? uniqueGallery : stockFallback;
 
   return (
     <div className="min-h-screen bg-white pt-20">
@@ -272,6 +292,9 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
                   )}
                 </div>
                 <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-2">{tour.title}</h1>
+                {tour.subtitle?.trim() && (
+                  <p className="text-lg text-gray-600 mb-3 leading-snug">{tour.subtitle.trim()}</p>
+                )}
                 <div className="flex items-center text-gray-600 mb-4">
                   <MapPin size={20} className="mr-2 text-finland" />
                   <span>{tour.destination}</span>
@@ -294,6 +317,107 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
                   <span className="flex items-center"><Plane size={18} className="mr-1" />{tour.difficulty}</span>
                 </div>
                 <p className="text-gray-700 leading-relaxed">{tour.description}</p>
+
+                {(() => {
+                  const x = tour.listingExtras;
+                  const scheduleLabel =
+                    x?.scheduleStyle === 'fixed_slots'
+                      ? 'Usually runs at set start times (see logistics in your confirmation).'
+                      : x?.scheduleStyle === 'on_request'
+                        ? 'Timing is arranged directly with the host after booking.'
+                        : x?.scheduleStyle === 'flexible'
+                          ? 'Timing is flexible unless your confirmation says otherwise.'
+                          : null;
+                  const venueLabel =
+                    x?.venueSetting === 'indoor'
+                      ? 'Mostly indoor'
+                      : x?.venueSetting === 'outdoor'
+                        ? 'Mostly outdoor'
+                        : x?.venueSetting === 'mixed'
+                          ? 'Indoor and outdoor'
+                          : null;
+                  const langExtra = (x?.additionalLanguages ?? [])
+                    .map((code) => {
+                      const labels: Record<string, string> = {
+                        en: 'English',
+                        es: 'Spanish',
+                        fr: 'French',
+                        de: 'German',
+                        it: 'Italian',
+                        pt: 'Portuguese',
+                        nl: 'Dutch',
+                        ja: 'Japanese',
+                        zh: 'Chinese',
+                        ko: 'Korean',
+                        ar: 'Arabic',
+                        hi: 'Hindi',
+                        ru: 'Russian',
+                      };
+                      return labels[code] ?? code;
+                    })
+                    .filter(Boolean);
+                  const hasGoodToKnow =
+                    Boolean(x?.accessibilitySummary?.trim()) ||
+                    Boolean(x?.minGuestAge?.trim()) ||
+                    Boolean(venueLabel) ||
+                    langExtra.length > 0 ||
+                    Boolean(scheduleLabel) ||
+                    Boolean(x?.typicalTimelineNotes?.trim()) ||
+                    Boolean(x?.capacityNote?.trim());
+                  if (!hasGoodToKnow) return null;
+                  return (
+                    <div className="mt-8 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+                      <h2 className="text-lg font-heading font-bold text-gray-900 mb-3 flex items-center gap-2">
+                        <Info className="w-5 h-5 text-finland flex-shrink-0" aria-hidden />
+                        Good to know
+                      </h2>
+                      <ul className="space-y-2 text-sm text-gray-700">
+                        {scheduleLabel && (
+                          <li>
+                            <span className="font-medium text-gray-900">Timing: </span>
+                            {scheduleLabel}
+                          </li>
+                        )}
+                        {x?.typicalTimelineNotes?.trim() && (
+                          <li>
+                            <span className="font-medium text-gray-900">Typical flow: </span>
+                            {x.typicalTimelineNotes.trim()}
+                          </li>
+                        )}
+                        {venueLabel && (
+                          <li>
+                            <span className="font-medium text-gray-900">Setting: </span>
+                            {venueLabel}
+                          </li>
+                        )}
+                        {x?.minGuestAge?.trim() && (
+                          <li>
+                            <span className="font-medium text-gray-900">Minimum age: </span>
+                            {x.minGuestAge.trim()}
+                          </li>
+                        )}
+                        {langExtra.length > 0 && (
+                          <li>
+                            <span className="font-medium text-gray-900">Also offered in: </span>
+                            {langExtra.join(', ')}
+                          </li>
+                        )}
+                        {x?.capacityNote?.trim() && (
+                          <li>
+                            <span className="font-medium text-gray-900">Capacity: </span>
+                            {x.capacityNote.trim()}
+                          </li>
+                        )}
+                        {x?.accessibilitySummary?.trim() && (
+                          <li>
+                            <span className="font-medium text-gray-900">Accessibility &amp; mobility: </span>
+                            {x.accessibilitySummary.trim()}
+                          </li>
+                        )}
+                      </ul>
+                    </div>
+                  );
+                })()}
 
                 {supplierLegal && (
                   <div className="mt-6 flex items-center gap-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
@@ -446,49 +570,62 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
       </section>
 
       {/* Tour Highlights */}
-      <section className="py-16 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-heading font-bold text-gray-900 mb-8">Highlights</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {tour.highlights.map((highlight, index) => (
-              <div key={index} className="flex items-center">
-                <CheckCircle size={20} className="mr-3 text-finland flex-shrink-0" />
-                <span className="text-gray-700">{highlight}</span>
-              </div>
-            ))}
+      {tour.highlights.filter((h) => String(h).trim()).length > 0 && (
+        <section className="py-16 bg-white">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 className="text-3xl font-heading font-bold text-gray-900 mb-8">Highlights</h2>
+            <div className="flex flex-col gap-4">
+              {tour.highlights
+                .map((h) => String(h).trim())
+                .filter(Boolean)
+                .map((highlight, index) => (
+                  <div key={index} className="flex items-start">
+                    <CheckCircle size={20} className="mr-3 text-finland flex-shrink-0 mt-0.5" />
+                    <span className="text-gray-700">{highlight}</span>
+                  </div>
+                ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* What's Included / Excluded */}
-      <section className="py-16 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-            <div>
-              <h3 className="text-2xl font-heading font-bold text-gray-900 mb-6">What's included</h3>
-              <div className="space-y-4">
-                {tour.includes.map((item, index) => (
-                  <div key={index} className="flex items-center">
-                    <CheckCircle size={20} className="mr-3 text-finland flex-shrink-0" />
-                    <span className="text-gray-700">{item}</span>
-                  </div>
-                ))}
+      {(tour.includes.some((s) => String(s).trim()) || tour.excludes.some((s) => String(s).trim())) && (
+        <section className="py-16 bg-gray-50">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+              <div>
+                <h3 className="text-2xl font-heading font-bold text-gray-900 mb-6">What&apos;s included</h3>
+                <div className="space-y-4">
+                  {tour.includes
+                    .map((item) => String(item).trim())
+                    .filter(Boolean)
+                    .map((item, index) => (
+                      <div key={index} className="flex items-center">
+                        <CheckCircle size={20} className="mr-3 text-finland flex-shrink-0" />
+                        <span className="text-gray-700">{item}</span>
+                      </div>
+                    ))}
+                </div>
               </div>
-            </div>
-            <div>
-              <h3 className="text-2xl font-heading font-bold text-gray-900 mb-6">What's not included</h3>
-              <div className="space-y-4">
-                {tour.excludes.map((item, index) => (
-                  <div key={index} className="flex items-center">
-                    <XCircle size={20} className="mr-3 text-red-500 flex-shrink-0" />
-                    <span className="text-gray-700">{item}</span>
-                  </div>
-                ))}
+              <div>
+                <h3 className="text-2xl font-heading font-bold text-gray-900 mb-6">What&apos;s not included</h3>
+                <div className="space-y-4">
+                  {tour.excludes
+                    .map((item) => String(item).trim())
+                    .filter(Boolean)
+                    .map((item, index) => (
+                      <div key={index} className="flex items-center">
+                        <XCircle size={20} className="mr-3 text-red-500 flex-shrink-0" />
+                        <span className="text-gray-700">{item}</span>
+                      </div>
+                    ))}
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Reviews */}
       <section className="py-16 bg-white border-t border-gray-100">

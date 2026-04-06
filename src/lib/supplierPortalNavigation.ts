@@ -8,9 +8,13 @@ import { PARTNER_APP_BASE } from './partnerPortalPaths';
 export function qualityCheckIdToFormFocus(checkId: string): string {
   switch (checkId) {
     case 'includes':
+      return 'includes';
     case 'excludes':
+      return 'excludes';
+    case 'cancellation':
+      return 'cancellation';
     case 'highlights':
-      return 'description';
+      return 'highlights';
     case 'meeting':
       return 'meeting';
     case 'schedule':

@@ -648,17 +648,19 @@ export default function SupplierListings() {
                         </td>
                         <td className="px-2 py-2 sm:px-4 sm:py-3 text-right align-top">
                           <div className="flex items-center justify-end flex-wrap gap-1">
-                            <a
-                              href={publicTourListingUrl(listing.id)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="touch-manipulation inline-flex items-center gap-1 px-2 py-2 sm:py-1.5 rounded-lg text-xs font-medium text-finland border border-finland/30 hover:bg-finland/5 min-h-[40px] sm:min-h-0"
-                              title="Opens the public tour page on Traverion"
-                            >
-                              <ExternalLink className="w-3.5 h-3.5" />
-                              <span className="hidden xs:inline">View on site</span>
-                              <span className="xs:hidden">View</span>
-                            </a>
+                            {listing.status === 'published' ? (
+                              <a
+                                href={publicTourListingUrl(listing.id)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="touch-manipulation inline-flex items-center gap-1 px-2 py-2 sm:py-1.5 rounded-lg text-xs font-medium text-finland border border-finland/30 hover:bg-finland/5 min-h-[40px] sm:min-h-0"
+                                title="Opens the public tour page on Traverion"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                                <span className="hidden xs:inline">View on site</span>
+                                <span className="xs:hidden">View</span>
+                              </a>
+                            ) : null}
                             <button
                               type="button"
                               onClick={() => openSupplierListingEditor(listing.id)}

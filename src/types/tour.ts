@@ -1,3 +1,5 @@
+import type { ListingExtras } from './listingExtras';
+
 export interface TourPackage {
   id: string;
   title: string;
@@ -30,6 +32,8 @@ export interface TourPackage {
   tourType: 'beach' | 'adventure' | 'cultural' | 'city' | 'family' | 'luxury' | 'budget';
   validity: string;
   image: string;
+  /** Short line under the title on the listing page (e.g. max 300 chars in supplier editor). */
+  subtitle?: string;
   description: string;
   highlights: string[];
   itinerary: DayPlan[];
@@ -67,12 +71,24 @@ export interface TourPackage {
   meetingPoint?: string;
   /** Pickup instructions for the guest. */
   pickupInstructions?: string;
+  /** Primary language for the experience (e.g. en, es, fr). */
+  experienceLanguage?: string;
+  /** High-level type: guided tour, ticket/entry, or transportation. */
+  experienceKind?: 'tour' | 'ticket' | 'transportation';
+  /** How the experience starts: meet at a place, operator pickup, either, or not set. */
+  experienceStartStyle?: 'unspecified' | 'fixed_meeting_place' | 'operator_pickup' | 'either_available';
+  /** Whether guests are dropped off at the same place as pickup/meeting or elsewhere. */
+  dropoffMode?: 'same_as_pickup' | 'different_place';
+  /** When dropoffMode is different_place, describes where the experience ends. */
+  dropoffLocation?: string;
   /** Local start time (HH:MM) applied every day this experience runs; copied to new bookings. */
   defaultStartTime?: string;
   /** Pickup may occur between this many minutes before start (inclusive). */
   pickupWindowMinutesBeforeMin?: number;
   /** Pickup may occur up to this many minutes before start (inclusive). */
   pickupWindowMinutesBeforeMax?: number;
+  /** Optional structured fields (gallery, accessibility, schedule hints, etc.). */
+  listingExtras?: ListingExtras;
 }
 
 export interface DayPlan {

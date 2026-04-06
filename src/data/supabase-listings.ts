@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { TourPackage } from '../types/tour';
+import { listingExtrasToDb, parseListingExtras } from '../types/listingExtras';
 
 export type ListingRow = {
   id: string;
@@ -38,6 +39,13 @@ export type ListingRow = {
   default_start_time?: string | null;
   pickup_window_minutes_before_min?: number | null;
   pickup_window_minutes_before_max?: number | null;
+  experience_start_style?: string | null;
+  dropoff_mode?: string | null;
+  dropoff_location?: string | null;
+  experience_language?: string | null;
+  experience_kind?: string | null;
+  listing_subtitle?: string | null;
+  listing_extras?: unknown | null;
   created_at: string;
   updated_at: string;
 };
@@ -86,6 +94,7 @@ export function rowToTourPackage(row: ListingRow): TourPackage {
     tourType: (row.tour_type as TourPackage['tourType']) ?? 'cultural',
     validity: row.validity ?? 'Year round',
     image: row.image ?? 'https://images.pexels.com/photos/346885/pexels-photo-346885.jpeg',
+    subtitle: row.listing_subtitle?.trim() || undefined,
     description: row.description,
     highlights: Array.isArray(row.highlights) ? row.highlights : [],
     itinerary: Array.isArray(row.itinerary) && row.itinerary.length > 0 ? row.itinerary : defaultItinerary,
@@ -110,7 +119,52 @@ export function rowToTourPackage(row: ListingRow): TourPackage {
     defaultStartTime: pgTimeToHm(row.default_start_time ?? null),
     pickupWindowMinutesBeforeMin: row.pickup_window_minutes_before_min ?? 0,
     pickupWindowMinutesBeforeMax: row.pickup_window_minutes_before_max ?? 30,
+    experienceStartStyle: normalizeExperienceStartStyle(row.experience_start_style),
+    dropoffMode: normalizeDropoffMode(row.dropoff_mode),
+    dropoffLocation: row.dropoff_location ?? undefined,
+    experienceLanguage: row.experience_language?.trim() || undefined,
+    experienceKind: normalizeExperienceKind(row.experience_kind, row.style),
+    listingExtras: (() => {
+      const parsed = parseListingExtras(row.listing_extras);
+      return Object.keys(parsed).length > 0 ? parsed : undefined;
+    })(),
   };
+}
+
+const EXPERIENCE_KINDS = new Set(['tour', 'ticket', 'transportation']);
+
+function normalizeExperienceKind(
+  kind: string | null | undefined,
+  style: string | null | undefined
+): TourPackage['experienceKind'] | undefined {
+  if (kind && EXPERIENCE_KINDS.has(kind)) return kind as TourPackage['experienceKind'];
+  const s = (style ?? '').trim().toLowerCase();
+  if (s === 'ticket') return 'ticket';
+  if (s === 'transportation' || s === 'transport') return 'transportation';
+  if (s === 'tour' || s === '') return 'tour';
+  return 'tour';
+}
+
+const EXPERIENCE_START_STYLES = new Set([
+  'unspecified',
+  'fixed_meeting_place',
+  'operator_pickup',
+  'either_available',
+]);
+const DROPOFF_MODES = new Set(['same_as_pickup', 'different_place']);
+
+function normalizeExperienceStartStyle(
+  v: string | null | undefined
+): TourPackage['experienceStartStyle'] | undefined {
+  if (v == null || v === '') return undefined;
+  return EXPERIENCE_START_STYLES.has(v)
+    ? (v as TourPackage['experienceStartStyle'])
+    : undefined;
+}
+
+function normalizeDropoffMode(v: string | null | undefined): TourPackage['dropoffMode'] | undefined {
+  if (v == null || v === '') return undefined;
+  return DROPOFF_MODES.has(v) ? (v as TourPackage['dropoffMode']) : undefined;
 }
 
 /** Map TourPackage (or partial) to DB insert/update payload. */
@@ -153,6 +207,13 @@ export function tourPackageToRow(tour: Partial<TourPackage> & { title: string; d
       tour.pickupWindowMinutesBeforeMin ?? 0,
       tour.pickupWindowMinutesBeforeMax ?? 30
     ),
+    experience_start_style: tour.experienceStartStyle ?? null,
+    dropoff_mode: tour.dropoffMode ?? null,
+    dropoff_location: tour.dropoffLocation?.trim() ? tour.dropoffLocation.trim() : null,
+    experience_language: tour.experienceLanguage?.trim() ? tour.experienceLanguage.trim() : null,
+    experience_kind: tour.experienceKind ?? null,
+    listing_subtitle: tour.subtitle?.trim() ? tour.subtitle.trim().slice(0, 300) : null,
+    listing_extras: listingExtrasToDb(tour.listingExtras) ?? {},
   };
 }
 
