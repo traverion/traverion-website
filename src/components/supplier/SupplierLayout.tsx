@@ -27,6 +27,9 @@ import SupplierEarnings from '../../pages/supplier/SupplierEarnings';
 import SupplierReviews from '../../pages/supplier/SupplierReviews';
 import SupplierPickupPlanner from '../../pages/supplier/SupplierPickupPlanner';
 import {
+  authUserHasPartnerSignupMetadata,
+  ensureSupplierProfile,
+  ensureSupplierProfileFromAuthUser,
   fetchSupplierProfile,
   updateSupplierPayout,
   updateSupplierCompanyProfile,
@@ -43,7 +46,7 @@ import SupplierLoginPage from './SupplierLoginPage';
 import SupplierSettingsPages from './SupplierSettingsPages';
 import { BRAND_LOGO_SRC } from '../../lib/brandAssets';
 import { isSupplierBusinessProfileComplete, isSupplierPayoutConfigured } from '../../lib/supplierOnboarding';
-import { userHasSupplierProfile } from '../../lib/supplierPortalAccess';
+import { supplierOwnsAnyListing, userHasSupplierProfile } from '../../lib/supplierPortalAccess';
 import { isPartnerMarketingPathForCurrentHost } from '../../lib/partnerHost';
 import {
   PARTNER_APP_BASE,
@@ -375,7 +378,54 @@ export default function SupplierLayout() {
 
     const stale = () => cancelled || epoch !== partnerGateEpochRef.current;
 
+    /**
+     * If `supplier_profiles` is missing, create it when we can prove partner intent:
+     * - Fresh `getUser()` metadata (JWT/session can omit fields right after confirm), or
+     * - Partner sign-up metadata on session user, or
+     * - They already own listings as this supplier (RLS-safe).
+     */
+    const tryRepairPartnerProfileRow = async () => {
+      if (stale()) return;
+      const exists = await userHasSupplierProfile(supabase, uid);
+      if (stale()) return;
+      if (exists === true) return;
+
+      const { data: freshAuth } = await supabase.auth.getUser();
+      if (stale()) return;
+      const fromServer = freshAuth.user;
+      const candidate = fromServer ?? user;
+
+      if (authUserHasPartnerSignupMetadata(candidate)) {
+        const res = await ensureSupplierProfileFromAuthUser(candidate);
+        if (!res.success && typeof console !== 'undefined') {
+          console.warn('[Traverion partner] supplier_profiles repair (metadata) failed:', res.error);
+        }
+        return;
+      }
+
+      if (authUserHasPartnerSignupMetadata(user)) {
+        const res = await ensureSupplierProfileFromAuthUser(user);
+        if (!res.success && typeof console !== 'undefined') {
+          console.warn('[Traverion partner] supplier_profiles repair (session metadata) failed:', res.error);
+        }
+        return;
+      }
+
+      const owns = await supplierOwnsAnyListing(supabase, uid);
+      if (stale()) return;
+      if (owns === true) {
+        const email = typeof candidate.email === 'string' ? candidate.email : '';
+        const local = email.includes('@') ? email.split('@')[0]! : email || 'Partner';
+        const res = await ensureSupplierProfile(uid, { display_name: local });
+        if (!res.success && typeof console !== 'undefined') {
+          console.warn('[Traverion partner] supplier_profiles repair (listings) failed:', res.error);
+        }
+      }
+    };
+
     const run = async () => {
+      await tryRepairPartnerProfileRow();
+
       let falseStreak = 0;
       const maxPasses = 14;
       for (let attempt = 0; attempt < maxPasses && !stale(); attempt++) {
@@ -389,6 +439,13 @@ export default function SupplierLayout() {
           falseStreak += 1;
           // Avoid flashing traveler on one transient empty read (Strict Mode, cold JWT, etc.)
           if (falseStreak >= 2 && attempt >= 1) {
+            await tryRepairPartnerProfileRow();
+            const afterRepair = await userHasSupplierProfile(supabase, uid);
+            if (stale()) return;
+            if (afterRepair === true) {
+              setPartnerProfileGate({ kind: 'resolved', forUserId: uid, allowed: true });
+              return;
+            }
             setPartnerProfileGate({ kind: 'resolved', forUserId: uid, allowed: false });
             return;
           }
@@ -398,6 +455,7 @@ export default function SupplierLayout() {
         await new Promise((r) => setTimeout(r, 100 + attempt * 45));
       }
       if (stale()) return;
+      await tryRepairPartnerProfileRow();
       const last = await userHasSupplierProfile(supabase, uid);
       if (stale()) return;
       if (last === true) setPartnerProfileGate({ kind: 'resolved', forUserId: uid, allowed: true });
@@ -409,7 +467,7 @@ export default function SupplierLayout() {
     return () => {
       cancelled = true;
     };
-  }, [user?.id, isSupabase, partnerGateRetryKey]);
+  }, [user, isSupabase, partnerGateRetryKey]);
 
   const partnerGateView = (() => {
     if (!user?.id) return 'anon' as const;

@@ -11,3 +11,10 @@ export async function userHasSupplierProfile(client: SupabaseClient, userId: str
   if (error) return null;
   return data != null;
 }
+
+/** True if this user already has at least one listing as supplier (RLS: own rows). Used to repair a missing `supplier_profiles` row. */
+export async function supplierOwnsAnyListing(client: SupabaseClient, userId: string): Promise<boolean | null> {
+  const { data, error } = await client.from('listings').select('id').eq('supplier_id', userId).limit(1).maybeSingle();
+  if (error) return null;
+  return data != null;
+}

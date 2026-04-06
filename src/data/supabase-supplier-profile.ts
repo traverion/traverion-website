@@ -1,3 +1,4 @@
+import type { User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { normalizePhoneNumber } from '../lib/phoneNormalize';
 
@@ -194,6 +195,35 @@ export async function removeSupplierBusinessLogoFiles(userId: string): Promise<v
   if (!files?.length) return;
   const paths = files.map((f) => `${userId}/${f.name}`);
   await supabase.storage.from(SUPPLIER_LOGO_BUCKET).remove(paths);
+}
+
+type PartnerSignupMeta = {
+  supplier_business_name?: string;
+  supplier_phone?: string;
+};
+
+/** True when this auth user went through partner sign-up (metadata from SupplierAuth). */
+export function authUserHasPartnerSignupMetadata(user: Pick<User, 'user_metadata'>): boolean {
+  const m = user.user_metadata as PartnerSignupMeta | undefined;
+  return Boolean(m?.supplier_business_name?.trim()) || Boolean(m?.supplier_phone?.trim());
+}
+
+/**
+ * Creates or updates `supplier_profiles` from partner sign-up metadata (same payload as post-login in SupplierAuth).
+ * Use when the row is missing but the user is clearly a partner (e.g. after email-confirm deep link without re-running the login form).
+ */
+export async function ensureSupplierProfileFromAuthUser(
+  user: Pick<User, 'id' | 'email' | 'user_metadata'>
+): Promise<{ success: boolean; error?: string }> {
+  const m = user.user_metadata as PartnerSignupMeta | undefined;
+  const business = m?.supplier_business_name?.trim() || null;
+  const phoneRaw = (m?.supplier_phone ?? '').trim();
+  const emailLocal = typeof user.email === 'string' ? (user.email.split('@')[0] ?? '') : '';
+  return ensureSupplierProfile(user.id, {
+    display_name: business ?? (emailLocal || null),
+    company_legal_name: business,
+    contact_phone: phoneRaw ? normalizePhoneNumber(phoneRaw) : null,
+  });
 }
 
 /**
