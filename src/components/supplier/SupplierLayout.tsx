@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, type ReactNode } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, type ReactNode } from 'react';
 import {
   LayoutDashboard,
   MapPin,
@@ -44,11 +44,6 @@ import SupplierSettingsPages from './SupplierSettingsPages';
 import { BRAND_LOGO_SRC } from '../../lib/brandAssets';
 import { isSupplierBusinessProfileComplete, isSupplierPayoutConfigured } from '../../lib/supplierOnboarding';
 import { userHasSupplierProfile } from '../../lib/supplierPortalAccess';
-
-type PartnerProfileGate =
-  | { kind: 'pending'; forUserId: string }
-  | { kind: 'resolved'; forUserId: string; allowed: boolean }
-  | { kind: 'failed'; forUserId: string };
 import { isPartnerMarketingPathForCurrentHost } from '../../lib/partnerHost';
 import {
   PARTNER_APP_BASE,
@@ -59,6 +54,11 @@ import {
 import PartnerMarketingStaticPage from './PartnerMarketingStaticPage';
 import PartnerEmailVerifiedPage from './PartnerEmailVerifiedPage';
 import SupplierPortalTravelerNotice from './SupplierPortalTravelerNotice';
+
+type PartnerProfileGate =
+  | { kind: 'pending'; forUserId: string }
+  | { kind: 'resolved'; forUserId: string; allowed: boolean }
+  | { kind: 'failed'; forUserId: string };
 
 /** @deprecated Use PARTNER_LOGIN_PATH from partnerPortalPaths */
 export const SUPPLIER_LOGIN_PATH = PARTNER_LOGIN_PATH;
@@ -302,6 +302,7 @@ export default function SupplierLayout() {
   const { user, loading, signOut, isSupabase } = useSupplierAuth();
   const [partnerProfileGate, setPartnerProfileGate] = useState<PartnerProfileGate | null>(null);
   const [partnerGateRetryKey, setPartnerGateRetryKey] = useState(0);
+  const partnerGateEpochRef = useRef(0);
   const [section, setSection] = useState<SupplierSection>(() => getSectionFromPath(window.location.pathname) ?? 'dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [payoutIban, setPayoutIban] = useState('');
@@ -368,20 +369,40 @@ export default function SupplierLayout() {
       return;
     }
     const uid = user.id;
+    const epoch = ++partnerGateEpochRef.current;
     let cancelled = false;
     setPartnerProfileGate({ kind: 'pending', forUserId: uid });
 
+    const stale = () => cancelled || epoch !== partnerGateEpochRef.current;
+
     const run = async () => {
-      for (let attempt = 0; attempt < 3 && !cancelled; attempt++) {
+      let falseStreak = 0;
+      const maxPasses = 14;
+      for (let attempt = 0; attempt < maxPasses && !stale(); attempt++) {
         const ok = await userHasSupplierProfile(supabase, uid);
-        if (cancelled) return;
-        if (ok !== null) {
-          setPartnerProfileGate({ kind: 'resolved', forUserId: uid, allowed: ok });
+        if (stale()) return;
+        if (ok === true) {
+          setPartnerProfileGate({ kind: 'resolved', forUserId: uid, allowed: true });
           return;
         }
-        await new Promise((r) => setTimeout(r, 140 * (attempt + 1)));
+        if (ok === false) {
+          falseStreak += 1;
+          // Avoid flashing traveler on one transient empty read (Strict Mode, cold JWT, etc.)
+          if (falseStreak >= 2 && attempt >= 1) {
+            setPartnerProfileGate({ kind: 'resolved', forUserId: uid, allowed: false });
+            return;
+          }
+        } else {
+          falseStreak = 0;
+        }
+        await new Promise((r) => setTimeout(r, 100 + attempt * 45));
       }
-      if (!cancelled) setPartnerProfileGate({ kind: 'failed', forUserId: uid });
+      if (stale()) return;
+      const last = await userHasSupplierProfile(supabase, uid);
+      if (stale()) return;
+      if (last === true) setPartnerProfileGate({ kind: 'resolved', forUserId: uid, allowed: true });
+      else if (last === false) setPartnerProfileGate({ kind: 'resolved', forUserId: uid, allowed: false });
+      else setPartnerProfileGate({ kind: 'failed', forUserId: uid });
     };
 
     void run();
@@ -687,7 +708,17 @@ export default function SupplierLayout() {
     );
   }
 
-  const needsPartnerProfileGate = Boolean(user && (onPortalPath || onLoginPath));
+  /** Signed-in users on /login always go to the app shell first — never show traveler notice here (avoids flash). */
+  if (onLoginPath && user) {
+    window.location.replace(PARTNER_APP_BASE);
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <p className="text-gray-500">Redirecting...</p>
+      </div>
+    );
+  }
+
+  const needsPartnerProfileGate = Boolean(user && onPortalPath);
   if (needsPartnerProfileGate) {
     if (partnerGateView === 'checking') {
       return (
@@ -729,15 +760,6 @@ export default function SupplierLayout() {
         />
       );
     }
-  }
-
-  if (onLoginPath && user) {
-    window.location.replace(PARTNER_APP_BASE);
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-500">Redirecting...</p>
-      </div>
-    );
   }
 
   if (onLoginPath && !user) {

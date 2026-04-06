@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { TourPackage } from '../../types/tour';
 import ListingDiscounts from '../../components/supplier/ListingDiscounts';
 import { getListingPublishBlockers } from '../../lib/listingPublishGate';
@@ -245,6 +246,39 @@ export default function SupplierListingForm({
     stepContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
   }, [stepIdx]);
 
+  useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+    const prevHtmlOverflow = html.style.overflow;
+    const prevHtmlOverscroll = html.style.overscrollBehavior;
+    const prevBodyOverflow = body.style.overflow;
+    const prevBodyPosition = body.style.position;
+    const prevBodyTop = body.style.top;
+    const prevBodyLeft = body.style.left;
+    const prevBodyRight = body.style.right;
+    const prevBodyWidth = body.style.width;
+    const scrollY = window.scrollY;
+    html.style.overflow = 'hidden';
+    html.style.overscrollBehavior = 'none';
+    body.style.overflow = 'hidden';
+    body.style.position = 'fixed';
+    body.style.top = `-${scrollY}px`;
+    body.style.left = '0';
+    body.style.right = '0';
+    body.style.width = '100%';
+    return () => {
+      html.style.overflow = prevHtmlOverflow;
+      html.style.overscrollBehavior = prevHtmlOverscroll;
+      body.style.overflow = prevBodyOverflow;
+      body.style.position = prevBodyPosition;
+      body.style.top = prevBodyTop;
+      body.style.left = prevBodyLeft;
+      body.style.right = prevBodyRight;
+      body.style.width = prevBodyWidth;
+      window.scrollTo(0, scrollY);
+    };
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (form.pickupWindowMinutesBeforeMax < form.pickupWindowMinutesBeforeMin) {
@@ -283,15 +317,27 @@ export default function SupplierListingForm({
     return form.description.trim().length > 0;
   };
 
-  return (
-    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex flex-col p-2 sm:p-6 sm:justify-center pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.5rem,env(safe-area-inset-bottom))]">
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white border border-gray-200 rounded-xl sm:rounded-2xl shadow-xl w-full max-w-3xl mx-auto flex flex-col flex-1 min-h-0 max-h-full sm:max-h-[calc(100dvh-3rem)] sm:flex-none"
-      >
-        <div className="px-5 sm:px-6 py-4 border-b border-gray-200">
-          <div className="flex items-center justify-between gap-3 mb-4">
-            <h2 className="text-xl font-semibold text-gray-900">{editingId ? 'Edit listing' : 'Create listing'}</h2>
+  const shell = (
+    <div
+      className="fixed inset-0 z-[80] flex flex-col overflow-hidden overscroll-none pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="supplier-listing-editor-title"
+    >
+      <div
+        className="absolute inset-0 bg-slate-900/35 backdrop-blur-md motion-safe:animate-fade-in supports-[backdrop-filter]:bg-slate-900/25"
+        aria-hidden
+      />
+      <div className="relative z-[81] flex min-h-0 w-full flex-1 flex-col px-0 py-0 sm:justify-center sm:p-3 sm:px-4">
+        <form
+          onSubmit={handleSubmit}
+          className="motion-safe:animate-slide-up motion-reduce:animate-none flex h-full min-h-0 w-full max-w-none flex-col overflow-hidden border-0 border-gray-200 bg-white shadow-2xl sm:mx-auto sm:h-[min(100dvh-1.5rem,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem))] sm:max-h-[min(100dvh-1.5rem,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem))] sm:max-w-4xl sm:rounded-2xl sm:border sm:border-gray-200"
+        >
+        <div className="shrink-0 border-b border-gray-200 px-5 py-4 sm:px-6">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <h2 id="supplier-listing-editor-title" className="text-xl font-semibold text-gray-900">
+              {editingId ? 'Edit listing' : 'Create listing'}
+            </h2>
             <button type="button" onClick={onCancel} className="px-3 py-1.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50">
               Close
             </button>
@@ -325,7 +371,7 @@ export default function SupplierListingForm({
         </div>
 
         {publishBlockers && publishBlockers.length > 0 && (
-          <div className="mx-4 sm:mx-6 mt-3 p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-950">
+          <div className="mx-4 shrink-0 sm:mx-6 mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
             <p className="font-medium text-amber-900">Finish these before publishing</p>
             <ul className="mt-2 list-disc list-inside space-y-1">
               {publishBlockers.map((line) => (
@@ -342,7 +388,10 @@ export default function SupplierListingForm({
           </div>
         )}
 
-        <div ref={stepContainerRef} className="px-4 sm:px-6 py-4 sm:py-5 overflow-y-auto flex-1">
+        <div
+          ref={stepContainerRef}
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6 sm:py-5"
+        >
           {stepIdx === 0 && (
             <div className="space-y-4 transition-all duration-300 ease-out opacity-100 translate-y-0">
               <div id="supplier-listing-field-title">
@@ -534,6 +583,9 @@ export default function SupplierListingForm({
           </div>
         </div>
       </form>
+      </div>
     </div>
   );
+
+  return createPortal(shell, document.body);
 }
