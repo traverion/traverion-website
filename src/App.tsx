@@ -410,9 +410,11 @@ function App() {
   if (isSupplierArea) {
     return (
       <TranslationProvider>
-        <SupplierAuthProvider>
-          <SupplierLayout />
-        </SupplierAuthProvider>
+        <AuthProvider>
+          <SupplierAuthProvider>
+            <SupplierLayout />
+          </SupplierAuthProvider>
+        </AuthProvider>
       </TranslationProvider>
     );
   }
