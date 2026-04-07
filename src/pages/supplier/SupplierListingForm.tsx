@@ -753,11 +753,11 @@ export default function SupplierListingForm({
         aria-label="Close listing editor"
         onClick={() => void handleCloseIntent()}
       />
-      <div className="relative z-[81] flex min-h-0 w-full flex-1 flex-col justify-end sm:justify-center px-0 py-0 sm:py-4 sm:px-5 md:px-8 lg:px-10 pointer-events-none">
+      <div className="relative z-[81] flex min-h-0 w-full flex-1 flex-col justify-stretch px-0 py-0 pointer-events-none">
         <form
           onSubmit={handleSubmit}
           onClick={(e) => e.stopPropagation()}
-          className="pointer-events-auto motion-safe:animate-slide-up motion-reduce:animate-none flex min-h-0 w-full max-w-none flex-col overflow-hidden border-0 border-gray-200 bg-white shadow-2xl rounded-t-3xl sm:rounded-2xl sm:mx-auto h-[min(96dvh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)))] sm:h-[min(100dvh-2rem,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-2rem))] sm:max-h-[min(100dvh-2rem,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-2rem))] sm:max-w-5xl md:max-w-6xl xl:max-w-7xl sm:border sm:border-gray-200"
+          className="pointer-events-auto motion-safe:animate-slide-up motion-reduce:animate-none flex min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden border-0 bg-white shadow-none sm:shadow-none h-[min(100dvh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)))] max-h-[min(100dvh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)))] rounded-none"
         >
         <div className="sm:hidden flex justify-center pt-2 pb-1 shrink-0" aria-hidden>
           <div className="h-1.5 w-12 rounded-full bg-gray-300" />

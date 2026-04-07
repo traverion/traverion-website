@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, Fragment } from 'react';
+import { useState, useEffect, useCallback, useMemo, Fragment, useRef } from 'react';
 import { Plus, MapPin, Pencil, Trash2, Eye, EyeOff, AlertCircle, RefreshCw, ChevronDown, ChevronUp, Sparkles, ExternalLink } from 'lucide-react';
 import { TourPackage } from '../../types/tour';
 import { getSupplierListings, setSupplierListings } from '../../data/listings';
@@ -60,6 +60,56 @@ export default function SupplierListings() {
   const [payoutOnFile, setPayoutOnFile] = useState(false);
   const [publishGate, setPublishGate] = useState<{ listingId: string; title: string; blockers: string[] } | null>(null);
 
+  const showFormRef = useRef(false);
+  const editorHistoryPushedRef = useRef(false);
+
+  useEffect(() => {
+    showFormRef.current = showForm;
+  }, [showForm]);
+
+  /** Stack a history entry while the editor is open so Back closes the modal instead of jumping to /partner (dashboard). */
+  useEffect(() => {
+    if (!showForm) {
+      editorHistoryPushedRef.current = false;
+      return;
+    }
+    if (typeof window === 'undefined') return;
+    const st = window.history.state as { supplierListingEditor?: boolean } | null;
+    if (st?.supplierListingEditor) {
+      editorHistoryPushedRef.current = true;
+      return;
+    }
+    if (editorHistoryPushedRef.current) return;
+    editorHistoryPushedRef.current = true;
+    const url = window.location.pathname + window.location.search;
+    const prev = window.history.state;
+    const base = typeof prev === 'object' && prev !== null ? { ...prev } : {};
+    window.history.pushState({ ...base, supplierListingEditor: true }, '', url);
+  }, [showForm]);
+
+  useEffect(() => {
+    const onPopCapture = () => {
+      if (!showFormRef.current) return;
+      const st = window.history.state as { supplierListingEditor?: boolean } | null;
+      if (st?.supplierListingEditor) return;
+      showFormRef.current = false;
+      setShowForm(false);
+      setEditingId(null);
+      setFormFocusSection(null);
+      const u = new URL(window.location.href);
+      const path = u.pathname.replace(/\/$/, '') || '/';
+      if (path === `${PARTNER_APP_BASE}/listings`) {
+        u.searchParams.delete('edit');
+        u.searchParams.delete('focus');
+        const q = u.searchParams.toString();
+        const next = q ? `${PARTNER_APP_BASE}/listings?${q}` : `${PARTNER_APP_BASE}/listings`;
+        window.history.replaceState(window.history.state, '', next);
+      }
+    };
+    window.addEventListener('popstate', onPopCapture, true);
+    return () => window.removeEventListener('popstate', onPopCapture, true);
+  }, []);
+
   const syncListingsUrlToState = useCallback(() => {
     const params = new URLSearchParams(window.location.search);
     const edit = params.get('edit');
@@ -83,6 +133,7 @@ export default function SupplierListings() {
 
   useEffect(() => {
     if (canEditListings) return;
+    showFormRef.current = false;
     setShowForm(false);
     setEditingId(null);
     setFormFocusSection(null);
@@ -104,12 +155,15 @@ export default function SupplierListings() {
       const focus = params.get('focus');
       setFormFocusSection(focus && focus.length > 0 ? focus : null);
     } else {
+      const listDefinitelyLoaded = listings.length > 0 || (listings.length === 0 && !error);
+      if (!listDefinitelyLoaded) return;
+      showFormRef.current = false;
       setShowForm(false);
       setEditingId(null);
       setFormFocusSection(null);
       window.history.replaceState({}, '', `${PARTNER_APP_BASE}/listings`);
     }
-  }, [listings, loading]);
+  }, [listings, loading, error]);
 
   const qualityOverview = useMemo(() => {
     if (listings.length === 0) return null;
@@ -230,6 +284,7 @@ export default function SupplierListings() {
 
   const refresh = () => {
     loadListings();
+    showFormRef.current = false;
     setShowForm(false);
     setEditingId(null);
     if (isSupabase) {
@@ -241,6 +296,7 @@ export default function SupplierListings() {
     if (!canEditListings) {
       const msg = 'Your role can view listings but cannot create or edit them.';
       setError(msg);
+      showFormRef.current = false;
       setShowForm(false);
       return { success: false, error: msg };
     }
@@ -544,6 +600,7 @@ export default function SupplierListings() {
             return true;
           }}
           onCancel={() => {
+            showFormRef.current = false;
             setShowForm(false);
             setEditingId(null);
             setFormFocusSection(null);
