@@ -57,7 +57,8 @@ export default function SupplierDashboard({
   onSupplierSetupNext,
 }: SupplierDashboardProps) {
   const { user, isSupabase } = useSupplierAuth();
-  const [listingsCount, setListingsCount] = useState<number | null>(null);
+  /** Published / live on Traverion only — drafts excluded (see My listings for all rows). */
+  const [publishedListingsCount, setPublishedListingsCount] = useState<number | null>(null);
   const [listingTitlesById, setListingTitlesById] = useState<Record<string, string>>({});
   const [supplierBookings, setSupplierBookings] = useState<BookingRow[]>([]);
   const [earnings, setEarnings] = useState<Awaited<ReturnType<typeof fetchSupplierEarnings>>>([]);
@@ -66,19 +67,19 @@ export default function SupplierDashboard({
 
   useEffect(() => {
     if (!isSupabase || !user) {
-      setListingsCount(0);
+      setPublishedListingsCount(0);
       setListingTitlesById({});
       setSupplierBookings([]);
       return;
     }
     Promise.all([fetchMyListings(user.id), fetchBookingsForSupplier(user.id)])
       .then(([listings, bookings]) => {
-        setListingsCount(listings.length);
+        setPublishedListingsCount(listings.filter((t) => t.status === 'published').length);
         setListingTitlesById(Object.fromEntries(listings.map((t) => [t.id, t.title])));
         setSupplierBookings(bookings);
       })
       .catch(() => {
-        setListingsCount(0);
+        setPublishedListingsCount(0);
         setListingTitlesById({});
         setSupplierBookings([]);
       });
@@ -171,12 +172,12 @@ export default function SupplierDashboard({
       icon: Star,
       color: 'bg-amber-500/10 text-amber-600',
     },
-    { label: 'Active listings', value: listingsCount !== null ? String(listingsCount) : '—', icon: MapPin, color: 'bg-finland/10 text-finland' },
+    { label: 'Active listings', value: publishedListingsCount !== null ? String(publishedListingsCount) : '—', icon: MapPin, color: 'bg-finland/10 text-finland' },
     { label: 'Net earnings this month', value: netEarningsDisplay, icon: DollarSign, color: 'bg-finland/10 text-finland' },
   ];
 
   const healthChecks = useMemo(() => {
-    const hasListings = (listingsCount ?? 0) > 0;
+    const hasPublishedListing = (publishedListingsCount ?? 0) > 0;
     const hasPayoutMethod = isSupplierPayoutConfigured(profile);
     const payoutVerifiedByTraverion =
       (profile?.payout_verification_status ?? '').trim().toLowerCase() === 'verified';
@@ -192,7 +193,7 @@ export default function SupplierDashboard({
       {
         id: 'listing',
         title: 'First listing published',
-        done: hasListings,
+        done: hasPublishedListing,
         descriptionDone: 'Your products are live in the marketplace.',
         descriptionTodo: 'Add your first listing so travelers can discover your tours.',
         cta: 'Go to listings',
@@ -242,7 +243,7 @@ export default function SupplierDashboard({
 
     return { checks };
   }, [
-    listingsCount,
+    publishedListingsCount,
     profile,
     bookingsCountThisMonth,
     providerRating.count,
