@@ -1,5 +1,5 @@
 import type { TourPackage } from '../types/tour';
-import { TRAVERION_STANDARD_CANCELLATION_POLICY } from '../types/listingExtras';
+import { materializedBookingOptions, TRAVERION_STANDARD_CANCELLATION_POLICY } from '../types/listingExtras';
 
 /** Default image used when none set — replacing it improves trust. */
 export const LISTING_PLACEHOLDER_IMAGE =
@@ -181,7 +181,7 @@ export function computeListingQuality(listing: TourPackage): {
   // Group size (4)
   {
     const max = 4;
-    const opts = listing.listingExtras?.bookingOptions ?? [];
+    const opts = materializedBookingOptions(listing.listingExtras?.bookingOptions);
     let ok = false;
     if (opts.length > 0) {
       ok = opts.every((o) => o.maxPersons >= o.minPersons && o.minPersons >= 1);
@@ -226,7 +226,7 @@ export function computeListingQuality(listing: TourPackage): {
   // Meeting / pickup (5)
   {
     const max = 5;
-    const opts = listing.listingExtras?.bookingOptions ?? [];
+    const opts = materializedBookingOptions(listing.listingExtras?.bookingOptions);
     let earned = 0;
     let tip = '';
     if (opts.length > 0) {

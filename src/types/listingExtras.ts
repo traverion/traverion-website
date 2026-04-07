@@ -86,6 +86,28 @@ export function normalizeListingBookingOption(raw: Record<string, unknown>, fall
   };
 }
 
+/**
+ * Rows that are still the default blank template (e.g. after "Add another option" was clicked but nothing was filled).
+ * These must not block Continue or publish checks.
+ */
+export function isListingBookingOptionEffectivelyEmpty(o: ListingBookingOption): boolean {
+  return (
+    !o.name.trim() &&
+    o.priceUsd <= 0 &&
+    !o.duration.trim() &&
+    !o.pickupPlace.trim() &&
+    !o.optionInfo.trim() &&
+    !o.startTime.trim() &&
+    !o.availabilityDateFrom.trim() &&
+    !o.availabilityDateTo.trim()
+  );
+}
+
+export function materializedBookingOptions(options: ListingBookingOption[] | undefined): ListingBookingOption[] {
+  if (!options?.length) return [];
+  return options.filter((o) => !isListingBookingOptionEffectivelyEmpty(o));
+}
+
 export function parseListingExtras(raw: unknown): ListingExtras {
   if (raw == null || typeof raw !== 'object' || Array.isArray(raw)) return {};
   const o = raw as Record<string, unknown>;

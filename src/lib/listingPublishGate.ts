@@ -1,4 +1,5 @@
 import type { TourPackage } from '../types/tour';
+import { materializedBookingOptions } from '../types/listingExtras';
 import type { ListingBookingOption } from '../types/listingExtras';
 import { LISTING_PLACEHOLDER_IMAGE, MIN_LISTING_DESCRIPTION_LENGTH } from './listingQualityScore';
 
@@ -54,7 +55,7 @@ export function getListingPublishBlockers(listing: TourPackage): string[] {
   if (desc.length > 2000) {
     out.push('Main description must be 2000 characters or fewer.');
   }
-  const bookingOptions = listing.listingExtras?.bookingOptions ?? [];
+  const bookingOptions = materializedBookingOptions(listing.listingExtras?.bookingOptions);
   const price = listing.price?.startingFrom;
   if (bookingOptions.length > 0) {
     for (let i = 0; i < bookingOptions.length; i++) {

@@ -3,7 +3,12 @@ import { createPortal } from 'react-dom';
 import { Plus, Trash2 } from 'lucide-react';
 import { TourPackage } from '../../types/tour';
 import type { ListingBookingOption, ListingExtras, ScheduleStyle, VenueSetting } from '../../types/listingExtras';
-import { normalizeListingBookingOption, parseListingExtras, TRAVERION_STANDARD_CANCELLATION_POLICY } from '../../types/listingExtras';
+import {
+  materializedBookingOptions,
+  normalizeListingBookingOption,
+  parseListingExtras,
+  TRAVERION_STANDARD_CANCELLATION_POLICY,
+} from '../../types/listingExtras';
 import ListingImageFields from '../../components/supplier/ListingImageFields';
 import { useAuth } from '../../contexts/AuthContext';
 import { getListingPublishBlockers } from '../../lib/listingPublishGate';
@@ -254,16 +259,17 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
   const startLoc = form.city.trim() || resolvedDestination;
   const endLoc = startLoc;
   const opts = form.bookingOptions;
-  const first = opts[0];
-  const positivePrices = opts.map((o) => o.priceUsd).filter((p) => p > 0);
+  const activeOpts = materializedBookingOptions(opts);
+  const first = activeOpts[0];
+  const positivePrices = activeOpts.map((o) => o.priceUsd).filter((p) => p > 0);
   const derivedStarting =
     positivePrices.length > 0 ? Math.min(...positivePrices) : 0;
   const groupSizeStr =
-    opts.length === 0
+    activeOpts.length === 0
       ? '1–12 guests'
-      : opts.length === 1
-        ? `${opts[0].minPersons}–${opts[0].maxPersons} guests`
-        : `${opts.length} bookable options`;
+      : activeOpts.length === 1
+        ? `${activeOpts[0].minPersons}–${activeOpts[0].maxPersons} guests`
+        : `${activeOpts.length} bookable options`;
   const kind =
     form.experienceKind === 'tour' ||
     form.experienceKind === 'ticket' ||
@@ -298,7 +304,7 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
       ? { typicalTimelineNotes: form.typicalTimelineNotes.trim().slice(0, MAX_TIMELINE_LENGTH) }
       : {}),
     ...(galleryList.length ? { galleryImageUrls: galleryList } : {}),
-    ...(opts.length > 0 ? { bookingOptions: opts } : {}),
+    ...(activeOpts.length > 0 ? { bookingOptions: activeOpts } : {}),
   };
   return {
     id,
@@ -407,10 +413,19 @@ function isStepSatisfied(idx: number, form: ListingFormState): boolean {
     );
   }
   if (idx === 5) {
-    return form.bookingOptions.length >= 1 && form.bookingOptions.every(isBookingOptionOkForStep);
+    const active = materializedBookingOptions(form.bookingOptions);
+    return active.length >= 1 && active.every(isBookingOptionOkForStep);
   }
   if (idx === 6) {
     return listingPhotosStepComplete(form);
+  }
+  return true;
+}
+
+/** Step i shows a checkmark only when this step and every earlier step are satisfied (linear flow). */
+function stepsThroughIndexComplete(upToIdx: number, form: ListingFormState): boolean {
+  for (let i = 0; i <= upToIdx; i++) {
+    if (!isStepSatisfied(i, form)) return false;
   }
   return true;
 }
@@ -819,7 +834,7 @@ export default function SupplierListingForm({
           <nav aria-label="Listing setup steps" className="mb-3 -mx-1 overflow-x-auto overflow-y-hidden pb-1">
             <ol className="flex w-full min-w-[720px] list-none m-0 p-0 sm:min-w-0">
               {steps.map((step, idx) => {
-                const done = isStepSatisfied(idx, form);
+                const done = stepsThroughIndexComplete(idx, form);
                 const current = idx === stepIdx;
                 const n = steps.length;
                 return (
@@ -834,7 +849,7 @@ export default function SupplierListingForm({
                         {idx > 0 && (
                           <div
                             className={`pointer-events-none absolute left-0 top-1/2 z-0 h-0.5 w-[calc(50%-1rem)] -translate-y-1/2 rounded-full ${
-                              isStepSatisfied(idx - 1, form) ? 'bg-finland/50' : 'bg-gray-200'
+                              stepsThroughIndexComplete(idx - 1, form) ? 'bg-finland/50' : 'bg-gray-200'
                             }`}
                             aria-hidden
                           />
@@ -842,7 +857,7 @@ export default function SupplierListingForm({
                         {idx < n - 1 && (
                           <div
                             className={`pointer-events-none absolute right-0 top-1/2 z-0 h-0.5 w-[calc(50%-1rem)] -translate-y-1/2 rounded-full ${
-                              isStepSatisfied(idx, form) ? 'bg-finland/50' : 'bg-gray-200'
+                              stepsThroughIndexComplete(idx, form) ? 'bg-finland/50' : 'bg-gray-200'
                             }`}
                             aria-hidden
                           />
@@ -1562,6 +1577,15 @@ export default function SupplierListingForm({
                   ))}
                 </div>
               </div>
+              {!isStepSatisfied(5, form) && (
+                <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950 leading-relaxed">
+                  <span className="font-semibold">Continue is disabled</span> until every{' '}
+                  <strong>started</strong> option passes all checks. Extra blank rows from &quot;Add another option&quot; are
+                  skipped automatically — or tap <strong>Remove</strong> on a row you don&apos;t need. Each active option needs:
+                  name, price, duration, meeting or pickup (8+ characters), about this option (3+ characters), at least one
+                  weekday, and either both season dates or neither.
+                </p>
+              )}
             </div>
           )}
 
