@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, Trash2 } from 'lucide-react';
+import { Pencil, Plus, Trash2, X } from 'lucide-react';
 import { TourPackage } from '../../types/tour';
 import type { ListingBookingOption, ListingExtras, ScheduleStyle, VenueSetting } from '../../types/listingExtras';
 import {
@@ -125,17 +125,33 @@ function legacyTourToBookingOptions(tour: TourPackage): ListingBookingOption[] {
 }
 
 function isBookingOptionOkForStep(o: ListingBookingOption): boolean {
-  if (!o.name.trim() || o.priceUsd <= 0 || o.duration.trim().length < 2) return false;
-  if (o.pickupPlace.trim().length < 8) return false;
-  if (o.minPersons < 1 || o.maxPersons < o.minPersons) return false;
-  if (o.maxSpotsPerSlot < 1) return false;
-  if (o.optionInfo.trim().length < 3) return false;
-  if (!o.weekdays.some(Boolean)) return false;
+  return getBookingOptionValidationMessages(o).length === 0;
+}
+
+/** Plain-language issues for the option editor (Continue uses isBookingOptionOkForStep). */
+function getBookingOptionValidationMessages(o: ListingBookingOption): string[] {
+  const msg: string[] = [];
+  if (!o.name.trim()) msg.push('Add an option name (e.g. Small group tour).');
+  if (o.priceUsd <= 0) msg.push('Set a price greater than zero (USD).');
+  if (o.duration.trim().length < 2) msg.push('Add how long this option runs (e.g. 3 hours).');
+  if (o.pickupPlace.trim().length < 8) {
+    msg.push('Describe where guests meet or where you pick them up (at least 8 characters).');
+  }
+  if (o.minPersons < 1 || o.maxPersons < o.minPersons) {
+    msg.push('Set minimum and maximum guests so max is not below min.');
+  }
+  if (o.maxSpotsPerSlot < 1) msg.push('Set max spots per departure or start time.');
+  if (o.optionInfo.trim().length < 3) {
+    msg.push('Add a short note about this option (e.g. private, language, group size) — 3+ characters.');
+  }
+  if (!o.weekdays.some(Boolean)) msg.push('Choose at least one weekday when this option runs.');
   const df = o.availabilityDateFrom.trim();
   const dt = o.availabilityDateTo.trim();
-  if ((df && !dt) || (!df && dt)) return false;
-  if (df && dt && df > dt) return false;
-  return true;
+  if ((df && !dt) || (!df && dt)) {
+    msg.push('Set both season start and end, or leave both dates empty.');
+  }
+  if (df && dt && df > dt) msg.push('Season end must be on or after the start date.');
+  return msg;
 }
 
 function normalizeHighlightSlots(fromDb: string[] | undefined): string[] {
@@ -445,7 +461,7 @@ const emptyForm: ListingFormState = {
   tags: [] as string[],
   difficulty: 'Easy',
   status: 'draft',
-  bookingOptions: [createEmptyBookingOption()],
+  bookingOptions: [],
   experienceStartStyle: 'unspecified',
   includes: Array.from({ length: INCLUDE_SLOT_COUNT }, () => ''),
   excludes: Array.from({ length: EXCLUDE_SLOT_COUNT }, () => ''),
@@ -506,6 +522,11 @@ export default function SupplierListingForm({
   const stepContainerRef = useRef<HTMLDivElement | null>(null);
   const initialFormSnapshotRef = useRef<string>(serializeListingFormState(emptyForm));
   const closeIntentRunningRef = useRef(false);
+  const [optionModalOpen, setOptionModalOpen] = useState(false);
+  const [optionModalDraft, setOptionModalDraft] = useState<ListingBookingOption | null>(null);
+  const [optionModalEditingId, setOptionModalEditingId] = useState<string | null>(null);
+  const [optionModalErrors, setOptionModalErrors] = useState<string[]>([]);
+  const optionModalOpenRef = useRef(false);
 
   const steps = useMemo(
     () => [
@@ -601,6 +622,10 @@ export default function SupplierListingForm({
   }, [editingId, existingListings]);
 
   useEffect(() => {
+    optionModalOpenRef.current = optionModalOpen;
+  }, [optionModalOpen]);
+
+  useEffect(() => {
     if (!publishChecklistKey) {
       setPublishChecklistDismissed(false);
       return;
@@ -625,14 +650,33 @@ export default function SupplierListingForm({
     }
     if (lastFocused.current === `${editingId}:${focusSection}`) return;
     const el = document.getElementById(`supplier-listing-field-${focusSection}`);
-    if (!el) return;
-    lastFocused.current = `${editingId}:${focusSection}`;
-    requestAnimationFrame(() => {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      const focusable = el.querySelector<HTMLElement>('input, textarea, select, button');
-      focusable?.focus?.();
-    });
-    onFocusConsumed?.();
+    if (el) {
+      lastFocused.current = `${editingId}:${focusSection}`;
+      requestAnimationFrame(() => {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const focusable = el.querySelector<HTMLElement>('input, textarea, select, button');
+        focusable?.focus?.();
+      });
+      onFocusConsumed?.();
+      return;
+    }
+    const optionFieldSections = new Set(['price', 'meeting', 'pickup', 'group', 'pickup_timing']);
+    if (targetStep === 5 && optionFieldSections.has(focusSection)) {
+      setOptionModalOpen(true);
+      setOptionModalEditingId(null);
+      setOptionModalDraft(createEmptyBookingOption());
+      setOptionModalErrors([]);
+      const t = window.setTimeout(() => {
+        const inner = document.getElementById(`supplier-listing-field-${focusSection}`);
+        if (!inner) return;
+        lastFocused.current = `${editingId}:${focusSection}`;
+        inner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const focusable = inner.querySelector<HTMLElement>('input, textarea, select, button');
+        focusable?.focus?.();
+        onFocusConsumed?.();
+      }, 80);
+      return () => window.clearTimeout(t);
+    }
   }, [focusSection, editingId, onFocusConsumed, focusToStep]);
 
   useEffect(() => {
@@ -715,11 +759,20 @@ export default function SupplierListingForm({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
+      if (optionModalOpenRef.current) {
+        e.preventDefault();
+        e.stopPropagation();
+        setOptionModalOpen(false);
+        setOptionModalDraft(null);
+        setOptionModalEditingId(null);
+        setOptionModalErrors([]);
+        return;
+      }
       e.preventDefault();
       void handleCloseIntent();
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
   }, [handleCloseIntent]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -754,26 +807,294 @@ export default function SupplierListingForm({
     }));
   };
 
-  const patchBookingOption = useCallback((optionId: string, patch: Partial<ListingBookingOption>) => {
-    setForm((f) => ({
-      ...f,
-      bookingOptions: f.bookingOptions.map((o) =>
-        o.id === optionId ? normalizeListingBookingOption({ ...(o as unknown as Record<string, unknown>), ...patch }, o.id) : o
-      ),
-    }));
-  }, []);
-
-  const addBookingOption = useCallback(() => {
-    setForm((f) => ({ ...f, bookingOptions: [...f.bookingOptions, createEmptyBookingOption()] }));
-  }, []);
-
   const removeBookingOption = useCallback((optionId: string) => {
-    setForm((f) =>
-      f.bookingOptions.length <= 1
-        ? f
-        : { ...f, bookingOptions: f.bookingOptions.filter((o) => o.id !== optionId) }
-    );
+    setForm((f) => ({ ...f, bookingOptions: f.bookingOptions.filter((o) => o.id !== optionId) }));
   }, []);
+
+  const closeOptionModal = useCallback(() => {
+    setOptionModalOpen(false);
+    setOptionModalDraft(null);
+    setOptionModalEditingId(null);
+    setOptionModalErrors([]);
+  }, []);
+
+  const openOptionModalCreate = useCallback(() => {
+    setOptionModalEditingId(null);
+    setOptionModalDraft(createEmptyBookingOption());
+    setOptionModalErrors([]);
+    setOptionModalOpen(true);
+  }, []);
+
+  const openOptionModalEdit = useCallback((id: string) => {
+    const opt = form.bookingOptions.find((o) => o.id === id);
+    if (!opt) return;
+    setOptionModalEditingId(id);
+    setOptionModalDraft(
+      normalizeListingBookingOption({ ...(opt as unknown as Record<string, unknown>) }, opt.id)
+    );
+    setOptionModalErrors([]);
+    setOptionModalOpen(true);
+  }, [form.bookingOptions]);
+
+  const patchOptionDraft = useCallback((patch: Partial<ListingBookingOption>) => {
+    setOptionModalDraft((d) => {
+      if (!d) return d;
+      return normalizeListingBookingOption(
+        { ...(d as unknown as Record<string, unknown>), ...patch } as Record<string, unknown>,
+        d.id
+      );
+    });
+  }, []);
+
+  const saveOptionModal = useCallback(() => {
+    if (!optionModalDraft) return;
+    const errs = getBookingOptionValidationMessages(optionModalDraft);
+    if (errs.length) {
+      setOptionModalErrors(errs);
+      return;
+    }
+    const normalized = normalizeListingBookingOption(
+      optionModalDraft as unknown as Record<string, unknown>,
+      optionModalDraft.id
+    );
+    const editingId = optionModalEditingId;
+    setForm((f) => {
+      if (editingId) {
+        return {
+          ...f,
+          bookingOptions: f.bookingOptions.map((o) => (o.id === editingId ? normalized : o)),
+        };
+      }
+      return { ...f, bookingOptions: [...f.bookingOptions, normalized] };
+    });
+    closeOptionModal();
+  }, [optionModalDraft, optionModalEditingId, closeOptionModal]);
+
+  const optionDraft = optionModalOpen ? optionModalDraft : null;
+
+  const optionModalLayer = optionDraft ? (
+    <div
+      className="fixed inset-0 z-[90] flex items-end justify-center sm:items-center sm:p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="supplier-option-modal-title"
+    >
+      <div className="absolute inset-0 bg-slate-900/40 motion-safe:animate-fade-in" aria-hidden />
+      <div className="relative z-10 flex max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)))] w-full max-w-4xl flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl motion-safe:animate-slide-up sm:rounded-2xl sm:motion-safe:animate-none">
+        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-gray-200 px-4 py-3 sm:px-5">
+          <h2 id="supplier-option-modal-title" className="text-base font-semibold text-gray-900 pr-8">
+            {optionModalEditingId ? 'Edit option' : 'New option'}
+          </h2>
+          <button
+            type="button"
+            onClick={closeOptionModal}
+            className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 min-h-[44px] min-w-[44px] inline-flex items-center justify-center shrink-0"
+            aria-label="Close"
+          >
+            <X className="w-5 h-5" aria-hidden />
+          </button>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+          <div className="grid grid-cols-1 gap-6 p-4 sm:p-5 lg:grid-cols-2 lg:gap-8">
+            <div className="space-y-4 min-w-0">
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Option name *</label>
+                <input
+                  type="text"
+                  value={optionDraft.name}
+                  onChange={(e) => patchOptionDraft({ name: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                  placeholder="e.g. Small group tour · max 8"
+                />
+              </div>
+              <div id="supplier-listing-field-price">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Price (USD) *</label>
+                <input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={optionDraft.priceUsd || ''}
+                  onChange={(e) =>
+                    patchOptionDraft({ priceUsd: Math.max(0, Number(e.target.value) || 0) })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                />
+              </div>
+              <div id="supplier-listing-field-pickup_timing">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Usual start time</label>
+                <input
+                  type="time"
+                  value={optionDraft.startTime}
+                  onChange={(e) => patchOptionDraft({ startTime: e.target.value })}
+                  className="w-full max-w-[12rem] px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                />
+                <p className="text-xs text-gray-500 mt-1">Shown to guests; you can adjust on the booking.</p>
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Duration for this option *</label>
+                <input
+                  type="text"
+                  value={optionDraft.duration}
+                  onChange={(e) => patchOptionDraft({ duration: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                  placeholder="e.g. 3 hours · half day"
+                />
+              </div>
+              <div className="sm:col-span-2" id="supplier-listing-field-meeting">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Meeting or pickup place *</label>
+                <textarea
+                  value={optionDraft.pickupPlace}
+                  onChange={(e) => patchOptionDraft({ pickupPlace: e.target.value })}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                  placeholder="Address, hotel zone, landmark, or how pickup is arranged for this option"
+                />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div id="supplier-listing-field-group">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Min guests per booking *</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={optionDraft.minPersons || ''}
+                    onChange={(e) => {
+                      const nextMin = Math.max(1, Math.floor(Number(e.target.value) || 1));
+                      patchOptionDraft({
+                        minPersons: nextMin,
+                        maxPersons: Math.max(nextMin, optionDraft.maxPersons),
+                      });
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Max guests per booking *</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={optionDraft.maxPersons || ''}
+                    onChange={(e) =>
+                      patchOptionDraft({
+                        maxPersons: Math.max(
+                          optionDraft.minPersons,
+                          Math.floor(Number(e.target.value) || optionDraft.minPersons)
+                        ),
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                  />
+                </div>
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Max spots per start time *</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={optionDraft.maxSpotsPerSlot || ''}
+                  onChange={(e) =>
+                    patchOptionDraft({
+                      maxSpotsPerSlot: Math.max(1, Math.floor(Number(e.target.value) || 1)),
+                    })
+                  }
+                  className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                />
+                <p className="text-xs text-gray-500 mt-1">Capacity for one departure or time slot.</p>
+              </div>
+              <div className="sm:col-span-2" id="supplier-listing-field-pickup">
+                <label className="block text-sm font-medium text-gray-700 mb-1">About this option *</label>
+                <textarea
+                  value={optionDraft.optionInfo}
+                  onChange={(e) => patchOptionDraft({ optionInfo: e.target.value })}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                  placeholder="e.g. Private vehicle · English-speaking guide · shared bus · family-friendly"
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <p className="text-sm font-medium text-gray-800 mb-2">Runs on these weekdays *</p>
+                <div className="flex flex-wrap gap-2">
+                  {WEEKDAY_LABELS.map((label, di) => (
+                    <button
+                      key={label}
+                      type="button"
+                      onClick={() => {
+                        const next = [...optionDraft.weekdays];
+                        next[di] = !next[di];
+                        patchOptionDraft({ weekdays: next });
+                      }}
+                      className={`min-h-[40px] min-w-[2.75rem] rounded-lg border px-2.5 text-xs font-semibold transition-colors ${
+                        optionDraft.weekdays[di]
+                          ? 'border-finland bg-finland text-white'
+                          : 'border-gray-200 bg-gray-50 text-gray-500 hover:border-gray-300'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Season start (optional)</label>
+                  <input
+                    type="date"
+                    value={optionDraft.availabilityDateFrom}
+                    onChange={(e) => patchOptionDraft({ availabilityDateFrom: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Season end (optional)</label>
+                  <input
+                    type="date"
+                    value={optionDraft.availabilityDateTo}
+                    onChange={(e) => patchOptionDraft({ availabilityDateTo: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-gray-500">
+                Leave both dates empty if this option is not limited to a fixed season. If you set one date, set both.
+              </p>
+            </div>
+            <div className="space-y-3 rounded-xl border border-gray-100 bg-gray-50/90 p-4 text-xs text-gray-600 leading-relaxed lg:sticky lg:top-4 lg:self-start">
+              <p className="text-sm font-semibold text-gray-900">Tips</p>
+              <ul className="list-disc space-y-2 pl-4">
+                <li>The lowest option price is shown as the &quot;from&quot; price on cards.</li>
+                <li>Meeting or pickup should be specific enough that guests know where to go.</li>
+                <li>Season limits are optional — leave both dates empty for year-round.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        {optionModalErrors.length > 0 && (
+          <div className="border-t border-red-100 bg-red-50 px-4 py-3 sm:px-5">
+            <ul className="list-disc space-y-1 pl-4 text-xs text-red-900">
+              {optionModalErrors.map((err, i) => (
+                <li key={i}>{err}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+        <div className="flex shrink-0 flex-wrap gap-2 border-t border-gray-200 px-4 py-3 sm:px-5 sm:justify-end">
+          <button
+            type="button"
+            onClick={closeOptionModal}
+            className="min-h-[44px] flex-1 sm:flex-none rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={saveOptionModal}
+            className="min-h-[44px] flex-1 sm:flex-none rounded-lg bg-finland px-4 py-2.5 text-sm font-medium text-white hover:bg-finland-dark"
+          >
+            Save option
+          </button>
+        </div>
+      </div>
+    </div>
+  ) : null;
 
   const canContinueStep = () => {
     if (stepIdx >= steps.length - 1) return true;
@@ -1346,199 +1667,63 @@ export default function SupplierListingForm({
               <div className="rounded-xl border border-finland/20 bg-finland/5 p-4 sm:p-5">
                 <h3 className="text-sm font-semibold text-gray-900">Cost &amp; bookable options</h3>
                 <p className="mt-1 text-xs text-gray-600 leading-relaxed">
-                  One product can include several options (for example a small-group departure and a bus tour). Each option has
-                  its own price, usual start time, duration, meeting or pickup place, capacity, and when it is offered.
+                  Add each price and schedule as its own option. Meeting, pickup, and capacity are filled in when you create or
+                  edit an option.
                 </p>
               </div>
-              <p className="text-xs text-gray-500">
-                Drafts save from the listings list. The lowest option price is used as the “from” price on cards. Travelers still
-                book the product first; you can refine per-option checkout later.
-              </p>
-              {form.bookingOptions.map((opt, optIndex) => (
-                <div
-                  key={opt.id}
-                  className="rounded-xl border border-gray-200 bg-white p-4 sm:p-5 space-y-4 shadow-sm"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-2 border-b border-gray-100 pb-3">
-                    <h4 className="text-sm font-semibold text-gray-900">
-                      Option {optIndex + 1}
-                      {opt.name.trim() ? ` — ${opt.name.trim()}` : ''}
-                    </h4>
-                    {form.bookingOptions.length > 1 && (
+              <div className="space-y-2">
+                {materializedBookingOptions(form.bookingOptions).map((opt) => (
+                  <div
+                    key={opt.id}
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 truncate">
+                        {opt.name.trim() || 'Untitled option'}
+                      </p>
+                      <p className="text-xs text-gray-500 tabular-nums">
+                        ${opt.priceUsd} · {opt.duration.trim() || '—'}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => openOptionModalEdit(opt.id)}
+                        className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-800 hover:bg-gray-50 min-h-[44px]"
+                      >
+                        <Pencil className="w-3.5 h-3.5" aria-hidden />
+                        Edit
+                      </button>
                       <button
                         type="button"
                         onClick={() => removeBookingOption(opt.id)}
-                        className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50"
+                        className="inline-flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium text-red-700 hover:bg-red-50 min-h-[44px]"
                       >
-                        <Trash2 className="w-3.5 h-3.5 shrink-0" aria-hidden />
-                        Remove
+                        <Trash2 className="w-3.5 h-3.5" aria-hidden />
+                        Delete
                       </button>
-                    )}
+                    </div>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="sm:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Option name *</label>
-                      <input
-                        type="text"
-                        value={opt.name}
-                        onChange={(e) => patchBookingOption(opt.id, { name: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
-                        placeholder="e.g. Small group tour · max 8"
-                      />
-                    </div>
-                    <div {...(optIndex === 0 ? { id: 'supplier-listing-field-price' } : {})}>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Price (USD) *</label>
-                      <input
-                        type="number"
-                        min={0}
-                        step={1}
-                        value={opt.priceUsd || ''}
-                        onChange={(e) =>
-                          patchBookingOption(opt.id, { priceUsd: Math.max(0, Number(e.target.value) || 0) })
-                        }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
-                      />
-                    </div>
-                    <div {...(optIndex === 0 ? { id: 'supplier-listing-field-pickup_timing' } : {})}>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Usual start time</label>
-                      <input
-                        type="time"
-                        value={opt.startTime}
-                        onChange={(e) => patchBookingOption(opt.id, { startTime: e.target.value })}
-                        className="w-full max-w-[12rem] px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">Shown to guests; you can adjust on the booking.</p>
-                    </div>
-                    <div className="sm:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Duration for this option *</label>
-                      <input
-                        type="text"
-                        value={opt.duration}
-                        onChange={(e) => patchBookingOption(opt.id, { duration: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
-                        placeholder="e.g. 3 hours · half day"
-                      />
-                    </div>
-                    <div className="sm:col-span-2" {...(optIndex === 0 ? { id: 'supplier-listing-field-meeting' } : {})}>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Meeting or pickup place *</label>
-                      <textarea
-                        value={opt.pickupPlace}
-                        onChange={(e) => patchBookingOption(opt.id, { pickupPlace: e.target.value })}
-                        rows={3}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
-                        placeholder="Address, hotel zone, landmark, or how pickup is arranged for this option"
-                      />
-                    </div>
-                    <div {...(optIndex === 0 ? { id: 'supplier-listing-field-group' } : {})}>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Min guests per booking *</label>
-                      <input
-                        type="number"
-                        min={1}
-                        value={opt.minPersons || ''}
-                        onChange={(e) => {
-                          const nextMin = Math.max(1, Math.floor(Number(e.target.value) || 1));
-                          patchBookingOption(opt.id, {
-                            minPersons: nextMin,
-                            maxPersons: Math.max(nextMin, opt.maxPersons),
-                          });
-                        }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Max guests per booking *</label>
-                      <input
-                        type="number"
-                        min={1}
-                        value={opt.maxPersons || ''}
-                        onChange={(e) =>
-                          patchBookingOption(opt.id, {
-                            maxPersons: Math.max(opt.minPersons, Math.floor(Number(e.target.value) || opt.minPersons)),
-                          })
-                        }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
-                      />
-                    </div>
-                    <div className="sm:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Max spots per start time *</label>
-                      <input
-                        type="number"
-                        min={1}
-                        value={opt.maxSpotsPerSlot || ''}
-                        onChange={(e) =>
-                          patchBookingOption(opt.id, {
-                            maxSpotsPerSlot: Math.max(1, Math.floor(Number(e.target.value) || 1)),
-                          })
-                        }
-                        className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">Capacity for one departure or time slot.</p>
-                    </div>
-                    <div className="sm:col-span-2" {...(optIndex === 0 ? { id: 'supplier-listing-field-pickup' } : {})}>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">About this option *</label>
-                      <textarea
-                        value={opt.optionInfo}
-                        onChange={(e) => patchBookingOption(opt.id, { optionInfo: e.target.value })}
-                        rows={3}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
-                        placeholder="e.g. Private vehicle · English-speaking guide · shared bus · family-friendly"
-                      />
-                    </div>
-                    <div className="sm:col-span-2">
-                      <p className="text-sm font-medium text-gray-800 mb-2">Runs on these weekdays *</p>
-                      <div className="flex flex-wrap gap-2">
-                        {WEEKDAY_LABELS.map((label, di) => (
-                          <button
-                            key={label}
-                            type="button"
-                            onClick={() => {
-                              const next = [...opt.weekdays];
-                              next[di] = !next[di];
-                              patchBookingOption(opt.id, { weekdays: next });
-                            }}
-                            className={`min-h-[40px] min-w-[2.75rem] rounded-lg border px-2.5 text-xs font-semibold transition-colors ${
-                              opt.weekdays[di]
-                                ? 'border-finland bg-finland text-white'
-                                : 'border-gray-200 bg-gray-50 text-gray-500 hover:border-gray-300'
-                            }`}
-                          >
-                            {label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Season start (optional)</label>
-                      <input
-                        type="date"
-                        value={opt.availabilityDateFrom}
-                        onChange={(e) => patchBookingOption(opt.id, { availabilityDateFrom: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Season end (optional)</label>
-                      <input
-                        type="date"
-                        value={opt.availabilityDateTo}
-                        onChange={(e) => patchBookingOption(opt.id, { availabilityDateTo: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
-                      />
-                    </div>
-                    <p className="sm:col-span-2 text-xs text-gray-500">
-                      Leave both dates empty if this option is not limited to a fixed season. If you set one date, set both.
-                    </p>
-                  </div>
-                </div>
-              ))}
-              <button
-                type="button"
-                onClick={addBookingOption}
-                className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl border border-dashed border-finland/40 bg-finland/5 px-4 py-3 text-sm font-semibold text-finland hover:bg-finland/10 min-h-[48px]"
+                ))}
+              </div>
+              <div
+                {...(!optionModalOpen ? { id: 'supplier-listing-field-price' } : {})}
+                className="rounded-xl border border-dashed border-finland/40 bg-finland/5 p-1"
               >
-                <Plus className="w-5 h-5 shrink-0" aria-hidden />
-                Add another option
-              </button>
+                <button
+                  type="button"
+                  onClick={openOptionModalCreate}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg px-4 py-4 text-sm font-semibold text-finland hover:bg-finland/10 min-h-[48px]"
+                >
+                  <Plus className="w-5 h-5 shrink-0" aria-hidden />
+                  Create new option
+                </button>
+              </div>
+              {materializedBookingOptions(form.bookingOptions).length === 0 && (
+                <p className="text-xs text-gray-500">
+                  Add at least one complete option to continue. The lowest price appears as &quot;from&quot; on listing cards.
+                </p>
+              )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Overall difficulty</label>
@@ -1577,15 +1762,6 @@ export default function SupplierListingForm({
                   ))}
                 </div>
               </div>
-              {!isStepSatisfied(5, form) && (
-                <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950 leading-relaxed">
-                  <span className="font-semibold">Continue is disabled</span> until every{' '}
-                  <strong>started</strong> option passes all checks. Extra blank rows from &quot;Add another option&quot; are
-                  skipped automatically — or tap <strong>Remove</strong> on a row you don&apos;t need. Each active option needs:
-                  name, price, duration, meeting or pickup (8+ characters), about this option (3+ characters), at least one
-                  weekday, and either both season dates or neither.
-                </p>
-              )}
             </div>
           )}
 
@@ -1685,5 +1861,11 @@ export default function SupplierListingForm({
     </div>
   );
 
-  return createPortal(shell, document.body);
+  return createPortal(
+    <>
+      {shell}
+      {optionModalLayer}
+    </>,
+    document.body
+  );
 }
