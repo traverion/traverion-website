@@ -1,5 +1,34 @@
 import type { TourPackage } from '../types/tour';
+import type { ListingBookingOption } from '../types/listingExtras';
 import { LISTING_PLACEHOLDER_IMAGE, MIN_LISTING_DESCRIPTION_LENGTH } from './listingQualityScore';
+
+function optionPublishIssues(o: ListingBookingOption, index: number, multi: boolean): string[] {
+  const issues: string[] = [];
+  const prefix = multi ? `Option ${index + 1}${o.name.trim() ? ` (“${o.name.trim()}”)` : ''}: ` : '';
+  if (!o.name.trim()) issues.push(`${prefix}Add a name (e.g. small group tour, bus tour).`.trim());
+  if (typeof o.priceUsd !== 'number' || o.priceUsd <= 0) issues.push(`${prefix}Set a price greater than zero.`.trim());
+  const dur = o.duration?.trim() ?? '';
+  if (dur.length < 2) issues.push(`${prefix}Set how long this option runs.`.trim());
+  const meet = o.pickupPlace?.trim() ?? '';
+  if (meet.length < 8) issues.push(`${prefix}Add where guests meet or are picked up for this option.`.trim());
+  if (o.minPersons < 1 || o.maxPersons < o.minPersons) {
+    issues.push(`${prefix}Set minimum and maximum guests per booking (max ≥ min).`.trim());
+  }
+  if (o.maxSpotsPerSlot < 1) issues.push(`${prefix}Set how many spots you offer per start time.`.trim());
+  const info = o.optionInfo?.trim() ?? '';
+  if (info.length < 8) {
+    issues.push(`${prefix}Add a short note about this option (e.g. private, small group, language).`.trim());
+  }
+  const wd = o.weekdays ?? [];
+  if (!wd.some(Boolean)) issues.push(`${prefix}Select at least one weekday when this option runs.`.trim());
+  const df = o.availabilityDateFrom?.trim() ?? '';
+  const dt = o.availabilityDateTo?.trim() ?? '';
+  if ((df && !dt) || (!df && dt)) {
+    issues.push(`${prefix}Add both a season start and end date, or leave both empty for no fixed season.`.trim());
+  }
+  if (df && dt && df > dt) issues.push(`${prefix}Season end date must be on or after the start date.`.trim());
+  return issues;
+}
 
 /**
  * Human-readable blockers before publishing a listing. Keeps the bar reasonable for a first tour.
@@ -25,8 +54,13 @@ export function getListingPublishBlockers(listing: TourPackage): string[] {
   if (desc.length > 2000) {
     out.push('Main description must be 2000 characters or fewer.');
   }
+  const bookingOptions = listing.listingExtras?.bookingOptions ?? [];
   const price = listing.price?.startingFrom;
-  if (typeof price !== 'number' || price <= 0) {
+  if (bookingOptions.length > 0) {
+    for (let i = 0; i < bookingOptions.length; i++) {
+      out.push(...optionPublishIssues(bookingOptions[i], i, bookingOptions.length > 1));
+    }
+  } else if (typeof price !== 'number' || price <= 0) {
     out.push('Set a starting price greater than zero.');
   }
   const img = (listing.image ?? '').trim();
@@ -39,12 +73,12 @@ export function getListingPublishBlockers(listing: TourPackage): string[] {
     out.push('Add both city and country so the listing can be discovered and trusted.');
   }
   const groupSize = (listing.groupSize ?? '').trim();
-  if (groupSize.length < 3) {
+  if (bookingOptions.length === 0 && groupSize.length < 3) {
     out.push('Set group size (for example min–max guests or “up to X”) so guests know what to expect.');
   }
   const meet = (listing.meetingPoint ?? '').trim().length;
   const pickup = (listing.pickupInstructions ?? '').trim().length;
-  if (meet + pickup < 12) {
+  if (bookingOptions.length === 0 && meet + pickup < 12) {
     out.push('Add meeting point and/or pickup instructions so guests know where to go.');
   }
   const inc = (listing.includes ?? []).map((s) => String(s).trim()).filter(Boolean);

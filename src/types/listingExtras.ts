@@ -12,6 +12,31 @@ export type VenueSetting = 'unspecified' | 'indoor' | 'outdoor' | 'mixed';
 
 export type ScheduleStyle = 'flexible' | 'fixed_slots' | 'on_request';
 
+/** One bookable variant of a listing (e.g. small group vs bus tour) with its own price, timing, and pickup. */
+export interface ListingBookingOption {
+  id: string;
+  name: string;
+  /** Price in USD for this option. */
+  priceUsd: number;
+  /** Local start time HH:MM. */
+  startTime: string;
+  /** How long this option runs (e.g. “3 hours”). */
+  duration: string;
+  /** Where guests meet or are picked up for this option. */
+  pickupPlace: string;
+  minPersons: number;
+  maxPersons: number;
+  /** Max guests for one departure / start time. */
+  maxSpotsPerSlot: number;
+  /** Short note: private, small group, shared bus, language, etc. */
+  optionInfo: string;
+  /** Mon–Sun; true = offered that day. */
+  weekdays: boolean[];
+  /** Inclusive season start YYYY-MM-DD; empty = year-round / not set. */
+  availabilityDateFrom: string;
+  availabilityDateTo: string;
+}
+
 export interface ListingExtras {
   additionalLanguages?: string[];
   venueSetting?: VenueSetting;
@@ -22,6 +47,43 @@ export interface ListingExtras {
   galleryImageUrls?: string[];
   cancellationPreset?: CancellationPreset;
   cancellationExtra?: string;
+  /** Multiple priced variants under one product (partner Cost & options). */
+  bookingOptions?: ListingBookingOption[];
+}
+
+const WEEKDAY_COUNT = 7;
+
+function normalizeWeekdays(raw: unknown): boolean[] {
+  if (!Array.isArray(raw) || raw.length === 0) {
+    return [true, true, true, true, true, false, false];
+  }
+  const out = raw.slice(0, WEEKDAY_COUNT).map((x) => Boolean(x));
+  while (out.length < WEEKDAY_COUNT) out.push(false);
+  return out;
+}
+
+export function normalizeListingBookingOption(raw: Record<string, unknown>, fallbackId: string): ListingBookingOption {
+  const minP = typeof raw.minPersons === 'number' && raw.minPersons >= 1 ? Math.floor(raw.minPersons) : 1;
+  let maxP = typeof raw.maxPersons === 'number' && raw.maxPersons >= minP ? Math.floor(raw.maxPersons) : Math.max(minP, 12);
+  const spots =
+    typeof raw.maxSpotsPerSlot === 'number' && raw.maxSpotsPerSlot >= 1
+      ? Math.floor(raw.maxSpotsPerSlot)
+      : maxP;
+  return {
+    id: typeof raw.id === 'string' && raw.id.trim() ? raw.id.trim() : fallbackId,
+    name: typeof raw.name === 'string' ? raw.name : '',
+    priceUsd: typeof raw.priceUsd === 'number' && !Number.isNaN(raw.priceUsd) ? Math.max(0, raw.priceUsd) : 0,
+    startTime: typeof raw.startTime === 'string' ? raw.startTime : '',
+    duration: typeof raw.duration === 'string' ? raw.duration : '',
+    pickupPlace: typeof raw.pickupPlace === 'string' ? raw.pickupPlace : '',
+    minPersons: minP,
+    maxPersons: maxP,
+    maxSpotsPerSlot: Math.max(1, spots),
+    optionInfo: typeof raw.optionInfo === 'string' ? raw.optionInfo : '',
+    weekdays: normalizeWeekdays(raw.weekdays),
+    availabilityDateFrom: typeof raw.availabilityDateFrom === 'string' ? raw.availabilityDateFrom : '',
+    availabilityDateTo: typeof raw.availabilityDateTo === 'string' ? raw.availabilityDateTo : '',
+  };
 }
 
 export function parseListingExtras(raw: unknown): ListingExtras {
@@ -60,6 +122,12 @@ export function parseListingExtras(raw: unknown): ListingExtras {
     out.cancellationExtra = o.cancellationExtra.trim();
   }
 
+  if (Array.isArray(o.bookingOptions) && o.bookingOptions.length > 0) {
+    out.bookingOptions = o.bookingOptions
+      .filter((x) => x != null && typeof x === 'object')
+      .map((x, i) => normalizeListingBookingOption(x as Record<string, unknown>, `opt-${i}`));
+  }
+
   return out;
 }
 
@@ -74,5 +142,6 @@ export function listingExtrasToDb(extras: ListingExtras | undefined): Record<str
   if (extras.scheduleStyle) payload.scheduleStyle = extras.scheduleStyle;
   if (extras.typicalTimelineNotes?.trim()) payload.typicalTimelineNotes = extras.typicalTimelineNotes.trim();
   if (extras.galleryImageUrls?.length) payload.galleryImageUrls = extras.galleryImageUrls;
+  if (extras.bookingOptions?.length) payload.bookingOptions = extras.bookingOptions;
   return Object.keys(payload).length > 0 ? payload : null;
 }

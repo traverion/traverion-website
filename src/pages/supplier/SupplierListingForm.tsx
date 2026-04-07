@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { Plus, Trash2 } from 'lucide-react';
 import { TourPackage } from '../../types/tour';
-import type { ListingExtras, ScheduleStyle, VenueSetting } from '../../types/listingExtras';
-import { parseListingExtras, TRAVERION_STANDARD_CANCELLATION_POLICY } from '../../types/listingExtras';
+import type { ListingBookingOption, ListingExtras, ScheduleStyle, VenueSetting } from '../../types/listingExtras';
+import { normalizeListingBookingOption, parseListingExtras, TRAVERION_STANDARD_CANCELLATION_POLICY } from '../../types/listingExtras';
 import ListingImageFields from '../../components/supplier/ListingImageFields';
 import { useAuth } from '../../contexts/AuthContext';
 import { getListingPublishBlockers } from '../../lib/listingPublishGate';
@@ -26,15 +27,10 @@ const EXPERIENCE_START_OPTIONS: {
   value: 'unspecified' | 'fixed_meeting_place' | 'operator_pickup' | 'either_available';
   label: string;
 }[] = [
-  { value: 'unspecified', label: 'Not sure yet — I will describe it under Meeting & pickup' },
+  { value: 'unspecified', label: 'Not sure yet — describe per option under Cost & options' },
   { value: 'fixed_meeting_place', label: 'Guests meet us at a fixed meeting point' },
   { value: 'operator_pickup', label: 'We pick guests up (for example from their accommodation area)' },
   { value: 'either_available', label: 'Both meeting at a set place and pickup are available' },
-];
-
-const DROPOFF_OPTIONS: { value: 'same_as_pickup' | 'different_place'; label: string }[] = [
-  { value: 'same_as_pickup', label: 'Same as pickup / meeting point (typical round trip)' },
-  { value: 'different_place', label: 'Different drop-off place' },
 ];
 
 const MAX_SUBTITLE_LENGTH = 300;
@@ -46,25 +42,95 @@ const GALLERY_SLOT_COUNT = 3;
 const MAX_ACCESSIBILITY_LENGTH = 500;
 const MAX_TIMELINE_LENGTH = 800;
 
-/** Upper bound (minutes before start); lower bound is always 0 — saved as listing pickup window. */
-type PickupWindowPresetMax = 15 | 30 | 45 | 60 | 120;
+const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-const PICKUP_WINDOW_PRESET_OPTIONS: { value: PickupWindowPresetMax; label: string }[] = [
-  { value: 15, label: '0–15 min' },
-  { value: 30, label: '0–30 min' },
-  { value: 45, label: '0–45 min' },
-  { value: 60, label: '0–60 min' },
-  { value: 120, label: '0–120 min' },
-];
+function newBookingOptionId(): string {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return crypto.randomUUID();
+  }
+  return `opt-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
 
-function normalizePickupWindowPresetMax(min: number, max: number): PickupWindowPresetMax {
+function createEmptyBookingOption(): ListingBookingOption {
+  return normalizeListingBookingOption(
+    {
+      id: newBookingOptionId(),
+      name: '',
+      priceUsd: 0,
+      startTime: '',
+      duration: '',
+      pickupPlace: '',
+      minPersons: 1,
+      maxPersons: 12,
+      maxSpotsPerSlot: 12,
+      optionInfo: '',
+      weekdays: [true, true, true, true, true, false, false],
+      availabilityDateFrom: '',
+      availabilityDateTo: '',
+    },
+    newBookingOptionId()
+  );
+}
+
+function parseMinMaxFromGroupSize(s: string): { min: number; max: number } {
+  const t = s.trim();
+  const range = t.match(/(\d+)\s*[-–]\s*(\d+)/);
+  if (range) {
+    const a = parseInt(range[1], 10);
+    const b = parseInt(range[2], 10);
+    if (!Number.isNaN(a) && !Number.isNaN(b)) {
+      return { min: Math.min(a, b), max: Math.max(a, b) };
+    }
+  }
+  const upTo = t.match(/(?:up to|max\.?)\s*(\d+)/i);
+  if (upTo) {
+    const n = parseInt(upTo[1], 10);
+    if (!Number.isNaN(n)) return { min: 1, max: Math.max(1, n) };
+  }
+  return { min: 1, max: 12 };
+}
+
+function legacyTourToBookingOptions(tour: TourPackage): ListingBookingOption[] {
+  const extras = parseListingExtras(tour.listingExtras as unknown);
+  if (extras.bookingOptions && extras.bookingOptions.length > 0) {
+    return extras.bookingOptions;
+  }
+  const { min, max } = parseMinMaxFromGroupSize(tour.groupSize ?? '');
   const hi = Math.max(min, max);
-  if (hi <= 0) return 30;
-  if (hi <= 15) return 15;
-  if (hi <= 30) return 30;
-  if (hi <= 45) return 45;
-  if (hi <= 60) return 60;
-  return 120;
+  return [
+    normalizeListingBookingOption(
+      {
+        id: newBookingOptionId(),
+        name: 'Standard',
+        priceUsd: typeof tour.price?.startingFrom === 'number' ? tour.price.startingFrom : 0,
+        startTime: tour.defaultStartTime ?? '',
+        duration: (tour.duration ?? '').trim(),
+        pickupPlace: tour.meetingPoint ?? '',
+        minPersons: min,
+        maxPersons: hi,
+        maxSpotsPerSlot: hi,
+        optionInfo: tour.pickupInstructions ?? '',
+        weekdays: [true, true, true, true, true, true, true],
+        availabilityDateFrom: '',
+        availabilityDateTo: '',
+      },
+      newBookingOptionId()
+    ),
+  ];
+}
+
+function isBookingOptionOkForStep(o: ListingBookingOption): boolean {
+  if (!o.name.trim() || o.priceUsd <= 0 || o.duration.trim().length < 2) return false;
+  if (o.pickupPlace.trim().length < 8) return false;
+  if (o.minPersons < 1 || o.maxPersons < o.minPersons) return false;
+  if (o.maxSpotsPerSlot < 1) return false;
+  if (o.optionInfo.trim().length < 3) return false;
+  if (!o.weekdays.some(Boolean)) return false;
+  const df = o.availabilityDateFrom.trim();
+  const dt = o.availabilityDateTo.trim();
+  if ((df && !dt) || (!df && dt)) return false;
+  if (df && dt && df > dt) return false;
+  return true;
 }
 
 function normalizeHighlightSlots(fromDb: string[] | undefined): string[] {
@@ -83,7 +149,7 @@ function normalizeLineSlots(count: number, fromDb: string[] | undefined): string
 
 const SCHEDULE_STYLE_OPTIONS: { value: ScheduleStyle; label: string; hint: string }[] = [
   { value: 'flexible', label: 'Flexible timing', hint: 'Start time can vary or you confirm after booking.' },
-  { value: 'fixed_slots', label: 'Fixed daily start', hint: 'You usually run at set times (set default start time under Meeting & pickup).' },
+  { value: 'fixed_slots', label: 'Fixed daily start', hint: 'You usually run at set times (set start time on each booking option).' },
   { value: 'on_request', label: 'On request / private', hint: 'Guests arrange timing with you directly.' },
 ];
 
@@ -148,22 +214,15 @@ type ListingFormState = {
   highlights: string[];
   destination: string;
   duration: string;
-  price: number;
   image: string;
   description: string;
   city: string;
   country: string;
   tags: string[];
-  groupSize: string;
   difficulty: 'Easy' | 'Moderate' | 'Challenging';
   status: 'draft' | 'published';
-  meetingPoint: string;
-  pickupInstructions: string;
-  defaultStartTime: string;
-  pickupWindowMinutesBeforeMax: PickupWindowPresetMax;
+  bookingOptions: ListingBookingOption[];
   experienceStartStyle: 'unspecified' | 'fixed_meeting_place' | 'operator_pickup' | 'either_available';
-  dropoffMode: 'same_as_pickup' | 'different_place';
-  dropoffLocation: string;
   includes: string[];
   excludes: string[];
   scheduleStyle: ScheduleStyle | '';
@@ -174,39 +233,6 @@ type ListingFormState = {
   venueSetting: VenueSetting;
   additionalLanguages: string[];
 };
-
-function meetingAndPickupFieldCopy(style: ListingFormState['experienceStartStyle']): {
-  meetingLabel: string;
-  meetingPlaceholder: string;
-  meetingHint: string;
-} {
-  switch (style) {
-    case 'fixed_meeting_place':
-      return {
-        meetingLabel: 'Meeting point',
-        meetingPlaceholder: 'Address, landmark, or how to find you',
-        meetingHint: 'Guests come here to begin the experience.',
-      };
-    case 'operator_pickup':
-      return {
-        meetingLabel: 'Pickup area or coverage',
-        meetingPlaceholder: 'e.g. central hotels, cruise terminal zone, within X km',
-        meetingHint: 'Describe where you collect guests or how you confirm their pickup address.',
-      };
-    case 'either_available':
-      return {
-        meetingLabel: 'Meeting point (if guests meet you here)',
-        meetingPlaceholder: 'Address or landmark for the fixed meeting option',
-        meetingHint: 'If they choose pickup instead, use Pickup instructions below.',
-      };
-    default:
-      return {
-        meetingLabel: 'Meeting point / pickup location',
-        meetingPlaceholder: 'Address, landmark, or area — add timing in Daily timing below',
-        meetingHint: 'Choose how the experience starts under Location & start when you can — this stays flexible until then.',
-      };
-  }
-}
 
 /** Stored listing destination label: optional custom text, or derived from city/country, or “Various locations”. */
 function resolveListingDestinationLabel(
@@ -226,10 +252,18 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
   const id = existingId ?? `supplier-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
   const resolvedDestination = resolveListingDestinationLabel(form);
   const startLoc = form.city.trim() || resolvedDestination;
-  const endLoc =
-    form.dropoffMode === 'different_place' && form.dropoffLocation.trim()
-      ? form.dropoffLocation.trim()
-      : startLoc;
+  const endLoc = startLoc;
+  const opts = form.bookingOptions;
+  const first = opts[0];
+  const positivePrices = opts.map((o) => o.priceUsd).filter((p) => p > 0);
+  const derivedStarting =
+    positivePrices.length > 0 ? Math.min(...positivePrices) : 0;
+  const groupSizeStr =
+    opts.length === 0
+      ? '1–12 guests'
+      : opts.length === 1
+        ? `${opts[0].minPersons}–${opts[0].maxPersons} guests`
+        : `${opts.length} bookable options`;
   const kind =
     form.experienceKind === 'tour' ||
     form.experienceKind === 'ticket' ||
@@ -264,6 +298,7 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
       ? { typicalTimelineNotes: form.typicalTimelineNotes.trim().slice(0, MAX_TIMELINE_LENGTH) }
       : {}),
     ...(galleryList.length ? { galleryImageUrls: galleryList } : {}),
+    ...(opts.length > 0 ? { bookingOptions: opts } : {}),
   };
   return {
     id,
@@ -275,7 +310,7 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
     startLocation: startLoc,
     endLocation: endLoc,
     price: {
-      startingFrom: form.price,
+      startingFrom: derivedStarting,
       currency: 'USD',
       perPerson: true,
       twinOccupancy: false,
@@ -303,7 +338,7 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
     excludes: excludeList,
     hotels: [],
     difficulty: form.difficulty,
-    groupSize: form.groupSize.trim() || '2-12 People',
+    groupSize: groupSizeStr,
     bestTime: 'Year round',
     rating: 4.5,
     reviews: 0,
@@ -315,17 +350,14 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
     status: form.status,
     cancellationPolicy: TRAVERION_STANDARD_CANCELLATION_POLICY,
     listingExtras: Object.keys(extras).length > 0 ? extras : undefined,
-    meetingPoint: form.meetingPoint.trim() || undefined,
-    pickupInstructions: form.pickupInstructions.trim() || undefined,
-    defaultStartTime: form.defaultStartTime.trim() || undefined,
+    meetingPoint: first?.pickupPlace.trim() || undefined,
+    pickupInstructions: first?.optionInfo.trim() || undefined,
+    defaultStartTime: first?.startTime.trim() || undefined,
     pickupWindowMinutesBeforeMin: 0,
-    pickupWindowMinutesBeforeMax: form.pickupWindowMinutesBeforeMax,
+    pickupWindowMinutesBeforeMax: 30,
     experienceStartStyle: form.experienceStartStyle,
-    dropoffMode: form.dropoffMode,
-    dropoffLocation:
-      form.dropoffMode === 'different_place' && form.dropoffLocation.trim()
-        ? form.dropoffLocation.trim()
-        : undefined,
+    dropoffMode: 'same_as_pickup',
+    dropoffLocation: undefined,
     experienceLanguage: form.experienceLanguage.trim() || undefined,
     experienceKind: kind,
   };
@@ -343,11 +375,6 @@ function listingPhotosStepComplete(form: ListingFormState): boolean {
   }
   const galleryCount = form.galleryUrls.map((s) => s.trim()).filter(Boolean).length;
   return galleryCount >= 1;
-}
-
-/** Matches publish gate for where guests go (combined length). */
-function meetingPickupStepComplete(form: ListingFormState): boolean {
-  return form.meetingPoint.trim().length + form.pickupInstructions.trim().length >= 12;
 }
 
 function isStepSatisfied(idx: number, form: ListingFormState): boolean {
@@ -380,13 +407,9 @@ function isStepSatisfied(idx: number, form: ListingFormState): boolean {
     );
   }
   if (idx === 5) {
-    const g = form.groupSize.trim();
-    return form.price > 0 && g.length >= 3;
+    return form.bookingOptions.length >= 1 && form.bookingOptions.every(isBookingOptionOkForStep);
   }
   if (idx === 6) {
-    return meetingPickupStepComplete(form);
-  }
-  if (idx === 7) {
     return listingPhotosStepComplete(form);
   }
   return true;
@@ -400,22 +423,15 @@ const emptyForm: ListingFormState = {
   highlights: Array.from({ length: HIGHLIGHT_SLOT_COUNT }, () => ''),
   destination: '',
   duration: '',
-  price: 0,
   image: '',
   description: '',
   city: '',
   country: '',
   tags: [] as string[],
-  groupSize: '2-12 People',
   difficulty: 'Easy',
   status: 'draft',
-  meetingPoint: '',
-  pickupInstructions: '',
-  defaultStartTime: '',
-  pickupWindowMinutesBeforeMax: 30,
+  bookingOptions: [createEmptyBookingOption()],
   experienceStartStyle: 'unspecified',
-  dropoffMode: 'same_as_pickup',
-  dropoffLocation: '',
   includes: Array.from({ length: INCLUDE_SLOT_COUNT }, () => ''),
   excludes: Array.from({ length: EXCLUDE_SLOT_COUNT }, () => ''),
   scheduleStyle: 'flexible',
@@ -448,8 +464,7 @@ type StepId =
   | 'subtitle_details'
   | 'inclusions_info'
   | 'location_start'
-  | 'pricing'
-  | 'logistics'
+  | 'cost_options'
   | 'photos';
 
 export default function SupplierListingForm({
@@ -484,8 +499,7 @@ export default function SupplierListingForm({
       { id: 'subtitle_details' as StepId, label: 'Subtitle & details' },
       { id: 'inclusions_info' as StepId, label: 'Inclusions & Info' },
       { id: 'location_start' as StepId, label: 'Location & start' },
-      { id: 'pricing' as StepId, label: 'Pricing' },
-      { id: 'logistics' as StepId, label: 'Meeting & pickup' },
+      { id: 'cost_options' as StepId, label: 'Cost & options' },
       { id: 'photos' as StepId, label: 'Tour photos' },
     ],
     []
@@ -506,21 +520,21 @@ export default function SupplierListingForm({
       venue: 3,
       languages: 3,
       location: 4,
-      destination: 6,
+      destination: 4,
       duration: 4,
       schedule: 4,
       price: 5,
       group: 5,
       tags: 5,
-      meeting: 6,
-      pickup: 6,
+      meeting: 5,
+      pickup: 5,
+      pickup_timing: 5,
       start: 4,
-      dropoff: 6,
-      pickup_timing: 6,
-      image: 7,
-      gallery: 7,
-      hero: 7,
-      photos: 7,
+      dropoff: 5,
+      image: 6,
+      gallery: 6,
+      hero: 6,
+      photos: 6,
     }),
     []
   );
@@ -543,25 +557,15 @@ export default function SupplierListingForm({
           highlights: normalizeHighlightSlots(existing.highlights),
           destination: existing.destination,
           duration: existing.duration,
-          price: existing.price.startingFrom,
           image: existing.image,
           description: existing.description,
           city: existing.city ?? '',
           country: existing.country ?? '',
           tags: existing.tags ?? [],
-          groupSize: existing.groupSize,
           difficulty: existing.difficulty,
           status: existing.status === 'draft' || existing.status === 'published' ? existing.status : 'draft',
-          meetingPoint: existing.meetingPoint ?? '',
-          pickupInstructions: existing.pickupInstructions ?? '',
-          defaultStartTime: existing.defaultStartTime ?? '',
-          pickupWindowMinutesBeforeMax: normalizePickupWindowPresetMax(
-            existing.pickupWindowMinutesBeforeMin ?? 0,
-            existing.pickupWindowMinutesBeforeMax ?? 30
-          ),
+          bookingOptions: legacyTourToBookingOptions(existing),
           experienceStartStyle: existing.experienceStartStyle ?? 'unspecified',
-          dropoffMode: existing.dropoffMode ?? 'same_as_pickup',
-          dropoffLocation: existing.dropoffLocation ?? '',
           includes: normalizeLineSlots(INCLUDE_SLOT_COUNT, existing.includes),
           excludes: normalizeLineSlots(EXCLUDE_SLOT_COUNT, existing.excludes),
           scheduleStyle: extras.scheduleStyle ?? 'flexible',
@@ -735,6 +739,27 @@ export default function SupplierListingForm({
     }));
   };
 
+  const patchBookingOption = useCallback((optionId: string, patch: Partial<ListingBookingOption>) => {
+    setForm((f) => ({
+      ...f,
+      bookingOptions: f.bookingOptions.map((o) =>
+        o.id === optionId ? normalizeListingBookingOption({ ...(o as unknown as Record<string, unknown>), ...patch }, o.id) : o
+      ),
+    }));
+  }, []);
+
+  const addBookingOption = useCallback(() => {
+    setForm((f) => ({ ...f, bookingOptions: [...f.bookingOptions, createEmptyBookingOption()] }));
+  }, []);
+
+  const removeBookingOption = useCallback((optionId: string) => {
+    setForm((f) =>
+      f.bookingOptions.length <= 1
+        ? f
+        : { ...f, bookingOptions: f.bookingOptions.filter((o) => o.id !== optionId) }
+    );
+  }, []);
+
   const canContinueStep = () => {
     if (stepIdx >= steps.length - 1) return true;
     return isStepSatisfied(stepIdx, form);
@@ -835,8 +860,10 @@ export default function SupplierListingForm({
                         </span>
                       </div>
                       <span
-                        className={`mt-1.5 text-center text-[10px] font-medium leading-tight sm:text-xs ${
-                          current ? 'text-finland' : 'text-gray-600'
+                        className={`mt-1.5 inline-block max-w-[6.5rem] sm:max-w-none text-center text-[10px] font-semibold leading-tight sm:text-xs transition-shadow ${
+                          current
+                            ? 'rounded-md bg-finland/12 px-1.5 py-0.5 text-finland shadow-[0_0_0_1px_rgba(0,86,140,0.2),0_4px_14px_rgba(0,86,140,0.22)]'
+                            : 'text-gray-600'
                         }`}
                       >
                         {step.label}
@@ -1196,9 +1223,22 @@ export default function SupplierListingForm({
                   />
                 </div>
               </div>
+              <div id="supplier-listing-field-destination" className="rounded-xl border border-gray-100 bg-gray-50/80 p-4 space-y-2">
+                <label className="block text-sm font-medium text-gray-700">How it shows as a place (optional)</label>
+                <input
+                  type="text"
+                  value={form.destination}
+                  onChange={(e) => setForm((f) => ({ ...f, destination: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                  placeholder="e.g. coastal route · several towns — or leave blank"
+                />
+                <p className="text-xs text-gray-500">
+                  If you skip this, we use city and country from above; if you fill this instead, cards can show this route label.
+                </p>
+              </div>
               <p className="text-xs text-gray-500 -mt-2">
-                Use the main base or usual starting city. For wider or multi-stop routes, add a clearer route label under{' '}
-                <span className="font-medium text-gray-700">Meeting &amp; pickup</span>.
+                Use the main base or usual starting city. Per-option meeting and pickup are set under{' '}
+                <span className="font-medium text-gray-700">Cost &amp; options</span>.
               </p>
               <div id="supplier-listing-field-duration">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Duration *</label>
@@ -1230,7 +1270,7 @@ export default function SupplierListingForm({
                   ))}
                 </select>
                 <p className="text-xs text-gray-500 mt-1">
-                  Add addresses, areas, and timing under Meeting &amp; pickup. Guests use this to know whether to meet you or expect pickup.
+                  You will set the exact meeting or pickup place for each bookable option under Cost &amp; options.
                 </p>
               </div>
               <div id="supplier-listing-field-schedule" className="rounded-xl border border-gray-100 bg-gray-50/80 p-4 space-y-3">
@@ -1288,29 +1328,215 @@ export default function SupplierListingForm({
 
           {stepIdx === 5 && (
             <div className="space-y-4 transition-all duration-300 ease-out opacity-100 translate-y-0">
-              <div id="supplier-listing-field-price">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Price from (USD) *</label>
-                <input type="number" min={0} value={form.price || ''} onChange={e => setForm(f => ({ ...f, price: Number(e.target.value) || 0 }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland" required />
+              <div className="rounded-xl border border-finland/20 bg-finland/5 p-4 sm:p-5">
+                <h3 className="text-sm font-semibold text-gray-900">Cost &amp; bookable options</h3>
+                <p className="mt-1 text-xs text-gray-600 leading-relaxed">
+                  One product can include several options (for example a small-group departure and a bus tour). Each option has
+                  its own price, usual start time, duration, meeting or pickup place, capacity, and when it is offered.
+                </p>
               </div>
-              <p className="text-xs text-gray-500 -mt-2">
-                New listings save as drafts until you publish them from the listings list. Editing a live listing keeps it live
-                unless you switch it to draft there.
+              <p className="text-xs text-gray-500">
+                Drafts save from the listings list. The lowest option price is used as the “from” price on cards. Travelers still
+                book the product first; you can refine per-option checkout later.
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" id="supplier-listing-field-group">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Group size *</label>
-                  <input
-                    type="text"
-                    value={form.groupSize}
-                    onChange={(e) => setForm((f) => ({ ...f, groupSize: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
-                    placeholder="e.g. 2–12 people or max 8 per departure"
-                    required
-                  />
+              {form.bookingOptions.map((opt, optIndex) => (
+                <div
+                  key={opt.id}
+                  className="rounded-xl border border-gray-200 bg-white p-4 sm:p-5 space-y-4 shadow-sm"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-2 border-b border-gray-100 pb-3">
+                    <h4 className="text-sm font-semibold text-gray-900">
+                      Option {optIndex + 1}
+                      {opt.name.trim() ? ` — ${opt.name.trim()}` : ''}
+                    </h4>
+                    {form.bookingOptions.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeBookingOption(opt.id)}
+                        className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 shrink-0" aria-hidden />
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="sm:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Option name *</label>
+                      <input
+                        type="text"
+                        value={opt.name}
+                        onChange={(e) => patchBookingOption(opt.id, { name: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                        placeholder="e.g. Small group tour · max 8"
+                      />
+                    </div>
+                    <div {...(optIndex === 0 ? { id: 'supplier-listing-field-price' } : {})}>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Price (USD) *</label>
+                      <input
+                        type="number"
+                        min={0}
+                        step={1}
+                        value={opt.priceUsd || ''}
+                        onChange={(e) =>
+                          patchBookingOption(opt.id, { priceUsd: Math.max(0, Number(e.target.value) || 0) })
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                      />
+                    </div>
+                    <div {...(optIndex === 0 ? { id: 'supplier-listing-field-pickup_timing' } : {})}>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Usual start time</label>
+                      <input
+                        type="time"
+                        value={opt.startTime}
+                        onChange={(e) => patchBookingOption(opt.id, { startTime: e.target.value })}
+                        className="w-full max-w-[12rem] px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Shown to guests; you can adjust on the booking.</p>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Duration for this option *</label>
+                      <input
+                        type="text"
+                        value={opt.duration}
+                        onChange={(e) => patchBookingOption(opt.id, { duration: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                        placeholder="e.g. 3 hours · half day"
+                      />
+                    </div>
+                    <div className="sm:col-span-2" {...(optIndex === 0 ? { id: 'supplier-listing-field-meeting' } : {})}>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Meeting or pickup place *</label>
+                      <textarea
+                        value={opt.pickupPlace}
+                        onChange={(e) => patchBookingOption(opt.id, { pickupPlace: e.target.value })}
+                        rows={3}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                        placeholder="Address, hotel zone, landmark, or how pickup is arranged for this option"
+                      />
+                    </div>
+                    <div {...(optIndex === 0 ? { id: 'supplier-listing-field-group' } : {})}>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Min guests per booking *</label>
+                      <input
+                        type="number"
+                        min={1}
+                        value={opt.minPersons || ''}
+                        onChange={(e) => {
+                          const nextMin = Math.max(1, Math.floor(Number(e.target.value) || 1));
+                          patchBookingOption(opt.id, {
+                            minPersons: nextMin,
+                            maxPersons: Math.max(nextMin, opt.maxPersons),
+                          });
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Max guests per booking *</label>
+                      <input
+                        type="number"
+                        min={1}
+                        value={opt.maxPersons || ''}
+                        onChange={(e) =>
+                          patchBookingOption(opt.id, {
+                            maxPersons: Math.max(opt.minPersons, Math.floor(Number(e.target.value) || opt.minPersons)),
+                          })
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Max spots per start time *</label>
+                      <input
+                        type="number"
+                        min={1}
+                        value={opt.maxSpotsPerSlot || ''}
+                        onChange={(e) =>
+                          patchBookingOption(opt.id, {
+                            maxSpotsPerSlot: Math.max(1, Math.floor(Number(e.target.value) || 1)),
+                          })
+                        }
+                        className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Capacity for one departure or time slot.</p>
+                    </div>
+                    <div className="sm:col-span-2" {...(optIndex === 0 ? { id: 'supplier-listing-field-pickup' } : {})}>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">About this option *</label>
+                      <textarea
+                        value={opt.optionInfo}
+                        onChange={(e) => patchBookingOption(opt.id, { optionInfo: e.target.value })}
+                        rows={3}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                        placeholder="e.g. Private vehicle · English-speaking guide · shared bus · family-friendly"
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <p className="text-sm font-medium text-gray-800 mb-2">Runs on these weekdays *</p>
+                      <div className="flex flex-wrap gap-2">
+                        {WEEKDAY_LABELS.map((label, di) => (
+                          <button
+                            key={label}
+                            type="button"
+                            onClick={() => {
+                              const next = [...opt.weekdays];
+                              next[di] = !next[di];
+                              patchBookingOption(opt.id, { weekdays: next });
+                            }}
+                            className={`min-h-[40px] min-w-[2.75rem] rounded-lg border px-2.5 text-xs font-semibold transition-colors ${
+                              opt.weekdays[di]
+                                ? 'border-finland bg-finland text-white'
+                                : 'border-gray-200 bg-gray-50 text-gray-500 hover:border-gray-300'
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Season start (optional)</label>
+                      <input
+                        type="date"
+                        value={opt.availabilityDateFrom}
+                        onChange={(e) => patchBookingOption(opt.id, { availabilityDateFrom: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Season end (optional)</label>
+                      <input
+                        type="date"
+                        value={opt.availabilityDateTo}
+                        onChange={(e) => patchBookingOption(opt.id, { availabilityDateTo: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                      />
+                    </div>
+                    <p className="sm:col-span-2 text-xs text-gray-500">
+                      Leave both dates empty if this option is not limited to a fixed season. If you set one date, set both.
+                    </p>
+                  </div>
                 </div>
+              ))}
+              <button
+                type="button"
+                onClick={addBookingOption}
+                className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl border border-dashed border-finland/40 bg-finland/5 px-4 py-3 text-sm font-semibold text-finland hover:bg-finland/10 min-h-[48px]"
+              >
+                <Plus className="w-5 h-5 shrink-0" aria-hidden />
+                Add another option
+              </button>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Difficulty</label>
-                  <select value={form.difficulty} onChange={e => setForm(f => ({ ...f, difficulty: e.target.value as 'Easy' | 'Moderate' | 'Challenging' }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Overall difficulty</label>
+                  <select
+                    value={form.difficulty}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        difficulty: e.target.value as 'Easy' | 'Moderate' | 'Challenging',
+                      }))
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                  >
                     <option value="Easy">Easy</option>
                     <option value="Moderate">Moderate</option>
                     <option value="Challenging">Challenging</option>
@@ -1320,7 +1546,7 @@ export default function SupplierListingForm({
               <div id="supplier-listing-field-tags">
                 <label className="block text-sm font-medium text-gray-700 mb-3">Tags</label>
                 <div className="flex flex-wrap gap-x-4 gap-y-3">
-                  {TAG_OPTIONS.map(tag => (
+                  {TAG_OPTIONS.map((tag) => (
                     <label
                       key={tag.id}
                       className="inline-flex items-center gap-3 min-h-[44px] pr-1 touch-manipulation cursor-pointer"
@@ -1340,134 +1566,6 @@ export default function SupplierListingForm({
           )}
 
           {stepIdx === 6 && (
-            <div className="space-y-4 transition-all duration-300 ease-out opacity-100 translate-y-0">
-              <div id="supplier-listing-field-destination">
-                <label className="block text-sm font-medium text-gray-700 mb-1">How it shows as a place (optional)</label>
-                <input
-                  type="text"
-                  value={form.destination}
-                  onChange={(e) => setForm((f) => ({ ...f, destination: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
-                  placeholder="e.g. coastal route · several towns — or leave blank"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  If you skip this, we use city and country from Location &amp; start; otherwise “Various locations” on cards and search.
-                </p>
-              </div>
-              <div className="rounded-xl border border-gray-200 bg-gray-50/90 p-4 sm:p-5 space-y-4">
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-900">Pickup &amp; drop-off</h3>
-                  <p className="text-xs text-gray-600 mt-1">
-                    Clarify whether guests come to you, you collect them, and where the experience ends compared to where it
-                    started.
-                  </p>
-                </div>
-                {(() => {
-                  const mpc = meetingAndPickupFieldCopy(form.experienceStartStyle);
-                  return (
-                    <>
-                      <div id="supplier-listing-field-meeting">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">{mpc.meetingLabel}</label>
-                        <input
-                          type="text"
-                          value={form.meetingPoint}
-                          onChange={(e) => setForm((f) => ({ ...f, meetingPoint: e.target.value }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
-                          placeholder={mpc.meetingPlaceholder}
-                        />
-                        <p className="text-xs text-gray-500 mt-1">{mpc.meetingHint}</p>
-                      </div>
-                      <div id="supplier-listing-field-pickup">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Pickup instructions</label>
-                        <textarea
-                          value={form.pickupInstructions}
-                          onChange={(e) => setForm((f) => ({ ...f, pickupInstructions: e.target.value }))}
-                          rows={3}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
-                          placeholder="What guests should do if you pick them up: how you contact them, what to wait for, luggage, accessibility, etc."
-                        />
-                      </div>
-                      <div id="supplier-listing-field-dropoff">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Drop-off</label>
-                        <select
-                          value={form.dropoffMode}
-                          onChange={(e) =>
-                            setForm((f) => ({
-                              ...f,
-                              dropoffMode: e.target.value as ListingFormState['dropoffMode'],
-                              dropoffLocation: e.target.value === 'same_as_pickup' ? '' : f.dropoffLocation,
-                            }))
-                          }
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
-                        >
-                          {DROPOFF_OPTIONS.map((o) => (
-                            <option key={o.value} value={o.value}>
-                              {o.label}
-                            </option>
-                          ))}
-                        </select>
-                        <p className="text-xs text-gray-500 mt-1">
-                          Choose “Different drop-off place” if the route ends somewhere other than the pickup or meeting point.
-                        </p>
-                      </div>
-                      {form.dropoffMode === 'different_place' && (
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Drop-off details</label>
-                          <textarea
-                            value={form.dropoffLocation}
-                            onChange={(e) => setForm((f) => ({ ...f, dropoffLocation: e.target.value }))}
-                            rows={3}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
-                            placeholder="Address, landmark, or area where guests are dropped off at the end"
-                          />
-                        </div>
-                      )}
-                    </>
-                  );
-                })()}
-              </div>
-              <div id="supplier-listing-field-pickup_timing" className="rounded-lg border border-gray-100 bg-gray-50/80 p-4 space-y-4">
-                <p className="text-sm font-medium text-gray-900">Daily timing (optional)</p>
-                <p className="text-xs text-gray-600">
-                  Set the usual start time for this experience. After a customer books, you assign the exact pickup time within the window you choose below (minutes before start).
-                </p>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Default start time</label>
-                  <input
-                    type="time"
-                    value={form.defaultStartTime}
-                    onChange={(e) => setForm((f) => ({ ...f, defaultStartTime: e.target.value }))}
-                    className="w-full max-w-[12rem] px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Applied to each booked day unless you change it on the booking.</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Pickup window (before start)</label>
-                  <select
-                    value={form.pickupWindowMinutesBeforeMax}
-                    onChange={(e) =>
-                      setForm((f) => ({
-                        ...f,
-                        pickupWindowMinutesBeforeMax: Number(e.target.value) as PickupWindowPresetMax,
-                      }))
-                    }
-                    className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
-                  >
-                    {PICKUP_WINDOW_PRESET_OPTIONS.map((o) => (
-                      <option key={o.value} value={o.value}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Guests can be picked up from this many minutes before the scheduled start through to start time (0 min before).
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {stepIdx === 7 && (
             <div className="space-y-4 transition-all duration-300 ease-out opacity-100 translate-y-0">
               <div className="rounded-xl border border-gray-200 bg-white p-4 sm:p-5 space-y-4 shadow-sm">
                 <div>

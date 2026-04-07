@@ -181,14 +181,20 @@ export function computeListingQuality(listing: TourPackage): {
   // Group size (4)
   {
     const max = 4;
-    const g = listing.groupSize?.trim() ?? '';
-    const ok = g.length >= 3;
+    const opts = listing.listingExtras?.bookingOptions ?? [];
+    let ok = false;
+    if (opts.length > 0) {
+      ok = opts.every((o) => o.maxPersons >= o.minPersons && o.minPersons >= 1);
+    } else {
+      const g = listing.groupSize?.trim() ?? '';
+      ok = g.length >= 3;
+    }
     checks.push({
       id: 'group',
       label: 'Group size',
       max,
       earned: ok ? max : 0,
-      tip: ok ? '' : 'Specify typical group size or min/max guests.',
+      tip: ok ? '' : 'Set min/max guests per booking option, or a clear group size on the listing.',
     });
   }
 
@@ -220,17 +226,34 @@ export function computeListingQuality(listing: TourPackage): {
   // Meeting / pickup (5)
   {
     const max = 5;
-    const m = listing.meetingPoint?.trim() ?? '';
-    const p = listing.pickupInstructions?.trim() ?? '';
-    const len = m.length + p.length;
+    const opts = listing.listingExtras?.bookingOptions ?? [];
     let earned = 0;
     let tip = '';
-    if (len >= 20) earned = max;
-    else if (len >= 8) {
-      earned = 3;
-      tip = 'Add meeting point or pickup details to reduce day-of confusion.';
+    if (opts.length > 0) {
+      const scores = opts.map((o) => {
+        const a = o.pickupPlace?.trim().length ?? 0;
+        const b = o.optionInfo?.trim().length ?? 0;
+        return a + b;
+      });
+      const worst = scores.length ? Math.min(...scores) : 0;
+      if (worst >= 20) earned = max;
+      else if (worst >= 8) {
+        earned = 3;
+        tip = 'Add clearer meeting or pickup notes on each option.';
+      } else {
+        tip = 'Each option needs where to meet or how pickup works.';
+      }
     } else {
-      tip = 'Guests need where to meet or how pickup works.';
+      const m = listing.meetingPoint?.trim() ?? '';
+      const p = listing.pickupInstructions?.trim() ?? '';
+      const len = m.length + p.length;
+      if (len >= 20) earned = max;
+      else if (len >= 8) {
+        earned = 3;
+        tip = 'Add meeting point or pickup details to reduce day-of confusion.';
+      } else {
+        tip = 'Guests need where to meet or how pickup works.';
+      }
     }
     checks.push({ id: 'meeting', label: 'Meeting / pickup', max, earned, tip });
   }

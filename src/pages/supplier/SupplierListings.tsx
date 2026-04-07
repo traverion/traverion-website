@@ -62,36 +62,64 @@ export default function SupplierListings() {
 
   const showFormRef = useRef(false);
   const editorHistoryPushedRef = useRef(false);
+  const editorSessionTokenRef = useRef<string | null>(null);
+  const listingsRef = useRef(listings);
+  listingsRef.current = listings;
+  const editNotFoundCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     showFormRef.current = showForm;
   }, [showForm]);
 
+  function newEditorSessionToken(): string {
+    if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+      return crypto.randomUUID();
+    }
+    return `ed-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+  }
+
   /** Stack a history entry while the editor is open so Back closes the modal instead of jumping to /partner (dashboard). */
   useEffect(() => {
     if (!showForm) {
       editorHistoryPushedRef.current = false;
+      editorSessionTokenRef.current = null;
       return;
     }
     if (typeof window === 'undefined') return;
-    const st = window.history.state as { supplierListingEditor?: boolean } | null;
-    if (st?.supplierListingEditor) {
+    const st = window.history.state as { supplierListingEditor?: string | boolean } | null;
+    const topToken = typeof st?.supplierListingEditor === 'string' ? st.supplierListingEditor : null;
+
+    if (editorSessionTokenRef.current && topToken === editorSessionTokenRef.current) {
       editorHistoryPushedRef.current = true;
       return;
     }
+
+    if (!editorSessionTokenRef.current && topToken && topToken.length > 0) {
+      editorSessionTokenRef.current = topToken;
+      editorHistoryPushedRef.current = true;
+      return;
+    }
+
     if (editorHistoryPushedRef.current) return;
-    editorHistoryPushedRef.current = true;
+
     const url = window.location.pathname + window.location.search;
     const prev = window.history.state;
-    const base = typeof prev === 'object' && prev !== null ? { ...prev } : {};
-    window.history.pushState({ ...base, supplierListingEditor: true }, '', url);
+    const base =
+      typeof prev === 'object' && prev !== null ? { ...(prev as Record<string, unknown>) } : ({} as Record<string, unknown>);
+    delete base.supplierListingEditor;
+    const token = newEditorSessionToken();
+    editorSessionTokenRef.current = token;
+    editorHistoryPushedRef.current = true;
+    window.history.pushState({ ...base, supplierListingEditor: token }, '', url);
   }, [showForm]);
 
   useEffect(() => {
     const onPopCapture = () => {
       if (!showFormRef.current) return;
-      const st = window.history.state as { supplierListingEditor?: boolean } | null;
-      if (st?.supplierListingEditor) return;
+      const st = window.history.state as { supplierListingEditor?: string | boolean } | null;
+      const token = editorSessionTokenRef.current;
+      if (token && st?.supplierListingEditor === token) return;
+      editorSessionTokenRef.current = null;
       showFormRef.current = false;
       setShowForm(false);
       setEditingId(null);
@@ -133,6 +161,7 @@ export default function SupplierListings() {
 
   useEffect(() => {
     if (canEditListings) return;
+    editorSessionTokenRef.current = null;
     showFormRef.current = false;
     setShowForm(false);
     setEditingId(null);
@@ -144,6 +173,10 @@ export default function SupplierListings() {
   }, [canEditListings]);
 
   useEffect(() => {
+    if (editNotFoundCloseTimerRef.current) {
+      clearTimeout(editNotFoundCloseTimerRef.current);
+      editNotFoundCloseTimerRef.current = null;
+    }
     if (loading) return;
     const params = new URLSearchParams(window.location.search);
     const edit = params.get('edit');
@@ -154,15 +187,31 @@ export default function SupplierListings() {
       setShowForm(true);
       const focus = params.get('focus');
       setFormFocusSection(focus && focus.length > 0 ? focus : null);
-    } else {
-      const listDefinitelyLoaded = listings.length > 0 || (listings.length === 0 && !error);
-      if (!listDefinitelyLoaded) return;
+      return;
+    }
+    const listDefinitelyLoaded = listings.length > 0 || (listings.length === 0 && !error);
+    if (!listDefinitelyLoaded) return;
+
+    const editId = edit;
+    editNotFoundCloseTimerRef.current = setTimeout(() => {
+      editNotFoundCloseTimerRef.current = null;
+      const p = new URLSearchParams(window.location.search);
+      if (p.get('edit') !== editId) return;
+      if (listingsRef.current.some((l) => l.id === editId)) return;
+      editorSessionTokenRef.current = null;
       showFormRef.current = false;
       setShowForm(false);
       setEditingId(null);
       setFormFocusSection(null);
       window.history.replaceState({}, '', `${PARTNER_APP_BASE}/listings`);
-    }
+    }, 200);
+
+    return () => {
+      if (editNotFoundCloseTimerRef.current) {
+        clearTimeout(editNotFoundCloseTimerRef.current);
+        editNotFoundCloseTimerRef.current = null;
+      }
+    };
   }, [listings, loading, error]);
 
   const qualityOverview = useMemo(() => {
@@ -284,6 +333,7 @@ export default function SupplierListings() {
 
   const refresh = () => {
     loadListings();
+    editorSessionTokenRef.current = null;
     showFormRef.current = false;
     setShowForm(false);
     setEditingId(null);
@@ -296,6 +346,7 @@ export default function SupplierListings() {
     if (!canEditListings) {
       const msg = 'Your role can view listings but cannot create or edit them.';
       setError(msg);
+      editorSessionTokenRef.current = null;
       showFormRef.current = false;
       setShowForm(false);
       return { success: false, error: msg };
@@ -600,6 +651,7 @@ export default function SupplierListings() {
             return true;
           }}
           onCancel={() => {
+            editorSessionTokenRef.current = null;
             showFormRef.current = false;
             setShowForm(false);
             setEditingId(null);
