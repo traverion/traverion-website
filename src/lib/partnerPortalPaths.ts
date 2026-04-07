@@ -5,7 +5,7 @@ export const PARTNER_LOGIN_PATH = '/login';
 /** Email confirmation links land here (hash tokens); not useful without Supabase’s signed fragment. */
 export const PARTNER_EMAIL_VERIFIED_PATH = '/email-verified';
 
-/** Dashboard at /partner; sections at /partner/listings, /partner/bookings, … */
+/** Dashboard at /partner; sections at /partner/listings, /partner/discounts, /partner/bookings, … */
 export const PARTNER_APP_BASE = '/partner';
 
 /** Public legal & info pages on the partner host (not used on www — see `isPartnerMarketingPathForCurrentHost` in partnerHost). */

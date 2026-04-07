@@ -10,6 +10,7 @@ import {
   Menu,
   X,
   Star,
+  Tag,
   ClipboardList,
   UserCircle2,
   ChevronDown,
@@ -26,6 +27,7 @@ import SupplierBookings from '../../pages/supplier/SupplierBookings';
 import SupplierEarnings from '../../pages/supplier/SupplierEarnings';
 import SupplierReviews from '../../pages/supplier/SupplierReviews';
 import SupplierPickupPlanner from '../../pages/supplier/SupplierPickupPlanner';
+import SupplierDiscountsOffers from '../../pages/supplier/SupplierDiscountsOffers';
 import {
   authUserHasPartnerSignupMetadata,
   ensureSupplierProfile,
@@ -71,6 +73,7 @@ type SupplierSection =
   | 'listings'
   | 'bookings'
   | 'earnings'
+  | 'discounts'
   | 'reviews'
   | 'pickup'
   | 'business-profile'
@@ -85,6 +88,7 @@ const NAV_ITEMS: { id: SupplierSection; label: string; icon: typeof LayoutDashbo
   { id: 'listings', label: 'My listings', icon: MapPin },
   { id: 'bookings', label: 'Bookings', icon: Calendar },
   { id: 'earnings', label: 'Earnings', icon: DollarSign },
+  { id: 'discounts', label: 'Discounts & offers', icon: Tag },
   { id: 'reviews', label: 'Reviews', icon: Star },
   { id: 'pickup', label: 'Pickup planner', icon: ClipboardList },
   { id: 'business-profile', label: 'Business profile', icon: Building2 },
@@ -979,6 +983,7 @@ export default function SupplierLayout() {
                 <button type="button" onClick={() => openSettingsFocus('account')} className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-sm">Account settings</button>
                 <button type="button" onClick={() => openSettingsFocus('security')} className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-sm">Security and password</button>
                 <button type="button" onClick={() => handleNavigate('badges')} className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-sm">Brand assets</button>
+                <button type="button" onClick={() => handleNavigate('discounts')} className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-sm">Discounts &amp; offers</button>
                 <button type="button" onClick={() => signOut()} className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-sm text-red-600">Log out</button>
               </div>
             )}
@@ -999,6 +1004,7 @@ export default function SupplierLayout() {
               <button type="button" onClick={() => openSettingsFocus('account')} className="touch-manipulation w-full text-left px-4 py-3.5 min-h-[44px] rounded-xl border border-gray-200 active:bg-gray-50">Account settings</button>
               <button type="button" onClick={() => openSettingsFocus('security')} className="touch-manipulation w-full text-left px-4 py-3.5 min-h-[44px] rounded-xl border border-gray-200 active:bg-gray-50">Security and password</button>
               <button type="button" onClick={() => handleNavigate('badges')} className="touch-manipulation w-full text-left px-4 py-3.5 min-h-[44px] rounded-xl border border-gray-200 active:bg-gray-50">Brand assets</button>
+              <button type="button" onClick={() => handleNavigate('discounts')} className="touch-manipulation w-full text-left px-4 py-3.5 min-h-[44px] rounded-xl border border-gray-200 active:bg-gray-50">Discounts &amp; offers</button>
               <button type="button" onClick={() => signOut()} className="touch-manipulation w-full text-left px-4 py-3.5 min-h-[44px] rounded-xl border border-red-200 text-red-600 active:bg-red-50">Log out</button>
             </div>
           </div>
@@ -1032,6 +1038,7 @@ export default function SupplierLayout() {
           {section === 'listings' && <SupplierListings />}
           {section === 'bookings' && <SupplierBookings />}
           {section === 'earnings' && <SupplierEarnings />}
+          {section === 'discounts' && <SupplierDiscountsOffers />}
           {section === 'reviews' && <SupplierReviews />}
           {section === 'pickup' && <SupplierPickupPlanner />}
           {section === 'badges' && (

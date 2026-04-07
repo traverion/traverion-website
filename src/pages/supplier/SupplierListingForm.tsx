@@ -1511,9 +1511,9 @@ export default function SupplierListingForm({
               <div className="rounded-xl border border-gray-100 bg-gray-50/80 p-4 sm:p-5 text-sm text-gray-700">
                 <p className="font-medium text-gray-900">{editingId ? 'Save your changes' : 'Save your listing'}</p>
                 <p className="mt-2 text-xs text-gray-600 leading-relaxed">
-                  Promotional discounts are no longer edited here — use the dashboard when that section is available. To go
-                  live, close the editor and click <span className="font-medium text-gray-800">Publish</span> on My listings;
-                  we load the latest saved data and re-check requirements at that moment.
+                  Promotional discounts are managed under <span className="font-medium text-gray-800">Discounts &amp; offers</span>{' '}
+                  in the sidebar. To go live, close the editor and click <span className="font-medium text-gray-800">Publish</span>{' '}
+                  on My listings; we load the latest saved data and re-check requirements at that moment.
                 </p>
               </div>
             </div>

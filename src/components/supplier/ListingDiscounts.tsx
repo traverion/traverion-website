@@ -11,9 +11,13 @@ import { isSupabaseConfigured } from '../../lib/supabase';
 
 interface ListingDiscountsProps {
   listingId: string;
+  /** Hide add/delete (e.g. view-only role). */
+  readOnly?: boolean;
+  /** After list changes (add/remove). */
+  onChange?: () => void;
 }
 
-export default function ListingDiscounts({ listingId }: ListingDiscountsProps) {
+export default function ListingDiscounts({ listingId, readOnly = false, onChange }: ListingDiscountsProps) {
   const [discounts, setDiscounts] = useState<ListingDiscount[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
@@ -23,10 +27,10 @@ export default function ListingDiscounts({ listingId }: ListingDiscountsProps) {
   const [validFrom, setValidFrom] = useState('');
   const [validUntil, setValidUntil] = useState('');
 
-  const load = () => {
-    if (!isSupabaseConfigured()) return;
+  const load = (): Promise<void> => {
+    if (!isSupabaseConfigured()) return Promise.resolve();
     setLoading(true);
-    fetchDiscountsByListingId(listingId).then((data) => {
+    return fetchDiscountsByListingId(listingId).then((data) => {
       setDiscounts(data);
       setLoading(false);
     });
@@ -54,23 +58,29 @@ export default function ListingDiscounts({ listingId }: ListingDiscountsProps) {
       setValidFrom('');
       setValidUntil('');
       setAdding(false);
-      load();
+      void load().then(() => onChange?.());
     }
   };
 
   const handleDelete = async (id: string) => {
     if (!window.confirm('Remove this discount?')) return;
     const ok = await deleteDiscount(id);
-    if (ok) load();
+    if (ok) void load().then(() => onChange?.());
   };
 
-  if (!isSupabaseConfigured()) return null;
+  if (!isSupabaseConfigured()) {
+    return (
+      <p className="text-sm text-gray-500 border border-dashed border-gray-200 rounded-xl p-4">
+        Connect Supabase to manage discounts.
+      </p>
+    );
+  }
 
   return (
     <div className="border border-gray-200 rounded-xl p-4">
       <div className="flex items-center justify-between mb-3">
         <h3 className="font-medium text-gray-900">Special discounts</h3>
-        {!adding && (
+        {!readOnly && !adding && (
           <button
             type="button"
             onClick={() => setAdding(true)}
@@ -104,18 +114,20 @@ export default function ListingDiscounts({ listingId }: ListingDiscountsProps) {
                   </span>
                 )}
               </span>
-              <button
-                type="button"
-                onClick={() => handleDelete(d.id)}
-                className="p-1 text-red-500 hover:bg-red-50 rounded"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+              {!readOnly && (
+                <button
+                  type="button"
+                  onClick={() => handleDelete(d.id)}
+                  className="p-1 text-red-500 hover:bg-red-50 rounded"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
             </li>
           ))}
         </ul>
       )}
-      {adding && (
+      {!readOnly && adding && (
         <div className="mt-4 p-3 bg-gray-50 rounded-lg space-y-2">
           <div className="flex gap-2">
             <select
