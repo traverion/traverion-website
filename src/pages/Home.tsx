@@ -1,8 +1,9 @@
 import { ArrowRight, MapPin, Search } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
-import { getAllListings, getAllListingsAsync, SHOW_SEED_LISTINGS } from '../data/listings';
+import { getAllListings, SHOW_SEED_LISTINGS } from '../data/listings';
 import { getDestinationsFromListings } from '../data/activities';
 import { isSupabaseConfigured } from '../lib/supabase';
+import { usePublishedSupplierListings } from '../hooks/usePublishedSupplierListings';
 import { activities } from '../data/activities';
 import { TourPackage } from '../types/tour';
 import { fetchDiscountsByListingIds } from '../data/supabase-discounts';
@@ -75,20 +76,13 @@ interface HomeProps {
 }
 
 export default function Home({ onTourSelect, onNavigate }: HomeProps) {
-  const [supplierListings, setSupplierListings] = useState<TourPackage[] | null>(null);
+  const { listings: supplierListings } = usePublishedSupplierListings({ emptyOnFirstError: false });
   const [searchTerm, setSearchTerm] = useState('');
   const [countryId, setCountryId] = useState('all');
   const [discountsByListing, setDiscountsByListing] = useState<Map<string, import('../data/supabase-discounts').ListingDiscount[]>>(new Map());
   const [reviewAggregates, setReviewAggregates] = useState<Map<string, { rating: number; count: number }>>(
     () => new Map()
   );
-
-  useEffect(() => {
-    if (!isSupabaseConfigured()) return;
-    getAllListingsAsync({ includeSeed: false, includeHolidayPackages: false })
-      .then(setSupplierListings)
-      .catch(() => { /* leave supplierListings null so fallback listings are used */ });
-  }, []);
 
   const allListings = useMemo(() => {
     const base =

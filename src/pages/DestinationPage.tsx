@@ -1,7 +1,8 @@
 import { useMemo, useState, useEffect } from 'react';
 import { ArrowLeft, MapPin } from 'lucide-react';
-import { getAllListings, getAllListingsAsync, SHOW_SEED_LISTINGS } from '../data/listings';
+import { getAllListings, SHOW_SEED_LISTINGS } from '../data/listings';
 import { isSupabaseConfigured } from '../lib/supabase';
+import { usePublishedSupplierListings } from '../hooks/usePublishedSupplierListings';
 import { setPageMetaWithOg } from '../lib/seo';
 import { activities } from '../data/activities';
 import { TourPackage } from '../types/tour';
@@ -32,17 +33,10 @@ interface DestinationPageProps {
 }
 
 export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate }: DestinationPageProps) {
-  const [supplierListings, setSupplierListings] = useState<TourPackage[] | null>(null);
+  const { listings: supplierListings } = usePublishedSupplierListings({ emptyOnFirstError: false });
   const [reviewAggregates, setReviewAggregates] = useState<Map<string, { rating: number; count: number }>>(
     () => new Map()
   );
-
-  useEffect(() => {
-    if (!isSupabaseConfigured()) return;
-    getAllListingsAsync({ includeSeed: false, includeHolidayPackages: false })
-      .then(setSupplierListings)
-      .catch(() => {});
-  }, []);
   const allListings = useMemo(() => {
     const base =
       isSupabaseConfigured() && supplierListings !== null

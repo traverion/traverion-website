@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo, useCallback, useDeferredValue } from 'react';
 import { Search, MapPin, Globe, PlusCircle, Filter, X, SlidersHorizontal } from 'lucide-react';
-import { getAllListings, getAllListingsAsync, SHOW_SEED_LISTINGS, durationToMinutes } from '../data/listings';
+import { getAllListings, SHOW_SEED_LISTINGS, durationToMinutes } from '../data/listings';
 import { isSupabaseConfigured } from '../lib/supabase';
+import { usePublishedSupplierListings } from '../hooks/usePublishedSupplierListings';
 import { analytics } from '../lib/analytics';
 import { tourPackages } from '../data/tours';
 import { activities, TAG_OPTIONS, getDestinationsFromListings, SEED_DESTINATION_OPTIONS } from '../data/activities';
@@ -96,23 +97,14 @@ export default function Packages({ onTourSelect }: PackagesProps) {
   const [showHolidayPackages] = useState(false);
   const [filterBarSticky, setFilterBarSticky] = useState(false);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
-  const [supplierListings, setSupplierListings] = useState<TourPackage[] | null>(null);
-  const [listingsLoadError, setListingsLoadError] = useState<string | null>(null);
+  const { listings: supplierListings, error: listingsLoadError, reload: reloadSupplierListings } =
+    usePublishedSupplierListings();
   const [discountsByListing, setDiscountsByListing] = useState<Map<string, import('../data/supabase-discounts').ListingDiscount[]>>(new Map());
   const [reviewAggregates, setReviewAggregates] = useState<Map<string, { rating: number; count: number }>>(
     () => new Map()
   );
 
   const deferredSearch = useDeferredValue(searchTerm);
-
-  // Load supplier listings from Supabase when configured
-  useEffect(() => {
-    if (!isSupabaseConfigured()) return;
-    setListingsLoadError(null);
-    getAllListingsAsync({ includeSeed: false, includeHolidayPackages: false })
-      .then(setSupplierListings)
-      .catch((e) => setListingsLoadError(e instanceof Error ? e.message : 'Failed to load tours'));
-  }, []);
 
   // Read URL on mount and when user uses browser back/forward
   const syncStateFromUrl = useCallback(() => {
@@ -349,12 +341,7 @@ export default function Packages({ onTourSelect }: PackagesProps) {
               <span>{listingsLoadError}</span>
               <button
                 type="button"
-                onClick={() => {
-                  setListingsLoadError(null);
-                  getAllListingsAsync({ includeSeed: false, includeHolidayPackages: false })
-                    .then(setSupplierListings)
-                    .catch((e) => setListingsLoadError(e instanceof Error ? e.message : 'Failed to load tours'));
-                }}
+                onClick={() => reloadSupplierListings()}
                 className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-100 text-red-800 font-medium hover:bg-red-200"
               >
                 Try again

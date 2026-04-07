@@ -217,7 +217,10 @@ export function tourPackageToRow(tour: Partial<TourPackage> & { title: string; d
   };
 }
 
-/** Fetch all listings (public; only published, for main site). Throws on Supabase error. */
+/**
+ * Fetch published listings for the public site (www).
+ * Query filters draft rows; RLS should also restrict anonymous reads to published (see migration 043).
+ */
 export async function fetchAllListings(): Promise<TourPackage[]> {
   if (!supabase) return [];
   const { data, error } = await supabase
@@ -311,7 +314,10 @@ export async function updateListingStatus(id: string, status: 'draft' | 'publish
   return { ok: true };
 }
 
-/** Fetch a single listing by id (public). Throws on Supabase error; returns null only if not found. */
+/**
+ * Fetch a single listing by id. With RLS: travelers only see published listings; suppliers see their own drafts when logged in.
+ * Throws on Supabase error; returns null if not found or not visible.
+ */
 export async function fetchListingById(id: string): Promise<TourPackage | null> {
   if (!supabase) return null;
   const { data, error } = await supabase.from('listings').select('*').eq('id', id).single();
