@@ -310,7 +310,11 @@ export default function SupplierListings() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="min-w-0">
           <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">My listings</h1>
-          <p className="text-sm sm:text-base text-gray-600 mt-1">Manage your tours and activities. They appear on the main site for all travelers.</p>
+          <p className="text-sm sm:text-base text-gray-600 mt-1">
+            Manage your tours and activities. Use <span className="font-medium text-gray-800">Publish</span> when a listing is
+            ready to go live, or <span className="font-medium text-gray-800">Draft</span> to hide it. Closing the editor without
+            finishing keeps a draft when save-on-close is available.
+          </p>
         </div>
         <button
           type="button"

@@ -516,7 +516,6 @@ export default function SupplierListingForm({
       duration: 4,
       schedule: 4,
       price: 5,
-      published: 5,
       group: 5,
       tags: 5,
       meeting: 6,
@@ -558,7 +557,7 @@ export default function SupplierListingForm({
           tags: existing.tags ?? [],
           groupSize: existing.groupSize,
           difficulty: existing.difficulty,
-          status: existing.status ?? 'published',
+          status: existing.status === 'draft' || existing.status === 'published' ? existing.status : 'draft',
           meetingPoint: existing.meetingPoint ?? '',
           pickupInstructions: existing.pickupInstructions ?? '',
           defaultStartTime: existing.defaultStartTime ?? '',
@@ -776,8 +775,9 @@ export default function SupplierListingForm({
                 {editingId ? 'Edit listing' : 'Create listing'}
               </h2>
               <p className="text-xs text-gray-500 mt-1">
-                This is what travelers will see on Traverion once you publish. Close anytime — your work saves as a draft when
-                you have unsaved changes.
+                This is what travelers will see once a listing is live. Close anytime — unfinished work is kept as a draft.
+                Use <span className="font-medium text-gray-700">Publish</span> or <span className="font-medium text-gray-700">Draft</span>{' '}
+                on your listings list to show or hide it on Traverion.
               </p>
             </div>
             <button
@@ -1297,13 +1297,10 @@ export default function SupplierListingForm({
                 <label className="block text-sm font-medium text-gray-700 mb-1">Price from (USD) *</label>
                 <input type="number" min={0} value={form.price || ''} onChange={e => setForm(f => ({ ...f, price: Number(e.target.value) || 0 }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland" required />
               </div>
-              <div id="supplier-listing-field-published">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Visibility</label>
-                <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value as 'draft' | 'published' }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white">
-                  <option value="draft">Draft (hidden from main site)</option>
-                  <option value="published">Published (visible to travelers)</option>
-                </select>
-              </div>
+              <p className="text-xs text-gray-500 -mt-2">
+                New listings save as drafts until you publish them from the listings list. Editing a live listing keeps it live
+                unless you switch it to draft there.
+              </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" id="supplier-listing-field-group">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Group size *</label>
