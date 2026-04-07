@@ -2,11 +2,21 @@ import { useState, useEffect, useCallback, useMemo, Fragment } from 'react';
 import { Plus, MapPin, Pencil, Trash2, Eye, EyeOff, AlertCircle, RefreshCw, ChevronDown, ChevronUp, Sparkles, ExternalLink } from 'lucide-react';
 import { TourPackage } from '../../types/tour';
 import { getSupplierListings, setSupplierListings } from '../../data/listings';
-import { fetchMyListings, insertListing, updateListing, updateListingStatus, deleteListing } from '../../data/supabase-listings';
+import {
+  fetchMyListings,
+  fetchListingById,
+  insertListing,
+  updateListing,
+  updateListingStatus,
+  deleteListing,
+} from '../../data/supabase-listings';
 import { fetchSupplierProfile } from '../../data/supabase-supplier-profile';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import SupplierListingForm, { type ListingEditorSaveResult } from './SupplierListingForm';
-import { computeListingQuality, listingQualityPercent } from '../../lib/listingQualityScore';
+import {
+  computeListingQualityPartnerFocus,
+  listingQualityPercent,
+} from '../../lib/listingQualityScore';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { navigateSupplierUrl, openSupplierListingEditor } from '../../lib/supplierPortalNavigation';
 import {
@@ -107,7 +117,7 @@ export default function SupplierListings() {
     let below70 = 0;
     const gapCounts: Record<string, { count: number; label: string }> = {};
     for (const l of listings) {
-      const { score, maxScore, checks } = computeListingQuality(l);
+      const { score, maxScore, checks } = computeListingQualityPartnerFocus(l);
       const pct = listingQualityPercent(score, maxScore);
       sumPct += pct;
       if (pct < 70) below70++;
@@ -287,9 +297,11 @@ export default function SupplierListings() {
       return;
     }
     if (newStatus === 'published') {
-      const blockers = getListingPublishBlockers(listing);
+      const fresh = await fetchListingById(listing.id);
+      const toCheck = fresh ?? listing;
+      const blockers = getListingPublishBlockers(toCheck);
       if (blockers.length > 0) {
-        setPublishGate({ listingId: listing.id, title: listing.title, blockers });
+        setPublishGate({ listingId: listing.id, title: toCheck.title, blockers });
         setError(null);
         return;
       }
@@ -480,7 +492,8 @@ export default function SupplierListings() {
               <div>
                 <h2 className="text-base font-semibold text-gray-900">Listing quality</h2>
                 <p className="text-sm text-gray-600 mt-0.5">
-                  Scores are based on your listing content — not AI. Improve checkmarks to lift conversion on the main site.
+                  Content score only — not AI. Optional highlights/tags and “live on site” are excluded so drafts are not
+                  penalised. Publish from this page when you are ready.
                 </p>
               </div>
             </div>
@@ -592,7 +605,7 @@ export default function SupplierListings() {
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {listings.map((listing) => {
-                      const q = computeListingQuality(listing);
+                      const q = computeListingQualityPartnerFocus(listing);
                       const pct = listingQualityPercent(q.score, q.maxScore);
                       const tone =
                         pct >= 80 ? 'bg-green-100 text-green-800' : pct >= 60 ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800';

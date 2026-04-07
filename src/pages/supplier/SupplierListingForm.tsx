@@ -3,13 +3,12 @@ import { createPortal } from 'react-dom';
 import { TourPackage } from '../../types/tour';
 import type { ListingExtras, ScheduleStyle, VenueSetting } from '../../types/listingExtras';
 import { parseListingExtras, TRAVERION_STANDARD_CANCELLATION_POLICY } from '../../types/listingExtras';
-import ListingDiscounts from '../../components/supplier/ListingDiscounts';
 import ListingImageFields from '../../components/supplier/ListingImageFields';
 import { useAuth } from '../../contexts/AuthContext';
 import { getListingPublishBlockers } from '../../lib/listingPublishGate';
 import { isSupabaseConfigured } from '../../lib/supabase';
 import {
-  computeListingQuality,
+  computeListingQualityPartnerFocus,
   listingQualityPercent,
   LISTING_PLACEHOLDER_IMAGE,
   MIN_LISTING_DESCRIPTION_LENGTH,
@@ -390,9 +389,6 @@ function isStepSatisfied(idx: number, form: ListingFormState): boolean {
   if (idx === 7) {
     return listingPhotosStepComplete(form);
   }
-  if (idx === 8) {
-    return true;
-  }
   return true;
 }
 
@@ -454,8 +450,7 @@ type StepId =
   | 'location_start'
   | 'pricing'
   | 'logistics'
-  | 'photos'
-  | 'content';
+  | 'photos';
 
 export default function SupplierListingForm({
   editingId,
@@ -492,7 +487,6 @@ export default function SupplierListingForm({
       { id: 'pricing' as StepId, label: 'Pricing' },
       { id: 'logistics' as StepId, label: 'Meeting & pickup' },
       { id: 'photos' as StepId, label: 'Tour photos' },
-      { id: 'content' as StepId, label: 'Discounts & save' },
     ],
     []
   );
@@ -669,7 +663,7 @@ export default function SupplierListingForm({
   }, [form, editingId]);
 
   const listingQualityPct = useMemo(() => {
-    const { score, maxScore } = computeListingQuality(draftListingPreview);
+    const { score, maxScore } = computeListingQualityPartnerFocus(draftListingPreview);
     return listingQualityPercent(score, maxScore);
   }, [draftListingPreview]);
 
@@ -798,7 +792,7 @@ export default function SupplierListingForm({
             </p>
           )}
           <nav aria-label="Listing setup steps" className="mb-3 -mx-1 overflow-x-auto overflow-y-hidden pb-1">
-            <ol className="flex w-full min-w-[800px] list-none m-0 p-0 sm:min-w-0">
+            <ol className="flex w-full min-w-[720px] list-none m-0 p-0 sm:min-w-0">
               {steps.map((step, idx) => {
                 const done = isStepSatisfied(idx, form);
                 const current = idx === stepIdx;
@@ -871,7 +865,8 @@ export default function SupplierListingForm({
               />
             </div>
             <p className="text-[11px] text-gray-400">
-              Step {stepIdx + 1} of {steps.length} · progress reflects how complete your listing looks to guests
+              Step {stepIdx + 1} of {steps.length} · strength ignores optional highlights/tags and “live” status — publish from My
+              listings when you are ready
             </p>
           </div>
         </div>
@@ -1491,11 +1486,6 @@ export default function SupplierListingForm({
                   uploadsEnabled={isSupabaseConfigured() && !!user?.id}
                 />
               </div>
-            </div>
-          )}
-
-          {stepIdx === 8 && (
-            <div className="space-y-4 transition-all duration-300 ease-out opacity-100 translate-y-0">
               {form.status === 'published' && editingId && !publishChecklistDismissed && publishChecklistKey && (
                 <div className="rounded-xl border border-finland/30 bg-finland/5 p-4 text-sm text-gray-800">
                   <div className="flex items-start justify-between gap-2">
@@ -1518,22 +1508,14 @@ export default function SupplierListingForm({
                   </ul>
                 </div>
               )}
-              {editingId ? (
-                <div className="rounded-xl border border-gray-100 bg-gray-50/80 p-4 sm:p-5">
-                  <p className="text-sm font-semibold text-gray-900 mb-1">Discounts</p>
-                  <p className="text-xs text-gray-600 mb-4">
-                    Optional pricing rules for this listing. Meeting details and tour photos are in their own steps above.
-                  </p>
-                  <ListingDiscounts listingId={editingId} />
-                </div>
-              ) : (
-                <div className="rounded-xl border border-gray-100 bg-gray-50/80 p-4 sm:p-5 text-sm text-gray-700">
-                  <p className="font-medium text-gray-900">Almost done</p>
-                  <p className="mt-2 text-xs text-gray-600 leading-relaxed">
-                    Save your listing to create it. You can add discounts and change tour photos anytime from your listings list.
-                  </p>
-                </div>
-              )}
+              <div className="rounded-xl border border-gray-100 bg-gray-50/80 p-4 sm:p-5 text-sm text-gray-700">
+                <p className="font-medium text-gray-900">{editingId ? 'Save your changes' : 'Save your listing'}</p>
+                <p className="mt-2 text-xs text-gray-600 leading-relaxed">
+                  Promotional discounts are no longer edited here — use the dashboard when that section is available. To go
+                  live, close the editor and click <span className="font-medium text-gray-800">Publish</span> on My listings;
+                  we load the latest saved data and re-check requirements at that moment.
+                </p>
+              </div>
             </div>
           )}
         </div>

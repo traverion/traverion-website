@@ -99,8 +99,11 @@ export function computeListingQuality(listing: TourPackage): {
     let tip = '';
     if (inc.length >= 4 && joined >= 50) earned = max;
     else if (inc.length >= 2 && joined >= 24) {
+      earned = 6;
+      tip = 'List more concrete inclusions (transport, tickets, meals, guide) for full points.';
+    } else if (inc.length >= 2) {
       earned = 4;
-      tip = 'List more concrete inclusions (transport, tickets, meals, guide).';
+      tip = 'Flesh out each inclusion with a bit more detail where you can.';
     } else {
       tip = 'Add clear bullet inclusions so guests know what they get.';
     }
@@ -115,8 +118,8 @@ export function computeListingQuality(listing: TourPackage): {
     let tip = '';
     if (exc.length >= 2) earned = max;
     else if (exc.length === 1) {
-      earned = 1;
-      tip = 'Add what is not included to reduce disputes and support tickets.';
+      earned = 2;
+      tip = 'Add a second exclusion if relevant (e.g. tips, meals) for full points.';
     } else {
       tip = 'Add exclusions (e.g. tips, personal expenses, entry fees).';
     }
@@ -284,4 +287,31 @@ export function computeListingQuality(listing: TourPackage): {
 export function listingQualityPercent(score: number, maxScore: number): number {
   if (maxScore <= 0) return 0;
   return clamp(Math.round((score / maxScore) * 100), 0, 100);
+}
+
+/**
+ * Partner portal: percentage reflects content/readiness, not “live on site” or optional polish.
+ * Excludes: published (use Publish on My listings), highlights & tags (optional in the editor).
+ */
+export const LISTING_QUALITY_PARTNER_FOCUS_EXCLUDE_IDS = new Set([
+  'published',
+  'highlights',
+  'tags',
+]);
+
+export function computeListingQualityPartnerFocus(listing: TourPackage): {
+  score: number;
+  maxScore: number;
+  checks: ListingQualityCheck[];
+} {
+  const full = computeListingQuality(listing);
+  const checks = full.checks.filter((c) => !LISTING_QUALITY_PARTNER_FOCUS_EXCLUDE_IDS.has(c.id));
+  const score = checks.reduce((s, c) => s + c.earned, 0);
+  const maxScore = checks.reduce((s, c) => s + c.max, 0);
+  return { score, maxScore, checks };
+}
+
+export function listingQualityPercentPartnerFocus(listing: TourPackage): number {
+  const { score, maxScore } = computeListingQualityPartnerFocus(listing);
+  return listingQualityPercent(score, maxScore);
 }
