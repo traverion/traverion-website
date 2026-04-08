@@ -122,15 +122,15 @@ export default function ListingImageFields({
           This is the large image at the top of your listing. Upload from your phone or computer, or paste a link
           below.
         </p>
-        <div className="rounded-xl border border-gray-200 bg-gray-50 overflow-hidden">
+        <div className="mx-auto w-full max-w-md rounded-xl border border-gray-200 bg-gray-50 overflow-hidden">
           {heroPreview ? (
             <img
               src={heroPreview}
               alt="Listing main"
-              className="w-full max-h-56 object-cover bg-gray-100"
+              className="w-full h-44 sm:h-48 object-cover bg-gray-100"
             />
           ) : (
-            <div className="flex flex-col items-center justify-center min-h-[140px] text-center px-4 py-8 text-sm text-gray-500">
+            <div className="flex flex-col items-center justify-center min-h-[120px] text-center px-4 py-6 text-sm text-gray-500">
               No main photo yet — add one before publishing.
             </div>
           )}
@@ -177,28 +177,28 @@ export default function ListingImageFields({
         <p className="text-xs text-gray-500">
           Up to three extra images in the gallery. Publishing needs at least one photo in addition to the main image.
         </p>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="mx-auto grid w-full max-w-2xl grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-3">
           {galleryUrls.map((url, index) => {
             const p = previewUrl(url);
             const busy = busyTarget === index;
             return (
               <div
                 key={index}
-                className="rounded-xl border border-gray-200 bg-white overflow-hidden flex flex-col"
+                className="mx-auto w-full max-w-[220px] sm:max-w-none rounded-xl border border-gray-200 bg-white overflow-hidden flex flex-col"
               >
-                <div className="aspect-[4/3] bg-gray-50 flex items-center justify-center">
+                <div className="aspect-[4/3] max-h-36 w-full bg-gray-50 flex items-center justify-center overflow-hidden">
                   {p ? (
-                    <img src={p} alt="" className="w-full h-full object-cover" />
+                    <img src={p} alt="" className="h-full w-full object-cover" />
                   ) : (
                     <span className="text-xs text-gray-400 px-2 text-center">Empty slot {index + 1}</span>
                   )}
                 </div>
-                <div className="p-2 flex flex-col gap-2 border-t border-gray-100">
+                <div className="p-2 flex flex-col gap-1.5 border-t border-gray-100">
                   <button
                     type="button"
                     disabled={!uploadsEnabled || busyTarget !== null}
                     onClick={() => openPicker(index)}
-                    className="touch-manipulation w-full py-2 rounded-lg bg-finland/10 text-finland text-sm font-medium hover:bg-finland/15 disabled:opacity-50 min-h-[40px]"
+                    className="touch-manipulation w-full py-1.5 rounded-lg bg-finland/10 text-finland text-sm font-medium hover:bg-finland/15 disabled:opacity-50 min-h-[40px]"
                   >
                     {busy ? 'Uploading…' : p ? 'Replace' : 'Upload'}
                   </button>
@@ -208,7 +208,7 @@ export default function ListingImageFields({
                         type="button"
                         disabled={busyTarget !== null}
                         onClick={() => makeMainFromGallery(index)}
-                        className="touch-manipulation w-full py-2 rounded-lg border border-gray-200 text-sm text-gray-800 hover:bg-gray-50 disabled:opacity-50"
+                        className="touch-manipulation w-full py-1.5 rounded-lg border border-gray-200 text-sm text-gray-800 hover:bg-gray-50 disabled:opacity-50"
                       >
                         Use as main photo
                       </button>
@@ -216,7 +216,7 @@ export default function ListingImageFields({
                         type="button"
                         disabled={busyTarget !== null}
                         onClick={() => removeGallerySlot(index)}
-                        className="touch-manipulation w-full py-2 rounded-lg text-sm text-red-700 hover:bg-red-50 disabled:opacity-50"
+                        className="touch-manipulation w-full py-1.5 rounded-lg text-sm text-red-700 hover:bg-red-50 disabled:opacity-50"
                       >
                         Remove
                       </button>
