@@ -15,12 +15,20 @@ import {
 } from '../../types/listingExtras';
 import ListingImageFields from '../../components/supplier/ListingImageFields';
 import { useAuth } from '../../contexts/AuthContext';
+import {
+  normalizePhotoSlots,
+  orderedPhotoUrls,
+  photoSlotsFromTourPackage,
+  isPlaceholderListingImageUrl,
+  LISTING_PHOTO_GRID_SLOTS,
+  LISTING_PHOTO_MAX,
+  LISTING_PHOTO_MIN,
+} from '../../lib/listingPhotoGrid';
 import { getListingPublishBlockers } from '../../lib/listingPublishGate';
 import { isSupabaseConfigured } from '../../lib/supabase';
 import {
   computeListingQualityPartnerFocus,
   listingQualityPercent,
-  LISTING_PLACEHOLDER_IMAGE,
   MIN_LISTING_DESCRIPTION_LENGTH,
 } from '../../lib/listingQualityScore';
 
@@ -47,7 +55,6 @@ const MAX_DESCRIPTION_LENGTH = 2000;
 const HIGHLIGHT_SLOT_COUNT = 5;
 const INCLUDE_SLOT_COUNT = 6;
 const EXCLUDE_SLOT_COUNT = 6;
-const GALLERY_SLOT_COUNT = 3;
 const MAX_ACCESSIBILITY_LENGTH = 500;
 const MAX_TIMELINE_LENGTH = 800;
 
@@ -243,7 +250,8 @@ type ListingFormState = {
   highlights: string[];
   destination: string;
   duration: string;
-  image: string;
+  /** 4×3 grid, row-major; slot 0 = main / first for travelers. */
+  photoSlots: string[];
   description: string;
   city: string;
   country: string;
@@ -256,7 +264,6 @@ type ListingFormState = {
   excludes: string[];
   scheduleStyle: ScheduleStyle | '';
   typicalTimelineNotes: string;
-  galleryUrls: string[];
   accessibilitySummary: string;
   minGuestAge: string;
   venueSetting: VenueSetting;
@@ -311,9 +318,9 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
   const excludeList = normalizeLineSlots(EXCLUDE_SLOT_COUNT, form.excludes)
     .map((s) => s.trim())
     .filter(Boolean);
-  const galleryList = normalizeLineSlots(GALLERY_SLOT_COUNT, form.galleryUrls)
-    .map((s) => s.trim())
-    .filter(Boolean);
+  const orderedPhotos = orderedPhotoUrls(form.photoSlots);
+  const mainImage = orderedPhotos[0] ?? '';
+  const galleryList = orderedPhotos.slice(1);
   const primaryLang = form.experienceLanguage.trim();
   const addLangs = form.additionalLanguages.filter((c) => c && c !== primaryLang);
   const extras: ListingExtras = {
@@ -327,7 +334,7 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
     ...(form.typicalTimelineNotes.trim()
       ? { typicalTimelineNotes: form.typicalTimelineNotes.trim().slice(0, MAX_TIMELINE_LENGTH) }
       : {}),
-    ...(galleryList.length ? { galleryImageUrls: galleryList } : {}),
+    ...(galleryList.length > 0 ? { galleryImageUrls: galleryList } : {}),
     ...(activeOpts.length > 0 ? { bookingOptions: activeOpts } : {}),
   };
   return {
@@ -351,7 +358,7 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
     category: '3*',
     tourType: 'cultural',
     validity: 'Year round',
-    image: form.image || 'https://images.pexels.com/photos/346885/pexels-photo-346885.jpeg',
+    image: mainImage || 'https://images.pexels.com/photos/346885/pexels-photo-346885.jpeg',
     description: desc,
     highlights: highlightList,
     itinerary: [
@@ -397,14 +404,11 @@ function serializeListingFormState(f: ListingFormState): string {
   return JSON.stringify(f);
 }
 
-/** Matches publish gate: real hero (not default stock) + ≥1 gallery URL. */
-function listingPhotosStepComplete(form: ListingFormState): boolean {
-  const img = form.image.trim();
-  if (!img || img === LISTING_PLACEHOLDER_IMAGE || img.includes('pexels.com/photos/346885')) {
-    return false;
-  }
-  const galleryCount = form.galleryUrls.map((s) => s.trim()).filter(Boolean).length;
-  return galleryCount >= 1;
+/** Four–twelve photos in order; first = main (not placeholder). */
+function listingPhotosReadyToPublish(form: ListingFormState): boolean {
+  const ordered = orderedPhotoUrls(normalizePhotoSlots(form.photoSlots));
+  if (ordered.length < LISTING_PHOTO_MIN || ordered.length > LISTING_PHOTO_MAX) return false;
+  return !isPlaceholderListingImageUrl(ordered[0] ?? '');
 }
 
 function isStepSatisfied(idx: number, form: ListingFormState): boolean {
@@ -441,7 +445,10 @@ function isStepSatisfied(idx: number, form: ListingFormState): boolean {
     return active.length >= 1 && active.every(isBookingOptionOkForStep);
   }
   if (idx === 6) {
-    return listingPhotosStepComplete(form);
+    if (form.status === 'draft') {
+      return orderedPhotoUrls(normalizePhotoSlots(form.photoSlots)).length >= 1;
+    }
+    return listingPhotosReadyToPublish(form);
   }
   return true;
 }
@@ -462,7 +469,7 @@ const emptyForm: ListingFormState = {
   highlights: Array.from({ length: HIGHLIGHT_SLOT_COUNT }, () => ''),
   destination: '',
   duration: '',
-  image: '',
+  photoSlots: Array.from({ length: LISTING_PHOTO_GRID_SLOTS }, () => ''),
   description: '',
   city: '',
   country: '',
@@ -475,7 +482,6 @@ const emptyForm: ListingFormState = {
   excludes: Array.from({ length: EXCLUDE_SLOT_COUNT }, () => ''),
   scheduleStyle: 'flexible',
   typicalTimelineNotes: '',
-  galleryUrls: Array.from({ length: GALLERY_SLOT_COUNT }, () => ''),
   accessibilitySummary: '',
   minGuestAge: '',
   venueSetting: 'unspecified',
@@ -609,7 +615,7 @@ export default function SupplierListingForm({
           highlights: normalizeHighlightSlots(existing.highlights),
           destination: existing.destination,
           duration: existing.duration,
-          image: existing.image,
+          photoSlots: photoSlotsFromTourPackage(existing),
           description: existing.description,
           city: existing.city ?? '',
           country: existing.country ?? '',
@@ -622,7 +628,6 @@ export default function SupplierListingForm({
           excludes: normalizeLineSlots(EXCLUDE_SLOT_COUNT, existing.excludes),
           scheduleStyle: extras.scheduleStyle ?? 'flexible',
           typicalTimelineNotes: extras.typicalTimelineNotes ?? '',
-          galleryUrls: normalizeLineSlots(GALLERY_SLOT_COUNT, extras.galleryImageUrls),
           accessibilitySummary: extras.accessibilitySummary ?? '',
           minGuestAge: extras.minGuestAge ?? '',
           venueSetting: extras.venueSetting ?? 'unspecified',
@@ -706,7 +711,7 @@ export default function SupplierListingForm({
 
   useEffect(() => {
     if (!stepContainerRef.current) return;
-    stepContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    stepContainerRef.current.scrollTo({ top: 0, behavior: 'auto' });
   }, [stepIdx]);
 
   useEffect(() => {
@@ -1237,7 +1242,10 @@ export default function SupplierListingForm({
 
   const canContinueStep = () => {
     if (stepIdx >= steps.length - 1) {
-      return listingPhotosStepComplete(form);
+      if (form.status === 'published') {
+        return listingPhotosReadyToPublish(form);
+      }
+      return true;
     }
     return isStepSatisfied(stepIdx, form);
   };
@@ -1907,20 +1915,18 @@ export default function SupplierListingForm({
           )}
 
           {stepIdx === 6 && (
-            <div className="space-y-4 transition-all duration-300 ease-out opacity-100 translate-y-0">
+            <div className="space-y-4">
               <div className="rounded-xl border border-gray-200 bg-white p-4 sm:p-5 space-y-4 shadow-sm">
                 <div>
                   <h3 className="text-sm font-semibold text-gray-900">Tour photos</h3>
                   <p className="mt-1 text-xs text-gray-600">
-                    These images are what travelers see on your tour page — main photo at the top and gallery shots below. Add a
-                    real main image and at least one extra gallery photo before publishing.
+                    Add {LISTING_PHOTO_MIN}–{LISTING_PHOTO_MAX} photos in the order travelers should see them. The top-left slot
+                    is the main image; use the arrows to reorder after selecting a photo.
                   </p>
                 </div>
                 <ListingImageFields
-                  heroUrl={form.image}
-                  galleryUrls={form.galleryUrls}
-                  onHeroUrl={(url) => setForm((f) => ({ ...f, image: url }))}
-                  onGalleryUrls={(urls) => setForm((f) => ({ ...f, galleryUrls: urls }))}
+                  photoSlots={form.photoSlots}
+                  onPhotoSlotsChange={(photoSlots) => setForm((f) => ({ ...f, photoSlots }))}
                   userId={user?.id}
                   uploadsEnabled={isSupabaseConfigured() && !!user?.id}
                 />

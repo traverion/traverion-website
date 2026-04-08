@@ -1,17 +1,22 @@
 import { useRef, useState } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import {
   isListingImageStoragePublicUrl,
   removeListingImageIfOwned,
   uploadListingImage,
 } from '../../data/supabase-listing-images';
-
-type PickTarget = 'hero' | number;
+import {
+  LISTING_PHOTO_GRID_COLS,
+  LISTING_PHOTO_GRID_SLOTS,
+  LISTING_PHOTO_MAX,
+  LISTING_PHOTO_MIN,
+  normalizePhotoSlots,
+  orderedPhotoUrls,
+} from '../../lib/listingPhotoGrid';
 
 type ListingImageFieldsProps = {
-  heroUrl: string;
-  galleryUrls: string[];
-  onHeroUrl: (url: string) => void;
-  onGalleryUrls: (urls: string[]) => void;
+  photoSlots: string[];
+  onPhotoSlotsChange: (slots: string[]) => void;
   userId: string | null | undefined;
   uploadsEnabled: boolean;
 };
@@ -21,87 +26,96 @@ function previewUrl(url: string): string | null {
   return t || null;
 }
 
+function swap(slots: string[], a: number, b: number): string[] {
+  const next = [...normalizePhotoSlots(slots)];
+  [next[a], next[b]] = [next[b], next[a]];
+  return next;
+}
+
 export default function ListingImageFields({
-  heroUrl,
-  galleryUrls,
-  onHeroUrl,
-  onGalleryUrls,
+  photoSlots,
+  onPhotoSlotsChange,
   userId,
   uploadsEnabled,
 }: ListingImageFieldsProps) {
+  const slots = normalizePhotoSlots(photoSlots);
   const fileRef = useRef<HTMLInputElement>(null);
-  const pickRef = useRef<PickTarget | null>(null);
-  const [busyTarget, setBusyTarget] = useState<PickTarget | null>(null);
+  const uploadIndexRef = useRef<number | null>(null);
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [busyIndex, setBusyIndex] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const openPicker = (target: PickTarget) => {
+  const filledCount = orderedPhotoUrls(slots).length;
+  const canAddMore = filledCount < LISTING_PHOTO_MAX;
+
+  const openPickerForIndex = (index: number) => {
+    if (!uploadsEnabled || !userId || busyIndex !== null) return;
+    if (!canAddMore && !slots[index]?.trim()) return;
     setError(null);
-    pickRef.current = target;
+    uploadIndexRef.current = index;
     fileRef.current?.click();
   };
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = '';
-    const target = pickRef.current;
-    pickRef.current = null;
-    if (!file || !userId || !uploadsEnabled || target == null) return;
+    const index = uploadIndexRef.current;
+    uploadIndexRef.current = null;
+    if (!file || !userId || !uploadsEnabled || index == null) return;
 
-    setBusyTarget(target);
+    setBusyIndex(index);
     setError(null);
-    const prevUrl =
-      target === 'hero' ? heroUrl.trim() : (galleryUrls[target] ?? '').trim();
+    const prevUrl = (slots[index] ?? '').trim();
     const { publicUrl, error: upErr } = await uploadListingImage(userId, file);
-    setBusyTarget(null);
+    setBusyIndex(null);
     if (upErr || !publicUrl) {
       setError(upErr ?? 'Upload failed');
       return;
     }
-    if (target === 'hero') {
-      onHeroUrl(publicUrl);
-      if (prevUrl && isListingImageStoragePublicUrl(prevUrl)) {
-        void removeListingImageIfOwned(userId, prevUrl);
-      }
-    } else {
-      const next = [...galleryUrls];
-      next[target] = publicUrl;
-      onGalleryUrls(next);
-      if (prevUrl && isListingImageStoragePublicUrl(prevUrl)) {
-        void removeListingImageIfOwned(userId, prevUrl);
-      }
+    const next = [...normalizePhotoSlots(slots)];
+    next[index] = publicUrl;
+    onPhotoSlotsChange(next);
+    setSelectedIndex(index);
+    if (prevUrl && isListingImageStoragePublicUrl(prevUrl)) {
+      void removeListingImageIfOwned(userId, prevUrl);
     }
   };
 
-  const removeHero = () => {
-    const prev = heroUrl.trim();
-    onHeroUrl('');
+  const clearSlot = (index: number) => {
+    const prev = (slots[index] ?? '').trim();
+    const next = [...normalizePhotoSlots(slots)];
+    next[index] = '';
+    onPhotoSlotsChange(next);
     if (userId && prev && isListingImageStoragePublicUrl(prev)) {
       void removeListingImageIfOwned(userId, prev);
     }
+    if (selectedIndex === index) setSelectedIndex(null);
   };
 
-  const removeGallerySlot = (index: number) => {
-    const prev = (galleryUrls[index] ?? '').trim();
-    const next = galleryUrls.map((u, i) => (i === index ? '' : u));
-    onGalleryUrls(next);
-    if (userId && prev && isListingImageStoragePublicUrl(prev)) {
-      void removeListingImageIfOwned(userId, prev);
-    }
+  const setSlotUrl = (index: number, url: string) => {
+    const next = [...normalizePhotoSlots(slots)];
+    next[index] = url;
+    onPhotoSlotsChange(next);
   };
 
-  const makeMainFromGallery = (index: number) => {
-    const g = (galleryUrls[index] ?? '').trim();
-    if (!g) return;
-    const prevHero = heroUrl.trim();
-    const next = galleryUrls.map((u, i) => (i === index ? prevHero : u));
-    onHeroUrl(g);
-    onGalleryUrls(next);
+  const moveLeft = () => {
+    if (selectedIndex == null || selectedIndex <= 0) return;
+    const next = swap(slots, selectedIndex, selectedIndex - 1);
+    onPhotoSlotsChange(next);
+    setSelectedIndex(selectedIndex - 1);
   };
 
-  const heroPreview = previewUrl(heroUrl);
+  const moveRight = () => {
+    if (selectedIndex == null || selectedIndex >= LISTING_PHOTO_GRID_SLOTS - 1) return;
+    const next = swap(slots, selectedIndex, selectedIndex + 1);
+    onPhotoSlotsChange(next);
+    setSelectedIndex(selectedIndex + 1);
+  };
+
+  const firstEmptyIndex = slots.findIndex((s) => !s.trim());
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <input
         ref={fileRef}
         type="file"
@@ -116,127 +130,143 @@ export default function ListingImageFields({
         </p>
       )}
 
-      <div id="supplier-listing-field-image" className="space-y-3">
-        <label className="block text-sm font-medium text-gray-700">Main photo *</label>
-        <p className="text-xs text-gray-500">
-          This is the large image at the top of your listing. Upload from your phone or computer, or paste a link
-          below.
+      <div id="supplier-listing-field-image" className="space-y-2">
+        <p className="text-xs text-gray-600 leading-relaxed">
+          <span className="font-medium text-gray-800">Order = what travelers see</span> (left to right, top to bottom; empty
+          slots are skipped). The <span className="font-medium text-gray-800">first photo in that order</span> is the main
+          image — usually keep it in the top-left, or select a photo and use the arrows to move it. Publishing needs{' '}
+          {LISTING_PHOTO_MIN}–{LISTING_PHOTO_MAX} photos.
         </p>
-        <div className="mx-auto w-full max-w-md rounded-xl border border-gray-200 bg-gray-50 overflow-hidden">
-          {heroPreview ? (
-            <img
-              src={heroPreview}
-              alt="Listing main"
-              className="w-full h-44 sm:h-48 object-cover bg-gray-100"
-            />
-          ) : (
-            <div className="flex flex-col items-center justify-center min-h-[120px] text-center px-4 py-6 text-sm text-gray-500">
-              No main photo yet — add one before publishing.
-            </div>
-          )}
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            disabled={!uploadsEnabled || busyTarget !== null}
-            onClick={() => openPicker('hero')}
-            className="touch-manipulation px-4 py-2.5 rounded-lg bg-finland text-white text-sm font-medium hover:bg-finland-dark disabled:opacity-50 min-h-[44px]"
-          >
-            {busyTarget === 'hero' ? 'Uploading…' : heroPreview ? 'Replace main photo' : 'Upload main photo'}
-          </button>
-          {heroPreview && (
-            <button
-              type="button"
-              disabled={busyTarget !== null}
-              onClick={removeHero}
-              className="touch-manipulation px-4 py-2.5 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50 disabled:opacity-50 min-h-[44px]"
-            >
-              Remove main photo
-            </button>
-          )}
-        </div>
-        {!uploadsEnabled && (
-          <p className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
-            Connect Supabase and sign in to upload files. Until then, paste image URLs.
-          </p>
-        )}
-        <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Main photo URL (optional)</label>
-          <input
-            type="url"
-            value={heroUrl}
-            onChange={(e) => onHeroUrl(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland text-sm"
-            placeholder="https://… or use Upload above"
-          />
-        </div>
+        <p className="text-xs text-finland font-medium tabular-nums">
+          {filledCount} / {LISTING_PHOTO_MIN}–{LISTING_PHOTO_MAX} photos
+          {filledCount < LISTING_PHOTO_MIN ? ' — add more to publish' : ''}
+        </p>
       </div>
 
-      <div id="supplier-listing-field-gallery" className="space-y-3">
-        <label className="block text-sm font-medium text-gray-700">More photos</label>
-        <p className="text-xs text-gray-500">
-          Up to three extra images in the gallery. Publishing needs at least one photo in addition to the main image.
-        </p>
-        <div className="mx-auto grid w-full max-w-2xl grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-3">
-          {galleryUrls.map((url, index) => {
+      <div id="supplier-listing-field-gallery" className="flex flex-col sm:flex-row gap-3 sm:items-start">
+        <div className="flex flex-row sm:flex-col gap-2 shrink-0 sm:pt-1">
+          <button
+            type="button"
+            aria-label="Move selected photo earlier in the order"
+            disabled={selectedIndex === null || selectedIndex <= 0 || busyIndex !== null}
+            onClick={moveLeft}
+            className="touch-manipulation inline-flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none"
+          >
+            <ChevronLeft className="h-5 w-5" aria-hidden />
+          </button>
+          <button
+            type="button"
+            aria-label="Move selected photo later in the order"
+            disabled={
+              selectedIndex === null || selectedIndex >= LISTING_PHOTO_GRID_SLOTS - 1 || busyIndex !== null
+            }
+            onClick={moveRight}
+            className="touch-manipulation inline-flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none"
+          >
+            <ChevronRight className="h-5 w-5" aria-hidden />
+          </button>
+        </div>
+
+        <div
+          className="grid flex-1 gap-1.5 sm:gap-2 mx-auto w-full max-w-md"
+          style={{ gridTemplateColumns: `repeat(${LISTING_PHOTO_GRID_COLS}, minmax(0, 1fr))` }}
+        >
+          {slots.map((url, index) => {
             const p = previewUrl(url);
-            const busy = busyTarget === index;
+            const busy = busyIndex === index;
+            const selected = selectedIndex === index;
+            const isMainSlot = index === 0;
             return (
-              <div
-                key={index}
-                className="mx-auto w-full max-w-[220px] sm:max-w-none rounded-xl border border-gray-200 bg-white overflow-hidden flex flex-col"
-              >
-                <div className="aspect-[4/3] max-h-36 w-full bg-gray-50 flex items-center justify-center overflow-hidden">
+              <div key={index} className="flex flex-col gap-1 min-w-0">
+                <button
+                  type="button"
+                  onClick={() => setSelectedIndex(selected ? null : index)}
+                  className={[
+                    'relative w-full overflow-hidden rounded-lg border-2 bg-gray-50 transition-shadow touch-manipulation',
+                    'aspect-square max-h-[72px] sm:max-h-[80px]',
+                    selected ? 'border-finland ring-2 ring-finland/30 shadow-md' : 'border-gray-200 hover:border-gray-300',
+                  ].join(' ')}
+                >
                   {p ? (
                     <img src={p} alt="" className="h-full w-full object-cover" />
                   ) : (
-                    <span className="text-xs text-gray-400 px-2 text-center">Empty slot {index + 1}</span>
+                    <span className="flex h-full w-full items-center justify-center text-[10px] sm:text-xs text-gray-400 px-0.5 text-center leading-tight">
+                      {isMainSlot ? 'Main' : `${index + 1}`}
+                    </span>
                   )}
-                </div>
-                <div className="p-2 flex flex-col gap-1.5 border-t border-gray-100">
+                  {busy && (
+                    <span className="absolute inset-0 flex items-center justify-center bg-black/40 text-[10px] font-medium text-white">
+                      …
+                    </span>
+                  )}
+                </button>
+                <div className="flex gap-0.5 justify-center">
                   <button
                     type="button"
-                    disabled={!uploadsEnabled || busyTarget !== null}
-                    onClick={() => openPicker(index)}
-                    className="touch-manipulation w-full py-1.5 rounded-lg bg-finland/10 text-finland text-sm font-medium hover:bg-finland/15 disabled:opacity-50 min-h-[40px]"
+                    disabled={!uploadsEnabled || busyIndex !== null || (!canAddMore && !p)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openPickerForIndex(index);
+                    }}
+                    className="touch-manipulation rounded px-1 py-0.5 text-[10px] font-medium text-finland hover:bg-finland/10 disabled:opacity-40"
                   >
-                    {busy ? 'Uploading…' : p ? 'Replace' : 'Upload'}
+                    {p ? 'Replace' : 'Add'}
                   </button>
                   {p && (
-                    <>
-                      <button
-                        type="button"
-                        disabled={busyTarget !== null}
-                        onClick={() => makeMainFromGallery(index)}
-                        className="touch-manipulation w-full py-1.5 rounded-lg border border-gray-200 text-sm text-gray-800 hover:bg-gray-50 disabled:opacity-50"
-                      >
-                        Use as main photo
-                      </button>
-                      <button
-                        type="button"
-                        disabled={busyTarget !== null}
-                        onClick={() => removeGallerySlot(index)}
-                        className="touch-manipulation w-full py-1.5 rounded-lg text-sm text-red-700 hover:bg-red-50 disabled:opacity-50"
-                      >
-                        Remove
-                      </button>
-                    </>
+                    <button
+                      type="button"
+                      disabled={busyIndex !== null}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        clearSlot(index);
+                      }}
+                      className="touch-manipulation rounded px-1 py-0.5 text-[10px] font-medium text-red-600 hover:bg-red-50 disabled:opacity-40"
+                    >
+                      Clear
+                    </button>
                   )}
-                  <input
-                    type="url"
-                    value={url}
-                    onChange={(e) => {
-                      const next = galleryUrls.map((u, i) => (i === index ? e.target.value : u));
-                      onGalleryUrls(next);
-                    }}
-                    className="w-full px-2 py-1.5 border border-gray-200 rounded text-xs"
-                    placeholder="Or paste URL"
-                  />
                 </div>
               </div>
             );
           })}
         </div>
+      </div>
+
+      {selectedIndex !== null && (
+        <div className="rounded-lg border border-gray-200 bg-gray-50/80 p-3 space-y-2">
+          <label className="block text-xs font-medium text-gray-600">
+            Photo URL (slot {selectedIndex + 1}
+            {selectedIndex === 0 ? ' — main' : ''})
+          </label>
+          <input
+            type="url"
+            value={slots[selectedIndex] ?? ''}
+            onChange={(e) => setSlotUrl(selectedIndex, e.target.value)}
+            className="w-full px-2 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-finland text-xs"
+            placeholder="https://…"
+          />
+        </div>
+      )}
+
+      <div className="flex flex-wrap gap-2 items-center">
+        <button
+          type="button"
+          disabled={!uploadsEnabled || busyIndex !== null || firstEmptyIndex < 0 || !canAddMore}
+          onClick={() => {
+            if (firstEmptyIndex >= 0) {
+              setSelectedIndex(firstEmptyIndex);
+              openPickerForIndex(firstEmptyIndex);
+            }
+          }}
+          className="touch-manipulation px-3 py-2 rounded-lg bg-finland text-white text-sm font-medium hover:bg-finland-dark disabled:opacity-50 min-h-[40px]"
+        >
+          {busyIndex !== null ? 'Uploading…' : 'Upload next empty slot'}
+        </button>
+        {!uploadsEnabled && (
+          <p className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+            Connect Supabase and sign in to upload files. Until then, paste URLs in a selected slot.
+          </p>
+        )}
       </div>
     </div>
   );
