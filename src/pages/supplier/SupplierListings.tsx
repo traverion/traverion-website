@@ -185,8 +185,8 @@ export default function SupplierListings() {
     if (found) {
       setEditingId(edit);
       setShowForm(true);
-      const focus = params.get('focus');
-      setFormFocusSection(focus && focus.length > 0 ? focus : null);
+      // Do not re-apply `focus` from the URL here — every loadListings() refetch would
+      // resurrect ?focus= after onFocusConsumed cleared it and yank the wizard off Tour photos.
       return;
     }
     const listDefinitelyLoaded = listings.length > 0 || (listings.length === 0 && !error);
@@ -331,6 +331,10 @@ export default function SupplierListings() {
     };
     loadProfileGate();
   }, [isSupabase, user?.id, showForm, loading]);
+
+  const consumeListingFormFocus = useCallback(() => {
+    setFormFocusSection(null);
+  }, []);
 
   const refresh = () => {
     loadListings();
@@ -661,7 +665,7 @@ export default function SupplierListings() {
             window.dispatchEvent(new PopStateEvent('popstate'));
           }}
           focusSection={formFocusSection}
-          onFocusConsumed={() => setFormFocusSection(null)}
+          onFocusConsumed={consumeListingFormFocus}
         />
       )}
 

@@ -666,13 +666,16 @@ export default function SupplierListingForm({
   useEffect(() => {
     if (!focusSection || !editingId) return;
     const targetStep = focusToStep[focusSection];
-    if (typeof targetStep === 'number') {
-      setStepIdx(targetStep);
-    }
-    if (lastFocused.current === `${editingId}:${focusSection}`) return;
+    if (typeof targetStep !== 'number') return;
+
+    const focusKey = `${editingId}:${focusSection}`;
+    if (lastFocused.current === focusKey) return;
+
+    setStepIdx(targetStep);
+
     const el = document.getElementById(`supplier-listing-field-${focusSection}`);
     if (el) {
-      lastFocused.current = `${editingId}:${focusSection}`;
+      lastFocused.current = focusKey;
       requestAnimationFrame(() => {
         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
         const focusable = el.querySelector<HTMLElement>('input, textarea, select, button');
@@ -691,7 +694,7 @@ export default function SupplierListingForm({
       const t = window.setTimeout(() => {
         const inner = document.getElementById(`supplier-listing-field-${focusSection}`);
         if (!inner) return;
-        lastFocused.current = `${editingId}:${focusSection}`;
+        lastFocused.current = focusKey;
         inner.scrollIntoView({ behavior: 'smooth', block: 'center' });
         const focusable = inner.querySelector<HTMLElement>('input, textarea, select, button');
         focusable?.focus?.();
