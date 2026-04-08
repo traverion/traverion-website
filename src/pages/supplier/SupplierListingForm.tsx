@@ -531,6 +531,8 @@ export default function SupplierListingForm({
   const initialFormSnapshotRef = useRef<string>(serializeListingFormState(emptyForm));
   /** When creating (editingId null), avoid resetting the form every time parent `listings` refetches. */
   const createModeEmptySeededRef = useRef(false);
+  /** When editing, hydrate from server only once per opened listing — refetches must not wipe in-progress steps (e.g. photos). */
+  const editModeHydratedIdRef = useRef<string | null>(null);
   const closeIntentRunningRef = useRef(false);
   const [optionModalOpen, setOptionModalOpen] = useState(false);
   const [optionModalDraft, setOptionModalDraft] = useState<ListingBookingOption | null>(null);
@@ -591,6 +593,8 @@ export default function SupplierListingForm({
       createModeEmptySeededRef.current = false;
       const existing = existingListings.find(t => t.id === editingId);
       if (existing) {
+        if (editModeHydratedIdRef.current === editingId) return;
+        editModeHydratedIdRef.current = editingId;
         const extras = parseListingExtras(existing.listingExtras as unknown);
         const next: ListingFormState = {
           experienceLanguage: existing.experienceLanguage ?? '',
@@ -628,6 +632,7 @@ export default function SupplierListingForm({
         setForm(next);
       }
     } else {
+      editModeHydratedIdRef.current = null;
       // Create flow: seed empty template once per open — not on every parent listings refetch.
       if (!createModeEmptySeededRef.current) {
         createModeEmptySeededRef.current = true;
