@@ -1,5 +1,5 @@
 import type { TourPackage } from '../types/tour';
-import { materializedBookingOptions } from '../types/listingExtras';
+import { getListingBookingOptionDurationIssue, materializedBookingOptions } from '../types/listingExtras';
 import type { ListingBookingOption } from '../types/listingExtras';
 import { LISTING_PLACEHOLDER_IMAGE, MIN_LISTING_DESCRIPTION_LENGTH } from './listingQualityScore';
 
@@ -8,8 +8,8 @@ function optionPublishIssues(o: ListingBookingOption, index: number, multi: bool
   const prefix = multi ? `Option ${index + 1}${o.name.trim() ? ` (“${o.name.trim()}”)` : ''}: ` : '';
   if (!o.name.trim()) issues.push(`${prefix}Add a name (e.g. small group tour, bus tour).`.trim());
   if (typeof o.priceUsd !== 'number' || o.priceUsd <= 0) issues.push(`${prefix}Set a price greater than zero.`.trim());
-  const dur = o.duration?.trim() ?? '';
-  if (dur.length < 2) issues.push(`${prefix}Set how long this option runs.`.trim());
+  const durIssue = getListingBookingOptionDurationIssue(o.duration ?? '');
+  if (durIssue) issues.push(`${prefix}${durIssue}`.trim());
   const meet = o.pickupPlace?.trim() ?? '';
   if (meet.length < 8) issues.push(`${prefix}Add where guests meet or are picked up for this option.`.trim());
   if (o.minPersons < 1 || o.maxPersons < o.minPersons) {
@@ -24,10 +24,13 @@ function optionPublishIssues(o: ListingBookingOption, index: number, multi: bool
   if (!wd.some(Boolean)) issues.push(`${prefix}Select at least one weekday when this option runs.`.trim());
   const df = o.availabilityDateFrom?.trim() ?? '';
   const dt = o.availabilityDateTo?.trim() ?? '';
-  if ((df && !dt) || (!df && dt)) {
-    issues.push(`${prefix}Add both a season start and end date, or leave both empty for no fixed season.`.trim());
+  if (dt) {
+    if (!df) {
+      issues.push(`${prefix}Add a starting date when an ending date is set, or remove the ending date.`.trim());
+    } else if (df > dt) {
+      issues.push(`${prefix}Ending date must be on or after the starting date.`.trim());
+    }
   }
-  if (df && dt && df > dt) issues.push(`${prefix}Season end date must be on or after the start date.`.trim());
   return issues;
 }
 

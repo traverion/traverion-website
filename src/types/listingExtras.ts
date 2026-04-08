@@ -32,8 +32,9 @@ export interface ListingBookingOption {
   optionInfo: string;
   /** Mon–Sun; true = offered that day. */
   weekdays: boolean[];
-  /** Inclusive season start YYYY-MM-DD; empty = year-round / not set. */
+  /** Activity / offer start YYYY-MM-DD; empty = not limited to a fixed start. */
   availabilityDateFrom: string;
+  /** Activity end YYYY-MM-DD when the offer has a fixed end (e.g. season); empty = no end date / runs ongoing. */
   availabilityDateTo: string;
 }
 
@@ -106,6 +107,68 @@ export function isListingBookingOptionEffectivelyEmpty(o: ListingBookingOption):
 export function materializedBookingOptions(options: ListingBookingOption[] | undefined): ListingBookingOption[] {
   if (!options?.length) return [];
   return options.filter((o) => !isListingBookingOptionEffectivelyEmpty(o));
+}
+
+/** Unit for partner UI; stored duration is always a plain string (e.g. "3 hours"). */
+export type BookingOptionDurationUnit = 'minutes' | 'hours' | 'days';
+
+export function parseBookingOptionDuration(raw: string): { amount: string; unit: BookingOptionDurationUnit } {
+  const t = raw.trim();
+  if (!t) return { amount: '', unit: 'hours' };
+
+  const m = t.match(/(\d+(?:\.\d+)?)/);
+  const amount = m ? m[1] : '';
+
+  let unit: BookingOptionDurationUnit = 'hours';
+  if (amount) {
+    if (/(^|\s)(min|mins|minute|minutes)(\s|$|[,.;])/i.test(t)) unit = 'minutes';
+    else if (/(^|\s)(day|days)(\s|$|[,.;])/i.test(t)) unit = 'days';
+    else if (/(^|\s)(hr|hrs|hour|hours)(\s|$|[,.;])/i.test(t) || /\d\s*h\b/i.test(t)) unit = 'hours';
+  }
+  return { amount, unit };
+}
+
+export function formatBookingOptionDuration(amountStr: string, unit: BookingOptionDurationUnit): string {
+  const t = amountStr.trim();
+  if (!t) return '';
+  const n = Number(t);
+  if (Number.isNaN(n) || n < 0) return '';
+  const word =
+    unit === 'minutes'
+      ? n === 1
+        ? 'minute'
+        : 'minutes'
+      : unit === 'hours'
+        ? n === 1
+          ? 'hour'
+          : 'hours'
+        : n === 1
+          ? 'day'
+          : 'days';
+  const numStr = Number.isInteger(n) ? String(Math.trunc(n)) : String(n);
+  return `${numStr} ${word}`;
+}
+
+/** True when duration has a positive numeric length (partner form uses number + unit). */
+export function isListingBookingOptionDurationValid(raw: string): boolean {
+  return getListingBookingOptionDurationIssue(raw) === null;
+}
+
+/** Single human-readable issue, or null if duration is acceptable. */
+export function getListingBookingOptionDurationIssue(raw: string): string | null {
+  const t = raw.trim();
+  if (!t) {
+    return 'Enter how long this option runs: add a number, then choose minutes, hours, or days.';
+  }
+  const { amount } = parseBookingOptionDuration(t);
+  if (!amount) {
+    return 'Duration needs a number plus a unit. For example type 3 and choose Hours, or 90 and Minutes.';
+  }
+  const n = Number(amount);
+  if (Number.isNaN(n) || n <= 0) {
+    return 'Use a duration greater than zero (for example 2 hours or 45 minutes).';
+  }
+  return null;
 }
 
 export function parseListingExtras(raw: unknown): ListingExtras {

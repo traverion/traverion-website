@@ -4,8 +4,12 @@ import { Pencil, Plus, Trash2, X } from 'lucide-react';
 import { TourPackage } from '../../types/tour';
 import type { ListingBookingOption, ListingExtras, ScheduleStyle, VenueSetting } from '../../types/listingExtras';
 import {
+  type BookingOptionDurationUnit,
+  formatBookingOptionDuration,
+  getListingBookingOptionDurationIssue,
   materializedBookingOptions,
   normalizeListingBookingOption,
+  parseBookingOptionDuration,
   parseListingExtras,
   TRAVERION_STANDARD_CANCELLATION_POLICY,
 } from '../../types/listingExtras';
@@ -133,7 +137,8 @@ function getBookingOptionValidationMessages(o: ListingBookingOption): string[] {
   const msg: string[] = [];
   if (!o.name.trim()) msg.push('Add an option name (e.g. Small group tour).');
   if (o.priceUsd <= 0) msg.push('Set a price greater than zero (USD).');
-  if (o.duration.trim().length < 2) msg.push('Add how long this option runs (e.g. 3 hours).');
+  const durIssue = getListingBookingOptionDurationIssue(o.duration);
+  if (durIssue) msg.push(durIssue);
   if (o.pickupPlace.trim().length < 8) {
     msg.push('Describe where guests meet or where you pick them up (at least 8 characters).');
   }
@@ -147,10 +152,13 @@ function getBookingOptionValidationMessages(o: ListingBookingOption): string[] {
   if (!o.weekdays.some(Boolean)) msg.push('Choose at least one weekday when this option runs.');
   const df = o.availabilityDateFrom.trim();
   const dt = o.availabilityDateTo.trim();
-  if ((df && !dt) || (!df && dt)) {
-    msg.push('Set both season start and end, or leave both dates empty.');
+  if (dt) {
+    if (!df) {
+      msg.push('Add a starting date when you set an ending date, or clear the ending date.');
+    } else if (df > dt) {
+      msg.push('Ending date must be on or after the starting date.');
+    }
   }
-  if (df && dt && df > dt) msg.push('Season end must be on or after the start date.');
   return msg;
 }
 
@@ -526,6 +534,7 @@ export default function SupplierListingForm({
   const [optionModalDraft, setOptionModalDraft] = useState<ListingBookingOption | null>(null);
   const [optionModalEditingId, setOptionModalEditingId] = useState<string | null>(null);
   const [optionModalErrors, setOptionModalErrors] = useState<string[]>([]);
+  const [optionModalHasEndingDate, setOptionModalHasEndingDate] = useState(false);
   const optionModalOpenRef = useRef(false);
 
   const steps = useMemo(
@@ -665,6 +674,7 @@ export default function SupplierListingForm({
       setOptionModalOpen(true);
       setOptionModalEditingId(null);
       setOptionModalDraft(createEmptyBookingOption());
+      setOptionModalHasEndingDate(false);
       setOptionModalErrors([]);
       const t = window.setTimeout(() => {
         const inner = document.getElementById(`supplier-listing-field-${focusSection}`);
@@ -766,6 +776,7 @@ export default function SupplierListingForm({
         setOptionModalDraft(null);
         setOptionModalEditingId(null);
         setOptionModalErrors([]);
+        setOptionModalHasEndingDate(false);
         return;
       }
       e.preventDefault();
@@ -816,12 +827,14 @@ export default function SupplierListingForm({
     setOptionModalDraft(null);
     setOptionModalEditingId(null);
     setOptionModalErrors([]);
+    setOptionModalHasEndingDate(false);
   }, []);
 
   const openOptionModalCreate = useCallback(() => {
     setOptionModalEditingId(null);
     setOptionModalDraft(createEmptyBookingOption());
     setOptionModalErrors([]);
+    setOptionModalHasEndingDate(false);
     setOptionModalOpen(true);
   }, []);
 
@@ -833,6 +846,7 @@ export default function SupplierListingForm({
       normalizeListingBookingOption({ ...(opt as unknown as Record<string, unknown>) }, opt.id)
     );
     setOptionModalErrors([]);
+    setOptionModalHasEndingDate(opt.availabilityDateTo.trim().length > 0);
     setOptionModalOpen(true);
   }, [form.bookingOptions]);
 
@@ -848,13 +862,34 @@ export default function SupplierListingForm({
 
   const saveOptionModal = useCallback(() => {
     if (!optionModalDraft) return;
-    const errs = getBookingOptionValidationMessages(optionModalDraft);
+    let errs = getBookingOptionValidationMessages(optionModalDraft);
+    if (optionModalHasEndingDate && !optionModalDraft.availabilityDateTo.trim()) {
+      errs = [
+        ...errs,
+        'Choose an ending date, or turn off "This activity has an ending date".',
+      ];
+    }
     if (errs.length) {
       setOptionModalErrors(errs);
+      const durErr = getListingBookingOptionDurationIssue(optionModalDraft.duration);
+      if (durErr && errs.includes(durErr)) {
+        requestAnimationFrame(() => {
+          document.getElementById('supplier-listing-field-option-duration')?.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center',
+          });
+          document.getElementById('booking-option-duration-amount')?.focus();
+        });
+      }
       return;
     }
+    const durParts = parseBookingOptionDuration(optionModalDraft.duration);
+    const canonicalDuration = formatBookingOptionDuration(durParts.amount, durParts.unit);
     const normalized = normalizeListingBookingOption(
-      optionModalDraft as unknown as Record<string, unknown>,
+      {
+        ...(optionModalDraft as unknown as Record<string, unknown>),
+        duration: canonicalDuration,
+      },
       optionModalDraft.id
     );
     const editingId = optionModalEditingId;
@@ -868,7 +903,7 @@ export default function SupplierListingForm({
       return { ...f, bookingOptions: [...f.bookingOptions, normalized] };
     });
     closeOptionModal();
-  }, [optionModalDraft, optionModalEditingId, closeOptionModal]);
+  }, [optionModalDraft, optionModalEditingId, optionModalHasEndingDate, closeOptionModal]);
 
   const optionDraft = optionModalOpen ? optionModalDraft : null;
 
@@ -930,15 +965,74 @@ export default function SupplierListingForm({
                 />
                 <p className="text-xs text-gray-500 mt-1">Shown to guests; you can adjust on the booking.</p>
               </div>
-              <div className="sm:col-span-2">
+              <div className="sm:col-span-2" id="supplier-listing-field-option-duration">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Duration for this option *</label>
-                <input
-                  type="text"
-                  value={optionDraft.duration}
-                  onChange={(e) => patchOptionDraft({ duration: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
-                  placeholder="e.g. 3 hours · half day"
-                />
+                {(() => {
+                  const durParts = parseBookingOptionDuration(optionDraft.duration);
+                  return (
+                    <>
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:gap-3">
+                        <div className="min-w-0 flex-1">
+                          <label htmlFor="booking-option-duration-amount" className="sr-only">
+                            Duration amount
+                          </label>
+                          <input
+                            id="booking-option-duration-amount"
+                            type="number"
+                            min={0}
+                            step="any"
+                            inputMode="decimal"
+                            value={durParts.amount}
+                            onChange={(e) => {
+                              const next = e.target.value;
+                              patchOptionDraft({
+                                duration: formatBookingOptionDuration(next, durParts.unit),
+                              });
+                            }}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                            placeholder="e.g. 3"
+                          />
+                        </div>
+                        <div className="w-full shrink-0 sm:w-44">
+                          <label htmlFor="booking-option-duration-unit" className="sr-only">
+                            Duration unit
+                          </label>
+                          <select
+                            id="booking-option-duration-unit"
+                            value={durParts.unit}
+                            onChange={(e) => {
+                              const u = e.target.value as BookingOptionDurationUnit;
+                              patchOptionDraft({
+                                duration: formatBookingOptionDuration(durParts.amount, u),
+                              });
+                            }}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                          >
+                            <option value="minutes">Minutes</option>
+                            <option value="hours">Hours</option>
+                            <option value="days">Days</option>
+                          </select>
+                        </div>
+                      </div>
+                      <p className="text-xs text-gray-600 mt-2">
+                        Type a number, then choose minutes, hours, or days. Both are required — they are stored as text like{' '}
+                        <span className="font-medium text-gray-800">3 hours</span> or{' '}
+                        <span className="font-medium text-gray-800">90 minutes</span>.
+                      </p>
+                      {optionDraft.duration.trim() ? (
+                        <p className="text-xs text-gray-500 mt-1">
+                          Saved as:{' '}
+                          <span className="font-medium text-gray-700 tabular-nums">{optionDraft.duration.trim()}</span>
+                          {durParts.amount === '' && optionDraft.duration.trim().length >= 2 && (
+                            <span className="block mt-1 text-amber-800">
+                              This text is kept as-is. Enter a number above to use minutes, hours, or days.
+                            </span>
+                          )}
+                        </p>
+                      ) : null}
+                    </>
+                  );
+                })()}
               </div>
               <div className="sm:col-span-2" id="supplier-listing-field-meeting">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Meeting or pickup place *</label>
@@ -1033,36 +1127,63 @@ export default function SupplierListingForm({
                   ))}
                 </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-4 rounded-xl border border-gray-100 bg-gray-50/60 p-4 sm:p-5">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Season start (optional)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Starting date of the activity <span className="font-normal text-gray-500">(optional)</span>
+                  </label>
                   <input
                     type="date"
                     value={optionDraft.availabilityDateFrom}
                     onChange={(e) => patchOptionDraft({ availabilityDateFrom: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                    className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    When this option first becomes bookable. Leave empty if there is no fixed start.
+                  </p>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Season end (optional)</label>
+                <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-200 bg-white p-3 touch-manipulation">
                   <input
-                    type="date"
-                    value={optionDraft.availabilityDateTo}
-                    onChange={(e) => patchOptionDraft({ availabilityDateTo: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                    type="checkbox"
+                    checked={optionModalHasEndingDate}
+                    onChange={(e) => {
+                      const on = e.target.checked;
+                      setOptionModalHasEndingDate(on);
+                      if (!on) patchOptionDraft({ availabilityDateTo: '' });
+                    }}
+                    className="mt-0.5 h-5 w-5 rounded border-gray-300 text-finland focus:ring-finland shrink-0"
                   />
-                </div>
+                  <span>
+                    <span className="block text-sm font-medium text-gray-900">This activity has an ending date</span>
+                    <span className="block text-xs text-gray-500 mt-0.5">
+                      Use this for a fixed season or last day the option runs. Leave it off if the activity continues with no end
+                      date.
+                    </span>
+                  </span>
+                </label>
+                {optionModalHasEndingDate && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Ending date *</label>
+                    <input
+                      type="date"
+                      value={optionDraft.availabilityDateTo}
+                      onChange={(e) => patchOptionDraft({ availabilityDateTo: e.target.value })}
+                      className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Last day this option is offered (inclusive).</p>
+                  </div>
+                )}
               </div>
-              <p className="text-xs text-gray-500">
-                Leave both dates empty if this option is not limited to a fixed season. If you set one date, set both.
-              </p>
             </div>
             <div className="space-y-3 rounded-xl border border-gray-100 bg-gray-50/90 p-4 text-xs text-gray-600 leading-relaxed lg:sticky lg:top-4 lg:self-start">
               <p className="text-sm font-semibold text-gray-900">Tips</p>
               <ul className="list-disc space-y-2 pl-4">
                 <li>The lowest option price is shown as the &quot;from&quot; price on cards.</li>
                 <li>Meeting or pickup should be specific enough that guests know where to go.</li>
-                <li>Season limits are optional — leave both dates empty for year-round.</li>
+                <li>
+                  Start date is optional; add an ending date only when the offer has a last day (e.g. season). Otherwise it runs
+                  with no fixed end.
+                </li>
               </ul>
             </div>
           </div>
