@@ -66,13 +66,14 @@ export default function SupplierDashboard({
   const [profile, setProfile] = useState<Awaited<ReturnType<typeof fetchSupplierProfile>> | null>(null);
 
   useEffect(() => {
-    if (!isSupabase || !user) {
+    const uid = user?.id;
+    if (!isSupabase || !uid) {
       setPublishedListingsCount(0);
       setListingTitlesById({});
       setSupplierBookings([]);
       return;
     }
-    Promise.all([fetchMyListings(user.id), fetchBookingsForSupplier(user.id)])
+    Promise.all([fetchMyListings(uid), fetchBookingsForSupplier(uid)])
       .then(([listings, bookings]) => {
         setPublishedListingsCount(listings.filter((t) => t.status === 'published').length);
         setListingTitlesById(Object.fromEntries(listings.map((t) => [t.id, t.title])));
@@ -83,19 +84,21 @@ export default function SupplierDashboard({
         setListingTitlesById({});
         setSupplierBookings([]);
       });
-  }, [isSupabase, user]);
+  }, [isSupabase, user?.id]);
 
   useEffect(() => {
-    if (isSupabase && user) {
-      fetchSupplierEarnings(user.id).then(setEarnings).catch(() => setEarnings([]));
+    const uid = user?.id;
+    if (isSupabase && uid) {
+      fetchSupplierEarnings(uid).then(setEarnings).catch(() => setEarnings([]));
     } else {
       setEarnings([]);
     }
-  }, [isSupabase, user]);
+  }, [isSupabase, user?.id]);
 
   useEffect(() => {
-    if (isSupabase && user) {
-      fetchReviewsForSupplierListings(user.id)
+    const uid = user?.id;
+    if (isSupabase && uid) {
+      fetchReviewsForSupplierListings(uid)
         .then((reviewRows) => {
           const { avg, count } = aggregateReviewRatings(reviewRows.map((r) => r.rating));
           setProviderRating({ avg, count });
@@ -104,15 +107,16 @@ export default function SupplierDashboard({
     } else {
       setProviderRating({ avg: 0, count: 0 });
     }
-  }, [isSupabase, user]);
+  }, [isSupabase, user?.id]);
 
   useEffect(() => {
-    if (isSupabase && user) {
-      fetchSupplierProfile(user.id).then(setProfile);
+    const uid = user?.id;
+    if (isSupabase && uid) {
+      fetchSupplierProfile(uid).then(setProfile);
     } else {
       setProfile(null);
     }
-  }, [isSupabase, user]);
+  }, [isSupabase, user?.id]);
 
   const now = new Date();
   const thisYear = now.getFullYear();

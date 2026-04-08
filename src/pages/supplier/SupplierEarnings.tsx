@@ -19,13 +19,14 @@ export default function SupplierEarnings() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'paid' | 'cancelled'>('all');
 
   const load = useCallback(() => {
-    if (!isSupabase || !user) {
+    const uid = user?.id;
+    if (!isSupabase || !uid) {
       setLoading(false);
       return;
     }
     setLoading(true);
     setError(null);
-    fetchSupplierEarnings(user.id)
+    fetchSupplierEarnings(uid)
       .then((data) => {
         setEarnings(data);
         setLoading(false);
@@ -34,17 +35,18 @@ export default function SupplierEarnings() {
         setError(e instanceof Error ? e.message : 'Failed to load earnings');
         setLoading(false);
       });
-  }, [isSupabase, user]);
+  }, [isSupabase, user?.id]);
 
   useEffect(() => {
-    if (isSupabase && user) load();
+    if (isSupabase && user?.id) load();
     else setLoading(false);
-  }, [isSupabase, user, load]);
+  }, [isSupabase, user?.id, load]);
 
   useEffect(() => {
-    if (isSupabase && user) fetchSupplierProfile(user.id).then(setProfile);
+    const uid = user?.id;
+    if (isSupabase && uid) fetchSupplierProfile(uid).then(setProfile);
     else setProfile(null);
-  }, [isSupabase, user]);
+  }, [isSupabase, user?.id]);
 
   const primaryCurrency = earnings[0]?.currency ?? 'USD';
 

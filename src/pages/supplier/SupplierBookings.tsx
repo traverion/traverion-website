@@ -267,7 +267,8 @@ export default function SupplierBookings() {
   }, []);
 
   const load = useCallback(async () => {
-    if (!isSupabase || !user) {
+    const uid = user?.id;
+    if (!isSupabase || !uid) {
       setLoading(false);
       return;
     }
@@ -275,8 +276,8 @@ export default function SupplierBookings() {
     setError(null);
     try {
       const [bookingsList, listings] = await Promise.all([
-        fetchBookingsForSupplier(user.id),
-        fetchMyListings(user.id),
+        fetchBookingsForSupplier(uid),
+        fetchMyListings(uid),
       ]);
       setBookings(bookingsList);
       const titles: Record<string, string> = {};
@@ -287,7 +288,7 @@ export default function SupplierBookings() {
     } finally {
       setLoading(false);
     }
-  }, [isSupabase, user]);
+  }, [isSupabase, user?.id]);
 
   useEffect(() => {
     load();
@@ -306,9 +307,10 @@ export default function SupplierBookings() {
 
   useEffect(() => {
     const syncOpsNotesFromServer = async () => {
-      if (!isSupabase || !user || bookings.length === 0) return;
+      const uid = user?.id;
+      if (!isSupabase || !uid || bookings.length === 0) return;
       const ids = bookings.map((b) => b.id);
-      const remote = await fetchSupplierBookingOpsNotes(user.id, ids);
+      const remote = await fetchSupplierBookingOpsNotes(uid, ids);
       setOpsNotes((prev) => {
         const merged = { ...prev };
         Object.entries(remote).forEach(([bookingId, r]) => {
@@ -327,7 +329,7 @@ export default function SupplierBookings() {
       });
     };
     syncOpsNotesFromServer();
-  }, [isSupabase, user, bookings]);
+  }, [isSupabase, user?.id, bookings]);
 
   useEffect(() => {
     try {
@@ -429,9 +431,10 @@ export default function SupplierBookings() {
 
   useEffect(() => {
     const loadServerEvents = async () => {
-      if (!isSupabase || !user || bookings.length === 0) return;
+      const uid = user?.id;
+      if (!isSupabase || !uid || bookings.length === 0) return;
       const ids = bookings.map((b) => b.id);
-      const rows = await fetchSupplierBookingEvents(user.id, ids);
+      const rows = await fetchSupplierBookingEvents(uid, ids);
       if (rows.length === 0) return;
       const mapped: BookingAuditEntry[] = rows.map((r) => ({
         id: r.id,
@@ -451,12 +454,13 @@ export default function SupplierBookings() {
       });
     };
     loadServerEvents();
-  }, [isSupabase, user, bookings]);
+  }, [isSupabase, user?.id, bookings]);
 
   useEffect(() => {
     const loadServerMessages = async () => {
-      if (!isSupabase || !user) return;
-      const rows = await fetchSupplierBookingMessages(user.id);
+      const uid = user?.id;
+      if (!isSupabase || !uid) return;
+      const rows = await fetchSupplierBookingMessages(uid);
       if (rows.length === 0) return;
       const mapped: CommunicationLogEntry[] = rows.map((r) => ({
         id: r.id,
@@ -471,12 +475,13 @@ export default function SupplierBookings() {
       localStorage.setItem(COMM_LOG_KEY, JSON.stringify(mapped.slice(0, 20)));
     };
     loadServerMessages();
-  }, [isSupabase, user, parseCampaignStatus]);
+  }, [isSupabase, user?.id, parseCampaignStatus]);
 
   useEffect(() => {
     const loadServerVouchers = async () => {
-      if (!isSupabase || !user) return;
-      const rows = await fetchSupplierBookingVouchers(user.id);
+      const uid = user?.id;
+      if (!isSupabase || !uid) return;
+      const rows = await fetchSupplierBookingVouchers(uid);
       if (rows.length === 0) return;
       const mapped: VoucherEntry[] = rows.map((r) => ({
         id: r.id,
@@ -495,14 +500,15 @@ export default function SupplierBookings() {
       localStorage.setItem(VOUCHER_LOG_KEY, JSON.stringify(mapped.slice(0, 200)));
     };
     loadServerVouchers();
-  }, [isSupabase, user, parseCampaignStatus]);
+  }, [isSupabase, user?.id, parseCampaignStatus]);
 
   useEffect(() => {
     const loadServerHistory = async () => {
-      if (!isSupabase || !user) return;
+      const uid = user?.id;
+      if (!isSupabase || !uid) return;
       const [campaigns, exports] = await Promise.all([
-        fetchSupplierMessageCampaigns(user.id),
-        fetchSupplierExportRuns(user.id),
+        fetchSupplierMessageCampaigns(uid),
+        fetchSupplierExportRuns(uid),
       ]);
       setCampaignHistory(
         campaigns.map((c) => ({
@@ -530,7 +536,7 @@ export default function SupplierBookings() {
       );
     };
     loadServerHistory();
-  }, [isSupabase, user, parseCampaignStatus]);
+  }, [isSupabase, user?.id, parseCampaignStatus]);
 
   const pushAudit = useCallback((entry: Omit<BookingAuditEntry, 'id' | 'at'>) => {
     const next: BookingAuditEntry = {
@@ -543,16 +549,17 @@ export default function SupplierBookings() {
       localStorage.setItem(BOOKING_AUDIT_KEY, JSON.stringify(combined));
       return combined;
     });
-    if (isSupabase && user) {
+    const uid = user?.id;
+    if (isSupabase && uid) {
       void insertSupplierBookingEvent({
-        supplierId: user.id,
-        actorId: user.id,
+        supplierId: uid,
+        actorId: uid,
         bookingId: entry.bookingId,
         eventType: entry.action,
         details: entry.details,
       });
     }
-  }, [isSupabase, user]);
+  }, [isSupabase, user?.id]);
 
   const handleStatusChange = async (booking: BookingRow, status: 'pending' | 'confirmed' | 'cancelled', options?: { cancellation_reason?: string; refund_choice?: 'full_refund' | 'no_refund' | 'reschedule' }) => {
     if (!canEditBookings) return;
@@ -1783,14 +1790,15 @@ export default function SupplierBookings() {
 
   const syncSingleOpsNote = useCallback(
     async (bookingId: string) => {
-      if (!isSupabase || !user) return;
+      const uid = user?.id;
+      if (!isSupabase || !uid) return;
       const local = opsNotes[bookingId];
       if (!local || !local.pendingSync) return;
       let ok = false;
       if (!local.note.trim()) {
-        ok = await deleteSupplierBookingOpsNote(user.id, bookingId);
+        ok = await deleteSupplierBookingOpsNote(uid, bookingId);
       } else {
-        ok = await upsertSupplierBookingOpsNote(user.id, bookingId, local.note);
+        ok = await upsertSupplierBookingOpsNote(uid, bookingId, local.note);
       }
       if (!ok) return;
       setOpsNotes((prev) => {
@@ -1806,7 +1814,7 @@ export default function SupplierBookings() {
         return next;
       });
     },
-    [isSupabase, user, opsNotes]
+    [isSupabase, user?.id, opsNotes]
   );
 
   return (

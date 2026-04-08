@@ -21,14 +21,15 @@ export default function SupplierDiscountsOffers() {
   const [activeSummary, setActiveSummary] = useState<Record<string, string | null>>({});
 
   const loadListings = useCallback(() => {
-    if (!isSupabase || !user) {
+    const uid = user?.id;
+    if (!isSupabase || !uid) {
       setListings([]);
       setLoading(false);
       return;
     }
     setLoading(true);
     setError(null);
-    fetchMyListings(user.id)
+    fetchMyListings(uid)
       .then(async (data) => {
         setListings(data);
         const summary: Record<string, string | null> = {};
@@ -52,7 +53,7 @@ export default function SupplierDiscountsOffers() {
         setListings([]);
       })
       .finally(() => setLoading(false));
-  }, [isSupabase, user]);
+  }, [isSupabase, user?.id]);
 
   useEffect(() => {
     loadListings();

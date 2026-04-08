@@ -27,6 +27,8 @@ export default function PartnerPortalFooter() {
           </div>
           <a
             href={origin}
+            target="_blank"
+            rel="noopener noreferrer"
             className="inline-flex items-center justify-center rounded-xl bg-white/10 px-4 py-2.5 text-sm font-medium text-white hover:bg-white/15 transition-colors duration-300 border border-white/10"
           >
             Browse traverion.com

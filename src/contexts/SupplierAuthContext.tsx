@@ -33,8 +33,15 @@ export function SupplierAuthProvider({ children }: { children: React.ReactNode }
       setUser(session?.user ?? null);
       setLoading(false);
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      const next = session?.user ?? null;
+      // Token refresh on tab focus creates a new User object reference; keeping the prior reference
+      // avoids re-running every partner effect that depends on `user` (listings/dashboard refetch "refresh").
+      if (event === 'TOKEN_REFRESHED' && next) {
+        setUser((prev) => (prev?.id === next.id ? prev : next));
+        return;
+      }
+      setUser(next);
     });
     return () => subscription.unsubscribe();
   }, [isSupabase]);

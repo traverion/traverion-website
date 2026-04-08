@@ -148,7 +148,8 @@ export default function SupplierPickupPlanner() {
   const [scheduleDraft, setScheduleDraft] = useState({ start: '', pickup: '' });
 
   const load = useCallback(async () => {
-    if (!isSupabase || !user) {
+    const uid = user?.id;
+    if (!isSupabase || !uid) {
       setLoading(false);
       return;
     }
@@ -156,8 +157,8 @@ export default function SupplierPickupPlanner() {
     setError(null);
     try {
       const [bookingsList, listings] = await Promise.all([
-        fetchBookingsForSupplier(user.id),
-        fetchMyListings(user.id),
+        fetchBookingsForSupplier(uid),
+        fetchMyListings(uid),
       ]);
       setBookings(bookingsList);
       const titles: Record<string, string> = {};
@@ -204,7 +205,7 @@ export default function SupplierPickupPlanner() {
     } finally {
       setLoading(false);
     }
-  }, [isSupabase, user]);
+  }, [isSupabase, user?.id]);
 
   useEffect(() => {
     load();

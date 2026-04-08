@@ -32,14 +32,15 @@ export default function SupplierReviews() {
   const [draftToneByReview, setDraftToneByReview] = useState<Record<string, 'friendly' | 'professional' | 'short'>>({});
 
   const load = useCallback(async () => {
-    if (!isSupabase || !user) {
+    const uid = user?.id;
+    if (!isSupabase || !uid) {
       setLoading(false);
       return;
     }
     setLoading(true);
     setError(null);
     try {
-      const list = await fetchReviewsForSupplierListings(user.id);
+      const list = await fetchReviewsForSupplierListings(uid);
       setReviews(list);
       const ids = list.map((r) => r.id);
       const replyMap = await getReviewRepliesByReviewIds(ids);
@@ -55,7 +56,7 @@ export default function SupplierReviews() {
     } finally {
       setLoading(false);
     }
-  }, [isSupabase, user]);
+  }, [isSupabase, user?.id]);
 
   useEffect(() => {
     load();

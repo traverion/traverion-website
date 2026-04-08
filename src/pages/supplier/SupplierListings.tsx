@@ -243,10 +243,11 @@ export default function SupplierListings() {
   }, [listings]);
 
   const loadListings = useCallback(() => {
-    if (isSupabase && user) {
+    const uid = user?.id;
+    if (isSupabase && uid) {
       setLoading(true);
       setError(null);
-      fetchMyListings(user.id)
+      fetchMyListings(uid)
         .then((data) => {
           setListings(data);
           setLoading(false);
@@ -259,7 +260,7 @@ export default function SupplierListings() {
       setListings(getSupplierListings());
       setLoading(false);
     }
-  }, [isSupabase, user]);
+  }, [isSupabase, user?.id]);
 
   useEffect(() => {
     loadListings();
