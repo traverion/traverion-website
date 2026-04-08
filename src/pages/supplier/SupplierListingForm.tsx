@@ -529,6 +529,8 @@ export default function SupplierListingForm({
   const lastFocused = useRef<string | null>(null);
   const stepContainerRef = useRef<HTMLDivElement | null>(null);
   const initialFormSnapshotRef = useRef<string>(serializeListingFormState(emptyForm));
+  /** When creating (editingId null), avoid resetting the form every time parent `listings` refetches. */
+  const createModeEmptySeededRef = useRef(false);
   const closeIntentRunningRef = useRef(false);
   const [optionModalOpen, setOptionModalOpen] = useState(false);
   const [optionModalDraft, setOptionModalDraft] = useState<ListingBookingOption | null>(null);
@@ -586,6 +588,7 @@ export default function SupplierListingForm({
 
   useEffect(() => {
     if (editingId) {
+      createModeEmptySeededRef.current = false;
       const existing = existingListings.find(t => t.id === editingId);
       if (existing) {
         const extras = parseListingExtras(existing.listingExtras as unknown);
@@ -625,8 +628,12 @@ export default function SupplierListingForm({
         setForm(next);
       }
     } else {
-      initialFormSnapshotRef.current = serializeListingFormState(emptyForm);
-      setForm(emptyForm);
+      // Create flow: seed empty template once per open — not on every parent listings refetch.
+      if (!createModeEmptySeededRef.current) {
+        createModeEmptySeededRef.current = true;
+        initialFormSnapshotRef.current = serializeListingFormState(emptyForm);
+        setForm(emptyForm);
+      }
     }
   }, [editingId, existingListings]);
 
@@ -793,7 +800,10 @@ export default function SupplierListingForm({
       const blockers = getListingPublishBlockers(listing);
       if (blockers.length > 0) {
         setPublishBlockers(blockers);
-        setStepIdx(0);
+        const photosRelated = blockers.some((b) =>
+          /image|photo|gallery|hero|placeholder/i.test(b)
+        );
+        setStepIdx(photosRelated ? 6 : 0);
         return;
       }
     }
@@ -1218,7 +1228,9 @@ export default function SupplierListingForm({
   ) : null;
 
   const canContinueStep = () => {
-    if (stepIdx >= steps.length - 1) return true;
+    if (stepIdx >= steps.length - 1) {
+      return listingPhotosStepComplete(form);
+    }
     return isStepSatisfied(stepIdx, form);
   };
 
