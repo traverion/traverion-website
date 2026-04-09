@@ -569,6 +569,13 @@ export default function SupplierListingForm({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const publishChecklistKey = editingId ? `traverion-publish-checklist-${editingId}` : null;
   const [publishChecklistDismissed, setPublishChecklistDismissed] = useState(false);
+  /**
+   * After moving to the last step, the footer swaps Continue for Save in the same screen area.
+   * A second pointer/activation (common on touch) can immediately submit → insert + close editor,
+   * which feels like “wizard jumped back to the start” when you reopen create.
+   */
+  const [lastStepSubmitArmed, setLastStepSubmitArmed] = useState(true);
+  const submitInFlightRef = useRef(false);
   const lastFocused = useRef<string | null>(null);
   const stepContainerRef = useRef<HTMLDivElement | null>(null);
   const initialFormSnapshotRef = useRef<string>(serializeListingFormState(emptyForm));
@@ -605,6 +612,17 @@ export default function SupplierListingForm({
     ],
     []
   );
+
+  useEffect(() => {
+    const last = steps.length - 1;
+    if (stepIdx !== last) {
+      setLastStepSubmitArmed(true);
+      return;
+    }
+    setLastStepSubmitArmed(false);
+    const t = window.setTimeout(() => setLastStepSubmitArmed(true), 550);
+    return () => window.clearTimeout(t);
+  }, [stepIdx, steps.length]);
 
   const setStepIdxPersisted = useCallback(
     (next: number | ((prev: number) => number)) => {
@@ -884,35 +902,48 @@ export default function SupplierListingForm({
     return () => window.removeEventListener('keydown', onKey, true);
   }, [handleCloseIntent]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const listing = buildListingFromForm(form, editingId ?? undefined);
-    if (form.status === 'published') {
-      const blockers = getListingPublishBlockers(listing);
-      if (blockers.length > 0) {
-        setPublishBlockers(blockers);
-        const photosRelated = blockers.some((b) =>
-          /image|photo|gallery|hero|placeholder/i.test(b)
-        );
-        const go = photosRelated ? 6 : 0;
-        writeWizardStepToStorage(editingId, go);
-        setStepIdx(go);
-        return;
-      }
-    }
-    setPublishBlockers(null);
-    setSubmitError(null);
-    setSubmitting(true);
+  const runSubmit = useCallback(async () => {
+    if (submitInFlightRef.current) return;
+    const last = steps.length - 1;
+    if (stepIdx === last && !lastStepSubmitArmed) return;
+
+    submitInFlightRef.current = true;
     try {
-      const result = await onSave(listing);
-      if (!result.success) {
-        setSubmitError(result.error ?? 'Could not save your listing. Please try again.');
-        return;
+      const listing = buildListingFromForm(form, editingId ?? undefined);
+      if (form.status === 'published') {
+        const blockers = getListingPublishBlockers(listing);
+        if (blockers.length > 0) {
+          setPublishBlockers(blockers);
+          const photosRelated = blockers.some((b) =>
+            /image|photo|gallery|hero|placeholder/i.test(b)
+          );
+          const go = photosRelated ? 6 : 0;
+          writeWizardStepToStorage(editingId, go);
+          setStepIdx(go);
+          return;
+        }
       }
-      clearWizardStepStorage(editingId);
+      setPublishBlockers(null);
+      setSubmitError(null);
+      setSubmitting(true);
+      try {
+        const result = await onSave(listing);
+        if (!result.success) {
+          setSubmitError(result.error ?? 'Could not save your listing. Please try again.');
+          return;
+        }
+        clearWizardStepStorage(editingId);
+      } finally {
+        setSubmitting(false);
+      }
     } finally {
-      setSubmitting(false);
+      submitInFlightRef.current = false;
     }
+  }, [form, editingId, onSave, stepIdx, lastStepSubmitArmed, steps.length]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    void runSubmit();
   };
 
   const toggleTag = (id: string) => {
@@ -1347,6 +1378,13 @@ export default function SupplierListingForm({
       <div className="relative z-[81] flex min-h-0 w-full flex-1 flex-col justify-stretch px-0 py-0 pointer-events-none">
         <form
           onSubmit={handleSubmit}
+          onKeyDown={(e) => {
+            if (e.key !== 'Enter') return;
+            const el = e.target as HTMLElement;
+            if (el.tagName === 'TEXTAREA') return;
+            if (el.tagName === 'BUTTON') return;
+            e.preventDefault();
+          }}
           onClick={(e) => e.stopPropagation()}
           className="pointer-events-auto motion-safe:animate-slide-up motion-reduce:animate-none flex min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden border-0 bg-white shadow-none sm:shadow-none h-[min(100dvh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)))] max-h-[min(100dvh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)))] rounded-none"
         >
@@ -2067,8 +2105,11 @@ export default function SupplierListingForm({
               </button>
             ) : (
               <button
-                type="submit"
-                disabled={submitting || draftCloseBusy || !canContinueStep()}
+                type="button"
+                onClick={() => void runSubmit()}
+                disabled={
+                  submitting || draftCloseBusy || !canContinueStep() || !lastStepSubmitArmed
+                }
                 className="touch-manipulation flex-1 sm:flex-none px-4 py-3 sm:py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark disabled:opacity-50 min-h-[44px]"
               >
                 {submitting ? 'Saving…' : editingId ? 'Save changes' : 'Add listing'}
