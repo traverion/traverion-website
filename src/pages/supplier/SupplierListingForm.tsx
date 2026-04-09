@@ -545,6 +545,8 @@ interface SupplierListingFormProps {
   /** Deep link: scroll/focus this section (see supplier-listing-field-* ids). */
   focusSection?: string | null;
   onFocusConsumed?: () => void;
+  /** False when business / payout verification blocks going live (Settings). */
+  canPostNewListing?: boolean;
 }
 
 type StepId =
@@ -565,6 +567,7 @@ export default function SupplierListingForm({
   onCancel,
   focusSection,
   onFocusConsumed,
+  canPostNewListing = true,
 }: SupplierListingFormProps) {
   const { user } = useAuth();
   const [form, setForm] = useState<ListingFormState>(emptyForm);
@@ -867,10 +870,20 @@ export default function SupplierListingForm({
     return listingQualityPercent(score, maxScore);
   }, [draftListingPreview]);
 
-  const publishBlockersPreview = useMemo(
-    () => getListingPublishBlockers(draftListingPreview),
-    [draftListingPreview]
-  );
+  const publishBlockersPreview = useMemo(() => {
+    const asPublished = buildListingFromForm({ ...form, status: 'published' }, editingId ?? undefined);
+    return getListingPublishBlockers(asPublished);
+  }, [form, editingId]);
+
+  const publishButtonTitle = useMemo(() => {
+    if (!canPostNewListing) {
+      return 'Business and payout verification (IBAN + BIC) required — see Settings.';
+    }
+    if (publishBlockersPreview.length > 0) {
+      return publishBlockersPreview[0];
+    }
+    return 'Publish this listing on Traverion for travelers to book.';
+  }, [canPostNewListing, publishBlockersPreview]);
 
   const handleCloseIntent = useCallback(async () => {
     if (closeIntentRunningRef.current || submitting) return;
@@ -914,48 +927,57 @@ export default function SupplierListingForm({
     return () => window.removeEventListener('keydown', onKey, true);
   }, [handleCloseIntent]);
 
-  const runSubmit = useCallback(async () => {
-    if (submitInFlightRef.current) return;
-    const last = steps.length - 1;
-    if (stepIdx === last && !lastStepSubmitArmed) return;
+  const runSubmit = useCallback(
+    async (targetStatus: 'draft' | 'published') => {
+      if (submitInFlightRef.current) return;
+      const last = steps.length - 1;
+      if (stepIdx === last && !lastStepSubmitArmed) return;
 
-    submitInFlightRef.current = true;
-    try {
-      const listing = buildListingFromForm(form, editingId ?? undefined);
-      if (form.status === 'published') {
-        const blockers = getListingPublishBlockers(listing);
-        if (blockers.length > 0) {
-          setPublishBlockers(blockers);
-          const photosRelated = blockers.some((b) =>
-            /image|photo|gallery|hero|placeholder/i.test(b)
-          );
-          const go = photosRelated ? 6 : 0;
-          writeWizardStepToStorage(editingId, go);
-          setStepIdx(go);
-          return;
-        }
-      }
-      setPublishBlockers(null);
-      setSubmitError(null);
-      setSubmitting(true);
+      submitInFlightRef.current = true;
       try {
-        const result = await onSave(listing);
-        if (!result.success) {
-          setSubmitError(result.error ?? 'Could not save your listing. Please try again.');
-          return;
+        const listing = buildListingFromForm({ ...form, status: targetStatus }, editingId ?? undefined);
+        if (targetStatus === 'published') {
+          if (!canPostNewListing) {
+            setSubmitError(
+              'Publishing needs Traverion to verify your business and your payout (IBAN + BIC). Finish both in Settings, then try again.'
+            );
+            return;
+          }
+          const blockers = getListingPublishBlockers(listing);
+          if (blockers.length > 0) {
+            setPublishBlockers(blockers);
+            const photosRelated = blockers.some((b) =>
+              /image|photo|gallery|hero|placeholder/i.test(b)
+            );
+            const go = photosRelated ? 6 : 0;
+            writeWizardStepToStorage(editingId, go);
+            setStepIdx(go);
+            return;
+          }
         }
-        clearWizardStepStorage(editingId);
+        setPublishBlockers(null);
+        setSubmitError(null);
+        setSubmitting(true);
+        try {
+          const result = await onSave(listing);
+          if (!result.success) {
+            setSubmitError(result.error ?? 'Could not save your listing. Please try again.');
+            return;
+          }
+          clearWizardStepStorage(editingId);
+        } finally {
+          setSubmitting(false);
+        }
       } finally {
-        setSubmitting(false);
+        submitInFlightRef.current = false;
       }
-    } finally {
-      submitInFlightRef.current = false;
-    }
-  }, [form, editingId, onSave, stepIdx, lastStepSubmitArmed, steps.length]);
+    },
+    [form, editingId, onSave, stepIdx, lastStepSubmitArmed, steps.length, canPostNewListing]
+  );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    void runSubmit();
+    void runSubmit(form.status === 'published' ? 'published' : 'draft');
   };
 
   const toggleTag = (id: string) => {
@@ -1364,15 +1386,7 @@ export default function SupplierListingForm({
     </div>
   ) : null;
 
-  const canContinueStep = () => {
-    if (stepIdx >= steps.length - 1) {
-      if (form.status === 'published') {
-        return listingPhotosReadyToPublish(form);
-      }
-      return true;
-    }
-    return isStepSatisfied(stepIdx, form);
-  };
+  const canContinueStep = () => isStepSatisfied(stepIdx, form);
 
   const shell = (
     <div
@@ -1410,9 +1424,10 @@ export default function SupplierListingForm({
                 {editingId ? 'Edit listing' : 'Create listing'}
               </h2>
               <p className="text-xs text-gray-500 mt-1">
-                This is what travelers will see once a listing is live. Close anytime — unfinished work is kept as a draft.
-                Use <span className="font-medium text-gray-700">Publish</span> or <span className="font-medium text-gray-700">Draft</span>{' '}
-                on your listings list to show or hide it on Traverion.
+                This is what travelers will see once a listing is live. Close anytime — unfinished work can be saved as a draft.
+                On the last step, use <span className="font-medium text-gray-700">Publish</span> to go live, or{' '}
+                <span className="font-medium text-gray-700">Save as draft</span> to keep working. You can also unpublish from My
+                listings.
               </p>
             </div>
             <button
@@ -1497,7 +1512,7 @@ export default function SupplierListingForm({
               </p>
               <p className="text-xs text-gray-500">
                 {publishBlockersPreview.length === 0
-                  ? 'Meets basic publish checks — choose Published when you are ready.'
+                  ? 'Meets basic publish checks — use Publish on the Tour photos step when you are ready.'
                   : `${publishBlockersPreview.length} item${publishBlockersPreview.length === 1 ? '' : 's'} left before publish`}
               </p>
             </div>
@@ -1508,8 +1523,8 @@ export default function SupplierListingForm({
               />
             </div>
             <p className="text-[11px] text-gray-400">
-              Step {stepIdx + 1} of {steps.length} · strength ignores optional highlights/tags and “live” status — publish from My
-              listings when you are ready
+              Step {stepIdx + 1} of {steps.length} · strength ignores optional highlights/tags; publish from the Tour photos step
+              or toggle status on My listings
             </p>
           </div>
         </div>
@@ -2090,11 +2105,14 @@ export default function SupplierListingForm({
                 </div>
               )}
               <div className="rounded-xl border border-gray-100 bg-gray-50/80 p-4 sm:p-5 text-sm text-gray-700">
-                <p className="font-medium text-gray-900">{editingId ? 'Save your changes' : 'Save your listing'}</p>
+                <p className="font-medium text-gray-900">
+                  {form.status === 'published' ? 'Update your live listing' : 'Go live or keep a draft'}
+                </p>
                 <p className="mt-2 text-xs text-gray-600 leading-relaxed">
-                  Promotional discounts are managed under <span className="font-medium text-gray-800">Discounts &amp; offers</span>{' '}
-                  in the sidebar. To go live, close the editor and click <span className="font-medium text-gray-800">Publish</span>{' '}
-                  on My listings; we load the latest saved data and re-check requirements at that moment.
+                  <span className="font-medium text-gray-800">Publish</span> runs a final check and lists your tour on Traverion for
+                  travelers. <span className="font-medium text-gray-800">Save as draft</span> stores progress without going live.
+                  Promotional discounts are under <span className="font-medium text-gray-800">Discounts &amp; offers</span> in the
+                  sidebar.
                 </p>
               </div>
             </div>
@@ -2121,16 +2139,55 @@ export default function SupplierListingForm({
                 Continue
               </button>
             ) : (
-              <button
-                type="button"
-                onClick={() => void runSubmit()}
-                disabled={
-                  submitting || draftCloseBusy || !canContinueStep() || !lastStepSubmitArmed
-                }
-                className="touch-manipulation flex-1 sm:flex-none px-4 py-3 sm:py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark disabled:opacity-50 min-h-[44px]"
-              >
-                {submitting ? 'Saving…' : editingId ? 'Save changes' : 'Add listing'}
-              </button>
+              <div className="flex flex-col sm:flex-row flex-1 sm:flex-auto gap-2 w-full sm:w-auto min-w-0">
+                {form.status === 'published' ? (
+                  <button
+                    type="button"
+                    onClick={() => void runSubmit('published')}
+                    disabled={
+                      submitting ||
+                      draftCloseBusy ||
+                      !isStepSatisfied(6, form) ||
+                      !lastStepSubmitArmed ||
+                      publishBlockersPreview.length > 0
+                    }
+                    title={
+                      publishBlockersPreview.length > 0 ? publishBlockersPreview[0] : 'Save updates to your live listing'
+                    }
+                    className="touch-manipulation flex-1 sm:flex-none px-4 py-3 sm:py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark disabled:opacity-50 min-h-[44px]"
+                  >
+                    {submitting ? 'Saving…' : 'Save changes'}
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => void runSubmit('draft')}
+                      disabled={
+                        submitting || draftCloseBusy || !isStepSatisfied(6, form) || !lastStepSubmitArmed
+                      }
+                      className="touch-manipulation flex-1 sm:flex-none px-4 py-3 sm:py-2.5 rounded-lg border border-gray-300 text-gray-800 font-medium hover:bg-gray-50 disabled:opacity-50 min-h-[44px]"
+                    >
+                      {submitting ? 'Saving…' : 'Save as draft'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void runSubmit('published')}
+                      disabled={
+                        submitting ||
+                        draftCloseBusy ||
+                        !lastStepSubmitArmed ||
+                        !canPostNewListing ||
+                        publishBlockersPreview.length > 0
+                      }
+                      title={publishButtonTitle}
+                      className="touch-manipulation flex-1 sm:flex-none px-4 py-3 sm:py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark disabled:opacity-50 min-h-[44px]"
+                    >
+                      {submitting ? 'Saving…' : 'Publish'}
+                    </button>
+                  </>
+                )}
+              </div>
             )}
             <button
               type="button"

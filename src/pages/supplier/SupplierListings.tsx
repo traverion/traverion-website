@@ -391,6 +391,9 @@ export default function SupplierListings() {
         return { success: false, error: res.error };
       }
       setError(null);
+      if (tour.status === 'published') {
+        window.dispatchEvent(new CustomEvent('traverion:published-listings-changed'));
+      }
       refresh();
       return { success: true };
     }
@@ -400,6 +403,9 @@ export default function SupplierListings() {
     if (index >= 0) next[index] = tour;
     setSupplierListings(next);
     setError(null);
+    if (tour.status === 'published') {
+      window.dispatchEvent(new CustomEvent('traverion:published-listings-changed'));
+    }
     refresh();
     return { success: true };
   };
@@ -445,6 +451,9 @@ export default function SupplierListings() {
       setError(null);
       loadListings();
       window.dispatchEvent(new Event('traverion:supplier-onboarding-refresh'));
+      if (newStatus === 'published') {
+        window.dispatchEvent(new CustomEvent('traverion:published-listings-changed'));
+      }
     } else {
       setError(res.error);
     }
@@ -665,6 +674,7 @@ export default function SupplierListings() {
           editingId={editingId}
           existingListings={listings}
           onSave={handleSave}
+          canPostNewListing={canPostNewListing}
           enableDraftOnClose={Boolean(isSupabase && canEditListings)}
           onSaveDraft={async (tour) => {
             if (!isSupabase || !user?.id || !canEditListings) return false;

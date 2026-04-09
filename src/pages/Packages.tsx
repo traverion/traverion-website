@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useDeferredValue } from 'react';
-import { Search, MapPin, Globe, PlusCircle, Filter, X, SlidersHorizontal } from 'lucide-react';
+import { Search, Globe, PlusCircle, Filter, X, SlidersHorizontal } from 'lucide-react';
 import { getAllListings, SHOW_SEED_LISTINGS, durationToMinutes } from '../data/listings';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { usePublishedSupplierListings } from '../hooks/usePublishedSupplierListings';
@@ -9,10 +9,10 @@ import { activities, TAG_OPTIONS, getDestinationsFromListings, SEED_DESTINATION_
 import { TourPackage } from '../types/tour';
 import { fetchDiscountsByListingIds } from '../data/supabase-discounts';
 import { getReviewAggregatesForListingIds } from '../data/supabase-reviews';
-import { getDisplayPrice, isSupabaseListingId } from '../lib/discount-display';
+import { isSupabaseListingId } from '../lib/discount-display';
 import { setListingsJsonLd } from '../lib/seo';
 import { SkeletonCardGrid } from '../components/ui/Skeleton';
-import { ListingCardRating } from '../components/ListingCardRating';
+import { PublicListingBrowseCard } from '../components/PublicListingBrowseCard';
 import { supplierPortalHref } from '../lib/partnerHost';
 
 type SortOption = 'recommended' | 'price-asc' | 'price-desc' | 'rating' | 'duration';
@@ -614,32 +614,18 @@ export default function Packages({ onTourSelect }: PackagesProps) {
               {allListings
                 .filter(a => a.isPopular)
                 .slice(0, 4)
-                .map((tour) => (
-                  <div
+                .map((tour, index) => (
+                  <PublicListingBrowseCard
                     key={tour.id}
-                    onClick={() => handleTourSelect(tour)}
-                    className="stagger-item listing-card bg-white rounded-2xl overflow-hidden border border-gray-100 cursor-pointer group"
-                  >
-                    <div className="relative h-44 overflow-hidden">
-                      <img src={tour.image} alt={tour.title} className="listing-card-image w-full h-full object-cover" />
-                      <div className="absolute top-3 left-3 flex flex-wrap gap-2">
-                        {tour.tags?.includes('bestseller') && (
-                          <span className="bg-amber-500 text-white text-xs font-semibold px-2.5 py-1 rounded-md">Bestseller</span>
-                        )}
-                      </div>
-                      <div className="absolute bottom-3 right-3 bg-black/60 text-white text-sm font-semibold px-2.5 py-1 rounded-md">
-                        From ${tour.price.startingFrom}
-                      </div>
-                    </div>
-                    <div className="p-3">
-                      <h3 className="font-semibold text-gray-900 text-sm mb-1 line-clamp-2 group-hover:text-finland transition-colors">{tour.title}</h3>
-                      <ListingCardRating
-                        tour={tour}
-                        aggregate={reviewAggregates.get(tour.id)}
-                        compact
-                      />
-                    </div>
-                  </div>
+                    tour={tour}
+                    index={index}
+                    onSelect={() => handleTourSelect(tour)}
+                    discountsByListing={discountsByListing}
+                    reviewAggregate={reviewAggregates.get(tour.id)}
+                    tagLabels={TAG_LABELS}
+                    size="compact"
+                    showTagPills={false}
+                  />
                 ))}
             </div>
           </section>
@@ -665,81 +651,16 @@ export default function Packages({ onTourSelect }: PackagesProps) {
             {filteredPackages.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {filteredPackages.map((tour, index) => (
-            <div
+            <PublicListingBrowseCard
               key={tour.id}
-              onClick={() => handleTourSelect(tour)}
-              className="listing-card bg-white rounded-2xl overflow-hidden border border-gray-100 cursor-pointer group transition-all duration-250 ease-out-smooth hover:shadow-soft-xl hover:border-gray-200 hover:-translate-y-1 animate-fade-in-up"
-              style={{ animationDelay: `${Math.min(index * 40, 280)}ms` }}
-            >
-              <div className="relative h-52 overflow-hidden">
-                <img
-                  src={tour.image}
-                  alt={tour.title}
-                  loading="lazy"
-                  className="w-full h-full object-cover transition-transform duration-500 ease-out-smooth group-hover:scale-[1.03]"
-                />
-                <div className="absolute top-3 left-3 flex flex-wrap gap-2">
-                  {tour.isPopular && (
-                    <span className="bg-finland text-white text-xs font-semibold px-2.5 py-1 rounded-md">
-                      Popular
-                    </span>
-                  )}
-                  {tour.tags?.includes('free-cancellation') && (
-                    <span className="bg-white/95 text-gray-700 text-xs font-medium px-2.5 py-1 rounded-md shadow-sm">
-                      Free cancellation
-                    </span>
-                  )}
-                  {tour.tags?.includes('bestseller') && (
-                    <span className="bg-amber-500 text-white text-xs font-semibold px-2.5 py-1 rounded-md">
-                      Bestseller
-                    </span>
-                  )}
-                </div>
-                <div className="absolute bottom-3 right-3 bg-black/60 text-white text-sm font-semibold px-2.5 py-1 rounded-md">
-                  {(() => {
-                    const { price, originalPrice, label } = getDisplayPrice(tour.id, tour.price.startingFrom, discountsByListing);
-                    const hasDiscount = label && price < originalPrice;
-                    return hasDiscount ? (
-                      <>From ${price.toFixed(0)} <span className="text-white/90 text-xs font-normal">· {label}</span></>
-                    ) : (
-                      `From $${tour.price.startingFrom}`
-                    );
-                  })()}
-                </div>
-              </div>
-              <div className="p-4">
-                <h3 className="font-semibold text-gray-900 mb-1.5 line-clamp-2 group-hover:text-finland transition-colors duration-200">
-                  {tour.title}
-                </h3>
-                <div className="flex items-center text-gray-500 text-sm mb-2">
-                  <MapPin className="w-4 h-4 mr-1 flex-shrink-0 text-gray-400" />
-                  <span className="truncate">{tour.destination}</span>
-                </div>
-                <ListingCardRating tour={tour} aggregate={reviewAggregates.get(tour.id)} />
-                {tour.tags && tour.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mt-2">
-                    {tour.tags.filter(t => t !== 'free-cancellation' && t !== 'bestseller').map(tagId => (
-                      <span key={tagId} className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
-                        {TAG_LABELS[tagId] ?? tagId}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                <div className="mt-3 pt-3 border-t border-gray-100">
-                  {(() => {
-                    const { price, originalPrice, label } = getDisplayPrice(tour.id, tour.price.startingFrom, discountsByListing);
-                    const hasDiscount = label && price < originalPrice;
-                    return (
-                      <>
-                        <span className="text-lg font-bold text-finland">From ${(hasDiscount ? price : tour.price.startingFrom).toFixed(0)}</span>
-                        <span className="text-sm text-gray-500 ml-1">/ person</span>
-                        {hasDiscount && <span className="block text-xs text-gray-500 mt-0.5">{label} · was ${originalPrice}</span>}
-                      </>
-                    );
-                  })()}
-                </div>
-              </div>
-            </div>
+              tour={tour}
+              index={index}
+              onSelect={() => handleTourSelect(tour)}
+              discountsByListing={discountsByListing}
+              reviewAggregate={reviewAggregates.get(tour.id)}
+              tagLabels={TAG_LABELS}
+              size="default"
+            />
           ))}
         </div>
             ) : (

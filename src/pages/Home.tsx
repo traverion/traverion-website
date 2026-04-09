@@ -1,4 +1,4 @@
-import { ArrowRight, MapPin, Search } from 'lucide-react';
+import { ArrowRight, Search } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import { getAllListings, SHOW_SEED_LISTINGS } from '../data/listings';
 import { getDestinationsFromListings } from '../data/activities';
@@ -8,8 +8,8 @@ import { activities } from '../data/activities';
 import { TourPackage } from '../types/tour';
 import { fetchDiscountsByListingIds } from '../data/supabase-discounts';
 import { getReviewAggregatesForListingIds } from '../data/supabase-reviews';
-import { getDisplayPrice, isSupabaseListingId } from '../lib/discount-display';
-import { ListingCardRating } from '../components/ListingCardRating';
+import { isSupabaseListingId } from '../lib/discount-display';
+import { PublicListingBrowseCard } from '../components/PublicListingBrowseCard';
 import { supplierPortalHref } from '../lib/partnerHost';
 
 const TAG_LABELS: Record<string, string> = {
@@ -244,72 +244,18 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
           ) : (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                {displayedListings.map((tour) => (
-                  <div
+                {displayedListings.map((tour, index) => (
+                  <PublicListingBrowseCard
                     key={tour.id}
-                    onClick={() => onTourSelect(tour)}
-                    className="stagger-item listing-card bg-white rounded-2xl overflow-hidden border border-gray-100 cursor-pointer group"
-                  >
-                    <div className="relative h-44 overflow-hidden">
-                      <img
-                        src={tour.image}
-                        alt={tour.title}
-                        className="listing-card-image w-full h-full object-cover"
-                      />
-                      <div className="absolute top-3 left-3 flex flex-wrap gap-2">
-                        {tour.tags?.includes('bestseller') && (
-                          <span className="bg-amber-500 text-white text-xs font-semibold px-2.5 py-1 rounded-md">Bestseller</span>
-                        )}
-                        {tour.tags?.includes('free-cancellation') && (
-                          <span className="bg-white/95 text-gray-700 text-xs font-medium px-2.5 py-1 rounded-md shadow-sm">Free cancellation</span>
-                        )}
-                      </div>
-                      <div className="absolute bottom-3 right-3 flex flex-col items-end gap-0.5">
-                        {(() => {
-                          const { price, originalPrice, label } = getDisplayPrice(tour.id, tour.price.startingFrom, discountsByListing);
-                          const hasDiscount = label && price < originalPrice;
-                          return (
-                            <div className="bg-black/60 text-white text-sm font-semibold px-2.5 py-1 rounded-md">
-                              {hasDiscount ? (
-                                <>
-                                  <span>From ${price.toFixed(0)}</span>
-                                  <span className="block text-xs font-normal text-white/90">{label} · was ${originalPrice}</span>
-                                </>
-                              ) : (
-                                `From $${originalPrice}`
-                              )}
-                            </div>
-                          );
-                        })()}
-                      </div>
-                    </div>
-                    <div className="p-4">
-                      <h3 className="font-semibold text-gray-900 line-clamp-2 group-hover:text-finland transition-colors duration-200">
-                        {tour.title}
-                      </h3>
-                      {(tour.destination || tour.city) && (
-                        <div className="flex items-center text-gray-500 text-sm mt-1">
-                          <MapPin className="w-3.5 h-3.5 mr-1 flex-shrink-0 text-gray-400" />
-                          <span className="truncate">{tour.city ?? tour.destination}</span>
-                        </div>
-                      )}
-                      <div className="mt-2">
-                        <ListingCardRating tour={tour} aggregate={reviewAggregates.get(tour.id)} />
-                      </div>
-                      {tour.tags && tour.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 mt-2">
-                          {tour.tags.filter((t) => t !== 'free-cancellation' && t !== 'bestseller').slice(0, 3).map((tagId) => (
-                            <span key={tagId} className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
-                              {TAG_LABELS[tagId] ?? tagId}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                      <p className="text-finland font-medium mt-3 flex items-center text-sm">
-                        View details <ArrowRight className="w-4 h-4 ml-1" />
-                      </p>
-                    </div>
-                  </div>
+                    tour={tour}
+                    index={index}
+                    onSelect={() => onTourSelect(tour)}
+                    discountsByListing={discountsByListing}
+                    reviewAggregate={reviewAggregates.get(tour.id)}
+                    tagLabels={TAG_LABELS}
+                    size="compact"
+                    showViewDetailsHint
+                  />
                 ))}
               </div>
               {hasMore && (

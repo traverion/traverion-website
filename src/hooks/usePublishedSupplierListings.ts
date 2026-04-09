@@ -45,8 +45,13 @@ export function usePublishedSupplierListings(options?: Options): {
     const onVis = () => {
       if (document.visibilityState === 'visible') reload();
     };
+    const onPublishedChanged = () => reload();
     document.addEventListener('visibilitychange', onVis);
-    return () => document.removeEventListener('visibilitychange', onVis);
+    window.addEventListener('traverion:published-listings-changed', onPublishedChanged);
+    return () => {
+      document.removeEventListener('visibilitychange', onVis);
+      window.removeEventListener('traverion:published-listings-changed', onPublishedChanged);
+    };
   }, [reload]);
 
   return { listings, error, reload };
