@@ -146,6 +146,20 @@ export default function SupplierListings() {
       setEditingId(edit);
       setShowForm(true);
       setFormFocusSection(focus && focus.length > 0 ? focus : null);
+      /**
+       * Remove `focus` from the address bar as soon as we read it into React state.
+       * If we leave it in the URL, any synthetic `popstate` (e.g. partner nav) re-runs this
+       * sync and reapplies `focus=title` / `focus=language` → wizard jumps back to step 1.
+       */
+      if (typeof window !== 'undefined' && focus && focus.length > 0) {
+        const u = new URL(window.location.href);
+        if (u.searchParams.has('focus')) {
+          u.searchParams.delete('focus');
+          const q = u.searchParams.toString();
+          const next = q ? `${u.pathname}?${q}` : u.pathname;
+          window.history.replaceState(window.history.state, '', next);
+        }
+      }
     } else {
       setFormFocusSection(null);
       // Keep local "Add listing" / edit-without-URL state; only URL drives deep links.
@@ -334,6 +348,13 @@ export default function SupplierListings() {
 
   const consumeListingFormFocus = useCallback(() => {
     setFormFocusSection(null);
+    if (typeof window === 'undefined') return;
+    const u = new URL(window.location.href);
+    if (!u.searchParams.has('focus')) return;
+    u.searchParams.delete('focus');
+    const q = u.searchParams.toString();
+    const next = q ? `${u.pathname}?${q}` : u.pathname;
+    window.history.replaceState(window.history.state, '', next);
   }, []);
 
   const refresh = () => {
