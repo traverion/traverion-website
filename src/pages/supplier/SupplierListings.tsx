@@ -330,7 +330,7 @@ export default function SupplierListings() {
       }
     };
     loadProfileGate();
-  }, [isSupabase, user?.id, showForm, loading]);
+  }, [isSupabase, user?.id]);
 
   const consumeListingFormFocus = useCallback(() => {
     setFormFocusSection(null);

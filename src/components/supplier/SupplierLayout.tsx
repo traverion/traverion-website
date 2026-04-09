@@ -370,6 +370,10 @@ export default function SupplierLayout() {
   const supplierEmail = typeof user?.email === 'string' ? user.email : '';
   const supplierEmailVerified = Boolean((user as { email_confirmed_at?: string | null } | null)?.email_confirmed_at);
 
+  /** Supabase may emit new `user` object references (e.g. auth refresh); gate only on stable id + retry. */
+  const partnerGateUserRef = useRef(user);
+  partnerGateUserRef.current = user;
+
   useEffect(() => {
     if (!user?.id || !isSupabase || !supabase) {
       setPartnerProfileGate(null);
@@ -397,7 +401,8 @@ export default function SupplierLayout() {
       const { data: freshAuth } = await supabase.auth.getUser();
       if (stale()) return;
       const fromServer = freshAuth.user;
-      const candidate = fromServer ?? user;
+      const sessionUser = partnerGateUserRef.current;
+      const candidate = fromServer ?? sessionUser;
 
       if (authUserHasPartnerSignupMetadata(candidate)) {
         const res = await ensureSupplierProfileFromAuthUser(candidate);
@@ -407,8 +412,8 @@ export default function SupplierLayout() {
         return;
       }
 
-      if (authUserHasPartnerSignupMetadata(user)) {
-        const res = await ensureSupplierProfileFromAuthUser(user);
+      if (authUserHasPartnerSignupMetadata(sessionUser)) {
+        const res = await ensureSupplierProfileFromAuthUser(sessionUser);
         if (!res.success && typeof console !== 'undefined') {
           console.warn('[Traverion partner] supplier_profiles repair (session metadata) failed:', res.error);
         }
@@ -471,7 +476,7 @@ export default function SupplierLayout() {
     return () => {
       cancelled = true;
     };
-  }, [user, isSupabase, partnerGateRetryKey]);
+  }, [user?.id, isSupabase, partnerGateRetryKey]);
 
   const partnerGateView = (() => {
     if (!user?.id) return 'anon' as const;

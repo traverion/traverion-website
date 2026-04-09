@@ -60,6 +60,43 @@ const MAX_TIMELINE_LENGTH = 800;
 
 const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
+const WIZARD_STEP_COUNT = 7;
+
+function wizardStepStorageKey(editingId: string | null) {
+  return `traverion-listing-wizard-step-${editingId ?? 'create'}`;
+}
+
+function readWizardStepFromStorage(editingId: string | null): number | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = sessionStorage.getItem(wizardStepStorageKey(editingId));
+    if (!raw) return null;
+    const n = Number.parseInt(raw, 10);
+    if (Number.isNaN(n) || n < 0 || n >= WIZARD_STEP_COUNT) return null;
+    return n;
+  } catch {
+    return null;
+  }
+}
+
+function writeWizardStepToStorage(editingId: string | null, step: number) {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.setItem(wizardStepStorageKey(editingId), String(step));
+  } catch {
+    // ignore quota / private mode
+  }
+}
+
+function clearWizardStepStorage(editingId: string | null) {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.removeItem(wizardStepStorageKey(editingId));
+  } catch {
+    // ignore
+  }
+}
+
 function newBookingOptionId(): string {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
     return crypto.randomUUID();
@@ -526,7 +563,7 @@ export default function SupplierListingForm({
   const [form, setForm] = useState<ListingFormState>(emptyForm);
   const [submitting, setSubmitting] = useState(false);
   const [publishBlockers, setPublishBlockers] = useState<string[] | null>(null);
-  const [stepIdx, setStepIdx] = useState(0);
+  const [stepIdx, setStepIdx] = useState(() => readWizardStepFromStorage(editingId) ?? 0);
   const [draftCloseBusy, setDraftCloseBusy] = useState(false);
   const [draftCloseError, setDraftCloseError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -671,10 +708,23 @@ export default function SupplierListingForm({
     setPublishChecklistDismissed(sessionStorage.getItem(publishChecklistKey) === '1');
   }, [publishChecklistKey]);
 
+  const prevEditingIdForWizardRef = useRef<string | null | undefined>(undefined);
   useEffect(() => {
-    lastFocused.current = null;
-    setStepIdx(0);
+    if (prevEditingIdForWizardRef.current === undefined) {
+      prevEditingIdForWizardRef.current = editingId;
+      return;
+    }
+    if (prevEditingIdForWizardRef.current !== editingId) {
+      prevEditingIdForWizardRef.current = editingId;
+      lastFocused.current = null;
+      const stored = readWizardStepFromStorage(editingId);
+      setStepIdx(stored !== null ? stored : 0);
+    }
   }, [editingId]);
+
+  useEffect(() => {
+    writeWizardStepToStorage(editingId, stepIdx);
+  }, [stepIdx, editingId]);
 
   useEffect(() => {
     if (form.status === 'draft') setPublishBlockers(null);
@@ -795,6 +845,7 @@ export default function SupplierListingForm({
         closeIntentRunningRef.current = false;
       }
     }
+    clearWizardStepStorage(editingId);
     onCancel();
   }, [enableDraftOnClose, onSaveDraft, isDirty, form, editingId, submitting, onCancel]);
 
@@ -841,6 +892,7 @@ export default function SupplierListingForm({
         setSubmitError(result.error ?? 'Could not save your listing. Please try again.');
         return;
       }
+      clearWizardStepStorage(editingId);
     } finally {
       setSubmitting(false);
     }
