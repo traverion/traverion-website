@@ -16,7 +16,9 @@ import {
 import ListingImageFields from '../../components/supplier/ListingImageFields';
 import { useAuth } from '../../contexts/AuthContext';
 import {
+  compactPhotoSlotsAndLabels,
   normalizePhotoSlots,
+  normalizePhotoSlotLabels,
   orderedPhotoUrls,
   photoSlotsFromTourPackage,
   isPlaceholderListingImageUrl,
@@ -289,6 +291,8 @@ type ListingFormState = {
   duration: string;
   /** 4×3 grid, row-major; slot 0 = main / first for travelers. */
   photoSlots: string[];
+  /** Optional friendly names per slot (e.g. original upload filename); parallel to photoSlots. */
+  photoSlotLabels: string[];
   description: string;
   city: string;
   country: string;
@@ -360,6 +364,7 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
   const galleryList = orderedPhotos.slice(1);
   const primaryLang = form.experienceLanguage.trim();
   const addLangs = form.additionalLanguages.filter((c) => c && c !== primaryLang);
+  const labelsNorm = normalizePhotoSlotLabels(form.photoSlotLabels);
   const extras: ListingExtras = {
     ...(addLangs.length ? { additionalLanguages: addLangs } : {}),
     ...(form.venueSetting !== 'unspecified' ? { venueSetting: form.venueSetting } : {}),
@@ -372,6 +377,7 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
       ? { typicalTimelineNotes: form.typicalTimelineNotes.trim().slice(0, MAX_TIMELINE_LENGTH) }
       : {}),
     ...(galleryList.length > 0 ? { galleryImageUrls: galleryList } : {}),
+    ...(labelsNorm.some((l) => l.trim()) ? { photoSlotLabels: labelsNorm } : {}),
     ...(activeOpts.length > 0 ? { bookingOptions: activeOpts } : {}),
   };
   return {
@@ -507,6 +513,7 @@ const emptyForm: ListingFormState = {
   destination: '',
   duration: '',
   photoSlots: Array.from({ length: LISTING_PHOTO_GRID_SLOTS }, () => ''),
+  photoSlotLabels: Array.from({ length: LISTING_PHOTO_GRID_SLOTS }, () => ''),
   description: '',
   city: '',
   country: '',
@@ -677,6 +684,10 @@ export default function SupplierListingForm({
         if (editModeHydratedIdRef.current === editingId) return;
         editModeHydratedIdRef.current = editingId;
         const extras = parseListingExtras(existing.listingExtras as unknown);
+        const packed = compactPhotoSlotsAndLabels(
+          photoSlotsFromTourPackage(existing),
+          normalizePhotoSlotLabels(extras.photoSlotLabels)
+        );
         const next: ListingFormState = {
           experienceLanguage: existing.experienceLanguage ?? '',
           experienceKind:
@@ -690,7 +701,8 @@ export default function SupplierListingForm({
           highlights: normalizeHighlightSlots(existing.highlights),
           destination: existing.destination,
           duration: existing.duration,
-          photoSlots: photoSlotsFromTourPackage(existing),
+          photoSlots: packed.slots,
+          photoSlotLabels: packed.labels,
           description: existing.description,
           city: existing.city ?? '',
           country: existing.country ?? '',
@@ -2037,15 +2049,20 @@ export default function SupplierListingForm({
             <div className="space-y-4">
               <div className="rounded-xl border border-gray-200 bg-white p-4 sm:p-5 space-y-4 shadow-sm">
                 <div>
-                  <h3 className="text-sm font-semibold text-gray-900">Tour photos</h3>
+                  <h3 className="text-sm font-semibold text-gray-900">
+                    Tour photos ({LISTING_PHOTO_MIN}–{LISTING_PHOTO_MAX} required to publish)
+                  </h3>
                   <p className="mt-1 text-xs text-gray-600">
-                    Add {LISTING_PHOTO_MIN}–{LISTING_PHOTO_MAX} photos in the order travelers should see them. The top-left slot
-                    is the main image; use the arrows to reorder after selecting a photo.
+                    Add photos in traveler order. The first photo is the main image. Use + Add photo or Replace to upload from
+                    your device; pasted links stay as URLs. Reorder with the arrows after selecting a thumbnail.
                   </p>
                 </div>
                 <ListingImageFields
                   photoSlots={form.photoSlots}
-                  onPhotoSlotsChange={(photoSlots) => setForm((f) => ({ ...f, photoSlots }))}
+                  photoSlotLabels={form.photoSlotLabels}
+                  onPhotosChange={({ slots, labels }) =>
+                    setForm((f) => ({ ...f, photoSlots: slots, photoSlotLabels: labels }))
+                  }
                   userId={user?.id}
                   uploadsEnabled={isSupabaseConfigured() && !!user?.id}
                 />

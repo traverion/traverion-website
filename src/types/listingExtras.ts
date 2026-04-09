@@ -50,6 +50,11 @@ export interface ListingExtras {
   cancellationExtra?: string;
   /** Multiple priced variants under one product (partner Cost & options). */
   bookingOptions?: ListingBookingOption[];
+  /**
+   * Partner UI only: display names for grid photo slots (e.g. original filenames after upload).
+   * Same length/order as the internal 12-slot grid; parallel to URLs in form state.
+   */
+  photoSlotLabels?: string[];
 }
 
 const WEEKDAY_COUNT = 7;
@@ -199,6 +204,9 @@ export function parseListingExtras(raw: unknown): ListingExtras {
   if (Array.isArray(o.galleryImageUrls)) {
     out.galleryImageUrls = o.galleryImageUrls.map((x) => String(x ?? '').trim()).filter(Boolean);
   }
+  if (Array.isArray(o.photoSlotLabels)) {
+    out.photoSlotLabels = o.photoSlotLabels.map((x) => String(x ?? '').trim().slice(0, 200));
+  }
   const cp = o.cancellationPreset;
   if (cp === 'free_24h' || cp === 'free_48h' || cp === 'free_7d' || cp === 'non_refundable' || cp === 'custom') {
     out.cancellationPreset = cp;
@@ -227,6 +235,7 @@ export function listingExtrasToDb(extras: ListingExtras | undefined): Record<str
   if (extras.scheduleStyle) payload.scheduleStyle = extras.scheduleStyle;
   if (extras.typicalTimelineNotes?.trim()) payload.typicalTimelineNotes = extras.typicalTimelineNotes.trim();
   if (extras.galleryImageUrls?.length) payload.galleryImageUrls = extras.galleryImageUrls;
+  if (extras.photoSlotLabels?.some((l) => l.trim())) payload.photoSlotLabels = extras.photoSlotLabels;
   if (extras.bookingOptions?.length) payload.bookingOptions = extras.bookingOptions;
   return Object.keys(payload).length > 0 ? payload : null;
 }
