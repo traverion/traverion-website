@@ -68,7 +68,9 @@ export function getListingPublishBlockers(listing: TourPackage): string[] {
     out.push('Set a starting price greater than zero.');
   }
   const img = (listing.image ?? '').trim();
-  if (!img || img === LISTING_PLACEHOLDER_IMAGE || img.includes('pexels.com/photos/346885')) {
+  const heroIsPlaceholder =
+    !img || img === LISTING_PLACEHOLDER_IMAGE || img.includes('pexels.com/photos/346885');
+  if (heroIsPlaceholder) {
     out.push('Replace the placeholder hero image with a real photo of your experience.');
   }
   const city = listing.city?.trim();
@@ -94,12 +96,12 @@ export function getListingPublishBlockers(listing: TourPackage): string[] {
     out.push('Add at least one “not included” item (for example meals or tickets) to set expectations.');
   }
   const gallery = (listing.listingExtras?.galleryImageUrls ?? []).map((u) => String(u).trim()).filter(Boolean);
-  if (!placeholder && gallery.length < 3) {
+  if (!heroIsPlaceholder && gallery.length < 3) {
     out.push(
       'Add at least three more photos after the main image (four photos minimum total, in the order travelers should see them).'
     );
   }
-  if (!placeholder && gallery.length > 11) {
+  if (!heroIsPlaceholder && gallery.length > 11) {
     out.push('A listing can include at most twelve photos in total (one main plus up to eleven more).');
   }
   return out;
