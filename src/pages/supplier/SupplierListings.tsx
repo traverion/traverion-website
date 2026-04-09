@@ -640,6 +640,7 @@ export default function SupplierListings() {
 
       {showForm && (
         <SupplierListingForm
+          key={editingId ?? 'create'}
           editingId={editingId}
           existingListings={listings}
           onSave={handleSave}

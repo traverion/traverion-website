@@ -539,6 +539,15 @@ export default function SupplierListingForm({
   const createModeEmptySeededRef = useRef(false);
   /** When editing, hydrate from server only once per opened listing — refetches must not wipe in-progress steps (e.g. photos). */
   const editModeHydratedIdRef = useRef<string | null>(null);
+  /**
+   * Pinned once per mount: true only if this editor opened as "Add listing" (editingId was null on first render).
+   * If editingId briefly flickers to null during an edit session, we must not run the create empty reset — that
+   * was wiping the wizard when opening Tour photos (flash + back to step 1).
+   */
+  const sessionOpenedAsCreateRef = useRef<boolean | null>(null);
+  if (sessionOpenedAsCreateRef.current === null) {
+    sessionOpenedAsCreateRef.current = editingId === null;
+  }
   const closeIntentRunningRef = useRef(false);
   const [optionModalOpen, setOptionModalOpen] = useState(false);
   const [optionModalDraft, setOptionModalDraft] = useState<ListingBookingOption | null>(null);
@@ -637,9 +646,12 @@ export default function SupplierListingForm({
         setForm(next);
       }
     } else {
-      editModeHydratedIdRef.current = null;
-      // Create flow: seed empty template once per open — not on every parent listings refetch.
-      if (!createModeEmptySeededRef.current) {
+      // Only clear edit hydration when we're genuinely in a create session (not a transient editingId=null during edit).
+      if (sessionOpenedAsCreateRef.current) {
+        editModeHydratedIdRef.current = null;
+      }
+      // Create flow: seed empty template once — never when this mount started as an edit (see sessionOpenedAsCreateRef).
+      if (sessionOpenedAsCreateRef.current && !createModeEmptySeededRef.current) {
         createModeEmptySeededRef.current = true;
         initialFormSnapshotRef.current = serializeListingFormState(emptyForm);
         setForm(emptyForm);
