@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Pencil, Plus, Trash2, X } from 'lucide-react';
 import { TourPackage } from '../../types/tour';
@@ -606,6 +606,17 @@ export default function SupplierListingForm({
     []
   );
 
+  const setStepIdxPersisted = useCallback(
+    (next: number | ((prev: number) => number)) => {
+      setStepIdx((prev) => {
+        const resolved = typeof next === 'function' ? (next as (p: number) => number)(prev) : next;
+        writeWizardStepToStorage(editingId, resolved);
+        return resolved;
+      });
+    },
+    [editingId]
+  );
+
   const focusToStep: Record<string, number> = useMemo(
     () => ({
       language: 0,
@@ -718,11 +729,14 @@ export default function SupplierListingForm({
       prevEditingIdForWizardRef.current = editingId;
       lastFocused.current = null;
       const stored = readWizardStepFromStorage(editingId);
-      setStepIdx(stored !== null ? stored : 0);
+      const next = stored !== null ? stored : 0;
+      writeWizardStepToStorage(editingId, next);
+      setStepIdx(next);
     }
   }, [editingId]);
 
-  useEffect(() => {
+  /** Backup: keep storage aligned if step changes without going through setStepIdxPersisted (e.g. focus effect). */
+  useLayoutEffect(() => {
     writeWizardStepToStorage(editingId, stepIdx);
   }, [stepIdx, editingId]);
 
@@ -738,6 +752,7 @@ export default function SupplierListingForm({
     const focusKey = `${editingId}:${focusSection}`;
     if (lastFocused.current === focusKey) return;
 
+    writeWizardStepToStorage(editingId, targetStep);
     setStepIdx(targetStep);
 
     const el = document.getElementById(`supplier-listing-field-${focusSection}`);
@@ -879,7 +894,9 @@ export default function SupplierListingForm({
         const photosRelated = blockers.some((b) =>
           /image|photo|gallery|hero|placeholder/i.test(b)
         );
-        setStepIdx(photosRelated ? 6 : 0);
+        const go = photosRelated ? 6 : 0;
+        writeWizardStepToStorage(editingId, go);
+        setStepIdx(go);
         return;
       }
     }
@@ -1375,7 +1392,7 @@ export default function SupplierListingForm({
                   <li key={step.id} className="relative min-w-0 flex-1 list-none">
                     <button
                       type="button"
-                      onClick={() => setStepIdx(idx)}
+                      onClick={() => setStepIdxPersisted(idx)}
                       className="touch-manipulation group flex w-full flex-col items-center rounded-lg px-0.5 py-0.5 outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2"
                       aria-current={current ? 'step' : undefined}
                     >
@@ -2032,7 +2049,7 @@ export default function SupplierListingForm({
         <div className="px-4 sm:px-6 py-3 sm:py-4 border-t border-gray-200 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 shrink-0">
           <button
             type="button"
-            onClick={() => setStepIdx((s) => Math.max(0, s - 1))}
+            onClick={() => setStepIdxPersisted((s) => Math.max(0, s - 1))}
             disabled={stepIdx === 0 || draftCloseBusy || submitting}
             className="touch-manipulation w-full sm:w-auto px-4 py-3 sm:py-2.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 min-h-[44px]"
           >
@@ -2042,7 +2059,7 @@ export default function SupplierListingForm({
             {stepIdx < steps.length - 1 ? (
               <button
                 type="button"
-                onClick={() => setStepIdx((s) => Math.min(steps.length - 1, s + 1))}
+                onClick={() => setStepIdxPersisted((s) => Math.min(steps.length - 1, s + 1))}
                 disabled={!canContinueStep() || draftCloseBusy || submitting}
                 className="touch-manipulation flex-1 sm:flex-none px-4 py-3 sm:py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark disabled:opacity-50 min-h-[44px]"
               >
