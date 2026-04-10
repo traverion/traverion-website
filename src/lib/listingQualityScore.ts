@@ -20,6 +20,10 @@ function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
 }
 
+function titleWordCount(title: string): number {
+  return title.split(/\s+/).filter(Boolean).length;
+}
+
 /**
  * Deterministic listing quality score (0–100) from fields suppliers control.
  * Not AI — rules only, easy to tune.
@@ -31,39 +35,42 @@ export function computeListingQuality(listing: TourPackage): {
 } {
   const checks: ListingQualityCheck[] = [];
 
-  // Title (9)
+  // Title (9) — length alone misses strong short hooks (e.g. “Guaranteed Northern Lights”).
   {
     const max = 9;
     const t = listing.title.trim();
+    const words = titleWordCount(t);
+    const specificEnough =
+      t.length >= 32 || (t.length >= 16 && words >= 3) || (t.length >= 22 && words >= 2);
     let earned = 0;
     let tip = '';
-    if (t.length >= 32) earned = max;
+    if (specificEnough) earned = max;
     else if (t.length >= 22) {
       earned = 6;
-      tip = 'Add a more specific title (destination, duration, or unique hook).';
+      tip = 'Add a clearer hook or place name so the title stands out in search.';
     } else if (t.length >= 10) {
       earned = 3;
-      tip = 'Title is thin — aim for 32+ characters with clear value.';
+      tip = 'Title is thin — add a few more words (what, where, or why it is special).';
     } else {
       tip = 'Add a descriptive title travelers can scan quickly.';
     }
     checks.push({ id: 'title', label: 'Clear title', max, earned, tip });
   }
 
-  // Description (14)
+  // Description (14) — meeting the publish minimum is already strong; top band rewards extra depth.
   {
     const max = 14;
     const d = listing.description.trim();
     const len = d.length;
     let earned = 0;
     let tip = '';
-    if (len >= 280) earned = max;
-    else if (len >= 140) {
-      earned = 9;
-      tip = 'Expand the description with what’s included, pace, and who it’s for.';
+    if (len >= 260) earned = max;
+    else if (len >= 190) {
+      earned = 12;
+      tip = 'Optional: add a bit more on pace, audience, or practical tips for full marks.';
     } else if (len >= MIN_LISTING_DESCRIPTION_LENGTH) {
-      earned = 4;
-      tip = 'Longer descriptions convert better — target 200+ words where possible.';
+      earned = 10;
+      tip = 'You meet the publish bar — add detail only where it helps guests decide.';
     } else if (len >= 60) {
       earned = 2;
       tip = `Reach at least ${MIN_LISTING_DESCRIPTION_LENGTH} characters to publish — add what guests do, what’s included, and practical notes.`;
@@ -97,10 +104,15 @@ export function computeListingQuality(listing: TourPackage): {
     const joined = inc.join(' ').length;
     let earned = 0;
     let tip = '';
-    if (inc.length >= 4 && joined >= 50) earned = max;
+    if (
+      (inc.length >= 3 && joined >= 36) ||
+      (inc.length >= 4 && joined >= 42) ||
+      (inc.length >= 2 && joined >= 50)
+    )
+      earned = max;
     else if (inc.length >= 2 && joined >= 24) {
       earned = 6;
-      tip = 'List more concrete inclusions (transport, tickets, meals, guide) for full points.';
+      tip = 'Add one more inclusion or a bit more detail per line for full points.';
     } else if (inc.length >= 2) {
       earned = 4;
       tip = 'Flesh out each inclusion with a bit more detail where you can.';
@@ -116,10 +128,10 @@ export function computeListingQuality(listing: TourPackage): {
     const exc = (listing.excludes ?? []).map((s) => s.trim()).filter(Boolean);
     let earned = 0;
     let tip = '';
-    if (exc.length >= 2) earned = max;
+    if (exc.length >= 2 || (exc.length === 1 && exc[0].length >= 14)) earned = max;
     else if (exc.length === 1) {
       earned = 2;
-      tip = 'Add a second exclusion if relevant (e.g. tips, meals) for full points.';
+      tip = 'Add a second exclusion if relevant (e.g. tips, meals), or spell out the first one a bit more.';
     } else {
       tip = 'Add exclusions (e.g. tips, personal expenses, entry fees).';
     }
@@ -164,17 +176,32 @@ export function computeListingQuality(listing: TourPackage): {
     checks.push({ id: 'location', label: 'Location details', max, earned, tip });
   }
 
-  // Duration (4)
+  // Duration (4) — accept compact values (e.g. “3” for hours) and common words without digits.
   {
     const max = 4;
-    const d = listing.duration?.trim().toLowerCase() ?? '';
-    const ok = d.length >= 2 && !['tbd', 'n/a', '-'].includes(d);
+    const raw = listing.duration?.trim() ?? '';
+    const d = raw.toLowerCase();
+    const junk = new Set(['tbd', 'n/a', '-', 'tbc', 'to be confirmed', '']);
+    const onlyDigits = /^\d{1,3}$/.test(raw);
+    const compactHours = /^\d{1,3}\s*h(?:ours?)?$/i.test(raw);
+    const hasTimeWord = /\b(hour|hours|hr|h\b|day|days|night|nights|minute|minutes|min|week|weeks)\b/i.test(raw);
+    const hasDigit = /\d/.test(raw);
+    const ok =
+      !junk.has(d) &&
+      (onlyDigits ||
+        compactHours ||
+        (hasDigit && hasTimeWord) ||
+        (raw.length >= 6 && hasTimeWord));
     checks.push({
       id: 'duration',
       label: 'Duration',
       max,
       earned: ok ? max : 0,
-      tip: ok ? '' : 'Set a realistic duration (e.g. “3 hours”, “Full day”).',
+      tip: ok
+        ? onlyDigits && raw.length <= 3
+          ? 'Optional: add “hours” or “days” so duration is obvious at a glance.'
+          : ''
+        : 'Set a realistic duration (e.g. “3”, “3 hours”, or “Full day”).',
     });
   }
 
