@@ -1426,8 +1426,8 @@ export default function SupplierListingForm({
               <p className="text-xs text-gray-500 mt-1">
                 This is what travelers will see once a listing is live. Close anytime — unfinished work can be saved as a draft.
                 On the last step, use <span className="font-medium text-gray-700">Publish</span> to go live, or{' '}
-                <span className="font-medium text-gray-700">Save as draft</span> to keep working. You can also unpublish from My
-                listings.
+                <span className="font-medium text-gray-700">Save as draft</span> to keep working. To take a live listing offline,
+                use <span className="font-medium text-gray-700">Deactivate</span> under the gear menu on My listings.
               </p>
             </div>
             <button
@@ -1524,7 +1524,7 @@ export default function SupplierListingForm({
             </div>
             <p className="text-[11px] text-gray-400">
               Step {stepIdx + 1} of {steps.length} · strength ignores optional highlights/tags; publish from the Tour photos step
-              or toggle status on My listings
+              or use <span className="font-medium text-gray-500">→ Publish</span> on My listings for drafts
             </p>
           </div>
         </div>

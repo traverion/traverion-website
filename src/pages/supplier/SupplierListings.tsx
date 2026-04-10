@@ -1,5 +1,19 @@
 import { useState, useEffect, useCallback, useMemo, Fragment, useRef } from 'react';
-import { Plus, MapPin, Pencil, Trash2, Eye, EyeOff, AlertCircle, RefreshCw, ChevronDown, ChevronUp, Sparkles, ExternalLink } from 'lucide-react';
+import {
+  Plus,
+  MapPin,
+  Pencil,
+  Trash2,
+  Eye,
+  EyeOff,
+  AlertCircle,
+  RefreshCw,
+  ChevronDown,
+  ChevronUp,
+  Sparkles,
+  ExternalLink,
+  Cog,
+} from 'lucide-react';
 import { TourPackage } from '../../types/tour';
 import { getSupplierListings, setSupplierListings } from '../../data/listings';
 import {
@@ -49,6 +63,8 @@ export default function SupplierListings() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedQualityId, setExpandedQualityId] = useState<string | null>(null);
+  /** Row id whose gear actions dropdown is open (Edit / Deactivate). */
+  const [listingActionsMenuId, setListingActionsMenuId] = useState<string | null>(null);
   /** Verified profile + complete business details + payout saved — required to add or publish tours. */
   const [canPostNewListing, setCanPostNewListing] = useState(false);
   const [profileGateMessage, setProfileGateMessage] = useState<string | null>(null);
@@ -281,6 +297,25 @@ export default function SupplierListings() {
   }, [loadListings]);
 
   useEffect(() => {
+    if (!listingActionsMenuId) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setListingActionsMenuId(null);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [listingActionsMenuId]);
+
+  useEffect(() => {
+    if (!listingActionsMenuId) return;
+    const onDown = (e: MouseEvent) => {
+      const wrap = document.querySelector(`[data-listing-row-actions="${listingActionsMenuId}"]`);
+      if (wrap && !wrap.contains(e.target as Node)) setListingActionsMenuId(null);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [listingActionsMenuId]);
+
+  useEffect(() => {
     if (!isSupabase) {
       const onStorage = () => setListings(getSupplierListings());
       window.addEventListener('storage', onStorage);
@@ -451,12 +486,34 @@ export default function SupplierListings() {
       setError(null);
       loadListings();
       window.dispatchEvent(new Event('traverion:supplier-onboarding-refresh'));
-      if (newStatus === 'published') {
-        window.dispatchEvent(new CustomEvent('traverion:published-listings-changed'));
-      }
+      window.dispatchEvent(new CustomEvent('traverion:published-listings-changed'));
     } else {
       setError(res.error);
     }
+  };
+
+  const deactivateListingOffline = async (listing: TourPackage) => {
+    if (!canEditListings) return;
+    if (
+      !window.confirm(
+        'Take this listing offline? Travelers will not see it on Traverion until you publish it again from this page.'
+      )
+    ) {
+      return;
+    }
+    setListingActionsMenuId(null);
+    if (isSupabase && user) {
+      await handleStatusChange(listing, 'draft');
+      return;
+    }
+    const list = getSupplierListings();
+    const idx = list.findIndex((t) => t.id === listing.id);
+    if (idx < 0) return;
+    const next = [...list];
+    next[idx] = { ...next[idx], status: 'draft' };
+    setSupplierListings(next);
+    loadListings();
+    window.dispatchEvent(new CustomEvent('traverion:published-listings-changed'));
   };
 
   return (
@@ -465,9 +522,9 @@ export default function SupplierListings() {
         <div className="min-w-0">
           <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">My listings</h1>
           <p className="text-sm sm:text-base text-gray-600 mt-1">
-            Manage your tours and activities. Use <span className="font-medium text-gray-800">Publish</span> when a listing is
-            ready to go live, or <span className="font-medium text-gray-800">Draft</span> to hide it. Closing the editor without
-            finishing keeps a draft when save-on-close is available.
+            Manage your tours and activities. <span className="font-medium text-gray-800">Publish</span> drafts when they are
+            ready to go live. Live listings stay published; use the gear menu to <span className="font-medium text-gray-800">Deactivate</span>{' '}
+            if you need to hide one temporarily. Closing the editor without finishing keeps a draft when save-on-close is available.
           </p>
         </div>
         <button
@@ -635,7 +692,7 @@ export default function SupplierListings() {
                 <h2 className="text-base font-semibold text-gray-900">Listing quality</h2>
                 <p className="text-sm text-gray-600 mt-0.5">
                   Content score only — not AI. Optional highlights/tags and “live on site” are excluded so drafts are not
-                  penalised. Publish from this page when you are ready.
+                  penalised. Use <strong>→ Publish</strong> for drafts or publish from the editor when you are ready.
                 </p>
               </div>
             </div>
@@ -646,7 +703,8 @@ export default function SupplierListings() {
           </div>
           {qualityOverview.below70 > 0 && (
             <p className="mt-4 text-sm text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
-              <strong>{qualityOverview.below70}</strong> listing{qualityOverview.below70 === 1 ? '' : 's'} under 70% — open <strong>Edit</strong> and work through the checklist below each row.
+              <strong>{qualityOverview.below70}</strong> listing{qualityOverview.below70 === 1 ? '' : 's'} under 70% — use the gear
+              menu → <strong>Edit</strong> and work through the checklist below each row.
             </p>
           )}
           {qualityOverview.quickWins.length > 0 && (
@@ -755,6 +813,7 @@ export default function SupplierListings() {
                       const pct = listingQualityPercent(q.score, q.maxScore);
                       const tone =
                         pct >= 80 ? 'bg-green-100 text-green-800' : pct >= 60 ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800';
+                      const isLive = listing.status !== 'draft';
                       return (
                       <Fragment key={listing.id}>
                       <tr className="hover:bg-gray-50/50">
@@ -791,31 +850,33 @@ export default function SupplierListings() {
                           </div>
                         </td>
                         <td className="px-2 py-2 sm:px-4 sm:py-3 align-top">
-                          <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full ${
-                            listing.status === 'published' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
-                          }`}>
-                            {listing.status === 'published' ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
-                            {listing.status ?? 'published'}
+                          <span
+                            className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full ${
+                              isLive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
+                            }`}
+                          >
+                            {isLive ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+                            {isLive ? 'Live' : 'Offline'}
                           </span>
-                          {isSupabase && canEditListings && (
+                          {isSupabase && canEditListings && !isLive && (
                             <button
                               type="button"
-                              onClick={() => handleStatusChange(listing, listing.status === 'published' ? 'draft' : 'published')}
-                              disabled={listing.status !== 'published' && !canPostNewListing}
+                              onClick={() => handleStatusChange(listing, 'published')}
+                              disabled={!canPostNewListing}
                               title={
-                                listing.status !== 'published' && !canPostNewListing
+                                !canPostNewListing
                                   ? 'Business and payout verification required to publish'
-                                  : undefined
+                                  : 'Publish on Traverion'
                               }
                               className="mt-1 block sm:ml-2 sm:mt-0 sm:inline text-xs text-finland hover:underline disabled:opacity-40 disabled:no-underline disabled:cursor-not-allowed touch-manipulation min-h-[44px] sm:min-h-0 py-1"
                             >
-                              → {listing.status === 'published' ? 'Draft' : 'Publish'}
+                              → Publish
                             </button>
                           )}
                         </td>
                         <td className="px-2 py-2 sm:px-4 sm:py-3 text-right align-top">
                           <div className="flex items-center justify-end flex-wrap gap-1">
-                            {listing.status === 'published' ? (
+                            {isLive ? (
                               <a
                                 href={publicTourListingUrl(listing.id)}
                                 target="_blank"
@@ -828,15 +889,50 @@ export default function SupplierListings() {
                                 <span className="xs:hidden">View</span>
                               </a>
                             ) : null}
-                            <button
-                              type="button"
-                              onClick={() => openSupplierListingEditor(listing.id)}
-                              disabled={!canEditListings}
-                              className="touch-manipulation p-2.5 rounded-lg text-gray-600 hover:bg-gray-200 hover:text-finland disabled:opacity-40 disabled:pointer-events-none min-w-[44px] min-h-[44px] inline-flex items-center justify-center"
-                              title={canEditListings ? 'Edit' : 'View only'}
-                            >
-                              <Pencil className="w-4 h-4" />
-                            </button>
+                            <div className="relative" data-listing-row-actions={listing.id}>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setListingActionsMenuId((id) => (id === listing.id ? null : listing.id))
+                                }
+                                disabled={!canEditListings}
+                                aria-expanded={listingActionsMenuId === listing.id}
+                                aria-haspopup="menu"
+                                aria-label="Listing actions"
+                                className="touch-manipulation p-2.5 rounded-lg text-gray-600 hover:bg-gray-200 hover:text-finland disabled:opacity-40 disabled:pointer-events-none min-w-[44px] min-h-[44px] inline-flex items-center justify-center"
+                                title={canEditListings ? 'Listing actions' : 'View only'}
+                              >
+                                <Cog className="w-4 h-4" aria-hidden />
+                              </button>
+                              {listingActionsMenuId === listing.id && canEditListings && (
+                                <div
+                                  role="menu"
+                                  className="absolute right-0 top-full mt-1 z-50 min-w-[10.5rem] rounded-lg border border-gray-200 bg-white py-1 shadow-lg text-left"
+                                >
+                                  <button
+                                    type="button"
+                                    role="menuitem"
+                                    className="w-full px-3 py-2.5 text-left text-sm text-gray-800 hover:bg-gray-50"
+                                    onClick={() => {
+                                      setListingActionsMenuId(null);
+                                      openSupplierListingEditor(listing.id);
+                                    }}
+                                  >
+                                    Edit
+                                  </button>
+                                  {isLive && (
+                                    <button
+                                      type="button"
+                                      role="menuitem"
+                                      className="w-full px-3 py-2.5 text-left text-sm text-gray-800 hover:bg-gray-50"
+                                      onClick={() => void deactivateListingOffline(listing)}
+                                    >
+                                      Deactivate
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                            </div>
                             <button
                               type="button"
                               onClick={() => handleDelete(listing.id)}
