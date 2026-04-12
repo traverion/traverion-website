@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, Fragment, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Plus,
   MapPin,
@@ -8,9 +8,6 @@ import {
   EyeOff,
   AlertCircle,
   RefreshCw,
-  ChevronDown,
-  ChevronUp,
-  Sparkles,
   ExternalLink,
   Cog,
 } from 'lucide-react';
@@ -27,10 +24,6 @@ import {
 import { fetchSupplierProfile } from '../../data/supabase-supplier-profile';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import SupplierListingForm, { type ListingEditorSaveResult } from './SupplierListingForm';
-import {
-  computeListingQualityPartnerFocus,
-  listingQualityPercent,
-} from '../../lib/listingQualityScore';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { navigateSupplierUrl, openSupplierListingEditor } from '../../lib/supplierPortalNavigation';
 import {
@@ -62,7 +55,6 @@ export default function SupplierListings() {
   const [listings, setListings] = useState<TourPackage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [expandedQualityId, setExpandedQualityId] = useState<string | null>(null);
   /** Row id whose gear actions dropdown is open (Edit / Deactivate). */
   const [listingActionsMenuId, setListingActionsMenuId] = useState<string | null>(null);
   /** Verified profile + complete business details + payout saved — required to add or publish tours. */
@@ -243,34 +235,6 @@ export default function SupplierListings() {
       }
     };
   }, [listings, loading, error]);
-
-  const qualityOverview = useMemo(() => {
-    if (listings.length === 0) return null;
-    let sumPct = 0;
-    let below70 = 0;
-    const gapCounts: Record<string, { count: number; label: string }> = {};
-    for (const l of listings) {
-      const { score, maxScore, checks } = computeListingQualityPartnerFocus(l);
-      const pct = listingQualityPercent(score, maxScore);
-      sumPct += pct;
-      if (pct < 70) below70++;
-      for (const c of checks) {
-        if (c.earned < c.max) {
-          if (!gapCounts[c.id]) gapCounts[c.id] = { count: 0, label: c.label };
-          gapCounts[c.id].count++;
-        }
-      }
-    }
-    const quickWins = Object.entries(gapCounts)
-      .sort((a, b) => b[1].count - a[1].count)
-      .slice(0, 4)
-      .map(([id, v]) => ({ id, label: v.label, count: v.count }));
-    return {
-      avgPct: Math.round(sumPct / listings.length),
-      below70,
-      quickWins,
-    };
-  }, [listings]);
 
   const loadListings = useCallback(() => {
     const uid = user?.id;
@@ -681,51 +645,6 @@ export default function SupplierListings() {
         </div>
       )}
 
-      {!loading && listings.length > 0 && qualityOverview && (
-        <div className="bg-gradient-to-br from-finland/5 via-white to-amber-50/30 border border-finland/15 rounded-xl p-5 sm:p-6">
-          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-            <div className="flex items-start gap-3">
-              <div className="w-11 h-11 rounded-xl bg-finland/10 text-finland flex items-center justify-center flex-shrink-0">
-                <Sparkles className="w-5 h-5" />
-              </div>
-              <div>
-                <h2 className="text-base font-semibold text-gray-900">Listing quality</h2>
-                <p className="text-sm text-gray-600 mt-0.5">
-                  Content score only — not AI. Optional highlights/tags and “live on site” are excluded so drafts are not
-                  penalised. Use <strong>→ Publish</strong> for drafts or publish from the editor when you are ready.
-                </p>
-              </div>
-            </div>
-            <div className="flex flex-col items-start sm:items-end gap-1">
-              <span className="text-3xl font-bold text-finland tabular-nums">{qualityOverview.avgPct}%</span>
-              <span className="text-xs text-gray-500 uppercase tracking-wide">Average across {listings.length} listing{listings.length === 1 ? '' : 's'}</span>
-            </div>
-          </div>
-          {qualityOverview.below70 > 0 && (
-            <p className="mt-4 text-sm text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
-              <strong>{qualityOverview.below70}</strong> listing{qualityOverview.below70 === 1 ? '' : 's'} under 70% — use the gear
-              menu → <strong>Edit</strong> and work through the checklist below each row.
-            </p>
-          )}
-          {qualityOverview.quickWins.length > 0 && (
-            <div className="mt-4">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Top gaps across your listings</p>
-              <ul className="flex flex-wrap gap-2">
-                {qualityOverview.quickWins.map((w) => (
-                  <li
-                    key={w.id}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-gray-200 text-sm text-gray-700"
-                  >
-                    <span>{w.label}</span>
-                    <span className="text-xs text-gray-400">×{w.count}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-      )}
-
       {showForm && (
         <SupplierListingForm
           key={editingId ?? 'create'}
@@ -796,27 +715,21 @@ export default function SupplierListings() {
             <h2 className="text-lg font-medium text-gray-900">Your listings ({listings.length})</h2>
             <div className="border border-gray-200 rounded-2xl bg-white overflow-hidden shadow-sm -mx-0.5 sm:mx-0">
               <div className="overflow-x-auto touch-pan-x overscroll-x-contain [-webkit-overflow-scrolling:touch]">
-                <table className="min-w-[640px] w-full">
+                <table className="min-w-[560px] w-full">
                   <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>
                       <th className="px-2 py-2 sm:px-4 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase">Listing</th>
                       <th className="px-2 py-2 sm:px-4 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Location · Duration</th>
                       <th className="px-2 py-2 sm:px-4 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase">Price</th>
-                      <th className="px-2 py-2 sm:px-4 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase">Quality</th>
                       <th className="px-2 py-2 sm:px-4 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                       <th className="px-2 py-2 sm:px-4 sm:py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {listings.map((listing) => {
-                      const q = computeListingQualityPartnerFocus(listing);
-                      const pct = listingQualityPercent(q.score, q.maxScore);
-                      const tone =
-                        pct >= 80 ? 'bg-green-100 text-green-800' : pct >= 60 ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800';
                       const isLive = listing.status !== 'draft';
                       return (
-                      <Fragment key={listing.id}>
-                      <tr className="hover:bg-gray-50/50">
+                      <tr key={listing.id} className="hover:bg-gray-50/50">
                         <td className="px-2 py-2 sm:px-4 sm:py-3">
                           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                             <img src={listing.image} alt="" className="w-11 h-11 sm:w-14 sm:h-14 rounded-lg object-cover flex-shrink-0" />
@@ -827,28 +740,6 @@ export default function SupplierListings() {
                           {listing.city && `${listing.city}, `}{listing.country ?? listing.destination} · {listing.duration}
                         </td>
                         <td className="px-2 py-2 sm:px-4 sm:py-3 text-sm font-medium text-gray-900 whitespace-nowrap">From ${listing.price.startingFrom}</td>
-                        <td className="px-2 py-2 sm:px-4 sm:py-3">
-                          <div className="flex items-center gap-2">
-                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full tabular-nums ${tone}`}>
-                              {pct}%
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setExpandedQualityId((id) => (id === listing.id ? null : listing.id))
-                              }
-                              className="touch-manipulation p-2 -m-1 rounded-lg text-gray-500 hover:bg-gray-100 min-w-[40px] min-h-[40px] inline-flex items-center justify-center"
-                              title="Show quality checklist"
-                              aria-expanded={expandedQualityId === listing.id}
-                            >
-                              {expandedQualityId === listing.id ? (
-                                <ChevronUp className="w-4 h-4" />
-                              ) : (
-                                <ChevronDown className="w-4 h-4" />
-                              )}
-                            </button>
-                          </div>
-                        </td>
                         <td className="px-2 py-2 sm:px-4 sm:py-3 align-top">
                           <span
                             className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full ${
@@ -945,59 +836,6 @@ export default function SupplierListings() {
                           </div>
                         </td>
                       </tr>
-                      {expandedQualityId === listing.id && (
-                        <tr className="bg-gray-50/80">
-                          <td colSpan={6} className="px-4 py-4 border-t border-gray-100">
-                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
-                              <p className="text-sm font-medium text-gray-900">Checklist — {listing.title}</p>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  openSupplierListingEditor(listing.id);
-                                }}
-                                disabled={!canEditListings}
-                                className="inline-flex items-center gap-2 self-start px-3 py-1.5 rounded-lg bg-finland text-white text-sm font-medium hover:bg-finland-dark disabled:opacity-40"
-                              >
-                                <Pencil className="w-4 h-4" />
-                                Edit listing
-                              </button>
-                            </div>
-                            <ul className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                              {q.checks.map((c) => {
-                                const complete = c.earned >= c.max;
-                                return (
-                                  <li
-                                    key={c.id}
-                                    className={`text-sm rounded-lg border px-3 py-2 ${
-                                      complete ? 'border-green-100 bg-white' : 'border-amber-100 bg-amber-50/40'
-                                    }`}
-                                  >
-                                    <div className="flex items-center justify-between gap-2">
-                                      <span className={complete ? 'text-gray-700' : 'text-gray-900 font-medium'}>{c.label}</span>
-                                      <span className="text-xs tabular-nums text-gray-500">
-                                        {c.earned}/{c.max}
-                                      </span>
-                                    </div>
-                                    {!complete && c.tip && (
-                                      <p className="text-xs text-gray-600 mt-1">{c.tip}</p>
-                                    )}
-                                    {!complete && canEditListings && (
-                                      <button
-                                        type="button"
-                                        onClick={() => openSupplierListingEditor(listing.id, c.id)}
-                                        className="mt-2 text-xs font-medium text-finland hover:underline"
-                                      >
-                                        Fix this →
-                                      </button>
-                                    )}
-                                  </li>
-                                );
-                              })}
-                            </ul>
-                          </td>
-                        </tr>
-                      )}
-                      </Fragment>
                       );
                     })}
                   </tbody>

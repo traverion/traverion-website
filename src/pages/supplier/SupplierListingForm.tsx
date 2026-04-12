@@ -28,11 +28,7 @@ import {
 } from '../../lib/listingPhotoGrid';
 import { getListingPublishBlockers } from '../../lib/listingPublishGate';
 import { isSupabaseConfigured } from '../../lib/supabase';
-import {
-  computeListingQualityPartnerFocus,
-  listingQualityPercent,
-  MIN_LISTING_DESCRIPTION_LENGTH,
-} from '../../lib/listingQualityScore';
+import { MIN_LISTING_DESCRIPTION_LENGTH } from '../../lib/listingQualityScore';
 
 const TAG_OPTIONS = [
   { id: 'free-cancellation', label: 'Free cancellation' },
@@ -861,15 +857,6 @@ export default function SupplierListingForm({
     return serializeListingFormState(form) !== initialFormSnapshotRef.current;
   }, [form]);
 
-  const draftListingPreview = useMemo(() => {
-    return buildListingFromForm(form, editingId ?? undefined);
-  }, [form, editingId]);
-
-  const listingQualityPct = useMemo(() => {
-    const { score, maxScore } = computeListingQualityPartnerFocus(draftListingPreview);
-    return listingQualityPercent(score, maxScore);
-  }, [draftListingPreview]);
-
   const publishBlockersPreview = useMemo(() => {
     const asPublished = buildListingFromForm({ ...form, status: 'published' }, editingId ?? undefined);
     return getListingPublishBlockers(asPublished);
@@ -1505,26 +1492,15 @@ export default function SupplierListingForm({
               })}
             </ol>
           </nav>
-          <div className="space-y-2">
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <p className="text-xs font-medium text-gray-700">
-                Listing strength <span className="tabular-nums text-finland">{listingQualityPct}%</span>
-              </p>
-              <p className="text-xs text-gray-500">
-                {publishBlockersPreview.length === 0
-                  ? 'Meets basic publish checks — use Publish on the Tour photos step when you are ready.'
-                  : `${publishBlockersPreview.length} item${publishBlockersPreview.length === 1 ? '' : 's'} left before publish`}
-              </p>
-            </div>
-            <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-finland/80 transition-all duration-500 ease-out"
-                style={{ width: `${listingQualityPct}%` }}
-              />
-            </div>
+          <div className="space-y-1">
+            <p className="text-xs text-gray-600">
+              {publishBlockersPreview.length === 0
+                ? 'Meets basic publish checks — use Publish on the Tour photos step when you are ready.'
+                : `${publishBlockersPreview.length} item${publishBlockersPreview.length === 1 ? '' : 's'} left before publish`}
+            </p>
             <p className="text-[11px] text-gray-400">
-              Step {stepIdx + 1} of {steps.length} · strength ignores optional highlights/tags; publish from the Tour photos step
-              or use <span className="font-medium text-gray-500">→ Publish</span> on My listings for drafts
+              Step {stepIdx + 1} of {steps.length} · publish from the Tour photos step or use{' '}
+              <span className="font-medium text-gray-500">→ Publish</span> on My listings for drafts
             </p>
           </div>
         </div>
