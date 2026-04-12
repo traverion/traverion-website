@@ -1,7 +1,7 @@
 import { ArrowRight, MapPin } from 'lucide-react';
 import type { TourPackage } from '../types/tour';
 import type { ListingDiscount } from '../data/supabase-discounts';
-import { getDisplayPrice } from '../lib/discount-display';
+import { getDisplayPriceForTour } from '../lib/discount-display';
 import { ListingCardRating } from './ListingCardRating';
 
 export type PublicListingBrowseCardProps = {
@@ -35,7 +35,7 @@ export function PublicListingBrowseCard({
 }: PublicListingBrowseCardProps) {
   const imgClass = size === 'compact' ? 'h-40' : 'h-48';
   const padClass = size === 'compact' ? 'p-3' : 'p-4';
-  const { price, originalPrice, label } = getDisplayPrice(tour.id, tour.price.startingFrom, discountsByListing);
+  const { price, originalPrice, label } = getDisplayPriceForTour(tour, discountsByListing);
   const hasDiscount = Boolean(label && price < originalPrice);
   const fromAmount = hasDiscount ? price : originalPrice;
   const locationLine =

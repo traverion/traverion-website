@@ -51,6 +51,7 @@ export default function ListingDiscounts({ listingId, readOnly = false, onChange
       code: code.trim() || null,
       valid_from: validFrom || null,
       valid_until: validUntil || null,
+      booking_option_id: null,
     });
     if (inserted) {
       setValue('');

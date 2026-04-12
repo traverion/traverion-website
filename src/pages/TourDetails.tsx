@@ -22,7 +22,7 @@ import { analytics } from '../lib/analytics';
 import { TourPackage } from '../types/tour';
 import { TRAVERION_STANDARD_CANCELLATION_POLICY } from '../types/listingExtras';
 import { fetchDiscountsByListingIds } from '../data/supabase-discounts';
-import { getDisplayPrice, isSupabaseListingId } from '../lib/discount-display';
+import { getDisplayPriceForTour, isSupabaseListingId } from '../lib/discount-display';
 import {
   fetchReviewsByListingId,
   getReviewAggregateForListing,
@@ -481,7 +481,7 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
             <div className="lg:col-span-1">
               <div className="lg:sticky lg:top-24 bg-white rounded-xl border border-gray-200 shadow-lg p-6">
                 {(() => {
-                  const { price, originalPrice, label } = getDisplayPrice(tour.id, tour.price.startingFrom, discountsByListing);
+                  const { price, originalPrice, label } = getDisplayPriceForTour(tour, discountsByListing);
                   const hasDiscount = label && price < originalPrice;
                   return (
                     <>
