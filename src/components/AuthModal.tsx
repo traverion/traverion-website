@@ -13,6 +13,8 @@ type Tab = 'signin' | 'signup';
 export default function AuthModal() {
   const { authModalOpen, closeAuthModal, signIn, signUp, triggerAuthSuccess } = useAuth();
   const [tab, setTab] = useState<Tab>('signin');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
@@ -48,6 +50,10 @@ export default function AuthModal() {
     setSuccessMessage(null);
     if (!email || !password) return;
     if (tab === 'signup') {
+      if (!firstName.trim() || !lastName.trim()) {
+        setError('Please enter your first name and surname.');
+        return;
+      }
       if (!phoneNumber.trim()) {
         setError('Phone number is required');
         return;
@@ -75,7 +81,12 @@ export default function AuthModal() {
         }
         triggerAuthSuccess();
       } else {
-        const { error: err, hasSession } = await signUp(email, password, { phoneNumber });
+        const { error: err, hasSession } = await signUp(email, password, {
+          phoneNumber,
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          afterConfirmNext: 'account',
+        });
         if (err) {
           setError(mapAuthError(err));
           return;
@@ -179,6 +190,42 @@ export default function AuthModal() {
         </p>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {tab === 'signup' && (
+            <>
+              <div>
+                <label htmlFor="auth-modal-first-name" className="block text-sm font-medium text-gray-700 mb-1">
+                  Name
+                </label>
+                <input
+                  id="auth-modal-first-name"
+                  type="text"
+                  name="given-name"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  placeholder="First name"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland outline-none transition-shadow"
+                  autoComplete="given-name"
+                  required
+                />
+              </div>
+              <div>
+                <label htmlFor="auth-modal-last-name" className="block text-sm font-medium text-gray-700 mb-1">
+                  Surname
+                </label>
+                <input
+                  id="auth-modal-last-name"
+                  type="text"
+                  name="family-name"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  placeholder="Last name"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland outline-none transition-shadow"
+                  autoComplete="family-name"
+                  required
+                />
+              </div>
+            </>
+          )}
           <div>
             <label htmlFor="auth-email" className="block text-sm font-medium text-gray-700 mb-1">
               Email
@@ -223,38 +270,58 @@ export default function AuthModal() {
               />
             </div>
           )}
-          <div>
-            <label htmlFor="auth-password" className="block text-sm font-medium text-gray-700 mb-1">
-              Password
-            </label>
-            <input
-              id="auth-password"
-              type="password"
-              name={tab === 'signup' ? 'new-password' : 'current-password'}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland outline-none transition-shadow"
-              required
-              minLength={tab === 'signup' ? 6 : undefined}
-              autoComplete={tab === 'signup' ? 'new-password' : 'current-password'}
-            />
-          </div>
-          {tab === 'signup' && (
+          {tab === 'signup' ? (
+            <div className="rounded-xl border border-gray-200 bg-gray-50/80 p-3.5 space-y-2">
+              <p className="text-xs font-medium text-gray-600 uppercase tracking-wide">Choose a password</p>
+              <div>
+                <label htmlFor="auth-password" className="block text-xs font-medium text-gray-600 mb-1">
+                  Password
+                </label>
+                <input
+                  id="auth-password"
+                  type="password"
+                  name="new-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Min. 6 characters"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland outline-none transition-shadow bg-white"
+                  required
+                  minLength={6}
+                  autoComplete="new-password"
+                />
+              </div>
+              <div>
+                <label htmlFor="auth-confirm" className="block text-xs font-medium text-gray-600 mb-1">
+                  Confirm password
+                </label>
+                <input
+                  id="auth-confirm"
+                  type="password"
+                  name="confirm-password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Same as above"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland outline-none transition-shadow bg-white"
+                  autoComplete="new-password"
+                  required
+                />
+              </div>
+            </div>
+          ) : (
             <div>
-              <label htmlFor="auth-confirm" className="block text-sm font-medium text-gray-700 mb-1">
-                Confirm password
+              <label htmlFor="auth-password" className="block text-sm font-medium text-gray-700 mb-1">
+                Password
               </label>
               <input
-                id="auth-confirm"
+                id="auth-password"
                 type="password"
-                name="confirm-password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
+                name="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland outline-none transition-shadow"
-                autoComplete="new-password"
                 required
+                autoComplete="current-password"
               />
             </div>
           )}

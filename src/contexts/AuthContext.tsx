@@ -3,7 +3,12 @@ import { User } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { isSignUpEmailAlreadyRegistered } from '../lib/supabaseAuthHelpers';
 import { publicSiteBaseUrl } from '../lib/publicSiteUrl';
-import { ensureConsumerProfile, fetchConsumerProfile, normalizeConsumerPhone } from '../data/supabase-consumer-profile';
+import {
+  consumerProfileEnsurePayloadFromAuthUser,
+  ensureConsumerProfile,
+  fetchConsumerProfile,
+  normalizeConsumerPhone,
+} from '../data/supabase-consumer-profile';
 import { fetchSupplierProfile } from '../data/supabase-supplier-profile';
 import { isPhoneAvailableForSignup } from '../data/supabase-phone-signup';
 import { isTraverionAdminUser } from '../lib/adminAuth';
@@ -18,7 +23,14 @@ type AuthContextValue = {
   signUp: (
     email: string,
     password: string,
-    options?: { redirectTo?: string; phoneNumber?: string }
+    options?: {
+      redirectTo?: string;
+      phoneNumber?: string;
+      firstName?: string;
+      lastName?: string;
+      /** `next` query preserved for post-confirm sign-in redirect (default `account`). */
+      afterConfirmNext?: string;
+    }
   ) => Promise<{ error?: string; hasSession?: boolean }>;
   signOut: () => Promise<void>;
   /** Open the auth modal; call onSuccess after user signs in/up (e.g. to open booking). */
@@ -70,11 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const partnerLoginUrl = `${supplierPortalPublicBaseUrl()}${PARTNER_LOGIN_PATH}`;
         return { error: customerSignInPartnerOnlyMessage(partnerLoginUrl) };
       }
-      const userMeta = data.user.user_metadata as { phone?: string; customer_phone?: string } | undefined;
-      const ensured = await ensureConsumerProfile(data.user.id, {
-        display_name: normalizedEmail.split('@')[0] ?? null,
-        contact_phone: userMeta?.customer_phone ?? userMeta?.phone ?? null,
-      });
+      const ensured = await ensureConsumerProfile(data.user.id, consumerProfileEnsurePayloadFromAuthUser(data.user));
       if (!ensured.success) {
         await supabase.auth.signOut();
         return { error: ensured.error ?? 'Could not load your account profile.' };
@@ -83,23 +91,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error: error?.message };
   }, []);
 
-  const signUp = useCallback(async (email: string, password: string, options?: { redirectTo?: string; phoneNumber?: string }) => {
+  const signUp = useCallback(async (email: string, password: string, options?: { redirectTo?: string; phoneNumber?: string; firstName?: string; lastName?: string; afterConfirmNext?: string }) => {
     if (!supabase) return { error: 'Not configured' };
     const normalizedEmail = email.trim().toLowerCase();
     const normalizedPhone = normalizeConsumerPhone(options?.phoneNumber ?? '');
     if (!normalizedPhone) return { error: 'Phone number is required' };
 
+    const first = (options?.firstName ?? '').trim();
+    const last = (options?.lastName ?? '').trim();
+    const displayNameFromSignup = [first, last].filter(Boolean).join(' ').trim() || null;
+
     const availability = await isPhoneAvailableForSignup(options?.phoneNumber ?? '');
     if (availability.error) return { error: availability.error };
     if (!availability.available) return { error: 'An account with this phone number already exists. Try signing in instead.' };
 
-    const redirectTo = options?.redirectTo ?? `${publicSiteBaseUrl()}/log-in?next=account`;
+    const next = (options?.afterConfirmNext ?? 'account').trim() || 'account';
+    const confirmQs = new URLSearchParams({ next }).toString();
+    const redirectTo = options?.redirectTo ?? `${publicSiteBaseUrl()}/email-confirmed?${confirmQs}`;
     const { data, error } = await supabase.auth.signUp({
       email: normalizedEmail,
       password,
       options: {
         emailRedirectTo: redirectTo,
-        data: { customer_phone: normalizedPhone },
+        data: {
+          customer_phone: normalizedPhone,
+          ...(first ? { customer_first_name: first } : {}),
+          ...(last ? { customer_last_name: last } : {}),
+        },
       },
     });
     if (error) {
@@ -120,7 +138,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error: undefined, hasSession: false };
       }
       const ensured = await ensureConsumerProfile(data.user.id, {
-        display_name: normalizedEmail.split('@')[0] ?? null,
+        display_name: displayNameFromSignup ?? (normalizedEmail.split('@')[0] ?? null),
         contact_phone: normalizedPhone,
       });
       if (!ensured.success) {

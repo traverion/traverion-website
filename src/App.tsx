@@ -22,6 +22,7 @@ import Indochina14Day from './pages/Indochina14Day';
 import ThailandVietnam14Day from './pages/ThailandVietnam14Day';
 import Contact from './pages/Contact';
 import AuthPage from './pages/AuthPage';
+import EmailConfirmedSuccess from './pages/EmailConfirmedSuccess';
 import DestinationPage from './pages/DestinationPage';
 import AdminGate from './components/AdminGate';
 import AdminStaffLogin from './components/admin/AdminStaffLogin';
@@ -147,7 +148,8 @@ function App() {
       /* ignore quota / private mode */
     }
     const path = window.location.pathname.replace(/\/$/, '') || '/';
-    const onTravelerAuth = path === '/auth' || path === '/sign-up' || path === '/log-in';
+    const onTravelerAuth =
+      path === '/auth' || path === '/sign-up' || path === '/log-in' || path === '/email-confirmed';
     const qs = onTravelerAuth && window.location.search ? window.location.search : '?next=account';
     window.history.replaceState({}, '', `/log-in${qs}`);
     setCurrentPage('auth');
@@ -184,7 +186,7 @@ function App() {
       }
       return;
     }
-    if (currentPage === 'auth') {
+    if (currentPage === 'auth' || currentPage === 'email-confirmed') {
       return;
     }
     const urlMapping: { [key: string]: string } = {
@@ -255,6 +257,7 @@ function App() {
       home: { title: 'Traverion', description: 'Book tours and activities worldwide. Find and reserve experiences with free cancellation.' },
       packages: { title: 'Tours & activities', description: 'Browse and book tours and activities worldwide. Filter by destination, price, and more.' },
       auth: { title: 'Sign in', description: 'Sign in or create an account to manage your bookings and cart.' },
+      'email-confirmed': { title: 'Email confirmed', description: 'Your Traverion traveler email was verified.' },
       cart: { title: 'Cart', description: 'Your cart. Request bookings for selected tours.' },
       account: { title: 'My account', description: 'Your bookings, wishlist, and cart in one place.' },
       wishlist: { title: 'Wishlist', description: 'Tours and activities you have saved.' },
@@ -278,7 +281,7 @@ function App() {
     setRobotsNoIndex(false);
 
     const pathMap: Record<string, string> = {
-      home: '/', packages: '/packages', auth: '/auth', cart: '/cart', account: '/account', wishlist: '/wishlist', bookings: '/bookings',
+      home: '/', packages: '/packages', auth: '/auth', 'email-confirmed': '/email-confirmed', cart: '/cart', account: '/account', wishlist: '/wishlist', bookings: '/bookings',
       blog: '/blog', contact: '/contact', privacy: '/privacy', terms: '/terms', cookies: '/cookies',
       about: '/about', sitemap: '/sitemap',
       'legal-notice': '/legal-notice', affiliate: '/affiliate', 'content-creator': '/content-creator',
@@ -350,6 +353,8 @@ function App() {
         );
       case 'auth':
         return <AuthPage onNavigate={setCurrentPage} />;
+      case 'email-confirmed':
+        return <EmailConfirmedSuccess />;
       case 'bookings':
         return (
           <MyBookings

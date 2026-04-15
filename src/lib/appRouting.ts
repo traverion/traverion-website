@@ -13,6 +13,7 @@ const PATH_TO_PAGE: Record<string, string> = {
   '/auth': 'auth',
   '/sign-up': 'auth',
   '/log-in': 'auth',
+  '/email-confirmed': 'email-confirmed',
   '/account': 'account',
   '/wishlist': 'wishlist',
   '/bookings': 'bookings',

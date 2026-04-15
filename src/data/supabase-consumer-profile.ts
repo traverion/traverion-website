@@ -1,3 +1,4 @@
+import type { User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { normalizePhoneNumber } from '../lib/phoneNormalize';
 
@@ -10,6 +11,29 @@ export type ConsumerProfileRow = {
   display_name: string | null;
   contact_phone: string | null;
 };
+
+/** Build `consumer_profiles` upsert payload from Supabase Auth user metadata (traveler sign-up / confirm). */
+export function consumerProfileEnsurePayloadFromAuthUser(user: User): {
+  display_name: string | null;
+  contact_phone: string | null;
+} {
+  const email = typeof user.email === 'string' ? user.email.trim().toLowerCase() : '';
+  const meta = user.user_metadata as {
+    phone?: string;
+    customer_phone?: string;
+    customer_first_name?: string;
+    customer_last_name?: string;
+  };
+  const metaFirst = (meta?.customer_first_name ?? '').trim();
+  const metaLast = (meta?.customer_last_name ?? '').trim();
+  const displayFromMeta = [metaFirst, metaLast].filter(Boolean).join(' ').trim() || null;
+  const phoneRaw = (meta?.customer_phone ?? meta?.phone ?? '').trim();
+  const emailLocal = email.includes('@') ? (email.split('@')[0]?.trim() || null) : null;
+  return {
+    display_name: displayFromMeta ?? emailLocal,
+    contact_phone: phoneRaw || null,
+  };
+}
 
 export async function fetchConsumerProfile(userId: string): Promise<{ id: string } | null> {
   if (!supabase) return null;
