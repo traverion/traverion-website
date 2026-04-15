@@ -38,6 +38,7 @@ export function PublicListingBrowseCard({
   const { price, originalPrice, label } = getDisplayPriceForTour(tour, discountsByListing);
   const hasDiscount = Boolean(label && price < originalPrice);
   const fromAmount = hasDiscount ? price : originalPrice;
+  const showStrikethrough = hasDiscount && originalPrice > fromAmount;
   const locationLine =
     [tour.city, tour.country].filter(Boolean).join(', ') || tour.destination || 'Various locations';
   const extraTags =
@@ -85,15 +86,24 @@ export function PublicListingBrowseCard({
             </span>
           )}
         </div>
-        <div className="absolute bottom-2.5 right-2.5 left-2.5 flex justify-end">
-          <div className="bg-black/65 backdrop-blur-[2px] text-white text-sm font-semibold px-2.5 py-1 rounded-lg tabular-nums">
+        <div className="absolute bottom-2.5 right-2.5 left-2.5 flex justify-end items-end gap-2">
+          {hasDiscount && label && (
+            <span className="pointer-events-none shrink-0 rounded-lg bg-emerald-600 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-white shadow-md ring-2 ring-white/30">
+              {label}
+            </span>
+          )}
+          <div className="pointer-events-none max-w-[min(100%,14rem)] rounded-xl bg-white/95 px-3 py-2 shadow-lg ring-1 ring-black/5 backdrop-blur-sm tabular-nums">
             {hasDiscount ? (
-              <>
-                <span>From ${fromAmount.toFixed(0)}</span>
-                <span className="block text-[11px] font-normal text-white/90">{label}</span>
-              </>
+              <div className="text-right">
+                {showStrikethrough && (
+                  <span className="block text-xs font-medium text-gray-400 line-through">
+                    ${originalPrice.toFixed(0)}
+                  </span>
+                )}
+                <span className="text-lg font-bold leading-tight text-finland">From ${fromAmount.toFixed(0)}</span>
+              </div>
             ) : (
-              `From $${originalPrice}`
+              <span className="text-lg font-bold text-gray-900">From ${originalPrice.toFixed(0)}</span>
             )}
           </div>
         </div>
@@ -102,6 +112,29 @@ export function PublicListingBrowseCard({
         <h3 className="font-semibold text-gray-900 line-clamp-2 group-hover:text-finland transition-colors duration-200 text-[15px] leading-snug">
           {tour.title}
         </h3>
+        <div
+          className={`mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1 rounded-xl px-3 py-2.5 tabular-nums ${
+            hasDiscount
+              ? 'border border-emerald-200/80 bg-gradient-to-r from-finland/[0.08] to-emerald-50 shadow-sm'
+              : 'border border-gray-100 bg-gray-50/90'
+          } ${size === 'compact' ? 'py-2' : ''}`}
+          aria-label={hasDiscount ? `From ${fromAmount} dollars, ${label}` : `From ${originalPrice} dollars`}
+        >
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">From</span>
+          {showStrikethrough && (
+            <span className="text-sm font-medium text-gray-400 line-through">${originalPrice.toFixed(0)}</span>
+          )}
+          <span
+            className={`font-bold tracking-tight ${hasDiscount ? 'text-finland' : 'text-gray-900'} ${size === 'compact' ? 'text-xl' : 'text-2xl'}`}
+          >
+            ${fromAmount.toFixed(0)}
+          </span>
+          {hasDiscount && label && (
+            <span className="ml-auto inline-flex items-center rounded-full bg-emerald-600 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white shadow-sm sm:ml-0">
+              {label}
+            </span>
+          )}
+        </div>
         <div className="flex items-center text-gray-500 text-sm mt-1.5 gap-1 min-w-0">
           <MapPin className="w-3.5 h-3.5 flex-shrink-0 text-gray-400" aria-hidden />
           <span className="truncate">{locationLine}</span>

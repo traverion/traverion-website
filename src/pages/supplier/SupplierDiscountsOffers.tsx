@@ -116,19 +116,19 @@ export default function SupplierDiscountsOffers() {
   const publishedCount = useMemo(() => listings.filter((l) => l.status !== 'draft').length, [listings]);
 
   return (
-    <div className="space-y-5 sm:space-y-6 w-full min-w-0">
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+    <div className="space-y-4 sm:space-y-5 w-full min-w-0">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <div className="min-w-0">
-          <div className="flex items-center gap-2 text-finland mb-1">
-            <Tag className="w-6 h-6 shrink-0" aria-hidden />
-            <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Discounts &amp; offers</h1>
+          <div className="flex items-center gap-2 text-finland mb-0.5 sm:mb-1">
+            <Tag className="w-5 h-5 sm:w-6 sm:h-6 shrink-0" aria-hidden />
+            <h1 className="text-lg sm:text-2xl font-semibold tracking-tight text-gray-900">Discounts &amp; offers</h1>
           </div>
-          <p className="text-sm sm:text-base text-gray-600 mt-1 max-w-2xl">
+          <p className="text-sm text-gray-600 mt-0.5 sm:mt-1 sm:text-base max-w-2xl leading-snug">
             Run time-limited percentage promotions on a specific booking option. Travelers see the reduced “from” price on
             Traverion while the offer is active. Each run can last up to 30 days.
           </p>
         </div>
-        <div className="flex flex-col xs:flex-row gap-2 shrink-0">
+        <div className="grid grid-cols-1 xs:grid-cols-2 gap-2 shrink-0 sm:flex sm:flex-row sm:w-auto">
           <button
             type="button"
             onClick={goToListings}

@@ -481,11 +481,11 @@ export default function SupplierListings() {
   };
 
   return (
-    <div className="space-y-5 sm:space-y-6 w-full min-w-0">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="space-y-4 sm:space-y-5 w-full min-w-0">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <div className="min-w-0">
-          <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">My listings</h1>
-          <p className="text-sm sm:text-base text-gray-600 mt-1">
+          <h1 className="text-lg sm:text-2xl font-semibold tracking-tight text-gray-900">My listings</h1>
+          <p className="text-sm text-gray-600 mt-0.5 sm:mt-1 sm:text-base leading-snug">
             Manage your tours and activities. <span className="font-medium text-gray-800">Publish</span> drafts when they are
             ready to go live. Live listings stay published; use the gear menu to <span className="font-medium text-gray-800">Deactivate</span>{' '}
             if you need to hide one temporarily. Closing the editor without finishing keeps a draft when save-on-close is available.

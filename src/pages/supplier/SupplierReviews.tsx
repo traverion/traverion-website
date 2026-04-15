@@ -119,10 +119,10 @@ export default function SupplierReviews() {
   if (!user) return null;
 
   return (
-    <div className="space-y-5 sm:space-y-6 w-full min-w-0">
+    <div className="space-y-4 sm:space-y-5 w-full min-w-0">
       <div>
-        <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Reviews</h1>
-        <p className="text-sm sm:text-base text-gray-600 mt-1">See and respond to customer reviews for your listings.</p>
+        <h1 className="text-lg sm:text-2xl font-semibold tracking-tight text-gray-900">Reviews</h1>
+        <p className="text-sm text-gray-600 mt-0.5 sm:mt-1 sm:text-base">See and respond to customer reviews for your listings.</p>
       </div>
 
       {!loading && (
@@ -168,12 +168,12 @@ export default function SupplierReviews() {
           <p className="text-gray-500 mt-1">Reviews from customers will appear here once they leave feedback.</p>
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-5">
           {reviews.map((r) => (
             <div
               key={r.id}
               id={`supplier-review-card-${r.id}`}
-              className={`bg-white border rounded-xl p-6 transition-shadow ${
+              className={`bg-white border rounded-xl p-4 sm:p-6 transition-shadow ${
                 highlightReviewId === r.id
                   ? 'border-finland ring-2 ring-finland/25 shadow-md'
                   : reviewHasWrittenFeedback(r) && !replies[r.id]

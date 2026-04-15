@@ -211,7 +211,7 @@ function SupplierSetupProgressStrip({
 
   return (
     <div
-      className="mb-3 overflow-hidden rounded-lg border border-slate-200/90 bg-white shadow-sm ring-1 ring-slate-900/[0.04]"
+      className="mb-2 sm:mb-3 overflow-hidden rounded-lg border border-slate-200/90 bg-white shadow-sm ring-1 ring-slate-900/[0.04]"
       role="region"
       aria-label="Supplier setup progress"
     >
@@ -938,7 +938,7 @@ export default function SupplierLayout() {
 
       {/* Main content */}
       <div className="flex-1 lg:pl-64">
-        <header className="bg-white/95 backdrop-blur-md border-b border-slate-200/90 sticky top-0 z-20 min-h-[3.25rem] sm:min-h-[3.5rem] flex items-center px-3 sm:px-6 lg:px-8 pt-[env(safe-area-inset-top)] supports-[backdrop-filter]:bg-white/90 shadow-sm lg:shadow-none transition-shadow duration-300 relative">
+        <header className="bg-white/95 backdrop-blur-md border-b border-slate-200/90 sticky top-0 z-20 flex min-h-[3rem] items-center gap-2 px-3 sm:px-4 lg:px-6 pt-[env(safe-area-inset-top)] pb-2 sm:min-h-[3.25rem] sm:pb-2.5 supports-[backdrop-filter]:bg-white/90 shadow-sm lg:shadow-none transition-shadow duration-300 relative">
           <button
             type="button"
             onClick={() => setSidebarOpen(true)}
@@ -996,7 +996,7 @@ export default function SupplierLayout() {
         </header>
         {mobileAccountOpen && (
           <div className="lg:hidden fixed inset-0 z-50 bg-white pt-[env(safe-area-inset-top)]">
-            <div className="h-14 px-4 border-b border-gray-200 flex items-center justify-between">
+            <div className="min-h-12 shrink-0 px-3 sm:px-4 py-2.5 border-b border-gray-200 flex items-center justify-between gap-2">
               <h2 className="font-semibold text-gray-900">Account</h2>
               <button type="button" onClick={() => setMobileAccountOpen(false)} className="p-2 rounded-lg text-gray-600">
                 <X className="w-5 h-5" />
@@ -1014,7 +1014,7 @@ export default function SupplierLayout() {
             </div>
           </div>
         )}
-        <main className="w-full max-w-[100vw] overflow-x-hidden px-3 pt-1 pb-[max(1rem,calc(5.25rem+env(safe-area-inset-bottom)))] sm:px-6 sm:pt-0 sm:pb-[max(1.25rem,calc(5.25rem+env(safe-area-inset-bottom)))] lg:px-8 lg:pb-8">
+        <main className="w-full max-w-[100vw] overflow-x-hidden px-3 pt-2.5 pb-[max(1rem,calc(4.75rem+env(safe-area-inset-bottom)))] sm:px-4 sm:pt-3 sm:pb-[max(1.25rem,calc(4.75rem+env(safe-area-inset-bottom)))] lg:px-6 lg:pt-4 lg:pb-6">
           {isSupabase && user && !onboardingComplete && (
             <SupplierSetupProgressStrip
               listingCount={onboardingListingCount}
@@ -1047,9 +1047,9 @@ export default function SupplierLayout() {
           {section === 'reviews' && <SupplierReviews />}
           {section === 'pickup' && <SupplierPickupPlanner />}
           {section === 'badges' && (
-            <div className="space-y-6">
-              <h1 className="text-2xl font-semibold text-gray-900">Brand assets</h1>
-              <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4 max-w-2xl">
+            <div className="space-y-4 sm:space-y-5 w-full min-w-0">
+              <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Brand assets</h1>
+              <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-6 space-y-4 max-w-2xl">
                 <p className="text-sm text-gray-500">Configure your supplier trust badge for Traverion partner-facing use.</p>
                 <label className="flex items-center gap-3 cursor-pointer">
                   <input

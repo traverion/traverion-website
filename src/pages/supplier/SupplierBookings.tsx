@@ -1818,11 +1818,11 @@ export default function SupplierBookings() {
   );
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="space-y-4 sm:space-y-5 w-full min-w-0">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <div className="min-w-0">
-          <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Bookings</h1>
-          <p className="text-sm sm:text-base text-gray-600 mt-1">
+          <h1 className="text-lg sm:text-2xl font-semibold tracking-tight text-gray-900">Bookings</h1>
+          <p className="text-sm text-gray-600 mt-0.5 sm:mt-1 sm:text-base leading-snug">
             Filter and manage bookings — cards on your phone, full table on larger screens.
           </p>
           {!canEditBookings && (
@@ -1831,21 +1831,21 @@ export default function SupplierBookings() {
             </p>
           )}
         </div>
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:items-center sm:w-auto sm:shrink-0">
           <button
             type="button"
             onClick={() => setBatchModal(true)}
             disabled={!canEditBookings}
-            className="touch-manipulation inline-flex items-center justify-center gap-2 px-4 py-3 sm:py-2 min-h-[48px] rounded-xl border border-gray-300 text-gray-800 font-medium hover:bg-gray-50 active:scale-[0.99]"
+            className="touch-manipulation inline-flex items-center justify-center gap-2 px-3 py-2.5 sm:px-4 sm:py-2 min-h-[44px] rounded-xl border border-gray-300 text-sm text-gray-800 font-medium hover:bg-gray-50 active:scale-[0.99]"
           >
             <Trash2 className="w-4 h-4 shrink-0" />
-            Batch cancel
+            <span className="truncate">Batch cancel</span>
           </button>
           <button
             type="button"
             onClick={load}
             disabled={loading}
-            className="touch-manipulation inline-flex items-center justify-center gap-2 px-4 py-3 sm:py-2 min-h-[48px] rounded-xl border border-gray-300 text-gray-800 font-medium hover:bg-gray-50 disabled:opacity-50 active:scale-[0.99]"
+            className="touch-manipulation inline-flex items-center justify-center gap-2 px-3 py-2.5 sm:px-4 sm:py-2 min-h-[44px] rounded-xl border border-gray-300 text-sm text-gray-800 font-medium hover:bg-gray-50 disabled:opacity-50 active:scale-[0.99]"
           >
             <RefreshCw className={`w-4 h-4 shrink-0 ${loading ? 'animate-spin' : ''}`} />
             Refresh
@@ -2464,8 +2464,8 @@ export default function SupplierBookings() {
       )}
 
       {cancelModal && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4">
-          <div className="bg-white rounded-t-2xl sm:rounded-xl shadow-xl max-w-md w-full p-5 sm:p-6 max-h-[min(92dvh,100%)] overflow-y-auto pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4 sm:pt-[max(1rem,env(safe-area-inset-top))]">
+          <div className="bg-white rounded-t-2xl sm:rounded-xl shadow-xl max-w-md w-full p-4 sm:p-6 max-h-[min(calc(100dvh_-_env(safe-area-inset-bottom)_-_0.75rem),92dvh)] overflow-y-auto pb-[max(1rem,env(safe-area-inset-bottom))]">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Request cancellation</h3>
             <p className="text-sm text-gray-600 mb-4">
               Cancel booking for {listingTitles[cancelModal.listing_id]} – {cancelModal.guest_email ?? cancelModal.guest_name ?? 'Guest'}?
@@ -2526,8 +2526,8 @@ export default function SupplierBookings() {
       )}
 
       {timelineBookingId && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4">
-          <div className="bg-white rounded-t-2xl sm:rounded-xl shadow-xl max-w-xl w-full p-5 sm:p-6 max-h-[min(90dvh,100%)] sm:max-h-[80vh] overflow-hidden flex flex-col pb-[env(safe-area-inset-bottom)] sm:pb-6">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4 sm:pt-[max(1rem,env(safe-area-inset-top))]">
+          <div className="bg-white rounded-t-2xl sm:rounded-xl shadow-xl max-w-xl w-full p-4 sm:p-6 max-h-[min(calc(100dvh_-_env(safe-area-inset-bottom)_-_0.75rem),90dvh)] sm:max-h-[80vh] overflow-hidden flex flex-col pb-[max(1rem,env(safe-area-inset-bottom))] sm:pb-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">Booking timeline</h3>
               <button
@@ -2597,8 +2597,8 @@ export default function SupplierBookings() {
       )}
 
       {batchModal && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4">
-          <div className="bg-white rounded-t-2xl sm:rounded-xl shadow-xl max-w-md w-full p-5 sm:p-6 max-h-[min(92dvh,100%)] overflow-y-auto pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4 sm:pt-[max(1rem,env(safe-area-inset-top))]">
+          <div className="bg-white rounded-t-2xl sm:rounded-xl shadow-xl max-w-md w-full p-4 sm:p-6 max-h-[min(calc(100dvh_-_env(safe-area-inset-bottom)_-_0.75rem),92dvh)] overflow-y-auto pb-[max(1rem,env(safe-area-inset-bottom))]">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Batch cancel</h3>
             <p className="text-sm text-gray-600 mb-4">Cancel all bookings for one listing in a date range.</p>
             <div className="space-y-4">
@@ -2684,8 +2684,8 @@ export default function SupplierBookings() {
       )}
 
       {bulkCancelModal && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4">
-          <div className="bg-white rounded-t-2xl sm:rounded-xl shadow-xl max-w-md w-full p-5 sm:p-6 max-h-[min(92dvh,100%)] overflow-y-auto pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4 sm:pt-[max(1rem,env(safe-area-inset-top))]">
+          <div className="bg-white rounded-t-2xl sm:rounded-xl shadow-xl max-w-md w-full p-4 sm:p-6 max-h-[min(calc(100dvh_-_env(safe-area-inset-bottom)_-_0.75rem),92dvh)] overflow-y-auto pb-[max(1rem,env(safe-area-inset-bottom))]">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Cancel selected bookings</h3>
             <p className="text-sm text-gray-600 mb-4">
               You are cancelling {selectedBookings.filter((b) => b.status !== 'cancelled').length} selected booking(s).

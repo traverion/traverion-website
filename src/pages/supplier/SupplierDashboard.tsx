@@ -268,7 +268,7 @@ export default function SupplierDashboard({
   }, [healthChecks.checks]);
 
   return (
-    <div className="space-y-6 sm:space-y-8 w-full min-w-0">
+    <div className="space-y-5 sm:space-y-6 w-full min-w-0">
       {showSupplierSetupBanner && onSupplierSetupNext && (
         <div className="rounded-xl border-2 border-amber-300 bg-amber-50 p-4 sm:p-5 shadow-md ring-1 ring-amber-900/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
@@ -289,7 +289,7 @@ export default function SupplierDashboard({
         </div>
       )}
 
-      <div className="flex items-start gap-4">
+      <div className="flex items-start gap-3 sm:gap-4">
         {profile?.business_logo_url ? (
           <img
             src={profile.business_logo_url}
@@ -298,12 +298,12 @@ export default function SupplierDashboard({
               profile.display_name?.trim() ||
               'Your business logo'
             }
-            className="w-14 h-14 rounded-xl object-cover border border-gray-200 bg-white shadow-sm flex-shrink-0"
+            className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-cover border border-gray-200 bg-white shadow-sm flex-shrink-0"
           />
         ) : null}
         <div className="min-w-0">
-          <h1 className="text-2xl font-semibold text-gray-900">Dashboard</h1>
-          <p className="text-gray-600 mt-1">Key metrics and today&apos;s schedule</p>
+          <h1 className="text-lg sm:text-2xl font-semibold tracking-tight text-gray-900">Dashboard</h1>
+          <p className="text-sm text-gray-600 mt-0.5 sm:mt-1">Key metrics and today&apos;s schedule</p>
         </div>
       </div>
 

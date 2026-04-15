@@ -101,10 +101,10 @@ export default function SupplierEarnings() {
   };
 
   return (
-    <div className="space-y-5 sm:space-y-6 w-full min-w-0">
+    <div className="space-y-4 sm:space-y-5 w-full min-w-0">
       <div>
-        <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Earnings</h1>
-        <p className="text-sm sm:text-base text-gray-600 mt-1">Payouts and transaction history</p>
+        <h1 className="text-lg sm:text-2xl font-semibold tracking-tight text-gray-900">Earnings</h1>
+        <p className="text-sm text-gray-600 mt-0.5 sm:mt-1 sm:text-base">Payouts and transaction history</p>
       </div>
 
       {error && (

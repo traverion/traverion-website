@@ -167,7 +167,7 @@ export default function DiscountOfferWizardModal({ open, onClose, listings, edit
   if (!open) return null;
 
   const shell = (
-    <div className="fixed inset-0 z-[90] flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div className="fixed inset-0 z-[90] flex items-end sm:items-center justify-center p-0 sm:p-4 sm:pt-[max(1rem,env(safe-area-inset-top))]">
       <button
         type="button"
         className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
@@ -178,9 +178,9 @@ export default function DiscountOfferWizardModal({ open, onClose, listings, edit
         role="dialog"
         aria-modal="true"
         aria-labelledby="discount-wizard-title"
-        className="relative z-[91] w-full max-w-lg max-h-[min(92dvh,720px)] flex flex-col rounded-t-2xl sm:rounded-2xl bg-white shadow-2xl border border-gray-200 overflow-hidden"
+        className="relative z-[91] flex w-full max-w-lg max-h-[min(calc(100dvh_-_env(safe-area-inset-bottom)),92dvh)] sm:max-h-[min(92dvh,720px)] flex-col rounded-t-2xl sm:rounded-2xl bg-white shadow-2xl border border-gray-200 overflow-hidden"
       >
-        <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-gray-100 bg-gray-50/80">
+        <div className="flex items-center justify-between gap-2 sm:gap-3 px-3 py-2.5 sm:px-4 sm:py-3 border-b border-gray-100 bg-gray-50/80 shrink-0">
           <div className="flex items-center gap-2 min-w-0">
             <div className="w-9 h-9 rounded-xl bg-finland/10 text-finland flex items-center justify-center shrink-0">
               <Tag className="w-4 h-4" aria-hidden />
@@ -197,14 +197,14 @@ export default function DiscountOfferWizardModal({ open, onClose, listings, edit
           <button
             type="button"
             onClick={() => !submitting && onClose()}
-            className="p-2 rounded-lg text-gray-500 hover:bg-gray-200"
+            className="lux-tap-target p-2 rounded-lg text-gray-500 hover:bg-gray-200 min-h-[44px] min-w-[44px] inline-flex items-center justify-center"
             aria-label="Close"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="flex gap-1 px-4 py-2 border-b border-gray-100 bg-white">
+        <div className="flex gap-1 px-3 py-1.5 sm:px-4 sm:py-2 border-b border-gray-100 bg-white shrink-0">
           {[0, 1, 2].map((i) => (
             <div
               key={i}
@@ -213,7 +213,7 @@ export default function DiscountOfferWizardModal({ open, onClose, listings, edit
           ))}
         </div>
 
-        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 py-4 space-y-4">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 py-3 sm:px-4 sm:py-4 space-y-3 sm:space-y-4">
           {error && (
             <p className="text-sm text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2" role="alert">
               {error}
@@ -363,7 +363,7 @@ export default function DiscountOfferWizardModal({ open, onClose, listings, edit
           )}
         </div>
 
-        <div className="flex flex-col-reverse sm:flex-row sm:justify-between gap-2 px-4 py-3 border-t border-gray-100 bg-gray-50/90">
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-between gap-2 px-3 py-2.5 sm:px-4 sm:py-3 border-t border-gray-100 bg-gray-50/90 shrink-0 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           <button
             type="button"
             onClick={() => {
@@ -374,7 +374,7 @@ export default function DiscountOfferWizardModal({ open, onClose, listings, edit
               }
             }}
             disabled={submitting}
-            className="inline-flex items-center justify-center gap-1 px-4 py-2.5 rounded-xl border border-gray-300 text-gray-800 text-sm font-medium hover:bg-white disabled:opacity-50"
+            className="touch-manipulation inline-flex items-center justify-center gap-1 min-h-[44px] px-4 py-2.5 rounded-xl border border-gray-300 text-gray-800 text-sm font-medium hover:bg-white disabled:opacity-50"
           >
             {step === 0 ? (
               'Cancel'
@@ -410,7 +410,7 @@ export default function DiscountOfferWizardModal({ open, onClose, listings, edit
                 }
                 setStep((s) => s + 1);
               }}
-              className="inline-flex items-center justify-center gap-1 px-4 py-2.5 rounded-xl bg-finland text-white text-sm font-semibold hover:bg-finland-dark disabled:opacity-50"
+              className="touch-manipulation inline-flex items-center justify-center gap-1 min-h-[44px] px-4 py-2.5 rounded-xl bg-finland text-white text-sm font-semibold hover:bg-finland-dark disabled:opacity-50"
             >
               Next
               <ChevronRight className="w-4 h-4" />
@@ -420,7 +420,7 @@ export default function DiscountOfferWizardModal({ open, onClose, listings, edit
               type="button"
               disabled={submitting}
               onClick={() => void handleSubmit()}
-              className="inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-finland text-white text-sm font-semibold hover:bg-finland-dark disabled:opacity-50"
+              className="touch-manipulation inline-flex items-center justify-center min-h-[44px] px-4 py-2.5 rounded-xl bg-finland text-white text-sm font-semibold hover:bg-finland-dark disabled:opacity-50"
             >
               {submitting ? 'Saving…' : editing ? 'Save changes' : 'Create offer'}
             </button>

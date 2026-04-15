@@ -150,9 +150,9 @@ export default function SupplierSettingsPages(props: Props) {
 
 function AccountSettingsPage(p: Props) {
   return (
-    <div className="space-y-5 max-w-4xl w-full min-w-0">
+    <div className="space-y-4 sm:space-y-5 max-w-4xl w-full min-w-0">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-gray-900">Account settings</h1>
+        <h1 className="text-lg sm:text-2xl font-bold tracking-tight text-gray-900">Account settings</h1>
         <p className="mt-1.5 text-sm text-gray-600">
           Sign-in and password. Business details and payouts live under{' '}
           <span className="font-medium text-gray-800">Business profile</span>.
@@ -359,9 +359,9 @@ function BusinessProfilePage(p: Props) {
     }`;
 
   return (
-    <div className="space-y-5 max-w-4xl w-full min-w-0">
+    <div className="space-y-4 sm:space-y-5 max-w-4xl w-full min-w-0">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-gray-900">Business profile</h1>
+        <h1 className="text-lg sm:text-2xl font-bold tracking-tight text-gray-900">Business profile</h1>
         <p className="mt-1.5 text-sm text-gray-600">
           Company details, payouts, and legal documents guests see when they book your experiences.
         </p>

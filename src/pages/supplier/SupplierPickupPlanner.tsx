@@ -532,10 +532,10 @@ export default function SupplierPickupPlanner() {
   if (!user) return null;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 sm:space-y-4 w-full min-w-0">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight text-gray-900">Pickup planner</h1>
-        <p className="mt-0.5 text-sm text-gray-600">
+        <h1 className="text-lg sm:text-2xl font-semibold tracking-tight text-gray-900">Pickup planner</h1>
+        <p className="mt-0.5 text-sm text-gray-600 leading-snug">
           Filter by date and listing, then use <strong>Pickup details</strong> on each booking to manage guest contact, pickup
           times, and meeting information for that customer.
         </p>
