@@ -46,7 +46,7 @@ import {
   removeCanonicalLink,
   clearOrganizationJsonLd,
 } from './lib/seo';
-import { parsePathname, shouldClearSelectedTour } from './lib/appRouting';
+import { normalizePublicTourDeepLinkPathname, parsePathname, shouldClearSelectedTour } from './lib/appRouting';
 import {
   isTraverionAdminHost,
   isPublicTraverionMarketingHost,
@@ -62,7 +62,8 @@ function readInitialRoute(): { page: string; destinationSlug: string | null } {
   if (isTraverionAdminHost()) {
     return parsePathname(window.location.pathname, { adminHost: true });
   }
-  return parsePathname(window.location.pathname);
+  const path = normalizePublicTourDeepLinkPathname(window.location.pathname);
+  return parsePathname(path);
 }
 
 function App() {
@@ -85,7 +86,10 @@ function App() {
     const params = new URLSearchParams(window.location.search);
     const tourParam = params.get('tour');
     const adminHost = isTraverionAdminHost();
-    const { page, destinationSlug } = parsePathname(window.location.pathname, { adminHost });
+    const pathForParse = adminHost
+      ? window.location.pathname
+      : normalizePublicTourDeepLinkPathname(window.location.pathname);
+    const { page, destinationSlug } = parsePathname(pathForParse, { adminHost });
     setCurrentPage(page);
     setDestinationSlug(destinationSlug);
     const keepTourForDeepLink =
@@ -100,12 +104,13 @@ function App() {
     syncRouteFromUrl();
   }, [syncRouteFromUrl, isSupplierArea]);
 
-  /** Deep link: /packages?tour=<listing-uuid> opens TourDetails (shareable supplier “View on site” links). */
+  /** Deep link: /packages?tour=<uuid> or /tour/<uuid> (rewritten) opens TourDetails (supplier “View on site” links). */
   useEffect(() => {
     if (isSupplierArea) return;
     if (isTraverionAdminHost()) return;
     let cancelled = false;
     const run = () => {
+      normalizePublicTourDeepLinkPathname(window.location.pathname);
       const path = window.location.pathname.replace(/\/$/, '') || '/';
       const tourParam = new URLSearchParams(window.location.search).get('tour');
       if (path !== '/packages' || !tourParam || !/^[0-9a-f-]{36}$/i.test(tourParam)) return;

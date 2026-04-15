@@ -1,5 +1,16 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Calendar, Mail, RefreshCw, CheckCircle, MessageCircle, Trash2, AlertCircle, Download } from 'lucide-react';
+import {
+  Calendar,
+  Mail,
+  RefreshCw,
+  CheckCircle,
+  MessageCircle,
+  Trash2,
+  AlertCircle,
+  Download,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import {
   fetchBookingsForSupplier,
@@ -161,6 +172,23 @@ type ReminderRunEntry = {
 };
 
 const OPS_NOTES_KEY = 'traverion_supplier_ops_notes';
+const BOOKINGS_PAGE_SIZE = 10;
+
+/** Compact page list: e.g. 1 … 4 5 6 … 20 — not every page at once. */
+function bookingPaginationRange(totalPages: number, current: number): (number | 'ellipsis')[] {
+  if (totalPages <= 1) return [];
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, i) => i + 1);
+  }
+  const want = new Set([1, totalPages, current, current - 1, current + 1]);
+  const sorted = [...want].filter((n) => n >= 1 && n <= totalPages).sort((a, b) => a - b);
+  const out: (number | 'ellipsis')[] = [];
+  for (let i = 0; i < sorted.length; i++) {
+    if (i > 0 && sorted[i - 1] + 1 < sorted[i]) out.push('ellipsis');
+    out.push(sorted[i]);
+  }
+  return out;
+}
 
 function bookingPurchaseDateLocal(iso: string): string {
   const d = new Date(iso);
@@ -195,6 +223,8 @@ export default function SupplierBookings() {
   const [filterPurchaseDateFrom, setFilterPurchaseDateFrom] = useState('');
   const [filterPurchaseDateTo, setFilterPurchaseDateTo] = useState('');
   const [filterQuery, setFilterQuery] = useState('');
+  /** 1-based page index for the main bookings list (after filters). */
+  const [bookingsListPage, setBookingsListPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkCancelModal, setBulkCancelModal] = useState(false);
   const [bulkCancelReason, setBulkCancelReason] = useState('');
@@ -676,23 +706,49 @@ export default function SupplierBookings() {
     todayIso,
   ]);
 
+  const filteredBookingsTotalPages = Math.max(1, Math.ceil(filteredBookings.length / BOOKINGS_PAGE_SIZE));
+  const bookingsPageSafe = Math.min(Math.max(1, bookingsListPage), filteredBookingsTotalPages);
+
+  const paginatedBookings = useMemo(() => {
+    const start = (bookingsPageSafe - 1) * BOOKINGS_PAGE_SIZE;
+    return filteredBookings.slice(start, start + BOOKINGS_PAGE_SIZE);
+  }, [filteredBookings, bookingsPageSafe]);
+
+  const paginationPageItems = useMemo(
+    () => bookingPaginationRange(filteredBookingsTotalPages, bookingsPageSafe),
+    [filteredBookingsTotalPages, bookingsPageSafe]
+  );
+
+  useEffect(() => {
+    setBookingsListPage((p) => Math.min(p, filteredBookingsTotalPages));
+  }, [filteredBookingsTotalPages]);
+
+  useEffect(() => {
+    setBookingsListPage(1);
+  }, [view, filterListingId, filterDateFrom, filterDateTo, filterPurchaseDateFrom, filterPurchaseDateTo]);
+
   useEffect(() => {
     if (!highlightBookingId) return;
-    const inCurrentRows = filteredBookings.some((b) => b.id === highlightBookingId);
-    if (inCurrentRows) {
+    const idx = filteredBookings.findIndex((b) => b.id === highlightBookingId);
+    if (idx >= 0) {
+      const page = Math.floor(idx / BOOKINGS_PAGE_SIZE) + 1;
+      setBookingsListPage(page);
       requestAnimationFrame(() => {
-        const el = document.getElementById(`supplier-booking-row-${highlightBookingId}`);
-        el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        document.getElementById(`supplier-booking-row-${highlightBookingId}`)?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+        });
       });
-    } else {
-      setView('all');
-      setFilterListingId('');
-      setFilterDateFrom('');
-      setFilterDateTo('');
-      setFilterPurchaseDateFrom('');
-      setFilterPurchaseDateTo('');
-      setFilterQuery('');
+      return;
     }
+    setView('all');
+    setFilterListingId('');
+    setFilterDateFrom('');
+    setFilterDateTo('');
+    setFilterPurchaseDateFrom('');
+    setFilterPurchaseDateTo('');
+    setFilterQuery('');
+    setBookingsListPage(1);
   }, [highlightBookingId, filteredBookings]);
 
   const selectedBookings = useMemo(
@@ -1379,7 +1435,7 @@ export default function SupplierBookings() {
   };
 
   const toggleSelectAllVisible = () => {
-    const ids = filteredBookings.map((b) => b.id);
+    const ids = paginatedBookings.map((b) => b.id);
     const allSelected = ids.length > 0 && ids.every((id) => selectedIds.includes(id));
     setSelectedIds((prev) => (allSelected ? prev.filter((id) => !ids.includes(id)) : [...new Set([...prev, ...ids])]));
   };
@@ -1950,6 +2006,7 @@ export default function SupplierBookings() {
                   setFilterQuery('');
                   setView('all');
                   setSelectedIds([]);
+                  setBookingsListPage(1);
                 }}
                 className="px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50"
               >
@@ -1957,7 +2014,13 @@ export default function SupplierBookings() {
               </button>
               {!loading && bookings.length > 0 && (
                 <span className="text-sm text-gray-500 whitespace-nowrap">
-                  {filteredBookings.length} of {bookings.length} shown
+                  {filteredBookings.length} of {bookings.length} match filters
+                  {filteredBookings.length > BOOKINGS_PAGE_SIZE && (
+                    <span className="text-gray-400">
+                      {' '}
+                      · {BOOKINGS_PAGE_SIZE} per page · page {bookingsPageSafe} of {filteredBookingsTotalPages}
+                    </span>
+                  )}
                 </span>
               )}
             </div>
@@ -2010,6 +2073,7 @@ export default function SupplierBookings() {
               setFilterPurchaseDateTo('');
               setFilterQuery('');
               setView('all');
+              setBookingsListPage(1);
             }}
             className="mt-4 px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50"
           >
@@ -2111,10 +2175,26 @@ export default function SupplierBookings() {
           </div>
 
           <div className="md:hidden space-y-3">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide px-0.5">
-              Bookings ({filteredBookings.length})
-            </p>
-            {filteredBookings.map((b) => (
+            <div className="px-0.5">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                Bookings ({filteredBookings.length})
+              </p>
+              {filteredBookings.length > 0 && (
+                <p className="text-[11px] text-gray-500 mt-0.5">
+                  Showing{' '}
+                  {(bookingsPageSafe - 1) * BOOKINGS_PAGE_SIZE + 1}
+                  –
+                  {(bookingsPageSafe - 1) * BOOKINGS_PAGE_SIZE + paginatedBookings.length}
+                  {filteredBookingsTotalPages > 1 ? (
+                    <>
+                      {' '}
+                      · Page {bookingsPageSafe} of {filteredBookingsTotalPages}
+                    </>
+                  ) : null}
+                </p>
+              )}
+            </div>
+            {paginatedBookings.map((b) => (
               <article
                 key={`mcard-${b.id}`}
                 id={`supplier-booking-row-${b.id}`}
@@ -2244,7 +2324,9 @@ export default function SupplierBookings() {
                 onClick={toggleSelectAllVisible}
                 className="px-3 py-1.5 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50"
               >
-                {filteredBookings.length > 0 && filteredBookings.every((b) => selectedIds.includes(b.id)) ? 'Unselect all' : 'Select all'}
+                {paginatedBookings.length > 0 && paginatedBookings.every((b) => selectedIds.includes(b.id))
+                  ? 'Unselect page'
+                  : 'Select page'}
               </button>
               <span className="text-sm text-gray-600">{selectedIds.length} selected</span>
               <button
@@ -2332,9 +2414,11 @@ export default function SupplierBookings() {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
                     <input
                       type="checkbox"
-                      checked={filteredBookings.length > 0 && filteredBookings.every((b) => selectedIds.includes(b.id))}
+                      checked={
+                        paginatedBookings.length > 0 && paginatedBookings.every((b) => selectedIds.includes(b.id))
+                      }
                       onChange={toggleSelectAllVisible}
-                      aria-label="Select all visible bookings"
+                      aria-label="Select all bookings on this page"
                     />
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Listing</th>
@@ -2349,7 +2433,7 @@ export default function SupplierBookings() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {filteredBookings.map((b) => (
+                {paginatedBookings.map((b) => (
                   <tr
                     id={`supplier-booking-row-${b.id}`}
                     key={b.id}
@@ -2460,6 +2544,72 @@ export default function SupplierBookings() {
             </table>
           </div>
         </div>
+
+        {filteredBookings.length > 0 && filteredBookingsTotalPages >= 1 && (
+          <nav
+            className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white px-3 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:px-4"
+            aria-label="Bookings pages"
+          >
+            <p className="text-sm text-gray-600">
+              <span className="font-medium text-gray-900">
+                {(bookingsPageSafe - 1) * BOOKINGS_PAGE_SIZE + 1}–
+                {(bookingsPageSafe - 1) * BOOKINGS_PAGE_SIZE + paginatedBookings.length}
+              </span>
+              <span className="text-gray-500"> of {filteredBookings.length}</span>
+              {filteredBookingsTotalPages > 1 ? (
+                <span className="text-gray-500">
+                  {' '}
+                  · Page {bookingsPageSafe} of {filteredBookingsTotalPages}
+                </span>
+              ) : null}
+            </p>
+            {filteredBookingsTotalPages > 1 ? (
+              <div className="flex flex-wrap items-center justify-center gap-1.5 sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => setBookingsListPage((p) => Math.max(1, p - 1))}
+                  disabled={bookingsPageSafe <= 1}
+                  className="inline-flex min-h-[40px] min-w-[40px] items-center justify-center rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                  aria-label="Previous page"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+                {paginationPageItems.map((item, i) =>
+                  item === 'ellipsis' ? (
+                    <span key={`e-${i}`} className="px-1.5 text-sm text-gray-400 select-none" aria-hidden>
+                      …
+                    </span>
+                  ) : (
+                    <button
+                      key={item}
+                      type="button"
+                      onClick={() => setBookingsListPage(item)}
+                      className={`min-h-[40px] min-w-[40px] rounded-lg text-sm font-semibold tabular-nums transition-colors ${
+                        item === bookingsPageSafe
+                          ? 'bg-finland text-white shadow-sm'
+                          : 'border border-gray-200 text-gray-800 hover:bg-gray-50'
+                      }`}
+                      aria-label={`Page ${item}`}
+                      aria-current={item === bookingsPageSafe ? 'page' : undefined}
+                    >
+                      {item}
+                    </button>
+                  )
+                )}
+                <button
+                  type="button"
+                  onClick={() => setBookingsListPage((p) => Math.min(filteredBookingsTotalPages, p + 1))}
+                  disabled={bookingsPageSafe >= filteredBookingsTotalPages}
+                  className="inline-flex min-h-[40px] min-w-[40px] items-center justify-center rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                  aria-label="Next page"
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </button>
+              </div>
+            ) : null}
+          </nav>
+        )}
+
         </div>
       )}
 

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Plus,
   MapPin,
@@ -10,6 +11,7 @@ import {
   RefreshCw,
   ExternalLink,
   Cog,
+  Star,
 } from 'lucide-react';
 import { TourPackage } from '../../types/tour';
 import { getSupplierListings, setSupplierListings } from '../../data/listings';
@@ -36,6 +38,7 @@ import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { publicTourListingUrl } from '../../lib/publicSiteUrl';
 import { getListingPublishBlockers } from '../../lib/listingPublishGate';
 import { normalizeListingForDraftSave } from '../../lib/listingDraftUtils';
+import { getReviewAggregatesForListingIds } from '../../data/supabase-reviews';
 
 function verificationStatusLabel(status: string): string {
   const s = status.toLowerCase();
@@ -43,6 +46,48 @@ function verificationStatusLabel(status: string): string {
   if (s === 'rejected') return 'Rejected';
   if (s === 'verified') return 'Verified';
   return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
+}
+
+function ListingReviewsTableCell({
+  listing,
+  aggregate,
+  isSupabase,
+}: {
+  listing: TourPackage;
+  aggregate?: { rating: number; count: number };
+  isSupabase: boolean;
+}) {
+  const count = isSupabase ? aggregate?.count ?? 0 : listing.reviews;
+  const rating = isSupabase ? aggregate?.rating ?? 0 : listing.rating;
+
+  if (!count) {
+    return (
+      <span className="text-xs text-gray-500 tabular-nums whitespace-nowrap">No reviews yet</span>
+    );
+  }
+
+  const inner = (
+    <>
+      <Star className="h-3.5 w-3.5 shrink-0 fill-finland text-finland sm:h-4 sm:w-4" aria-hidden />
+      <span className="font-semibold text-gray-900 tabular-nums">{rating}</span>
+      <span className="text-xs font-medium text-gray-500">({count})</span>
+    </>
+  );
+
+  if (isSupabase) {
+    return (
+      <button
+        type="button"
+        onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/reviews`)}
+        className="inline-flex max-w-full items-center gap-1 rounded-lg border border-transparent px-1.5 py-1 text-left text-sm text-gray-800 transition-colors hover:border-finland/25 hover:bg-finland/[0.06] focus:outline-none focus-visible:ring-2 focus-visible:ring-finland/35 focus-visible:ring-offset-1"
+        title="Open Reviews to read and reply"
+      >
+        {inner}
+      </button>
+    );
+  }
+
+  return <span className="inline-flex items-center gap-1 text-sm text-gray-800">{inner}</span>;
 }
 
 export default function SupplierListings() {
@@ -53,10 +98,23 @@ export default function SupplierListings() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formFocusSection, setFormFocusSection] = useState<string | null>(null);
   const [listings, setListings] = useState<TourPackage[]>([]);
+  const [reviewAggregates, setReviewAggregates] = useState<Map<string, { rating: number; count: number }>>(
+    () => new Map()
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  /** Row id whose gear actions dropdown is open (Edit / Deactivate). */
+  /** Row id whose gear actions dropdown is open (Edit / Deactivate / Delete). */
   const [listingActionsMenuId, setListingActionsMenuId] = useState<string | null>(null);
+  /** Fixed viewport position for portaled gear menu (avoids table overflow clipping). */
+  const [listingActionsMenuBox, setListingActionsMenuBox] = useState<{
+    top: number;
+    left: number;
+    width: number;
+  } | null>(null);
+  const [listingPendingDelete, setListingPendingDelete] = useState<TourPackage | null>(null);
+  const [listingPendingDeactivate, setListingPendingDeactivate] = useState<TourPackage | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deactivateBusy, setDeactivateBusy] = useState(false);
   /** Verified profile + complete business details + payout saved — required to add or publish tours. */
   const [canPostNewListing, setCanPostNewListing] = useState(false);
   const [profileGateMessage, setProfileGateMessage] = useState<string | null>(null);
@@ -242,16 +300,24 @@ export default function SupplierListings() {
       setLoading(true);
       setError(null);
       fetchMyListings(uid)
-        .then((data) => {
+        .then(async (data) => {
           setListings(data);
+          try {
+            const agg = await getReviewAggregatesForListingIds(data.map((l) => l.id));
+            setReviewAggregates(agg);
+          } catch {
+            setReviewAggregates(new Map());
+          }
           setLoading(false);
         })
         .catch((e) => {
           setError(e instanceof Error ? e.message : 'Failed to load listings');
+          setReviewAggregates(new Map());
           setLoading(false);
         });
     } else {
       setListings(getSupplierListings());
+      setReviewAggregates(new Map());
       setLoading(false);
     }
   }, [isSupabase, user?.id]);
@@ -260,24 +326,58 @@ export default function SupplierListings() {
     loadListings();
   }, [loadListings]);
 
-  useEffect(() => {
+  const closeListingActionsMenu = useCallback(() => {
+    setListingActionsMenuId(null);
+    setListingActionsMenuBox(null);
+  }, []);
+
+  const updateListingActionsMenuPosition = useCallback(() => {
     if (!listingActionsMenuId) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setListingActionsMenuId(null);
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
+    const el = document.querySelector(`[data-listing-gear="${listingActionsMenuId}"]`);
+    if (!(el instanceof HTMLElement)) return;
+    const rect = el.getBoundingClientRect();
+    const width = 176;
+    const left = Math.max(8, Math.min(rect.right - width, window.innerWidth - width - 8));
+    setListingActionsMenuBox({ top: rect.bottom + 4, left, width });
   }, [listingActionsMenuId]);
 
   useEffect(() => {
-    if (!listingActionsMenuId) return;
-    const onDown = (e: MouseEvent) => {
-      const wrap = document.querySelector(`[data-listing-row-actions="${listingActionsMenuId}"]`);
-      if (wrap && !wrap.contains(e.target as Node)) setListingActionsMenuId(null);
+    if (!listingActionsMenuId) {
+      setListingActionsMenuBox(null);
+      return;
+    }
+    updateListingActionsMenuPosition();
+    window.addEventListener('resize', updateListingActionsMenuPosition);
+    window.addEventListener('scroll', updateListingActionsMenuPosition, true);
+    return () => {
+      window.removeEventListener('resize', updateListingActionsMenuPosition);
+      window.removeEventListener('scroll', updateListingActionsMenuPosition, true);
     };
-    document.addEventListener('mousedown', onDown);
-    return () => document.removeEventListener('mousedown', onDown);
-  }, [listingActionsMenuId]);
+  }, [listingActionsMenuId, updateListingActionsMenuPosition]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (listingPendingDelete) {
+        if (!deleteBusy) setListingPendingDelete(null);
+        return;
+      }
+      if (listingPendingDeactivate) {
+        if (!deactivateBusy) setListingPendingDeactivate(null);
+        return;
+      }
+      if (listingActionsMenuId) closeListingActionsMenu();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [
+    listingPendingDelete,
+    listingPendingDeactivate,
+    deleteBusy,
+    deactivateBusy,
+    listingActionsMenuId,
+    closeListingActionsMenu,
+  ]);
 
   useEffect(() => {
     if (!isSupabase) {
@@ -409,30 +509,42 @@ export default function SupplierListings() {
     return { success: true };
   };
 
-  const handleDelete = async (id: string) => {
-    if (!canEditListings) return;
-    if (!window.confirm('Remove this listing?')) return;
-    if (isSupabase) {
-      await deleteListing(id);
-      refresh();
-    } else {
-      const next = getSupplierListings().filter(t => t.id !== id);
-      setSupplierListings(next);
-      refresh();
+  const confirmDeleteListing = async () => {
+    if (!listingPendingDelete || !canEditListings) return;
+    const id = listingPendingDelete.id;
+    setDeleteBusy(true);
+    try {
+      if (isSupabase) {
+        await deleteListing(id);
+        refresh();
+        setListingPendingDelete(null);
+      } else {
+        const next = getSupplierListings().filter((t) => t.id !== id);
+        setSupplierListings(next);
+        refresh();
+        setListingPendingDelete(null);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not remove listing');
+    } finally {
+      setDeleteBusy(false);
     }
   };
 
-  const handleStatusChange = async (listing: TourPackage, newStatus: 'draft' | 'published') => {
-    if (!isSupabase || !user) return;
+  const handleStatusChange = async (
+    listing: TourPackage,
+    newStatus: 'draft' | 'published'
+  ): Promise<boolean> => {
+    if (!isSupabase || !user) return false;
     if (!canEditListings) {
       setError('Your role cannot change listing status.');
-      return;
+      return false;
     }
     if (newStatus === 'published' && !canPostNewListing) {
       setError(
         'Publishing needs business verification and payout verification (IBAN + BIC) approved by Traverion. Check Settings.'
       );
-      return;
+      return false;
     }
     if (newStatus === 'published') {
       const fresh = await fetchListingById(listing.id);
@@ -441,7 +553,7 @@ export default function SupplierListings() {
       if (blockers.length > 0) {
         setPublishGate({ listingId: listing.id, title: toCheck.title, blockers });
         setError(null);
-        return;
+        return false;
       }
     }
     setPublishGate(null);
@@ -451,39 +563,40 @@ export default function SupplierListings() {
       loadListings();
       window.dispatchEvent(new Event('traverion:supplier-onboarding-refresh'));
       window.dispatchEvent(new CustomEvent('traverion:published-listings-changed'));
-    } else {
-      setError(res.error);
+      return true;
     }
+    setError(res.error);
+    return false;
   };
 
-  const deactivateListingOffline = async (listing: TourPackage) => {
-    if (!canEditListings) return;
-    if (
-      !window.confirm(
-        'Take this listing offline? Travelers will not see it on Traverion until you publish it again from this page.'
-      )
-    ) {
-      return;
+  const confirmDeactivateListing = async () => {
+    const listing = listingPendingDeactivate;
+    if (!listing || !canEditListings) return;
+    setDeactivateBusy(true);
+    try {
+      if (isSupabase && user) {
+        const ok = await handleStatusChange(listing, 'draft');
+        if (ok) setListingPendingDeactivate(null);
+      } else {
+        const list = getSupplierListings();
+        const idx = list.findIndex((t) => t.id === listing.id);
+        if (idx < 0) return;
+        const next = [...list];
+        next[idx] = { ...next[idx], status: 'draft' };
+        setSupplierListings(next);
+        loadListings();
+        window.dispatchEvent(new CustomEvent('traverion:published-listings-changed'));
+        setListingPendingDeactivate(null);
+      }
+    } finally {
+      setDeactivateBusy(false);
     }
-    setListingActionsMenuId(null);
-    if (isSupabase && user) {
-      await handleStatusChange(listing, 'draft');
-      return;
-    }
-    const list = getSupplierListings();
-    const idx = list.findIndex((t) => t.id === listing.id);
-    if (idx < 0) return;
-    const next = [...list];
-    next[idx] = { ...next[idx], status: 'draft' };
-    setSupplierListings(next);
-    loadListings();
-    window.dispatchEvent(new CustomEvent('traverion:published-listings-changed'));
   };
 
   return (
     <div className="space-y-4 sm:space-y-5 w-full min-w-0">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-        <div className="min-w-0">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-6">
+        <div className="min-w-0 flex-1">
           <h1 className="text-lg sm:text-2xl font-semibold tracking-tight text-gray-900">My listings</h1>
           <p className="text-sm text-gray-600 mt-0.5 sm:mt-1 sm:text-base leading-snug">
             Manage your tours and activities. <span className="font-medium text-gray-800">Publish</span> drafts when they are
@@ -509,10 +622,10 @@ export default function SupplierListings() {
                 ? 'Traverion must approve your business and your payout (IBAN + BIC) before you can add a tour.'
                 : undefined
           }
-          className="inline-flex items-center justify-center gap-2 w-full sm:w-auto px-4 py-3 sm:py-2.5 min-h-[48px] rounded-xl bg-finland text-white font-semibold hover:bg-finland-dark transition-colors disabled:opacity-50 touch-manipulation shadow-sm active:scale-[0.99]"
+          className="inline-flex w-full shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-finland px-5 py-3 text-[15px] font-semibold text-white shadow-sm transition-colors hover:bg-finland-dark active:scale-[0.99] disabled:opacity-50 touch-manipulation min-h-[48px] md:w-auto md:self-center"
         >
-          <Plus className="w-5 h-5 shrink-0" />
-          Add listing
+          <Plus className="h-5 w-5 shrink-0" aria-hidden />
+          <span>Add listing</span>
         </button>
       </div>
 
@@ -713,14 +826,15 @@ export default function SupplierListings() {
         listings.length > 0 && (
           <div className="space-y-3">
             <h2 className="text-lg font-medium text-gray-900">Your listings ({listings.length})</h2>
-            <div className="border border-gray-200 rounded-2xl bg-white overflow-hidden shadow-sm -mx-0.5 sm:mx-0">
-              <div className="overflow-x-auto touch-pan-x overscroll-x-contain [-webkit-overflow-scrolling:touch]">
-                <table className="min-w-[560px] w-full">
+            <div className="border border-gray-200 rounded-2xl bg-white shadow-sm -mx-0.5 sm:mx-0">
+              <div className="overflow-x-auto overflow-y-visible touch-pan-x overscroll-x-contain rounded-2xl [-webkit-overflow-scrolling:touch]">
+                <table className="min-w-[640px] w-full">
                   <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>
                       <th className="px-2 py-2 sm:px-4 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase">Listing</th>
                       <th className="px-2 py-2 sm:px-4 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Location · Duration</th>
                       <th className="px-2 py-2 sm:px-4 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase">Price</th>
+                      <th className="px-2 py-2 sm:px-4 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Reviews</th>
                       <th className="px-2 py-2 sm:px-4 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                       <th className="px-2 py-2 sm:px-4 sm:py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
                     </tr>
@@ -740,6 +854,13 @@ export default function SupplierListings() {
                           {listing.city && `${listing.city}, `}{listing.country ?? listing.destination} · {listing.duration}
                         </td>
                         <td className="px-2 py-2 sm:px-4 sm:py-3 text-sm font-medium text-gray-900 whitespace-nowrap">From ${listing.price.startingFrom}</td>
+                        <td className="px-2 py-2 sm:px-4 sm:py-3 align-middle">
+                          <ListingReviewsTableCell
+                            listing={listing}
+                            aggregate={reviewAggregates.get(listing.id)}
+                            isSupabase={Boolean(isSupabase)}
+                          />
+                        </td>
                         <td className="px-2 py-2 sm:px-4 sm:py-3 align-top">
                           <span
                             className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full ${
@@ -765,73 +886,35 @@ export default function SupplierListings() {
                             </button>
                           )}
                         </td>
-                        <td className="px-2 py-2 sm:px-4 sm:py-3 text-right align-top">
-                          <div className="flex items-center justify-end flex-wrap gap-1">
+                        <td className="px-2 py-2 sm:px-4 sm:py-3 text-right align-middle">
+                          <div className="flex flex-wrap items-center justify-end gap-2">
                             {isLive ? (
                               <a
                                 href={publicTourListingUrl(listing.id)}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="touch-manipulation inline-flex items-center gap-1 px-2 py-2 sm:py-1.5 rounded-lg text-xs font-medium text-finland border border-finland/30 hover:bg-finland/5 min-h-[40px] sm:min-h-0"
+                                className="touch-manipulation inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-finland/35 bg-white px-2.5 text-xs font-medium text-finland shadow-sm hover:bg-finland/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-finland/35 focus-visible:ring-offset-1"
                                 title="Opens the public tour page on Traverion"
                               >
-                                <ExternalLink className="w-3.5 h-3.5" />
+                                <ExternalLink className="h-3.5 w-3.5 shrink-0" aria-hidden />
                                 <span className="hidden xs:inline">View on site</span>
                                 <span className="xs:hidden">View</span>
                               </a>
                             ) : null}
-                            <div className="relative" data-listing-row-actions={listing.id}>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setListingActionsMenuId((id) => (id === listing.id ? null : listing.id))
-                                }
-                                disabled={!canEditListings}
-                                aria-expanded={listingActionsMenuId === listing.id}
-                                aria-haspopup="menu"
-                                aria-label="Listing actions"
-                                className="touch-manipulation p-2.5 rounded-lg text-gray-600 hover:bg-gray-200 hover:text-finland disabled:opacity-40 disabled:pointer-events-none min-w-[44px] min-h-[44px] inline-flex items-center justify-center"
-                                title={canEditListings ? 'Listing actions' : 'View only'}
-                              >
-                                <Cog className="w-4 h-4" aria-hidden />
-                              </button>
-                              {listingActionsMenuId === listing.id && canEditListings && (
-                                <div
-                                  role="menu"
-                                  className="absolute right-0 top-full mt-1 z-50 min-w-[10.5rem] rounded-lg border border-gray-200 bg-white py-1 shadow-lg text-left"
-                                >
-                                  <button
-                                    type="button"
-                                    role="menuitem"
-                                    className="w-full px-3 py-2.5 text-left text-sm text-gray-800 hover:bg-gray-50"
-                                    onClick={() => {
-                                      setListingActionsMenuId(null);
-                                      openSupplierListingEditor(listing.id);
-                                    }}
-                                  >
-                                    Edit
-                                  </button>
-                                  {isLive && (
-                                    <button
-                                      type="button"
-                                      role="menuitem"
-                                      className="w-full px-3 py-2.5 text-left text-sm text-gray-800 hover:bg-gray-50"
-                                      onClick={() => void deactivateListingOffline(listing)}
-                                    >
-                                      Deactivate
-                                    </button>
-                                  )}
-                                </div>
-                              )}
-                            </div>
                             <button
                               type="button"
-                              onClick={() => handleDelete(listing.id)}
+                              data-listing-gear={listing.id}
+                              onClick={() =>
+                                setListingActionsMenuId((id) => (id === listing.id ? null : listing.id))
+                              }
                               disabled={!canEditListings}
-                              className="touch-manipulation p-2.5 rounded-lg text-gray-600 hover:bg-red-50 hover:text-red-600 disabled:opacity-40 disabled:pointer-events-none min-w-[44px] min-h-[44px] inline-flex items-center justify-center"
-                              title={canEditListings ? 'Delete' : 'View only'}
+                              aria-expanded={listingActionsMenuId === listing.id}
+                              aria-haspopup="menu"
+                              aria-label="Listing actions"
+                              className="touch-manipulation inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 shadow-sm hover:bg-gray-50 hover:text-finland focus:outline-none focus-visible:ring-2 focus-visible:ring-finland/30 focus-visible:ring-offset-1 disabled:pointer-events-none disabled:opacity-40"
+                              title={canEditListings ? 'Listing actions' : 'View only'}
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <Cog className="h-4 w-4" aria-hidden />
                             </button>
                           </div>
                         </td>
@@ -845,6 +928,168 @@ export default function SupplierListings() {
           </div>
         )
       )}
+
+      {listingActionsMenuId &&
+        listingActionsMenuBox &&
+        canEditListings &&
+        typeof document !== 'undefined' &&
+        (() => {
+          const menuListing = listings.find((l) => l.id === listingActionsMenuId);
+          if (!menuListing) return null;
+          const menuIsLive = menuListing.status !== 'draft';
+          return createPortal(
+            <>
+              <button
+                type="button"
+                className="fixed inset-0 z-[60] cursor-default bg-transparent"
+                aria-label="Close menu"
+                onClick={closeListingActionsMenu}
+              />
+              <div
+                role="menu"
+                className="fixed z-[70] rounded-xl border border-gray-200 bg-white py-1 shadow-xl ring-1 ring-black/5"
+                style={{
+                  top: listingActionsMenuBox.top,
+                  left: listingActionsMenuBox.left,
+                  width: listingActionsMenuBox.width,
+                }}
+              >
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="flex w-full px-3 py-2.5 text-left text-sm text-gray-800 hover:bg-gray-50"
+                  onClick={() => {
+                    closeListingActionsMenu();
+                    openSupplierListingEditor(menuListing.id);
+                  }}
+                >
+                  Edit
+                </button>
+                {menuIsLive ? (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="flex w-full px-3 py-2.5 text-left text-sm text-gray-800 hover:bg-gray-50"
+                    onClick={() => {
+                      closeListingActionsMenu();
+                      setListingPendingDeactivate(menuListing);
+                    }}
+                  >
+                    Deactivate
+                  </button>
+                ) : null}
+                <div className="my-1 border-t border-gray-100" role="separator" />
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-red-700 hover:bg-red-50"
+                  onClick={() => {
+                    closeListingActionsMenu();
+                    setListingPendingDelete(menuListing);
+                  }}
+                >
+                  <Trash2 className="h-4 w-4 shrink-0" aria-hidden />
+                  Delete listing
+                </button>
+              </div>
+            </>,
+            document.body
+          );
+        })()}
+
+      {listingPendingDelete && typeof document !== 'undefined'
+        ? createPortal(
+            <div className="fixed inset-0 z-[80] flex items-end justify-center p-0 sm:items-center sm:p-4 sm:pt-[max(1rem,env(safe-area-inset-top))]">
+              <button
+                type="button"
+                className="absolute inset-0 bg-slate-900/45 backdrop-blur-[1px]"
+                aria-label="Close"
+                disabled={deleteBusy}
+                onClick={() => !deleteBusy && setListingPendingDelete(null)}
+              />
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="supplier-delete-listing-title"
+                className="relative z-[81] max-h-[min(calc(100dvh_-_env(safe-area-inset-bottom)_-_0.75rem),92dvh)] w-full max-w-md overflow-y-auto rounded-t-2xl border border-gray-200 bg-white p-4 shadow-2xl sm:rounded-2xl sm:p-6 pb-[max(1rem,env(safe-area-inset-bottom))]"
+              >
+                <h3 id="supplier-delete-listing-title" className="text-lg font-semibold text-gray-900">
+                  Remove this listing?
+                </h3>
+                <p className="mt-2 text-sm text-gray-600">
+                  <span className="font-medium text-gray-900">{listingPendingDelete.title}</span> will be removed from
+                  your supplier account. This cannot be undone.
+                </p>
+                <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                  <button
+                    type="button"
+                    className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-800 hover:bg-gray-50 disabled:opacity-50"
+                    disabled={deleteBusy}
+                    onClick={() => setListingPendingDelete(null)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+                    disabled={deleteBusy}
+                    onClick={() => void confirmDeleteListing()}
+                  >
+                    {deleteBusy ? 'Removing…' : 'Remove listing'}
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
+
+      {listingPendingDeactivate && typeof document !== 'undefined'
+        ? createPortal(
+            <div className="fixed inset-0 z-[80] flex items-end justify-center p-0 sm:items-center sm:p-4 sm:pt-[max(1rem,env(safe-area-inset-top))]">
+              <button
+                type="button"
+                className="absolute inset-0 bg-slate-900/45 backdrop-blur-[1px]"
+                aria-label="Close"
+                disabled={deactivateBusy}
+                onClick={() => !deactivateBusy && setListingPendingDeactivate(null)}
+              />
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="supplier-deactivate-listing-title"
+                className="relative z-[81] max-h-[min(calc(100dvh_-_env(safe-area-inset-bottom)_-_0.75rem),92dvh)] w-full max-w-md overflow-y-auto rounded-t-2xl border border-gray-200 bg-white p-4 shadow-2xl sm:rounded-2xl sm:p-6 pb-[max(1rem,env(safe-area-inset-bottom))]"
+              >
+                <h3 id="supplier-deactivate-listing-title" className="text-lg font-semibold text-gray-900">
+                  Take this listing offline?
+                </h3>
+                <p className="mt-2 text-sm text-gray-600">
+                  <span className="font-medium text-gray-900">{listingPendingDeactivate.title}</span> will be hidden from
+                  Traverion until you publish it again from this page.
+                </p>
+                <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                  <button
+                    type="button"
+                    className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-800 hover:bg-gray-50 disabled:opacity-50"
+                    disabled={deactivateBusy}
+                    onClick={() => setListingPendingDeactivate(null)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-finland px-4 py-2.5 text-sm font-semibold text-white hover:bg-finland-dark disabled:opacity-50"
+                    disabled={deactivateBusy}
+                    onClick={() => void confirmDeactivateListing()}
+                  >
+                    {deactivateBusy ? 'Updating…' : 'Deactivate'}
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
     </div>
   );
 }

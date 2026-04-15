@@ -50,6 +50,8 @@ export default function SupplierEarnings() {
 
   const primaryCurrency = earnings[0]?.currency ?? 'USD';
 
+  const hasCancelledRows = useMemo(() => earnings.some((e) => e.status === 'cancelled'), [earnings]);
+
   const { pending, paid, cancelled, filteredEarnings } = useMemo(() => {
     const pendingSum = earnings.filter((e) => e.status === 'pending').reduce((sum, e) => sum + Number(e.amount), 0);
     const paidSum = earnings.filter((e) => e.status === 'paid').reduce((sum, e) => sum + Number(e.amount), 0);
@@ -65,6 +67,12 @@ export default function SupplierEarnings() {
       filteredEarnings: filtered,
     };
   }, [earnings, statusFilter]);
+
+  useEffect(() => {
+    if (statusFilter === 'cancelled' && !hasCancelledRows) {
+      setStatusFilter('all');
+    }
+  }, [statusFilter, hasCancelledRows]);
 
   const threshold = profile?.payout_threshold_min ?? 0;
   const cycle = profile?.payment_cycle ?? 'monthly';
@@ -173,7 +181,7 @@ export default function SupplierEarnings() {
             <span className="text-sm text-gray-500">({filteredEarnings.length} row{filteredEarnings.length === 1 ? '' : 's'})</span>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {(['all', 'pending', 'paid', 'cancelled'] as const).map((s) => (
+            {(hasCancelledRows ? (['all', 'pending', 'paid', 'cancelled'] as const) : (['all', 'pending', 'paid'] as const)).map((s) => (
               <button
                 key={s}
                 type="button"

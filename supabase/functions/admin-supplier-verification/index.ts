@@ -35,9 +35,18 @@ type Body = {
     | 'approve_business'
     | 'reject_business'
     | 'approve_payout'
-    | 'reject_payout';
+    | 'reject_payout'
+    | 'list_portal_notifications'
+    | 'create_portal_notification'
+    | 'delete_portal_notification';
   supplierId?: string;
   feedback?: string | null;
+  notificationTitle?: string;
+  notificationBody?: string;
+  notificationVariant?: string;
+  notificationAudience?: string;
+  supplierUserId?: string;
+  notificationId?: string;
 };
 
 function isAdminUser(user: { app_metadata?: Record<string, unknown> } | null): boolean {
@@ -241,6 +250,64 @@ serve(async (req) => {
       },
       signedUrlExpiresInSeconds: SIGNED_URL_TTL,
     });
+  }
+
+  if (body.action === 'list_portal_notifications') {
+    const { data, error } = await admin
+      .from('supplier_portal_notifications')
+      .select('id, title, body, variant, audience, supplier_user_id, created_at')
+      .order('created_at', { ascending: false })
+      .limit(200);
+    if (error) return json({ error: error.message }, 500);
+    return json({ items: data ?? [] });
+  }
+
+  if (body.action === 'create_portal_notification') {
+    const title = typeof body.notificationTitle === 'string' ? body.notificationTitle.trim() : '';
+    const text = typeof body.notificationBody === 'string' ? body.notificationBody.trim() : '';
+    const variantRaw =
+      typeof body.notificationVariant === 'string' ? body.notificationVariant.trim().toLowerCase() : 'info';
+    const variant = variantRaw === 'warning' || variantRaw === 'success' ? variantRaw : 'info';
+    const audienceRaw =
+      typeof body.notificationAudience === 'string' ? body.notificationAudience.trim().toLowerCase() : '';
+    const audience = audienceRaw === 'supplier' ? 'supplier' : 'all';
+    if (!title || !text) return json({ error: 'notificationTitle and notificationBody required' }, 400);
+    if (title.length > 300) return json({ error: 'Title too long (max 300)' }, 400);
+    if (text.length > 8000) return json({ error: 'Message too long (max 8000)' }, 400);
+
+    let supplierUserId: string | null = null;
+    if (audience === 'supplier') {
+      const uid = typeof body.supplierUserId === 'string' ? body.supplierUserId.trim() : '';
+      if (!uid || !/^[0-9a-f-]{36}$/i.test(uid)) {
+        return json({ error: 'supplierUserId (UUID) required when audience is supplier' }, 400);
+      }
+      const { data: profile, error: pErr } = await admin.from('supplier_profiles').select('id').eq('id', uid).maybeSingle();
+      if (pErr) return json({ error: pErr.message }, 500);
+      if (!profile) return json({ error: 'No supplier profile for that user id' }, 404);
+      supplierUserId = uid;
+    }
+
+    const { data: row, error } = await admin
+      .from('supplier_portal_notifications')
+      .insert({
+        title,
+        body: text,
+        variant,
+        audience,
+        supplier_user_id: supplierUserId,
+      })
+      .select('id, title, body, variant, audience, supplier_user_id, created_at')
+      .single();
+    if (error) return json({ error: error.message }, 500);
+    return json({ item: row });
+  }
+
+  if (body.action === 'delete_portal_notification') {
+    const id = typeof body.notificationId === 'string' ? body.notificationId.trim() : '';
+    if (!id) return json({ error: 'notificationId required' }, 400);
+    const { error } = await admin.from('supplier_portal_notifications').delete().eq('id', id);
+    if (error) return json({ error: error.message }, 500);
+    return json({ ok: true });
   }
 
   const supplierId = body.supplierId?.trim();

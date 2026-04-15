@@ -109,7 +109,11 @@ export function PublicListingBrowseCard({
         </div>
       </div>
       <div className={padClass}>
-        <h3 className="font-semibold text-gray-900 line-clamp-2 group-hover:text-finland transition-colors duration-200 text-[15px] leading-snug">
+        <h3
+          className={`line-clamp-2 font-semibold leading-snug tracking-tight text-gray-900 transition-colors duration-200 group-hover:text-finland ${
+            size === 'compact' ? 'text-base sm:text-lg' : 'text-lg sm:text-xl'
+          }`}
+        >
           {tour.title}
         </h3>
         <div
@@ -120,9 +124,9 @@ export function PublicListingBrowseCard({
           } ${size === 'compact' ? 'py-2' : ''}`}
           aria-label={hasDiscount ? `From ${fromAmount} dollars, ${label}` : `From ${originalPrice} dollars`}
         >
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">From</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-600">From</span>
           {showStrikethrough && (
-            <span className="text-sm font-medium text-gray-400 line-through">${originalPrice.toFixed(0)}</span>
+            <span className="text-sm font-medium text-gray-500 line-through">${originalPrice.toFixed(0)}</span>
           )}
           <span
             className={`font-bold tracking-tight ${hasDiscount ? 'text-finland' : 'text-gray-900'} ${size === 'compact' ? 'text-xl' : 'text-2xl'}`}
@@ -135,17 +139,20 @@ export function PublicListingBrowseCard({
             </span>
           )}
         </div>
-        <div className="flex items-center text-gray-500 text-sm mt-1.5 gap-1 min-w-0">
-          <MapPin className="w-3.5 h-3.5 flex-shrink-0 text-gray-400" aria-hidden />
+        <div className="mt-2 flex min-w-0 items-center gap-1.5 text-sm font-medium text-gray-700">
+          <MapPin className="h-4 w-4 flex-shrink-0 text-gray-500" aria-hidden />
           <span className="truncate">{locationLine}</span>
         </div>
-        <div className="mt-2">
+        <div className="mt-2.5">
           <ListingCardRating tour={tour} aggregate={reviewAggregate} compact={size === 'compact'} />
         </div>
         {showTagPills && extraTags.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mt-2">
+          <div className="mt-2 flex flex-wrap gap-1.5">
             {extraTags.slice(0, 3).map((tagId) => (
-              <span key={tagId} className="text-[11px] text-gray-600 bg-gray-100 px-2 py-0.5 rounded-md">
+              <span
+                key={tagId}
+                className="rounded-md bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-700"
+              >
                 {tagLabels[tagId] ?? tagId}
               </span>
             ))}

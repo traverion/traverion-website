@@ -38,13 +38,6 @@ type Props = {
   setVerificationMessage: (v: 'sent' | 'error' | null) => void;
   setVerificationSending: (v: boolean) => void;
 
-  newPassword: string;
-  setNewPassword: (v: string) => void;
-  passwordSaving: boolean;
-  passwordMessage: 'success' | 'error' | null;
-  setPasswordMessage: (v: 'success' | 'error' | null) => void;
-  setPasswordSaving: (v: boolean) => void;
-
   handleNavigate: (s: string) => void;
 
   businessProfileTab: BusinessProfileTab;
@@ -214,48 +207,20 @@ function AccountSettingsPage(p: Props) {
 
       <div id="supplier-account-security" className="rounded-xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm">
         <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-gray-900">Security & password</h2>
-        <p className="text-sm text-gray-600 mt-1.5 mb-5">Update your supplier account password.</p>
-        <div className="space-y-3 max-w-md">
-          <input
-            type="password"
-            value={p.newPassword}
-            onChange={(e) => p.setNewPassword(e.target.value)}
-            placeholder="New password (min 8 characters)"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
-          />
-          <div className="flex items-center gap-3 flex-wrap">
-            <button
-              type="button"
-              disabled={p.passwordSaving || p.newPassword.trim().length < 8}
-              onClick={async () => {
-                if (!p.isSupabase || !p.supabase) {
-                  p.setPasswordMessage('error');
-                  return;
-                }
-                p.setPasswordSaving(true);
-                p.setPasswordMessage(null);
-                const { error } = await p.supabase.auth.updateUser({ password: p.newPassword.trim() });
-                p.setPasswordSaving(false);
-                if (error) {
-                  p.setPasswordMessage('error');
-                  return;
-                }
-                p.setNewPassword('');
-                p.setPasswordMessage('success');
-              }}
-              className="px-4 py-2 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark disabled:opacity-50"
-            >
-              {p.passwordSaving ? 'Saving…' : 'Update password'}
-            </button>
-            {!p.isSupabase && (
-              <span className="text-xs text-amber-700">Enable Supabase auth to update password.</span>
-            )}
-            {p.passwordMessage === 'success' && <span className="text-sm text-green-600">Password updated.</span>}
-            {p.passwordMessage === 'error' && (
-              <span className="text-sm text-red-600">Could not update password.</span>
-            )}
-          </div>
-        </div>
+        <p className="text-sm text-gray-600 mt-1.5 mb-5">
+          Change your sign-in password on a separate page. You will be asked for your current password, then your new
+          one twice.
+        </p>
+        <button
+          type="button"
+          onClick={() => p.handleNavigate('change-password')}
+          className="inline-flex items-center justify-center px-4 py-2.5 rounded-lg border-2 border-finland bg-finland text-white text-sm font-semibold shadow-sm hover:bg-finland-dark transition-colors"
+        >
+          Change your password
+        </button>
+        {!p.isSupabase && (
+          <p className="mt-3 text-xs text-amber-700">Connect Supabase auth to enable password changes.</p>
+        )}
       </div>
     </div>
   );

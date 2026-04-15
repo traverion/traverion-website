@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { BarChart3, ClipboardCheck, History, Loader2, LogOut, Store, Users, ListChecks, UserCircle } from 'lucide-react';
+import { BarChart3, ClipboardCheck, History, Loader2, LogOut, Megaphone, Store, Users, ListChecks, UserCircle } from 'lucide-react';
 import LuxuryButton from '../components/ui/LuxuryButton';
 import LuxuryCard from '../components/ui/LuxuryCard';
 import AdminSupplierVerificationPanel from '../components/admin/AdminSupplierVerificationPanel';
 import AdminPastVerificationsPanel from '../components/admin/AdminPastVerificationsPanel';
+import AdminSupplierPortalMessagesPanel from '../components/admin/AdminSupplierPortalMessagesPanel';
 import { useAuth } from '../contexts/AuthContext';
 import { invokeAdminEdgeFunction, type AdminStatsPayload } from '../lib/adminEdgeFunction';
 import { isSupabaseConfigured } from '../lib/supabase';
@@ -11,7 +12,7 @@ import { publicMarketingSiteUrl } from '../lib/adminHost';
 
 export default function AdminDashboard() {
   const { user, signOut } = useAuth();
-  const [activeTab, setActiveTab] = useState<'overview' | 'suppliers' | 'past_verifications'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'suppliers' | 'past_verifications' | 'portal_messages'>('overview');
   const [stats, setStats] = useState<AdminStatsPayload | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
   const [statsError, setStatsError] = useState<string | null>(null);
@@ -39,6 +40,7 @@ export default function AdminDashboard() {
     { id: 'overview' as const, label: 'Overview', icon: BarChart3 },
     { id: 'suppliers' as const, label: 'Supplier verification', icon: ClipboardCheck },
     { id: 'past_verifications' as const, label: 'Past verifications', icon: History },
+    { id: 'portal_messages' as const, label: 'Portal messages', icon: Megaphone },
   ];
 
   return (
@@ -206,6 +208,7 @@ export default function AdminDashboard() {
 
         {activeTab === 'suppliers' && <AdminSupplierVerificationPanel />}
         {activeTab === 'past_verifications' && <AdminPastVerificationsPanel />}
+        {activeTab === 'portal_messages' && <AdminSupplierPortalMessagesPanel />}
       </div>
     </div>
   );

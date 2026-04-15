@@ -33,6 +33,20 @@ export interface ParsedRoute {
   destinationSlug: string | null;
 }
 
+/**
+ * Canonical public deep link for a Supabase listing is `/packages?tour=<uuid>`.
+ * If the URL is `/tour/<uuid>`, rewrite in-place (same tab) so the SPA router opens TourDetails reliably.
+ */
+export function normalizePublicTourDeepLinkPathname(pathname: string): string {
+  const normalized =
+    pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
+  const m = /^\/tour\/([0-9a-f-]{36})$/i.exec(normalized);
+  if (!m || typeof window === 'undefined') return pathname;
+  const qs = new URLSearchParams({ tour: m[1] }).toString();
+  window.history.replaceState(window.history.state, '', `/packages?${qs}`);
+  return '/packages';
+}
+
 const TOUR_FLOW_PAGES = new Set(['tour-details', 'booking', 'tour-package']);
 
 export type ParsePathnameOptions = {

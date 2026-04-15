@@ -23,25 +23,25 @@ export function ListingCardRating({ tour, aggregate, compact }: Props) {
   const textSize = compact ? 'text-xs' : 'text-sm';
 
   return (
-    <div className={`flex items-center ${textSize} text-gray-600`}>
+    <div className={`flex items-center font-medium ${textSize} text-gray-700`}>
       {hasReal ? (
         <>
-          <Star className={`text-finland fill-finland mr-0.5 ${compact ? 'w-3.5 h-3.5' : 'w-4 h-4'}`} />
+          <Star className={`mr-0.5 fill-finland text-finland ${compact ? 'h-3.5 w-3.5' : 'h-4 w-4'}`} />
           <strong className="text-gray-900">{aggregate.rating}</strong>
-          <span className="ml-1">({aggregate.count})</span>
+          <span className="ml-1 text-gray-600">({aggregate.count})</span>
         </>
       ) : placeholder ? (
-        <span className={`text-gray-500 ${compact ? 'max-w-[9rem] truncate' : ''}`}>No reviews yet</span>
+        <span className={`text-gray-600 ${compact ? 'max-w-[9rem] truncate' : ''}`}>No reviews yet</span>
       ) : (
         <>
-          <Star className={`text-finland fill-finland mr-0.5 ${compact ? 'w-3.5 h-3.5' : 'w-4 h-4'}`} />
+          <Star className={`mr-0.5 fill-finland text-finland ${compact ? 'h-3.5 w-3.5' : 'h-4 w-4'}`} />
           <strong className="text-gray-900">{tour.rating}</strong>
-          <span className="ml-1">({tour.reviews})</span>
+          <span className="ml-1 text-gray-600">({tour.reviews})</span>
         </>
       )}
-      <span className="mx-1.5 text-gray-300">·</span>
-      <Clock className={`mr-0.5 text-gray-400 ${compact ? 'w-3 h-3' : 'w-3.5 h-3.5'}`} />
-      {tour.duration}
+      <span className="mx-1.5 text-gray-400">·</span>
+      <Clock className={`mr-0.5 text-gray-500 ${compact ? 'h-3 w-3' : 'h-3.5 w-3.5'}`} />
+      <span className="text-gray-800">{tour.duration}</span>
     </div>
   );
 }

@@ -13,9 +13,8 @@ export function publicSiteBaseUrl(): string {
   return 'https://www.traverion.com';
 }
 
-/** Public tour page (packages + tour id). Opens TourDetails when the main app loads. */
+/** Public tour page: `/tour/<uuid>` (rewrites to `/packages?tour=` on load). Opens TourDetails in the main app. */
 export function publicTourListingUrl(listingId: string): string {
   const base = publicSiteBaseUrl();
-  const q = new URLSearchParams({ tour: listingId });
-  return `${base}/packages?${q.toString()}`;
+  return `${base}/tour/${listingId}`;
 }

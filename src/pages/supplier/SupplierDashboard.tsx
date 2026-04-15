@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Calendar, CalendarDays, DollarSign, MapPin, ArrowRight, Star, CheckCircle, Circle } from 'lucide-react';
+import { Calendar, CalendarDays, DollarSign, MapPin, ArrowRight, Star, CheckCircle, Circle, X } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { fetchMyListings } from '../../data/supabase-listings';
 import { fetchSupplierEarnings } from '../../data/supabase-earnings';
@@ -7,6 +7,7 @@ import { fetchBookingsForSupplier, type BookingRow } from '../../data/supabase-b
 import { aggregateReviewRatings, fetchReviewsForSupplierListings } from '../../data/supabase-reviews';
 import { fetchSupplierProfile } from '../../data/supabase-supplier-profile';
 import { isSupplierBusinessProfileComplete, isSupplierPayoutConfigured } from '../../lib/supplierOnboarding';
+import SupplierPortalNoticePanel from '../../components/supplier/SupplierPortalNoticePanel';
 
 interface SupplierDashboardProps {
   onNavigateToListings?: () => void;
@@ -64,6 +65,17 @@ export default function SupplierDashboard({
   const [earnings, setEarnings] = useState<Awaited<ReturnType<typeof fetchSupplierEarnings>>>([]);
   const [providerRating, setProviderRating] = useState<{ avg: number; count: number }>({ avg: 0, count: 0 });
   const [profile, setProfile] = useState<Awaited<ReturnType<typeof fetchSupplierProfile>> | null>(null);
+  const [quickStartDismissed, setQuickStartDismissed] = useState(false);
+
+  const quickStartDismissStorageKey = user?.id ? `supplier_quickstart_done_dismissed_${user.id}` : null;
+
+  useEffect(() => {
+    if (!quickStartDismissStorageKey) {
+      setQuickStartDismissed(false);
+      return;
+    }
+    setQuickStartDismissed(localStorage.getItem(quickStartDismissStorageKey) === '1');
+  }, [quickStartDismissStorageKey]);
 
   useEffect(() => {
     const uid = user?.id;
@@ -267,6 +279,16 @@ export default function SupplierDashboard({
     };
   }, [healthChecks.checks]);
 
+  const allQuickStartDone = quickStart.doneCount === quickStart.total;
+  const showQuickStartCard =
+    Boolean(isSupabase && user) && (!allQuickStartDone || !quickStartDismissed);
+
+  const dismissQuickStartCard = () => {
+    if (!quickStartDismissStorageKey) return;
+    localStorage.setItem(quickStartDismissStorageKey, '1');
+    setQuickStartDismissed(true);
+  };
+
   return (
     <div className="space-y-5 sm:space-y-6 w-full min-w-0">
       {showSupplierSetupBanner && onSupplierSetupNext && (
@@ -324,15 +346,28 @@ export default function SupplierDashboard({
         ))}
       </div>
 
-      {isSupabase && user && (
+      {showQuickStartCard && (
         <div className="rounded-xl border-2 border-slate-200 bg-white p-5 sm:p-6 shadow-md ring-1 ring-slate-900/5">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
             <div>
               <h2 className="text-lg font-semibold text-gray-900">Quick start</h2>
               <p className="text-sm text-gray-700 mt-0.5">Complete these essentials first, then run day-to-day from bookings.</p>
             </div>
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-finland/25 bg-finland/15 text-finland text-sm font-semibold shadow-sm">
-              {quickStart.doneCount}/{quickStart.total} completed
+            <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+              {allQuickStartDone && (
+                <button
+                  type="button"
+                  onClick={dismissQuickStartCard}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-gray-600 hover:bg-slate-50 hover:text-gray-900 shadow-sm"
+                  aria-label="Hide quick start checklist"
+                  title="Hide checklist"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              )}
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-finland/25 bg-finland/15 text-finland text-sm font-semibold shadow-sm">
+                {quickStart.doneCount}/{quickStart.total} completed
+              </div>
             </div>
           </div>
 
@@ -386,6 +421,8 @@ export default function SupplierDashboard({
           )}
         </div>
       )}
+
+      {isSupabase && user && <SupplierPortalNoticePanel userId={user.id} />}
 
       {isSupabase && user && (
         <div className="rounded-xl border-2 border-slate-200 bg-white p-5 sm:p-6 shadow-md ring-1 ring-slate-900/5">

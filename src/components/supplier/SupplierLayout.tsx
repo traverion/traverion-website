@@ -28,6 +28,7 @@ import SupplierEarnings from '../../pages/supplier/SupplierEarnings';
 import SupplierReviews from '../../pages/supplier/SupplierReviews';
 import SupplierPickupPlanner from '../../pages/supplier/SupplierPickupPlanner';
 import SupplierDiscountsOffers from '../../pages/supplier/SupplierDiscountsOffers';
+import SupplierChangePassword from '../../pages/supplier/SupplierChangePassword';
 import {
   authUserHasPartnerSignupMetadata,
   ensureSupplierProfile,
@@ -78,6 +79,7 @@ type SupplierSection =
   | 'pickup'
   | 'business-profile'
   | 'account-settings'
+  | 'change-password'
   | 'badges';
 type AccountShortcutTarget = 'company' | 'legal' | 'account' | 'security' | 'payout';
 type BusinessProfileTab = 'company' | 'legal';
@@ -94,7 +96,7 @@ const NAV_ITEMS: { id: SupplierSection; label: string; icon: typeof LayoutDashbo
   { id: 'business-profile', label: 'Business profile', icon: Building2 },
   { id: 'account-settings', label: 'Account settings', icon: Users },
 ];
-const ROUTABLE_SECTIONS = [...NAV_ITEMS.map((n) => n.id), 'badges'] as const;
+const ROUTABLE_SECTIONS = [...NAV_ITEMS.map((n) => n.id), 'change-password', 'badges'] as const;
 type ExtraSupplierSection = (typeof ROUTABLE_SECTIONS)[number];
 
 function getSectionFromPath(pathname: string): SupplierSection | null {
@@ -104,7 +106,8 @@ function getSectionFromPath(pathname: string): SupplierSection | null {
   if (!match) return null;
   if (match[1] === 'settings') return 'business-profile';
   const section = match[1] as ExtraSupplierSection;
-  return ROUTABLE_SECTIONS.includes(section) ? (section as SupplierSection) : 'dashboard';
+  if (!ROUTABLE_SECTIONS.includes(section)) return 'dashboard';
+  return section as SupplierSection;
 }
 
 function isSupplierLoginPath(pathname: string): boolean {
@@ -356,9 +359,6 @@ export default function SupplierLayout() {
   const [legalSaving, setLegalSaving] = useState(false);
   const [legalMessage, setLegalMessage] = useState<'success' | 'error' | null>(null);
   const [legalDocModal, setLegalDocModal] = useState<'privacy' | 'terms' | null>(null);
-  const [newPassword, setNewPassword] = useState('');
-  const [passwordSaving, setPasswordSaving] = useState(false);
-  const [passwordMessage, setPasswordMessage] = useState<'success' | 'error' | null>(null);
   const [badgeEnabled, setBadgeEnabled] = useState(false);
   const [badgeVariant, setBadgeVariant] = useState<BadgeVariant>('gold');
   const [verificationSending, setVerificationSending] = useState(false);
@@ -686,8 +686,12 @@ export default function SupplierLayout() {
   };
 
   const openSettingsFocus = (target: AccountShortcutTarget) => {
+    if (target === 'security') {
+      handleNavigate('change-password');
+      return;
+    }
     setSettingsFocus(target);
-    if (target === 'account' || target === 'security') {
+    if (target === 'account') {
       handleNavigate('account-settings');
     } else {
       handleNavigate('business-profile');
@@ -856,7 +860,9 @@ export default function SupplierLayout() {
               key={item.id}
               onClick={() => handleNavigate(item.id)}
               className={`lux-flat w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left text-sm font-medium transition-colors duration-300 ease-lux ${
-                section === item.id ? 'bg-finland/10 text-finland' : 'text-gray-600 hover:bg-gray-100'
+                section === item.id || (item.id === 'account-settings' && section === 'change-password')
+                  ? 'bg-finland/10 text-finland'
+                  : 'text-gray-600 hover:bg-gray-100'
               }`}
             >
               <item.icon className="w-5 h-5 flex-shrink-0" />
@@ -916,7 +922,9 @@ export default function SupplierLayout() {
                 setSidebarOpen(false);
               }}
               className={`touch-manipulation lux-flat w-full flex items-center gap-3 px-3 py-3 min-h-[44px] rounded-lg text-left text-sm font-medium transition-colors duration-300 ease-lux ${
-                section === item.id ? 'bg-finland/10 text-finland' : 'text-gray-600 hover:bg-gray-50'
+                section === item.id || (item.id === 'account-settings' && section === 'change-password')
+                  ? 'bg-finland/10 text-finland'
+                  : 'text-gray-600 hover:bg-gray-50'
               }`}
             >
               <item.icon className="w-5 h-5" />
@@ -1046,6 +1054,14 @@ export default function SupplierLayout() {
           {section === 'discounts' && <SupplierDiscountsOffers />}
           {section === 'reviews' && <SupplierReviews />}
           {section === 'pickup' && <SupplierPickupPlanner />}
+          {section === 'change-password' && (
+            <SupplierChangePassword
+              onBack={() => handleNavigate('account-settings')}
+              userEmail={supplierEmail}
+              isSupabase={isSupabase}
+              supabase={supabase}
+            />
+          )}
           {section === 'badges' && (
             <div className="space-y-4 sm:space-y-5 w-full min-w-0">
               <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Brand assets</h1>
@@ -1101,12 +1117,6 @@ export default function SupplierLayout() {
               verificationMessage={verificationMessage}
               setVerificationMessage={setVerificationMessage}
               setVerificationSending={setVerificationSending}
-              newPassword={newPassword}
-              setNewPassword={setNewPassword}
-              passwordSaving={passwordSaving}
-              passwordMessage={passwordMessage}
-              setPasswordMessage={setPasswordMessage}
-              setPasswordSaving={setPasswordSaving}
               handleNavigate={handleNavigate}
               businessProfileTab={businessProfileTab}
               setBusinessProfileTab={setBusinessProfileTab}
