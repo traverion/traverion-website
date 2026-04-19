@@ -234,15 +234,32 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                 List your tour
               </a>
             </div>
-          ) : !hasActiveFilter ? (
-            <div className="text-center py-12 bg-white rounded-2xl border border-gray-100">
-              <p className="text-gray-600 mb-2">Use the search bar above to find tours.</p>
-              <p className="text-sm text-gray-500">
-                Try a keyword like &quot;Northern Lights&quot; or &quot;Rome Vespa&quot;, or pick a country.
-              </p>
-            </div>
           ) : (
             <>
+              {!hasActiveFilter && (
+                <p className="text-sm text-gray-600 mb-5 max-w-2xl">
+                  Browse featured experiences below. Use{' '}
+                  <button
+                    type="button"
+                    onClick={goToPackagesWithFilters}
+                    className="text-finland font-medium hover:underline"
+                  >
+                    Search
+                  </button>{' '}
+                  in the hero or open the{' '}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      window.history.pushState({}, '', '/packages');
+                      onNavigate?.('packages');
+                    }}
+                    className="text-finland font-medium hover:underline"
+                  >
+                    full tours page
+                  </button>{' '}
+                  for filters, sort, and the complete catalog.
+                </p>
+              )}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                 {displayedListings.map((tour, index) => (
                   <PublicListingBrowseCard
@@ -258,15 +275,47 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                   />
                 ))}
               </div>
-              {hasMore && (
+              {hasMore ? (
                 <div className="mt-8 text-center">
                   <button
-                    onClick={goToPackagesWithFilters}
+                    type="button"
+                    onClick={() => {
+                      if (hasActiveFilter) {
+                        goToPackagesWithFilters();
+                        return;
+                      }
+                      window.history.pushState({}, '', '/packages');
+                      onNavigate?.('packages');
+                    }}
                     className="inline-flex items-center gap-2 text-finland font-semibold hover:text-finland-dark transition-colors"
                   >
-                    View all {filteredListings.length} results <ArrowRight className="w-4 h-4" />
+                    {hasActiveFilter ? (
+                      <>
+                        View all {filteredListings.length} results <ArrowRight className="w-4 h-4" />
+                      </>
+                    ) : (
+                      <>
+                        View all tours &amp; filters <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
                   </button>
                 </div>
+              ) : (
+                !hasActiveFilter &&
+                displayedListings.length > 0 && (
+                  <div className="mt-8 text-center">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        window.history.pushState({}, '', '/packages');
+                        onNavigate?.('packages');
+                      }}
+                      className="inline-flex items-center gap-2 text-finland font-semibold hover:text-finland-dark transition-colors"
+                    >
+                      Tours page — search, sort &amp; full catalog <ArrowRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                )
               )}
             </>
           )}
