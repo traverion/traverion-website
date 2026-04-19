@@ -9,7 +9,11 @@ import { TourPackage } from '../types/tour';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { submitBooking } from '../data/supabase-bookings';
-import { checkAvailability, incrementAvailabilityBooked } from '../data/supabase-availability';
+import {
+  checkAvailability,
+  incrementAvailabilityBooked,
+  type AvailabilityCheckOption,
+} from '../data/supabase-availability';
 import { analytics } from '../lib/analytics';
 import { setPageMetaWithOg } from '../lib/seo';
 import { dateNotInPast, validateEmail, required, maxLength } from '../lib/validation';
@@ -33,6 +37,10 @@ export default function BookingPage({ tour, onBack, onComplete, onNavigate }: Bo
   const [specialRequests, setSpecialRequests] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [availabilityModalOpen, setAvailabilityModalOpen] = useState(false);
+  const [availabilityChecking, setAvailabilityChecking] = useState(false);
+  const [availabilityOptions, setAvailabilityOptions] = useState<AvailabilityCheckOption[]>([]);
+  const [availabilityModalNote, setAvailabilityModalNote] = useState<string | null>(null);
 
   const price = tour.price?.startingFrom ?? 0;
   const currency = tour.price?.currency ?? 'USD';
@@ -50,16 +58,7 @@ export default function BookingPage({ tour, onBack, onComplete, onNavigate }: Bo
     if (user?.email) setEmail(user.email);
   }, [user?.email]);
 
-  const handleContinueFromDateGuests = () => {
-    const dateCheck = dateNotInPast(date.trim());
-    if (!dateCheck.valid) {
-      setError(dateCheck.message ?? 'Please select a date');
-      return;
-    }
-    if (guests < 1 || guests > 99) {
-      setError('Please enter between 1 and 99 guests');
-      return;
-    }
+  const proceedToContactAfterOption = () => {
     if (isSupabaseConfigured() && !user) {
       setError(null);
       requestAuth({
@@ -71,6 +70,55 @@ export default function BookingPage({ tour, onBack, onComplete, onNavigate }: Bo
     }
     setError(null);
     setStep('contact');
+  };
+
+  const handleCheckAvailability = async () => {
+    const dateCheck = dateNotInPast(date.trim());
+    if (!dateCheck.valid) {
+      setError(dateCheck.message ?? 'Please select a date');
+      return;
+    }
+    if (guests < 1 || guests > 99) {
+      setError('Please enter between 1 and 99 guests');
+      return;
+    }
+    setError(null);
+    setAvailabilityModalOpen(true);
+    setAvailabilityChecking(true);
+    setAvailabilityModalNote(null);
+    setAvailabilityOptions([]);
+    try {
+      const avail = await checkAvailability(tour.id, date.trim(), guests);
+      setAvailabilityOptions(avail.options);
+      if (avail.error && !avail.available) {
+        setAvailabilityModalNote('We could not verify capacity for this date.');
+      }
+    } catch {
+      setAvailabilityOptions([
+        {
+          id: 'network',
+          title: 'Could not check availability',
+          description: 'Please try again in a moment.',
+          selectable: false,
+        },
+      ]);
+      setAvailabilityModalNote(null);
+    } finally {
+      setAvailabilityChecking(false);
+    }
+  };
+
+  const closeAvailabilityModal = () => {
+    setAvailabilityModalOpen(false);
+    setAvailabilityChecking(false);
+    setAvailabilityOptions([]);
+    setAvailabilityModalNote(null);
+  };
+
+  const handleSelectAvailabilityOption = (option: AvailabilityCheckOption) => {
+    if (!option.selectable) return;
+    closeAvailabilityModal();
+    proceedToContactAfterOption();
   };
 
   const handleContinueFromContact = () => {
@@ -198,10 +246,11 @@ export default function BookingPage({ tour, onBack, onComplete, onNavigate }: Bo
               <p className="text-gray-600">Total: <strong className="text-gray-900">{currency} {total}</strong></p>
               <button
                 type="button"
-                onClick={handleContinueFromDateGuests}
-                className="px-6 py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark transition-all duration-200 ease-smooth active:scale-[0.98]"
+                onClick={handleCheckAvailability}
+                disabled={availabilityChecking || availabilityModalOpen}
+                className="px-6 py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark disabled:opacity-60 transition-all duration-200 ease-smooth active:scale-[0.98]"
               >
-                Continue
+                {availabilityChecking ? 'Checking…' : 'Check availability'}
               </button>
             </div>
           </div>
@@ -337,6 +386,69 @@ export default function BookingPage({ tour, onBack, onComplete, onNavigate }: Bo
           </div>
         )}
       </div>
+
+      {availabilityModalOpen && (
+        <div
+          className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="availability-modal-title"
+        >
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/40 backdrop-blur-[1px]"
+            aria-label="Close"
+            onClick={closeAvailabilityModal}
+          />
+          <div className="relative w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl shadow-xl border border-gray-100 max-h-[85vh] overflow-hidden flex flex-col animate-fade-in-up">
+            <div className="p-5 sm:p-6 border-b border-gray-100">
+              <h2 id="availability-modal-title" className="text-lg font-semibold text-gray-900">
+                Availability for your trip
+              </h2>
+              <p className="text-sm text-gray-500 mt-1">
+                {date} · {guests} {guests === 1 ? 'guest' : 'guests'}
+              </p>
+              {availabilityModalNote && (
+                <p className="text-sm text-amber-700 mt-2">{availabilityModalNote}</p>
+              )}
+            </div>
+            <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-3">
+              {availabilityChecking ? (
+                <p className="text-sm text-gray-600 py-4 text-center">Checking options…</p>
+              ) : (
+                availabilityOptions.map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    disabled={!opt.selectable}
+                    onClick={() => handleSelectAvailabilityOption(opt)}
+                    className={`w-full text-left rounded-xl border p-4 transition-all duration-200 ease-smooth ${
+                      opt.selectable
+                        ? 'border-gray-200 hover:border-finland hover:bg-finland/5 active:scale-[0.99] cursor-pointer'
+                        : 'border-gray-100 bg-gray-50 text-gray-500 cursor-not-allowed'
+                    }`}
+                  >
+                    <p className="font-medium text-gray-900">{opt.title}</p>
+                    <p className="text-sm text-gray-600 mt-1">{opt.description}</p>
+                    {opt.selectable && (
+                      <p className="text-sm font-medium text-finland mt-3">Continue with this option →</p>
+                    )}
+                  </button>
+                ))
+              )}
+            </div>
+            <div className="p-4 sm:p-6 border-t border-gray-100 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={closeAvailabilityModal}
+                className="px-4 py-2.5 rounded-lg text-gray-600 hover:text-finland font-medium"
+              >
+                {availabilityOptions.some((o) => o.selectable) ? 'Cancel' : 'Close'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -20,23 +20,103 @@ export async function fetchAvailabilityByListingId(listingId: string): Promise<A
   return (data ?? []) as AvailabilityRow[];
 }
 
-/** Check if a date has capacity (if listing uses availability; otherwise treat as available). */
+export type AvailabilityCheckOption = {
+  id: string;
+  title: string;
+  description: string;
+  selectable: boolean;
+};
+
+/** Check if a date has capacity (if listing uses availability; otherwise treat as available). Always returns at least one `options` row for the booking UI. */
 export async function checkAvailability(
   listingId: string,
   date: string,
   guests: number
-): Promise<{ available: boolean; remaining?: number; error?: string }> {
-  if (!supabase) return { available: true };
+): Promise<{
+  available: boolean;
+  remaining?: number;
+  error?: string;
+  options: AvailabilityCheckOption[];
+}> {
+  if (!supabase) {
+    return {
+      available: true,
+      options: [
+        {
+          id: 'offline',
+          title: 'Request this date',
+          description: 'Availability will be confirmed by the provider.',
+          selectable: true,
+        },
+      ],
+    };
+  }
   const { data, error } = await supabase
     .from('listing_availability')
     .select('capacity, booked')
     .eq('listing_id', listingId)
     .eq('available_date', date)
     .maybeSingle();
-  if (error) return { available: false, error: error.message };
-  if (!data) return { available: true };
+  if (error) {
+    return {
+      available: false,
+      error: error.message,
+      options: [
+        {
+          id: 'error',
+          title: 'Could not check availability',
+          description: error.message,
+          selectable: false,
+        },
+      ],
+    };
+  }
+  if (!data) {
+    return {
+      available: true,
+      options: [
+        {
+          id: 'open',
+          title: 'Book this date',
+          description: 'No separate capacity calendar for this date — your request goes to the provider.',
+          selectable: true,
+        },
+      ],
+    };
+  }
   const remaining = (data.capacity ?? 0) - (data.booked ?? 0);
-  return { available: remaining >= guests, remaining };
+  const available = remaining >= guests;
+  if (!available) {
+    const spotsWord = remaining === 1 ? 'spot' : 'spots';
+    return {
+      available: false,
+      remaining,
+      options: [
+        {
+          id: 'full',
+          title:
+            remaining <= 0
+              ? 'This date is fully booked'
+              : `Only ${remaining} ${spotsWord} left`,
+          description: 'Not enough capacity for your party. Try fewer guests or another date.',
+          selectable: false,
+        },
+      ],
+    };
+  }
+  const spotsWord = remaining === 1 ? 'spot' : 'spots';
+  return {
+    available: true,
+    remaining,
+    options: [
+      {
+        id: 'slot',
+        title: 'This date is available',
+        description: `${remaining} ${spotsWord} left · ${guests} ${guests === 1 ? 'guest' : 'guests'}`,
+        selectable: true,
+      },
+    ],
+  };
 }
 
 /** Increment booked count when a booking is confirmed. Call after status → confirmed. */
