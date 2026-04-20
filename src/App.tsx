@@ -72,6 +72,7 @@ function App() {
   const [currentPage, setCurrentPage] = useState(initialRoute.page);
   const [destinationSlug, setDestinationSlug] = useState<string | null>(initialRoute.destinationSlug);
   const [selectedTour, setSelectedTour] = useState<TourPackageType | null>(null);
+  const [bookingPrefill, setBookingPrefill] = useState<{ date: string; guests: number } | null>(null);
   // Partner portal: /login + /partner/* (and legacy /supplier* on localhost until migrated)
   const supplierPath =
     typeof window !== 'undefined' ? window.location.pathname.replace(/\/$/, '') || '/' : '';
@@ -301,8 +302,9 @@ function App() {
     window.history.replaceState({}, '', '/packages');
   };
 
-  const handleBookTour = (tour: TourPackageType) => {
+  const handleBookTour = (tour: TourPackageType, prefill?: { date: string; guests: number }) => {
     setSelectedTour(tour);
+    setBookingPrefill(prefill ?? null);
     setCurrentPage('booking');
   };
 
@@ -335,8 +337,17 @@ function App() {
         return selectedTour ? (
           <BookingPage
             tour={selectedTour}
-            onBack={() => setCurrentPage('tour-details')}
-            onComplete={() => { setSelectedTour(null); setCurrentPage('packages'); }}
+            initialDate={bookingPrefill?.date}
+            initialGuests={bookingPrefill?.guests}
+            onBack={() => {
+              setBookingPrefill(null);
+              setCurrentPage('tour-details');
+            }}
+            onComplete={() => {
+              setBookingPrefill(null);
+              setSelectedTour(null);
+              setCurrentPage('packages');
+            }}
             onNavigate={setCurrentPage}
           />
         ) : <Home onTourSelect={handleTourSelect} />;

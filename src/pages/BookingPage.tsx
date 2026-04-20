@@ -14,6 +14,7 @@ import {
   incrementAvailabilityBooked,
   type AvailabilityCheckOption,
 } from '../data/supabase-availability';
+import AvailabilityOptionsModal from '../components/booking/AvailabilityOptionsModal';
 import { analytics } from '../lib/analytics';
 import { setPageMetaWithOg } from '../lib/seo';
 import { dateNotInPast, validateEmail, required, maxLength } from '../lib/validation';
@@ -23,11 +24,21 @@ interface BookingPageProps {
   onBack: () => void;
   onComplete: () => void;
   onNavigate?: (page: string) => void;
+  /** When opening booking from tour sidebar after “Check availability”. */
+  initialDate?: string;
+  initialGuests?: number;
 }
 
 type Step = 'date-guests' | 'contact' | 'confirm' | 'done';
 
-export default function BookingPage({ tour, onBack, onComplete, onNavigate }: BookingPageProps) {
+export default function BookingPage({
+  tour,
+  onBack,
+  onComplete,
+  onNavigate,
+  initialDate,
+  initialGuests,
+}: BookingPageProps) {
   const { user, requestAuth } = useAuth();
   const [step, setStep] = useState<Step>('date-guests');
   const [date, setDate] = useState('');
@@ -57,6 +68,14 @@ export default function BookingPage({ tour, onBack, onComplete, onNavigate }: Bo
   useEffect(() => {
     if (user?.email) setEmail(user.email);
   }, [user?.email]);
+
+  useEffect(() => {
+    if (!initialDate?.trim() && (initialGuests === undefined || initialGuests === null)) return;
+    if (initialDate?.trim()) setDate(initialDate.trim());
+    if (typeof initialGuests === 'number' && initialGuests >= 1 && initialGuests <= 99) {
+      setGuests(initialGuests);
+    }
+  }, [tour.id, initialDate, initialGuests]);
 
   const proceedToContactAfterOption = () => {
     if (isSupabaseConfigured() && !user) {
@@ -387,68 +406,15 @@ export default function BookingPage({ tour, onBack, onComplete, onNavigate }: Bo
         )}
       </div>
 
-      {availabilityModalOpen && (
-        <div
-          className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="availability-modal-title"
-        >
-          <button
-            type="button"
-            className="absolute inset-0 bg-black/40 backdrop-blur-[1px]"
-            aria-label="Close"
-            onClick={closeAvailabilityModal}
-          />
-          <div className="relative w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl shadow-xl border border-gray-100 max-h-[85vh] overflow-hidden flex flex-col animate-fade-in-up">
-            <div className="p-5 sm:p-6 border-b border-gray-100">
-              <h2 id="availability-modal-title" className="text-lg font-semibold text-gray-900">
-                Availability for your trip
-              </h2>
-              <p className="text-sm text-gray-500 mt-1">
-                {date} · {guests} {guests === 1 ? 'guest' : 'guests'}
-              </p>
-              {availabilityModalNote && (
-                <p className="text-sm text-amber-700 mt-2">{availabilityModalNote}</p>
-              )}
-            </div>
-            <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-3">
-              {availabilityChecking ? (
-                <p className="text-sm text-gray-600 py-4 text-center">Checking options…</p>
-              ) : (
-                availabilityOptions.map((opt) => (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    disabled={!opt.selectable}
-                    onClick={() => handleSelectAvailabilityOption(opt)}
-                    className={`w-full text-left rounded-xl border p-4 transition-all duration-200 ease-smooth ${
-                      opt.selectable
-                        ? 'border-gray-200 hover:border-finland hover:bg-finland/5 active:scale-[0.99] cursor-pointer'
-                        : 'border-gray-100 bg-gray-50 text-gray-500 cursor-not-allowed'
-                    }`}
-                  >
-                    <p className="font-medium text-gray-900">{opt.title}</p>
-                    <p className="text-sm text-gray-600 mt-1">{opt.description}</p>
-                    {opt.selectable && (
-                      <p className="text-sm font-medium text-finland mt-3">Continue with this option →</p>
-                    )}
-                  </button>
-                ))
-              )}
-            </div>
-            <div className="p-4 sm:p-6 border-t border-gray-100 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={closeAvailabilityModal}
-                className="px-4 py-2.5 rounded-lg text-gray-600 hover:text-finland font-medium"
-              >
-                {availabilityOptions.some((o) => o.selectable) ? 'Cancel' : 'Close'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <AvailabilityOptionsModal
+        open={availabilityModalOpen}
+        checking={availabilityChecking}
+        options={availabilityOptions}
+        note={availabilityModalNote}
+        summaryLine={`${date} · ${guests} ${guests === 1 ? 'guest' : 'guests'}`}
+        onClose={closeAvailabilityModal}
+        onSelectOption={handleSelectAvailabilityOption}
+      />
     </div>
   );
 }
