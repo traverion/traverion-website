@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   ArrowLeft,
   MapPin,
@@ -38,6 +38,7 @@ import { Skeleton } from '../components/ui/Skeleton';
 import { dateNotInPast } from '../lib/validation';
 import { checkAvailability, type AvailabilityCheckOption } from '../data/supabase-availability';
 import AvailabilityOptionsModal from '../components/booking/AvailabilityOptionsModal';
+import { getPartySizeBounds, formatBookingDateDisplay } from '../lib/booking-flow';
 
 interface TourDetailsProps {
   tourId: string;
@@ -78,6 +79,17 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
   const [availabilityChecking, setAvailabilityChecking] = useState(false);
   const [availabilityOptions, setAvailabilityOptions] = useState<AvailabilityCheckOption[]>([]);
   const [availabilityModalNote, setAvailabilityModalNote] = useState<string | null>(null);
+
+  const partyBounds = useMemo(() => (tour ? getPartySizeBounds(tour) : { min: 1, max: 12 }), [tour]);
+  const guestOptions = useMemo(
+    () => Array.from({ length: partyBounds.max - partyBounds.min + 1 }, (_, i) => partyBounds.min + i),
+    [partyBounds.min, partyBounds.max]
+  );
+
+  useEffect(() => {
+    if (!tour?.id) return;
+    setGuests((g) => Math.min(partyBounds.max, Math.max(partyBounds.min, g)));
+  }, [tour?.id, partyBounds.min, partyBounds.max]);
 
   useEffect(() => {
     setTourLoadError(null);
@@ -196,8 +208,8 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
       setBookingCardError(dateCheck.message ?? 'Please select a date');
       return;
     }
-    if (guests < 1 || guests > 99) {
-      setBookingCardError('Please enter between 1 and 99 guests');
+    if (guests < partyBounds.min || guests > partyBounds.max) {
+      setBookingCardError(`Choose between ${partyBounds.min} and ${partyBounds.max} guests for this experience.`);
       return;
     }
     setBookingCardError(null);
@@ -585,21 +597,26 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
                         setGuests(Number(e.target.value));
                         setBookingCardError(null);
                       }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white focus-visible:outline-none"
                     >
-                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-                        <option key={n} value={n}>{n} {n === 1 ? 'guest' : 'guests'}</option>
+                      {guestOptions.map((n) => (
+                        <option key={n} value={n}>
+                          {n} {n === 1 ? 'guest' : 'guests'}
+                        </option>
                       ))}
                     </select>
+                    <p className="mt-1 text-xs text-gray-500">
+                      {partyBounds.min}–{partyBounds.max} guests per booking.
+                    </p>
                   </div>
-                  {bookingCardError && (
-                    <p className="text-sm text-red-600">{bookingCardError}</p>
-                  )}
+                  <div role="status" aria-live="polite" aria-atomic="true" className="min-h-[1.25rem]">
+                    {bookingCardError && <p className="text-sm text-red-600">{bookingCardError}</p>}
+                  </div>
                   <button
                     type="button"
                     onClick={handleCheckAvailabilityFromCard}
                     disabled={availabilityChecking || availabilityModalOpen}
-                    className="w-full bg-finland text-white py-3 px-4 rounded-lg font-semibold hover:bg-finland-dark transition-all disabled:opacity-60"
+                    className="w-full bg-finland text-white py-3 px-4 rounded-lg font-semibold hover:bg-finland-dark transition-all disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2"
                   >
                     {availabilityChecking ? 'Checking…' : 'Check availability'}
                   </button>
@@ -862,7 +879,7 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
         checking={availabilityChecking}
         options={availabilityOptions}
         note={availabilityModalNote}
-        summaryLine={`${bookingDate} · ${guests} ${guests === 1 ? 'guest' : 'guests'}`}
+        summaryLine={`${formatBookingDateDisplay(bookingDate.trim()) || bookingDate || '—'} · ${guests} ${guests === 1 ? 'guest' : 'guests'}`}
         onClose={closeAvailabilityModal}
         onSelectOption={handleSelectTourAvailabilityOption}
       />
