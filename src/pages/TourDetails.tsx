@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   ArrowLeft,
   MapPin,
@@ -11,6 +11,7 @@ import {
   XCircle,
   ShoppingCart,
   Info,
+  ChevronDown,
 } from 'lucide-react';
 import { useTranslation } from '../contexts/TranslationContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -38,17 +39,16 @@ import { fetchSupplierPublicLegal } from '../data/supabase-supplier-profile';
 import { setPageMetaWithOg, setTourJsonLd, clearTourJsonLd } from '../lib/seo';
 import { Skeleton } from '../components/ui/Skeleton';
 import { dateNotInPast } from '../lib/validation';
-import { checkAvailability, type AvailabilityCheckOption } from '../data/supabase-availability';
-import AvailabilityOptionsModal from '../components/booking/AvailabilityOptionsModal';
-import { getPartySizeBounds, formatBookingDateDisplay } from '../lib/booking-flow';
+import { checkAvailability } from '../data/supabase-availability';
+import BookingPage from './BookingPage';
+import { getPartySizeBounds, formatBookingDateDisplay, getTourBookingVariants, type TourBookingVariant } from '../lib/booking-flow';
 
 interface TourDetailsProps {
   tourId: string;
   onBack: () => void;
-  onBook: (tour: TourPackage, prefill?: { date: string; guests: number }) => void;
 }
 
-export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps) {
+export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   const { t } = useTranslation();
   const { user, requestAuth } = useAuth();
   const [tour, setTour] = useState<TourPackage | null>(null);
@@ -77,16 +77,35 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
   } | null>(null);
   const [legalModal, setLegalModal] = useState<'privacy' | 'terms' | null>(null);
   const [bookingCardError, setBookingCardError] = useState<string | null>(null);
-  const [availabilityModalOpen, setAvailabilityModalOpen] = useState(false);
-  const [availabilityChecking, setAvailabilityChecking] = useState(false);
-  const [availabilityOptions, setAvailabilityOptions] = useState<AvailabilityCheckOption[]>([]);
-  const [availabilityModalNote, setAvailabilityModalNote] = useState<string | null>(null);
+  const [bookingVariantsOpen, setBookingVariantsOpen] = useState(false);
+  const [bookingModalOpen, setBookingModalOpen] = useState(false);
+  const [selectedBookingVariant, setSelectedBookingVariant] = useState<TourBookingVariant | null>(null);
+  const [variantChecking, setVariantChecking] = useState(false);
+  const checkAvailAnchorRef = useRef<HTMLDivElement>(null);
 
   const partyBounds = useMemo(() => (tour ? getPartySizeBounds(tour) : { min: 1, max: 12 }), [tour]);
   const guestOptions = useMemo(
     () => Array.from({ length: partyBounds.max - partyBounds.min + 1 }, (_, i) => partyBounds.min + i),
     [partyBounds.min, partyBounds.max]
   );
+  const tourVariants = useMemo(() => (tour ? getTourBookingVariants(tour) : []), [tour]);
+
+  useEffect(() => {
+    if (!bookingVariantsOpen) return;
+    const onDoc = (e: MouseEvent) => {
+      const el = checkAvailAnchorRef.current;
+      if (el && !el.contains(e.target as Node)) setBookingVariantsOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setBookingVariantsOpen(false);
+    };
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDoc);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [bookingVariantsOpen]);
 
   useEffect(() => {
     if (!tour?.id) return;
@@ -179,64 +198,57 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
     return () => clearTourJsonLd();
   }, [tour]);
 
-  const closeAvailabilityModal = () => {
-    setAvailabilityModalOpen(false);
-    setAvailabilityChecking(false);
-    setAvailabilityOptions([]);
-    setAvailabilityModalNote(null);
+  const closeBookingModal = () => {
+    setBookingModalOpen(false);
+    setSelectedBookingVariant(null);
   };
 
-  const proceedToBookingAfterOption = (t: TourPackage) => {
-    analytics.bookStart(t.id);
-    onBook(t, { date: bookingDate.trim(), guests });
-  };
-
-  const handleSelectTourAvailabilityOption = (option: AvailabilityCheckOption) => {
-    if (!option.selectable || !tour) return;
-    closeAvailabilityModal();
-    if (isSupabaseConfigured() && !user) {
-      requestAuth({
-        onSuccess: () => proceedToBookingAfterOption(tour),
-      });
-      return;
-    }
-    proceedToBookingAfterOption(tour);
-  };
-
-  const handleCheckAvailabilityFromCard = async () => {
-    if (!tour) return;
+  const handleCheckAvailabilityToggle = () => {
+    if (!tour || variantChecking) return;
     const dateCheck = dateNotInPast(bookingDate.trim());
     if (!dateCheck.valid) {
       setBookingCardError(dateCheck.message ?? 'Please select a date');
+      setBookingVariantsOpen(false);
       return;
     }
     if (guests < partyBounds.min || guests > partyBounds.max) {
       setBookingCardError(`Choose between ${partyBounds.min} and ${partyBounds.max} guests for this experience.`);
+      setBookingVariantsOpen(false);
       return;
     }
     setBookingCardError(null);
-    setAvailabilityModalOpen(true);
-    setAvailabilityChecking(true);
-    setAvailabilityModalNote(null);
-    setAvailabilityOptions([]);
+    setBookingVariantsOpen((open) => !open);
+  };
+
+  const handlePickTourVariant = async (variant: TourBookingVariant) => {
+    if (!tour) return;
+    setBookingVariantsOpen(false);
+    setVariantChecking(true);
+    setBookingCardError(null);
     try {
       const avail = await checkAvailability(tour.id, bookingDate.trim(), guests);
-      setAvailabilityOptions(avail.options);
-      if (avail.error && !avail.available) {
-        setAvailabilityModalNote('We could not verify capacity for this date.');
+      if (!avail.available) {
+        setBookingCardError(
+          avail.remaining !== undefined && avail.remaining === 0
+            ? 'This date is fully booked. Try another date or fewer guests.'
+            : 'Not enough capacity left for your party. Adjust guests or pick another date.'
+        );
+        return;
       }
+      const openModal = () => {
+        analytics.bookStart(tour.id);
+        setSelectedBookingVariant(variant);
+        setBookingModalOpen(true);
+      };
+      if (isSupabaseConfigured() && !user) {
+        requestAuth({ onSuccess: openModal });
+        return;
+      }
+      openModal();
     } catch {
-      setAvailabilityOptions([
-        {
-          id: 'network',
-          title: 'Could not check availability',
-          description: 'Please try again in a moment.',
-          selectable: false,
-        },
-      ]);
-      setAvailabilityModalNote(null);
+      setBookingCardError('Could not verify availability. Check your connection and try again.');
     } finally {
-      setAvailabilityChecking(false);
+      setVariantChecking(false);
     }
   };
 
@@ -598,6 +610,7 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
                       onChange={(e) => {
                         setBookingDate(e.target.value);
                         setBookingCardError(null);
+                        setBookingVariantsOpen(false);
                       }}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland"
                     />
@@ -609,6 +622,7 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
                       onChange={(e) => {
                         setGuests(Number(e.target.value));
                         setBookingCardError(null);
+                        setBookingVariantsOpen(false);
                       }}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white focus-visible:outline-none"
                     >
@@ -625,14 +639,50 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
                   <div role="status" aria-live="polite" aria-atomic="true" className="min-h-[1.25rem]">
                     {bookingCardError && <p className="text-sm text-red-600">{bookingCardError}</p>}
                   </div>
-                  <button
-                    type="button"
-                    onClick={handleCheckAvailabilityFromCard}
-                    disabled={availabilityChecking || availabilityModalOpen}
-                    className="w-full bg-finland text-white py-3 px-4 rounded-lg font-semibold hover:bg-finland-dark transition-all disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2"
-                  >
-                    {availabilityChecking ? 'Checking…' : 'Check availability'}
-                  </button>
+                  <div className="relative" ref={checkAvailAnchorRef}>
+                    <button
+                      type="button"
+                      aria-expanded={bookingVariantsOpen}
+                      aria-haspopup="listbox"
+                      onClick={handleCheckAvailabilityToggle}
+                      disabled={variantChecking || bookingModalOpen}
+                      className="flex w-full items-center justify-center gap-2 bg-finland text-white py-3 px-4 rounded-lg font-semibold hover:bg-finland-dark transition-all disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2"
+                    >
+                      {variantChecking ? 'Checking…' : 'Check availability'}
+                      <ChevronDown
+                        className={`h-5 w-5 shrink-0 transition-transform duration-200 ease-out ${bookingVariantsOpen ? 'rotate-180' : ''}`}
+                        aria-hidden
+                      />
+                    </button>
+                    <div
+                      id="tour-booking-variants-list"
+                      role="listbox"
+                      aria-label="Tour options"
+                      className={`absolute left-0 right-0 top-full z-50 mt-2 origin-top transform transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none ${
+                        bookingVariantsOpen
+                          ? 'pointer-events-auto translate-y-0 scale-100 opacity-100'
+                          : 'pointer-events-none -translate-y-1 scale-[0.98] opacity-0'
+                      }`}
+                    >
+                      <ul className="max-h-[min(60vh,20rem)] overflow-y-auto overscroll-contain rounded-xl border border-gray-200 bg-white py-1 shadow-xl [scrollbar-gutter:stable]">
+                        {tourVariants.map((v) => (
+                          <li key={v.id} role="option">
+                            <button
+                              type="button"
+                              className="w-full px-4 py-3 text-left transition-colors hover:bg-finland/5 active:bg-finland/10 sm:py-3.5"
+                              onClick={() => void handlePickTourVariant(v)}
+                            >
+                              <span className="font-medium text-gray-900">{v.label}</span>
+                              <span className="mt-0.5 block text-xs leading-snug text-gray-600">{v.subtitle}</span>
+                              <span className="mt-1.5 block text-sm font-semibold text-finland">
+                                From ${v.pricePerPerson} <span className="font-normal text-gray-500">/ person</span>
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
                   {isSupabaseConfigured() && user && (
                     <button
                       type="button"
@@ -887,15 +937,19 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
         </div>
       )}
 
-      <AvailabilityOptionsModal
-        open={availabilityModalOpen}
-        checking={availabilityChecking}
-        options={availabilityOptions}
-        note={availabilityModalNote}
-        summaryLine={`${formatBookingDateDisplay(bookingDate.trim()) || bookingDate || '—'} · ${guests} ${guests === 1 ? 'guest' : 'guests'}`}
-        onClose={closeAvailabilityModal}
-        onSelectOption={handleSelectTourAvailabilityOption}
-      />
+      {bookingModalOpen && tour && selectedBookingVariant && (
+        <BookingPage
+          tour={tour}
+          presentation="modal"
+          selectedVariant={selectedBookingVariant}
+          discountsByListing={discountsByListing}
+          initialDate={bookingDate.trim()}
+          initialGuests={guests}
+          onBack={closeBookingModal}
+          onComplete={closeBookingModal}
+          onModalClose={closeBookingModal}
+        />
+      )}
     </div>
   );
 }

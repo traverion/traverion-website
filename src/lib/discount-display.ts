@@ -83,6 +83,31 @@ export function getDisplayPriceForTour(
   return { price: bestPrice, originalPrice: bestOriginal, label: bestLabel };
 }
 
+/** Per-person price for a chosen booking variant (option-scoped or listing-wide discounts). */
+export function getDisplayPriceForBookingVariant(
+  tour: TourPackage,
+  variant: {
+    pricePerPerson: number;
+    listingOption: import('../types/listingExtras').ListingBookingOption | null;
+  },
+  discountsByListing: Map<string, ListingDiscount[]>,
+  bookingDateIso: string
+): { price: number; originalPrice: number; label?: string } {
+  const discounts = discountsByListing.get(tour.id) ?? [];
+  const day = (bookingDateIso.trim() || new Date().toISOString().slice(0, 10)).slice(0, 10);
+  const at = new Date(`${day}T12:00:00`);
+  const fallbackBase = tour.price?.startingFrom ?? 0;
+  const base = variant.pricePerPerson > 0 ? variant.pricePerPerson : fallbackBase;
+  if (variant.listingOption) {
+    const applicable = discountsApplicableToOption(discounts, variant.listingOption.id, at);
+    const { price, label } = bestDiscountedPrice(base, applicable);
+    return { price, originalPrice: base, label };
+  }
+  const applicable = listingWideActiveDiscounts(discounts, at);
+  const { price, label } = bestDiscountedPrice(base, applicable);
+  return { price, originalPrice: base, label };
+}
+
 /**
  * @deprecated Prefer {@link getDisplayPriceForTour} when you have the full tour (correct per-option discounts).
  */

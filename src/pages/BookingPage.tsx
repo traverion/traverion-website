@@ -1,7 +1,7 @@
 /**
  * Single clean booking flow (GetYourGuide/TripAdvisor style):
- * Date & guests → Contact details → Confirm → Done.
- * All in one page, minimal fields.
+ * Page: Date & guests → Contact → Confirm → Done.
+ * Modal (from tour page): Trip summary → Checkout → Confirm → Done.
  */
 import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from 'react';
 import {
@@ -17,11 +17,16 @@ import {
   Shield,
   Inbox,
   ClipboardList,
+  X,
+  Phone,
 } from 'lucide-react';
 import { TourPackage } from '../types/tour';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { submitBooking } from '../data/supabase-bookings';
+import type { ListingDiscount } from '../data/supabase-discounts';
+import { fetchConsumerProfileRow } from '../data/supabase-consumer-profile';
+import { getDisplayPriceForBookingVariant } from '../lib/discount-display';
 import {
   checkAvailability,
   incrementAvailabilityBooked,
@@ -44,6 +49,7 @@ import {
   sanitizeRestoredBookingStep,
   humanizeBookingSubmitError,
   type BookingFlowStep,
+  type TourBookingVariant,
 } from '../lib/booking-flow';
 import { downloadBookingIcs } from '../lib/booking-calendar';
 
@@ -55,14 +61,22 @@ interface BookingPageProps {
   /** When opening booking from tour sidebar after “Check availability”. */
   initialDate?: string;
   initialGuests?: number;
+  presentation?: 'page' | 'modal';
+  /** Required when presentation is modal (after traveler picks a tour option). */
+  selectedVariant?: TourBookingVariant | null;
+  discountsByListing?: Map<string, ListingDiscount[]>;
+  onModalClose?: () => void;
 }
 
 type Step = BookingFlowStep;
 
-function BookingProgress({ step }: { step: Step }) {
+function BookingProgress({ step, flow }: { step: Step; flow: 'page' | 'modal' }) {
   if (step === 'done') return null;
-  const labels = ['Date & guests', 'Your details', 'Confirm'] as const;
-  const order: Step[] = ['date-guests', 'contact', 'confirm'];
+  const labels =
+    flow === 'modal'
+      ? (['Your trip', 'Checkout', 'Confirm'] as const)
+      : (['Date & guests', 'Your details', 'Confirm'] as const);
+  const order: Step[] = flow === 'modal' ? ['review', 'contact', 'confirm'] : ['date-guests', 'contact', 'confirm'];
   const currentIndex = Math.max(0, order.indexOf(step));
 
   return (
@@ -112,12 +126,19 @@ export default function BookingPage({
   onNavigate,
   initialDate,
   initialGuests,
+  presentation = 'page',
+  selectedVariant = null,
+  discountsByListing,
+  onModalClose,
 }: BookingPageProps) {
   const { user, requestAuth } = useAuth();
-  const [step, setStep] = useState<Step>('date-guests');
+  const flowMode = presentation === 'modal' ? 'modal' : 'page';
+  const [step, setStep] = useState<Step>(presentation === 'modal' ? 'review' : 'date-guests');
   const [date, setDate] = useState('');
   const [guests, setGuests] = useState(2);
-  const [name, setName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [phone, setPhone] = useState('');
   const [email, setEmail] = useState(user?.email ?? '');
   const [specialRequests, setSpecialRequests] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -134,41 +155,80 @@ export default function BookingPage({
   );
 
   const hydratedRef = useRef(false);
+  const profileHydratedRef = useRef(false);
 
-  const price = tour.price?.startingFrom ?? 0;
   const currency = tour.price?.currency ?? 'USD';
-  const total = price * guests;
+  const fallbackBasePrice = tour.price?.startingFrom ?? 0;
+  const priceInfo = useMemo(() => {
+    const day = date.trim() || new Date().toISOString().slice(0, 10);
+    if (presentation === 'modal' && selectedVariant) {
+      return getDisplayPriceForBookingVariant(tour, selectedVariant, discountsByListing ?? new Map(), day);
+    }
+    return { price: fallbackBasePrice, originalPrice: fallbackBasePrice, label: undefined as string | undefined };
+  }, [presentation, selectedVariant, tour, date, discountsByListing, fallbackBasePrice]);
+
+  const pricePerPerson = priceInfo.price;
+  const total = pricePerPerson * guests;
   const cancellationText =
     tour.cancellationPolicy?.trim() || TRAVERION_STANDARD_CANCELLATION_POLICY;
 
+  const leadGuestName = useMemo(
+    () => [firstName, lastName].map((s) => s.trim()).filter(Boolean).join(' '),
+    [firstName, lastName]
+  );
+
   const flushDraft = useCallback(() => {
+    if (presentation === 'modal') return;
     saveBookingDraft(tour.id, {
       step,
       date: date.trim(),
       guests,
-      name: name.trim(),
+      name: leadGuestName,
       email: email.trim(),
       specialRequests,
     });
-  }, [tour.id, step, date, guests, name, email, specialRequests]);
+  }, [presentation, tour.id, step, date, guests, leadGuestName, email, specialRequests]);
 
   useEffect(() => {
-    setPageMetaWithOg(`Book: ${tour.title}`, `Reserve ${tour.title}. From ${currency} ${price} per person.`, {
-      title: `Book: ${tour.title}`,
-      image: tour.image,
-      type: 'website',
-    });
-  }, [tour.id, tour.title, tour.image, price, currency]);
+    if (presentation === 'modal') return;
+    setPageMetaWithOg(
+      `Book: ${tour.title}`,
+      `Reserve ${tour.title}. From ${currency} ${fallbackBasePrice} per person.`,
+      {
+        title: `Book: ${tour.title}`,
+        image: tour.image,
+        type: 'website',
+      }
+    );
+  }, [presentation, tour.id, tour.title, tour.image, fallbackBasePrice, currency]);
 
   useEffect(() => {
     if (user?.email) {
-      setEmail((prev) => (prev.trim() ? prev : user.email!));
+      setEmail(user.email);
     }
   }, [user?.email]);
 
   useLayoutEffect(() => {
     hydratedRef.current = false;
     const bounds = getPartySizeBounds(tour);
+    if (presentation === 'modal') {
+      profileHydratedRef.current = false;
+      const nextDate = (initialDate?.trim() || '').trim();
+      let nextGuests = typeof initialGuests === 'number' ? initialGuests : 2;
+      nextGuests = Math.min(bounds.max, Math.max(bounds.min, nextGuests));
+      setDate(nextDate);
+      setGuests(nextGuests);
+      setFirstName('');
+      setLastName('');
+      setPhone('');
+      setEmail(user?.email ?? '');
+      setSpecialRequests('');
+      setStep('review');
+      setError(null);
+      hydratedRef.current = true;
+      return;
+    }
+    profileHydratedRef.current = false;
     const draft = loadBookingDraft(tour.id);
     const fromDraft = Boolean(draft && draft.tourId === tour.id);
     const nextDate = (initialDate?.trim() || (fromDraft ? draft!.date : '') || '').trim();
@@ -178,20 +238,50 @@ export default function BookingPage({
     setDate(nextDate);
     setGuests(nextGuests);
     if (fromDraft && draft) {
-      setName(draft.name);
+      const combined = (draft.name ?? '').trim();
+      const parts = combined.split(/\s+/).filter(Boolean);
+      setFirstName(parts[0] ?? '');
+      setLastName(parts.slice(1).join(' '));
+      setPhone('');
       setEmail(draft.email || user?.email || '');
       setSpecialRequests(draft.specialRequests);
-      setStep(sanitizeRestoredBookingStep(draft.step, Boolean(user)));
+      setStep(sanitizeRestoredBookingStep(draft.step, Boolean(user), 'page'));
     } else {
-      setName('');
+      setFirstName('');
+      setLastName('');
+      setPhone('');
       setEmail(user?.email ?? '');
       setSpecialRequests('');
       setStep('date-guests');
     }
     hydratedRef.current = true;
-    // Intentionally snapshot tour by id + URL-ish prefill only; avoid re-running on every parent re-render of `tour`.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- user is read once for initial email/draft sanitize
-  }, [tour.id, initialDate, initialGuests]);
+  }, [tour.id, initialDate, initialGuests, presentation]);
+
+  useEffect(() => {
+    if (!user?.id || !isSupabaseConfigured() || profileHydratedRef.current) return;
+    const meta = user.user_metadata as {
+      customer_first_name?: string;
+      customer_last_name?: string;
+      customer_phone?: string;
+      phone?: string;
+    };
+    let fn = (meta?.customer_first_name ?? '').trim();
+    let ln = (meta?.customer_last_name ?? '').trim();
+    void fetchConsumerProfileRow(user.id).then((row) => {
+      if (profileHydratedRef.current) return;
+      if (row?.display_name?.trim() && !fn && !ln) {
+        const parts = row.display_name.trim().split(/\s+/).filter(Boolean);
+        fn = parts[0] ?? '';
+        ln = parts.slice(1).join(' ');
+      }
+      const ph = (row?.contact_phone ?? meta?.customer_phone ?? meta?.phone ?? '').trim();
+      setFirstName((prev) => prev.trim() || fn);
+      setLastName((prev) => prev.trim() || ln);
+      setPhone((prev) => prev.trim() || ph);
+      profileHydratedRef.current = true;
+    });
+  }, [user?.id]);
 
   useEffect(() => {
     setGuests((g) => Math.min(partyBounds.max, Math.max(partyBounds.min, g)));
@@ -203,19 +293,29 @@ export default function BookingPage({
       flushDraft();
     }, 400);
     return () => window.clearTimeout(t);
-  }, [tour.id, step, date, guests, name, email, specialRequests, flushDraft]);
+  }, [tour.id, step, date, guests, leadGuestName, email, specialRequests, flushDraft]);
 
   const handleLeaveBooking = () => {
+    if (presentation === 'modal') {
+      onModalClose?.();
+      return;
+    }
     clearBookingDraft(tour.id);
     onBack();
   };
+
+  const mergedSpecialRequests = useCallback(() => {
+    const phoneLine = phone.trim() ? `Guest phone: ${phone.trim()}` : '';
+    const rest = specialRequests.trim();
+    return [phoneLine, rest].filter(Boolean).join('\n\n');
+  }, [phone, specialRequests]);
 
   const proceedToContactAfterOption = () => {
     saveBookingDraft(tour.id, {
       step: 'date-guests',
       date: date.trim(),
       guests,
-      name: name.trim(),
+      name: leadGuestName,
       email: email.trim(),
       specialRequests,
     });
@@ -282,12 +382,17 @@ export default function BookingPage({
   };
 
   const handleContinueFromContact = () => {
-    const nameCheck = required(name, 1);
-    if (!nameCheck.valid) {
-      setError(nameCheck.message ?? 'Name is required');
+    const fnCheck = required(firstName, 1);
+    if (!fnCheck.valid) {
+      setError(fnCheck.message ?? 'First name is required');
       return;
     }
-    if (!maxLength(name, 200).valid) {
+    const lnCheck = required(lastName, 1);
+    if (!lnCheck.valid) {
+      setError(lnCheck.message ?? 'Last name is required');
+      return;
+    }
+    if (!maxLength(leadGuestName, 200).valid) {
       setError('Name is too long');
       return;
     }
@@ -324,12 +429,12 @@ export default function BookingPage({
       const result = await submitBooking({
         tour_id: tour.id,
         tour_title: tour.title,
-        customer_name: name,
+        customer_name: leadGuestName,
         customer_email: email,
         travelers: guests,
         departure_date: date,
         status: 'confirmed',
-        special_requests: specialRequests.trim() || undefined,
+        special_requests: mergedSpecialRequests() || undefined,
         total_price: total,
         currency,
       });
@@ -351,34 +456,72 @@ export default function BookingPage({
   const dateDisplay = formatBookingDateDisplay(date.trim());
   const summaryLineModal = `${dateDisplay || date || '—'} · ${guests} ${guests === 1 ? 'guest' : 'guests'}`;
 
-  return (
-    <div className="min-h-screen bg-gray-50 pt-20 pb-12">
-      <div className="max-w-2xl mx-auto px-4 sm:px-6">
-        <button
-          type="button"
-          onClick={handleLeaveBooking}
-          className="flex items-center gap-2 text-gray-600 hover:text-finland mb-8 transition-colors duration-200 ease-smooth active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2 rounded-lg"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to tour
-        </button>
+  const contactBackStep: Step = flowMode === 'modal' ? 'review' : 'date-guests';
 
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-6">
-          <div className="h-32 sm:h-40 bg-gray-200 relative">
-            <img src={tour.image} alt="" className="w-full h-full object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-            <div className="absolute bottom-3 left-3 right-3 text-white">
-              <h1 className="text-lg sm:text-xl font-semibold">{tour.title}</h1>
-              <p className="text-sm text-white/90">
-                {formatTourDurationDisplay(tour.duration)} · From {currency} {price} per person
+  const flowInner = (
+    <>
+        {step === 'review' && presentation === 'modal' && selectedVariant && (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8">
+            <BookingProgress step={step} flow={flowMode} />
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Your trip</h2>
+            <p className="text-sm text-gray-600 mb-6">
+              Check the date, party size, and option below. Continue to enter your contact details for checkout.
+            </p>
+            <div className="space-y-3 text-sm text-gray-700 mb-6 rounded-xl border border-gray-100 bg-gray-50/80 p-4">
+              <p>
+                <span className="font-medium text-gray-900">Experience</span> — {tour.title}
+              </p>
+              <p>
+                <span className="font-medium text-gray-900">Option</span> — {selectedVariant.label}
+              </p>
+              <p className="text-gray-600">{selectedVariant.subtitle}</p>
+              <p>
+                <span className="font-medium text-gray-900">Date</span> — {dateDisplay || date}
+              </p>
+              <p>
+                <span className="font-medium text-gray-900">Guests</span> — {guests}
               </p>
             </div>
+            <div className="rounded-xl border border-gray-200 bg-white p-4 mb-6">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Estimated total</p>
+              <div className="flex justify-between text-sm text-gray-700">
+                <span>
+                  {currency} {pricePerPerson} × {guests} guests
+                  {priceInfo.label ? (
+                    <span className="block text-xs text-green-600 mt-1">{priceInfo.label}</span>
+                  ) : null}
+                </span>
+                <span className="font-medium text-gray-900">
+                  {currency} {total}
+                </span>
+              </div>
+            </div>
+            <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 mb-6">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1.5">Cancellation</p>
+              <p className="text-sm text-gray-700 leading-relaxed">{cancellationText}</p>
+            </div>
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setError(null);
+                  if (isSupabaseConfigured() && !user) {
+                    requestAuth({ onSuccess: () => setStep('contact') });
+                    return;
+                  }
+                  setStep('contact');
+                }}
+                className="w-full sm:w-auto px-6 py-3 rounded-lg bg-finland text-white font-semibold hover:bg-finland-dark transition-all duration-200 ease-smooth active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2"
+              >
+                Go to checkout
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
         {step === 'date-guests' && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8">
-            <BookingProgress step={step} />
+            <BookingProgress step={step} flow={flowMode} />
             <h2 className="text-xl font-semibold text-gray-900 mb-6">Select date and guests</h2>
             <div className="space-y-4">
               <div>
@@ -435,7 +578,7 @@ export default function BookingPage({
                   </strong>
                 </p>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  {guests} × {currency} {price} — no payment taken on this step.
+                  {guests} × {currency} {pricePerPerson} — no payment taken on this step.
                 </p>
               </div>
               <button
@@ -452,26 +595,63 @@ export default function BookingPage({
 
         {step === 'contact' && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8">
-            <BookingProgress step={step} />
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Your details</h2>
+            <BookingProgress step={step} flow={flowMode} />
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Checkout</h2>
             <p className="text-sm text-gray-500 mb-6 flex items-start gap-2">
               <Shield className="w-4 h-4 text-finland shrink-0 mt-0.5" aria-hidden />
               <span>
                 Your details are only used to send this request to the operator and to email you updates. You are not
                 charged on this page.
+                {user?.email ? (
+                  <>
+                    {' '}
+                    <strong className="text-gray-700">Email is fixed to your account</strong> so confirmations reach the
+                    right inbox.
+                  </>
+                ) : null}
               </span>
             </p>
             <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">First name</label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+                    <input
+                      type="text"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      placeholder="John"
+                      autoComplete="given-name"
+                      className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland focus-visible:outline-none"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Last name</label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+                    <input
+                      type="text"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      placeholder="Smith"
+                      autoComplete="family-name"
+                      className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland focus-visible:outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Full name</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Phone (optional)</label>
                 <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
                   <input
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="John Smith"
-                    autoComplete="name"
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="+358 …"
+                    autoComplete="tel"
                     className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland focus-visible:outline-none"
                   />
                 </div>
@@ -483,12 +663,21 @@ export default function BookingPage({
                   <input
                     type="email"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    readOnly={Boolean(user?.email)}
+                    onChange={(e) => {
+                      if (!user?.email) setEmail(e.target.value);
+                    }}
                     placeholder="you@example.com"
                     autoComplete="email"
-                    className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland focus-visible:outline-none"
+                    aria-readonly={Boolean(user?.email)}
+                    className={`w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland focus-visible:outline-none ${
+                      user?.email ? 'bg-gray-100 text-gray-700 cursor-not-allowed' : ''
+                    }`}
                   />
                 </div>
+                {user?.email ? (
+                  <p className="mt-1 text-xs text-gray-500">This must match your signed-in account.</p>
+                ) : null}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Special requests (optional)</label>
@@ -515,7 +704,7 @@ export default function BookingPage({
             <div className="mt-6 flex justify-end gap-3">
               <button
                 type="button"
-                onClick={() => setStep('date-guests')}
+                onClick={() => setStep(contactBackStep)}
                 className="px-4 py-2.5 text-gray-600 hover:text-finland focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2 rounded-lg"
               >
                 Back
@@ -525,7 +714,7 @@ export default function BookingPage({
                 onClick={handleContinueFromContact}
                 className="px-6 py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark transition-all duration-200 ease-smooth active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2"
               >
-                Continue
+                Review and confirm
               </button>
             </div>
           </div>
@@ -533,7 +722,7 @@ export default function BookingPage({
 
         {step === 'confirm' && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8">
-            <BookingProgress step={step} />
+            <BookingProgress step={step} flow={flowMode} />
             <h2 className="text-xl font-semibold text-gray-900 mb-2">Confirm booking</h2>
             <p className="text-sm text-gray-600 mb-6 flex items-start gap-2 rounded-xl bg-finland/5 border border-finland/15 px-3 py-2.5">
               <ClipboardList className="w-4 h-4 text-finland shrink-0 mt-0.5" aria-hidden />
@@ -553,9 +742,19 @@ export default function BookingPage({
               <p>
                 <span className="font-medium text-gray-900">Guests</span> — {guests}
               </p>
+              {selectedVariant ? (
+                <p>
+                  <span className="font-medium text-gray-900">Option</span> — {selectedVariant.label}
+                </p>
+              ) : null}
               <p>
-                <span className="font-medium text-gray-900">Lead guest</span> — {name}
+                <span className="font-medium text-gray-900">Lead guest</span> — {leadGuestName}
               </p>
+              {phone.trim() ? (
+                <p>
+                  <span className="font-medium text-gray-900">Phone</span> — {phone.trim()}
+                </p>
+              ) : null}
               <p>
                 <span className="font-medium text-gray-900">Email</span> — {email}
               </p>
@@ -575,7 +774,7 @@ export default function BookingPage({
               <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Price breakdown</p>
               <div className="flex justify-between text-sm text-gray-700">
                 <span>
-                  {currency} {price} × {guests} guests
+                  {currency} {pricePerPerson} × {guests} guests
                 </span>
                 <span className="font-medium text-gray-900">
                   {currency} {total}
@@ -700,12 +899,93 @@ export default function BookingPage({
                 onClick={onComplete}
                 className="px-6 py-2.5 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-all duration-200 ease-smooth active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2"
               >
-                Browse more tours
+                {presentation === 'modal' ? 'Close' : 'Browse more tours'}
               </button>
             </div>
           </div>
         )}
-      </div>
+    </>
+  );
+
+  return (
+    <>
+      {presentation === 'modal' ? (
+        <div
+          className="fixed inset-0 z-[200] flex items-end justify-center p-0 motion-safe:animate-fade-in sm:items-center sm:p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="booking-flow-modal-title"
+        >
+          <button
+            type="button"
+            tabIndex={-1}
+            className="absolute inset-0 bg-black/45 backdrop-blur-[1px] transition-opacity duration-200"
+            aria-label="Close"
+            onClick={handleLeaveBooking}
+          />
+          <div className="animate-fade-in-up relative z-[1] flex max-h-[min(92dvh,920px)] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl border border-gray-100 bg-white shadow-2xl sm:max-h-[90vh] sm:rounded-2xl">
+            <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-4 py-3 sm:px-5">
+              <h2
+                id="booking-flow-modal-title"
+                className="truncate pr-2 text-base font-semibold text-gray-900 sm:text-lg"
+              >
+                {step === 'done' ? 'Request sent' : 'Book this experience'}
+              </h2>
+              <button
+                type="button"
+                onClick={handleLeaveBooking}
+                className="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland"
+                aria-label="Close booking"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            {step !== 'done' ? (
+              <div className="relative mx-4 mt-3 h-24 shrink-0 overflow-hidden rounded-xl border border-gray-100 sm:mx-5 sm:mt-4 sm:h-28">
+                <img src={tour.image} alt="" className="h-full w-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/55 to-transparent" />
+                <div className="absolute bottom-2 left-3 right-3 text-white">
+                  <p className="line-clamp-2 text-sm font-semibold leading-tight">{tour.title}</p>
+                  <p className="text-[11px] text-white/90">
+                    {formatTourDurationDisplay(tour.duration)} · From {currency} {pricePerPerson}/person
+                  </p>
+                </div>
+              </div>
+            ) : null}
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-6 pt-2 sm:px-5 sm:pb-8 sm:pt-3 [scrollbar-gutter:stable]">
+              {flowInner}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="min-h-screen bg-gray-50 pt-20 pb-12">
+          <div className="max-w-2xl mx-auto px-4 sm:px-6">
+            <button
+              type="button"
+              onClick={handleLeaveBooking}
+              className="flex items-center gap-2 text-gray-600 hover:text-finland mb-8 transition-colors duration-200 ease-smooth active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2 rounded-lg"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to tour
+            </button>
+
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-6">
+              <div className="h-32 sm:h-40 bg-gray-200 relative">
+                <img src={tour.image} alt="" className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+                <div className="absolute bottom-3 left-3 right-3 text-white">
+                  <h1 className="text-lg sm:text-xl font-semibold">{tour.title}</h1>
+                  <p className="text-sm text-white/90">
+                    {formatTourDurationDisplay(tour.duration)} · From {currency} {pricePerPerson} per person
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {flowInner}
+          </div>
+        </div>
+      )}
 
       <AvailabilityOptionsModal
         open={availabilityModalOpen}
@@ -716,6 +996,6 @@ export default function BookingPage({
         onClose={closeAvailabilityModal}
         onSelectOption={handleSelectAvailabilityOption}
       />
-    </div>
+    </>
   );
 }

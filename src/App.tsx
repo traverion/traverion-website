@@ -8,7 +8,6 @@ import SimpleHome from './pages/SimpleHome';
 import Packages from './pages/Packages';
 import Blog from './pages/Blog';
 import TourDetails from './pages/TourDetails';
-import BookingPage from './pages/BookingPage';
 import MyBookings from './pages/MyBookings';
 import CartPage from './pages/CartPage';
 import AccountPage from './pages/AccountPage';
@@ -72,7 +71,6 @@ function App() {
   const [currentPage, setCurrentPage] = useState(initialRoute.page);
   const [destinationSlug, setDestinationSlug] = useState<string | null>(initialRoute.destinationSlug);
   const [selectedTour, setSelectedTour] = useState<TourPackageType | null>(null);
-  const [bookingPrefill, setBookingPrefill] = useState<{ date: string; guests: number } | null>(null);
   // Partner portal: /login + /partner/* (and legacy /supplier* on localhost until migrated)
   const supplierPath =
     typeof window !== 'undefined' ? window.location.pathname.replace(/\/$/, '') || '/' : '';
@@ -302,12 +300,6 @@ function App() {
     window.history.replaceState({}, '', '/packages');
   };
 
-  const handleBookTour = (tour: TourPackageType, prefill?: { date: string; guests: number }) => {
-    setSelectedTour(tour);
-    setBookingPrefill(prefill ?? null);
-    setCurrentPage('booking');
-  };
-
   const renderPage = () => {
     switch (currentPage) {
       case 'home':
@@ -327,30 +319,16 @@ function App() {
         return <Blog />;
       case 'tour-details':
         return selectedTour ? (
-          <TourDetails 
-            tourId={selectedTour.id} 
-            onBack={handleBackToTours}
-            onBook={handleBookTour}
-          />
-        ) : <Home onTourSelect={handleTourSelect} />;
+          <TourDetails tourId={selectedTour.id} onBack={handleBackToTours} />
+        ) : (
+          <Home onTourSelect={handleTourSelect} />
+        );
       case 'booking':
         return selectedTour ? (
-          <BookingPage
-            tour={selectedTour}
-            initialDate={bookingPrefill?.date}
-            initialGuests={bookingPrefill?.guests}
-            onBack={() => {
-              setBookingPrefill(null);
-              setCurrentPage('tour-details');
-            }}
-            onComplete={() => {
-              setBookingPrefill(null);
-              setSelectedTour(null);
-              setCurrentPage('packages');
-            }}
-            onNavigate={setCurrentPage}
-          />
-        ) : <Home onTourSelect={handleTourSelect} />;
+          <TourDetails tourId={selectedTour.id} onBack={handleBackToTours} />
+        ) : (
+          <Home onTourSelect={handleTourSelect} />
+        );
       case 'cart':
         return <CartPage onNavigate={setCurrentPage} />;
       case 'account':

@@ -1,9 +1,19 @@
 import type { TourPackage } from '../types/tour';
+import type { ListingBookingOption } from '../types/listingExtras';
 import { materializedBookingOptions } from '../types/listingExtras';
 
 const DRAFT_KEY = (tourId: string) => `traverion_booking_draft_v1_${tourId}`;
 
-export type BookingFlowStep = 'date-guests' | 'contact' | 'confirm' | 'done';
+export type BookingFlowStep = 'date-guests' | 'review' | 'contact' | 'confirm' | 'done';
+
+/** One bookable row for the traveler (partner option or synthesized default). */
+export type TourBookingVariant = {
+  id: string;
+  label: string;
+  subtitle: string;
+  pricePerPerson: number;
+  listingOption: ListingBookingOption | null;
+};
 
 export type BookingDraftV1 = {
   v: 1;
@@ -48,6 +58,38 @@ export function getPartySizeBounds(tour: TourPackage): { min: number; max: numbe
   return { min: 1, max: 12 };
 }
 
+export function getTourBookingVariants(tour: TourPackage): TourBookingVariant[] {
+  const bounds = getPartySizeBounds(tour);
+  const opts = materializedBookingOptions(tour.listingExtras?.bookingOptions);
+  const basePrice = tour.price?.startingFrom ?? 0;
+  if (opts.length > 0) {
+    return opts.map((o) => {
+      const price = typeof o.priceUsd === 'number' && o.priceUsd >= 0 ? o.priceUsd : basePrice;
+      const subtitleParts = [
+        o.duration?.trim(),
+        o.optionInfo?.trim(),
+        o.maxPersons ? `Up to ${o.maxPersons} guests` : null,
+      ].filter(Boolean) as string[];
+      return {
+        id: o.id,
+        label: o.name.trim() || 'Tour option',
+        subtitle: subtitleParts.join(' · ') || `${bounds.min}–${bounds.max} guests`,
+        pricePerPerson: price,
+        listingOption: o,
+      };
+    });
+  }
+  return [
+    {
+      id: '__default__',
+      label: 'Standard experience',
+      subtitle: `${bounds.min}–${bounds.max} guests`,
+      pricePerPerson: basePrice,
+      listingOption: null,
+    },
+  ];
+}
+
 export function formatBookingDateDisplay(isoDate: string): string {
   if (!isoDate?.trim()) return '';
   const d = new Date(`${isoDate.trim()}T12:00:00`);
@@ -62,9 +104,11 @@ export function formatBookingDateDisplay(isoDate: string): string {
 
 export function sanitizeRestoredBookingStep(
   step: BookingFlowStep,
-  hasSessionUser: boolean
+  hasSessionUser: boolean,
+  mode: 'page' | 'modal' = 'page'
 ): BookingFlowStep {
-  if (step === 'done') return 'date-guests';
+  if (step === 'done') return mode === 'modal' ? 'review' : 'date-guests';
+  if (mode === 'page' && step === 'review') return 'date-guests';
   if (step === 'confirm' && !hasSessionUser) return 'contact';
   return step;
 }
