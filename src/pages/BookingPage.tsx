@@ -4,6 +4,7 @@
  * Modal (from tour page): Trip summary → Checkout → Confirm → Done.
  */
 import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import {
   ArrowLeft,
   Calendar,
@@ -932,58 +933,61 @@ export default function BookingPage({
     </>
   );
 
-  return (
-    <>
-      {presentation === 'modal' ? (
-        <div
-          className="fixed inset-0 z-[10050] flex items-center justify-center p-3 sm:p-4 motion-safe:animate-fade-in"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="booking-flow-modal-title"
-        >
-          {/* Above site header (z-[9999]) so backdrop + dialog cover the full UI */}
-          <button
-            type="button"
-            tabIndex={-1}
-            className="absolute inset-0 z-0 bg-black/55 backdrop-blur-[1px] transition-opacity duration-200"
-            aria-label="Modal backdrop"
-            aria-hidden="true"
-          />
-          <div className="animate-fade-in-up relative z-10 flex w-full max-w-4xl max-h-[min(92dvh,920px)] flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-2xl">
-            <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-4 py-3 sm:px-5">
-              <h2
-                id="booking-flow-modal-title"
-                className="truncate pr-2 text-base font-semibold text-gray-900 sm:text-lg"
-              >
-                {step === 'done' ? 'Request sent' : 'Book this experience'}
-              </h2>
-              <button
-                type="button"
-                onClick={handleLeaveBooking}
-                className="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland"
-                aria-label="Close booking"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            {step !== 'done' ? (
-              <div className="relative mx-4 mt-3 h-24 shrink-0 overflow-hidden rounded-xl border border-gray-100 sm:mx-5 sm:mt-4 sm:h-28">
-                <img src={tour.image} alt="" className="h-full w-full object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/55 to-transparent" />
-                <div className="absolute bottom-2 left-3 right-3 text-white">
-                  <p className="line-clamp-2 text-sm font-semibold leading-tight">{tour.title}</p>
-                  <p className="text-[11px] text-white/90">
-                    {formatTourDurationDisplay(tour.duration)} · From {currency} {pricePerPerson}/person
-                  </p>
-                </div>
+  const modalShell =
+    presentation === 'modal' ? (
+      <div
+        className="fixed inset-0 z-[20000] flex items-center justify-center p-3 sm:p-4 motion-safe:animate-fade-in"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="booking-flow-modal-title"
+      >
+        <button
+          type="button"
+          tabIndex={-1}
+          className="absolute inset-0 z-0 bg-slate-900/50 backdrop-blur-md transition-opacity duration-200 supports-[backdrop-filter]:bg-slate-900/40"
+          aria-label="Modal backdrop"
+          aria-hidden="true"
+        />
+        <div className="animate-fade-in-up relative z-10 flex w-full max-w-4xl max-h-[min(92dvh,920px)] flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-2xl">
+          <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-4 py-3 sm:px-5">
+            <h2
+              id="booking-flow-modal-title"
+              className="truncate pr-2 text-base font-semibold text-gray-900 sm:text-lg"
+            >
+              {step === 'done' ? 'Request sent' : 'Book this experience'}
+            </h2>
+            <button
+              type="button"
+              onClick={handleLeaveBooking}
+              className="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland"
+              aria-label="Close booking"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+          {step !== 'done' ? (
+            <div className="relative mx-4 mt-3 h-24 shrink-0 overflow-hidden rounded-xl border border-gray-100 sm:mx-5 sm:mt-4 sm:h-28">
+              <img src={tour.image} alt="" className="h-full w-full object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/55 to-transparent" />
+              <div className="absolute bottom-2 left-3 right-3 text-white">
+                <p className="line-clamp-2 text-sm font-semibold leading-tight">{tour.title}</p>
+                <p className="text-[11px] text-white/90">
+                  {formatTourDurationDisplay(tour.duration)} · From {currency} {pricePerPerson}/person
+                </p>
               </div>
-            ) : null}
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-6 pt-2 sm:px-5 sm:pb-8 sm:pt-3 [scrollbar-gutter:stable]">
-              {flowInner}
             </div>
+          ) : null}
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-6 pt-2 sm:px-5 sm:pb-8 sm:pt-3 [scrollbar-gutter:stable]">
+            {flowInner}
           </div>
         </div>
-      ) : (
+      </div>
+    ) : null;
+
+  return (
+    <>
+      {presentation === 'modal' ? createPortal(modalShell, document.body) : null}
+      {presentation !== 'modal' ? (
         <div className="min-h-screen bg-gray-50 pt-20 pb-12">
           <div className="max-w-2xl mx-auto px-4 sm:px-6">
             <button
@@ -1011,7 +1015,7 @@ export default function BookingPage({
             {flowInner}
           </div>
         </div>
-      )}
+      ) : null}
 
       <AvailabilityOptionsModal
         open={availabilityModalOpen}
