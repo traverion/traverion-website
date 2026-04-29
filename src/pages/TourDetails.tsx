@@ -93,7 +93,11 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
 
   const scrollToOptionsSection = useCallback(() => {
     window.setTimeout(() => {
-      optionsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const el = optionsSectionRef.current;
+      if (!el) return;
+      const headerOffset = window.innerWidth >= 1024 ? 120 : 88;
+      const top = el.getBoundingClientRect().top + window.scrollY - headerOffset;
+      window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
     }, 40);
   }, []);
 
@@ -425,12 +429,18 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                   </span>
                 </div>
                 <div className="mb-6 grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 shadow-sm transition-all duration-200 ease-smooth hover:-translate-y-0.5 hover:shadow">
-                    <strong className="text-gray-900">Free cancellation</strong>
+                  <div className="rounded-lg border border-green-200 bg-green-50/70 px-3 py-2 text-xs text-gray-700 shadow-sm transition-all duration-200 ease-smooth hover:-translate-y-0.5 hover:shadow">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-semibold text-green-800 mb-1">
+                      <CheckCircle className="w-3.5 h-3.5" aria-hidden />
+                      Free cancellation
+                    </span>
                     <div>Cancel up to 24h before start time</div>
                   </div>
-                  <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 shadow-sm transition-all duration-200 ease-smooth hover:-translate-y-0.5 hover:shadow">
-                    <strong className="text-gray-900">Policy protection</strong>
+                  <div className="rounded-lg border border-finland/30 bg-finland/5 px-3 py-2 text-xs text-gray-700 shadow-sm transition-all duration-200 ease-smooth hover:-translate-y-0.5 hover:shadow">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-finland/15 px-2 py-0.5 text-[11px] font-semibold text-finland mb-1">
+                      <Shield className="w-3.5 h-3.5" aria-hidden />
+                      Policy protection
+                    </span>
                     <div>Standard Traverion booking terms apply</div>
                   </div>
                   <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 shadow-sm transition-all duration-200 ease-smooth hover:-translate-y-0.5 hover:shadow">
@@ -703,37 +713,37 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                   </div>
                 </div>
               </div>
-              <div
-                ref={optionsSectionRef}
-                id="tour-booking-variants-list"
-                role="listbox"
-                aria-label="Tour options"
-                className={`mt-4 rounded-xl border bg-white shadow-sm transition-all duration-200 ease-out motion-reduce:transition-none ${
-                  bookingVariantsOpen
-                    ? `max-h-[26rem] opacity-100 translate-y-0 border-gray-200 ${optionsAttentionPulse ? 'ring-2 ring-finland/40 shadow-lg shadow-finland/10' : ''}`
-                    : 'max-h-0 opacity-0 -translate-y-2 pointer-events-none overflow-hidden border-transparent shadow-none'
-                }`}
-              >
-                <div className="px-4 pt-3 pb-1 text-sm font-semibold text-gray-900">Choose your option</div>
-                <ul className="max-h-[22rem] overflow-y-auto overscroll-contain py-1 [scrollbar-gutter:stable]">
-                  {tourVariants.map((v) => (
-                    <li key={v.id} role="option">
-                      <button
-                        type="button"
-                        className="w-full px-4 py-3 text-left transition-colors hover:bg-finland/5 active:bg-finland/10 sm:py-3.5"
-                        onClick={() => void handlePickTourVariant(v)}
-                      >
-                        <span className="font-medium text-gray-900">{v.label}</span>
-                        <span className="mt-0.5 block text-xs leading-snug text-gray-600">{v.subtitle}</span>
-                        <span className="mt-1.5 block text-sm font-semibold text-finland">
-                          From ${v.pricePerPerson} <span className="font-normal text-gray-500">/ person</span>
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
             </div>
+          </div>
+          <div
+            ref={optionsSectionRef}
+            id="tour-booking-variants-list"
+            role="listbox"
+            aria-label="Tour options"
+            className={`mt-4 lg:mt-6 rounded-xl border bg-white shadow-sm transition-all duration-200 ease-out motion-reduce:transition-none ${
+              bookingVariantsOpen
+                ? `max-h-[28rem] opacity-100 translate-y-0 border-gray-200 ${optionsAttentionPulse ? 'ring-2 ring-finland/40 shadow-lg shadow-finland/10' : ''}`
+                : 'max-h-0 opacity-0 -translate-y-2 pointer-events-none overflow-hidden border-transparent shadow-none'
+            }`}
+          >
+            <div className="px-4 pt-3 pb-1 text-sm font-semibold text-gray-900">Choose your option</div>
+            <ul className="max-h-[24rem] overflow-y-auto overscroll-contain py-1 [scrollbar-gutter:stable]">
+              {tourVariants.map((v) => (
+                <li key={v.id} role="option">
+                  <button
+                    type="button"
+                    className="w-full px-4 py-3 text-left transition-colors hover:bg-finland/5 active:bg-finland/10 sm:py-3.5"
+                    onClick={() => void handlePickTourVariant(v)}
+                  >
+                    <span className="font-medium text-gray-900">{v.label}</span>
+                    <span className="mt-0.5 block text-xs leading-snug text-gray-600">{v.subtitle}</span>
+                    <span className="mt-1.5 block text-sm font-semibold text-finland">
+                      From ${v.pricePerPerson} <span className="font-normal text-gray-500">/ person</span>
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
       </section>
