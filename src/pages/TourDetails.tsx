@@ -720,10 +720,14 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
             id="tour-booking-variants-list"
             role="listbox"
             aria-label="Tour options"
-            className={`mt-4 lg:mt-6 rounded-xl border bg-white shadow-sm transition-all duration-200 ease-out motion-reduce:transition-none ${
+            className={`mt-4 lg:mt-6 rounded-xl border bg-white transition-all duration-300 ease-out motion-reduce:transition-none ${
               bookingVariantsOpen
-                ? `max-h-[28rem] opacity-100 translate-y-0 border-gray-200 ${optionsAttentionPulse ? 'ring-2 ring-finland/40 shadow-lg shadow-finland/10' : ''}`
-                : 'max-h-0 opacity-0 -translate-y-2 pointer-events-none overflow-hidden border-transparent shadow-none'
+                ? `max-h-[28rem] opacity-100 translate-y-0 border-2 border-finland/45 shadow-[0_12px_48px_-12px_rgba(0,53,128,0.28),0_4px_18px_-6px_rgba(0,53,128,0.16)] ring-2 ring-finland/35 ring-offset-2 ring-offset-gray-50 motion-reduce:ring-0 motion-reduce:ring-offset-0 motion-reduce:shadow-md motion-reduce:border-finland/30 ${
+                    optionsAttentionPulse
+                      ? 'ring-finland/55 shadow-[0_16px_56px_-10px_rgba(0,53,128,0.38),0_6px_22px_-6px_rgba(0,53,128,0.22)]'
+                      : ''
+                  }`
+                : 'max-h-0 opacity-0 -translate-y-2 pointer-events-none overflow-hidden border-transparent shadow-none ring-0'
             }`}
           >
             <div className="px-4 pt-3 pb-1 text-sm font-semibold text-gray-900">Choose your option</div>
