@@ -5,7 +5,6 @@ import {
   Users,
   Star,
   Clock,
-  Plane,
   Shield,
   Share2,
   CheckCircle,
@@ -20,7 +19,10 @@ import { getListingById, getListingByIdAsync } from '../data/listings';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { analytics } from '../lib/analytics';
 import { TourPackage } from '../types/tour';
-import { TRAVERION_STANDARD_CANCELLATION_POLICY } from '../types/listingExtras';
+import {
+  TRAVERION_STANDARD_CANCELLATION_POLICY,
+  formatTourDurationDisplay,
+} from '../types/listingExtras';
 import { fetchDiscountsByListingIds } from '../data/supabase-discounts';
 import { getDisplayPriceForTour, isSupabaseListingId } from '../lib/discount-display';
 import {
@@ -382,21 +384,32 @@ export default function TourDetails({ tourId, onBack, onBook }: TourDetailsProps
                   <span>{tour.destination}</span>
                 </div>
                 <div className="flex flex-wrap gap-4 text-sm text-gray-600 mb-6">
-                  <span className="flex items-center">
-                    <Star size={18} className="text-finland fill-finland mr-1" />
+                  <span className="flex items-center flex-wrap gap-x-2">
+                    <Star size={18} className="text-finland fill-finland mr-1 flex-shrink-0" />
                     <strong className="text-gray-900">
                       {reviewAggregate != null
                         ? reviewAggregate.count > 0
                           ? reviewAggregate.rating.toFixed(1)
                           : '0.0'
                         : tour.rating}
-                    </strong>{' '}
-                    ({reviewAggregate != null ? reviewAggregate.count : tour.reviews}{' '}
-                    {(reviewAggregate != null ? reviewAggregate.count : tour.reviews) === 1 ? 'review' : 'reviews'})
+                    </strong>
+                    <span>
+                      ({reviewAggregate != null ? reviewAggregate.count : tour.reviews}{' '}
+                      {(reviewAggregate != null ? reviewAggregate.count : tour.reviews) === 1 ? 'review' : 'reviews'})
+                    </span>
                   </span>
-                  <span className="flex items-center"><Clock size={18} className="mr-1" />{tour.duration}</span>
-                  <span className="flex items-center"><Users size={18} className="mr-1" />{tour.groupSize}</span>
-                  <span className="flex items-center"><Plane size={18} className="mr-1" />{tour.difficulty}</span>
+                  <span className="flex items-center">
+                    <Clock size={18} className="mr-1 flex-shrink-0" aria-hidden />
+                    {formatTourDurationDisplay(tour.duration)}
+                  </span>
+                  <span className="flex items-center">
+                    <Users size={18} className="mr-1 flex-shrink-0" aria-hidden />
+                    {tour.groupSize}
+                  </span>
+                  <span className="flex items-baseline gap-1.5 flex-wrap">
+                    <strong className="text-gray-900">Difficulty</strong>
+                    <span>{tour.difficulty}</span>
+                  </span>
                 </div>
                 <p className="text-gray-700 leading-relaxed">{tour.description}</p>
 

@@ -31,7 +31,10 @@ import AvailabilityOptionsModal from '../components/booking/AvailabilityOptionsM
 import { analytics } from '../lib/analytics';
 import { setPageMetaWithOg } from '../lib/seo';
 import { dateNotInPast, validateEmail, required, maxLength } from '../lib/validation';
-import { TRAVERION_STANDARD_CANCELLATION_POLICY } from '../types/listingExtras';
+import {
+  TRAVERION_STANDARD_CANCELLATION_POLICY,
+  formatTourDurationDisplay,
+} from '../types/listingExtras';
 import {
   getPartySizeBounds,
   formatBookingDateDisplay,
@@ -367,7 +370,7 @@ export default function BookingPage({
             <div className="absolute bottom-3 left-3 right-3 text-white">
               <h1 className="text-lg sm:text-xl font-semibold">{tour.title}</h1>
               <p className="text-sm text-white/90">
-                {tour.duration} · From {currency} {price} per person
+                {formatTourDurationDisplay(tour.duration)} · From {currency} {price} per person
               </p>
             </div>
           </div>

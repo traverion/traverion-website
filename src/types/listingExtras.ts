@@ -154,6 +154,25 @@ export function formatBookingOptionDuration(amountStr: string, unit: BookingOpti
   return `${numStr} ${word}`;
 }
 
+/**
+ * Traveler-facing duration line: keep values that already name a unit; if the stored value is only a number,
+ * append a sensible unit (default hours, matching partner booking-option parsing).
+ */
+export function formatTourDurationDisplay(raw: string): string {
+  const t = raw.trim();
+  if (!t) return '';
+  if (
+    /\b(hour|hours|hrs|hr|day|days|minute|minutes|mins|min|night|nights)\b/i.test(t) ||
+    /\d\s*h\b/i.test(t)
+  ) {
+    return t;
+  }
+  const { amount, unit } = parseBookingOptionDuration(t);
+  if (!amount) return t;
+  const formatted = formatBookingOptionDuration(amount, unit);
+  return formatted || t;
+}
+
 /** True when duration has a positive numeric length (partner form uses number + unit). */
 export function isListingBookingOptionDurationValid(raw: string): boolean {
   return getListingBookingOptionDurationIssue(raw) === null;
