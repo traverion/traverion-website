@@ -936,19 +936,20 @@ export default function BookingPage({
     <>
       {presentation === 'modal' ? (
         <div
-          className="fixed inset-0 z-[200] flex items-stretch justify-center p-0 motion-safe:animate-fade-in sm:items-center sm:p-3"
+          className="fixed inset-0 z-[10050] flex items-center justify-center p-3 sm:p-4 motion-safe:animate-fade-in"
           role="dialog"
           aria-modal="true"
           aria-labelledby="booking-flow-modal-title"
         >
+          {/* Above site header (z-[9999]) so backdrop + dialog cover the full UI */}
           <button
             type="button"
             tabIndex={-1}
-            className="absolute inset-0 bg-black/55 backdrop-blur-[1px] transition-opacity duration-200"
+            className="absolute inset-0 z-0 bg-black/55 backdrop-blur-[1px] transition-opacity duration-200"
             aria-label="Modal backdrop"
             aria-hidden="true"
           />
-          <div className="animate-fade-in-up relative z-[1] flex h-[100dvh] w-full max-w-none flex-col overflow-hidden rounded-none border-0 bg-white shadow-2xl sm:h-[95vh] sm:max-h-[95vh] sm:max-w-4xl sm:rounded-2xl sm:border sm:border-gray-100">
+          <div className="animate-fade-in-up relative z-10 flex w-full max-w-4xl max-h-[min(92dvh,920px)] flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-2xl">
             <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-4 py-3 sm:px-5">
               <h2
                 id="booking-flow-modal-title"
