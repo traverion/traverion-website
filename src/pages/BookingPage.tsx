@@ -295,6 +295,31 @@ export default function BookingPage({
     return () => window.clearTimeout(t);
   }, [tour.id, step, date, guests, leadGuestName, email, specialRequests, flushDraft]);
 
+  useEffect(() => {
+    if (presentation !== 'modal') return;
+    const html = document.documentElement;
+    const body = document.body;
+    const prevHtmlOverflow = html.style.overflow;
+    const prevBodyOverflow = body.style.overflow;
+    const prevBodyTouchAction = body.style.touchAction;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+    html.style.overflow = 'hidden';
+    body.style.overflow = 'hidden';
+    body.style.touchAction = 'none';
+    document.addEventListener('keydown', onKeyDown, true);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown, true);
+      html.style.overflow = prevHtmlOverflow;
+      body.style.overflow = prevBodyOverflow;
+      body.style.touchAction = prevBodyTouchAction;
+    };
+  }, [presentation]);
+
   const handleLeaveBooking = () => {
     if (presentation === 'modal') {
       onModalClose?.();
@@ -911,7 +936,7 @@ export default function BookingPage({
     <>
       {presentation === 'modal' ? (
         <div
-          className="fixed inset-0 z-[200] flex items-end justify-center p-0 motion-safe:animate-fade-in sm:items-center sm:p-4"
+          className="fixed inset-0 z-[200] flex items-stretch justify-center p-0 motion-safe:animate-fade-in sm:items-center sm:p-3"
           role="dialog"
           aria-modal="true"
           aria-labelledby="booking-flow-modal-title"
@@ -919,11 +944,11 @@ export default function BookingPage({
           <button
             type="button"
             tabIndex={-1}
-            className="absolute inset-0 bg-black/45 backdrop-blur-[1px] transition-opacity duration-200"
-            aria-label="Close"
-            onClick={handleLeaveBooking}
+            className="absolute inset-0 bg-black/55 backdrop-blur-[1px] transition-opacity duration-200"
+            aria-label="Modal backdrop"
+            aria-hidden="true"
           />
-          <div className="animate-fade-in-up relative z-[1] flex max-h-[min(92dvh,920px)] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl border border-gray-100 bg-white shadow-2xl sm:max-h-[90vh] sm:rounded-2xl">
+          <div className="animate-fade-in-up relative z-[1] flex h-[100dvh] w-full max-w-none flex-col overflow-hidden rounded-none border-0 bg-white shadow-2xl sm:h-[95vh] sm:max-h-[95vh] sm:max-w-4xl sm:rounded-2xl sm:border sm:border-gray-100">
             <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-4 py-3 sm:px-5">
               <h2
                 id="booking-flow-modal-title"
