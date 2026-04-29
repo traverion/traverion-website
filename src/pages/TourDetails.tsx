@@ -81,7 +81,8 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
   const [selectedBookingVariant, setSelectedBookingVariant] = useState<TourBookingVariant | null>(null);
   const [variantChecking, setVariantChecking] = useState(false);
-  const checkAvailAnchorRef = useRef<HTMLDivElement>(null);
+  const [optionsAttentionPulse, setOptionsAttentionPulse] = useState(false);
+  const optionsSectionRef = useRef<HTMLDivElement>(null);
 
   const partyBounds = useMemo(() => (tour ? getPartySizeBounds(tour) : { min: 1, max: 12 }), [tour]);
   const guestOptions = useMemo(
@@ -90,21 +91,17 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   );
   const tourVariants = useMemo(() => (tour ? getTourBookingVariants(tour) : []), [tour]);
 
+  const scrollToOptionsSection = useCallback(() => {
+    window.setTimeout(() => {
+      optionsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 40);
+  }, []);
+
   useEffect(() => {
     if (!bookingVariantsOpen) return;
-    const onDoc = (e: MouseEvent) => {
-      const el = checkAvailAnchorRef.current;
-      if (el && !el.contains(e.target as Node)) setBookingVariantsOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setBookingVariantsOpen(false);
-    };
-    document.addEventListener('mousedown', onDoc);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onDoc);
-      document.removeEventListener('keydown', onKey);
-    };
+    setOptionsAttentionPulse(true);
+    const t = window.setTimeout(() => setOptionsAttentionPulse(false), 900);
+    return () => window.clearTimeout(t);
   }, [bookingVariantsOpen]);
 
   useEffect(() => {
@@ -217,7 +214,11 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       return;
     }
     setBookingCardError(null);
-    setBookingVariantsOpen((open) => !open);
+    setBookingVariantsOpen((open) => {
+      const next = !open;
+      if (next) scrollToOptionsSection();
+      return next;
+    });
   };
 
   const handlePickTourVariant = async (variant: TourBookingVariant) => {
@@ -423,6 +424,20 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                     <span>{tour.difficulty}</span>
                   </span>
                 </div>
+                <div className="mb-6 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 shadow-sm transition-all duration-200 ease-smooth hover:-translate-y-0.5 hover:shadow">
+                    <strong className="text-gray-900">Free cancellation</strong>
+                    <div>Cancel up to 24h before start time</div>
+                  </div>
+                  <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 shadow-sm transition-all duration-200 ease-smooth hover:-translate-y-0.5 hover:shadow">
+                    <strong className="text-gray-900">Policy protection</strong>
+                    <div>Standard Traverion booking terms apply</div>
+                  </div>
+                  <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 shadow-sm transition-all duration-200 ease-smooth hover:-translate-y-0.5 hover:shadow">
+                    <strong className="text-gray-900">Secure request</strong>
+                    <div>No card charge on this step</div>
+                  </div>
+                </div>
                 <p className="text-gray-700 leading-relaxed">{tour.description}</p>
 
                 {(() => {
@@ -472,7 +487,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                     Boolean(x?.typicalTimelineNotes?.trim());
                   if (!hasGoodToKnow) return null;
                   return (
-                    <div className="mt-8 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+                    <div className="mt-8 rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition-all duration-200 ease-smooth hover:shadow-md">
                       <h2 className="text-lg font-heading font-bold text-gray-900 mb-3 flex items-center gap-2">
                         <Info className="w-5 h-5 text-finland flex-shrink-0" aria-hidden />
                         Good to know
@@ -520,7 +535,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                 })()}
 
                 {supplierLegal && (
-                  <div className="mt-6 flex items-center gap-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                  <div className="mt-6 flex items-center gap-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-all duration-200 ease-smooth hover:shadow-md">
                     {supplierLegal.business_logo_url ? (
                       <img
                         src={supplierLegal.business_logo_url}
@@ -542,7 +557,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
 
               {supplierLegal &&
                 (supplierLegal.privacy_policy_text?.trim() || supplierLegal.terms_conditions_text?.trim()) && (
-                  <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+                  <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition-all duration-200 ease-smooth hover:shadow-md">
                     <div className="flex items-start gap-3 mb-1">
                       {supplierLegal.business_logo_url ? (
                         <img
@@ -585,7 +600,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
 
             {/* Right: Sticky booking card */}
             <div className="lg:col-span-1">
-              <div className="lg:sticky lg:top-24 bg-white rounded-xl border border-gray-200 shadow-lg p-6">
+              <div className="lg:sticky lg:top-24 bg-white rounded-xl border border-gray-200 shadow-lg p-6 transition-all duration-200 ease-smooth hover:shadow-xl">
                 {(() => {
                   const { price, originalPrice, label } = getDisplayPriceForTour(tour, discountsByListing);
                   const hasDiscount = label && price < originalPrice;
@@ -639,50 +654,25 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                   <div role="status" aria-live="polite" aria-atomic="true" className="min-h-[1.25rem]">
                     {bookingCardError && <p className="text-sm text-red-600">{bookingCardError}</p>}
                   </div>
-                  <div className="relative" ref={checkAvailAnchorRef}>
-                    <button
-                      type="button"
-                      aria-expanded={bookingVariantsOpen}
-                      aria-haspopup="listbox"
-                      onClick={handleCheckAvailabilityToggle}
-                      disabled={variantChecking || bookingModalOpen}
-                      className="flex w-full items-center justify-center gap-2 bg-finland text-white py-3 px-4 rounded-lg font-semibold hover:bg-finland-dark transition-all disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2"
-                    >
-                      {variantChecking ? 'Checking…' : 'Check availability'}
-                      <ChevronDown
-                        className={`h-5 w-5 shrink-0 transition-transform duration-200 ease-out ${bookingVariantsOpen ? 'rotate-180' : ''}`}
-                        aria-hidden
-                      />
-                    </button>
-                    <div
-                      id="tour-booking-variants-list"
-                      role="listbox"
-                      aria-label="Tour options"
-                      className={`absolute left-0 right-0 top-full z-50 mt-2 origin-top transform transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none ${
-                        bookingVariantsOpen
-                          ? 'pointer-events-auto translate-y-0 scale-100 opacity-100'
-                          : 'pointer-events-none -translate-y-1 scale-[0.98] opacity-0'
-                      }`}
-                    >
-                      <ul className="max-h-[min(60vh,20rem)] overflow-y-auto overscroll-contain rounded-xl border border-gray-200 bg-white py-1 shadow-xl [scrollbar-gutter:stable]">
-                        {tourVariants.map((v) => (
-                          <li key={v.id} role="option">
-                            <button
-                              type="button"
-                              className="w-full px-4 py-3 text-left transition-colors hover:bg-finland/5 active:bg-finland/10 sm:py-3.5"
-                              onClick={() => void handlePickTourVariant(v)}
-                            >
-                              <span className="font-medium text-gray-900">{v.label}</span>
-                              <span className="mt-0.5 block text-xs leading-snug text-gray-600">{v.subtitle}</span>
-                              <span className="mt-1.5 block text-sm font-semibold text-finland">
-                                From ${v.pricePerPerson} <span className="font-normal text-gray-500">/ person</span>
-                              </span>
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
+                  <button
+                    type="button"
+                    aria-expanded={bookingVariantsOpen}
+                    aria-controls="tour-booking-variants-list"
+                    onClick={handleCheckAvailabilityToggle}
+                    disabled={variantChecking || bookingModalOpen}
+                    className="flex w-full items-center justify-center gap-2 bg-finland text-white py-3 px-4 rounded-lg font-semibold hover:bg-finland-dark transition-all disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2"
+                  >
+                    {variantChecking ? 'Checking…' : 'Check availability'}
+                    <ChevronDown
+                      className={`h-5 w-5 shrink-0 transition-transform duration-200 ease-out ${bookingVariantsOpen ? 'rotate-180' : ''}`}
+                      aria-hidden
+                    />
+                  </button>
+                  {bookingVariantsOpen && (
+                    <p className="mt-1.5 text-xs text-finland font-medium">
+                      Select one option below to continue.
+                    </p>
+                  )}
                   {isSupabaseConfigured() && user && (
                     <button
                       type="button"
@@ -712,6 +702,36 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                     <p className="flex items-center gap-2"><Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500 flex-shrink-0" /> Reserve now, pay later</p>
                   </div>
                 </div>
+              </div>
+              <div
+                ref={optionsSectionRef}
+                id="tour-booking-variants-list"
+                role="listbox"
+                aria-label="Tour options"
+                className={`mt-4 rounded-xl border bg-white shadow-sm transition-all duration-200 ease-out motion-reduce:transition-none ${
+                  bookingVariantsOpen
+                    ? `max-h-[26rem] opacity-100 translate-y-0 border-gray-200 ${optionsAttentionPulse ? 'ring-2 ring-finland/40 shadow-lg shadow-finland/10' : ''}`
+                    : 'max-h-0 opacity-0 -translate-y-2 pointer-events-none overflow-hidden border-transparent shadow-none'
+                }`}
+              >
+                <div className="px-4 pt-3 pb-1 text-sm font-semibold text-gray-900">Choose your option</div>
+                <ul className="max-h-[22rem] overflow-y-auto overscroll-contain py-1 [scrollbar-gutter:stable]">
+                  {tourVariants.map((v) => (
+                    <li key={v.id} role="option">
+                      <button
+                        type="button"
+                        className="w-full px-4 py-3 text-left transition-colors hover:bg-finland/5 active:bg-finland/10 sm:py-3.5"
+                        onClick={() => void handlePickTourVariant(v)}
+                      >
+                        <span className="font-medium text-gray-900">{v.label}</span>
+                        <span className="mt-0.5 block text-xs leading-snug text-gray-600">{v.subtitle}</span>
+                        <span className="mt-1.5 block text-sm font-semibold text-finland">
+                          From ${v.pricePerPerson} <span className="font-normal text-gray-500">/ person</span>
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
               </div>
             </div>
           </div>

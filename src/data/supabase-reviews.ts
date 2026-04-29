@@ -133,16 +133,35 @@ export async function userHasCompletedBookingForListing(
   listingId: string
 ): Promise<{ canReview: boolean; bookingId?: string }> {
   if (!supabase) return { canReview: false };
+  const nowMs = Date.now();
+  const toStartMs = (bookingDate: string | null, startTime: string | null): number | null => {
+    const date = (bookingDate ?? '').trim();
+    if (!date) return null;
+    const t = (startTime ?? '').trim();
+    const hhmm = /^(\d{1,2}):(\d{2})/.exec(t);
+    const hh = hhmm ? hhmm[1].padStart(2, '0') : '23';
+    const mm = hhmm ? hhmm[2] : '59';
+    const d = new Date(`${date}T${hh}:${mm}:00`);
+    const ms = d.getTime();
+    return Number.isFinite(ms) ? ms : null;
+  };
+
   const { data, error } = await supabase
     .from('bookings')
-    .select('id')
+    .select('id, booking_date, start_time')
     .eq('listing_id', listingId)
     .eq('guest_email', userEmail)
     .eq('status', 'confirmed')
-    .limit(1)
-    .maybeSingle();
-  if (error || !data) return { canReview: false };
-  return { canReview: true, bookingId: data.id };
+    .order('booking_date', { ascending: false })
+    .limit(50);
+  if (error || !data?.length) return { canReview: false };
+
+  const eligible = data.find((b: { id: string; booking_date: string | null; start_time?: string | null }) => {
+    const startMs = toStartMs(b.booking_date, b.start_time ?? null);
+    return startMs != null && nowMs > startMs;
+  });
+  if (!eligible) return { canReview: false };
+  return { canReview: true, bookingId: eligible.id };
 }
 
 /** Check if the current user has already reviewed this listing. */
