@@ -141,6 +141,7 @@ export default function BookingPage({
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState(user?.email ?? '');
+  const [placeOfStay, setPlaceOfStay] = useState('');
   const [specialRequests, setSpecialRequests] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -157,6 +158,7 @@ export default function BookingPage({
 
   const hydratedRef = useRef(false);
   const profileHydratedRef = useRef(false);
+  const dateInputRef = useRef<HTMLInputElement | null>(null);
 
   const currency = tour.price?.currency ?? 'USD';
   const fallbackBasePrice = tour.price?.startingFrom ?? 0;
@@ -186,9 +188,10 @@ export default function BookingPage({
       guests,
       name: leadGuestName,
       email: email.trim(),
+      placeOfStay: placeOfStay.trim(),
       specialRequests,
     });
-  }, [presentation, tour.id, step, date, guests, leadGuestName, email, specialRequests]);
+  }, [presentation, tour.id, step, date, guests, leadGuestName, email, placeOfStay, specialRequests]);
 
   useEffect(() => {
     if (presentation === 'modal') return;
@@ -223,6 +226,7 @@ export default function BookingPage({
       setLastName('');
       setPhone('');
       setEmail(user?.email ?? '');
+      setPlaceOfStay('');
       setSpecialRequests('');
       setStep('review');
       setError(null);
@@ -245,6 +249,7 @@ export default function BookingPage({
       setLastName(parts.slice(1).join(' '));
       setPhone('');
       setEmail(draft.email || user?.email || '');
+      setPlaceOfStay(draft.placeOfStay || '');
       setSpecialRequests(draft.specialRequests);
       setStep(sanitizeRestoredBookingStep(draft.step, Boolean(user), 'page'));
     } else {
@@ -252,6 +257,7 @@ export default function BookingPage({
       setLastName('');
       setPhone('');
       setEmail(user?.email ?? '');
+      setPlaceOfStay('');
       setSpecialRequests('');
       setStep('date-guests');
     }
@@ -294,7 +300,7 @@ export default function BookingPage({
       flushDraft();
     }, 400);
     return () => window.clearTimeout(t);
-  }, [tour.id, step, date, guests, leadGuestName, email, specialRequests, flushDraft]);
+  }, [tour.id, step, date, guests, leadGuestName, email, placeOfStay, specialRequests, flushDraft]);
 
   useEffect(() => {
     if (presentation !== 'modal') return;
@@ -332,9 +338,10 @@ export default function BookingPage({
 
   const mergedSpecialRequests = useCallback(() => {
     const phoneLine = phone.trim() ? `Guest phone: ${phone.trim()}` : '';
+    const stayLine = placeOfStay.trim() ? `Place of stay: ${placeOfStay.trim()}` : '';
     const rest = specialRequests.trim();
-    return [phoneLine, rest].filter(Boolean).join('\n\n');
-  }, [phone, specialRequests]);
+    return [phoneLine, stayLine, rest].filter(Boolean).join('\n\n');
+  }, [phone, placeOfStay, specialRequests]);
 
   const proceedToContactAfterOption = () => {
     saveBookingDraft(tour.id, {
@@ -343,6 +350,7 @@ export default function BookingPage({
       guests,
       name: leadGuestName,
       email: email.trim(),
+      placeOfStay: placeOfStay.trim(),
       specialRequests,
     });
     if (isSupabaseConfigured() && !user) {
@@ -400,6 +408,17 @@ export default function BookingPage({
     setAvailabilityOptions([]);
     setAvailabilityModalNote(null);
   };
+
+  const openDatePicker = useCallback(() => {
+    const input = dateInputRef.current;
+    if (!input) return;
+    if (typeof input.showPicker === 'function') {
+      input.showPicker();
+      return;
+    }
+    input.focus();
+    input.click();
+  }, []);
 
   const handleSelectAvailabilityOption = (option: AvailabilityCheckOption) => {
     if (!option.selectable) return;
@@ -487,13 +506,13 @@ export default function BookingPage({
   const flowInner = (
     <>
         {step === 'review' && presentation === 'modal' && selectedVariant && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sm:p-8">
             <BookingProgress step={step} flow={flowMode} />
             <h2 className="text-xl font-semibold text-gray-900 mb-2">Your trip</h2>
             <p className="text-sm text-gray-600 mb-6">
               Check the date, party size, and option below. Continue to enter your contact details for checkout.
             </p>
-            <div className="space-y-3 text-sm text-gray-700 mb-6 rounded-xl border border-gray-100 bg-gray-50/80 p-4">
+            <div className="space-y-3 text-sm text-gray-700 mb-6 rounded-xl border border-gray-200 bg-slate-50 p-4 sm:p-5">
               <p>
                 <span className="font-medium text-gray-900">Experience</span> — {tour.title}
               </p>
@@ -546,7 +565,7 @@ export default function BookingPage({
         )}
 
         {step === 'date-guests' && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sm:p-8">
             <BookingProgress step={step} flow={flowMode} />
             <h2 className="text-xl font-semibold text-gray-900 mb-6">Select date and guests</h2>
             <div className="space-y-4">
@@ -555,9 +574,11 @@ export default function BookingPage({
                 <div className="relative">
                   <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
                   <input
+                    ref={dateInputRef}
                     type="date"
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
+                    onClick={openDatePicker}
                     min={new Date().toISOString().slice(0, 10)}
                     className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland focus-visible:outline-none"
                   />
@@ -620,7 +641,7 @@ export default function BookingPage({
         )}
 
         {step === 'contact' && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sm:p-8">
             <BookingProgress step={step} flow={flowMode} />
             <h2 className="text-xl font-semibold text-gray-900 mb-2">Checkout</h2>
             <p className="text-sm text-gray-500 mb-6 flex items-start gap-2">
@@ -638,6 +659,13 @@ export default function BookingPage({
               </span>
             </p>
             <div className="space-y-4">
+              <div className="rounded-xl border border-gray-200 bg-slate-50 p-3.5 text-sm text-gray-700">
+                <p className="font-medium text-gray-900">{tour.title}</p>
+                <p className="mt-1 text-xs text-gray-600">
+                  {dateDisplay || date || 'Select date'} · {guests} {guests === 1 ? 'guest' : 'guests'}
+                  {selectedVariant ? ` · ${selectedVariant.label}` : ''}
+                </p>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">First name</label>
@@ -681,6 +709,25 @@ export default function BookingPage({
                     className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland focus-visible:outline-none"
                   />
                 </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Place of stay (optional)</label>
+                <div className="relative">
+                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={placeOfStay}
+                    onChange={(e) => setPlaceOfStay(e.target.value)}
+                    placeholder="Hotel name or address"
+                    autoComplete="street-address"
+                    className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland focus-visible:outline-none"
+                  />
+                </div>
+                {tour.meetingPoint?.trim() ? (
+                  <p className="mt-1 text-xs text-gray-500">
+                    Meeting point is still {tour.meetingPoint.trim()}. Add your stay location for easier coordination.
+                  </p>
+                ) : null}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
@@ -747,7 +794,7 @@ export default function BookingPage({
         )}
 
         {step === 'confirm' && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sm:p-8">
             <BookingProgress step={step} flow={flowMode} />
             <h2 className="text-xl font-semibold text-gray-900 mb-2">Confirm booking</h2>
             <p className="text-sm text-gray-600 mb-6 flex items-start gap-2 rounded-xl bg-finland/5 border border-finland/15 px-3 py-2.5">
@@ -758,7 +805,7 @@ export default function BookingPage({
               </span>
             </p>
 
-            <div className="space-y-3 text-sm text-gray-700 mb-6 rounded-xl border border-gray-100 bg-gray-50/80 p-4">
+            <div className="space-y-3 text-sm text-gray-700 mb-6 rounded-xl border border-gray-200 bg-slate-50 p-4 sm:p-5">
               <p>
                 <span className="font-medium text-gray-900">Experience</span> — {tour.title}
               </p>
@@ -779,6 +826,11 @@ export default function BookingPage({
               {phone.trim() ? (
                 <p>
                   <span className="font-medium text-gray-900">Phone</span> — {phone.trim()}
+                </p>
+              ) : null}
+              {placeOfStay.trim() ? (
+                <p>
+                  <span className="font-medium text-gray-900">Place of stay</span> — {placeOfStay.trim()}
                 </p>
               ) : null}
               <p>
@@ -822,22 +874,31 @@ export default function BookingPage({
             >
               {error && <p className="text-sm text-red-600">{error}</p>}
             </div>
-            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between sm:items-center">
               <button
                 type="button"
-                onClick={() => setStep('contact')}
+                onClick={() => setStep(flowMode === 'modal' ? 'review' : 'date-guests')}
                 className="px-4 py-2.5 text-gray-600 hover:text-finland focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2 rounded-lg"
               >
-                Back
+                Edit trip details
               </button>
-              <button
-                type="button"
-                onClick={handleConfirmBooking}
-                disabled={submitting}
-                className="px-6 py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark disabled:opacity-60 transition-all duration-200 ease-smooth active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2"
-              >
-                {submitting ? 'Sending request…' : 'Confirm booking'}
-              </button>
+              <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => setStep('contact')}
+                  className="px-4 py-2.5 text-gray-600 hover:text-finland focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2 rounded-lg"
+                >
+                  Back
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmBooking}
+                  disabled={submitting}
+                  className="px-6 py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark disabled:opacity-60 transition-all duration-200 ease-smooth active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2"
+                >
+                  {submitting ? 'Sending request…' : 'Confirm booking'}
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -948,7 +1009,7 @@ export default function BookingPage({
           aria-label="Modal backdrop"
           aria-hidden="true"
         />
-        <div className="animate-fade-in-up relative z-10 flex w-full max-w-4xl max-h-[min(92dvh,920px)] flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-2xl">
+        <div className="animate-fade-in-up relative z-10 flex w-full max-w-6xl max-h-[min(95dvh,1040px)] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl">
           <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-4 py-3 sm:px-5">
             <h2
               id="booking-flow-modal-title"
@@ -977,7 +1038,7 @@ export default function BookingPage({
               </div>
             </div>
           ) : null}
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-6 pt-2 sm:px-5 sm:pb-8 sm:pt-3 [scrollbar-gutter:stable]">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-gray-50/70 px-4 pb-6 pt-2 sm:px-6 sm:pb-8 sm:pt-4 [scrollbar-gutter:stable]">
             {flowInner}
           </div>
         </div>

@@ -23,6 +23,7 @@ export type BookingDraftV1 = {
   guests: number;
   name: string;
   email: string;
+  placeOfStay: string;
   specialRequests: string;
   savedAt: string;
 };
@@ -133,6 +134,7 @@ export function loadBookingDraft(tourId: string): BookingDraftV1 | null {
       guests: typeof parsed.guests === 'number' ? parsed.guests : 2,
       name: typeof parsed.name === 'string' ? parsed.name : '',
       email: typeof parsed.email === 'string' ? parsed.email : '',
+      placeOfStay: typeof parsed.placeOfStay === 'string' ? parsed.placeOfStay : '',
       specialRequests: typeof parsed.specialRequests === 'string' ? parsed.specialRequests : '',
       savedAt: parsed.savedAt ?? new Date().toISOString(),
     };
