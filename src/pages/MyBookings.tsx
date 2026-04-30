@@ -16,10 +16,33 @@ import { fetchListingTitlesByIds, pgTimeToHm } from '../data/supabase-listings';
 import { decrementAvailabilityBooked } from '../data/supabase-availability';
 import PageHero from '../components/PageHero';
 import { HERO_IMG } from '../lib/heroImages';
+import { clearBookingsUnread } from '../lib/customerBookingNotifications';
 
 interface MyBookingsProps {
   onNavigate: (page: string) => void;
   onTourSelect?: (tour: { id: string }) => void;
+}
+
+function extractPlaceOfStay(notes: string | null | undefined): string {
+  const text = (notes ?? '').trim();
+  if (!text) return '';
+  const line = text
+    .split(/\n+/)
+    .map((l) => l.trim())
+    .find((l) => /^place of stay:/i.test(l));
+  return line ? line.replace(/^place of stay:/i, '').trim() : '';
+}
+
+function mergePlaceOfStayIntoNotes(notes: string | null | undefined, place: string): string {
+  const raw = (notes ?? '').trim();
+  const kept = raw
+    .split(/\n+/)
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0)
+    .filter((l) => !/^place of stay:/i.test(l));
+  const normalized = place.trim();
+  if (normalized) kept.unshift(`Place of stay: ${normalized}`);
+  return kept.join('\n');
 }
 
 export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps) {
@@ -30,8 +53,9 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   const [error, setError] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [cancelConfirm, setCancelConfirm] = useState<BookingRow | null>(null);
-  const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
-  const [noteSavingId, setNoteSavingId] = useState<string | null>(null);
+  const [stayDrafts, setStayDrafts] = useState<Record<string, string>>({});
+  const [staySavingId, setStaySavingId] = useState<string | null>(null);
+  const [paymentBanner, setPaymentBanner] = useState<'success' | 'cancelled' | null>(null);
 
   /** Tour start is within 24 hours from now → no refund. Otherwise full refund. */
   const getRefundChoiceForCancel = useCallback((bookingDate: string | null): 'full_refund' | 'no_refund' => {
@@ -65,25 +89,26 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   useEffect(() => {
     const next: Record<string, string> = {};
     for (const b of bookings) {
-      next[b.id] = b.special_requests ?? '';
+      next[b.id] = extractPlaceOfStay(b.special_requests);
     }
-    setNoteDrafts(next);
+    setStayDrafts(next);
   }, [bookings]);
 
-  const handleSaveNote = useCallback(
+  const handleSaveStay = useCallback(
     async (b: BookingRow) => {
       setError(null);
-      const text = noteDrafts[b.id] ?? '';
-      if (text.trim() === (b.special_requests ?? '').trim()) {
+      const place = (stayDrafts[b.id] ?? '').trim();
+      const nextNotes = mergePlaceOfStayIntoNotes(b.special_requests, place);
+      if (nextNotes.trim() === (b.special_requests ?? '').trim()) {
         return;
       }
-      setNoteSavingId(b.id);
-      const res = await updateGuestBookingSpecialRequests(b.id, text);
-      setNoteSavingId(null);
+      setStaySavingId(b.id);
+      const res = await updateGuestBookingSpecialRequests(b.id, nextNotes);
+      setStaySavingId(null);
       if (res.success) await load();
-      else setError(res.error ?? 'Could not save your note.');
+      else setError(res.error ?? 'Could not save place of stay.');
     },
-    [noteDrafts, load]
+    [stayDrafts, load]
   );
 
   const handleCancelBooking = useCallback(async (b: BookingRow) => {
@@ -105,6 +130,24 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
     if (user) load();
     else setLoading(false);
   }, [user, load]);
+
+  useEffect(() => {
+    if (user?.id) clearBookingsUnread(user.id);
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    const payment = (url.searchParams.get('payment') ?? '').trim().toLowerCase();
+    if (payment === 'success' || payment === 'cancelled') {
+      setPaymentBanner(payment);
+      url.searchParams.delete('payment');
+      const next = `${url.pathname}${url.search}${url.hash}`;
+      window.history.replaceState({}, '', next);
+    } else {
+      setPaymentBanner(null);
+    }
+  }, []);
 
   if (!isSupabaseConfigured()) {
     return (
@@ -223,6 +266,30 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
             {error}
           </div>
         )}
+        {paymentBanner === 'success' && (
+          <div className="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800 flex items-start justify-between gap-3">
+            <p>Payment received. Your booking is being processed and will appear below.</p>
+            <button
+              type="button"
+              onClick={() => setPaymentBanner(null)}
+              className="text-green-700 hover:text-green-900 font-medium"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+        {paymentBanner === 'cancelled' && (
+          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 flex items-start justify-between gap-3">
+            <p>Payment was not completed. You can try checkout again from your booking flow.</p>
+            <button
+              type="button"
+              onClick={() => setPaymentBanner(null)}
+              className="text-amber-700 hover:text-amber-900 font-medium"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
 
         {loading ? (
           <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
@@ -276,32 +343,32 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                   )}
                   {(b.status === 'pending' || b.status === 'confirmed') && (
                     <div className="mt-3 w-full max-w-lg">
-                      <label htmlFor={`guest-note-${b.id}`} className="block text-xs font-medium text-gray-700 mb-1">
-                        Note for the host
+                      <label htmlFor={`stay-${b.id}`} className="block text-xs font-medium text-gray-700 mb-1">
+                        Place of stay
                       </label>
-                      <textarea
-                        id={`guest-note-${b.id}`}
-                        rows={3}
-                        value={noteDrafts[b.id] ?? ''}
+                      <input
+                        id={`stay-${b.id}`}
+                        type="text"
+                        value={stayDrafts[b.id] ?? ''}
                         onChange={(e) =>
-                          setNoteDrafts((d) => ({
+                          setStayDrafts((d) => ({
                             ...d,
                             [b.id]: e.target.value,
                           }))
                         }
-                        placeholder="Pickup details, dietary needs, questions…"
+                        placeholder="Hotel name or address"
                         className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 text-gray-800 placeholder:text-gray-400 focus:ring-2 focus:ring-finland/40 focus:border-finland"
                       />
                       <button
                         type="button"
-                        onClick={() => handleSaveNote(b)}
-                        disabled={noteSavingId === b.id}
+                        onClick={() => handleSaveStay(b)}
+                        disabled={staySavingId === b.id}
                         className="mt-2 text-sm px-3 py-1.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark disabled:opacity-50"
                       >
-                        {noteSavingId === b.id ? 'Saving…' : 'Save note'}
+                        {staySavingId === b.id ? 'Saving…' : 'Save place of stay'}
                       </button>
                       <p className="mt-1 text-xs text-gray-500">
-                        The supplier receives an email when you save. You can edit again anytime before the tour.
+                        The supplier receives an email when you update this.
                       </p>
                     </div>
                   )}

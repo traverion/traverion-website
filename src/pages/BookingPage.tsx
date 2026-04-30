@@ -8,7 +8,6 @@ import { createPortal } from 'react-dom';
 import {
   ArrowLeft,
   Calendar,
-  CalendarPlus,
   Users,
   User,
   Mail,
@@ -24,7 +23,7 @@ import {
 import { TourPackage } from '../types/tour';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
-import { submitBooking } from '../data/supabase-bookings';
+import { createBookingCheckoutSession, submitBooking } from '../data/supabase-bookings';
 import type { ListingDiscount } from '../data/supabase-discounts';
 import { fetchConsumerProfileRow } from '../data/supabase-consumer-profile';
 import { getDisplayPriceForBookingVariant } from '../lib/discount-display';
@@ -52,7 +51,7 @@ import {
   type BookingFlowStep,
   type TourBookingVariant,
 } from '../lib/booking-flow';
-import { downloadBookingIcs } from '../lib/booking-calendar';
+import { markBookingsUnread } from '../lib/customerBookingNotifications';
 
 interface BookingPageProps {
   tour: TourPackage;
@@ -471,6 +470,32 @@ export default function BookingPage({
           return;
         }
       }
+      if (isSupabaseConfigured()) {
+        const checkout = await createBookingCheckoutSession({
+          listingId: tour.id,
+          listingTitle: tour.title,
+          bookingDate: date,
+          guests,
+          customerName: leadGuestName,
+          customerPhone: phone.trim() || undefined,
+          specialRequests: mergedSpecialRequests() || undefined,
+          totalAmount: total,
+          currency,
+          successPath: '/bookings?payment=success',
+          cancelPath: '/bookings?payment=cancelled',
+        });
+        if (!checkout.success || !checkout.checkoutUrl) {
+          setError(checkout.error ?? 'Could not start checkout. Please try again.');
+          setSubmitting(false);
+          return;
+        }
+        analytics.bookComplete(tour.id, guests);
+        if (user?.id) markBookingsUnread(user.id);
+        clearBookingDraft(tour.id);
+        window.location.assign(checkout.checkoutUrl);
+        return;
+      }
+
       const result = await submitBooking({
         tour_id: tour.id,
         tour_title: tour.title,
@@ -484,8 +509,9 @@ export default function BookingPage({
         currency,
       });
       if (result.success) {
-        if (isSupabaseConfigured()) await incrementAvailabilityBooked(tour.id, date);
+        await incrementAvailabilityBooked(tour.id, date);
         analytics.bookComplete(tour.id, guests);
+        if (user?.id) markBookingsUnread(user.id);
         clearBookingDraft(tour.id);
         setStep('done');
       } else {
@@ -896,7 +922,7 @@ export default function BookingPage({
                   disabled={submitting}
                   className="px-6 py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark disabled:opacity-60 transition-all duration-200 ease-smooth active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2"
                 >
-                  {submitting ? 'Sending request…' : 'Confirm booking'}
+                  {submitting ? 'Redirecting to payment…' : 'Continue to payment'}
                 </button>
               </div>
             </div>
@@ -937,25 +963,6 @@ export default function BookingPage({
               </div>
             </div>
             <div className="flex flex-col sm:flex-row gap-3 justify-center flex-wrap">
-              <button
-                type="button"
-                onClick={() =>
-                  downloadBookingIcs({
-                    title: tour.title,
-                    dateIso: date,
-                    descriptionLines: [
-                      tour.title,
-                      `${formatBookingDateDisplay(date)} — ${guests} guests`,
-                      tour.meetingPoint?.trim() ? `Meeting: ${tour.meetingPoint.trim()}` : '',
-                      `Estimated total ${currency} ${total} (confirm with provider)`,
-                    ],
-                  })
-                }
-                className="px-6 py-2.5 rounded-lg border border-finland text-finland font-medium hover:bg-finland/5 transition-all duration-200 ease-smooth active:scale-[0.98] inline-flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2"
-              >
-                <CalendarPlus className="w-4 h-4" />
-                Add to calendar
-              </button>
               {onNavigate && (
                 <>
                   <button

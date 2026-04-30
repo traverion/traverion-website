@@ -49,6 +49,32 @@ export type BookingRow = {
 const BOOKING_LIST_COLUMNS =
   'id, listing_id, guest_email, guest_name, guests, booking_date, status, special_requests, cancellation_reason, refund_choice, cancelled_at, acknowledged_at, created_at, start_time, pickup_time';
 
+export async function createBookingCheckoutSession(params: {
+  listingId: string;
+  listingTitle?: string;
+  bookingDate: string;
+  guests: number;
+  customerName?: string;
+  customerPhone?: string;
+  specialRequests?: string;
+  totalAmount: number;
+  currency?: string;
+  successPath?: string;
+  cancelPath?: string;
+}): Promise<{ success: boolean; checkoutUrl?: string; bookingId?: string; error?: string }> {
+  if (!supabase) return { success: false, error: 'Supabase not configured' };
+  const { data, error } = await supabase.functions.invoke('create-booking-checkout-session', {
+    body: params,
+  });
+  if (error) return { success: false, error: error.message };
+  return {
+    success: Boolean(data?.success && data?.checkoutUrl),
+    checkoutUrl: typeof data?.checkoutUrl === 'string' ? data.checkoutUrl : undefined,
+    bookingId: typeof data?.bookingId === 'string' ? data.bookingId : undefined,
+    error: data?.error,
+  };
+}
+
 export async function submitBooking(
   data: Omit<Booking, 'id' | 'created_at' | 'updated_at'>
 ): Promise<{ success: boolean; error?: string }> {
@@ -93,6 +119,20 @@ export async function submitBooking(
       guests: data.travelers,
       guestName: data.customer_name,
       portalBaseUrl: supplierPortalPublicBaseUrl(),
+    });
+  }
+  if (guestEmailNorm) {
+    void supabase.functions.invoke('notify-customer-booking', {
+      body: {
+        customerEmail: guestEmailNorm,
+        customerName: data.customer_name ?? undefined,
+        listingTitle: listingData?.title ?? data.tour_title ?? 'Experience',
+        bookingId: inserted?.id,
+        bookingDate: data.departure_date ?? undefined,
+        guests: data.travelers ?? undefined,
+        totalAmount: totalAmount ?? undefined,
+        currency: data.currency ?? 'USD',
+      },
     });
   }
   return { success: true };

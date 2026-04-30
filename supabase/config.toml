@@ -10,3 +10,9 @@ verify_jwt = false
 
 [functions.notify-contact-inquiry]
 verify_jwt = false
+
+[functions.create-booking-checkout-session]
+verify_jwt = true
+
+[functions.stripe-webhook]
+verify_jwt = false

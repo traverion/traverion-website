@@ -1,10 +1,17 @@
 import { useState, useRef, useEffect } from 'react';
-import { Menu, X, User, LogOut, LayoutDashboard, ShoppingCart } from 'lucide-react';
+import { Menu, X, User, LogOut, LayoutDashboard, ShoppingCart, Calendar } from 'lucide-react';
 import { useTranslation } from '../contexts/TranslationContext';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { fetchCartCount } from '../data/supabase-cart';
+import { fetchMyBookings } from '../data/supabase-bookings';
 import { BRAND_LOGO_SRC } from '../lib/brandAssets';
+import {
+  clearBookingsUnread,
+  getBookingNotificationEventName,
+  getBookingsSeenAt,
+  hasBookingsUnread,
+} from '../lib/customerBookingNotifications';
 
 interface UnifiedHeaderProps {
   currentPage: string;
@@ -17,6 +24,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [cartCount, setCartCount] = useState(0);
+  const [hasUnreadBookings, setHasUnreadBookings] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -26,6 +34,50 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
     }
     fetchCartCount(user.id).then(setCartCount).catch(() => setCartCount(0));
   }, [user?.id, currentPage]);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured() || !user?.id) {
+      setHasUnreadBookings(false);
+      return;
+    }
+    let cancelled = false;
+    const refresh = async () => {
+      const localUnread = hasBookingsUnread(user.id);
+      if (localUnread) {
+        if (!cancelled) setHasUnreadBookings(true);
+        return;
+      }
+      try {
+        const list = await fetchMyBookings();
+        const newest = list[0]?.created_at ? Date.parse(list[0].created_at) : 0;
+        const seenRaw = getBookingsSeenAt(user.id);
+        const seen = seenRaw ? Date.parse(seenRaw) : 0;
+        if (!cancelled) setHasUnreadBookings(Boolean(newest && (!seen || newest > seen)));
+      } catch {
+        if (!cancelled) setHasUnreadBookings(false);
+      }
+    };
+    void refresh();
+    const eventName = getBookingNotificationEventName();
+    const onStorage = () => {
+      void refresh();
+    };
+    window.addEventListener('storage', onStorage);
+    window.addEventListener(eventName, onStorage);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('storage', onStorage);
+      window.removeEventListener(eventName, onStorage);
+    };
+  }, [user?.id, currentPage]);
+
+  const openBookings = () => {
+    if (user?.id) clearBookingsUnread(user.id);
+    setHasUnreadBookings(false);
+    setIsUserMenuOpen(false);
+    setIsMobileMenuOpen(false);
+    onNavigate('bookings');
+  };
 
   useEffect(() => {
     if (!isUserMenuOpen) return;
@@ -142,8 +194,11 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                 aria-label="Profile"
               >
                 {user ? (
-                  <span className="w-8 h-8 rounded-full bg-finland/20 text-finland flex items-center justify-center text-sm font-medium border border-gray-200">
+                  <span className="relative w-8 h-8 rounded-full bg-finland/20 text-finland flex items-center justify-center text-sm font-medium border border-gray-200">
                     {(user.email ?? user.id).slice(0, 1).toUpperCase()}
+                    {hasUnreadBookings ? (
+                      <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white" />
+                    ) : null}
                   </span>
                 ) : (
                   <span className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center">
@@ -192,6 +247,17 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                       >
                         <LayoutDashboard className="w-4 h-4" />
                         My account
+                      </button>
+                      <button
+                        type="button"
+                        onClick={openBookings}
+                        className="lux-flat w-full flex items-center justify-between gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 text-left rounded-lg"
+                      >
+                        <span className="inline-flex items-center gap-2">
+                          <Calendar className="w-4 h-4" />
+                          My bookings
+                        </span>
+                        {hasUnreadBookings ? <span className="h-2.5 w-2.5 rounded-full bg-red-500" /> : null}
                       </button>
                       <button
                         type="button"
@@ -362,6 +428,16 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                     >
                       <LayoutDashboard className="w-5 h-5" />
                       My account
+                    </button>
+                    <button
+                      onClick={openBookings}
+                      className="lux-flat w-full text-left px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors duration-300 ease-lux flex items-center justify-between gap-2"
+                    >
+                      <span className="inline-flex items-center gap-2">
+                        <Calendar className="w-5 h-5" />
+                        My bookings
+                      </span>
+                      {hasUnreadBookings ? <span className="h-2.5 w-2.5 rounded-full bg-red-500" /> : null}
                     </button>
                     <button
                       onClick={() => {
