@@ -1,6 +1,6 @@
 // deno-lint-ignore-file no-explicit-any
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
+import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 import Stripe from 'https://esm.sh/stripe@16.12.0?target=deno';
 
 function json(body: unknown, status = 200): Response {
@@ -16,6 +16,105 @@ function json(body: unknown, status = 200): Response {
 function amountToMajor(amountMinor: number | null | undefined): number | null {
   if (typeof amountMinor !== 'number' || !Number.isFinite(amountMinor)) return null;
   return Math.round((amountMinor / 100) * 100) / 100;
+}
+
+async function incrementAvailabilityBookedAdmin(
+  admin: SupabaseClient,
+  listingId: string,
+  bookingDate: string | null
+) {
+  if (!bookingDate) return;
+  const { data: row } = await admin
+    .from('listing_availability')
+    .select('booked')
+    .eq('listing_id', listingId)
+    .eq('available_date', bookingDate)
+    .maybeSingle();
+  if (!row) return;
+  await admin
+    .from('listing_availability')
+    .update({ booked: (row.booked ?? 0) + 1 })
+    .eq('listing_id', listingId)
+    .eq('available_date', bookingDate);
+}
+
+/** Supplier + traveler emails after paid checkout (same as legacy submitBooking flow). */
+async function notifyPaidBookingSideEffects(params: {
+  admin: SupabaseClient;
+  supabaseUrl: string;
+  serviceRoleKey: string;
+  bookingId: string;
+  amountPaid: number | null;
+  currency: string;
+}) {
+  const { admin, supabaseUrl, serviceRoleKey, bookingId, amountPaid, currency } = params;
+  const anon = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+  const portalBase = (Deno.env.get('PUBLIC_SITE_URL') ?? 'https://www.traverion.com').replace(/\/$/, '');
+
+  const { data: booking } = await admin
+    .from('bookings')
+    .select('listing_id, booking_date, guests, guest_name, guest_email')
+    .eq('id', bookingId)
+    .maybeSingle();
+  if (!booking?.listing_id) return;
+
+  await incrementAvailabilityBookedAdmin(admin, booking.listing_id, booking.booking_date ?? null);
+
+  const { data: listing } = await admin
+    .from('listings')
+    .select('supplier_id, title')
+    .eq('id', booking.listing_id)
+    .maybeSingle();
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${serviceRoleKey}`,
+    apikey: anon || serviceRoleKey,
+  };
+
+  if (listing?.supplier_id) {
+    try {
+      await fetch(`${supabaseUrl}/functions/v1/notify-supplier-event`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          supplierId: listing.supplier_id,
+          eventType: 'new_booking',
+          listingId: booking.listing_id,
+          listingTitle: listing.title ?? undefined,
+          bookingId,
+          bookingDate: booking.booking_date ?? undefined,
+          guests: Number(booking.guests ?? 0),
+          guestName: booking.guest_name ?? undefined,
+          portalBaseUrl: portalBase,
+        }),
+      });
+    } catch {
+      /* non-fatal */
+    }
+  }
+
+  const guestEmail = (booking.guest_email ?? '').trim().toLowerCase();
+  if (guestEmail) {
+    try {
+      await fetch(`${supabaseUrl}/functions/v1/notify-customer-booking`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          customerEmail: guestEmail,
+          customerName: booking.guest_name ?? undefined,
+          listingTitle: listing?.title ?? 'Experience',
+          bookingId,
+          bookingDate: booking.booking_date ?? undefined,
+          guests: Number(booking.guests ?? 0),
+          totalAmount: amountPaid ?? undefined,
+          currency,
+        }),
+      });
+    } catch {
+      /* non-fatal */
+    }
+  }
 }
 
 serve(async (req) => {
@@ -117,6 +216,15 @@ serve(async (req) => {
           amount: amountPaid,
           currency,
           payload: event as unknown as Record<string, unknown>,
+        });
+
+        await notifyPaidBookingSideEffects({
+          admin,
+          supabaseUrl,
+          serviceRoleKey,
+          bookingId,
+          amountPaid,
+          currency,
         });
 
         await markProcessed('processed');

@@ -17,3 +17,10 @@ verify_jwt = false
 
 [functions.stripe-webhook]
 verify_jwt = false
+
+# Invoked from stripe-webhook (server); uses service role in Authorization.
+[functions.notify-customer-booking]
+verify_jwt = false
+
+[functions.notify-supplier-event]
+verify_jwt = false

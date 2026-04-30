@@ -3,7 +3,7 @@
  * RLS ensures only rows where guest_email = auth user email are returned.
  */
 import { useState, useEffect, useCallback } from 'react';
-import { Calendar, Users, MapPin, LogIn, RefreshCw, XCircle, ArrowLeft, Clock } from 'lucide-react';
+import { Calendar, Users, MapPin, LogIn, RefreshCw, XCircle, ArrowLeft, Clock, CheckCircle, Home } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import {
@@ -134,6 +134,13 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   useEffect(() => {
     if (user?.id) clearBookingsUnread(user.id);
   }, [user?.id]);
+
+  /** Webhook may lag a few seconds behind the redirect — refresh once more after payment. */
+  useEffect(() => {
+    if (paymentBanner !== 'success') return;
+    const id = window.setTimeout(() => void load(), 2800);
+    return () => window.clearTimeout(id);
+  }, [paymentBanner, load]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -267,27 +274,72 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
           </div>
         )}
         {paymentBanner === 'success' && (
-          <div className="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800 flex items-start justify-between gap-3">
-            <p>Payment received. Your booking is being processed and will appear below.</p>
-            <button
-              type="button"
-              onClick={() => setPaymentBanner(null)}
-              className="text-green-700 hover:text-green-900 font-medium"
-            >
-              Dismiss
-            </button>
+          <div className="mb-6 rounded-2xl border border-green-200 bg-white shadow-sm px-4 py-5 sm:px-6">
+            <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-green-100 text-green-600">
+                <CheckCircle className="h-7 w-7" aria-hidden />
+              </span>
+              <div className="flex-1 min-w-0">
+                <h2 className="text-lg font-semibold text-gray-900">Payment successful</h2>
+                <p className="mt-1 text-sm text-gray-600">
+                  Your booking is confirmed for payment. You will receive a confirmation email shortly; the operator may also
+                  contact you about pickup details.
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onNavigate('home')}
+                    className="inline-flex items-center gap-2 rounded-lg bg-finland px-4 py-2.5 text-sm font-medium text-white hover:bg-finland-dark"
+                  >
+                    <Home className="h-4 w-4" />
+                    Back to home
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentBanner(null)}
+                    className="rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
         {paymentBanner === 'cancelled' && (
-          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 flex items-start justify-between gap-3">
-            <p>Payment was not completed. You can try checkout again from your booking flow.</p>
-            <button
-              type="button"
-              onClick={() => setPaymentBanner(null)}
-              className="text-amber-700 hover:text-amber-900 font-medium"
-            >
-              Dismiss
-            </button>
+          <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-5 sm:px-6">
+            <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+              <div className="flex-1 min-w-0">
+                <h2 className="text-lg font-semibold text-amber-900">Payment not completed</h2>
+                <p className="mt-1 text-sm text-amber-900/90">
+                  Checkout was cancelled or could not be finished. Your booking was not charged. Open the tour again and use
+                  Continue to payment when you are ready.
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onNavigate('packages')}
+                    className="rounded-lg bg-finland px-4 py-2.5 text-sm font-medium text-white hover:bg-finland-dark"
+                  >
+                    Browse tours
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onNavigate('home')}
+                    className="rounded-lg border border-amber-300 bg-white px-4 py-2.5 text-sm font-medium text-amber-900 hover:bg-amber-100/80"
+                  >
+                    Home
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentBanner(null)}
+                    className="rounded-lg px-4 py-2.5 text-sm font-medium text-amber-900 hover:underline"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 

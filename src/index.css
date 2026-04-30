@@ -292,14 +292,12 @@ html {
   }
 }
 
-/* Route / section mount: fade + gentle rise */
+/* Route / section mount: subtle rise only — avoid opacity:0 + fill-mode both (blank screen after redirects). */
 @keyframes lux-page-enter {
   from {
-    opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(12px);
   }
   to {
-    opacity: 1;
     transform: translateY(0);
   }
 }
@@ -314,7 +312,7 @@ html {
 }
 
 .lux-page-enter {
-  animation: lux-page-enter 0.58s var(--lux-ease) both;
+  animation: lux-page-enter 0.58s var(--lux-ease) forwards;
 }
 
 @media (prefers-reduced-motion: reduce) {
