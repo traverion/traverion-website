@@ -42,7 +42,7 @@ serve(async (req) => {
     if (!signature) return json({ success: false, error: 'Missing stripe-signature header' }, 400);
 
     const rawBody = await req.text();
-    const stripe = new Stripe(stripeSecret, { apiVersion: '2024-06-20' });
+    const stripe = new Stripe(stripeSecret);
 
     let event: Stripe.Event;
     try {

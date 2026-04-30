@@ -49,6 +49,29 @@ export type BookingRow = {
 const BOOKING_LIST_COLUMNS =
   'id, listing_id, guest_email, guest_name, guests, booking_date, status, special_requests, cancellation_reason, refund_choice, cancelled_at, acknowledged_at, created_at, start_time, pickup_time';
 
+async function readEdgeFunctionErrorMessage(
+  error: unknown,
+  data: unknown
+): Promise<string> {
+  if (data && typeof data === 'object' && data !== null && 'error' in data) {
+    const e = (data as { error?: unknown }).error;
+    if (typeof e === 'string' && e.trim()) return e.trim();
+  }
+  const err = error as { message?: string; context?: { json?: () => Promise<unknown> } };
+  if (err?.context && typeof err.context.json === 'function') {
+    try {
+      const body = (await err.context.json()) as { error?: unknown; message?: unknown };
+      if (typeof body?.error === 'string' && body.error.trim()) return body.error.trim();
+      if (typeof body?.message === 'string' && body.message.trim()) return body.message.trim();
+    } catch {
+      /* ignore */
+    }
+  }
+  return typeof err?.message === 'string' && err.message.trim()
+    ? err.message.trim()
+    : 'Could not start checkout. Try again or contact support.';
+}
+
 export async function createBookingCheckoutSession(params: {
   listingId: string;
   listingTitle?: string;
@@ -66,12 +89,15 @@ export async function createBookingCheckoutSession(params: {
   const { data, error } = await supabase.functions.invoke('create-booking-checkout-session', {
     body: params,
   });
-  if (error) return { success: false, error: error.message };
+  if (error) {
+    return { success: false, error: await readEdgeFunctionErrorMessage(error, data) };
+  }
+  const payload = data as { success?: unknown; checkoutUrl?: unknown; bookingId?: unknown; error?: unknown } | null;
   return {
-    success: Boolean(data?.success && data?.checkoutUrl),
-    checkoutUrl: typeof data?.checkoutUrl === 'string' ? data.checkoutUrl : undefined,
-    bookingId: typeof data?.bookingId === 'string' ? data.bookingId : undefined,
-    error: data?.error,
+    success: Boolean(payload?.success && payload?.checkoutUrl),
+    checkoutUrl: typeof payload?.checkoutUrl === 'string' ? payload.checkoutUrl : undefined,
+    bookingId: typeof payload?.bookingId === 'string' ? payload.bookingId : undefined,
+    error: typeof payload?.error === 'string' ? payload.error : undefined,
   };
 }
 

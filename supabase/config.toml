@@ -12,7 +12,8 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.create-booking-checkout-session]
-verify_jwt = true
+# Validate JWT inside the function (avoids gateway "Invalid JWT" edge cases with some clients).
+verify_jwt = false
 
 [functions.stripe-webhook]
 verify_jwt = false

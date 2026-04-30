@@ -122,7 +122,7 @@ serve(async (req) => {
       return json({ success: false, error: insertError?.message ?? 'Could not create booking' }, 500);
     }
 
-    const stripe = new Stripe(stripeSecret, { apiVersion: '2024-06-20' });
+    const stripe = new Stripe(stripeSecret);
     const amountMinor = Math.round(totalAmount * 100);
 
     const session = await stripe.checkout.sessions.create({
