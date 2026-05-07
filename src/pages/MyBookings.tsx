@@ -10,6 +10,7 @@ import {
   fetchMyBookings,
   cancelBookingAsCustomer,
   updateGuestBookingSpecialRequests,
+  resumePendingBookingCheckout,
   type BookingRow,
 } from '../data/supabase-bookings';
 import { fetchListingTitlesByIds, pgTimeToHm } from '../data/supabase-listings';
@@ -52,6 +53,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [payingId, setPayingId] = useState<string | null>(null);
   const [cancelConfirm, setCancelConfirm] = useState<BookingRow | null>(null);
   const [stayDrafts, setStayDrafts] = useState<Record<string, string>>({});
   const [staySavingId, setStaySavingId] = useState<string | null>(null);
@@ -125,6 +127,18 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
       setError(res.error ?? 'Could not cancel booking');
     }
   }, [getRefundChoiceForCancel, load]);
+
+  const handlePayNow = useCallback(async (b: BookingRow) => {
+    setError(null);
+    setPayingId(b.id);
+    const res = await resumePendingBookingCheckout({ bookingId: b.id });
+    setPayingId(null);
+    if (!res.success || !res.checkoutUrl) {
+      setError(res.error ?? 'Could not open payment checkout.');
+      return;
+    }
+    window.location.assign(res.checkoutUrl);
+  }, []);
 
   useEffect(() => {
     if (user) load();
@@ -452,6 +466,16 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         className="text-sm text-finland hover:underline"
                       >
                         View tour
+                      </button>
+                    )}
+                    {b.status === 'pending' && (
+                      <button
+                        type="button"
+                        onClick={() => void handlePayNow(b)}
+                        disabled={payingId === b.id}
+                        className="text-sm text-finland hover:underline disabled:opacity-50"
+                      >
+                        {payingId === b.id ? 'Opening checkout…' : 'Pay now'}
                       </button>
                     )}
                     {b.status === 'confirmed' && (

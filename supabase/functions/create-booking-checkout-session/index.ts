@@ -4,6 +4,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 import Stripe from 'https://esm.sh/stripe@16.12.0?target=deno';
 
 type RequestBody = {
+  bookingId?: string;
   listingId: string;
   listingTitle?: string;
   bookingDate: string;
@@ -72,54 +73,100 @@ serve(async (req) => {
     if (!email) return json({ success: false, error: 'Signed-in account has no email' }, 400);
 
     const body = (await req.json()) as Partial<RequestBody>;
-    const listingId = String(body.listingId ?? '').trim();
-    const listingTitle = String(body.listingTitle ?? 'Experience').trim() || 'Experience';
-    const bookingDate = String(body.bookingDate ?? '').trim();
-    const guests = Number(body.guests ?? 0);
+    const bookingId = String(body.bookingId ?? '').trim();
+    let listingId = String(body.listingId ?? '').trim();
+    let listingTitle = String(body.listingTitle ?? 'Experience').trim() || 'Experience';
+    let bookingDate = String(body.bookingDate ?? '').trim();
+    let guests = Number(body.guests ?? 0);
     const customerName = String(body.customerName ?? '').trim();
     const customerPhone = String(body.customerPhone ?? '').trim();
     const specialRequests = String(body.specialRequests ?? '').trim();
-    const totalAmount = Number(body.totalAmount ?? NaN);
-    const currency = String(body.currency ?? 'USD').trim().toUpperCase() || 'USD';
+    let totalAmount = Number(body.totalAmount ?? NaN);
+    let currency = String(body.currency ?? 'USD').trim().toUpperCase() || 'USD';
     const successPath = sanitizePath(body.successPath, '/bookings?payment=success');
     const cancelPath = sanitizePath(body.cancelPath, '/bookings?payment=cancelled');
 
-    if (!listingId) return json({ success: false, error: 'listingId is required' }, 400);
+    const admin = createClient(supabaseUrl, supabaseServiceRoleKey);
+    let targetBookingId = bookingId;
+
+    if (targetBookingId) {
+      const { data: existing, error: existingError } = await admin
+        .from('bookings')
+        .select('id, listing_id, guest_email, guest_user_id, guest_name, guests, booking_date, status, payment_status, total_amount, currency')
+        .eq('id', targetBookingId)
+        .maybeSingle();
+      if (existingError) return json({ success: false, error: existingError.message }, 500);
+      if (!existing) return json({ success: false, error: 'Booking not found' }, 404);
+      const ownerEmail = (existing.guest_email ?? '').trim().toLowerCase();
+      const ownsByEmail = ownerEmail.length > 0 && ownerEmail === email;
+      const ownsByUserId = typeof existing.guest_user_id === 'string' && existing.guest_user_id === user.id;
+      if (!ownsByEmail && !ownsByUserId) {
+        return json({ success: false, error: 'You can only pay your own booking' }, 403);
+      }
+      if (existing.status !== 'pending') {
+        return json({ success: false, error: 'Only pending bookings can be paid' }, 400);
+      }
+      if ((existing.payment_status ?? 'pending') === 'paid') {
+        return json({ success: false, error: 'This booking is already paid' }, 400);
+      }
+      listingId = String(existing.listing_id ?? '').trim();
+      bookingDate = String(existing.booking_date ?? '').trim();
+      guests = Number(existing.guests ?? 0);
+      totalAmount = Number(existing.total_amount ?? NaN);
+      currency = String(existing.currency ?? 'USD').trim().toUpperCase() || 'USD';
+      const { data: listingRow } = await admin
+        .from('listings')
+        .select('title')
+        .eq('id', listingId)
+        .maybeSingle();
+      if (listingRow?.title?.trim()) listingTitle = listingRow.title.trim();
+    } else {
+      if (!listingId) return json({ success: false, error: 'listingId is required' }, 400);
+      if (!bookingDate || !/^\d{4}-\d{2}-\d{2}$/.test(bookingDate)) {
+        return json({ success: false, error: 'bookingDate must be YYYY-MM-DD' }, 400);
+      }
+      if (!Number.isFinite(guests) || guests < 1 || guests > 99) {
+        return json({ success: false, error: 'guests must be between 1 and 99' }, 400);
+      }
+      if (!Number.isFinite(totalAmount) || totalAmount <= 0) {
+        return json({ success: false, error: 'totalAmount must be > 0' }, 400);
+      }
+
+      const { data: inserted, error: insertError } = await admin
+        .from('bookings')
+        .insert({
+          listing_id: listingId,
+          guest_email: email,
+          guest_name: customerName || null,
+          guests,
+          booking_date: bookingDate,
+          status: 'pending',
+          special_requests: [customerPhone ? `Guest phone: ${customerPhone}` : '', specialRequests]
+            .filter(Boolean)
+            .join('\n\n') || null,
+          total_amount: totalAmount,
+          currency,
+          guest_user_id: user.id,
+          payment_status: 'pending',
+          payment_provider: 'stripe',
+        })
+        .select('id')
+        .single();
+      if (insertError || !inserted?.id) {
+        return json({ success: false, error: insertError?.message ?? 'Could not create booking' }, 500);
+      }
+      targetBookingId = inserted.id;
+    }
+
+    if (!listingId) return json({ success: false, error: 'Booking listing is missing' }, 400);
     if (!bookingDate || !/^\d{4}-\d{2}-\d{2}$/.test(bookingDate)) {
-      return json({ success: false, error: 'bookingDate must be YYYY-MM-DD' }, 400);
+      return json({ success: false, error: 'Booking date must be YYYY-MM-DD' }, 400);
     }
     if (!Number.isFinite(guests) || guests < 1 || guests > 99) {
-      return json({ success: false, error: 'guests must be between 1 and 99' }, 400);
+      return json({ success: false, error: 'Booking guests must be between 1 and 99' }, 400);
     }
     if (!Number.isFinite(totalAmount) || totalAmount <= 0) {
-      return json({ success: false, error: 'totalAmount must be > 0' }, 400);
-    }
-
-    const admin = createClient(supabaseUrl, supabaseServiceRoleKey);
-
-    const { data: inserted, error: insertError } = await admin
-      .from('bookings')
-      .insert({
-        listing_id: listingId,
-        guest_email: email,
-        guest_name: customerName || null,
-        guests,
-        booking_date: bookingDate,
-        status: 'pending',
-        special_requests: [customerPhone ? `Guest phone: ${customerPhone}` : '', specialRequests]
-          .filter(Boolean)
-          .join('\n\n') || null,
-        total_amount: totalAmount,
-        currency,
-        guest_user_id: user.id,
-        payment_status: 'pending',
-        payment_provider: 'stripe',
-      })
-      .select('id')
-      .single();
-
-    if (insertError || !inserted?.id) {
-      return json({ success: false, error: insertError?.message ?? 'Could not create booking' }, 500);
+      return json({ success: false, error: 'Booking amount must be > 0' }, 400);
     }
 
     const stripe = new Stripe(stripeSecret);
@@ -145,13 +192,13 @@ serve(async (req) => {
         },
       ],
       metadata: {
-        booking_id: inserted.id,
+        booking_id: targetBookingId,
         listing_id: listingId,
         user_id: user.id,
       },
       payment_intent_data: {
         metadata: {
-          booking_id: inserted.id,
+          booking_id: targetBookingId,
           listing_id: listingId,
           user_id: user.id,
         },
@@ -161,14 +208,14 @@ serve(async (req) => {
     const { error: updateError } = await admin
       .from('bookings')
       .update({ checkout_session_id: session.id })
-      .eq('id', inserted.id);
+      .eq('id', targetBookingId);
     if (updateError) {
       return json({ success: false, error: 'Checkout created but booking update failed' }, 500);
     }
 
     return json({
       success: true,
-      bookingId: inserted.id,
+      bookingId: targetBookingId,
       checkoutSessionId: session.id,
       checkoutUrl: session.url,
     });

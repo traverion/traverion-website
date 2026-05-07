@@ -73,6 +73,7 @@ async function readEdgeFunctionErrorMessage(
 }
 
 export async function createBookingCheckoutSession(params: {
+  bookingId?: string;
   listingId: string;
   listingTitle?: string;
   bookingDate: string;
@@ -88,6 +89,29 @@ export async function createBookingCheckoutSession(params: {
   if (!supabase) return { success: false, error: 'Supabase not configured' };
   const { data, error } = await supabase.functions.invoke('create-booking-checkout-session', {
     body: params,
+  });
+  if (error) {
+    return { success: false, error: await readEdgeFunctionErrorMessage(error, data) };
+  }
+  const payload = data as { success?: unknown; checkoutUrl?: unknown; bookingId?: unknown; error?: unknown } | null;
+  return {
+    success: Boolean(payload?.success && payload?.checkoutUrl),
+    checkoutUrl: typeof payload?.checkoutUrl === 'string' ? payload.checkoutUrl : undefined,
+    bookingId: typeof payload?.bookingId === 'string' ? payload.bookingId : undefined,
+    error: typeof payload?.error === 'string' ? payload.error : undefined,
+  };
+}
+
+export async function resumePendingBookingCheckout(params: {
+  bookingId: string;
+}): Promise<{ success: boolean; checkoutUrl?: string; bookingId?: string; error?: string }> {
+  if (!supabase) return { success: false, error: 'Supabase not configured' };
+  const { data, error } = await supabase.functions.invoke('create-booking-checkout-session', {
+    body: {
+      bookingId: params.bookingId,
+      successPath: '/bookings?payment=success',
+      cancelPath: '/bookings?payment=cancelled',
+    },
   });
   if (error) {
     return { success: false, error: await readEdgeFunctionErrorMessage(error, data) };
