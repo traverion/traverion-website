@@ -83,7 +83,7 @@ serve(async (req) => {
     const specialRequests = String(body.specialRequests ?? '').trim();
     let totalAmount = Number(body.totalAmount ?? NaN);
     let currency = String(body.currency ?? 'USD').trim().toUpperCase() || 'USD';
-    const successPath = sanitizePath(body.successPath, '/bookings?payment=success');
+    const successPath = sanitizePath(body.successPath, '/booking-confirmed');
     const cancelPath = sanitizePath(body.cancelPath, '/bookings?payment=cancelled');
 
     const admin = createClient(supabaseUrl, supabaseServiceRoleKey);

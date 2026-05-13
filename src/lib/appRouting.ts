@@ -17,6 +17,7 @@ const PATH_TO_PAGE: Record<string, string> = {
   '/account': 'account',
   '/wishlist': 'wishlist',
   '/bookings': 'bookings',
+  '/booking-confirmed': 'booking-confirmed',
   '/blog': 'blog',
   '/contact': 'contact',
   '/privacy': 'privacy',
@@ -91,6 +92,19 @@ export function parsePathname(pathname: string, options?: ParsePathnameOptions):
 
 export function shouldClearSelectedTour(page: string): boolean {
   return !TOUR_FLOW_PAGES.has(page);
+}
+
+/**
+ * Stripe success_url historically landed on /bookings?session_id=… — normalize to the dedicated confirmation route.
+ */
+export function mapStripeReturnRoute(page: string, search: string): string {
+  if (page !== 'bookings') return page;
+  const sid = new URLSearchParams(search).get('session_id')?.trim() ?? '';
+  if (!/^cs_(test|live)_/.test(sid)) return page;
+  if (typeof window !== 'undefined') {
+    window.history.replaceState(window.history.state, '', `/booking-confirmed?session_id=${encodeURIComponent(sid)}`);
+  }
+  return 'booking-confirmed';
 }
 
 /**

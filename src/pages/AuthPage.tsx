@@ -95,6 +95,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
       'packages',
       'cart',
       'bookings',
+      'booking-confirmed',
       'account',
       'wishlist',
       'contact',

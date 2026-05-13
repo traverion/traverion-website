@@ -481,7 +481,7 @@ export default function BookingPage({
           specialRequests: mergedSpecialRequests() || undefined,
           totalAmount: total,
           currency,
-          successPath: '/bookings?payment=success',
+          successPath: '/booking-confirmed',
           cancelPath: '/bookings?payment=cancelled',
         });
         if (!checkout.success || !checkout.checkoutUrl) {

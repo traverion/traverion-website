@@ -46,6 +46,14 @@ export type BookingRow = {
   pickup_time?: string | null;
 };
 
+/** Consumer booking row including Stripe payment fields (RLS same as BookingRow). */
+export type BookingWithPaymentRow = BookingRow & {
+  payment_status?: string;
+  checkout_session_id?: string | null;
+  amount_paid?: number | null;
+  currency?: string | null;
+};
+
 const BOOKING_LIST_COLUMNS =
   'id, listing_id, guest_email, guest_name, guests, booking_date, status, special_requests, cancellation_reason, refund_choice, cancelled_at, acknowledged_at, created_at, start_time, pickup_time';
 
@@ -109,7 +117,7 @@ export async function resumePendingBookingCheckout(params: {
   const { data, error } = await supabase.functions.invoke('create-booking-checkout-session', {
     body: {
       bookingId: params.bookingId,
-      successPath: '/bookings?payment=success',
+      successPath: '/booking-confirmed',
       cancelPath: '/bookings?payment=cancelled',
     },
   });
@@ -385,4 +393,25 @@ export async function fetchMyBookings(): Promise<BookingRow[]> {
     .order('created_at', { ascending: false });
   if (error) throw new Error(error.message);
   return (data ?? []) as BookingRow[];
+}
+
+const BOOKING_PAYMENT_COLUMNS = `${BOOKING_LIST_COLUMNS}, payment_status, checkout_session_id, amount_paid, currency`;
+
+/**
+ * Fetch the signed-in guest's booking by Stripe Checkout session id (RLS).
+ * Used after redirect from Stripe to show the confirmation screen.
+ */
+export async function fetchMyBookingByCheckoutSessionId(
+  checkoutSessionId: string
+): Promise<BookingWithPaymentRow | null> {
+  if (!supabase) return null;
+  const id = checkoutSessionId.trim();
+  if (!id) return null;
+  const { data, error } = await supabase
+    .from('bookings')
+    .select(BOOKING_PAYMENT_COLUMNS)
+    .eq('checkout_session_id', id)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return (data ?? null) as BookingWithPaymentRow | null;
 }

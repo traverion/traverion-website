@@ -9,6 +9,7 @@ import Packages from './pages/Packages';
 import Blog from './pages/Blog';
 import TourDetails from './pages/TourDetails';
 import MyBookings from './pages/MyBookings';
+import BookingConfirmationPage from './pages/BookingConfirmationPage';
 import CartPage from './pages/CartPage';
 import AccountPage from './pages/AccountPage';
 import WishlistPage from './pages/WishlistPage';
@@ -46,7 +47,12 @@ import {
   removeCanonicalLink,
   clearOrganizationJsonLd,
 } from './lib/seo';
-import { normalizePublicTourDeepLinkPathname, parsePathname, shouldClearSelectedTour } from './lib/appRouting';
+import {
+  normalizePublicTourDeepLinkPathname,
+  parsePathname,
+  shouldClearSelectedTour,
+  mapStripeReturnRoute,
+} from './lib/appRouting';
 import {
   isTraverionAdminHost,
   isPublicTraverionMarketingHost,
@@ -63,7 +69,9 @@ function readInitialRoute(): { page: string; destinationSlug: string | null } {
     return parsePathname(window.location.pathname, { adminHost: true });
   }
   const path = normalizePublicTourDeepLinkPathname(window.location.pathname);
-  return parsePathname(path);
+  let { page, destinationSlug } = parsePathname(path);
+  page = mapStripeReturnRoute(page, window.location.search);
+  return { page, destinationSlug };
 }
 
 function App() {
@@ -89,7 +97,8 @@ function App() {
     const pathForParse = adminHost
       ? window.location.pathname
       : normalizePublicTourDeepLinkPathname(window.location.pathname);
-    const { page, destinationSlug } = parsePathname(pathForParse, { adminHost });
+    let { page, destinationSlug } = parsePathname(pathForParse, { adminHost });
+    page = mapStripeReturnRoute(page, window.location.search);
     setCurrentPage(page);
     setDestinationSlug(destinationSlug);
     const keepTourForDeepLink =
@@ -201,6 +210,7 @@ function App() {
       'account': '/account',
       'wishlist': '/wishlist',
       'bookings': '/bookings',
+      'booking-confirmed': '/booking-confirmed',
       'blog': '/blog',
       'contact': '/contact',
       'admin': '/admin',
@@ -261,6 +271,7 @@ function App() {
       account: { title: 'My account', description: 'Your bookings, wishlist, and cart in one place.' },
       wishlist: { title: 'Wishlist', description: 'Tours and activities you have saved.' },
       bookings: { title: 'My bookings', description: 'View your tour and activity reservations and their status.' },
+      'booking-confirmed': { title: 'Booking confirmed', description: 'Your tour payment was successful.' },
       blog: { title: 'Blog', description: 'Travel stories and tips from Traverion.' },
       contact: { title: 'Contact', description: 'Get in touch with Traverion.' },
       privacy: { title: 'Privacy Policy', description: 'Traverion privacy policy.' },
@@ -277,10 +288,11 @@ function App() {
     if (meta) setPageMetaWithOg(meta.title, meta.description);
     else setPageMetaWithOg('Traverion', 'Tours & activities worldwide.');
 
-    setRobotsNoIndex(false);
+    setRobotsNoIndex(currentPage === 'booking-confirmed');
 
     const pathMap: Record<string, string> = {
       home: '/', packages: '/packages', auth: '/auth', 'email-confirmed': '/email-confirmed', cart: '/cart', account: '/account', wishlist: '/wishlist', bookings: '/bookings',
+      'booking-confirmed': '/booking-confirmed',
       blog: '/blog', contact: '/contact', privacy: '/privacy', terms: '/terms', cookies: '/cookies',
       about: '/about', sitemap: '/sitemap',
       'legal-notice': '/legal-notice', affiliate: '/affiliate', 'content-creator': '/content-creator',
@@ -351,6 +363,8 @@ function App() {
             onTourSelect={(t) => handleTourSelect(t as TourPackageType)}
           />
         );
+      case 'booking-confirmed':
+        return <BookingConfirmationPage onNavigate={setCurrentPage} />;
       case 'tour-package':
         return selectedTour ? (
           <TourPackage 
@@ -424,6 +438,8 @@ function App() {
     currentPage === 'admin-app' ||
     isTraverionAdminHost();
 
+  const minimalTravelerChrome = currentPage === 'booking-confirmed';
+
   return (
     <TranslationProvider>
       <AuthProvider>
@@ -432,6 +448,11 @@ function App() {
             {renderPage()}
             <AuthModal />
           </>
+        ) : minimalTravelerChrome ? (
+          <div className="min-h-screen bg-white">
+            {renderPage()}
+            <AuthModal />
+          </div>
         ) : (
           <div className="min-h-screen bg-white relative flex flex-col">
             <UnifiedHeader currentPage={currentPage} onNavigate={setCurrentPage} />
