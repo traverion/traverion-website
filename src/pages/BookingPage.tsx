@@ -150,10 +150,6 @@ export default function BookingPage({
   const [availabilityModalNote, setAvailabilityModalNote] = useState<string | null>(null);
 
   const partyBounds = useMemo(() => getPartySizeBounds(tour), [tour]);
-  const guestOptions = useMemo(
-    () => Array.from({ length: partyBounds.max - partyBounds.min + 1 }, (_, i) => partyBounds.min + i),
-    [partyBounds.min, partyBounds.max]
-  );
 
   const hydratedRef = useRef(false);
   const profileHydratedRef = useRef(false);
@@ -596,17 +592,27 @@ export default function BookingPage({
             <h2 className="text-xl font-semibold text-gray-900 mb-6">Select date and guests</h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                <div className="relative">
-                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+                <label htmlFor="booking-flow-date-input" className="block text-sm font-medium text-gray-700 mb-1">
+                  Date
+                </label>
+                <div
+                  className="relative cursor-pointer rounded-lg border border-gray-200 bg-white transition-colors hover:border-gray-300 focus-within:ring-2 focus-within:ring-finland focus-within:border-finland"
+                  onClick={openDatePicker}
+                  role="presentation"
+                >
+                  <Calendar className="pointer-events-none absolute right-3 top-1/2 z-[1] h-5 w-5 -translate-y-1/2 text-gray-400" />
                   <input
+                    id="booking-flow-date-input"
                     ref={dateInputRef}
                     type="date"
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
-                    onClick={openDatePicker}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openDatePicker();
+                    }}
                     min={new Date().toISOString().slice(0, 10)}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland focus-visible:outline-none"
+                    className="w-full cursor-pointer rounded-lg border-0 bg-transparent py-3 pl-4 pr-11 text-gray-900 focus:outline-none focus:ring-0"
                   />
                 </div>
                 {date.trim() && (
@@ -614,20 +620,31 @@ export default function BookingPage({
                 )}
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Number of guests</label>
-                <div className="relative">
-                  <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
-                  <select
-                    value={guests}
-                    onChange={(e) => setGuests(Number(e.target.value))}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland bg-white focus-visible:outline-none"
+                <span className="mb-1 block text-sm font-medium text-gray-700">Number of guests</span>
+                <div className="flex overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm focus-within:ring-2 focus-within:ring-finland focus-within:ring-offset-0">
+                  <button
+                    type="button"
+                    className="flex w-11 shrink-0 items-center justify-center text-lg font-semibold leading-none text-gray-700 transition-colors hover:bg-gray-50 active:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-35"
+                    aria-label="Decrease number of guests"
+                    disabled={guests <= partyBounds.min}
+                    onClick={() => setGuests((g) => Math.max(partyBounds.min, g - 1))}
                   >
-                    {guestOptions.map((n) => (
-                      <option key={n} value={n}>
-                        {n} {n === 1 ? 'guest' : 'guests'}
-                      </option>
-                    ))}
-                  </select>
+                    −
+                  </button>
+                  <div className="flex min-w-0 flex-1 items-center justify-center border-x border-gray-200 bg-gray-50/60 px-2 py-3">
+                    <span className="text-sm font-medium tabular-nums text-gray-900">
+                      {guests} {guests === 1 ? 'guest' : 'guests'}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className="flex w-11 shrink-0 items-center justify-center text-lg font-semibold leading-none text-gray-700 transition-colors hover:bg-gray-50 active:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-35"
+                    aria-label="Increase number of guests"
+                    disabled={guests >= partyBounds.max}
+                    onClick={() => setGuests((g) => Math.min(partyBounds.max, g + 1))}
+                  >
+                    +
+                  </button>
                 </div>
                 <p className="mt-1.5 text-xs text-gray-500">
                   This listing allows {partyBounds.min}–{partyBounds.max} guests per booking.
