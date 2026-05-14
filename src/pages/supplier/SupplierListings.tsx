@@ -62,7 +62,7 @@ function ListingReviewsTableCell({
 
   if (!count) {
     return (
-      <span className="text-xs text-gray-500 tabular-nums whitespace-nowrap">No reviews yet</span>
+      <span className="text-xs text-gray-500 tabular-nums">No reviews yet</span>
     );
   }
 
@@ -105,7 +105,7 @@ export default function SupplierListings() {
   const [error, setError] = useState<string | null>(null);
   /** Row id whose gear actions dropdown is open (Edit / Deactivate / Delete). */
   const [listingActionsMenuId, setListingActionsMenuId] = useState<string | null>(null);
-  /** Fixed viewport position for portaled gear menu (avoids table overflow clipping). */
+  /** Fixed viewport position for portaled gear menu. */
   const [listingActionsMenuBox, setListingActionsMenuBox] = useState<{
     top: number;
     left: number;
@@ -824,44 +824,36 @@ export default function SupplierListings() {
         </div>
       ) : (
         listings.length > 0 && (
-          <div className="space-y-3">
+          <div className="space-y-3 w-full min-w-0">
             <h2 className="text-lg font-medium text-gray-900">Your listings ({listings.length})</h2>
-            <div className="border border-gray-200 rounded-2xl bg-white shadow-sm -mx-0.5 sm:mx-0">
-              <div className="overflow-x-auto overflow-y-visible touch-pan-x overscroll-x-contain rounded-2xl [-webkit-overflow-scrolling:touch]">
-                <table className="min-w-[640px] w-full">
-                  <thead className="bg-gray-50 border-b border-gray-200">
-                    <tr>
-                      <th className="px-2 py-2 sm:px-4 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase">Listing</th>
-                      <th className="px-2 py-2 sm:px-4 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Location · Duration</th>
-                      <th className="px-2 py-2 sm:px-4 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase">Price</th>
-                      <th className="px-2 py-2 sm:px-4 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Reviews</th>
-                      <th className="px-2 py-2 sm:px-4 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                      <th className="px-2 py-2 sm:px-4 sm:py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {listings.map((listing) => {
-                      const isLive = listing.status !== 'draft';
-                      return (
-                      <tr key={listing.id} className="hover:bg-gray-50/50">
-                        <td className="px-2 py-2 sm:px-4 sm:py-3">
-                          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                            <img src={listing.image} alt="" className="w-11 h-11 sm:w-14 sm:h-14 rounded-lg object-cover flex-shrink-0" />
-                            <p className="font-medium text-gray-900 truncate max-w-[9rem] xs:max-w-[12rem] sm:max-w-[200px]">{listing.title}</p>
-                          </div>
-                        </td>
-                        <td className="px-2 py-2 sm:px-4 sm:py-3 text-sm text-gray-600 whitespace-nowrap">
-                          {listing.city && `${listing.city}, `}{listing.country ?? listing.destination} · {listing.duration}
-                        </td>
-                        <td className="px-2 py-2 sm:px-4 sm:py-3 text-sm font-medium text-gray-900 whitespace-nowrap">From ${listing.price.startingFrom}</td>
-                        <td className="px-2 py-2 sm:px-4 sm:py-3 align-middle">
+            <div className="border border-gray-200 rounded-2xl bg-white shadow-sm divide-y divide-gray-200">
+              {listings.map((listing) => {
+                const isLive = listing.status !== 'draft';
+                return (
+                  <article key={listing.id} className="p-4 sm:p-5 w-full min-w-0 max-w-full">
+                    <div className="flex gap-3 min-w-0">
+                      <img
+                        src={listing.image}
+                        alt=""
+                        className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg object-cover shrink-0"
+                      />
+                      <div className="min-w-0 flex-1 space-y-2">
+                        <p className="font-semibold text-gray-900 leading-snug break-words">{listing.title}</p>
+                        <p className="text-sm text-gray-600 break-words">
+                          {listing.city && `${listing.city}, `}
+                          {listing.country ?? listing.destination} · {listing.duration}
+                        </p>
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+                          <span className="font-medium text-gray-900">
+                            From ${listing.price.startingFrom}
+                          </span>
                           <ListingReviewsTableCell
                             listing={listing}
                             aggregate={reviewAggregates.get(listing.id)}
                             isSupabase={Boolean(isSupabase)}
                           />
-                        </td>
-                        <td className="px-2 py-2 sm:px-4 sm:py-3 align-top">
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
                           <span
                             className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full ${
                               isLive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
@@ -880,50 +872,46 @@ export default function SupplierListings() {
                                   ? 'Business and payout verification required to publish'
                                   : 'Publish on Traverion'
                               }
-                              className="mt-1 block sm:ml-2 sm:mt-0 sm:inline text-xs text-finland hover:underline disabled:opacity-40 disabled:no-underline disabled:cursor-not-allowed touch-manipulation min-h-[44px] sm:min-h-0 py-1"
+                              className="text-xs text-finland hover:underline disabled:opacity-40 disabled:no-underline disabled:cursor-not-allowed touch-manipulation min-h-[44px] sm:min-h-0 py-1"
                             >
                               → Publish
                             </button>
                           )}
-                        </td>
-                        <td className="px-2 py-2 sm:px-4 sm:py-3 text-right align-middle">
-                          <div className="flex flex-wrap items-center justify-end gap-2">
-                            {isLive ? (
-                              <a
-                                href={publicTourListingUrl(listing.id)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="touch-manipulation inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-finland/35 bg-white px-2.5 text-xs font-medium text-finland shadow-sm hover:bg-finland/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-finland/35 focus-visible:ring-offset-1"
-                                title="Opens the public tour page on Traverion"
-                              >
-                                <ExternalLink className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                                <span className="hidden xs:inline">View on site</span>
-                                <span className="xs:hidden">View</span>
-                              </a>
-                            ) : null}
-                            <button
-                              type="button"
-                              data-listing-gear={listing.id}
-                              onClick={() =>
-                                setListingActionsMenuId((id) => (id === listing.id ? null : listing.id))
-                              }
-                              disabled={!canEditListings}
-                              aria-expanded={listingActionsMenuId === listing.id}
-                              aria-haspopup="menu"
-                              aria-label="Listing actions"
-                              className="touch-manipulation inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 shadow-sm hover:bg-gray-50 hover:text-finland focus:outline-none focus-visible:ring-2 focus-visible:ring-finland/30 focus-visible:ring-offset-1 disabled:pointer-events-none disabled:opacity-40"
-                              title={canEditListings ? 'Listing actions' : 'View only'}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2 pt-1">
+                          {isLive ? (
+                            <a
+                              href={publicTourListingUrl(listing.id)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="touch-manipulation inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-finland/35 bg-white px-3 text-xs font-medium text-finland shadow-sm hover:bg-finland/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-finland/35 focus-visible:ring-offset-1"
+                              title="Opens the public tour page on Traverion"
                             >
-                              <Cog className="h-4 w-4" aria-hidden />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                              <ExternalLink className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                              View on site
+                            </a>
+                          ) : null}
+                          <button
+                            type="button"
+                            data-listing-gear={listing.id}
+                            onClick={() =>
+                              setListingActionsMenuId((id) => (id === listing.id ? null : listing.id))
+                            }
+                            disabled={!canEditListings}
+                            aria-expanded={listingActionsMenuId === listing.id}
+                            aria-haspopup="menu"
+                            aria-label="Listing actions"
+                            className="touch-manipulation inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 shadow-sm hover:bg-gray-50 hover:text-finland focus:outline-none focus-visible:ring-2 focus-visible:ring-finland/30 focus-visible:ring-offset-1 disabled:pointer-events-none disabled:opacity-40"
+                            title={canEditListings ? 'Listing actions' : 'View only'}
+                          >
+                            <Cog className="h-4 w-4" aria-hidden />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           </div>
         )

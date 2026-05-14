@@ -1434,8 +1434,8 @@ export default function SupplierListingForm({
               {submitError}
             </p>
           )}
-          <nav aria-label="Listing setup steps" className="mb-3 -mx-1 overflow-x-auto overflow-y-hidden pb-1">
-            <ol className="flex w-full min-w-[720px] list-none m-0 p-0 sm:min-w-0">
+          <nav aria-label="Listing setup steps" className="mb-3 w-full min-w-0">
+            <ol className="flex w-full min-w-0 list-none m-0 p-0">
               {steps.map((step, idx) => {
                 const done = stepsThroughIndexComplete(idx, form);
                 const current = idx === stepIdx;

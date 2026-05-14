@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
-import { Calendar, CalendarDays, DollarSign, MapPin, ArrowRight, Star, CheckCircle, Circle, X } from 'lucide-react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { Calendar, CalendarDays, DollarSign, MapPin, ArrowRight, Star, CheckCircle, Circle, X, AlertCircle, RefreshCw } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { fetchMyListings } from '../../data/supabase-listings';
 import { fetchSupplierEarnings } from '../../data/supabase-earnings';
@@ -35,6 +35,24 @@ function localYmd(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
+/** `created_at` ISO falls in this local calendar month. */
+function createdInLocalCalendarMonth(iso: string, year: number, month: number): boolean {
+  const d = new Date(iso);
+  return d.getFullYear() === year && d.getMonth() + 1 === month;
+}
+
+/** Activity date (YYYY-MM-DD) falls in this calendar month. */
+function activityDateInCalendarMonth(bookingDateYmd: string | null, year: number, month: number): boolean {
+  if (!bookingDateYmd) return false;
+  const p = /^(\d{4})-(\d{2})-(\d{2})$/.exec(bookingDateYmd);
+  if (!p) return false;
+  return Number(p[1]) === year && Number(p[2]) === month;
+}
+
+function isNonCancelledBooking(status: string): boolean {
+  return status !== 'cancelled';
+}
+
 /** Monday-start week containing `d`; returns 7 dates at local midnight. */
 function weekDaysMondayStart(d: Date): Date[] {
   const copy = new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -66,6 +84,8 @@ export default function SupplierDashboard({
   const [providerRating, setProviderRating] = useState<{ avg: number; count: number }>({ avg: 0, count: 0 });
   const [profile, setProfile] = useState<Awaited<ReturnType<typeof fetchSupplierProfile>> | null>(null);
   const [quickStartDismissed, setQuickStartDismissed] = useState(false);
+  const [dashboardLoading, setDashboardLoading] = useState(false);
+  const [dashboardError, setDashboardError] = useState<string | null>(null);
 
   const quickStartDismissStorageKey = user?.id ? `supplier_quickstart_done_dismissed_${user.id}` : null;
 
@@ -77,58 +97,85 @@ export default function SupplierDashboard({
     setQuickStartDismissed(localStorage.getItem(quickStartDismissStorageKey) === '1');
   }, [quickStartDismissStorageKey]);
 
-  useEffect(() => {
+  const reloadDashboard = useCallback(async () => {
     const uid = user?.id;
     if (!isSupabase || !uid) {
       setPublishedListingsCount(0);
       setListingTitlesById({});
       setSupplierBookings([]);
+      setEarnings([]);
+      setProviderRating({ avg: 0, count: 0 });
+      setProfile(null);
+      setDashboardError(null);
+      setDashboardLoading(false);
       return;
     }
-    Promise.all([fetchMyListings(uid), fetchBookingsForSupplier(uid)])
-      .then(([listings, bookings]) => {
-        setPublishedListingsCount(listings.filter((t) => t.status === 'published').length);
-        setListingTitlesById(Object.fromEntries(listings.map((t) => [t.id, t.title])));
-        setSupplierBookings(bookings);
-      })
-      .catch(() => {
-        setPublishedListingsCount(0);
-        setListingTitlesById({});
-        setSupplierBookings([]);
-      });
-  }, [isSupabase, user?.id]);
-
-  useEffect(() => {
-    const uid = user?.id;
-    if (isSupabase && uid) {
-      fetchSupplierEarnings(uid).then(setEarnings).catch(() => setEarnings([]));
+    setDashboardLoading(true);
+    setDashboardError(null);
+    const settled = await Promise.allSettled([
+      fetchMyListings(uid),
+      fetchBookingsForSupplier(uid),
+      fetchSupplierEarnings(uid),
+      fetchReviewsForSupplierListings(uid),
+      fetchSupplierProfile(uid),
+    ]);
+    const failures: string[] = [];
+    if (settled[0].status === 'fulfilled') {
+      const listings = settled[0].value;
+      setPublishedListingsCount(listings.filter((t) => t.status === 'published').length);
+      setListingTitlesById(Object.fromEntries(listings.map((t) => [t.id, t.title])));
     } else {
+      failures.push('listings');
+      setPublishedListingsCount(0);
+      setListingTitlesById({});
+    }
+    if (settled[1].status === 'fulfilled') {
+      setSupplierBookings(settled[1].value);
+    } else {
+      failures.push('bookings');
+      setSupplierBookings([]);
+    }
+    if (settled[2].status === 'fulfilled') {
+      setEarnings(settled[2].value);
+    } else {
+      failures.push('earnings');
       setEarnings([]);
     }
-  }, [isSupabase, user?.id]);
-
-  useEffect(() => {
-    const uid = user?.id;
-    if (isSupabase && uid) {
-      fetchReviewsForSupplierListings(uid)
-        .then((reviewRows) => {
-          const { avg, count } = aggregateReviewRatings(reviewRows.map((r) => r.rating));
-          setProviderRating({ avg, count });
-        })
-        .catch(() => setProviderRating({ avg: 0, count: 0 }));
+    if (settled[3].status === 'fulfilled') {
+      const reviewRows = settled[3].value;
+      setProviderRating(aggregateReviewRatings(reviewRows.map((r) => r.rating)));
     } else {
+      failures.push('reviews');
       setProviderRating({ avg: 0, count: 0 });
     }
+    if (settled[4].status === 'fulfilled') {
+      setProfile(settled[4].value);
+    } else {
+      failures.push('profile');
+      setProfile(null);
+    }
+    if (failures.length > 0) {
+      const critical = failures.includes('bookings') || failures.includes('earnings');
+      setDashboardError(
+        critical
+          ? 'Bookings or earnings could not be loaded from the server. Check your connection and try again.'
+          : 'Some profile or review data could not be refreshed. Your bookings and earnings above may still be up to date.'
+      );
+    }
+    setDashboardLoading(false);
   }, [isSupabase, user?.id]);
 
   useEffect(() => {
-    const uid = user?.id;
-    if (isSupabase && uid) {
-      fetchSupplierProfile(uid).then(setProfile);
-    } else {
-      setProfile(null);
-    }
-  }, [isSupabase, user?.id]);
+    void reloadDashboard();
+  }, [reloadDashboard]);
+
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState === 'visible') void reloadDashboard();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, [reloadDashboard]);
 
   const now = new Date();
   const thisYear = now.getFullYear();
@@ -136,13 +183,40 @@ export default function SupplierDashboard({
   const todayYmd = localYmd(now);
   const weekDays = weekDaysMondayStart(now);
 
-  const bookingsCountThisMonth = useMemo(() => {
-    return supplierBookings.filter((b) => {
-      if (!b.booking_date) return false;
-      const p = /^(\d{4})-(\d{2})-(\d{2})$/.exec(b.booking_date);
-      if (!p) return false;
-      return Number(p[1]) === thisYear && Number(p[2]) === thisMonth;
-    }).length;
+  const newBookingsThisMonth = useMemo(() => {
+    return supplierBookings.filter(
+      (b) => isNonCancelledBooking(b.status) && createdInLocalCalendarMonth(b.created_at, thisYear, thisMonth)
+    ).length;
+  }, [supplierBookings, thisYear, thisMonth]);
+
+  const departuresScheduledThisMonth = useMemo(() => {
+    return supplierBookings.filter(
+      (b) =>
+        isNonCancelledBooking(b.status) &&
+        activityDateInCalendarMonth(b.booking_date, thisYear, thisMonth)
+    ).length;
+  }, [supplierBookings, thisYear, thisMonth]);
+
+  const grossCollectedNewBookingsThisMonth = useMemo(() => {
+    const rows = supplierBookings.filter(
+      (b) =>
+        isNonCancelledBooking(b.status) &&
+        createdInLocalCalendarMonth(b.created_at, thisYear, thisMonth) &&
+        b.amount_paid != null &&
+        Number.isFinite(Number(b.amount_paid)) &&
+        Number(b.amount_paid) > 0
+    );
+    if (rows.length === 0) return { sum: 0, currency: null as string | null, mixedCurrency: false };
+    const byCur = new Map<string, number>();
+    for (const b of rows) {
+      const c = (b.currency ?? 'USD').trim() || 'USD';
+      byCur.set(c, (byCur.get(c) ?? 0) + Number(b.amount_paid));
+    }
+    if (byCur.size > 1) {
+      return { sum: 0, currency: null, mixedCurrency: true };
+    }
+    const [currency, sum] = [...byCur.entries()][0];
+    return { sum, currency, mixedCurrency: false };
   }, [supplierBookings, thisYear, thisMonth]);
 
   const todayScheduleRows = useMemo(() => {
@@ -172,16 +246,53 @@ export default function SupplierDashboard({
 
   const earningsThisMonth = useMemo(() => {
     return earnings
-      .filter((e) => isPeriodInMonth(e.period_start, e.period_end, thisYear, thisMonth))
+      .filter(
+        (e) =>
+          e.status !== 'cancelled' &&
+          isPeriodInMonth(e.period_start, e.period_end, thisYear, thisMonth)
+      )
       .reduce((sum, e) => sum + Number(e.amount), 0);
   }, [earnings, thisYear, thisMonth]);
 
-  const currency = earnings[0]?.currency ?? 'USD';
+  const currency = useMemo(() => {
+    const row = earnings.find((e) => e.status !== 'cancelled');
+    return row?.currency ?? earnings[0]?.currency ?? 'USD';
+  }, [earnings]);
 
   const netEarningsDisplay = `${currency === 'USD' ? '$' : ''}${earningsThisMonth.toFixed(0)}${currency !== 'USD' ? ` ${currency}` : ''}`;
 
-  const stats = [
-    { label: 'Bookings this month', value: String(bookingsCountThisMonth), icon: Calendar, color: 'bg-green-500/10 text-green-600' },
+  const bookingsStatCaption =
+    departuresScheduledThisMonth > 0
+      ? `${departuresScheduledThisMonth} trip date${departuresScheduledThisMonth === 1 ? '' : 's'} this calendar month`
+      : undefined;
+
+  const earningsStatCaption = (() => {
+    if (grossCollectedNewBookingsThisMonth.mixedCurrency) {
+      return 'New bookings this month use multiple currencies—see Bookings for amounts.';
+    }
+    if (grossCollectedNewBookingsThisMonth.sum > 0 && grossCollectedNewBookingsThisMonth.currency) {
+      const c = grossCollectedNewBookingsThisMonth.currency;
+      const sym = c === 'USD' ? '$' : '';
+      const tail = c === 'USD' ? '' : ` ${c}`;
+      return `${sym}${grossCollectedNewBookingsThisMonth.sum.toFixed(0)}${tail} on Stripe (new orders). Net above is payout accrual.`;
+    }
+    return 'Payout accrual from supplier_earnings (non-cancelled rows overlapping this month).';
+  })();
+
+  const stats: {
+    label: string;
+    value: string;
+    icon: typeof Calendar;
+    color: string;
+    caption?: string;
+  }[] = [
+    {
+      label: 'Bookings this month',
+      value: String(newBookingsThisMonth),
+      caption: bookingsStatCaption,
+      icon: Calendar,
+      color: 'bg-green-500/10 text-green-600',
+    },
     {
       label: 'Review rating',
       value: `${providerRating.avg.toFixed(1)} (${providerRating.count} ${providerRating.count === 1 ? 'review' : 'reviews'})`,
@@ -189,7 +300,13 @@ export default function SupplierDashboard({
       color: 'bg-amber-500/10 text-amber-600',
     },
     { label: 'Active listings', value: publishedListingsCount !== null ? String(publishedListingsCount) : '—', icon: MapPin, color: 'bg-finland/10 text-finland' },
-    { label: 'Net earnings this month', value: netEarningsDisplay, icon: DollarSign, color: 'bg-finland/10 text-finland' },
+    {
+      label: 'Net earnings this month',
+      value: netEarningsDisplay,
+      caption: earningsStatCaption,
+      icon: DollarSign,
+      color: 'bg-finland/10 text-finland',
+    },
   ];
 
   const healthChecks = useMemo(() => {
@@ -202,7 +319,7 @@ export default function SupplierDashboard({
     const businessVerifiedByTraverion = verificationStatus === 'verified';
     const verificationInReview =
       hasCompanyProfile && !businessVerifiedByTraverion && verificationStatus !== 'rejected';
-    const hasBookingsThisMonth = bookingsCountThisMonth > 0;
+    const hasBookingsSignalThisMonth = newBookingsThisMonth > 0 || departuresScheduledThisMonth > 0;
     const hasReviews = providerRating.count > 0;
 
     const checks = [
@@ -244,9 +361,9 @@ export default function SupplierDashboard({
       {
         id: 'bookings',
         title: 'Bookings this month',
-        done: hasBookingsThisMonth,
-        descriptionDone: `${bookingsCountThisMonth} booking${bookingsCountThisMonth === 1 ? '' : 's'} this calendar month.`,
-        descriptionTodo: 'No bookings this month yet. Refresh title/photos and add availability to improve conversion.',
+        done: hasBookingsSignalThisMonth,
+        descriptionDone: `${newBookingsThisMonth} new order${newBookingsThisMonth === 1 ? '' : 's'} · ${departuresScheduledThisMonth} trip date${departuresScheduledThisMonth === 1 ? '' : 's'} (live data from your bookings).`,
+        descriptionTodo: 'No new orders or trip dates in this calendar month yet. Refresh photos and availability to improve conversion.',
       },
       {
         id: 'reviews',
@@ -261,7 +378,8 @@ export default function SupplierDashboard({
   }, [
     publishedListingsCount,
     profile,
-    bookingsCountThisMonth,
+    newBookingsThisMonth,
+    departuresScheduledThisMonth,
     providerRating.count,
     providerRating.avg,
     onNavigateToListings,
@@ -311,7 +429,8 @@ export default function SupplierDashboard({
         </div>
       )}
 
-      <div className="flex items-start gap-3 sm:gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+        <div className="flex items-start gap-3 sm:gap-4 min-w-0">
         {profile?.business_logo_url ? (
           <img
             src={profile.business_logo_url}
@@ -327,10 +446,39 @@ export default function SupplierDashboard({
           <h1 className="text-lg sm:text-2xl font-semibold tracking-tight text-gray-900">Dashboard</h1>
           <p className="text-sm text-gray-600 mt-0.5 sm:mt-1">Key metrics and today&apos;s schedule</p>
         </div>
+        </div>
+        {isSupabase && user && (
+          <button
+            type="button"
+            onClick={() => void reloadDashboard()}
+            disabled={dashboardLoading}
+            className="inline-flex items-center justify-center gap-2 self-start rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-50 shrink-0"
+          >
+            <RefreshCw className={`w-4 h-4 ${dashboardLoading ? 'animate-spin' : ''}`} aria-hidden />
+            Refresh data
+          </button>
+        )}
       </div>
 
+      {dashboardError && isSupabase && user && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <span className="flex items-start gap-2 min-w-0">
+            <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" aria-hidden />
+            <span>{dashboardError}</span>
+          </span>
+          <button
+            type="button"
+            onClick={() => void reloadDashboard()}
+            className="inline-flex items-center justify-center gap-2 rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm font-semibold text-amber-950 hover:bg-amber-100/80 shrink-0"
+          >
+            <RefreshCw className="w-4 h-4" aria-hidden />
+            Retry
+          </button>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        {stats.map(({ label, value, icon: Icon, color }) => (
+        {stats.map(({ label, value, icon: Icon, color, caption }) => (
           <div
             key={label}
             className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-5 flex items-center gap-3 sm:gap-4 min-w-0 shadow-sm"
@@ -340,7 +488,10 @@ export default function SupplierDashboard({
             </div>
             <div className="min-w-0">
               <p className="text-xs sm:text-sm text-gray-500 leading-snug">{label}</p>
-              <p className="text-lg sm:text-xl font-semibold text-gray-900 tabular-nums truncate">{value}</p>
+              <p className="text-lg sm:text-xl font-semibold text-gray-900 tabular-nums break-words">{value}</p>
+              {caption ? (
+                <p className="text-[11px] sm:text-xs text-gray-500 mt-1 leading-snug">{caption}</p>
+              ) : null}
             </div>
           </div>
         ))}
@@ -460,14 +611,14 @@ export default function SupplierDashboard({
             )}
           </div>
 
-          <div className="flex gap-1 sm:gap-2 justify-between mb-5 pb-5 border-b border-slate-200 overflow-x-auto">
+          <div className="flex flex-wrap gap-2 justify-center sm:justify-between mb-5 pb-5 border-b border-slate-200">
             {weekDays.map((d) => {
               const ymd = localYmd(d);
               const isToday = ymd === todayYmd;
               return (
                 <div
                   key={ymd}
-                  className={`flex flex-col items-center min-w-[2.75rem] sm:min-w-[3.25rem] rounded-lg px-1 py-2 text-center ${
+                  className={`flex flex-col items-center flex-1 min-w-[2.25rem] max-w-[4.5rem] sm:flex-none sm:max-w-none sm:min-w-[2.75rem] rounded-lg px-1 py-2 text-center ${
                     isToday ? 'bg-finland text-white shadow-md ring-2 ring-finland/30' : 'bg-slate-50 text-gray-600'
                   }`}
                 >

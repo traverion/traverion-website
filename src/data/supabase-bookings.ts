@@ -47,15 +47,15 @@ export type BookingRow = {
   pickup_time?: string | null;
   /** App-wide sequential order # (1 = first booking ever); display as #N. */
   booking_number?: number | null;
-};
-
-/** Consumer booking row including Stripe payment fields (RLS same as BookingRow). */
-export type BookingWithPaymentRow = BookingRow & {
+  /** Present when selected with payment columns (supplier list, dashboard). */
   payment_status?: string;
   checkout_session_id?: string | null;
   amount_paid?: number | null;
   currency?: string | null;
 };
+
+/** Consumer booking row including Stripe payment fields (RLS same as BookingRow). */
+export type BookingWithPaymentRow = BookingRow;
 
 const BOOKING_LIST_COLUMNS =
   'id, listing_id, guest_email, guest_name, guests, booking_date, status, special_requests, cancellation_reason, refund_choice, cancelled_at, acknowledged_at, created_at, start_time, pickup_time, booking_number';
@@ -381,7 +381,7 @@ export async function fetchBookingsForSupplier(supplierId: string): Promise<Book
   if (ids.length === 0) return [];
   const { data, error } = await supabase
     .from('bookings')
-    .select(BOOKING_LIST_COLUMNS)
+    .select(BOOKING_PAYMENT_COLUMNS)
     .in('listing_id', ids)
     .order('created_at', { ascending: false });
   if (error) throw new Error(error.message);

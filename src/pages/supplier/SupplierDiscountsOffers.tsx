@@ -218,73 +218,79 @@ export default function SupplierDiscountsOffers() {
                 )}
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-[720px] w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-100 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                      <th className="px-4 py-3 sm:px-5">Listing</th>
-                      <th className="px-4 py-3 sm:px-5">Option</th>
-                      <th className="px-4 py-3 sm:px-5 whitespace-nowrap">Runs</th>
-                      <th className="px-4 py-3 sm:px-5">Discount</th>
-                      <th className="px-4 py-3 sm:px-5">Status</th>
-                      <th className="px-4 py-3 sm:px-5 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {rows.map(({ discount: d, listing }) => {
-                      const st = offerStatus(d);
-                      const tone =
-                        st === 'active'
-                          ? 'bg-green-100 text-green-800'
-                          : st === 'upcoming'
-                            ? 'bg-sky-100 text-sky-800'
-                            : 'bg-gray-100 text-gray-600';
-                      const pct = d.type === 'percent' ? `${Math.round(Number(d.value))}%` : `$${d.value}`;
-                      return (
-                        <tr key={d.id} className="hover:bg-gray-50/60">
-                          <td className="px-4 py-3 sm:px-5">
-                            <p className="font-medium text-gray-900 line-clamp-2">{listing.title}</p>
-                          </td>
-                          <td className="px-4 py-3 sm:px-5 text-gray-700">{optionLabelForDiscount(listing, d)}</td>
-                          <td className="px-4 py-3 sm:px-5 text-gray-700 whitespace-nowrap tabular-nums">
-                            {formatDate(d.valid_from)} – {formatDate(d.valid_until)}
-                          </td>
-                          <td className="px-4 py-3 sm:px-5">
-                            <span className="font-semibold text-finland tabular-nums">{pct}</span>
-                            {d.type === 'percent' ? <span className="text-gray-500"> off</span> : null}
-                          </td>
-                          <td className="px-4 py-3 sm:px-5">
-                            <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${tone}`}>
-                              {st === 'active' ? 'Active' : st === 'upcoming' ? 'Upcoming' : 'Ended'}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 sm:px-5 text-right">
-                            <div className="inline-flex items-center gap-1">
-                              <button
-                                type="button"
-                                onClick={() => openEdit(d)}
-                                disabled={!canEdit}
-                                className="p-2 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-finland disabled:opacity-40"
-                                title="Edit"
-                              >
-                                <Pencil className="w-4 h-4" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => void handleDelete(d)}
-                                disabled={!canEdit}
-                                className="p-2 rounded-lg text-gray-600 hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
-                                title="Delete"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
+              <div className="divide-y divide-gray-100">
+                {rows.map(({ discount: d, listing }) => {
+                  const st = offerStatus(d);
+                  const tone =
+                    st === 'active'
+                      ? 'bg-green-100 text-green-800'
+                      : st === 'upcoming'
+                        ? 'bg-sky-100 text-sky-800'
+                        : 'bg-gray-100 text-gray-600';
+                  const pct = d.type === 'percent' ? `${Math.round(Number(d.value))}%` : `$${d.value}`;
+                  return (
+                    <article key={d.id} className="p-4 sm:px-5 sm:py-4 w-full min-w-0 max-w-full space-y-3">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between min-w-0">
+                        <div className="flex gap-3 min-w-0 flex-1">
+                          {listing.image?.trim() ? (
+                            <img
+                              src={listing.image}
+                              alt=""
+                              className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg object-cover shrink-0 border border-gray-100 bg-gray-100"
+                            />
+                          ) : (
+                            <div
+                              className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg shrink-0 border border-gray-100 bg-gray-100 flex items-center justify-center text-gray-400"
+                              aria-hidden
+                            >
+                              <MapPin className="w-6 h-6 sm:w-7 sm:h-7" />
                             </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                          )}
+                          <div className="min-w-0">
+                            <p className="font-medium text-gray-900 break-words">{listing.title}</p>
+                            <p className="text-sm text-gray-600 mt-1 break-words">{optionLabelForDiscount(listing, d)}</p>
+                          </div>
+                        </div>
+                        <span className={`inline-flex shrink-0 self-start px-2 py-0.5 rounded-full text-xs font-semibold ${tone}`}>
+                          {st === 'active' ? 'Active' : st === 'upcoming' ? 'Upcoming' : 'Ended'}
+                        </span>
+                      </div>
+                      <div className="flex flex-col gap-1 text-sm text-gray-700">
+                        <p>
+                          <span className="text-gray-500">Runs </span>
+                          <span className="tabular-nums font-medium text-gray-900">
+                            {formatDate(d.valid_from)} – {formatDate(d.valid_until)}
+                          </span>
+                        </p>
+                        <p>
+                          <span className="text-gray-500">Discount </span>
+                          <span className="font-semibold text-finland tabular-nums">{pct}</span>
+                          {d.type === 'percent' ? <span className="text-gray-500"> off</span> : null}
+                        </p>
+                      </div>
+                      <div className="flex items-center justify-end gap-1 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => openEdit(d)}
+                          disabled={!canEdit}
+                          className="p-2 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-finland disabled:opacity-40"
+                          title="Edit"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void handleDelete(d)}
+                          disabled={!canEdit}
+                          className="p-2 rounded-lg text-gray-600 hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
             )}
           </div>

@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Calendar,
-  Mail,
   RefreshCw,
   CheckCircle,
   MessageCircle,
@@ -10,6 +9,10 @@ import {
   Download,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  Tag,
+  Users,
+  ShoppingCart,
 } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import {
@@ -198,6 +201,27 @@ function bookingPurchaseDateLocal(iso: string): string {
   return `${y}-${m}-${day}`;
 }
 
+function formatActivityDateLong(bookingDate: string | null, startHm: string | null): string {
+  if (!bookingDate) return '—';
+  const d = new Date(bookingDate);
+  const dateStr = d.toLocaleDateString(undefined, {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+  if (!startHm) return dateStr;
+  return `${dateStr} · ${startHm}`;
+}
+
+function formatPurchaseDateShort(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
 export default function SupplierBookings() {
   const { user, isSupabase } = useSupplierAuth();
   const { role } = useSupplierRole();
@@ -230,11 +254,6 @@ export default function SupplierBookings() {
   const [bulkCancelReason, setBulkCancelReason] = useState('');
   const [bulkCancelRefund, setBulkCancelRefund] = useState('');
   const [bulkActionSubmitting, setBulkActionSubmitting] = useState(false);
-  const [exportDateFrom, setExportDateFrom] = useState('');
-  const [exportDateTo, setExportDateTo] = useState('');
-  const [exportScope, setExportScope] = useState<'filtered' | 'selected'>('filtered');
-  const [exportFormat, setExportFormat] = useState<'csv' | 'json'>('csv');
-  const [exportKind, setExportKind] = useState<'bookings' | 'ops_summary'>('bookings');
   const [highlightBookingId, setHighlightBookingId] = useState<string | null>(null);
   const [templateId, setTemplateId] = useState<(typeof MESSAGE_TEMPLATES)[number]['id']>(MESSAGE_TEMPLATES[0].id);
   const [commSubject, setCommSubject] = useState('');
@@ -275,6 +294,7 @@ export default function SupplierBookings() {
   const [auditLog, setAuditLog] = useState<BookingAuditEntry[]>([]);
   const [timelineBookingId, setTimelineBookingId] = useState<string | null>(null);
   const [opsNotes, setOpsNotes] = useState<Record<string, BookingOpsNote>>({});
+  const [bookingDetailsOpen, setBookingDetailsOpen] = useState<Record<string, boolean>>({});
   const [error, setError] = useState<string | null>(null);
   const applyTemplateTokens = useCallback(
     (templateBody: string, sample?: BookingRow) => {
@@ -334,6 +354,11 @@ export default function SupplierBookings() {
     window.addEventListener('popstate', syncFromUrl);
     return () => window.removeEventListener('popstate', syncFromUrl);
   }, []);
+
+  useEffect(() => {
+    if (!highlightBookingId) return;
+    setBookingDetailsOpen((prev) => ({ ...prev, [highlightBookingId]: true }));
+  }, [highlightBookingId]);
 
   useEffect(() => {
     const syncOpsNotesFromServer = async () => {
@@ -1511,13 +1536,8 @@ export default function SupplierBookings() {
     clearSelection();
   };
 
-  const handleAdvancedExport = async () => {
-    const scopedRows = exportScope === 'selected' ? selectedBookings : filteredBookings;
-    const exportRows = scopedRows.filter((b) => {
-      if (exportDateFrom && (!b.booking_date || b.booking_date < exportDateFrom)) return false;
-      if (exportDateTo && (!b.booking_date || b.booking_date > exportDateTo)) return false;
-      return true;
-    });
+  const exportFilteredBookingsCsv = async () => {
+    const exportRows = filteredBookings;
     if (exportRows.length === 0) return;
 
     const escapeCsv = (value: string | number | null | undefined) => {
@@ -1525,235 +1545,47 @@ export default function SupplierBookings() {
       if (str.includes(',') || str.includes('"') || str.includes('\n')) return `"${str.replace(/"/g, '""')}"`;
       return str;
     };
-    if (exportKind === 'bookings') {
-      const rows = exportRows.map((b) => ({
-        booking_id: b.id,
-        listing_id: b.listing_id,
-        listing: listingTitles[b.listing_id] ?? b.listing_id,
-        guest_name: b.guest_name ?? '',
-        guest_email: b.guest_email ?? '',
-        booking_date: b.booking_date ?? '',
-        start_time: b.start_time ? pgTimeToHm(b.start_time) ?? '' : '',
-        pickup_time: b.pickup_time ? pgTimeToHm(b.pickup_time) ?? '' : '',
-        guests: b.guests ?? '',
-        status: b.status,
-        acknowledged: b.acknowledged_at ? 'yes' : 'no',
-        acknowledged_at: b.acknowledged_at ?? '',
-        cancelled_at: b.cancelled_at ?? '',
-        cancellation_reason: b.cancellation_reason ?? '',
-        refund_choice: b.refund_choice ?? '',
-        special_requests: b.special_requests ?? '',
-      }));
 
-      if (exportFormat === 'json') {
-        setExportHistory((prev) =>
-          [
-            {
-              id: `${Date.now()}-local-export`,
-              kind: exportKind,
-              format: exportFormat,
-              scope: exportScope,
-              rowCount: rows.length,
-              dateFrom: exportDateFrom || undefined,
-              dateTo: exportDateTo || undefined,
-              createdAt: new Date().toISOString(),
-            },
-            ...prev,
-          ].slice(0, 20)
-        );
-        if (isSupabase && user) {
-          await insertSupplierExportRun({
-            supplierId: user.id,
-            actorId: user.id,
-            kind: exportKind,
-            format: exportFormat,
-            scope: exportScope,
-            dateFrom: exportDateFrom || undefined,
-            dateTo: exportDateTo || undefined,
-            rowCount: rows.length,
-            filtersSnapshot: { view, filterListingId: filterListingId || null },
-          });
-        }
-        const json = JSON.stringify(
-          {
-            exportedAt: new Date().toISOString(),
-            scope: exportScope,
-            dateFrom: exportDateFrom || null,
-            dateTo: exportDateTo || null,
-            rows,
-          },
-          null,
-          2
-        );
-        const blob = new Blob([json], { type: 'application/json;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `supplier-bookings-advanced-${new Date().toISOString().slice(0, 10)}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-        return;
-      }
-
-      const header = Object.keys(rows[0]);
-      const lines = rows.map((row) =>
-        header
-          .map((key) => escapeCsv(row[key as keyof typeof row]))
-          .join(',')
-      );
-      const csv = [header.join(','), ...lines].join('\n');
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `supplier-bookings-advanced-${new Date().toISOString().slice(0, 10)}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
-      setExportHistory((prev) =>
-        [
-          {
-            id: `${Date.now()}-local-export`,
-            kind: exportKind,
-            format: exportFormat,
-            scope: exportScope,
-            rowCount: rows.length,
-            dateFrom: exportDateFrom || undefined,
-            dateTo: exportDateTo || undefined,
-            createdAt: new Date().toISOString(),
-          },
-          ...prev,
-        ].slice(0, 20)
-      );
-      if (isSupabase && user) {
-        await insertSupplierExportRun({
-          supplierId: user.id,
-          actorId: user.id,
-          kind: exportKind,
-          format: exportFormat,
-          scope: exportScope,
-          dateFrom: exportDateFrom || undefined,
-          dateTo: exportDateTo || undefined,
-          rowCount: rows.length,
-          filtersSnapshot: { view, filterListingId: filterListingId || null },
-        });
-      }
-      return;
-    }
-
-    const summaryMap = new Map<
-      string,
-      {
-        listingId: string;
-        listing: string;
-        date: string;
-        bookings: number;
-        guests: number;
-        pending: number;
-        confirmed: number;
-        cancelled: number;
-        needsAck: number;
-      }
-    >();
-    exportRows.forEach((b) => {
-      const date = b.booking_date ?? 'unscheduled';
-      const key = `${b.listing_id}::${date}`;
-      const existing = summaryMap.get(key) ?? {
-        listingId: b.listing_id,
-        listing: listingTitles[b.listing_id] ?? b.listing_id,
-        date,
-        bookings: 0,
-        guests: 0,
-        pending: 0,
-        confirmed: 0,
-        cancelled: 0,
-        needsAck: 0,
-      };
-      existing.bookings += 1;
-      existing.guests += b.guests ?? 0;
-      if (b.status === 'pending') existing.pending += 1;
-      if (b.status === 'confirmed') existing.confirmed += 1;
-      if (b.status === 'cancelled') existing.cancelled += 1;
-      if (!b.acknowledged_at && b.status !== 'cancelled') existing.needsAck += 1;
-      summaryMap.set(key, existing);
-    });
-    const rows = [...summaryMap.values()].sort(
-      (a, b) => a.date.localeCompare(b.date) || a.listing.localeCompare(b.listing)
-    );
-
-    if (exportFormat === 'json') {
-      setExportHistory((prev) =>
-        [
-          {
-            id: `${Date.now()}-local-export`,
-            kind: exportKind,
-            format: exportFormat,
-            scope: exportScope,
-            rowCount: rows.length,
-            dateFrom: exportDateFrom || undefined,
-            dateTo: exportDateTo || undefined,
-            createdAt: new Date().toISOString(),
-          },
-          ...prev,
-        ].slice(0, 20)
-      );
-      if (isSupabase && user) {
-        await insertSupplierExportRun({
-          supplierId: user.id,
-          actorId: user.id,
-          kind: exportKind,
-          format: exportFormat,
-          scope: exportScope,
-          dateFrom: exportDateFrom || undefined,
-          dateTo: exportDateTo || undefined,
-          rowCount: rows.length,
-          filtersSnapshot: { view, filterListingId: filterListingId || null },
-        });
-      }
-      const json = JSON.stringify(
-        {
-          exportedAt: new Date().toISOString(),
-          scope: exportScope,
-          dateFrom: exportDateFrom || null,
-          dateTo: exportDateTo || null,
-          rows,
-        },
-        null,
-        2
-      );
-      const blob = new Blob([json], { type: 'application/json;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `supplier-ops-summary-${new Date().toISOString().slice(0, 10)}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-      return;
-    }
+    const rows = exportRows.map((b) => ({
+      booking_id: b.id,
+      listing_id: b.listing_id,
+      listing: listingTitles[b.listing_id] ?? b.listing_id,
+      guest_name: b.guest_name ?? '',
+      guest_email: b.guest_email ?? '',
+      booking_date: b.booking_date ?? '',
+      start_time: b.start_time ? pgTimeToHm(b.start_time) ?? '' : '',
+      pickup_time: b.pickup_time ? pgTimeToHm(b.pickup_time) ?? '' : '',
+      guests: b.guests ?? '',
+      status: b.status,
+      acknowledged: b.acknowledged_at ? 'yes' : 'no',
+      acknowledged_at: b.acknowledged_at ?? '',
+      cancelled_at: b.cancelled_at ?? '',
+      cancellation_reason: b.cancellation_reason ?? '',
+      refund_choice: b.refund_choice ?? '',
+      special_requests: b.special_requests ?? '',
+    }));
 
     const header = Object.keys(rows[0]);
     const lines = rows.map((row) =>
-      header
-        .map((key) => escapeCsv(row[key as keyof typeof row]))
-        .join(',')
+      header.map((key) => escapeCsv(row[key as keyof typeof row])).join(',')
     );
     const csv = [header.join(','), ...lines].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `supplier-ops-summary-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `supplier-bookings-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+
     setExportHistory((prev) =>
       [
         {
           id: `${Date.now()}-local-export`,
-          kind: exportKind,
-          format: exportFormat,
-          scope: exportScope,
+          kind: 'bookings',
+          format: 'csv',
+          scope: 'filtered',
           rowCount: rows.length,
-          dateFrom: exportDateFrom || undefined,
-          dateTo: exportDateTo || undefined,
           createdAt: new Date().toISOString(),
         },
         ...prev,
@@ -1763,11 +1595,9 @@ export default function SupplierBookings() {
       await insertSupplierExportRun({
         supplierId: user.id,
         actorId: user.id,
-        kind: exportKind,
-        format: exportFormat,
-        scope: exportScope,
-        dateFrom: exportDateFrom || undefined,
-        dateTo: exportDateTo || undefined,
+        kind: 'bookings',
+        format: 'csv',
+        scope: 'filtered',
         rowCount: rows.length,
         filtersSnapshot: { view, filterListingId: filterListingId || null },
       });
@@ -1879,7 +1709,7 @@ export default function SupplierBookings() {
         <div className="min-w-0">
           <h1 className="text-lg sm:text-2xl font-semibold tracking-tight text-gray-900">Bookings</h1>
           <p className="text-sm text-gray-600 mt-0.5 sm:mt-1 sm:text-base leading-snug">
-            Filter and manage bookings — cards on your phone, full table on larger screens.
+            Filter and manage bookings in a scroll-friendly list — no sideways scrolling.
           </p>
           {!canEditBookings && (
             <p className="text-xs text-amber-700 mt-1">
@@ -1895,7 +1725,7 @@ export default function SupplierBookings() {
             className="touch-manipulation inline-flex items-center justify-center gap-2 px-3 py-2.5 sm:px-4 sm:py-2 min-h-[44px] rounded-xl border border-gray-300 text-sm text-gray-800 font-medium hover:bg-gray-50 active:scale-[0.99]"
           >
             <Trash2 className="w-4 h-4 shrink-0" />
-            <span className="truncate">Batch cancel</span>
+            <span className="truncate">Batch cancellation</span>
           </button>
           <button
             type="button"
@@ -2013,7 +1843,7 @@ export default function SupplierBookings() {
                 Clear filters
               </button>
               {!loading && bookings.length > 0 && (
-                <span className="text-sm text-gray-500 whitespace-nowrap">
+                <span className="text-sm text-gray-500 min-w-0">
                   {filteredBookings.length} of {bookings.length} match filters
                   {filteredBookings.length > BOOKINGS_PAGE_SIZE && (
                     <span className="text-gray-400">
@@ -2177,376 +2007,298 @@ export default function SupplierBookings() {
             )}
           </div>
 
-          <div className="md:hidden space-y-3">
-            <div className="px-0.5">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                Bookings ({filteredBookings.length})
-              </p>
-              {filteredBookings.length > 0 && (
-                <p className="text-[11px] text-gray-500 mt-0.5">
-                  Showing{' '}
-                  {(bookingsPageSafe - 1) * BOOKINGS_PAGE_SIZE + 1}
-                  –
-                  {(bookingsPageSafe - 1) * BOOKINGS_PAGE_SIZE + paginatedBookings.length}
-                  {filteredBookingsTotalPages > 1 ? (
-                    <>
-                      {' '}
-                      · Page {bookingsPageSafe} of {filteredBookingsTotalPages}
-                    </>
-                  ) : null}
-                </p>
-              )}
-            </div>
-            {paginatedBookings.map((b) => (
-              <article
-                key={`mcard-${b.id}`}
-                id={`supplier-booking-row-${b.id}`}
-                className={`rounded-2xl border border-gray-200 bg-white p-4 shadow-sm space-y-3 ${
-                  highlightBookingId === b.id ? 'ring-2 ring-finland/30 bg-finland/[0.04]' : ''
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  <input
-                    type="checkbox"
-                    className="mt-1 rounded border-gray-300 text-finland focus:ring-finland"
-                    checked={selectedIds.includes(b.id)}
-                    onChange={() => toggleSelected(b.id)}
-                    aria-label={`Select booking ${b.id}`}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-gray-900 leading-snug">
-                      {listingTitles[b.listing_id] ?? 'Listing'}
-                    </p>
-                    <p className="text-xs text-gray-600 mt-1">
-                      {b.guest_name && <span className="font-medium text-gray-800">{b.guest_name}</span>}
-                      {b.guest_name && b.guest_email && ' · '}
-                      {b.guest_email && <span className="break-all">{b.guest_email}</span>}
-                      {!b.guest_name && !b.guest_email && '—'}
-                    </p>
-                    <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-xs text-gray-600">
-                      <span>
-                        Date: {b.booking_date ? new Date(b.booking_date).toLocaleDateString() : '—'}
-                      </span>
-                      <span>Guests: {b.guests ?? '—'}</span>
-                      {(b.start_time || b.pickup_time) && (
-                        <span className="text-gray-700">
-                          {b.start_time && `Start ${pgTimeToHm(b.start_time) ?? ''}`}
-                          {b.start_time && b.pickup_time && ' · '}
-                          {b.pickup_time && `Pickup ${pgTimeToHm(b.pickup_time) ?? ''}`}
-                        </span>
-                      )}
-                    </div>
-                    {b.special_requests ? (
-                      <p className="text-xs text-gray-600 mt-2 line-clamp-3" title={b.special_requests}>
-                        {b.special_requests}
-                      </p>
-                    ) : null}
-                  </div>
-                  <div className="shrink-0 text-right">
-                    <span
-                      className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full ${
-                        b.status === 'confirmed'
-                          ? 'bg-green-100 text-green-800'
-                          : b.status === 'cancelled'
-                            ? 'bg-gray-100 text-gray-600'
-                            : 'bg-amber-100 text-amber-800'
-                      }`}
-                    >
-                      {b.status}
-                    </span>
-                    {b.acknowledged_at && (
-                      <span className="block text-[10px] text-gray-500 mt-1">Acknowledged</span>
-                    )}
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setTimelineBookingId(b.id)}
-                    className="touch-manipulation min-h-[40px] px-3 py-2 rounded-xl bg-gray-100 text-gray-800 text-xs font-semibold active:scale-[0.98]"
-                  >
-                    Timeline
+          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm w-full min-w-0">
+            <div className="px-3 py-3 sm:px-4 border-b border-gray-200 bg-gray-50/70">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={toggleSelectAllVisible}
+                  className="px-3 py-1.5 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  {paginatedBookings.length > 0 && paginatedBookings.every((b) => selectedIds.includes(b.id))
+                    ? 'Unselect page'
+                    : 'Select page'}
+                </button>
+                <span className="text-sm text-gray-600">{selectedIds.length} selected</span>
+                <button
+                  type="button"
+                  onClick={handleBulkAcknowledge}
+                  disabled={!canEditBookings || selectedIds.length === 0 || bulkActionSubmitting}
+                  className="px-3 py-1.5 rounded-lg border border-blue-200 text-sm text-blue-700 bg-blue-50 hover:bg-blue-100 disabled:opacity-50"
+                >
+                  Acknowledge selected
+                </button>
+                <button
+                  type="button"
+                  onClick={handleBulkConfirm}
+                  disabled={!canEditBookings || selectedIds.length === 0 || bulkActionSubmitting}
+                  className="px-3 py-1.5 rounded-lg border border-green-200 text-sm text-green-700 bg-green-50 hover:bg-green-100 disabled:opacity-50"
+                >
+                  Confirm selected
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBulkCancelModal(true)}
+                  disabled={!canEditBookings || selectedIds.length === 0 || bulkActionSubmitting}
+                  className="px-3 py-1.5 rounded-lg border border-red-200 text-sm text-red-700 bg-red-50 hover:bg-red-100 disabled:opacity-50"
+                >
+                  Cancel selected
+                </button>
+                {selectedIds.length > 0 && (
+                  <button type="button" onClick={clearSelection} className="px-3 py-1.5 rounded-lg text-sm text-gray-600 hover:bg-gray-100">
+                    Clear
                   </button>
-                  {b.status !== 'cancelled' && (
-                    <>
-                      {b.guest_email && (
-                        <a
-                          href={`mailto:${b.guest_email}?subject=Your booking – ${listingTitles[b.listing_id] ?? 'Tour'}`}
-                          className="touch-manipulation inline-flex items-center justify-center gap-1 min-h-[40px] px-3 py-2 rounded-xl bg-gray-100 text-gray-800 text-xs font-semibold"
-                        >
-                          <MessageCircle className="w-3.5 h-3.5" />
-                          Contact
-                        </a>
-                      )}
-                      {!b.acknowledged_at && (
-                        <button
-                          type="button"
-                          onClick={() => handleAcknowledge(b)}
-                          disabled={!canEditBookings || updatingId === b.id}
-                          className="touch-manipulation min-h-[40px] px-3 py-2 rounded-xl bg-blue-100 text-blue-800 text-xs font-semibold disabled:opacity-50"
-                        >
-                          Acknowledge
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => setCancelModal(b)}
-                        disabled={!canEditBookings || updatingId === b.id}
-                        className="touch-manipulation min-h-[40px] px-3 py-2 rounded-xl border border-red-200 text-red-700 text-xs font-semibold disabled:opacity-50"
-                      >
-                        Cancel
-                      </button>
-                    </>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-[11px] font-medium text-gray-500 mb-1">Ops note</label>
-                  <textarea
-                    defaultValue={opsNotes[b.id]?.note ?? ''}
-                    onBlur={async (e) => {
-                      saveOpsNote(b.id, e.target.value);
-                      await syncSingleOpsNote(b.id);
-                    }}
-                    rows={2}
-                    placeholder="Field notes…"
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-finland"
-                  />
-                  {opsNotes[b.id]?.pendingSync && (
-                    <p className="text-[11px] text-amber-700 mt-1">Saved locally · pending sync</p>
-                  )}
-                </div>
-              </article>
-            ))}
+                )}
+                <button
+                  type="button"
+                  onClick={() => void exportFilteredBookingsCsv()}
+                  disabled={filteredBookings.length === 0}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Download all rows that match your current filters as CSV"
+                >
+                  <Download className="w-4 h-4 shrink-0" aria-hidden />
+                  Export CSV
+                </button>
+              </div>
+            </div>
           </div>
 
-        <div className="hidden md:block bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-          <div className="px-4 py-3 border-b border-gray-200 bg-gray-50/70 flex flex-col gap-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={toggleSelectAllVisible}
-                className="px-3 py-1.5 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50"
-              >
-                {paginatedBookings.length > 0 && paginatedBookings.every((b) => selectedIds.includes(b.id))
-                  ? 'Unselect page'
-                  : 'Select page'}
-              </button>
-              <span className="text-sm text-gray-600">{selectedIds.length} selected</span>
-              <button
-                type="button"
-                onClick={handleBulkAcknowledge}
-                disabled={!canEditBookings || selectedIds.length === 0 || bulkActionSubmitting}
-                className="px-3 py-1.5 rounded-lg border border-blue-200 text-sm text-blue-700 bg-blue-50 hover:bg-blue-100 disabled:opacity-50"
-              >
-                Acknowledge selected
-              </button>
-              <button
-                type="button"
-                onClick={handleBulkConfirm}
-                disabled={!canEditBookings || selectedIds.length === 0 || bulkActionSubmitting}
-                className="px-3 py-1.5 rounded-lg border border-green-200 text-sm text-green-700 bg-green-50 hover:bg-green-100 disabled:opacity-50"
-              >
-                Confirm selected
-              </button>
-              <button
-                type="button"
-                onClick={() => setBulkCancelModal(true)}
-                disabled={!canEditBookings || selectedIds.length === 0 || bulkActionSubmitting}
-                className="px-3 py-1.5 rounded-lg border border-red-200 text-sm text-red-700 bg-red-50 hover:bg-red-100 disabled:opacity-50"
-              >
-                Cancel selected
-              </button>
-              {selectedIds.length > 0 && (
-                <button type="button" onClick={clearSelection} className="px-3 py-1.5 rounded-lg text-sm text-gray-600 hover:bg-gray-100">
-                  Clear
-                </button>
-              )}
+          <div className="space-y-4 w-full min-w-0">
+            <div className="px-0.5 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2">
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                  Bookings ({filteredBookings.length})
+                </p>
+                {filteredBookings.length > 0 && (
+                  <p className="text-[11px] text-gray-500 mt-0.5">
+                    Showing{' '}
+                    {(bookingsPageSafe - 1) * BOOKINGS_PAGE_SIZE + 1}
+                    –
+                    {(bookingsPageSafe - 1) * BOOKINGS_PAGE_SIZE + paginatedBookings.length}
+                    {filteredBookingsTotalPages > 1 ? (
+                      <>
+                        {' '}
+                        · Page {bookingsPageSafe} of {filteredBookingsTotalPages}
+                      </>
+                    ) : null}
+                  </p>
+                )}
+              </div>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-sm text-gray-600">Advanced export:</span>
-              <select
-                value={exportKind}
-                onChange={(e) => setExportKind(e.target.value as 'bookings' | 'ops_summary')}
-                className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white"
-              >
-                <option value="bookings">Detailed bookings</option>
-                <option value="ops_summary">Ops summary</option>
-              </select>
-              <select
-                value={exportScope}
-                onChange={(e) => setExportScope(e.target.value as 'filtered' | 'selected')}
-                className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white"
-              >
-                <option value="filtered">Filtered rows</option>
-                <option value="selected">Selected rows</option>
-              </select>
-              <select
-                value={exportFormat}
-                onChange={(e) => setExportFormat(e.target.value as 'csv' | 'json')}
-                className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white"
-              >
-                <option value="csv">CSV</option>
-                <option value="json">JSON</option>
-              </select>
-              <input
-                type="date"
-                value={exportDateFrom}
-                onChange={(e) => setExportDateFrom(e.target.value)}
-                className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm"
-              />
-              <input
-                type="date"
-                value={exportDateTo}
-                onChange={(e) => setExportDateTo(e.target.value)}
-                className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm"
-              />
-              <button
-                type="button"
-                onClick={handleAdvancedExport}
-                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50"
-              >
-                <Download className="w-4 h-4" />
-                Export {exportFormat.toUpperCase()}
-              </button>
-            </div>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
+            {paginatedBookings.map((b) => {
+              const startHm = b.start_time ? pgTimeToHm(b.start_time) : null;
+              const pickupHm = b.pickup_time ? pgTimeToHm(b.pickup_time) : null;
+              const refLabel =
+                typeof b.booking_number === 'number' && b.booking_number > 0
+                  ? `#${b.booking_number}`
+                  : b.id.slice(0, 8);
+              const detailsOpen = !!bookingDetailsOpen[b.id];
+              return (
+                <article
+                  key={`card-${b.id}`}
+                  id={`supplier-booking-row-${b.id}`}
+                  className={`rounded-xl border border-gray-200 bg-white p-4 sm:p-5 shadow-sm space-y-3 w-full min-w-0 max-w-full ${
+                    highlightBookingId === b.id ? 'ring-2 ring-finland/30 bg-finland/[0.04]' : ''
+                  }`}
+                >
+                  <div className="flex gap-3 min-w-0">
                     <input
                       type="checkbox"
-                      checked={
-                        paginatedBookings.length > 0 && paginatedBookings.every((b) => selectedIds.includes(b.id))
-                      }
-                      onChange={toggleSelectAllVisible}
-                      aria-label="Select all bookings on this page"
+                      className="mt-1.5 rounded border-gray-300 text-finland focus:ring-finland shrink-0"
+                      checked={selectedIds.includes(b.id)}
+                      onChange={() => toggleSelected(b.id)}
+                      aria-label={`Select booking ${b.id}`}
                     />
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Listing</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Guest</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Date</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Start</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Pickup</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Guests</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Requests</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Status</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wide">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {paginatedBookings.map((b) => (
-                  <tr
-                    id={`supplier-booking-row-${b.id}`}
-                    key={b.id}
-                    className={`hover:bg-gray-50/50 ${
-                      highlightBookingId === b.id ? 'ring-2 ring-finland/25 bg-finland/5' : ''
-                    }`}
-                  >
-                    <td className="px-4 py-3">
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.includes(b.id)}
-                        onChange={() => toggleSelected(b.id)}
-                        aria-label={`Select booking ${b.id}`}
-                      />
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-900">
-                      {listingTitles[b.listing_id] ?? <span className="text-gray-400">Listing</span>}
-                    </td>
-                    <td className="px-4 py-3 text-sm">
-                      <div className="flex items-center gap-1.5">
-                        {b.guest_name && <span className="text-gray-900">{b.guest_name}</span>}
-                        {b.guest_email && (
-                          <span className="text-gray-500 flex items-center gap-1">
-                            <Mail className="w-3.5 h-3.5" />
-                            {b.guest_email}
-                          </span>
-                        )}
-                        {!b.guest_name && !b.guest_email && <span className="text-gray-400">—</span>}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
-                      {b.booking_date ? new Date(b.booking_date).toLocaleDateString() : '—'}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
-                      {b.start_time ? pgTimeToHm(b.start_time) ?? '—' : '—'}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
-                      {b.pickup_time ? pgTimeToHm(b.pickup_time) ?? '—' : '—'}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{b.guests ?? '—'}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600 max-w-[180px] truncate" title={b.special_requests ?? undefined}>
-                      {b.special_requests ? b.special_requests : '—'}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full ${
-                          b.status === 'confirmed'
-                            ? 'bg-green-100 text-green-800'
-                            : b.status === 'cancelled'
-                            ? 'bg-gray-100 text-gray-600'
-                            : 'bg-amber-100 text-amber-800'
-                        }`}
-                      >
-                        {b.status}
-                      </span>
-                      {b.acknowledged_at && (
-                        <span className="ml-1 text-xs text-gray-500" title="Acknowledged">✓</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-1 flex-wrap">
-                          <button
-                            type="button"
-                            onClick={() => setTimelineBookingId(b.id)}
-                            className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    <div className="hidden sm:flex h-14 w-14 shrink-0 rounded-lg bg-gray-100 text-gray-400 items-center justify-center border border-gray-100">
+                      <Calendar className="w-6 h-6" aria-hidden />
+                    </div>
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between min-w-0">
+                        <div className="min-w-0">
+                          <p className="text-sm sm:text-base font-semibold text-gray-900 leading-snug">
+                            {listingTitles[b.listing_id] ?? 'Listing'}
+                          </p>
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            {b.guest_name ? (
+                              <span className="text-gray-700 font-medium">{b.guest_name}</span>
+                            ) : (
+                              <span>Guest</span>
+                            )}
+                            {b.guest_email ? (
+                              <span className="text-gray-500"> · </span>
+                            ) : null}
+                            {b.guest_email && !detailsOpen ? (
+                              <span className="text-gray-500 break-all line-clamp-1" title={b.guest_email}>
+                                {b.guest_email}
+                              </span>
+                            ) : null}
+                            {!b.guest_name && !b.guest_email ? <span className="text-gray-400">—</span> : null}
+                          </p>
+                        </div>
+                        <div className="shrink-0 flex flex-row sm:flex-col items-center sm:items-end gap-2 sm:text-right">
+                          <span
+                            className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full ${
+                              b.status === 'confirmed'
+                                ? 'bg-green-100 text-green-800'
+                                : b.status === 'cancelled'
+                                  ? 'bg-gray-100 text-gray-600'
+                                  : 'bg-amber-100 text-amber-800'
+                            }`}
                           >
-                            Timeline
-                          </button>
-                      {b.status !== 'cancelled' && (
-                        <>
-                          {b.guest_email && (
-                            <a
-                              href={`mailto:${b.guest_email}?subject=Your booking – ${listingTitles[b.listing_id] ?? 'Tour'}`}
-                              className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-600 hover:bg-gray-200 inline-flex items-center gap-1"
-                              title="Contact customer"
-                            >
-                              <MessageCircle className="w-3.5 h-3.5" />
-                              Contact
-                            </a>
-                          )}
-                          {!b.acknowledged_at && (
+                            {b.status}
+                          </span>
+                          <p className="flex items-center gap-1.5 text-xs text-gray-500">
+                            <ShoppingCart className="w-3.5 h-3.5 shrink-0 text-gray-400" aria-hidden />
+                            <span className="whitespace-nowrap">{formatPurchaseDateShort(b.created_at)}</span>
+                          </p>
+                        </div>
+                      </div>
+                      {b.acknowledged_at && (
+                        <p className="text-[11px] text-gray-500">Acknowledged</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between border-t border-gray-100 pt-3">
+                    <div className="flex flex-col gap-2 min-w-0 flex-1">
+                      <p className="flex items-start gap-2 text-sm text-gray-700 min-w-0">
+                        <Calendar className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" aria-hidden />
+                        <span className="min-w-0 break-words">{formatActivityDateLong(b.booking_date, startHm)}</span>
+                      </p>
+                      <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-gray-600">
+                        <span className="inline-flex items-center gap-1.5 min-w-0">
+                          <Tag className="w-4 h-4 text-gray-400 shrink-0" aria-hidden />
+                          <span className="font-mono text-xs sm:text-sm">{refLabel}</span>
+                        </span>
+                        <span className="inline-flex items-center gap-1.5">
+                          <Users className="w-4 h-4 text-gray-400 shrink-0" aria-hidden />
+                          {b.guests ?? '—'} guest{b.guests === 1 ? '' : 's'}
+                        </span>
+                        {pickupHm ? (
+                          <span className="inline-flex items-baseline gap-1.5 text-gray-600 min-w-0 flex-wrap">
+                            <span className="text-gray-400 text-xs font-semibold uppercase tracking-wide shrink-0">Pickup</span>
+                            <span className="min-w-0 font-medium text-gray-800">{pickupHm}</span>
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setBookingDetailsOpen((prev) => ({
+                          ...prev,
+                          [b.id]: !prev[b.id],
+                        }))
+                      }
+                      className="inline-flex items-center justify-center gap-1 text-sm font-medium text-finland hover:underline shrink-0 self-start sm:self-center"
+                      aria-expanded={detailsOpen}
+                    >
+                      {detailsOpen ? 'Hide details' : 'Show details'}
+                      <ChevronDown
+                        className={`w-4 h-4 transition-transform ${detailsOpen ? 'rotate-180' : ''}`}
+                        aria-hidden
+                      />
+                    </button>
+                  </div>
+
+                  {b.status !== 'cancelled' && !b.pickup_time && (
+                    <div className="flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-100 px-3 py-2 text-sm text-amber-900">
+                      <AlertCircle className="w-4 h-4 shrink-0" aria-hidden />
+                      <span>Pickup time not set — assign one in Pickup planner or expand details.</span>
+                    </div>
+                  )}
+
+                  {detailsOpen && (
+                    <div className="space-y-3 border-t border-gray-100 pt-3">
+                      {b.guest_email && (
+                        <p className="text-sm text-gray-700 break-all">
+                          <span className="text-gray-500 font-medium">Email </span>
+                          <a href={`mailto:${b.guest_email}`} className="text-finland hover:underline">
+                            {b.guest_email}
+                          </a>
+                        </p>
+                      )}
+                      {b.special_requests ? (
+                        <div>
+                          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Requests & notes</p>
+                          <p className="text-sm text-gray-700 whitespace-pre-wrap break-words">{b.special_requests}</p>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-gray-500">No special requests.</p>
+                      )}
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setTimelineBookingId(b.id)}
+                          className="touch-manipulation min-h-[40px] px-3 py-2 rounded-xl bg-gray-100 text-gray-800 text-xs font-semibold active:scale-[0.98]"
+                        >
+                          Timeline
+                        </button>
+                        {b.status !== 'cancelled' && (
+                          <>
+                            {b.guest_email && (
+                              <a
+                                href={`mailto:${b.guest_email}?subject=Your booking – ${listingTitles[b.listing_id] ?? 'Tour'}`}
+                                className="touch-manipulation inline-flex items-center justify-center gap-1 min-h-[40px] px-3 py-2 rounded-xl bg-gray-100 text-gray-800 text-xs font-semibold"
+                              >
+                                <MessageCircle className="w-3.5 h-3.5" />
+                                Contact
+                              </a>
+                            )}
+                            {b.status !== 'confirmed' && (
+                              <button
+                                type="button"
+                                onClick={() => handleStatusChange(b, 'confirmed')}
+                                disabled={!canEditBookings || updatingId === b.id}
+                                className="touch-manipulation min-h-[40px] px-3 py-2 rounded-xl bg-green-100 text-green-800 text-xs font-semibold disabled:opacity-50"
+                              >
+                                Confirm
+                              </button>
+                            )}
+                            {!b.acknowledged_at && (
+                              <button
+                                type="button"
+                                onClick={() => handleAcknowledge(b)}
+                                disabled={!canEditBookings || updatingId === b.id}
+                                className="touch-manipulation inline-flex items-center justify-center gap-1.5 min-h-[40px] px-3 py-2 rounded-xl bg-blue-100 text-blue-800 text-xs font-semibold disabled:opacity-50"
+                              >
+                                <CheckCircle className="w-3.5 h-3.5 shrink-0" aria-hidden />
+                                Acknowledge
+                              </button>
+                            )}
                             <button
                               type="button"
-                              onClick={() => handleAcknowledge(b)}
+                              onClick={() => setCancelModal(b)}
                               disabled={!canEditBookings || updatingId === b.id}
-                              className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-700 hover:bg-blue-200 inline-flex items-center gap-1 disabled:opacity-50"
-                              title="Acknowledge booking"
+                              className="touch-manipulation min-h-[40px] px-3 py-2 rounded-xl border border-red-200 text-red-700 text-xs font-semibold disabled:opacity-50"
                             >
-                              <CheckCircle className="w-3.5 h-3.5" />
-                              Acknowledge
+                              Cancel
                             </button>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => setCancelModal(b)}
-                            disabled={!canEditBookings || updatingId === b.id}
-                            className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-600 hover:bg-gray-200"
-                          >
-                            Cancel
-                          </button>
-                        </>
-                      )}
+                          </>
+                        )}
                       </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      <div>
+                        <label className="block text-[11px] font-medium text-gray-500 mb-1">Ops note</label>
+                        <textarea
+                          defaultValue={opsNotes[b.id]?.note ?? ''}
+                          onBlur={async (e) => {
+                            saveOpsNote(b.id, e.target.value);
+                            await syncSingleOpsNote(b.id);
+                          }}
+                          rows={2}
+                          placeholder="Field notes…"
+                          className="w-full min-w-0 px-3 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-finland"
+                        />
+                        {opsNotes[b.id]?.pendingSync && (
+                          <p className="text-[11px] text-amber-700 mt-1">Saved locally · pending sync</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </article>
+              );
+            })}
           </div>
-        </div>
 
         {filteredBookings.length > 0 && filteredBookingsTotalPages >= 1 && (
           <nav
@@ -2752,7 +2504,7 @@ export default function SupplierBookings() {
       {batchModal && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4 sm:pt-[max(1rem,env(safe-area-inset-top))]">
           <div className="bg-white rounded-t-2xl sm:rounded-xl shadow-xl max-w-md w-full p-4 sm:p-6 max-h-[min(calc(100dvh_-_env(safe-area-inset-bottom)_-_0.75rem),92dvh)] overflow-y-auto pb-[max(1rem,env(safe-area-inset-bottom))]">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Batch cancel</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Batch cancellation</h3>
             <p className="text-sm text-gray-600 mb-4">Cancel all bookings for one listing in a date range.</p>
             <div className="space-y-4">
               <div>

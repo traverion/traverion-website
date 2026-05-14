@@ -108,7 +108,7 @@ export default function SupplierPortalNoticePanel({ userId }: SupplierPortalNoti
   if (visible.length === 0) {
     return (
       <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-gray-500 shadow-sm ring-1 ring-slate-900/5">
-        No messages from Traverion right now.
+        No messages from the Traverion Support
       </div>
     );
   }

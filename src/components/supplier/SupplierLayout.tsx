@@ -838,7 +838,7 @@ export default function SupplierLayout() {
   }
 
   return (
-    <div className="partner-app-shell min-h-[100dvh] min-h-screen bg-slate-100 flex text-slate-900">
+    <div className="partner-app-shell min-h-[100dvh] min-h-screen w-full max-w-[100vw] min-w-0 overflow-x-hidden bg-slate-100 flex text-slate-900">
       {/* Sidebar - desktop */}
       <aside className="hidden lg:flex flex-col w-64 bg-white border-r border-gray-200 fixed inset-y-0 left-0 z-30">
         <div className="p-4 border-b border-gray-200">
@@ -945,8 +945,8 @@ export default function SupplierLayout() {
       </aside>
 
       {/* Main content */}
-      <div className="flex-1 lg:pl-64">
-        <header className="bg-white/95 backdrop-blur-md border-b border-slate-200/90 sticky top-0 z-20 flex min-h-[3rem] items-center gap-2 px-3 sm:px-4 lg:px-6 pt-[env(safe-area-inset-top)] pb-2 sm:min-h-[3.25rem] sm:pb-2.5 supports-[backdrop-filter]:bg-white/90 shadow-sm lg:shadow-none transition-shadow duration-300 relative">
+      <div className="flex-1 min-w-0 lg:pl-64">
+        <header className="bg-white/95 backdrop-blur-md border-b border-slate-200/90 sticky top-0 z-20 flex min-h-[3rem] min-w-0 max-w-full items-center gap-2 px-3 sm:px-4 lg:px-6 pt-[env(safe-area-inset-top)] pb-2 sm:min-h-[3.25rem] sm:pb-2.5 supports-[backdrop-filter]:bg-white/90 shadow-sm lg:shadow-none transition-shadow duration-300 relative">
           <button
             type="button"
             onClick={() => setSidebarOpen(true)}
@@ -1022,7 +1022,7 @@ export default function SupplierLayout() {
             </div>
           </div>
         )}
-        <main className="w-full max-w-[100vw] overflow-x-hidden px-3 pt-2.5 pb-[max(1rem,calc(4.75rem+env(safe-area-inset-bottom)))] sm:px-4 sm:pt-3 sm:pb-[max(1.25rem,calc(4.75rem+env(safe-area-inset-bottom)))] lg:px-6 lg:pt-4 lg:pb-6">
+        <main className="w-full max-w-[100vw] min-w-0 overflow-x-hidden px-3 pt-2.5 pb-[max(1rem,calc(4.75rem+env(safe-area-inset-bottom)))] sm:px-4 sm:pt-3 sm:pb-[max(1.25rem,calc(4.75rem+env(safe-area-inset-bottom)))] lg:px-6 lg:pt-4 lg:pb-6">
           {isSupabase && user && !onboardingComplete && (
             <SupplierSetupProgressStrip
               listingCount={onboardingListingCount}
@@ -1036,7 +1036,7 @@ export default function SupplierLayout() {
               onProfile={() => openSettingsFocus('company')}
             />
           )}
-          <div key={section} className="lux-page-enter">
+          <div key={section} className="lux-page-enter w-full min-w-0 max-w-full">
           {section === 'dashboard' && (
             <SupplierDashboard
               onNavigateToListings={() => handleNavigate('listings')}

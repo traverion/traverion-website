@@ -737,20 +737,22 @@ export default function SupplierPickupPlanner() {
                 Week
               </button>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center justify-center gap-2 sm:flex-nowrap sm:justify-end min-w-0 flex-1 sm:flex-none sm:max-w-full">
               <button
                 type="button"
                 onClick={() => shiftCalendar(-1)}
-                className="p-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100"
+                className="p-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100 shrink-0"
                 aria-label="Previous"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
-              <p className="text-sm font-medium text-gray-800 min-w-[13rem] text-center">{calendarLabel}</p>
+              <p className="text-sm font-medium text-gray-800 min-w-0 flex-[1_1_100%] sm:flex-initial sm:min-w-[12rem] text-center order-first sm:order-none">
+                {calendarLabel}
+              </p>
               <button
                 type="button"
                 onClick={() => shiftCalendar(1)}
-                className="p-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100"
+                className="p-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100 shrink-0"
                 aria-label="Next"
               >
                 <ChevronRight className="w-4 h-4" />
@@ -758,7 +760,7 @@ export default function SupplierPickupPlanner() {
               <button
                 type="button"
                 onClick={jumpCalendarToday}
-                className="px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-100"
+                className="px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-100 shrink-0"
               >
                 Today
               </button>

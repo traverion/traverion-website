@@ -16,7 +16,7 @@ export default function SupplierEarnings() {
   const [profile, setProfile] = useState<Awaited<ReturnType<typeof fetchSupplierProfile>>>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'paid' | 'cancelled'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'paid'>('all');
 
   const load = useCallback(() => {
     const uid = user?.id;
@@ -48,31 +48,30 @@ export default function SupplierEarnings() {
     else setProfile(null);
   }, [isSupabase, user?.id]);
 
-  const primaryCurrency = earnings[0]?.currency ?? 'USD';
+  const primaryCurrency = useMemo(() => {
+    const row = earnings.find((e) => e.status !== 'cancelled');
+    return row?.currency ?? earnings[0]?.currency ?? 'USD';
+  }, [earnings]);
 
-  const hasCancelledRows = useMemo(() => earnings.some((e) => e.status === 'cancelled'), [earnings]);
-
-  const { pending, paid, cancelled, filteredEarnings } = useMemo(() => {
-    const pendingSum = earnings.filter((e) => e.status === 'pending').reduce((sum, e) => sum + Number(e.amount), 0);
-    const paidSum = earnings.filter((e) => e.status === 'paid').reduce((sum, e) => sum + Number(e.amount), 0);
-    const cancelledSum = earnings.filter((e) => e.status === 'cancelled').reduce((sum, e) => sum + Number(e.amount), 0);
+  const { pending, paid, filteredEarnings } = useMemo(() => {
+    const nonCancelled = earnings.filter((e) => e.status !== 'cancelled');
+    const pendingSum = nonCancelled.filter((e) => e.status === 'pending').reduce((sum, e) => sum + Number(e.amount), 0);
+    const paidSum = nonCancelled.filter((e) => e.status === 'paid').reduce((sum, e) => sum + Number(e.amount), 0);
     const filtered =
       statusFilter === 'all'
-        ? earnings
-        : earnings.filter((e) => e.status === statusFilter);
+        ? nonCancelled
+        : nonCancelled.filter((e) => e.status === statusFilter);
     return {
       pending: pendingSum,
       paid: paidSum,
-      cancelled: cancelledSum,
       filteredEarnings: filtered,
     };
   }, [earnings, statusFilter]);
 
-  useEffect(() => {
-    if (statusFilter === 'cancelled' && !hasCancelledRows) {
-      setStatusFilter('all');
-    }
-  }, [statusFilter, hasCancelledRows]);
+  const earningsForInvoices = useMemo(
+    () => earnings.filter((e) => e.status !== 'cancelled'),
+    [earnings]
+  );
 
   const threshold = profile?.payout_threshold_min ?? 0;
   const cycle = profile?.payment_cycle ?? 'monthly';
@@ -124,7 +123,7 @@ export default function SupplierEarnings() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <div className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-5 flex items-center gap-3 sm:gap-4 shadow-sm">
           <div className="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0">
             <TrendingUp className="w-6 h-6" />
@@ -154,16 +153,6 @@ export default function SupplierEarnings() {
             <p className="text-xl font-semibold text-gray-900 tabular-nums">{formatMoney(paid, primaryCurrency)}</p>
           </div>
         </div>
-        <div className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-5 flex items-center gap-3 sm:gap-4 shadow-sm">
-          <div className="w-12 h-12 rounded-xl bg-gray-100 text-gray-600 flex items-center justify-center shrink-0">
-            <Receipt className="w-6 h-6" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-sm text-gray-500">Cancelled / adjusted</p>
-            <p className="text-xl font-semibold text-gray-900 tabular-nums">{formatMoney(cancelled, primaryCurrency)}</p>
-            <p className="text-xs text-gray-400 mt-1">Reversals or voided accruals</p>
-          </div>
-        </div>
       </div>
 
       {isSupabase && (
@@ -181,7 +170,7 @@ export default function SupplierEarnings() {
             <span className="text-sm text-gray-500">({filteredEarnings.length} row{filteredEarnings.length === 1 ? '' : 's'})</span>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {(hasCancelledRows ? (['all', 'pending', 'paid', 'cancelled'] as const) : (['all', 'pending', 'paid'] as const)).map((s) => (
+            {(['all', 'pending', 'paid'] as const).map((s) => (
               <button
                 key={s}
                 type="button"
@@ -206,7 +195,7 @@ export default function SupplierEarnings() {
         </div>
         {loading ? (
           <div className="p-8 text-center text-gray-500">Loading…</div>
-        ) : earnings.length === 0 ? (
+        ) : earningsForInvoices.length === 0 ? (
           <div className="p-12 text-center">
             <DollarSign className="w-12 h-12 text-gray-300 mx-auto mb-3" />
             <p className="text-gray-500">No earnings yet</p>
@@ -215,53 +204,40 @@ export default function SupplierEarnings() {
         ) : filteredEarnings.length === 0 ? (
           <div className="p-8 text-center text-gray-500 text-sm">No rows for this filter.</div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-gray-50 text-left text-gray-600">
-                  <th className="px-4 py-3 font-medium">Period</th>
-                  <th className="px-4 py-3 font-medium">Amount</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
-                  <th className="px-4 py-3 font-medium">Invoice</th>
-                  <th className="px-4 py-3 font-medium">Payment</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredEarnings.map((e) => (
-                  <tr key={e.id} className="border-t border-gray-100">
-                    <td className="px-4 py-3 text-gray-900">
-                      {e.period_start} – {e.period_end}
-                    </td>
-                    <td className="px-4 py-3 font-medium tabular-nums">{formatMoney(Number(e.amount), e.currency)}</td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${
-                          e.status === 'paid' ? 'bg-green-100 text-green-800' : e.status === 'pending' ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-600'
-                        }`}
-                      >
-                        {e.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="inline-flex items-center gap-1 text-gray-600">
-                        <FileText className="w-4 h-4" />
-                        {(e as { invoice_number?: string }).invoice_number ?? '—'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      {e.status === 'paid' ? (
-                        <span className="inline-flex items-center gap-1 text-green-700" title="Payment confirmation">
-                          <Receipt className="w-4 h-4" />
-                          {(e as { payment_reference?: string }).payment_reference ?? 'Paid'}
-                        </span>
-                      ) : (
-                        '—'
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="divide-y divide-gray-100">
+            {filteredEarnings.map((e) => (
+              <article key={e.id} className="px-4 py-4 sm:px-5 w-full min-w-0 max-w-full space-y-2">
+                <div className="flex flex-wrap items-start justify-between gap-2 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 min-w-0 break-words">
+                    {e.period_start} – {e.period_end}
+                  </p>
+                  <p className="text-base font-semibold tabular-nums text-gray-900 shrink-0">
+                    {formatMoney(Number(e.amount), e.currency)}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
+                  <span
+                    className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${
+                      e.status === 'paid' ? 'bg-green-100 text-green-800' : e.status === 'pending' ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-600'
+                    }`}
+                  >
+                    {e.status}
+                  </span>
+                  <span className="inline-flex items-center gap-1 text-gray-600 min-w-0 break-all">
+                    <FileText className="w-4 h-4 shrink-0" aria-hidden />
+                    <span className="text-xs sm:text-sm">Invoice {(e as { invoice_number?: string }).invoice_number ?? '—'}</span>
+                  </span>
+                  {e.status === 'paid' ? (
+                    <span className="inline-flex items-center gap-1 text-green-700 min-w-0 break-all" title="Payment confirmation">
+                      <Receipt className="w-4 h-4 shrink-0" aria-hidden />
+                      <span className="text-xs sm:text-sm">{(e as { payment_reference?: string }).payment_reference ?? 'Paid'}</span>
+                    </span>
+                  ) : (
+                    <span className="text-gray-400 text-sm">Payment —</span>
+                  )}
+                </div>
+              </article>
+            ))}
           </div>
         )}
       </div>
@@ -274,9 +250,9 @@ export default function SupplierEarnings() {
         <p className="text-sm text-gray-500 mb-4">
           Invoices are generated per period. When a payout is made, a payment confirmation is available. Download links will be available when payment processing is integrated.
         </p>
-        {earnings.length > 0 ? (
+        {earningsForInvoices.length > 0 ? (
           <ul className="space-y-2 text-sm">
-            {earnings.slice(0, 10).map((e) => (
+            {earningsForInvoices.slice(0, 10).map((e) => (
               <li key={e.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
                 <span>{e.period_start} – {e.period_end}</span>
                 <span className="flex items-center gap-2">

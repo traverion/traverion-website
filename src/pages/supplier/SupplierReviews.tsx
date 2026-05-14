@@ -1,7 +1,7 @@
 /**
  * Supplier: view all reviews for my listings and reply.
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Star, MessageSquare, Send, AlertCircle, RefreshCw } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import {
@@ -30,6 +30,9 @@ export default function SupplierReviews() {
   const [replyError, setReplyError] = useState<string | null>(null);
   const [highlightReviewId, setHighlightReviewId] = useState<string | null>(null);
   const [draftToneByReview, setDraftToneByReview] = useState<Record<string, 'friendly' | 'professional' | 'short'>>({});
+  const [filterListingId, setFilterListingId] = useState('');
+  const [filterRating, setFilterRating] = useState<number | ''>('');
+  const [filterReply, setFilterReply] = useState<'all' | 'unreplied' | 'replied'>('all');
 
   const load = useCallback(async () => {
     const uid = user?.id;
@@ -80,7 +83,7 @@ export default function SupplierReviews() {
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
-  }, [highlightReviewId, loading, reviews.length]);
+  }, [highlightReviewId, loading, reviews.length, filteredReviews]);
 
   const handleSubmitReply = async (reviewId: string) => {
     if (!user) return;
@@ -116,6 +119,42 @@ export default function SupplierReviews() {
     (r) => reviewHasWrittenFeedback(r) && !replies[r.id]
   ).length;
 
+  const listingOptions = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const r of reviews) {
+      if (r.listing_id) m.set(r.listing_id, (r.listing_title ?? 'Listing').trim() || 'Listing');
+    }
+    return [...m.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  }, [reviews]);
+
+  const filteredReviews = useMemo(() => {
+    return reviews.filter((r) => {
+      if (filterListingId && r.listing_id !== filterListingId) return false;
+      if (filterRating !== '' && Number(r.rating) !== filterRating) return false;
+      if (filterReply === 'unreplied') {
+        if (!reviewHasWrittenFeedback(r) || replies[r.id]) return false;
+      }
+      if (filterReply === 'replied') {
+        if (!replies[r.id]) return false;
+      }
+      return true;
+    });
+  }, [reviews, filterListingId, filterRating, filterReply, replies]);
+
+  const hasActiveFilters =
+    Boolean(filterListingId) || filterRating !== '' || filterReply !== 'all';
+
+  const unrepliedInFiltered = useMemo(
+    () => filteredReviews.filter((r) => reviewHasWrittenFeedback(r) && !replies[r.id]).length,
+    [filteredReviews, replies]
+  );
+
+  const clearFilters = () => {
+    setFilterListingId('');
+    setFilterRating('');
+    setFilterReply('all');
+  };
+
   if (!user) return null;
 
   return (
@@ -125,16 +164,25 @@ export default function SupplierReviews() {
         <p className="text-sm text-gray-600 mt-0.5 sm:mt-1 sm:text-base">See and respond to customer reviews for your listings.</p>
       </div>
 
-      {!loading && (
+      {!loading && reviews.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-2 gap-3 max-w-xl">
           <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
             <p className="text-xs uppercase tracking-wide text-gray-500 font-medium">Total reviews</p>
             <p className="text-2xl font-semibold text-gray-900 mt-1">{reviews.length}</p>
+            {hasActiveFilters ? (
+              <p className="text-xs text-gray-500 mt-1">{filteredReviews.length} match current filters</p>
+            ) : null}
           </div>
           <div className="bg-white border border-amber-200 bg-amber-50/40 rounded-2xl p-4 shadow-sm">
             <p className="text-xs uppercase tracking-wide text-amber-800 font-medium">Not replied</p>
-            <p className="text-2xl font-semibold text-amber-900 mt-1">{unrepliedCount}</p>
-            <p className="text-xs text-amber-800/80 mt-1">Written reviews only; star-only ratings are excluded.</p>
+            <p className="text-2xl font-semibold text-amber-900 mt-1">
+              {hasActiveFilters ? unrepliedInFiltered : unrepliedCount}
+            </p>
+            <p className="text-xs text-amber-800/80 mt-1">
+              {hasActiveFilters
+                ? 'Among filtered reviews (written only; star-only excluded).'
+                : 'Written reviews only; star-only ratings are excluded.'}
+            </p>
           </div>
         </div>
       )}
@@ -169,7 +217,91 @@ export default function SupplierReviews() {
         </div>
       ) : (
         <div className="space-y-4 sm:space-y-5">
-          {reviews.map((r) => (
+          <div className="bg-white border border-gray-200 rounded-xl px-3 py-3 sm:px-4 sm:py-4">
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
+                <div className="flex flex-col gap-1 min-w-[min(100%,12rem)] flex-1 sm:flex-none sm:min-w-[11rem]">
+                  <label className="text-[11px] font-medium uppercase tracking-wide text-gray-500">Product</label>
+                  <select
+                    value={filterListingId}
+                    onChange={(e) => setFilterListingId(e.target.value)}
+                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white text-sm w-full"
+                  >
+                    <option value="">All products</option>
+                    {listingOptions.map(([id, title]) => (
+                      <option key={id} value={id}>
+                        {title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1 min-w-[8.5rem]">
+                  <label className="text-[11px] font-medium uppercase tracking-wide text-gray-500">Star rating</label>
+                  <select
+                    value={filterRating === '' ? '' : String(filterRating)}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setFilterRating(v === '' ? '' : Number(v));
+                    }}
+                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white text-sm w-full"
+                  >
+                    <option value="">All ratings</option>
+                    {[5, 4, 3, 2, 1].map((n) => (
+                      <option key={n} value={String(n)}>
+                        {n} star{n === 1 ? '' : 's'} only
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1 min-w-[10rem]">
+                  <label className="text-[11px] font-medium uppercase tracking-wide text-gray-500">Reply status</label>
+                  <select
+                    value={filterReply}
+                    onChange={(e) => setFilterReply(e.target.value as typeof filterReply)}
+                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white text-sm w-full"
+                  >
+                    <option value="all">All reviews</option>
+                    <option value="unreplied">Needs reply</option>
+                    <option value="replied">Replied</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {hasActiveFilters ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={clearFilters}
+                      className="px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50"
+                    >
+                      Clear filters
+                    </button>
+                    <span className="text-sm text-gray-500">
+                      Showing {filteredReviews.length} of {reviews.length}
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-sm text-gray-500">Filter by product, stars, or reply status.</span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {filteredReviews.length === 0 ? (
+            <div className="bg-white border border-gray-200 rounded-xl p-10 text-center">
+              <p className="text-gray-800 font-medium">No reviews match these filters</p>
+              <p className="text-sm text-gray-500 mt-1">Try another product, rating, or reply status.</p>
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="mt-4 px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50"
+              >
+                Clear filters
+              </button>
+            </div>
+          ) : null}
+
+          {filteredReviews.map((r) => (
             <div
               key={r.id}
               id={`supplier-review-card-${r.id}`}
