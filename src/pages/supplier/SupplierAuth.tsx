@@ -11,6 +11,7 @@ import { normalizePhoneNumber } from '../../lib/phoneNormalize';
 import { subscribePasswordRecovery, updatePasswordAfterRecovery } from '../../lib/passwordRecoveryFlow';
 import { EMAIL_ALREADY_IN_USE, partnerSignInTravelerOnlyMessage } from '../../lib/customerSupplierAuthMessages';
 import { publicSiteBaseUrl } from '../../lib/publicSiteUrl';
+import { authInputErrorClasses, isValidEmailFormat } from '../../lib/authFormValidation';
 
 /** Fire-and-forget welcome email (Edge Function dedupes via welcome_email_sent_at). */
 function sendSupplierWelcomeEmail(userId: string): void {
@@ -28,6 +29,18 @@ interface SupplierAuthProps {
 
 type Mode = 'signin' | 'signup';
 
+type SupplierFieldKey =
+  | 'email'
+  | 'businessName'
+  | 'phoneNumber'
+  | 'password'
+  | 'confirmPassword'
+  | 'recoveryPassword'
+  | 'recoveryConfirm'
+  | 'form';
+
+type SupplierFieldErrors = Partial<Record<SupplierFieldKey, string>>;
+
 const BENEFITS = [
   { icon: MapPin, text: 'List once — your tours appear on Traverion for travelers worldwide' },
   { icon: Users, text: 'No upfront cost — reach customers without listing fees' },
@@ -41,7 +54,7 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
   const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<SupplierFieldErrors>({});
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [resetSending, setResetSending] = useState(false);
@@ -80,33 +93,70 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
     return message;
   };
 
+  /** Map Supabase / server messages to the most relevant field (avoid generic banner-only errors). */
+  const serverMessageToFields = (rawMessage: string): SupplierFieldErrors => {
+    const text = mapAuthError(rawMessage);
+    const low = rawMessage.toLowerCase();
+    if (low.includes('invalid login credentials')) return { password: text };
+    if (low.includes('email not confirmed') || text.toLowerCase().includes('confirm your email')) return { email: text };
+    if (
+      low.includes('already registered') ||
+      low.includes('already been registered') ||
+      low.includes('user already exists') ||
+      text === EMAIL_ALREADY_IN_USE
+    ) {
+      return { email: text };
+    }
+    if (
+      low.includes('password') &&
+      !low.includes('invalid login credentials') &&
+      !low.includes('email not confirmed')
+    ) {
+      return { password: text };
+    }
+    if (
+      (low.includes('duplicate key') && low.includes('contact_phone')) ||
+      low.includes('supplier_profiles_contact_phone')
+    ) {
+      return { phoneNumber: text };
+    }
+    return { form: text };
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
+    setFieldErrors({});
     setSuccessMessage(null);
-    if (!email || !password) return;
-    if (mode === 'signup' && !businessName.trim()) {
-      setError('Business name is required');
+
+    const next: SupplierFieldErrors = {};
+    const trimmedEmail = email.trim();
+
+    if (!trimmedEmail) next.email = 'Enter your email address.';
+    else if (!isValidEmailFormat(trimmedEmail)) next.email = 'Enter a valid email address.';
+
+    if (mode === 'signup') {
+      if (!businessName.trim()) next.businessName = 'Enter your registered business name.';
+      if (!phoneNumber.trim()) next.phoneNumber = 'Enter your phone number.';
+      else if (normalizePhoneNumber(phoneNumber).replace(/\D/g, '').length < 9) {
+        next.phoneNumber = 'Enter a valid phone number.';
+      }
+      if (!password) next.password = 'Enter a password.';
+      else if (password.length < 8) next.password = 'Use at least 8 characters.';
+      if (!confirmPassword) next.confirmPassword = 'Confirm your password.';
+      else if (password && confirmPassword && password !== confirmPassword) {
+        next.confirmPassword = 'Passwords do not match.';
+      }
+    } else {
+      if (!password) next.password = 'Enter your password.';
+    }
+
+    if (Object.keys(next).length > 0) {
+      setFieldErrors(next);
       return;
     }
-    if (mode === 'signup' && !phoneNumber.trim()) {
-      setError('Phone number is required');
-      return;
-    }
-    if (mode === 'signup' && normalizePhoneNumber(phoneNumber).replace(/\D/g, '').length < 9) {
-      setError('Enter a valid phone number');
-      return;
-    }
-    if (mode === 'signup' && password !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
-    if (mode === 'signup' && password.length < 8) {
-      setError('Password must be at least 8 characters');
-      return;
-    }
+
     setSubmitting(true);
-    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedEmail = trimmedEmail.toLowerCase();
     try {
       if (isSupabase && supabase) {
         if (mode === 'signup') {
@@ -114,11 +164,13 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
           const cleanPhoneNumber = normalizePhoneNumber(phoneNumber);
           const phoneAvail = await isPhoneAvailableForSignup(phoneNumber);
           if (phoneAvail.error) {
-            setError(mapAuthError(phoneAvail.error));
+            setFieldErrors(serverMessageToFields(phoneAvail.error));
             return;
           }
           if (!phoneAvail.available) {
-            setError('An account with this phone number already exists. Please sign in instead.');
+            setFieldErrors({
+              phoneNumber: 'An account with this phone number already exists. Please sign in instead.',
+            });
             return;
           }
           const { data, error: err } = await supabase.auth.signUp({
@@ -133,11 +185,11 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
             },
           });
           if (err) {
-            setError(mapAuthError(err.message));
+            setFieldErrors(serverMessageToFields(err.message));
             return;
           }
           if (isSignUpEmailAlreadyRegistered(data.user)) {
-            setError(EMAIL_ALREADY_IN_USE);
+            setFieldErrors({ email: EMAIL_ALREADY_IN_USE });
             setSuccessMessage(null);
             setMode('signin');
             return;
@@ -156,7 +208,7 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
             });
             if (!ensured.success) {
               await supabase.auth.signOut();
-              setError(mapAuthError(ensured.error ?? 'Could not create your supplier profile.'));
+              setFieldErrors({ form: mapAuthError(ensured.error ?? 'Could not create your supplier profile.') });
               return;
             }
             sendSupplierWelcomeEmail(data.session.user.id);
@@ -168,12 +220,14 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
         } else {
           const { data, error: err } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
           if (err) {
-            setError(mapAuthError(err.message));
+            setFieldErrors(serverMessageToFields(err.message));
             return;
           }
           if (data.user && !data.user.email_confirmed_at) {
             await supabase.auth.signOut();
-            setError('Please confirm your email before signing in.');
+            setFieldErrors({
+              email: 'Please confirm your email before signing in.',
+            });
             setSuccessMessage('You can use "Resend confirmation email" below if needed.');
             return;
           }
@@ -191,7 +245,7 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
             if (!signedUpAsPartner) {
               await supabase.auth.signOut();
               const travelerSignInUrl = `${publicSiteBaseUrl()}/log-in`;
-              setError(partnerSignInTravelerOnlyMessage(travelerSignInUrl));
+              setFieldErrors({ form: partnerSignInTravelerOnlyMessage(travelerSignInUrl) });
               return;
             }
             const ensured = await ensureSupplierProfile(data.user.id, {
@@ -201,7 +255,7 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
             });
             if (!ensured.success) {
               await supabase.auth.signOut();
-              setError(mapAuthError(ensured.error ?? 'Could not load your supplier profile.'));
+              setFieldErrors({ form: mapAuthError(ensured.error ?? 'Could not load your supplier profile.') });
               return;
             }
             sendSupplierWelcomeEmail(data.user.id);
@@ -211,11 +265,12 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
           onAuthenticated();
         }
       } else {
-        setError(
-          'Sign-in can’t run here because the site isn’t connected to the account service (Supabase). ' +
+        setFieldErrors({
+          form:
+            'Sign-in can’t run here because the site isn’t connected to the account service (Supabase). ' +
             'If you’re on production, the deploy needs VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY. ' +
-            'If you’re testing locally, add them to .env and restart the dev server.'
-        );
+            'If you’re testing locally, add them to .env and restart the dev server.',
+        });
       }
     } finally {
       setSubmitting(false);
@@ -223,14 +278,18 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
   };
 
   const handleResetPassword = async () => {
-    setError(null);
+    setFieldErrors({});
     setSuccessMessage(null);
     if (!email.trim()) {
-      setError('Enter your email first, then reset password.');
+      setFieldErrors({ email: 'Enter your email address, then use forgot password.' });
+      return;
+    }
+    if (!isValidEmailFormat(email)) {
+      setFieldErrors({ email: 'Enter a valid email address.' });
       return;
     }
     if (!supabase) {
-      setError('Password reset is not configured.');
+      setFieldErrors({ form: 'Password reset is not configured.' });
       return;
     }
     setResetSending(true);
@@ -239,20 +298,24 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
     });
     setResetSending(false);
     if (err) {
-      setError(mapAuthError(err.message));
+      setFieldErrors(serverMessageToFields(err.message));
       return;
     }
     setSuccessMessage('Password reset email sent. Check your inbox.');
   };
 
   const handleResendConfirmation = async () => {
-    setError(null);
+    setFieldErrors({});
     if (!email.trim()) {
-      setError('Enter your email first, then resend confirmation.');
+      setFieldErrors({ email: 'Enter your email address, then resend confirmation.' });
+      return;
+    }
+    if (!isValidEmailFormat(email)) {
+      setFieldErrors({ email: 'Enter a valid email address.' });
       return;
     }
     if (!supabase) {
-      setError('Email confirmation is not configured.');
+      setFieldErrors({ form: 'Email confirmation is not configured.' });
       return;
     }
     setResendSending(true);
@@ -264,7 +327,7 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
     });
     setResendSending(false);
     if (err) {
-      setError(mapAuthError(err.message));
+      setFieldErrors(serverMessageToFields(err.message));
       return;
     }
     setSuccessMessage('Confirmation email resent. Check inbox/spam.');
@@ -272,18 +335,26 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
 
   const handleRecoverySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
+    setFieldErrors({});
     setSuccessMessage(null);
     if (!supabase) return;
-    if (recoveryPassword !== recoveryConfirm) {
-      setError('Passwords do not match.');
+    const rec: SupplierFieldErrors = {};
+    if (!recoveryPassword) rec.recoveryPassword = 'Enter a new password.';
+    else if (recoveryPassword.length < 8) rec.recoveryPassword = 'Use at least 8 characters.';
+    if (!recoveryConfirm) rec.recoveryConfirm = 'Confirm your new password.';
+    else if (recoveryPassword && recoveryConfirm && recoveryPassword !== recoveryConfirm) {
+      rec.recoveryConfirm = 'Passwords do not match.';
+    }
+    if (Object.keys(rec).length > 0) {
+      setFieldErrors(rec);
       return;
     }
     setRecoverySubmitting(true);
     try {
       const { error: err } = await updatePasswordAfterRecovery(supabase, recoveryPassword, { minLength: 8 });
       if (err) {
-        setError(mapAuthError(err));
+        const mapped = mapAuthError(err);
+        setFieldErrors({ recoveryPassword: mapped });
         return;
       }
       await supabase.auth.signOut();
@@ -329,39 +400,70 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
       <div className="w-full max-w-md sm:max-w-lg xl:max-w-xl 2xl:max-w-[28rem] mx-auto lg:mx-0 flex-shrink-0">
         <div className="bg-white border border-gray-200 rounded-2xl shadow-lg overflow-hidden xl:shadow-xl">
           {recoveryMode ? (
-            <form onSubmit={(e) => void handleRecoverySubmit(e)} className="p-6 sm:p-8 space-y-4 sm:space-y-5">
+            <form noValidate onSubmit={(e) => void handleRecoverySubmit(e)} className="p-6 sm:p-8 space-y-4 sm:space-y-5">
               <div>
                 <h2 className="text-lg font-semibold text-gray-900">Set a new password</h2>
                 <p className="text-sm text-gray-600 mt-1">Then sign in to the supplier portal.</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">New password</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="supplier-recovery-password">
+                  New password
+                </label>
                 <input
+                  id="supplier-recovery-password"
                   type="password"
                   name="new-password"
                   value={recoveryPassword}
-                  onChange={(e) => setRecoveryPassword(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland"
+                  onChange={(e) => {
+                    setRecoveryPassword(e.target.value);
+                    setFieldErrors((prev) => {
+                      const next = { ...prev };
+                      delete next.recoveryPassword;
+                      delete next.form;
+                      return next;
+                    });
+                  }}
+                  className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 ${authInputErrorClasses(!!fieldErrors.recoveryPassword)}`}
                   autoComplete="new-password"
-                  required
-                  minLength={8}
+                  aria-invalid={fieldErrors.recoveryPassword ? true : undefined}
+                  aria-describedby={fieldErrors.recoveryPassword ? 'supplier-recovery-password-error' : undefined}
                 />
                 <p className="text-xs text-gray-500 mt-1">At least 8 characters</p>
+                {fieldErrors.recoveryPassword && (
+                  <p id="supplier-recovery-password-error" className="mt-1.5 text-sm text-red-600" role="alert">
+                    {fieldErrors.recoveryPassword}
+                  </p>
+                )}
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Confirm new password</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="supplier-recovery-confirm">
+                  Confirm new password
+                </label>
                 <input
+                  id="supplier-recovery-confirm"
                   type="password"
                   name="confirm-password"
                   value={recoveryConfirm}
-                  onChange={(e) => setRecoveryConfirm(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland"
+                  onChange={(e) => {
+                    setRecoveryConfirm(e.target.value);
+                    setFieldErrors((prev) => {
+                      const next = { ...prev };
+                      delete next.recoveryConfirm;
+                      delete next.form;
+                      return next;
+                    });
+                  }}
+                  className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 ${authInputErrorClasses(!!fieldErrors.recoveryConfirm)}`}
                   autoComplete="new-password"
-                  required
-                  minLength={8}
+                  aria-invalid={fieldErrors.recoveryConfirm ? true : undefined}
+                  aria-describedby={fieldErrors.recoveryConfirm ? 'supplier-recovery-confirm-error' : undefined}
                 />
+                {fieldErrors.recoveryConfirm && (
+                  <p id="supplier-recovery-confirm-error" className="mt-1.5 text-sm text-red-600" role="alert">
+                    {fieldErrors.recoveryConfirm}
+                  </p>
+                )}
               </div>
-              {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
               {successMessage && (
                 <div className="flex items-start gap-2 p-3 rounded-lg bg-green-50 text-green-800 text-sm">
                   <Check className="w-5 h-5 flex-shrink-0 mt-0.5" />
@@ -382,7 +484,11 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
           <div className="flex border-b border-gray-200">
             <button
               type="button"
-              onClick={() => { setMode('signup'); setError(null); setSuccessMessage(null); }}
+              onClick={() => {
+                setMode('signup');
+                setFieldErrors({});
+                setSuccessMessage(null);
+              }}
               className={`flex-1 flex items-center justify-center gap-2 py-4 text-sm font-medium transition-colors ${
                 mode === 'signup'
                   ? 'bg-finland text-white'
@@ -394,7 +500,11 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
             </button>
             <button
               type="button"
-              onClick={() => { setMode('signin'); setError(null); setSuccessMessage(null); }}
+              onClick={() => {
+                setMode('signin');
+                setFieldErrors({});
+                setSuccessMessage(null);
+              }}
               className={`flex-1 flex items-center justify-center gap-2 py-4 text-sm font-medium transition-colors ${
                 mode === 'signin'
                   ? 'bg-finland text-white'
@@ -406,7 +516,12 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="p-6 sm:p-8 space-y-4 sm:space-y-5">
+          <form noValidate onSubmit={handleSubmit} className="p-6 sm:p-8 space-y-4 sm:space-y-5">
+            {fieldErrors.form && (
+              <p className="text-sm text-red-700 bg-red-50 px-3 py-2 rounded-lg border border-red-100" role="alert">
+                {fieldErrors.form}
+              </p>
+            )}
             {successMessage && (
               <div className="flex items-start gap-2 p-3 rounded-lg bg-green-50 text-green-800 text-sm">
                 <Check className="w-5 h-5 flex-shrink-0 mt-0.5" />
@@ -414,7 +529,9 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
               </div>
             )}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="supplier-auth-email">
+                Email
+              </label>
               {mode === 'signup' && (
                 <p className="text-xs text-gray-500 mb-2">
                   Partner login is separate from the traveler site. If this email is already used for bookings, use a
@@ -423,65 +540,130 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
                 </p>
               )}
               <input
+                id="supplier-auth-email"
                 type="email"
                 name="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setFieldErrors((prev) => {
+                    const next = { ...prev };
+                    delete next.email;
+                    delete next.form;
+                    return next;
+                  });
+                }}
                 placeholder="you@company.com"
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland"
+                className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 ${authInputErrorClasses(!!fieldErrors.email)}`}
                 autoComplete="email"
-                required
+                aria-invalid={fieldErrors.email ? true : undefined}
+                aria-describedby={fieldErrors.email ? 'supplier-auth-email-error' : undefined}
               />
+              {fieldErrors.email && (
+                <p id="supplier-auth-email-error" className="mt-1.5 text-sm text-red-600" role="alert">
+                  {fieldErrors.email}
+                </p>
+              )}
             </div>
             {mode === 'signup' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Business name</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="supplier-auth-business">
+                  Business name
+                </label>
                 <p className="text-xs text-gray-500 mb-2">
                   Use your <span className="font-medium text-gray-700">registered business name</span> as it appears on
                   official documents. Our team will verify that it matches your registration before you can go live.
                 </p>
                 <input
+                  id="supplier-auth-business"
                   type="text"
                   name="organization"
                   value={businessName}
-                  onChange={(e) => setBusinessName(e.target.value)}
+                  onChange={(e) => {
+                    setBusinessName(e.target.value);
+                    setFieldErrors((prev) => {
+                      const next = { ...prev };
+                      delete next.businessName;
+                      delete next.form;
+                      return next;
+                    });
+                  }}
                   placeholder="Registered legal / trading name"
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland"
+                  className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 ${authInputErrorClasses(!!fieldErrors.businessName)}`}
                   autoComplete="organization"
-                  required
+                  aria-invalid={fieldErrors.businessName ? true : undefined}
+                  aria-describedby={fieldErrors.businessName ? 'supplier-auth-business-error' : undefined}
                 />
+                {fieldErrors.businessName && (
+                  <p id="supplier-auth-business-error" className="mt-1.5 text-sm text-red-600" role="alert">
+                    {fieldErrors.businessName}
+                  </p>
+                )}
               </div>
             )}
             {mode === 'signup' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Phone number</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="supplier-auth-phone">
+                  Phone number
+                </label>
                 <input
+                  id="supplier-auth-phone"
                   type="tel"
                   name="tel"
                   value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  onChange={(e) => {
+                    setPhoneNumber(e.target.value);
+                    setFieldErrors((prev) => {
+                      const next = { ...prev };
+                      delete next.phoneNumber;
+                      delete next.form;
+                      return next;
+                    });
+                  }}
                   placeholder="+358 40 123 4567"
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland"
+                  className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 ${authInputErrorClasses(!!fieldErrors.phoneNumber)}`}
                   autoComplete="tel"
-                  required
+                  aria-invalid={fieldErrors.phoneNumber ? true : undefined}
+                  aria-describedby={fieldErrors.phoneNumber ? 'supplier-auth-phone-error' : undefined}
                 />
+                {fieldErrors.phoneNumber && (
+                  <p id="supplier-auth-phone-error" className="mt-1.5 text-sm text-red-600" role="alert">
+                    {fieldErrors.phoneNumber}
+                  </p>
+                )}
               </div>
             )}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="supplier-auth-password">
+                Password
+              </label>
               <input
+                id="supplier-auth-password"
                 type="password"
                 name={mode === 'signup' ? 'new-password' : 'current-password'}
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setFieldErrors((prev) => {
+                    const next = { ...prev };
+                    delete next.password;
+                    delete next.form;
+                    return next;
+                  });
+                }}
                 placeholder="••••••••"
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland"
-                required
-                minLength={mode === 'signup' ? 8 : undefined}
+                className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 ${authInputErrorClasses(!!fieldErrors.password)}`}
                 autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+                aria-invalid={fieldErrors.password ? true : undefined}
+                aria-describedby={fieldErrors.password ? 'supplier-auth-password-error' : undefined}
               />
               {mode === 'signup' && (
                 <p className="text-xs text-gray-500 mt-1">At least 8 characters</p>
+              )}
+              {fieldErrors.password && (
+                <p id="supplier-auth-password-error" className="mt-1.5 text-sm text-red-600" role="alert">
+                  {fieldErrors.password}
+                </p>
               )}
               {mode === 'signin' && (
                 <button
@@ -496,22 +678,35 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
             </div>
             {mode === 'signup' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Confirm password</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="supplier-auth-confirm">
+                  Confirm password
+                </label>
                 <input
+                  id="supplier-auth-confirm"
                   type="password"
                   name="confirm-password"
                   value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  onChange={(e) => {
+                    setConfirmPassword(e.target.value);
+                    setFieldErrors((prev) => {
+                      const next = { ...prev };
+                      delete next.confirmPassword;
+                      delete next.form;
+                      return next;
+                    });
+                  }}
                   placeholder="••••••••"
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland"
+                  className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 ${authInputErrorClasses(!!fieldErrors.confirmPassword)}`}
                   autoComplete="new-password"
-                  minLength={8}
-                  required
+                  aria-invalid={fieldErrors.confirmPassword ? true : undefined}
+                  aria-describedby={fieldErrors.confirmPassword ? 'supplier-auth-confirm-error' : undefined}
                 />
+                {fieldErrors.confirmPassword && (
+                  <p id="supplier-auth-confirm-error" className="mt-1.5 text-sm text-red-600" role="alert">
+                    {fieldErrors.confirmPassword}
+                  </p>
+                )}
               </div>
-            )}
-            {error && (
-              <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>
             )}
             {mode === 'signin' && successMessage && successMessage.toLowerCase().includes('confirm') && (
               <button

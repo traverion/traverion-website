@@ -9,8 +9,21 @@ import { BRAND_LOGO_SRC } from '../lib/brandAssets';
 import { subscribePasswordRecovery, updatePasswordAfterRecovery } from '../lib/passwordRecoveryFlow';
 import { EMAIL_ALREADY_IN_USE } from '../lib/customerSupplierAuthMessages';
 import { supplierPortalHref } from '../lib/partnerHost';
+import { authInputErrorClasses, isValidEmailFormat } from '../lib/authFormValidation';
 
 type AuthTab = 'signin' | 'signup';
+
+type TravelerPageFieldKey =
+  | 'firstName'
+  | 'lastName'
+  | 'email'
+  | 'phoneNumber'
+  | 'password'
+  | 'confirmPassword'
+  | 'recoveryPassword'
+  | 'recoveryConfirm'
+  | 'form';
+type TravelerPageFieldErrors = Partial<Record<TravelerPageFieldKey, string>>;
 
 interface AuthPageProps {
   onNavigate: (page: string) => void;
@@ -41,7 +54,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<TravelerPageFieldErrors>({});
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [resetSending, setResetSending] = useState(false);
@@ -63,7 +76,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
       sessionStorage.removeItem('traverion_auth_flash');
       const parsed = JSON.parse(raw) as { kind?: string; message?: string };
       if (parsed?.kind === 'error' && typeof parsed.message === 'string') {
-        setError(parsed.message);
+        setFieldErrors({ form: parsed.message });
         setTab('signin');
       }
     } catch {
@@ -89,6 +102,36 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
     return message;
   };
 
+  const serverMessageToFields = (rawMessage: string): TravelerPageFieldErrors => {
+    const text = mapAuthError(rawMessage);
+    const low = rawMessage.toLowerCase();
+    if (low.includes('invalid login credentials')) return { password: text };
+    if (low.includes('email not confirmed') || text.toLowerCase().includes('confirm your email')) return { email: text };
+    if (
+      low.includes('already registered') ||
+      low.includes('already been registered') ||
+      low.includes('user already exists') ||
+      text === EMAIL_ALREADY_IN_USE
+    ) {
+      return { email: text };
+    }
+    if (
+      low.includes('password') &&
+      !low.includes('invalid login credentials') &&
+      !low.includes('email not confirmed')
+    ) {
+      return { password: text };
+    }
+    if (
+      low.includes('contact_phone') ||
+      low.includes('phone number already exists') ||
+      low.includes('consumer_profiles_contact_phone_norm_unique')
+    ) {
+      return { phoneNumber: text };
+    }
+    return { form: text };
+  };
+
   const nextPage = useMemo(() => {
     const allowed = new Set([
       'home',
@@ -112,49 +155,56 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
+    setFieldErrors({});
     setSuccessMessage(null);
-    if (!email || !password) return;
+
+    const next: TravelerPageFieldErrors = {};
+    const trimmedEmail = email.trim();
+
+    if (!trimmedEmail) next.email = 'Enter your email address.';
+    else if (!isValidEmailFormat(trimmedEmail)) next.email = 'Enter a valid email address.';
+
     if (tab === 'signup') {
-      if (!firstName.trim() || !lastName.trim()) {
-        setError('Please enter your first name and surname.');
-        return;
+      if (!firstName.trim()) next.firstName = 'Enter your first name.';
+      if (!lastName.trim()) next.lastName = 'Enter your surname.';
+      if (!phoneNumber.trim()) next.phoneNumber = 'Enter your phone number.';
+      else if (normalizeConsumerPhone(phoneNumber).replace(/\D/g, '').length < 9) {
+        next.phoneNumber = 'Enter a valid phone number.';
       }
-      if (!phoneNumber.trim()) {
-        setError('Phone number is required');
-        return;
+      if (!password) next.password = 'Enter a password.';
+      else if (password.length < 6) next.password = 'Use at least 6 characters.';
+      if (!confirmPassword) next.confirmPassword = 'Confirm your password.';
+      else if (password && confirmPassword && password !== confirmPassword) {
+        next.confirmPassword = 'Passwords do not match.';
       }
-      if (normalizeConsumerPhone(phoneNumber).replace(/\D/g, '').length < 9) {
-        setError('Enter a valid phone number');
-        return;
-      }
-      if (password !== confirmPassword) {
-        setError('Passwords do not match');
-        return;
-      }
-      if (password.length < 6) {
-        setError('Use at least 6 characters');
-        return;
-      }
+    } else {
+      if (!password) next.password = 'Enter your password.';
     }
+
+    if (Object.keys(next).length > 0) {
+      setFieldErrors(next);
+      return;
+    }
+
     setSubmitting(true);
+    const normalizedEmail = trimmedEmail.toLowerCase();
     try {
       if (tab === 'signin') {
-        const { error: err } = await signIn(email, password);
+        const { error: err } = await signIn(normalizedEmail, password);
         if (err) {
-          setError(mapAuthError(err));
+          setFieldErrors(serverMessageToFields(err));
           return;
         }
         onNavigate(nextPage);
       } else {
-        const { error: err, hasSession } = await signUp(email, password, {
+        const { error: err, hasSession } = await signUp(normalizedEmail, password, {
           phoneNumber,
           firstName: firstName.trim(),
           lastName: lastName.trim(),
           afterConfirmNext: nextPage,
         });
         if (err) {
-          setError(mapAuthError(err));
+          setFieldErrors(serverMessageToFields(err));
           return;
         }
         if (hasSession) {
@@ -170,14 +220,18 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
   };
 
   const handleResendConfirmation = useCallback(async () => {
-    setError(null);
+    setFieldErrors({});
     setSuccessMessage(null);
     if (!email.trim()) {
-      setError('Enter your email, then resend confirmation.');
+      setFieldErrors({ email: 'Enter your email address, then resend confirmation.' });
+      return;
+    }
+    if (!isValidEmailFormat(email)) {
+      setFieldErrors({ email: 'Enter a valid email address.' });
       return;
     }
     if (!supabase) {
-      setError('Authentication is not configured.');
+      setFieldErrors({ form: 'Authentication is not configured.' });
       return;
     }
     setResendSending(true);
@@ -189,21 +243,25 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
     });
     setResendSending(false);
     if (err) {
-      setError(mapAuthError(err.message));
+      setFieldErrors(serverMessageToFields(err.message));
       return;
     }
     setSuccessMessage('Confirmation email sent. Check your inbox and use the new link.');
   }, [email, nextPage]);
 
   const handleResetPassword = async () => {
-    setError(null);
+    setFieldErrors({});
     setSuccessMessage(null);
     if (!email.trim()) {
-      setError('Enter your email first, then reset password.');
+      setFieldErrors({ email: 'Enter your email address, then use forgot password.' });
+      return;
+    }
+    if (!isValidEmailFormat(email)) {
+      setFieldErrors({ email: 'Enter a valid email address.' });
       return;
     }
     if (!supabase) {
-      setError('Password reset is not configured.');
+      setFieldErrors({ form: 'Password reset is not configured.' });
       return;
     }
     setResetSending(true);
@@ -212,7 +270,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
     });
     setResetSending(false);
     if (err) {
-      setError(mapAuthError(err.message));
+      setFieldErrors(serverMessageToFields(err.message));
       return;
     }
     setSuccessMessage('Password reset email sent. Check your inbox.');
@@ -220,18 +278,25 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
 
   const handleRecoverySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
+    setFieldErrors({});
     setSuccessMessage(null);
     if (!supabase) return;
-    if (recoveryPassword !== recoveryConfirm) {
-      setError('Passwords do not match.');
+    const rec: TravelerPageFieldErrors = {};
+    if (!recoveryPassword) rec.recoveryPassword = 'Enter a new password.';
+    else if (recoveryPassword.length < 6) rec.recoveryPassword = 'Use at least 6 characters.';
+    if (!recoveryConfirm) rec.recoveryConfirm = 'Confirm your new password.';
+    else if (recoveryPassword && recoveryConfirm && recoveryPassword !== recoveryConfirm) {
+      rec.recoveryConfirm = 'Passwords do not match.';
+    }
+    if (Object.keys(rec).length > 0) {
+      setFieldErrors(rec);
       return;
     }
     setRecoverySubmitting(true);
     try {
       const { error: err } = await updatePasswordAfterRecovery(supabase, recoveryPassword, { minLength: 6 });
       if (err) {
-        setError(mapAuthError(err));
+        setFieldErrors({ recoveryPassword: mapAuthError(err) });
         return;
       }
       await supabase.auth.signOut();
@@ -293,7 +358,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
           </div>
 
           {recoveryMode ? (
-            <form onSubmit={(e) => void handleRecoverySubmit(e)} className="p-6 space-y-4">
+            <form noValidate onSubmit={(e) => void handleRecoverySubmit(e)} className="p-6 space-y-4">
               <div>
                 <label htmlFor="auth-recovery-password" className="block text-sm font-medium text-gray-700 mb-1">
                   New password
@@ -303,12 +368,25 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
                   type="password"
                   name="new-password"
                   value={recoveryPassword}
-                  onChange={(e) => setRecoveryPassword(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland outline-none"
+                  onChange={(e) => {
+                    setRecoveryPassword(e.target.value);
+                    setFieldErrors((p) => {
+                      const n = { ...p };
+                      delete n.recoveryPassword;
+                      delete n.form;
+                      return n;
+                    });
+                  }}
+                  className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 outline-none ${authInputErrorClasses(!!fieldErrors.recoveryPassword)}`}
                   autoComplete="new-password"
-                  required
-                  minLength={6}
+                  aria-invalid={fieldErrors.recoveryPassword ? true : undefined}
+                  aria-describedby={fieldErrors.recoveryPassword ? 'auth-recovery-password-err' : undefined}
                 />
+                {fieldErrors.recoveryPassword && (
+                  <p id="auth-recovery-password-err" className="mt-1.5 text-sm text-red-600" role="alert">
+                    {fieldErrors.recoveryPassword}
+                  </p>
+                )}
               </div>
               <div>
                 <label htmlFor="auth-recovery-confirm" className="block text-sm font-medium text-gray-700 mb-1">
@@ -319,14 +397,26 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
                   type="password"
                   name="confirm-password"
                   value={recoveryConfirm}
-                  onChange={(e) => setRecoveryConfirm(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland outline-none"
+                  onChange={(e) => {
+                    setRecoveryConfirm(e.target.value);
+                    setFieldErrors((p) => {
+                      const n = { ...p };
+                      delete n.recoveryConfirm;
+                      delete n.form;
+                      return n;
+                    });
+                  }}
+                  className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 outline-none ${authInputErrorClasses(!!fieldErrors.recoveryConfirm)}`}
                   autoComplete="new-password"
-                  required
-                  minLength={6}
+                  aria-invalid={fieldErrors.recoveryConfirm ? true : undefined}
+                  aria-describedby={fieldErrors.recoveryConfirm ? 'auth-recovery-confirm-err' : undefined}
                 />
+                {fieldErrors.recoveryConfirm && (
+                  <p id="auth-recovery-confirm-err" className="mt-1.5 text-sm text-red-600" role="alert">
+                    {fieldErrors.recoveryConfirm}
+                  </p>
+                )}
               </div>
-              {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
               {successMessage && (
                 <p className="text-sm text-gray-700 bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">{successMessage}</p>
               )}
@@ -343,7 +433,11 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
           <div className="flex border-b border-gray-100">
             <button
               type="button"
-              onClick={() => { setTab('signin'); setError(null); setSuccessMessage(null); }}
+              onClick={() => {
+                setTab('signin');
+                setFieldErrors({});
+                setSuccessMessage(null);
+              }}
               className={`flex-1 py-3 text-sm font-medium transition-colors ${
                 tab === 'signin' ? 'text-gray-900 border-b-2 border-gray-900' : 'text-gray-500 hover:text-gray-700'
               }`}
@@ -352,7 +446,11 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
             </button>
             <button
               type="button"
-              onClick={() => { setTab('signup'); setError(null); setSuccessMessage(null); }}
+              onClick={() => {
+                setTab('signup');
+                setFieldErrors({});
+                setSuccessMessage(null);
+              }}
               className={`flex-1 py-3 text-sm font-medium transition-colors ${
                 tab === 'signup' ? 'text-gray-900 border-b-2 border-gray-900' : 'text-gray-500 hover:text-gray-700'
               }`}
@@ -361,7 +459,12 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <form noValidate onSubmit={handleSubmit} className="p-6 space-y-4">
+            {fieldErrors.form && (
+              <p className="text-sm text-red-700 bg-red-50 px-3 py-2 rounded-lg border border-red-100" role="alert">
+                {fieldErrors.form}
+              </p>
+            )}
             {tab === 'signup' && (
               <>
                 <div>
@@ -373,12 +476,26 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
                     type="text"
                     name="given-name"
                     value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
+                    onChange={(e) => {
+                      setFirstName(e.target.value);
+                      setFieldErrors((p) => {
+                        const n = { ...p };
+                        delete n.firstName;
+                        delete n.form;
+                        return n;
+                      });
+                    }}
                     placeholder="First name"
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland outline-none"
+                    className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 outline-none ${authInputErrorClasses(!!fieldErrors.firstName)}`}
                     autoComplete="given-name"
-                    required
+                    aria-invalid={fieldErrors.firstName ? true : undefined}
+                    aria-describedby={fieldErrors.firstName ? 'auth-page-first-name-err' : undefined}
                   />
+                  {fieldErrors.firstName && (
+                    <p id="auth-page-first-name-err" className="mt-1.5 text-sm text-red-600" role="alert">
+                      {fieldErrors.firstName}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label htmlFor="auth-page-last-name" className="block text-sm font-medium text-gray-700 mb-1">
@@ -389,12 +506,26 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
                     type="text"
                     name="family-name"
                     value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
+                    onChange={(e) => {
+                      setLastName(e.target.value);
+                      setFieldErrors((p) => {
+                        const n = { ...p };
+                        delete n.lastName;
+                        delete n.form;
+                        return n;
+                      });
+                    }}
                     placeholder="Last name"
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland outline-none"
+                    className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 outline-none ${authInputErrorClasses(!!fieldErrors.lastName)}`}
                     autoComplete="family-name"
-                    required
+                    aria-invalid={fieldErrors.lastName ? true : undefined}
+                    aria-describedby={fieldErrors.lastName ? 'auth-page-last-name-err' : undefined}
                   />
+                  {fieldErrors.lastName && (
+                    <p id="auth-page-last-name-err" className="mt-1.5 text-sm text-red-600" role="alert">
+                      {fieldErrors.lastName}
+                    </p>
+                  )}
                 </div>
               </>
             )}
@@ -407,12 +538,26 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
                 type="email"
                 name="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setFieldErrors((p) => {
+                    const n = { ...p };
+                    delete n.email;
+                    delete n.form;
+                    return n;
+                  });
+                }}
                 placeholder="you@example.com"
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland outline-none"
+                className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 outline-none ${authInputErrorClasses(!!fieldErrors.email)}`}
                 autoComplete="email"
-                required
+                aria-invalid={fieldErrors.email ? true : undefined}
+                aria-describedby={fieldErrors.email ? 'auth-page-email-err' : undefined}
               />
+              {fieldErrors.email && (
+                <p id="auth-page-email-err" className="mt-1.5 text-sm text-red-600" role="alert">
+                  {fieldErrors.email}
+                </p>
+              )}
               {tab === 'signin' && (
                 <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
                   <button
@@ -445,12 +590,26 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
                   type="tel"
                   name="tel"
                   value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  onChange={(e) => {
+                    setPhoneNumber(e.target.value);
+                    setFieldErrors((p) => {
+                      const n = { ...p };
+                      delete n.phoneNumber;
+                      delete n.form;
+                      return n;
+                    });
+                  }}
                   placeholder="+358 40 123 4567"
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland outline-none"
+                  className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 outline-none ${authInputErrorClasses(!!fieldErrors.phoneNumber)}`}
                   autoComplete="tel"
-                  required
+                  aria-invalid={fieldErrors.phoneNumber ? true : undefined}
+                  aria-describedby={fieldErrors.phoneNumber ? 'auth-page-phone-err' : undefined}
                 />
+                {fieldErrors.phoneNumber && (
+                  <p id="auth-page-phone-err" className="mt-1.5 text-sm text-red-600" role="alert">
+                    {fieldErrors.phoneNumber}
+                  </p>
+                )}
               </div>
             )}
             {tab === 'signup' ? (
@@ -465,13 +624,26 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
                     type="password"
                     name="new-password"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      setFieldErrors((p) => {
+                        const n = { ...p };
+                        delete n.password;
+                        delete n.form;
+                        return n;
+                      });
+                    }}
                     placeholder="Min. 6 characters"
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland outline-none bg-white"
-                    required
-                    minLength={6}
+                    className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 outline-none bg-white ${authInputErrorClasses(!!fieldErrors.password)}`}
                     autoComplete="new-password"
+                    aria-invalid={fieldErrors.password ? true : undefined}
+                    aria-describedby={fieldErrors.password ? 'auth-page-password-err' : undefined}
                   />
+                  {fieldErrors.password && (
+                    <p id="auth-page-password-err" className="mt-1.5 text-sm text-red-600" role="alert">
+                      {fieldErrors.password}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label htmlFor="auth-page-confirm" className="block text-xs font-medium text-gray-600 mb-1">
@@ -482,33 +654,60 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
                     type="password"
                     name="confirm-password"
                     value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    onChange={(e) => {
+                      setConfirmPassword(e.target.value);
+                      setFieldErrors((p) => {
+                        const n = { ...p };
+                        delete n.confirmPassword;
+                        delete n.form;
+                        return n;
+                      });
+                    }}
                     placeholder="Same as above"
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland outline-none bg-white"
+                    className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 outline-none bg-white ${authInputErrorClasses(!!fieldErrors.confirmPassword)}`}
                     autoComplete="new-password"
-                    required
+                    aria-invalid={fieldErrors.confirmPassword ? true : undefined}
+                    aria-describedby={fieldErrors.confirmPassword ? 'auth-page-confirm-err' : undefined}
                   />
+                  {fieldErrors.confirmPassword && (
+                    <p id="auth-page-confirm-err" className="mt-1.5 text-sm text-red-600" role="alert">
+                      {fieldErrors.confirmPassword}
+                    </p>
+                  )}
                 </div>
               </div>
             ) : (
               <div>
-                <label htmlFor="auth-page-password" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="auth-page-password-signin" className="block text-sm font-medium text-gray-700 mb-1">
                   Password
                 </label>
                 <input
-                  id="auth-page-password"
+                  id="auth-page-password-signin"
                   type="password"
                   name="current-password"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    setFieldErrors((p) => {
+                      const n = { ...p };
+                      delete n.password;
+                      delete n.form;
+                      return n;
+                    });
+                  }}
                   placeholder="••••••••"
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland outline-none"
-                  required
+                  className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 outline-none ${authInputErrorClasses(!!fieldErrors.password)}`}
                   autoComplete="current-password"
+                  aria-invalid={fieldErrors.password ? true : undefined}
+                  aria-describedby={fieldErrors.password ? 'auth-page-password-signin-err' : undefined}
                 />
+                {fieldErrors.password && (
+                  <p id="auth-page-password-signin-err" className="mt-1.5 text-sm text-red-600" role="alert">
+                    {fieldErrors.password}
+                  </p>
+                )}
               </div>
             )}
-            {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
             {successMessage && <p className="text-sm text-gray-700 bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">{successMessage}</p>}
             <button
               type="submit"
