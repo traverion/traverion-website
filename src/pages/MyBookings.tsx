@@ -386,6 +386,11 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                   <h3 className="font-semibold text-gray-900 truncate">
                     {titles[b.listing_id] ?? 'Tour'}
                   </h3>
+                  {typeof b.booking_number === 'number' && b.booking_number > 0 ? (
+                    <p className="text-xs font-mono text-gray-500 mt-0.5 tracking-wide">
+                      Booking #{b.booking_number}
+                    </p>
+                  ) : null}
                   <div className="flex flex-wrap items-center gap-3 mt-1 text-sm text-gray-600">
                     <span className="flex items-center gap-1">
                       <Calendar className="w-4 h-4" />

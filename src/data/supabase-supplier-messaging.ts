@@ -27,7 +27,8 @@ type SupplierEventType =
   | 'new_review'
   | 'supplier_welcome'
   | 'guest_message'
-  | 'booking_detail_changed';
+  | 'booking_detail_changed'
+  | 'host_schedule_updated';
 
 export async function notifySupplierEvent(params: {
   supplierId: string;
@@ -46,6 +47,12 @@ export async function notifySupplierEvent(params: {
   messagePreview?: string;
   /** booking_detail_changed — human-readable summary */
   changeSummary?: string;
+  /** new_booking: paid online vs other */
+  bookingPaymentStatus?: 'paid' | 'pending' | 'none';
+  /** Structured previous → new (guest updates, etc.) */
+  fieldDiffs?: { label: string; before: string; after: string }[];
+  /** Global sequential order number; emails show as #N */
+  bookingNumber?: number;
 }): Promise<{ success: boolean; notified?: number; error?: string }> {
   if (!supabase) return { success: false, error: 'Supabase not configured' };
   const { data, error } = await supabase.functions.invoke('notify-supplier-event', {

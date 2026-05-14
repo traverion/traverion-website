@@ -1,6 +1,12 @@
 // deno-lint-ignore-file no-explicit-any
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
+import {
+  escapeHtml,
+  fieldDiffPlainText,
+  fieldDiffTableHtml,
+  type FieldDiff,
+} from '../_shared/transactional-html.ts';
 
 type EventType =
   | 'new_booking'
@@ -8,7 +14,9 @@ type EventType =
   | 'new_review'
   | 'supplier_welcome'
   | 'guest_message'
-  | 'booking_detail_changed';
+  | 'booking_detail_changed'
+  /** Copy of schedule change you saved — guest is notified separately */
+  | 'host_schedule_updated';
 
 type Payload = {
   supplierId: string;
@@ -27,6 +35,12 @@ type Payload = {
   messagePreview?: string;
   /** Human-readable summary of what changed (booking_detail_changed) */
   changeSummary?: string;
+  /** new_booking: whether traveler already paid online (Stripe). */
+  bookingPaymentStatus?: 'paid' | 'pending' | 'none';
+  /** guest_message / booking_detail_changed: structured previous → new values. */
+  fieldDiffs?: FieldDiff[];
+  /** Global sequential order number; emails show as #N */
+  bookingNumber?: number;
 };
 
 function json(body: unknown, status = 200): Response {
@@ -34,14 +48,6 @@ function json(body: unknown, status = 200): Response {
     status,
     headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
   });
-}
-
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
 }
 
 function siteBase(payload: Payload): string {
@@ -55,10 +61,18 @@ function logoUrl(base: string): string {
 function eventSubject(payload: Payload): string {
   if (payload.eventType === 'supplier_welcome') return 'Welcome to Traverion for suppliers';
   const listing = payload.listingTitle ?? 'your listing';
-  if (payload.eventType === 'new_booking') return `New booking request: ${listing}`;
-  if (payload.eventType === 'booking_cancelled') return `Booking cancelled: ${listing}`;
-  if (payload.eventType === 'guest_message') return `Message from a guest: ${listing}`;
-  if (payload.eventType === 'booking_detail_changed') return `Booking updated: ${listing}`;
+  const refTag =
+    typeof payload.bookingNumber === 'number' && payload.bookingNumber > 0
+      ? `#${payload.bookingNumber} — `
+      : '';
+  if (payload.eventType === 'new_booking') {
+    if (payload.bookingPaymentStatus === 'paid') return `${refTag}New paid booking: ${listing}`;
+    return `${refTag}New booking: ${listing}`;
+  }
+  if (payload.eventType === 'booking_cancelled') return `${refTag}Booking cancelled: ${listing}`;
+  if (payload.eventType === 'guest_message') return `${refTag}Message from a guest: ${listing}`;
+  if (payload.eventType === 'booking_detail_changed') return `${refTag}Booking updated: ${listing}`;
+  if (payload.eventType === 'host_schedule_updated') return `${refTag}Schedule saved (your update): ${listing}`;
   return `New review received: ${listing}`;
 }
 
@@ -78,15 +92,35 @@ function eventBody(payload: Payload): string {
     ].join('\n');
   }
   const listing = payload.listingTitle ?? 'Listing';
-  const lines = [`Event: ${payload.eventType}`, `Listing: ${listing}`];
+  const lines: string[] = [];
+  if (payload.eventType === 'host_schedule_updated') {
+    lines.push('Schedule update confirmation (saved by you)');
+    lines.push(`Listing: ${listing}`);
+    lines.push('The guest was sent the same previous → new summary by email.');
+  } else {
+    lines.push(`Event: ${payload.eventType}`);
+    lines.push(`Listing: ${listing}`);
+  }
+  if (payload.eventType === 'new_booking' && payload.bookingPaymentStatus === 'paid') {
+    lines.push('Payment: paid online (Stripe)');
+  } else if (payload.eventType === 'new_booking') {
+    lines.push('Payment: pending / not via online checkout');
+  }
+  if (
+    typeof payload.bookingNumber === 'number' &&
+    payload.bookingNumber > 0
+  ) {
+    lines.push(`Booking #: ${payload.bookingNumber}`);
+  }
   if (payload.bookingId) lines.push(`Booking id: ${payload.bookingId}`);
   if (payload.bookingDate) lines.push(`Date: ${payload.bookingDate}`);
   if (typeof payload.guests === 'number' && payload.guests > 0) lines.push(`Guests: ${payload.guests}`);
   if (payload.guestName) lines.push(`Guest: ${payload.guestName}`);
   if (typeof payload.reviewRating === 'number' && payload.reviewRating > 0) lines.push(`Rating: ${payload.reviewRating}/5`);
   if (payload.reviewTitle) lines.push(`Review: ${payload.reviewTitle}`);
-  if (payload.messagePreview) lines.push(`Message: ${payload.messagePreview}`);
+  if (payload.messagePreview) lines.push(`Latest note: ${payload.messagePreview}`);
   if (payload.changeSummary) lines.push(`Changes: ${payload.changeSummary}`);
+  if (payload.fieldDiffs?.length) lines.push('', fieldDiffPlainText(payload.fieldDiffs));
   lines.push('');
   lines.push('Open your supplier portal to review and take action.');
   return lines.join('\n');
@@ -120,8 +154,13 @@ ${bodyText}
   let headline = 'Notification';
   let sub = '';
   if (payload.eventType === 'new_booking') {
-    headline = 'New booking request';
-    sub = 'A traveler submitted a booking for one of your listings.';
+    if (payload.bookingPaymentStatus === 'paid') {
+      headline = 'New paid booking';
+      sub = 'A traveler completed payment online. The booking is confirmed — review details in your dashboard.';
+    } else {
+      headline = 'New booking';
+      sub = 'A traveler has a booking on your listing. Open your dashboard to confirm details or collect payment if still pending.';
+    }
   } else if (payload.eventType === 'booking_cancelled') {
     headline = 'Booking cancelled';
     sub = 'A booking was cancelled.';
@@ -129,18 +168,27 @@ ${bodyText}
     headline = 'New review';
     sub = 'Someone left a review on your experience.';
   } else if (payload.eventType === 'guest_message') {
-    headline = 'Message from a guest';
-    sub = 'A guest added or updated a note on their booking.';
+    headline = 'Guest updated their booking details';
+    sub = 'A guest changed notes or meeting / place-of-stay information. Compare previous vs new values below.';
   } else if (payload.eventType === 'booking_detail_changed') {
     headline = 'Booking details updated';
     sub = 'Details changed for a booking — review in your dashboard.';
+  } else if (payload.eventType === 'host_schedule_updated') {
+    headline = 'Schedule update saved';
+    sub =
+      'You just updated start or pickup times for this booking. Below is a record of what changed. The guest receives the same summary by email.';
   }
 
   const rows: string[] = [];
   rows.push(`<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;width:120px;vertical-align:top;">Experience</td><td style="padding:6px 0;font-size:14px;color:#111827;font-weight:600;">${listing}</td></tr>`);
+  if (typeof payload.bookingNumber === 'number' && payload.bookingNumber > 0) {
+    rows.push(
+      `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;">Booking no.</td><td style="padding:6px 0;font-size:14px;color:#111827;font-weight:600;">#${payload.bookingNumber}</td></tr>`,
+    );
+  }
   if (payload.bookingId) {
     rows.push(
-      `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;">Booking</td><td style="padding:6px 0;font-size:14px;color:#111827;font-family:ui-monospace,monospace;">${escapeHtml(payload.bookingId)}</td></tr>`,
+      `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;">Booking id</td><td style="padding:6px 0;font-size:14px;color:#111827;font-family:ui-monospace,monospace;">${escapeHtml(payload.bookingId)}</td></tr>`,
     );
   }
   if (payload.bookingDate) {
@@ -170,7 +218,7 @@ ${bodyText}
   }
   if (payload.messagePreview) {
     rows.push(
-      `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;vertical-align:top;">Message</td><td style="padding:6px 0;font-size:14px;color:#111827;line-height:1.5;">${escapeHtml(payload.messagePreview)}</td></tr>`,
+      `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;vertical-align:top;">Latest note</td><td style="padding:6px 0;font-size:14px;color:#111827;line-height:1.5;">${escapeHtml(payload.messagePreview)}</td></tr>`,
     );
   }
   if (payload.changeSummary) {
@@ -178,6 +226,11 @@ ${bodyText}
       `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;vertical-align:top;">Changes</td><td style="padding:6px 0;font-size:14px;color:#111827;line-height:1.5;">${escapeHtml(payload.changeSummary)}</td></tr>`,
     );
   }
+
+  const diffBlock =
+    payload.fieldDiffs && payload.fieldDiffs.length > 0
+      ? `<tr><td colspan="2" style="padding:12px 0 0;">${fieldDiffTableHtml(payload.fieldDiffs)}</td></tr>`
+      : '';
 
   return `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f4f6f8;font-family:system-ui,-apple-system,sans-serif;">
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f6f8;padding:24px 12px;">
@@ -191,6 +244,7 @@ ${bodyText}
 <tr><td style="padding:0 32px 24px;">
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-top:1px solid #e5e7eb;padding-top:16px;">
 ${rows.join('')}
+${diffBlock}
 </table>
 </td></tr>
 <tr><td style="padding:0 32px 32px;">

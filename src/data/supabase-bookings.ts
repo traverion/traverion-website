@@ -1,7 +1,8 @@
 import { supabase } from '../lib/supabase';
+import { publicSiteBaseUrl } from '../lib/publicSiteUrl';
 import { supplierPortalPublicBaseUrl } from '../lib/partnerHost';
 import { notifySupplierEvent } from './supabase-supplier-messaging';
-import { hmToPgTime } from './supabase-listings';
+import { hmToPgTime, pgTimeToHm } from './supabase-listings';
 
 /** Shape used by BookingForm (legacy). Mapped to public.bookings in DB. */
 export type Booking = {
@@ -44,6 +45,8 @@ export type BookingRow = {
   start_time?: string | null;
   /** Assigned guest pickup time (local). */
   pickup_time?: string | null;
+  /** App-wide sequential order # (1 = first booking ever); display as #N. */
+  booking_number?: number | null;
 };
 
 /** Consumer booking row including Stripe payment fields (RLS same as BookingRow). */
@@ -55,7 +58,45 @@ export type BookingWithPaymentRow = BookingRow & {
 };
 
 const BOOKING_LIST_COLUMNS =
-  'id, listing_id, guest_email, guest_name, guests, booking_date, status, special_requests, cancellation_reason, refund_choice, cancelled_at, acknowledged_at, created_at, start_time, pickup_time';
+  'id, listing_id, guest_email, guest_name, guests, booking_date, status, special_requests, cancellation_reason, refund_choice, cancelled_at, acknowledged_at, created_at, start_time, pickup_time, booking_number';
+
+const BOOKING_PAYMENT_COLUMNS = `${BOOKING_LIST_COLUMNS}, payment_status, checkout_session_id, amount_paid, currency`;
+
+function blankForEmail(s: string | null | undefined): string {
+  const t = (s ?? '').trim();
+  return t ? t : '—';
+}
+
+function extractPlaceOfStayFromNotes(notes: string | null | undefined): string {
+  const text = (notes ?? '').trim();
+  if (!text) return '';
+  const line = text
+    .split(/\n+/)
+    .map((l) => l.trim())
+    .find((l) => /^place of stay:/i.test(l));
+  return line ? line.replace(/^place of stay:/i, '').trim() : '';
+}
+
+function stripPlaceLineFromNotes(notes: string | null | undefined): string {
+  return (notes ?? '')
+    .split(/\n+/)
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0 && !/^place of stay:/i.test(l))
+    .join('\n')
+    .trim();
+}
+
+function truncateForEmail(s: string, max: number): string {
+  const t = s.trim();
+  if (!t || t === '—') return '—';
+  if (t.length <= max) return t;
+  return `${t.slice(0, max)}…`;
+}
+
+function timeForEmail(pg: string | null | undefined): string {
+  if (!pg || !String(pg).trim()) return '—';
+  return pgTimeToHm(pg) ?? String(pg).slice(0, 5);
+}
 
 async function readEdgeFunctionErrorMessage(
   error: unknown,
@@ -146,12 +187,31 @@ export async function submitBooking(
     .eq('id', data.tour_id)
     .maybeSingle();
 
-  const guestEmailNorm = (data.customer_email ?? '').trim().toLowerCase() || null;
+  const formEmailNorm = (data.customer_email ?? '').trim().toLowerCase() || null;
   const { data: authData } = await supabase.auth.getUser();
   const sessionUser = authData?.user;
   const sessionEmail = sessionUser?.email?.trim().toLowerCase() ?? '';
-  const guest_user_id =
-    sessionUser?.id && guestEmailNorm && sessionEmail === guestEmailNorm ? sessionUser.id : null;
+
+  /** Logged-in travelers: row always uses account email + user id (RLS + transactional mail). */
+  let guestEmailNorm: string | null = null;
+  let guest_user_id: string | null = null;
+  if (sessionUser?.id && sessionEmail) {
+    guestEmailNorm = sessionEmail;
+    guest_user_id = sessionUser.id;
+  } else if (formEmailNorm) {
+    guestEmailNorm = formEmailNorm;
+    guest_user_id = null;
+  }
+
+  if (!guestEmailNorm) {
+    return { success: false, error: 'Sign in to book, or provide a valid email address.' };
+  }
+
+  let special_requests = data.special_requests ?? null;
+  if (sessionEmail && formEmailNorm && formEmailNorm !== sessionEmail) {
+    const line = `Contact email entered on form: ${formEmailNorm}`;
+    special_requests = special_requests?.trim() ? `${line}\n\n${special_requests}` : line;
+  }
 
   const { data: inserted, error } = await supabase.from('bookings').insert({
     listing_id: data.tour_id,
@@ -160,12 +220,16 @@ export async function submitBooking(
     guests: data.travelers ?? 1,
     booking_date: data.departure_date || null,
     status: data.status ?? 'confirmed',
-    special_requests: data.special_requests ?? null,
+    special_requests,
     total_amount: totalAmount ?? null,
     currency: data.currency ?? 'USD',
     guest_user_id,
-  }).select('id').maybeSingle();
+  }).select('id, booking_number').maybeSingle();
   if (error) return { success: false, error: error.message };
+  const orderNum =
+    typeof inserted?.booking_number === 'number' && Number.isFinite(inserted.booking_number)
+      ? Math.floor(inserted.booking_number)
+      : undefined;
   if (listingData?.supplier_id) {
     void notifySupplierEvent({
       supplierId: listingData.supplier_id,
@@ -177,6 +241,8 @@ export async function submitBooking(
       guests: data.travelers,
       guestName: data.customer_name,
       portalBaseUrl: supplierPortalPublicBaseUrl(),
+      bookingPaymentStatus: 'none',
+      bookingNumber: orderNum,
     });
   }
   if (guestEmailNorm) {
@@ -186,10 +252,13 @@ export async function submitBooking(
         customerName: data.customer_name ?? undefined,
         listingTitle: listingData?.title ?? data.tour_title ?? 'Experience',
         bookingId: inserted?.id,
+        bookingNumber: orderNum,
         bookingDate: data.departure_date ?? undefined,
         guests: data.travelers ?? undefined,
         totalAmount: totalAmount ?? undefined,
         currency: data.currency ?? 'USD',
+        emailKind: 'booking_request',
+        publicSiteUrl: publicSiteBaseUrl(),
       },
     });
   }
@@ -204,6 +273,14 @@ export async function updateGuestBookingSpecialRequests(
   specialRequests: string
 ): Promise<{ success: boolean; error?: string }> {
   if (!supabase) return { success: false, error: 'Supabase not configured' };
+
+  const { data: prevSnap } = await supabase
+    .from('bookings')
+    .select('special_requests, guest_email, guest_name, listing_id, booking_date, guests')
+    .eq('id', bookingId)
+    .maybeSingle();
+  const prevNotes = prevSnap?.special_requests ?? null;
+
   const { data: ok, error: rpcError } = await supabase.rpc('update_guest_booking_special_requests', {
     p_booking_id: bookingId,
     p_special_requests: specialRequests,
@@ -213,7 +290,7 @@ export async function updateGuestBookingSpecialRequests(
 
   const { data: row } = await supabase
     .from('bookings')
-    .select('id, listing_id, booking_date, guests, guest_name')
+    .select('id, listing_id, booking_date, guests, guest_name, guest_email, booking_number')
     .eq('id', bookingId)
     .maybeSingle();
   if (!row?.listing_id) return { success: true };
@@ -223,9 +300,35 @@ export async function updateGuestBookingSpecialRequests(
     .select('supplier_id, title')
     .eq('id', row.listing_id)
     .maybeSingle();
+
+  const prevPlace = extractPlaceOfStayFromNotes(prevNotes);
+  const nextPlace = extractPlaceOfStayFromNotes(specialRequests);
+  const prevOther = stripPlaceLineFromNotes(prevNotes);
+  const nextOther = stripPlaceLineFromNotes(specialRequests);
+
+  const fieldDiffs: { label: string; before: string; after: string }[] = [];
+  if (prevPlace !== nextPlace) {
+    fieldDiffs.push({
+      label: 'Place of stay / meeting details',
+      before: blankForEmail(prevPlace),
+      after: blankForEmail(nextPlace),
+    });
+  }
+  if (prevOther !== nextOther) {
+    fieldDiffs.push({
+      label: 'Other notes for the host',
+      before: truncateForEmail(blankForEmail(prevOther), 500),
+      after: truncateForEmail(nextOther, 500),
+    });
+  }
+
   if (listingData?.supplier_id) {
     const preview =
       specialRequests.trim().length > 400 ? `${specialRequests.trim().slice(0, 400)}…` : specialRequests.trim();
+    const ord =
+      typeof row.booking_number === 'number' && Number.isFinite(row.booking_number)
+        ? Math.floor(row.booking_number)
+        : undefined;
     void notifySupplierEvent({
       supplierId: listingData.supplier_id,
       eventType: 'guest_message',
@@ -237,6 +340,30 @@ export async function updateGuestBookingSpecialRequests(
       guestName: row.guest_name ?? undefined,
       messagePreview: preview || '(empty note)',
       portalBaseUrl: supplierPortalPublicBaseUrl(),
+      fieldDiffs: fieldDiffs.length ? fieldDiffs : undefined,
+      bookingNumber: ord,
+    });
+  }
+
+  const guestEmail = (row.guest_email ?? '').trim().toLowerCase();
+  if (guestEmail && fieldDiffs.length > 0) {
+    const ord =
+      typeof row.booking_number === 'number' && Number.isFinite(row.booking_number)
+        ? Math.floor(row.booking_number)
+        : undefined;
+    void supabase.functions.invoke('notify-customer-booking', {
+      body: {
+        customerEmail: guestEmail,
+        customerName: row.guest_name ?? undefined,
+        listingTitle: listingData?.title ?? 'Experience',
+        bookingId: row.id,
+        bookingNumber: ord,
+        bookingDate: row.booking_date ?? undefined,
+        guests: row.guests ?? undefined,
+        emailKind: 'your_details_updated',
+        fieldDiffs,
+        publicSiteUrl: publicSiteBaseUrl(),
+      },
     });
   }
   return { success: true };
@@ -287,12 +414,101 @@ export async function updateBookingSchedule(
   params: { start_time?: string | null; pickup_time?: string | null }
 ): Promise<boolean> {
   if (!supabase) return false;
+
+  const { data: prior, error: priorErr } = await supabase
+    .from('bookings')
+    .select('start_time, pickup_time, guest_email, guest_name, booking_date, listing_id, guests, booking_number')
+    .eq('id', bookingId)
+    .maybeSingle();
+  if (priorErr || !prior) return false;
+
+  const nextStartPg = 'start_time' in params ? hmToPgTime(params.start_time ?? null) : prior.start_time;
+  const nextPickupPg = 'pickup_time' in params ? hmToPgTime(params.pickup_time ?? null) : prior.pickup_time;
+
+  const startChanged =
+    'start_time' in params && String(prior.start_time ?? '') !== String(nextStartPg ?? '');
+  const pickupChanged =
+    'pickup_time' in params && String(prior.pickup_time ?? '') !== String(nextPickupPg ?? '');
+
   const payload: Record<string, unknown> = {};
-  if ('start_time' in params) payload.start_time = hmToPgTime(params.start_time ?? null);
-  if ('pickup_time' in params) payload.pickup_time = hmToPgTime(params.pickup_time ?? null);
+  if ('start_time' in params) payload.start_time = nextStartPg;
+  if ('pickup_time' in params) payload.pickup_time = nextPickupPg;
   if (Object.keys(payload).length === 0) return true;
+
   const { error } = await supabase.from('bookings').update(payload).eq('id', bookingId);
-  return !error;
+  if (error) return false;
+
+  if (!startChanged && !pickupChanged) return true;
+
+  const fieldDiffs: { label: string; before: string; after: string }[] = [];
+  if (startChanged) {
+    fieldDiffs.push({
+      label: 'Experience start time',
+      before: timeForEmail(prior.start_time),
+      after: timeForEmail(nextStartPg),
+    });
+  }
+  if (pickupChanged) {
+    fieldDiffs.push({
+      label: 'Guest pickup time',
+      before: timeForEmail(prior.pickup_time),
+      after: timeForEmail(nextPickupPg),
+    });
+  }
+
+  if (fieldDiffs.length === 0) return true;
+
+  let listingTitle = 'Your experience';
+  let supplierId: string | null = null;
+  if (prior.listing_id) {
+    const { data: lt } = await supabase
+      .from('listings')
+      .select('title, supplier_id')
+      .eq('id', prior.listing_id)
+      .maybeSingle();
+    if (lt?.title?.trim()) listingTitle = lt.title.trim();
+    if (lt?.supplier_id) supplierId = String(lt.supplier_id);
+  }
+
+  const ord =
+    typeof prior.booking_number === 'number' && Number.isFinite(prior.booking_number)
+      ? Math.floor(prior.booking_number)
+      : undefined;
+
+  const guestEmail = (prior.guest_email ?? '').trim().toLowerCase();
+  if (guestEmail) {
+    void supabase.functions.invoke('notify-customer-booking', {
+      body: {
+        customerEmail: guestEmail,
+        customerName: prior.guest_name ?? undefined,
+        listingTitle,
+        bookingId,
+        bookingNumber: ord,
+        bookingDate: prior.booking_date ?? undefined,
+        emailKind: 'host_updated_schedule',
+        fieldDiffs,
+        publicSiteUrl: publicSiteBaseUrl(),
+      },
+    });
+  }
+
+  if (supplierId) {
+    void notifySupplierEvent({
+      supplierId,
+      eventType: 'host_schedule_updated',
+      listingId: prior.listing_id ?? undefined,
+      listingTitle,
+      bookingId,
+      bookingDate: prior.booking_date ?? undefined,
+      guests: typeof prior.guests === 'number' ? prior.guests : undefined,
+      guestName: prior.guest_name ?? undefined,
+      fieldDiffs,
+      portalBaseUrl: supplierPortalPublicBaseUrl(),
+      bookingNumber: ord,
+    });
+  }
+
+  return true;
 }
 
 /** Acknowledge a booking (supplier confirms receipt). */
@@ -358,15 +574,22 @@ export async function cancelBookingAsCustomer(
   if (error) return { success: false, error: error.message };
   const { data: bookingMeta } = await supabase
     .from('bookings')
-    .select('id, listing_id, booking_date, guests, guest_name')
+    .select('id, listing_id, booking_date, guests, guest_name, guest_email, refund_choice, booking_number')
     .eq('id', bookingId)
     .maybeSingle();
+
+  let listingTitle = 'Experience';
+  const cancelOrd =
+    typeof bookingMeta?.booking_number === 'number' && Number.isFinite(bookingMeta.booking_number)
+      ? Math.floor(bookingMeta.booking_number)
+      : undefined;
   if (bookingMeta?.listing_id) {
     const { data: listingData } = await supabase
       .from('listings')
       .select('supplier_id, title')
       .eq('id', bookingMeta.listing_id)
       .maybeSingle();
+    if (listingData?.title?.trim()) listingTitle = listingData.title.trim();
     if (listingData?.supplier_id) {
       void notifySupplierEvent({
         supplierId: listingData.supplier_id,
@@ -378,8 +601,36 @@ export async function cancelBookingAsCustomer(
         guests: Number(bookingMeta.guests ?? 0),
         guestName: bookingMeta.guest_name ?? undefined,
         portalBaseUrl: supplierPortalPublicBaseUrl(),
+        bookingNumber: cancelOrd,
       });
     }
+  }
+
+  const guestEmail = (bookingMeta?.guest_email ?? '').trim().toLowerCase();
+  if (guestEmail) {
+    void supabase.functions.invoke('notify-customer-booking', {
+      body: {
+        customerEmail: guestEmail,
+        customerName: bookingMeta?.guest_name ?? undefined,
+        listingTitle,
+        bookingId: bookingMeta?.id,
+        bookingNumber: cancelOrd,
+        bookingDate: bookingMeta?.booking_date ?? undefined,
+        guests: bookingMeta?.guests ?? undefined,
+        emailKind: 'booking_cancelled',
+        fieldDiffs: [
+          {
+            label: 'Cancellation & refund',
+            before: 'Active booking',
+            after:
+              refundChoice === 'full_refund'
+                ? 'Cancelled — full refund per policy where applicable'
+                : 'Cancelled — no refund per policy for this date',
+          },
+        ],
+        publicSiteUrl: publicSiteBaseUrl(),
+      },
+    });
   }
   return { success: true };
 }
@@ -394,8 +645,6 @@ export async function fetchMyBookings(): Promise<BookingRow[]> {
   if (error) throw new Error(error.message);
   return (data ?? []) as BookingRow[];
 }
-
-const BOOKING_PAYMENT_COLUMNS = `${BOOKING_LIST_COLUMNS}, payment_status, checkout_session_id, amount_paid, currency`;
 
 /**
  * Fetch the signed-in guest's booking by Stripe Checkout session id (RLS).

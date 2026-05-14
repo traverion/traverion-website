@@ -53,10 +53,26 @@ async function notifyPaidBookingSideEffects(params: {
 
   const { data: booking } = await admin
     .from('bookings')
-    .select('listing_id, booking_date, guests, guest_name, guest_email')
+    .select(
+      'listing_id, booking_date, guests, guest_name, guest_email, guest_user_id, booking_number, paid_at, payment_intent_id',
+    )
     .eq('id', bookingId)
     .maybeSingle();
   if (!booking?.listing_id) return;
+
+  let guestEmailResolved = (booking.guest_email ?? '').trim().toLowerCase();
+  if (!guestEmailResolved && booking.guest_user_id) {
+    try {
+      const { data: authUser } = await admin.auth.admin.getUserById(String(booking.guest_user_id));
+      const fromAuth = (authUser?.user?.email ?? '').trim().toLowerCase();
+      if (fromAuth) {
+        guestEmailResolved = fromAuth;
+        await admin.from('bookings').update({ guest_email: fromAuth }).eq('id', bookingId);
+      }
+    } catch {
+      /* ignore */
+    }
+  }
 
   await incrementAvailabilityBookedAdmin(admin, booking.listing_id, booking.booking_date ?? null);
 
@@ -71,6 +87,13 @@ async function notifyPaidBookingSideEffects(params: {
     Authorization: `Bearer ${serviceRoleKey}`,
     apikey: anon || serviceRoleKey,
   };
+
+  const b = booking as Record<string, unknown>;
+  const bn = b.booking_number;
+  const orderNum = typeof bn === 'number' && Number.isFinite(bn) ? Math.floor(bn) : undefined;
+  const paidAtIso = typeof booking.paid_at === 'string' ? booking.paid_at : undefined;
+  const paymentIntentId =
+    typeof booking.payment_intent_id === 'string' ? booking.payment_intent_id : undefined;
 
   if (listing?.supplier_id) {
     try {
@@ -87,6 +110,8 @@ async function notifyPaidBookingSideEffects(params: {
           guests: Number(booking.guests ?? 0),
           guestName: booking.guest_name ?? undefined,
           portalBaseUrl: portalBase,
+          bookingPaymentStatus: 'paid',
+          bookingNumber: orderNum,
         }),
       });
     } catch {
@@ -94,14 +119,13 @@ async function notifyPaidBookingSideEffects(params: {
     }
   }
 
-  const guestEmail = (booking.guest_email ?? '').trim().toLowerCase();
-  if (guestEmail) {
+  if (guestEmailResolved) {
     try {
       await fetch(`${supabaseUrl}/functions/v1/notify-customer-booking`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
-          customerEmail: guestEmail,
+          customerEmail: guestEmailResolved,
           customerName: booking.guest_name ?? undefined,
           listingTitle: listing?.title ?? 'Experience',
           bookingId,
@@ -109,6 +133,11 @@ async function notifyPaidBookingSideEffects(params: {
           guests: Number(booking.guests ?? 0),
           totalAmount: amountPaid ?? undefined,
           currency,
+          emailKind: 'booking_confirmed_paid',
+          publicSiteUrl: portalBase,
+          paidAtIso,
+          paymentIntentId,
+          bookingNumber: orderNum,
         }),
       });
     } catch {

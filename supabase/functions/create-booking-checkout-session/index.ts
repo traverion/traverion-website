@@ -103,6 +103,18 @@ serve(async (req) => {
       if (!ownsByEmail && !ownsByUserId) {
         return json({ success: false, error: 'You can only pay your own booking' }, 403);
       }
+      if (email) {
+        const ownerNorm = ownerEmail;
+        const shouldSyncEmail = ownerNorm.length === 0 || ownerNorm !== email;
+        const shouldSyncUserId = !existing.guest_user_id || String(existing.guest_user_id) !== user.id;
+        if (shouldSyncEmail || shouldSyncUserId) {
+          const { error: syncErr } = await admin
+            .from('bookings')
+            .update({ guest_email: email, guest_user_id: user.id })
+            .eq('id', targetBookingId);
+          if (syncErr) return json({ success: false, error: syncErr.message }, 500);
+        }
+      }
       if (existing.status !== 'pending') {
         return json({ success: false, error: 'Only pending bookings can be paid' }, 400);
       }

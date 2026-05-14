@@ -2101,6 +2101,9 @@ export default function SupplierBookings() {
                           {listingTitles[b.listing_id] ?? 'Listing'}
                         </p>
                         <p className="text-xs text-gray-500 truncate">
+                          {typeof b.booking_number === 'number' && b.booking_number > 0 ? (
+                            <>#{b.booking_number} · </>
+                          ) : null}
                           {b.guest_name ?? b.guest_email ?? 'Guest'} · {b.guests} guest{b.guests === 1 ? '' : 's'}
                         </p>
                       </div>

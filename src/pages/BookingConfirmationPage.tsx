@@ -242,6 +242,11 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
 
             <div className="px-6 py-6 space-y-4 text-sm text-gray-700">
               <p className="text-base font-semibold text-gray-900">{listingTitle || 'Your experience'}</p>
+              {typeof booking.booking_number === 'number' && booking.booking_number > 0 ? (
+                <p className="text-sm font-mono text-finland font-semibold tracking-wide -mt-1">
+                  Booking #{booking.booking_number}
+                </p>
+              ) : null}
               <div className="flex items-start gap-3">
                 <Calendar className="w-5 h-5 text-finland shrink-0 mt-0.5" aria-hidden />
                 <div>
