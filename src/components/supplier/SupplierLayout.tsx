@@ -827,7 +827,7 @@ export default function SupplierLayout() {
       return (
         <SupplierPortalTravelerNotice
           email={typeof user?.email === 'string' ? user.email : null}
-          onSignOut={() => void signOut()}
+          onSignOut={signOut}
         />
       );
     }
