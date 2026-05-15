@@ -9,7 +9,12 @@ import { PARTNER_EMAIL_VERIFIED_PATH, PARTNER_LOGIN_PATH } from '../../lib/partn
 import { isSignUpEmailAlreadyRegistered } from '../../lib/supabaseAuthHelpers';
 import { normalizePhoneNumber } from '../../lib/phoneNormalize';
 import { subscribePasswordRecovery, updatePasswordAfterRecovery } from '../../lib/passwordRecoveryFlow';
-import { EMAIL_ALREADY_IN_USE, partnerSignInTravelerOnlyMessage } from '../../lib/customerSupplierAuthMessages';
+import {
+  DUPLICATE_TRAVERION_EMAIL_MESSAGE_PREFIX,
+  EMAIL_ALREADY_IN_USE,
+  partnerSignInTravelerOnlyMessage,
+  partnerSignUpDuplicateEmailMessage,
+} from '../../lib/customerSupplierAuthMessages';
 import { publicSiteBaseUrl } from '../../lib/publicSiteUrl';
 import { authInputErrorClasses, isValidEmailFormat } from '../../lib/authFormValidation';
 
@@ -70,12 +75,13 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
   }, [isSupabase]);
 
   const mapAuthError = (message: string): string => {
+    if (message.startsWith(DUPLICATE_TRAVERION_EMAIL_MESSAGE_PREFIX)) return message;
     const m = message.toLowerCase();
     if (m.includes('not configured') || m.includes('unavailable')) {
       return 'Supplier authentication is currently unavailable. Please try again shortly.';
     }
     if (m.includes('already registered') || m.includes('already been registered') || m.includes('user already exists')) {
-      return EMAIL_ALREADY_IN_USE;
+      return partnerSignUpDuplicateEmailMessage(`${publicSiteBaseUrl()}/log-in`);
     }
     if (m.includes('invalid login credentials')) {
       return 'Incorrect email or password.';
@@ -103,7 +109,8 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
       low.includes('already registered') ||
       low.includes('already been registered') ||
       low.includes('user already exists') ||
-      text === EMAIL_ALREADY_IN_USE
+      text === EMAIL_ALREADY_IN_USE ||
+      text.startsWith(DUPLICATE_TRAVERION_EMAIL_MESSAGE_PREFIX)
     ) {
       return { email: text };
     }
@@ -189,7 +196,7 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
             return;
           }
           if (isSignUpEmailAlreadyRegistered(data.user)) {
-            setFieldErrors({ email: EMAIL_ALREADY_IN_USE });
+            setFieldErrors({ email: partnerSignUpDuplicateEmailMessage(`${publicSiteBaseUrl()}/log-in`) });
             setSuccessMessage(null);
             setMode('signin');
             return;

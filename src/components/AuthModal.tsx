@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase';
 import { normalizeConsumerPhone } from '../data/supabase-consumer-profile';
 import { publicSiteBaseUrl } from '../lib/publicSiteUrl';
 import { BRAND_LOGO_SRC } from '../lib/brandAssets';
-import { EMAIL_ALREADY_IN_USE } from '../lib/customerSupplierAuthMessages';
+import { DUPLICATE_TRAVERION_EMAIL_MESSAGE_PREFIX, EMAIL_ALREADY_IN_USE } from '../lib/customerSupplierAuthMessages';
 import { supplierPortalHref } from '../lib/partnerHost';
 import { authInputErrorClasses, isValidEmailFormat } from '../lib/authFormValidation';
 
@@ -29,6 +29,7 @@ export default function AuthModal() {
   const [resetSending, setResetSending] = useState(false);
 
   const mapAuthError = (message: string): string => {
+    if (message.startsWith(DUPLICATE_TRAVERION_EMAIL_MESSAGE_PREFIX)) return message;
     const m = message.toLowerCase();
     if (m.includes('not configured')) return 'Authentication is currently unavailable. Please try again shortly.';
     if (m.includes('already registered') || m.includes('already been registered') || m.includes('user already exists')) {
@@ -55,7 +56,8 @@ export default function AuthModal() {
       low.includes('already registered') ||
       low.includes('already been registered') ||
       low.includes('user already exists') ||
-      text === EMAIL_ALREADY_IN_USE
+      text === EMAIL_ALREADY_IN_USE ||
+      text.startsWith(DUPLICATE_TRAVERION_EMAIL_MESSAGE_PREFIX)
     ) {
       return { email: text };
     }

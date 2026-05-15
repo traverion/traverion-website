@@ -12,7 +12,7 @@ import {
 import { fetchSupplierProfile } from '../data/supabase-supplier-profile';
 import { isPhoneAvailableForSignup } from '../data/supabase-phone-signup';
 import { isTraverionAdminUser } from '../lib/adminAuth';
-import { customerSignInPartnerOnlyMessage, EMAIL_ALREADY_IN_USE } from '../lib/customerSupplierAuthMessages';
+import { customerSignInPartnerOnlyMessage, travelerSignUpDuplicateEmailMessage } from '../lib/customerSupplierAuthMessages';
 import { supplierPortalPublicBaseUrl } from '../lib/partnerHost';
 import { PARTNER_LOGIN_PATH } from '../lib/partnerPortalPaths';
 
@@ -122,14 +122,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
     if (error) {
       const em = error.message.toLowerCase();
-      if (em.includes('already registered') || em.includes('user already exists')) {
-        return { error: EMAIL_ALREADY_IN_USE, hasSession: false };
+      if (
+        em.includes('already registered') ||
+        em.includes('already been registered') ||
+        em.includes('user already exists')
+      ) {
+        const partnerLoginUrl = `${supplierPortalPublicBaseUrl()}${PARTNER_LOGIN_PATH}`;
+        return { error: travelerSignUpDuplicateEmailMessage(partnerLoginUrl), hasSession: false };
       }
       return { error: error.message, hasSession: false };
     }
 
     if (isSignUpEmailAlreadyRegistered(data.user)) {
-      return { error: EMAIL_ALREADY_IN_USE, hasSession: false };
+      const partnerLoginUrl = `${supplierPortalPublicBaseUrl()}${PARTNER_LOGIN_PATH}`;
+      return { error: travelerSignUpDuplicateEmailMessage(partnerLoginUrl), hasSession: false };
     }
 
     if (data.session) {
