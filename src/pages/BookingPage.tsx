@@ -33,6 +33,8 @@ import {
   type AvailabilityCheckOption,
 } from '../data/supabase-availability';
 import AvailabilityOptionsModal from '../components/booking/AvailabilityOptionsModal';
+import BookingDateField from '../components/booking/BookingDateField';
+import GuestStepper from '../components/booking/GuestStepper';
 import { analytics } from '../lib/analytics';
 import { setPageMetaWithOg } from '../lib/seo';
 import { dateNotInPast, validateEmail, required, maxLength } from '../lib/validation';
@@ -42,6 +44,7 @@ import {
 } from '../types/listingExtras';
 import {
   getPartySizeBounds,
+  guestCountValidationError,
   formatBookingDateDisplay,
   loadBookingDraft,
   saveBookingDraft,
@@ -135,7 +138,7 @@ export default function BookingPage({
   const flowMode = presentation === 'modal' ? 'modal' : 'page';
   const [step, setStep] = useState<Step>(presentation === 'modal' ? 'review' : 'date-guests');
   const [date, setDate] = useState('');
-  const [guests, setGuests] = useState(2);
+  const [guests, setGuests] = useState(1);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
@@ -153,8 +156,6 @@ export default function BookingPage({
 
   const hydratedRef = useRef(false);
   const profileHydratedRef = useRef(false);
-  const dateInputRef = useRef<HTMLInputElement | null>(null);
-
   const currency = tour.price?.currency ?? 'USD';
   const fallbackBasePrice = tour.price?.startingFrom ?? 0;
   const priceInfo = useMemo(() => {
@@ -213,7 +214,7 @@ export default function BookingPage({
     if (presentation === 'modal') {
       profileHydratedRef.current = false;
       const nextDate = (initialDate?.trim() || '').trim();
-      let nextGuests = typeof initialGuests === 'number' ? initialGuests : 2;
+      let nextGuests = typeof initialGuests === 'number' ? initialGuests : bounds.min;
       nextGuests = Math.min(bounds.max, Math.max(bounds.min, nextGuests));
       setDate(nextDate);
       setGuests(nextGuests);
@@ -233,7 +234,7 @@ export default function BookingPage({
     const fromDraft = Boolean(draft && draft.tourId === tour.id);
     const nextDate = (initialDate?.trim() || (fromDraft ? draft!.date : '') || '').trim();
     const rawGuests = initialGuests ?? (fromDraft ? draft!.guests : undefined);
-    let nextGuests = typeof rawGuests === 'number' ? rawGuests : 2;
+    let nextGuests = typeof rawGuests === 'number' ? rawGuests : bounds.min;
     nextGuests = Math.min(bounds.max, Math.max(bounds.min, nextGuests));
     setDate(nextDate);
     setGuests(nextGuests);
@@ -367,8 +368,9 @@ export default function BookingPage({
       setError(dateCheck.message ?? 'Please select a date');
       return;
     }
-    if (guests < partyBounds.min || guests > partyBounds.max) {
-      setError(`Choose between ${partyBounds.min} and ${partyBounds.max} guests for this experience.`);
+    const guestErr = guestCountValidationError(guests, partyBounds);
+    if (guestErr) {
+      setError(guestErr);
       return;
     }
     setError(null);
@@ -404,17 +406,6 @@ export default function BookingPage({
     setAvailabilityModalNote(null);
   };
 
-  const openDatePicker = useCallback(() => {
-    const input = dateInputRef.current;
-    if (!input) return;
-    if (typeof input.showPicker === 'function') {
-      input.showPicker();
-      return;
-    }
-    input.focus();
-    input.click();
-  }, []);
-
   const handleSelectAvailabilityOption = (option: AvailabilityCheckOption) => {
     if (!option.selectable) return;
     closeAvailabilityModal();
@@ -441,8 +432,9 @@ export default function BookingPage({
       setError(emailCheck.message ?? 'Valid email is required');
       return;
     }
-    if (guests < partyBounds.min || guests > partyBounds.max) {
-      setError(`Guests must be between ${partyBounds.min} and ${partyBounds.max}.`);
+    const guestErr = guestCountValidationError(guests, partyBounds);
+    if (guestErr) {
+      setError(guestErr);
       return;
     }
     setError(null);
@@ -591,65 +583,20 @@ export default function BookingPage({
             <BookingProgress step={step} flow={flowMode} />
             <h2 className="text-xl font-semibold text-gray-900 mb-6">Select date and guests</h2>
             <div className="space-y-4">
-              <div>
-                <label htmlFor="booking-flow-date-input" className="block text-sm font-medium text-gray-700 mb-1">
-                  Date
-                </label>
-                <div
-                  className="relative cursor-pointer rounded-lg border border-gray-200 bg-white transition-colors hover:border-gray-300 focus-within:ring-2 focus-within:ring-finland focus-within:border-finland"
-                  onClick={openDatePicker}
-                  role="presentation"
-                >
-                  <Calendar className="pointer-events-none absolute right-3 top-1/2 z-[1] h-5 w-5 -translate-y-1/2 text-gray-400" />
-                  <input
-                    id="booking-flow-date-input"
-                    ref={dateInputRef}
-                    type="date"
-                    value={date}
-                    onChange={(e) => setDate(e.target.value)}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openDatePicker();
-                    }}
-                    min={new Date().toISOString().slice(0, 10)}
-                    className="w-full cursor-pointer rounded-lg border-0 bg-transparent py-3 pl-4 pr-11 text-gray-900 focus:outline-none focus:ring-0"
-                  />
-                </div>
-                {date.trim() && (
-                  <p className="mt-1.5 text-xs text-gray-500">{dateDisplay}</p>
-                )}
-              </div>
-              <div>
-                <span className="mb-1 block text-sm font-medium text-gray-700">Number of guests</span>
-                <div className="flex overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm focus-within:ring-2 focus-within:ring-finland focus-within:ring-offset-0">
-                  <button
-                    type="button"
-                    className="flex w-11 shrink-0 items-center justify-center text-lg font-semibold leading-none text-gray-700 transition-colors hover:bg-gray-50 active:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-35"
-                    aria-label="Decrease number of guests"
-                    disabled={guests <= partyBounds.min}
-                    onClick={() => setGuests((g) => Math.max(partyBounds.min, g - 1))}
-                  >
-                    −
-                  </button>
-                  <div className="flex min-w-0 flex-1 items-center justify-center border-x border-gray-200 bg-gray-50/60 px-2 py-3">
-                    <span className="text-sm font-medium tabular-nums text-gray-900">
-                      {guests} {guests === 1 ? 'guest' : 'guests'}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    className="flex w-11 shrink-0 items-center justify-center text-lg font-semibold leading-none text-gray-700 transition-colors hover:bg-gray-50 active:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-35"
-                    aria-label="Increase number of guests"
-                    disabled={guests >= partyBounds.max}
-                    onClick={() => setGuests((g) => Math.min(partyBounds.max, g + 1))}
-                  >
-                    +
-                  </button>
-                </div>
-                <p className="mt-1.5 text-xs text-gray-500">
-                  This listing allows {partyBounds.min}–{partyBounds.max} guests per booking.
-                </p>
-              </div>
+              <BookingDateField
+                id="booking-flow-date-input"
+                value={date}
+                onChange={setDate}
+              />
+              <GuestStepper
+                id="booking-flow-guests"
+                label="Number of guests"
+                value={guests}
+                min={partyBounds.min}
+                max={partyBounds.max}
+                onChange={setGuests}
+                onBoundaryAttempt={setError}
+              />
             </div>
             <div
               className="mt-3 min-h-[1.25rem]"

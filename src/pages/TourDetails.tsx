@@ -12,7 +12,6 @@ import {
   ShoppingCart,
   Info,
   ChevronDown,
-  Calendar,
 } from 'lucide-react';
 import { useTranslation } from '../contexts/TranslationContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -42,7 +41,15 @@ import { Skeleton } from '../components/ui/Skeleton';
 import { dateNotInPast } from '../lib/validation';
 import { checkAvailability } from '../data/supabase-availability';
 import BookingPage from './BookingPage';
-import { getPartySizeBounds, formatBookingDateDisplay, getTourBookingVariants, type TourBookingVariant } from '../lib/booking-flow';
+import {
+  getPartySizeBounds,
+  getPartySizeBoundsForVariant,
+  guestCountValidationError,
+  getTourBookingVariants,
+  type TourBookingVariant,
+} from '../lib/booking-flow';
+import BookingDateField from '../components/booking/BookingDateField';
+import GuestStepper from '../components/booking/GuestStepper';
 
 interface TourDetailsProps {
   tourId: string;
@@ -68,7 +75,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   const [reviewTitle, setReviewTitle] = useState('');
   const [reviewComment, setReviewComment] = useState('');
   const [bookingDate, setBookingDate] = useState('');
-  const [guests, setGuests] = useState(2);
+  const [guests, setGuests] = useState(1);
   const [discountsByListing, setDiscountsByListing] = useState<Map<string, import('../data/supabase-discounts').ListingDiscount[]>>(new Map());
   const [supplierLegal, setSupplierLegal] = useState<{
     operatorName: string;
@@ -84,23 +91,6 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   const [variantChecking, setVariantChecking] = useState(false);
   const [optionsAttentionPulse, setOptionsAttentionPulse] = useState(false);
   const optionsSectionRef = useRef<HTMLDivElement>(null);
-  const bookingCardDateInputRef = useRef<HTMLInputElement>(null);
-
-  const openBookingCardDatePicker = useCallback(() => {
-    const el = bookingCardDateInputRef.current;
-    if (!el) return;
-    if (typeof el.showPicker === 'function') {
-      try {
-        el.showPicker();
-      } catch {
-        el.focus();
-        el.click();
-      }
-    } else {
-      el.focus();
-      el.click();
-    }
-  }, []);
 
   const partyBounds = useMemo(() => (tour ? getPartySizeBounds(tour) : { min: 1, max: 12 }), [tour]);
   const tourVariants = useMemo(() => (tour ? getTourBookingVariants(tour) : []), [tour]);
@@ -226,8 +216,9 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       setBookingVariantsOpen(false);
       return;
     }
-    if (guests < partyBounds.min || guests > partyBounds.max) {
-      setBookingCardError(`Choose between ${partyBounds.min} and ${partyBounds.max} guests for this experience.`);
+    const guestErr = guestCountValidationError(guests, partyBounds);
+    if (guestErr) {
+      setBookingCardError(guestErr);
       setBookingVariantsOpen(false);
       return;
     }
@@ -243,6 +234,12 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     if (!tour) return;
     setBookingVariantsOpen(false);
     setVariantChecking(true);
+    const variantBounds = getPartySizeBoundsForVariant(tour, variant);
+    const guestErr = guestCountValidationError(guests, variantBounds);
+    if (guestErr) {
+      setBookingCardError(guestErr);
+      return;
+    }
     setBookingCardError(null);
     try {
       const avail = await checkAvailability(tour.id, bookingDate.trim(), guests);
@@ -640,90 +637,27 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                   );
                 })()}
                 <div className="space-y-4">
-                  <div>
-                    <label htmlFor="tour-booking-date-input" className="block text-sm font-medium text-gray-700 mb-1">
-                      Date
-                    </label>
-                    <div
-                      className="relative cursor-pointer rounded-lg border border-gray-300 bg-white transition-shadow hover:border-gray-400 focus-within:ring-2 focus-within:ring-finland focus-within:border-finland"
-                      onClick={openBookingCardDatePicker}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          openBookingCardDatePicker();
-                        }
-                      }}
-                      role="presentation"
-                    >
-                      <Calendar
-                        className="pointer-events-none absolute right-3 top-1/2 z-[1] h-5 w-5 -translate-y-1/2 text-gray-500"
-                        aria-hidden
-                      />
-                      <input
-                        id="tour-booking-date-input"
-                        ref={bookingCardDateInputRef}
-                        type="date"
-                        value={bookingDate}
-                        min={new Date().toISOString().slice(0, 10)}
-                        onChange={(e) => {
-                          setBookingDate(e.target.value);
-                          setBookingCardError(null);
-                          setBookingVariantsOpen(false);
-                        }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const t = e.currentTarget;
-                          if (typeof t.showPicker === 'function') {
-                            try {
-                              t.showPicker();
-                            } catch {
-                              /* ignore */
-                            }
-                          }
-                        }}
-                        className="w-full cursor-pointer rounded-lg border-0 bg-transparent py-2.5 pl-3 pr-11 text-gray-900 focus:outline-none focus:ring-0"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <span className="mb-1 block text-sm font-medium text-gray-700">Guests</span>
-                    <div className="flex overflow-hidden rounded-lg border border-gray-300 bg-white shadow-sm focus-within:ring-2 focus-within:ring-finland focus-within:ring-offset-0">
-                      <button
-                        type="button"
-                        className="flex w-11 shrink-0 items-center justify-center text-lg font-semibold leading-none text-gray-700 transition-colors hover:bg-gray-50 active:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-35"
-                        aria-label="Decrease number of guests"
-                        disabled={guests <= partyBounds.min}
-                        onClick={() => {
-                          setGuests((g) => Math.max(partyBounds.min, g - 1));
-                          setBookingCardError(null);
-                          setBookingVariantsOpen(false);
-                        }}
-                      >
-                        −
-                      </button>
-                      <div className="flex min-w-0 flex-1 items-center justify-center border-x border-gray-200 bg-gray-50/60 px-2 py-2.5">
-                        <span className="text-sm font-medium tabular-nums text-gray-900">
-                          {guests} {guests === 1 ? 'guest' : 'guests'}
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        className="flex w-11 shrink-0 items-center justify-center text-lg font-semibold leading-none text-gray-700 transition-colors hover:bg-gray-50 active:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-35"
-                        aria-label="Increase number of guests"
-                        disabled={guests >= partyBounds.max}
-                        onClick={() => {
-                          setGuests((g) => Math.min(partyBounds.max, g + 1));
-                          setBookingCardError(null);
-                          setBookingVariantsOpen(false);
-                        }}
-                      >
-                        +
-                      </button>
-                    </div>
-                    <p className="mt-1 text-xs text-gray-500">
-                      {partyBounds.min}–{partyBounds.max} guests per booking.
-                    </p>
-                  </div>
+                  <BookingDateField
+                    id="tour-booking-date-input"
+                    value={bookingDate}
+                    onChange={(next) => {
+                      setBookingDate(next);
+                      setBookingCardError(null);
+                      setBookingVariantsOpen(false);
+                    }}
+                  />
+                  <GuestStepper
+                    id="tour-booking-guests"
+                    value={guests}
+                    min={partyBounds.min}
+                    max={partyBounds.max}
+                    onChange={(next) => {
+                      setGuests(next);
+                      setBookingCardError(null);
+                      setBookingVariantsOpen(false);
+                    }}
+                    onBoundaryAttempt={(message) => setBookingCardError(message)}
+                  />
                   <div role="status" aria-live="polite" aria-atomic="true" className="min-h-[1.25rem]">
                     {bookingCardError && <p className="text-sm text-red-600">{bookingCardError}</p>}
                   </div>

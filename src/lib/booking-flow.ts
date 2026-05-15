@@ -59,6 +59,53 @@ export function getPartySizeBounds(tour: TourPackage): { min: number; max: numbe
   return { min: 1, max: 12 };
 }
 
+/** Min/max for a specific bookable option; falls back to listing-wide bounds. */
+export function getPartySizeBoundsForVariant(
+  tour: TourPackage,
+  variant: TourBookingVariant | null
+): { min: number; max: number } {
+  const opt = variant?.listingOption;
+  if (opt) {
+    const min = Math.max(1, Math.floor(opt.minPersons));
+    const max = Math.min(99, Math.max(min, Math.floor(opt.maxPersons)));
+    return { min, max };
+  }
+  return getPartySizeBounds(tour);
+}
+
+export function formatPartySizeHint(bounds: { min: number; max: number }): string {
+  if (bounds.min === bounds.max) {
+    return bounds.min === 1
+      ? 'This experience is for 1 guest only.'
+      : `This experience is for exactly ${bounds.min} guests.`;
+  }
+  return `${bounds.min}–${bounds.max} guests per booking.`;
+}
+
+export function guestCountBoundaryMessage(boundary: 'min' | 'max', bounds: { min: number; max: number }): string {
+  if (boundary === 'min') {
+    return bounds.min === 1
+      ? 'At least 1 guest is required.'
+      : `At least ${bounds.min} guests are required for this experience.`;
+  }
+  return bounds.max === 1
+    ? 'This option allows only 1 guest.'
+    : `No more than ${bounds.max} guests allowed for this experience.`;
+}
+
+export function guestCountValidationError(
+  guests: number,
+  bounds: { min: number; max: number }
+): string | null {
+  if (guests < bounds.min) {
+    return guestCountBoundaryMessage('min', bounds);
+  }
+  if (guests > bounds.max) {
+    return guestCountBoundaryMessage('max', bounds);
+  }
+  return null;
+}
+
 export function getTourBookingVariants(tour: TourPackage): TourBookingVariant[] {
   const bounds = getPartySizeBounds(tour);
   const opts = materializedBookingOptions(tour.listingExtras?.bookingOptions);
