@@ -28,3 +28,13 @@ export function customerSignInPartnerOnlyMessage(partnerLoginUrl: string): strin
 export function partnerSignInTravelerOnlyMessage(travelerSignInUrl: string): string {
   return `This email is registered as a traveler on traverion.com. Sign in at ${travelerSignInUrl} to book and manage your trips.`;
 }
+
+/** Shown on the partner login email field (not the full-screen traveler notice). */
+export function partnerSignInTravelerOnlyEmailError(travelerSignInUrl: string): string {
+  return `This email is already used for traveler bookings on traverion.com. Sign in at ${travelerSignInUrl} to manage trips, or use a different email (e.g. you+partner@gmail.com) to register as a partner.`;
+}
+
+/** Partner sign-up when email exists as traveler only (consumer profile, no partner profile). */
+export function partnerSignUpTravelerEmailExistsError(travelerSignInUrl: string): string {
+  return `This email is already registered as a traveler. Sign in at ${travelerSignInUrl} for bookings, or use another email to create a partner account.`;
+}

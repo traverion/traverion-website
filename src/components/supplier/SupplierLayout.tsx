@@ -59,7 +59,10 @@ import {
 } from '../../lib/partnerPortalPaths';
 import PartnerMarketingStaticPage from './PartnerMarketingStaticPage';
 import PartnerEmailVerifiedPage from './PartnerEmailVerifiedPage';
-import SupplierPortalTravelerNotice from './SupplierPortalTravelerNotice';
+import { fetchConsumerProfile } from '../../data/supabase-consumer-profile';
+import { partnerSignInTravelerOnlyEmailError } from '../../lib/customerSupplierAuthMessages';
+import { setPartnerAuthFlash } from '../../lib/partnerAuthFlash';
+import { publicSiteBaseUrl } from '../../lib/publicSiteUrl';
 
 type PartnerProfileGate =
   | { kind: 'pending'; forUserId: string }
@@ -312,6 +315,7 @@ export default function SupplierLayout() {
   const { user, loading, signOut, isSupabase } = useSupplierAuth();
   const [partnerProfileGate, setPartnerProfileGate] = useState<PartnerProfileGate | null>(null);
   const [partnerGateRetryKey, setPartnerGateRetryKey] = useState(0);
+  const blockedRedirectStarted = useRef(false);
   const partnerGateEpochRef = useRef(0);
   const [section, setSection] = useState<SupplierSection>(() => getSectionFromPath(window.location.pathname) ?? 'dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -485,6 +489,35 @@ export default function SupplierLayout() {
     if (partnerProfileGate.kind === 'failed') return 'error' as const;
     return partnerProfileGate.allowed ? ('allowed' as const) : ('blocked' as const);
   })();
+
+  useEffect(() => {
+    if (!user?.id) blockedRedirectStarted.current = false;
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (partnerGateView !== 'blocked' || !user?.id) return;
+    if (blockedRedirectStarted.current) return;
+    blockedRedirectStarted.current = true;
+
+    const email = typeof user.email === 'string' ? user.email.trim() : '';
+    const travelerSignInUrl = `${publicSiteBaseUrl()}/log-in`;
+
+    void (async () => {
+      let message = partnerSignInTravelerOnlyEmailError(travelerSignInUrl);
+      try {
+        const consumerRow = await fetchConsumerProfile(user.id);
+        if (!consumerRow) {
+          message =
+            'No Traverion partner profile is linked to this account. Sign in with a partner email or register as a partner below.';
+        }
+      } catch {
+        /* keep traveler-oriented default */
+      }
+      setPartnerAuthFlash({ message, email: email || undefined, tab: 'signin' });
+      await signOut();
+      window.location.replace(PARTNER_LOGIN_PATH);
+    })();
+  }, [partnerGateView, user?.id, user?.email, signOut]);
 
   useEffect(() => {
     if ((section !== 'business-profile' && section !== 'account-settings') || !user?.id || !isSupabase) return;
@@ -779,14 +812,49 @@ export default function SupplierLayout() {
     );
   }
 
-  /** Signed-in users on /login always go to the app shell first — never show traveler notice here (avoids flash). */
   if (onLoginPath && user) {
-    window.location.replace(PARTNER_APP_BASE);
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-500">Redirecting...</p>
-      </div>
-    );
+    if (partnerGateView === 'checking' || partnerGateView === 'blocked') {
+      return (
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <p className="text-gray-500">
+            {partnerGateView === 'blocked' ? 'Redirecting to sign in…' : 'Checking partner account…'}
+          </p>
+        </div>
+      );
+    }
+    if (partnerGateView === 'error') {
+      return (
+        <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-4 p-6 text-center">
+          <p className="text-sm text-gray-600 max-w-md">
+            We could not verify your partner account. Check your connection and try again.
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={() => setPartnerGateRetryKey((k) => k + 1)}
+              className="rounded-xl bg-finland px-4 py-2.5 text-sm font-semibold text-white hover:bg-finland-dark transition-colors"
+            >
+              Try again
+            </button>
+            <button
+              type="button"
+              onClick={() => void signOut()}
+              className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              Sign out
+            </button>
+          </div>
+        </div>
+      );
+    }
+    if (partnerGateView === 'allowed') {
+      window.location.replace(PARTNER_APP_BASE);
+      return (
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <p className="text-gray-500">Redirecting...</p>
+        </div>
+      );
+    }
   }
 
   const needsPartnerProfileGate = Boolean(user && onPortalPath);
@@ -825,10 +893,9 @@ export default function SupplierLayout() {
     }
     if (partnerGateView === 'blocked') {
       return (
-        <SupplierPortalTravelerNotice
-          email={typeof user?.email === 'string' ? user.email : null}
-          onSignOut={signOut}
-        />
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <p className="text-gray-500">Redirecting to sign in…</p>
+        </div>
       );
     }
   }

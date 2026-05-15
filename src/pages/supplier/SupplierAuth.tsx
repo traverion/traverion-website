@@ -12,10 +12,12 @@ import { subscribePasswordRecovery, updatePasswordAfterRecovery } from '../../li
 import {
   DUPLICATE_TRAVERION_EMAIL_MESSAGE_PREFIX,
   EMAIL_ALREADY_IN_USE,
-  partnerSignInTravelerOnlyMessage,
+  partnerSignInTravelerOnlyEmailError,
   partnerSignUpDuplicateEmailMessage,
 } from '../../lib/customerSupplierAuthMessages';
+import { consumePartnerAuthFlash } from '../../lib/partnerAuthFlash';
 import { publicSiteBaseUrl } from '../../lib/publicSiteUrl';
+import { fetchConsumerProfile } from '../../data/supabase-consumer-profile';
 import { authInputErrorClasses, isValidEmailFormat } from '../../lib/authFormValidation';
 
 /** Fire-and-forget welcome email (Edge Function dedupes via welcome_email_sent_at). */
@@ -73,6 +75,15 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
     if (!isSupabase || !supabase) return;
     return subscribePasswordRecovery(supabase, () => setRecoveryMode(true));
   }, [isSupabase]);
+
+  useEffect(() => {
+    const flash = consumePartnerAuthFlash();
+    if (!flash) return;
+    setFieldErrors({ email: flash.message });
+    setMode(flash.tab === 'signup' ? 'signup' : 'signin');
+    if (flash.email) setEmail(flash.email);
+    setSuccessMessage(null);
+  }, []);
 
   const mapAuthError = (message: string): string => {
     if (message.startsWith(DUPLICATE_TRAVERION_EMAIL_MESSAGE_PREFIX)) return message;
@@ -242,17 +253,27 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
             const userMeta = data.user.user_metadata as
               | { supplier_business_name?: string; supplier_phone?: string }
               | undefined;
-            const existingProfile = await fetchSupplierProfile(data.user.id);
+            const travelerSignInUrl = `${publicSiteBaseUrl()}/log-in`;
+            const [existingProfile, consumerRow] = await Promise.all([
+              fetchSupplierProfile(data.user.id),
+              fetchConsumerProfile(data.user.id),
+            ]);
             if (existingProfile) {
               onAuthenticated();
+              return;
+            }
+            if (consumerRow) {
+              await supabase.auth.signOut();
+              setFieldErrors({ email: partnerSignInTravelerOnlyEmailError(travelerSignInUrl) });
+              setMode('signin');
               return;
             }
             const signedUpAsPartner =
               Boolean(userMeta?.supplier_business_name?.trim()) || Boolean(userMeta?.supplier_phone?.trim());
             if (!signedUpAsPartner) {
               await supabase.auth.signOut();
-              const travelerSignInUrl = `${publicSiteBaseUrl()}/log-in`;
-              setFieldErrors({ form: partnerSignInTravelerOnlyMessage(travelerSignInUrl) });
+              setFieldErrors({ email: partnerSignInTravelerOnlyEmailError(travelerSignInUrl) });
+              setMode('signin');
               return;
             }
             const ensured = await ensureSupplierProfile(data.user.id, {
