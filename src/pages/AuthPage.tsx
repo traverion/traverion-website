@@ -10,7 +10,7 @@ import { subscribePasswordRecovery, updatePasswordAfterRecovery } from '../lib/p
 import { DUPLICATE_TRAVERION_EMAIL_MESSAGE_PREFIX, EMAIL_ALREADY_IN_USE } from '../lib/customerSupplierAuthMessages';
 import { supplierPortalHref } from '../lib/partnerHost';
 import { authInputErrorClasses, isValidEmailFormat } from '../lib/authFormValidation';
-import ForgotPasswordModal, { type ForgotPasswordSendResult } from '../components/auth/ForgotPasswordModal';
+import ForgotPasswordInline, { type ForgotPasswordSendResult } from '../components/auth/ForgotPasswordInline';
 
 type AuthTab = 'signin' | 'signup';
 
@@ -59,7 +59,10 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [resetSending, setResetSending] = useState(false);
-  const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
+  const [passwordResetPanel, setPasswordResetPanel] = useState(false);
+  const [resetPasswordEmail, setResetPasswordEmail] = useState('');
+  const [resetPasswordFieldError, setResetPasswordFieldError] = useState<string | null>(null);
+  const [resetPasswordSuccess, setResetPasswordSuccess] = useState<string | null>(null);
   const [resendSending, setResendSending] = useState(false);
   const [recoveryMode, setRecoveryMode] = useState(false);
   const [recoveryPassword, setRecoveryPassword] = useState('');
@@ -80,6 +83,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
       if (parsed?.kind === 'error' && typeof parsed.message === 'string') {
         setFieldErrors({ form: parsed.message });
         setTab('signin');
+        setPasswordResetPanel(false);
       }
     } catch {
       sessionStorage.removeItem('traverion_auth_flash');
@@ -264,6 +268,37 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
     return { ok: true };
   };
 
+  const exitTravelerPasswordReset = () => {
+    setPasswordResetPanel(false);
+    setResetPasswordEmail('');
+    setResetPasswordFieldError(null);
+    setResetPasswordSuccess(null);
+  };
+
+  const handleTravelerPasswordResetSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setResetPasswordFieldError(null);
+    setResetPasswordSuccess(null);
+    const trimmed = resetPasswordEmail.trim();
+    if (!trimmed) {
+      setResetPasswordFieldError('Enter the email address you want the reset link sent to.');
+      return;
+    }
+    if (!isValidEmailFormat(trimmed)) {
+      setResetPasswordFieldError('Enter a valid email address.');
+      return;
+    }
+    const normalized = trimmed.toLowerCase();
+    const result = await sendPasswordResetEmail(normalized);
+    if (!result.ok) {
+      setResetPasswordFieldError(result.error);
+      return;
+    }
+    setResetPasswordSuccess(
+      `If an account exists for ${normalized}, you will get an email with a link to reset your password. Check spam too.`
+    );
+  };
+
   const handleRecoverySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFieldErrors({});
@@ -299,7 +334,6 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
   };
 
   return (
-    <>
     <div className="relative min-h-screen pt-20">
       <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
         <div
@@ -426,6 +460,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
                 setTab('signin');
                 setFieldErrors({});
                 setSuccessMessage(null);
+                exitTravelerPasswordReset();
               }}
               className={`flex-1 py-3 text-sm font-medium transition-colors ${
                 tab === 'signin' ? 'text-gray-900 border-b-2 border-gray-900' : 'text-gray-500 hover:text-gray-700'
@@ -439,6 +474,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
                 setTab('signup');
                 setFieldErrors({});
                 setSuccessMessage(null);
+                exitTravelerPasswordReset();
               }}
               className={`flex-1 py-3 text-sm font-medium transition-colors ${
                 tab === 'signup' ? 'text-gray-900 border-b-2 border-gray-900' : 'text-gray-500 hover:text-gray-700'
@@ -448,6 +484,23 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
             </button>
           </div>
 
+          {tab === 'signin' && passwordResetPanel ? (
+            <ForgotPasswordInline
+              title="Reset your password"
+              email={resetPasswordEmail}
+              onEmailChange={(v) => {
+                setResetPasswordEmail(v);
+                setResetPasswordFieldError(null);
+              }}
+              fieldError={resetPasswordFieldError}
+              successMessage={resetPasswordSuccess}
+              sending={resetSending}
+              onSubmit={(e) => void handleTravelerPasswordResetSubmit(e)}
+              onBack={exitTravelerPasswordReset}
+              emailInputId="auth-page-forgot-reset-email"
+              className="p-6 space-y-4"
+            />
+          ) : (
           <form noValidate onSubmit={handleSubmit} className="p-6 space-y-4">
             {fieldErrors.form && (
               <p className="text-sm text-red-700 bg-red-50 px-3 py-2 rounded-lg border border-red-100" role="alert">
@@ -560,7 +613,12 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setForgotPasswordOpen(true)}
+                    onClick={() => {
+                      setResetPasswordEmail(email.trim());
+                      setResetPasswordFieldError(null);
+                      setResetPasswordSuccess(null);
+                      setPasswordResetPanel(true);
+                    }}
                     className="text-xs text-finland hover:underline disabled:opacity-50"
                   >
                     Forgot password?
@@ -715,19 +773,11 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
               )}
             </button>
           </form>
+          )}
             </>
           )}
         </div>
       </div>
     </div>
-    <ForgotPasswordModal
-      open={forgotPasswordOpen}
-      onClose={() => setForgotPasswordOpen(false)}
-      defaultEmail={email}
-      sending={resetSending}
-      title="Reset your password"
-      onSend={sendPasswordResetEmail}
-    />
-    </>
   );
 }

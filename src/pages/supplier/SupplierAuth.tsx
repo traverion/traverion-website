@@ -19,7 +19,7 @@ import { consumePartnerAuthFlash } from '../../lib/partnerAuthFlash';
 import { publicSiteBaseUrl } from '../../lib/publicSiteUrl';
 import { fetchConsumerProfile } from '../../data/supabase-consumer-profile';
 import { authInputErrorClasses, isValidEmailFormat } from '../../lib/authFormValidation';
-import ForgotPasswordModal, { type ForgotPasswordSendResult } from '../../components/auth/ForgotPasswordModal';
+import ForgotPasswordInline, { type ForgotPasswordSendResult } from '../../components/auth/ForgotPasswordInline';
 
 /** Fire-and-forget welcome email (Edge Function dedupes via welcome_email_sent_at). */
 function sendSupplierWelcomeEmail(userId: string): void {
@@ -66,7 +66,10 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [resetSending, setResetSending] = useState(false);
-  const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
+  const [passwordResetPanel, setPasswordResetPanel] = useState(false);
+  const [resetPasswordEmail, setResetPasswordEmail] = useState('');
+  const [resetPasswordFieldError, setResetPasswordFieldError] = useState<string | null>(null);
+  const [resetPasswordSuccess, setResetPasswordSuccess] = useState<string | null>(null);
   const [resendSending, setResendSending] = useState(false);
   const [recoveryMode, setRecoveryMode] = useState(false);
   const [recoveryPassword, setRecoveryPassword] = useState('');
@@ -85,6 +88,7 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
     setMode(flash.tab === 'signup' ? 'signup' : 'signin');
     if (flash.email) setEmail(flash.email);
     setSuccessMessage(null);
+    setPasswordResetPanel(false);
   }, []);
 
   const mapAuthError = (message: string): string => {
@@ -318,6 +322,37 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
     return { ok: true };
   };
 
+  const exitPartnerPasswordReset = () => {
+    setPasswordResetPanel(false);
+    setResetPasswordEmail('');
+    setResetPasswordFieldError(null);
+    setResetPasswordSuccess(null);
+  };
+
+  const handlePartnerPasswordResetSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setResetPasswordFieldError(null);
+    setResetPasswordSuccess(null);
+    const trimmed = resetPasswordEmail.trim();
+    if (!trimmed) {
+      setResetPasswordFieldError('Enter the email address you want the reset link sent to.');
+      return;
+    }
+    if (!isValidEmailFormat(trimmed)) {
+      setResetPasswordFieldError('Enter a valid email address.');
+      return;
+    }
+    const normalized = trimmed.toLowerCase();
+    const result = await sendPasswordResetEmail(normalized);
+    if (!result.ok) {
+      setResetPasswordFieldError(result.error);
+      return;
+    }
+    setResetPasswordSuccess(
+      `If an account exists for ${normalized}, you will get an email with a link to reset your password. Check spam too.`
+    );
+  };
+
   const handleResendConfirmation = async () => {
     setFieldErrors({});
     if (!email.trim()) {
@@ -383,7 +418,6 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
   };
 
   return (
-    <>
     <div className="w-full flex flex-col lg:flex-row lg:items-stretch xl:items-center lg:justify-between xl:justify-center gap-10 lg:gap-12 xl:gap-16 2xl:gap-20 px-0 sm:px-2 py-6 sm:py-8">
       {/* Left: value prop + benefits (GYG/Viator style) */}
       <div className="w-full lg:flex-1 lg:max-w-lg xl:max-w-xl 2xl:max-w-2xl min-w-0">
@@ -503,6 +537,7 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
                 setMode('signup');
                 setFieldErrors({});
                 setSuccessMessage(null);
+                exitPartnerPasswordReset();
               }}
               className={`flex-1 flex items-center justify-center gap-2 py-4 text-sm font-medium transition-colors ${
                 mode === 'signup'
@@ -519,6 +554,7 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
                 setMode('signin');
                 setFieldErrors({});
                 setSuccessMessage(null);
+                exitPartnerPasswordReset();
               }}
               className={`flex-1 flex items-center justify-center gap-2 py-4 text-sm font-medium transition-colors ${
                 mode === 'signin'
@@ -531,6 +567,22 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
             </button>
           </div>
 
+          {mode === 'signin' && passwordResetPanel ? (
+            <ForgotPasswordInline
+              title="Reset partner password"
+              email={resetPasswordEmail}
+              onEmailChange={(v) => {
+                setResetPasswordEmail(v);
+                setResetPasswordFieldError(null);
+              }}
+              fieldError={resetPasswordFieldError}
+              successMessage={resetPasswordSuccess}
+              sending={resetSending}
+              onSubmit={(e) => void handlePartnerPasswordResetSubmit(e)}
+              onBack={exitPartnerPasswordReset}
+              emailInputId="supplier-forgot-reset-email"
+            />
+          ) : (
           <form noValidate onSubmit={handleSubmit} className="p-6 sm:p-8 space-y-4 sm:space-y-5">
             {fieldErrors.form && (
               <p className="text-sm text-red-700 bg-red-50 px-3 py-2 rounded-lg border border-red-100" role="alert">
@@ -683,7 +735,12 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
               {mode === 'signin' && (
                 <button
                   type="button"
-                  onClick={() => setForgotPasswordOpen(true)}
+                  onClick={() => {
+                    setResetPasswordEmail(email.trim());
+                    setResetPasswordFieldError(null);
+                    setResetPasswordSuccess(null);
+                    setPasswordResetPanel(true);
+                  }}
                   className="mt-2 text-xs text-finland hover:underline"
                 >
                   Forgot password?
@@ -750,6 +807,7 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
               )}
             </button>
           </form>
+          )}
             </>
           )}
         </div>
@@ -762,14 +820,5 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
         </p>
       </div>
     </div>
-    <ForgotPasswordModal
-      open={forgotPasswordOpen}
-      onClose={() => setForgotPasswordOpen(false)}
-      defaultEmail={email}
-      sending={resetSending}
-      title="Reset partner password"
-      onSend={sendPasswordResetEmail}
-    />
-    </>
   );
 }

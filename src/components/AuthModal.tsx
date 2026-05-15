@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, LogIn, UserPlus } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -8,7 +8,7 @@ import { BRAND_LOGO_SRC } from '../lib/brandAssets';
 import { DUPLICATE_TRAVERION_EMAIL_MESSAGE_PREFIX, EMAIL_ALREADY_IN_USE } from '../lib/customerSupplierAuthMessages';
 import { supplierPortalHref } from '../lib/partnerHost';
 import { authInputErrorClasses, isValidEmailFormat } from '../lib/authFormValidation';
-import ForgotPasswordModal, { type ForgotPasswordSendResult } from './auth/ForgotPasswordModal';
+import ForgotPasswordInline, { type ForgotPasswordSendResult } from './auth/ForgotPasswordInline';
 
 type Tab = 'signin' | 'signup';
 
@@ -28,7 +28,19 @@ export default function AuthModal() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [resetSending, setResetSending] = useState(false);
-  const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
+  const [passwordResetPanel, setPasswordResetPanel] = useState(false);
+  const [resetPasswordEmail, setResetPasswordEmail] = useState('');
+  const [resetPasswordFieldError, setResetPasswordFieldError] = useState<string | null>(null);
+  const [resetPasswordSuccess, setResetPasswordSuccess] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!authModalOpen) {
+      setPasswordResetPanel(false);
+      setResetPasswordEmail('');
+      setResetPasswordFieldError(null);
+      setResetPasswordSuccess(null);
+    }
+  }, [authModalOpen]);
 
   const mapAuthError = (message: string): string => {
     if (message.startsWith(DUPLICATE_TRAVERION_EMAIL_MESSAGE_PREFIX)) return message;
@@ -152,10 +164,40 @@ export default function AuthModal() {
     return { ok: true };
   };
 
+  const exitModalPasswordReset = () => {
+    setPasswordResetPanel(false);
+    setResetPasswordEmail('');
+    setResetPasswordFieldError(null);
+    setResetPasswordSuccess(null);
+  };
+
+  const handleModalPasswordResetSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setResetPasswordFieldError(null);
+    setResetPasswordSuccess(null);
+    const trimmed = resetPasswordEmail.trim();
+    if (!trimmed) {
+      setResetPasswordFieldError('Enter the email address you want the reset link sent to.');
+      return;
+    }
+    if (!isValidEmailFormat(trimmed)) {
+      setResetPasswordFieldError('Enter a valid email address.');
+      return;
+    }
+    const normalized = trimmed.toLowerCase();
+    const result = await sendPasswordResetEmail(normalized);
+    if (!result.ok) {
+      setResetPasswordFieldError(result.error);
+      return;
+    }
+    setResetPasswordSuccess(
+      `If an account exists for ${normalized}, you will get an email with a link to reset your password. Check spam too.`
+    );
+  };
+
   if (!authModalOpen) return null;
 
   return (
-    <>
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-[2px] animate-fade-in"
       style={{ animationDuration: '0.2s' }}
@@ -173,7 +215,7 @@ export default function AuthModal() {
           <div className="flex items-center gap-3 min-w-0">
             <img src={BRAND_LOGO_SRC} alt="" className="h-10 w-10 object-contain flex-shrink-0" />
             <h2 className="text-xl font-semibold text-gray-900 truncate">
-              {tab === 'signin' ? 'Log in' : 'Sign up'}
+              {tab === 'signin' && passwordResetPanel ? 'Reset your password' : tab === 'signin' ? 'Log in' : 'Sign up'}
             </h2>
           </div>
           <button
@@ -193,6 +235,7 @@ export default function AuthModal() {
               setTab('signin');
               setFieldErrors({});
               setSuccessMessage(null);
+              exitModalPasswordReset();
             }}
             className={`flex-1 py-4 text-sm font-medium transition-colors ${
               tab === 'signin'
@@ -208,6 +251,7 @@ export default function AuthModal() {
               setTab('signup');
               setFieldErrors({});
               setSuccessMessage(null);
+              exitModalPasswordReset();
             }}
             className={`flex-1 py-4 text-sm font-medium transition-colors ${
               tab === 'signup'
@@ -219,6 +263,7 @@ export default function AuthModal() {
           </button>
         </div>
 
+        {!(tab === 'signin' && passwordResetPanel) && (
         <p className="px-6 pt-3 pb-1 text-xs text-gray-500 leading-relaxed border-b border-gray-50">
           Traveler account — bookings and cart, not the partner dashboard. Want to be a supplier?{' '}
           <a
@@ -229,7 +274,25 @@ export default function AuthModal() {
             Join here
           </a>
         </p>
+        )}
 
+        {tab === 'signin' && passwordResetPanel ? (
+          <ForgotPasswordInline
+            title="Reset your password"
+            email={resetPasswordEmail}
+            onEmailChange={(v) => {
+              setResetPasswordEmail(v);
+              setResetPasswordFieldError(null);
+            }}
+            fieldError={resetPasswordFieldError}
+            successMessage={resetPasswordSuccess}
+            sending={resetSending}
+            onSubmit={(e) => void handleModalPasswordResetSubmit(e)}
+            onBack={exitModalPasswordReset}
+            emailInputId="auth-modal-forgot-reset-email"
+            className="p-6 space-y-4"
+          />
+        ) : (
         <form noValidate onSubmit={handleSubmit} className="p-6 space-y-4">
           {fieldErrors.form && (
             <p className="text-sm text-red-700 bg-red-50 px-3 py-2 rounded-lg border border-red-100" role="alert">
@@ -332,7 +395,12 @@ export default function AuthModal() {
             {tab === 'signin' && (
               <button
                 type="button"
-                onClick={() => setForgotPasswordOpen(true)}
+                onClick={() => {
+                  setResetPasswordEmail(email.trim());
+                  setResetPasswordFieldError(null);
+                  setResetPasswordSuccess(null);
+                  setPasswordResetPanel(true);
+                }}
                 className="mt-2 text-xs text-finland hover:underline"
               >
                 Forgot password?
@@ -488,16 +556,8 @@ export default function AuthModal() {
             )}
           </button>
         </form>
+        )}
       </div>
     </div>
-    <ForgotPasswordModal
-      open={forgotPasswordOpen}
-      onClose={() => setForgotPasswordOpen(false)}
-      defaultEmail={email}
-      sending={resetSending}
-      title="Reset your password"
-      onSend={sendPasswordResetEmail}
-    />
-    </>
   );
 }
