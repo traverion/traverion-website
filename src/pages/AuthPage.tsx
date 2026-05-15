@@ -10,6 +10,7 @@ import { subscribePasswordRecovery, updatePasswordAfterRecovery } from '../lib/p
 import { DUPLICATE_TRAVERION_EMAIL_MESSAGE_PREFIX, EMAIL_ALREADY_IN_USE } from '../lib/customerSupplierAuthMessages';
 import { supplierPortalHref } from '../lib/partnerHost';
 import { authInputErrorClasses, isValidEmailFormat } from '../lib/authFormValidation';
+import ForgotPasswordModal, { type ForgotPasswordSendResult } from '../components/auth/ForgotPasswordModal';
 
 type AuthTab = 'signin' | 'signup';
 
@@ -58,6 +59,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [resetSending, setResetSending] = useState(false);
+  const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
   const [resendSending, setResendSending] = useState(false);
   const [recoveryMode, setRecoveryMode] = useState(false);
   const [recoveryPassword, setRecoveryPassword] = useState('');
@@ -251,31 +253,15 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
     setSuccessMessage('Confirmation email sent. Check your inbox and use the new link.');
   }, [email, nextPage]);
 
-  const handleResetPassword = async () => {
-    setFieldErrors({});
-    setSuccessMessage(null);
-    if (!email.trim()) {
-      setFieldErrors({ email: 'Enter your email address, then use forgot password.' });
-      return;
-    }
-    if (!isValidEmailFormat(email)) {
-      setFieldErrors({ email: 'Enter a valid email address.' });
-      return;
-    }
-    if (!supabase) {
-      setFieldErrors({ form: 'Password reset is not configured.' });
-      return;
-    }
+  const sendPasswordResetEmail = async (normalizedEmail: string): Promise<ForgotPasswordSendResult> => {
+    if (!supabase) return { ok: false, error: 'Password reset is not configured.' };
     setResetSending(true);
-    const { error: err } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+    const { error: err } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
       redirectTo: `${publicSiteBaseUrl()}/log-in?next=${encodeURIComponent(nextPage)}`,
     });
     setResetSending(false);
-    if (err) {
-      setFieldErrors(serverMessageToFields(err.message));
-      return;
-    }
-    setSuccessMessage('Password reset email sent. Check your inbox.');
+    if (err) return { ok: false, error: mapAuthError(err.message) };
+    return { ok: true };
   };
 
   const handleRecoverySubmit = async (e: React.FormEvent) => {
@@ -313,6 +299,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
   };
 
   return (
+    <>
     <div className="relative min-h-screen pt-20">
       <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
         <div
@@ -573,11 +560,10 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
                   </button>
                   <button
                     type="button"
-                    onClick={handleResetPassword}
-                    disabled={resetSending}
+                    onClick={() => setForgotPasswordOpen(true)}
                     className="text-xs text-finland hover:underline disabled:opacity-50"
                   >
-                    {resetSending ? 'Sending reset email…' : 'Forgot password?'}
+                    Forgot password?
                   </button>
                 </div>
               )}
@@ -734,5 +720,14 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
         </div>
       </div>
     </div>
+    <ForgotPasswordModal
+      open={forgotPasswordOpen}
+      onClose={() => setForgotPasswordOpen(false)}
+      defaultEmail={email}
+      sending={resetSending}
+      title="Reset your password"
+      onSend={sendPasswordResetEmail}
+    />
+    </>
   );
 }

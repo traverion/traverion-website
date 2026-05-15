@@ -19,6 +19,7 @@ import { consumePartnerAuthFlash } from '../../lib/partnerAuthFlash';
 import { publicSiteBaseUrl } from '../../lib/publicSiteUrl';
 import { fetchConsumerProfile } from '../../data/supabase-consumer-profile';
 import { authInputErrorClasses, isValidEmailFormat } from '../../lib/authFormValidation';
+import ForgotPasswordModal, { type ForgotPasswordSendResult } from '../../components/auth/ForgotPasswordModal';
 
 /** Fire-and-forget welcome email (Edge Function dedupes via welcome_email_sent_at). */
 function sendSupplierWelcomeEmail(userId: string): void {
@@ -65,6 +66,7 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [resetSending, setResetSending] = useState(false);
+  const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
   const [resendSending, setResendSending] = useState(false);
   const [recoveryMode, setRecoveryMode] = useState(false);
   const [recoveryPassword, setRecoveryPassword] = useState('');
@@ -305,31 +307,15 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
     }
   };
 
-  const handleResetPassword = async () => {
-    setFieldErrors({});
-    setSuccessMessage(null);
-    if (!email.trim()) {
-      setFieldErrors({ email: 'Enter your email address, then use forgot password.' });
-      return;
-    }
-    if (!isValidEmailFormat(email)) {
-      setFieldErrors({ email: 'Enter a valid email address.' });
-      return;
-    }
-    if (!supabase) {
-      setFieldErrors({ form: 'Password reset is not configured.' });
-      return;
-    }
+  const sendPasswordResetEmail = async (normalizedEmail: string): Promise<ForgotPasswordSendResult> => {
+    if (!supabase) return { ok: false, error: 'Password reset is not configured.' };
     setResetSending(true);
-    const { error: err } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+    const { error: err } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
       redirectTo: `${supplierPortalPublicBaseUrl()}${PARTNER_LOGIN_PATH}`,
     });
     setResetSending(false);
-    if (err) {
-      setFieldErrors(serverMessageToFields(err.message));
-      return;
-    }
-    setSuccessMessage('Password reset email sent. Check your inbox.');
+    if (err) return { ok: false, error: mapAuthError(err.message) };
+    return { ok: true };
   };
 
   const handleResendConfirmation = async () => {
@@ -397,6 +383,7 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
   };
 
   return (
+    <>
     <div className="w-full flex flex-col lg:flex-row lg:items-stretch xl:items-center lg:justify-between xl:justify-center gap-10 lg:gap-12 xl:gap-16 2xl:gap-20 px-0 sm:px-2 py-6 sm:py-8">
       {/* Left: value prop + benefits (GYG/Viator style) */}
       <div className="w-full lg:flex-1 lg:max-w-lg xl:max-w-xl 2xl:max-w-2xl min-w-0">
@@ -696,11 +683,10 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
               {mode === 'signin' && (
                 <button
                   type="button"
-                  onClick={handleResetPassword}
-                  disabled={resetSending}
-                  className="mt-2 text-xs text-finland hover:underline disabled:opacity-50"
+                  onClick={() => setForgotPasswordOpen(true)}
+                  className="mt-2 text-xs text-finland hover:underline"
                 >
-                  {resetSending ? 'Sending reset email…' : 'Forgot password?'}
+                  Forgot password?
                 </button>
               )}
             </div>
@@ -776,5 +762,14 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
         </p>
       </div>
     </div>
+    <ForgotPasswordModal
+      open={forgotPasswordOpen}
+      onClose={() => setForgotPasswordOpen(false)}
+      defaultEmail={email}
+      sending={resetSending}
+      title="Reset partner password"
+      onSend={sendPasswordResetEmail}
+    />
+    </>
   );
 }
