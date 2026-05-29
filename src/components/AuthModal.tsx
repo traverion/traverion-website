@@ -9,6 +9,7 @@ import { DUPLICATE_TRAVERION_EMAIL_MESSAGE_PREFIX, EMAIL_ALREADY_IN_USE } from '
 import { supplierPortalHref } from '../lib/partnerHost';
 import { authInputErrorClasses, isValidEmailFormat } from '../lib/authFormValidation';
 import ForgotPasswordInline, { type ForgotPasswordSendResult } from './auth/ForgotPasswordInline';
+import { TRAVELER_RESET_PASSWORD_PATH } from '../lib/partnerPortalPaths';
 
 type Tab = 'signin' | 'signup';
 
@@ -157,7 +158,7 @@ export default function AuthModal() {
     if (!supabase) return { ok: false, error: 'Password reset is not configured.' };
     setResetSending(true);
     const { error: err } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
-      redirectTo: `${publicSiteBaseUrl()}/log-in?next=account`,
+      redirectTo: `${publicSiteBaseUrl()}${TRAVELER_RESET_PASSWORD_PATH}?next=account`,
     });
     setResetSending(false);
     if (err) return { ok: false, error: mapAuthError(err.message) };

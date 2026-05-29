@@ -55,10 +55,12 @@ import {
   PARTNER_APP_BASE,
   PARTNER_EMAIL_VERIFIED_PATH,
   PARTNER_LOGIN_PATH,
+  PARTNER_RESET_PASSWORD_PATH,
   partnerMarketingPageFromPathname,
 } from '../../lib/partnerPortalPaths';
 import PartnerMarketingStaticPage from './PartnerMarketingStaticPage';
 import PartnerEmailVerifiedPage from './PartnerEmailVerifiedPage';
+import PartnerResetPasswordPage from './PartnerResetPasswordPage';
 import { fetchConsumerProfile } from '../../data/supabase-consumer-profile';
 import { partnerSignInTravelerOnlyEmailError } from '../../lib/customerSupplierAuthMessages';
 import { setPartnerAuthFlash } from '../../lib/partnerAuthFlash';
@@ -116,6 +118,11 @@ function getSectionFromPath(pathname: string): SupplierSection | null {
 function isSupplierLoginPath(pathname: string): boolean {
   const p = pathname.replace(/\/$/, '');
   return p === PARTNER_LOGIN_PATH;
+}
+
+function isPartnerResetPasswordPath(pathname: string): boolean {
+  const p = pathname.replace(/\/$/, '') || '/';
+  return p === PARTNER_RESET_PASSWORD_PATH;
 }
 
 function isSupplierPortalPath(pathname: string): boolean {
@@ -789,6 +796,10 @@ export default function SupplierLayout() {
   const normalizedPathForVerify = pathname.replace(/\/$/, '') || '/';
   if (normalizedPathForVerify === PARTNER_EMAIL_VERIFIED_PATH) {
     return <PartnerEmailVerifiedPage />;
+  }
+
+  if (isPartnerResetPasswordPath(pathname)) {
+    return <PartnerResetPasswordPage />;
   }
 
   if (loading) {

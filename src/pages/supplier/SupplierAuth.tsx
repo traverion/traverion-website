@@ -5,7 +5,11 @@ import { ensureSupplierProfile, fetchSupplierProfile } from '../../data/supabase
 import { isPhoneAvailableForSignup } from '../../data/supabase-phone-signup';
 import { notifySupplierEvent } from '../../data/supabase-supplier-messaging';
 import { supplierPortalPublicBaseUrl } from '../../lib/partnerHost';
-import { PARTNER_EMAIL_VERIFIED_PATH, PARTNER_LOGIN_PATH } from '../../lib/partnerPortalPaths';
+import {
+  PARTNER_EMAIL_VERIFIED_PATH,
+  PARTNER_LOGIN_PATH,
+  PARTNER_RESET_PASSWORD_PATH,
+} from '../../lib/partnerPortalPaths';
 import { isSignUpEmailAlreadyRegistered } from '../../lib/supabaseAuthHelpers';
 import { normalizePhoneNumber } from '../../lib/phoneNormalize';
 import { subscribePasswordRecovery, updatePasswordAfterRecovery } from '../../lib/passwordRecoveryFlow';
@@ -315,7 +319,7 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
     if (!supabase) return { ok: false, error: 'Password reset is not configured.' };
     setResetSending(true);
     const { error: err } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
-      redirectTo: `${supplierPortalPublicBaseUrl()}${PARTNER_LOGIN_PATH}`,
+      redirectTo: `${supplierPortalPublicBaseUrl()}${PARTNER_RESET_PASSWORD_PATH}`,
     });
     setResetSending(false);
     if (err) return { ok: false, error: mapAuthError(err.message) };

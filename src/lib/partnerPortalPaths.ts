@@ -2,6 +2,12 @@
 
 export const PARTNER_LOGIN_PATH = '/login';
 
+/** Password reset email links land here (recovery session in URL hash). */
+export const PARTNER_RESET_PASSWORD_PATH = '/reset-password';
+
+/** Traveler site uses the same path on www / apex. */
+export const TRAVELER_RESET_PASSWORD_PATH = '/reset-password';
+
 /** Email confirmation links land here (hash tokens); not useful without Supabase’s signed fragment. */
 export const PARTNER_EMAIL_VERIFIED_PATH = '/email-verified';
 
@@ -55,6 +61,7 @@ export function isPartnerPortalPath(pathname: string): boolean {
   const p = normalizePartnerPath(pathname);
   return (
     p === PARTNER_LOGIN_PATH ||
+    p === PARTNER_RESET_PASSWORD_PATH ||
     p === PARTNER_EMAIL_VERIFIED_PATH ||
     p === PARTNER_APP_BASE ||
     p.startsWith(`${PARTNER_APP_BASE}/`)

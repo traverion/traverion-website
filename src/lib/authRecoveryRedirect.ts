@@ -1,43 +1,36 @@
 /**
  * Password reset emails append #...&type=recovery to the redirect URL.
- * If Supabase "Site URL" is only the domain (e.g. https://traverion.com), users land on /
- * and never see a "set new password" form. Send them to a route that handles recovery.
+ * Send users to /reset-password so they see a dedicated "set new password" form,
+ * not the normal sign-in screen (which may redirect logged-in users to the app).
  */
 import { isPublicTraverionMarketingHost } from './adminHost';
 import { isTraverionPartnerHost, supplierPortalPublicBaseUrl } from './partnerHost';
 import {
   PARTNER_APP_BASE,
   PARTNER_LOGIN_PATH,
+  PARTNER_RESET_PASSWORD_PATH,
+  TRAVELER_RESET_PASSWORD_PATH,
   legacySupplierPathToPartnerPath,
 } from './partnerPortalPaths';
+import { parseAuthHashParams } from './passwordRecoveryFlow';
 
 export function redirectIfPasswordRecoveryLandingInWrongPlace(): void {
   if (typeof window === 'undefined') return;
-  const { pathname, hash, search, origin } = window.location;
-  const h = hash.startsWith('#') ? hash.slice(1) : hash;
-  let type: string | null = null;
-  if (h) {
+  const { pathname, search, origin } = window.location;
+  const h = parseAuthHashParams();
+  let type = h.get('type');
+  if (!type) {
     try {
-      type = new URLSearchParams(h).get('type');
+      type = new URLSearchParams(search).get('type');
     } catch {
       /* ignore */
-    }
-  }
-  if (type !== 'recovery') {
-    try {
-      if (new URLSearchParams(window.location.search).get('type') === 'recovery') {
-        type = 'recovery';
-      }
-    } catch {
-      return;
     }
   }
   if (type !== 'recovery') return;
 
   const p = pathname.replace(/\/$/, '') || '/';
   const host = window.location.hostname;
-
-  const fragment = h ? `#${h}` : '';
+  const fragment = window.location.hash;
 
   if (host === 'admin.traverion.com') {
     if (p === '/login' || p === '/admin') return;
@@ -46,14 +39,8 @@ export function redirectIfPasswordRecoveryLandingInWrongPlace(): void {
   }
 
   if (isTraverionPartnerHost()) {
-    if (
-      p === PARTNER_LOGIN_PATH ||
-      p === PARTNER_APP_BASE ||
-      p.startsWith(`${PARTNER_APP_BASE}/`)
-    ) {
-      return;
-    }
-    window.location.replace(`${origin}${PARTNER_LOGIN_PATH}${search}${fragment}`);
+    if (p === PARTNER_RESET_PASSWORD_PATH) return;
+    window.location.replace(`${origin}${PARTNER_RESET_PASSWORD_PATH}${search}${fragment}`);
     return;
   }
 
@@ -62,27 +49,44 @@ export function redirectIfPasswordRecoveryLandingInWrongPlace(): void {
       p === '/supplier-log-in' || p === '/supplier' || p.startsWith('/supplier/');
     if (legacySupplier) {
       const mapped = legacySupplierPathToPartnerPath(p);
+      if (mapped === PARTNER_RESET_PASSWORD_PATH || mapped === PARTNER_LOGIN_PATH) {
+        window.location.replace(
+          `${supplierPortalPublicBaseUrl()}${PARTNER_RESET_PASSWORD_PATH}${search}${fragment}`
+        );
+        return;
+      }
+    }
+    if (p === PARTNER_LOGIN_PATH || p === PARTNER_RESET_PASSWORD_PATH) {
       window.location.replace(
-        `${supplierPortalPublicBaseUrl()}${mapped}${search}${fragment}`
+        `${supplierPortalPublicBaseUrl()}${PARTNER_RESET_PASSWORD_PATH}${search}${fragment}`
       );
       return;
     }
-    if (
-      p === PARTNER_LOGIN_PATH ||
-      p === PARTNER_APP_BASE ||
-      p.startsWith(`${PARTNER_APP_BASE}/`)
-    ) {
-      window.location.replace(`${supplierPortalPublicBaseUrl()}${p}${search}${fragment}`);
-      return;
-    }
   }
 
-  if (p === '/auth' || p === '/sign-up' || p === '/log-in') return;
+  if (p === TRAVELER_RESET_PASSWORD_PATH) return;
 
-  if (p.startsWith('/supplier') || p === '/supplier-log-in') {
-    window.location.replace(`${origin}${PARTNER_LOGIN_PATH}${search}${fragment}`);
+  if (p === '/auth' || p === '/sign-up' || p === '/log-in') {
+    window.location.replace(`${origin}${TRAVELER_RESET_PASSWORD_PATH}${search}${fragment}`);
     return;
   }
 
-  window.location.replace(`${origin}/log-in${search}${fragment}`);
+  if (p.startsWith('/supplier') || p === '/supplier-log-in') {
+    window.location.replace(
+      `${supplierPortalPublicBaseUrl()}${PARTNER_RESET_PASSWORD_PATH}${search}${fragment}`
+    );
+    return;
+  }
+
+  if (
+    p === PARTNER_APP_BASE ||
+    p.startsWith(`${PARTNER_APP_BASE}/`)
+  ) {
+    window.location.replace(
+      `${supplierPortalPublicBaseUrl()}${PARTNER_RESET_PASSWORD_PATH}${search}${fragment}`
+    );
+    return;
+  }
+
+  window.location.replace(`${origin}${TRAVELER_RESET_PASSWORD_PATH}${search}${fragment}`);
 }

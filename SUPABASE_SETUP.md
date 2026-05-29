@@ -77,6 +77,33 @@ The admin dashboard can now:
 2. Redeploy your site
 3. Test forms in production
 
+### Authentication redirect URLs (required for sign-up, email confirm, password reset)
+
+In Supabase dashboard go to **Authentication → URL configuration** and add these **Redirect URLs** (wildcards `**` match query strings and hash tokens):
+
+**Traveler site (www / apex)**
+- `https://www.traverion.com/log-in**`
+- `https://www.traverion.com/sign-up**`
+- `https://www.traverion.com/reset-password**`
+- `https://www.traverion.com/email-confirmed**`
+- `https://traverion.com/log-in**` (if you use apex)
+- `https://traverion.com/reset-password**`
+
+**Partner portal**
+- `https://partner.traverion.com/login**`
+- `https://partner.traverion.com/reset-password**`
+- `https://partner.traverion.com/email-verified**`
+- `https://partner.traverion.com/partner**`
+
+**Local dev**
+- `http://localhost:5173/log-in**`
+- `http://localhost:5173/reset-password**`
+- `http://localhost:5173/login**`
+
+Password reset emails redirect to `/reset-password`. That page verifies the one-time recovery session and shows **Set a new password** (partner and traveler). After updating, the user is signed out and sent back to sign-in.
+
+**Site URL** in Supabase can stay as your main marketing origin (e.g. `https://www.traverion.com`); the app also redirects recovery links that land on `/` or `/login` to `/reset-password` automatically.
+
 ## Troubleshooting
 
 ### Common Issues:

@@ -3,6 +3,7 @@
  *
  * Supabase → Authentication → URL configuration — add Redirect URLs:
  *   https://partner.traverion.com/login**
+ *   https://partner.traverion.com/reset-password**
  *   https://partner.traverion.com/email-verified**
  *   https://partner.traverion.com/partner**
  * (Keep old patterns briefly if emails already sent: supplier-log-in, /supplier**)

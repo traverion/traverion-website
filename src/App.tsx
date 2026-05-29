@@ -22,6 +22,7 @@ import Indochina14Day from './pages/Indochina14Day';
 import ThailandVietnam14Day from './pages/ThailandVietnam14Day';
 import Contact from './pages/Contact';
 import AuthPage from './pages/AuthPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 import EmailConfirmedSuccess from './pages/EmailConfirmedSuccess';
 import DestinationPage from './pages/DestinationPage';
 import AdminGate from './components/AdminGate';
@@ -266,6 +267,7 @@ function App() {
       home: { title: 'Traverion', description: 'Book tours and activities worldwide. Find and reserve experiences with free cancellation.' },
       packages: { title: 'Tours & activities', description: 'Browse and book tours and activities worldwide. Filter by destination, price, and more.' },
       auth: { title: 'Sign in', description: 'Sign in or create an account to manage your bookings and cart.' },
+      'reset-password': { title: 'Set a new password', description: 'Choose a new password for your Traverion traveler account.' },
       'email-confirmed': { title: 'Email confirmed', description: 'Your Traverion traveler email was verified.' },
       cart: { title: 'Cart', description: 'Your cart. Request bookings for selected tours.' },
       account: { title: 'My account', description: 'Your bookings, wishlist, and cart in one place.' },
@@ -291,7 +293,7 @@ function App() {
     setRobotsNoIndex(currentPage === 'booking-confirmed');
 
     const pathMap: Record<string, string> = {
-      home: '/', packages: '/packages', auth: '/auth', 'email-confirmed': '/email-confirmed', cart: '/cart', account: '/account', wishlist: '/wishlist', bookings: '/bookings',
+      home: '/', packages: '/packages', auth: '/auth', 'reset-password': '/reset-password', 'email-confirmed': '/email-confirmed', cart: '/cart', account: '/account', wishlist: '/wishlist', bookings: '/bookings',
       'booking-confirmed': '/booking-confirmed',
       blog: '/blog', contact: '/contact', privacy: '/privacy', terms: '/terms', cookies: '/cookies',
       about: '/about', sitemap: '/sitemap',
@@ -354,6 +356,8 @@ function App() {
         );
       case 'auth':
         return <AuthPage onNavigate={setCurrentPage} />;
+      case 'reset-password':
+        return <ResetPasswordPage onNavigate={setCurrentPage} />;
       case 'email-confirmed':
         return <EmailConfirmedSuccess />;
       case 'bookings':
