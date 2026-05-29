@@ -60,8 +60,7 @@ import {
   redirectIfInAppAdminOnPublicMarketingSite,
 } from './lib/adminHost';
 import { getListingByIdAsync } from './data/listings';
-import { isPartnerMarketingPathForCurrentHost } from './lib/partnerHost';
-import { isPartnerPortalPath } from './lib/partnerPortalPaths';
+import { isPartnerMarketingPathForCurrentHost, isPartnerPortalPathForCurrentHost } from './lib/partnerHost';
 import { TourPackage as TourPackageType } from './types/tour';
 
 function readInitialRoute(): { page: string; destinationSlug: string | null } {
@@ -84,7 +83,7 @@ function App() {
   const supplierPath =
     typeof window !== 'undefined' ? window.location.pathname.replace(/\/$/, '') || '/' : '';
   const isSupplierArea =
-    isPartnerPortalPath(supplierPath) ||
+    isPartnerPortalPathForCurrentHost(supplierPath) ||
     isPartnerMarketingPathForCurrentHost(supplierPath) ||
     supplierPath === '/supplier-log-in' ||
     supplierPath === '/supplier' ||

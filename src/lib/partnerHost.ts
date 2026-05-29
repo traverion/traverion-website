@@ -13,6 +13,7 @@
 
 import {
   PARTNER_LOGIN_PATH,
+  PARTNER_RESET_PASSWORD_PATH,
   isPartnerMarketingStaticPath,
   isPartnerPortalPath,
   legacySupplierPathToPartnerPath,
@@ -25,6 +26,25 @@ const TRAVELER_MARKETING_HOSTNAMES = new Set(['www.traverion.com', 'traverion.co
 export function isTraverionPartnerHost(): boolean {
   if (typeof window === 'undefined') return false;
   return window.location.hostname === PARTNER_HOSTNAME;
+}
+
+/**
+ * Partner portal SPA routes (/login, /partner/*, …) — scoped to partner host (and localhost dev).
+ * `/reset-password` exists on both www and partner; only the partner host uses the supplier shell.
+ */
+export function isPartnerPortalPathForCurrentHost(pathname: string): boolean {
+  if (typeof window === 'undefined') return false;
+  const p = pathname.replace(/\/$/, '') || '/';
+
+  if (p === PARTNER_RESET_PASSWORD_PATH) {
+    return isTraverionPartnerHost();
+  }
+
+  if (!isPartnerPortalPath(p)) return false;
+  if (isTraverionPartnerHost()) return true;
+
+  const h = window.location.hostname;
+  return h === 'localhost' || h === '127.0.0.1';
 }
 
 /**
