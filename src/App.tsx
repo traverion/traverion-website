@@ -292,7 +292,7 @@ function App() {
     setRobotsNoIndex(currentPage === 'booking-confirmed' || currentPage === 'reset-password');
 
     const pathMap: Record<string, string> = {
-      home: '/', packages: '/packages', auth: '/auth', 'reset-password': '/account/reset-password', 'email-confirmed': '/email-confirmed', cart: '/cart', account: '/account', wishlist: '/wishlist', bookings: '/bookings',
+      home: '/', packages: '/packages', auth: '/auth', 'reset-password': '/set-password', 'email-confirmed': '/email-confirmed', cart: '/cart', account: '/account', wishlist: '/wishlist', bookings: '/bookings',
       'booking-confirmed': '/booking-confirmed',
       blog: '/blog', contact: '/contact', privacy: '/privacy', terms: '/terms', cookies: '/cookies',
       about: '/about', sitemap: '/sitemap',

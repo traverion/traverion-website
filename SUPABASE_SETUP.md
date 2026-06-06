@@ -84,11 +84,12 @@ In Supabase dashboard go to **Authentication → URL configuration** and add the
 **Traveler site (www / apex)**
 - `https://www.traverion.com/log-in**`
 - `https://www.traverion.com/sign-up**`
-- `https://www.traverion.com/account/reset-password**`
+- `https://www.traverion.com/set-password**`
 - `https://www.traverion.com/email-confirmed**`
 - `https://traverion.com/log-in**` (if you use apex)
-- `https://traverion.com/account/reset-password**`
-- `https://www.traverion.com/reset-password**` (legacy — redirects to `/account/reset-password`)
+- `https://traverion.com/set-password**`
+- `https://www.traverion.com/reset-password**` (legacy — redirects to `/set-password`)
+- `https://www.traverion.com/account/reset-password**` (legacy — redirects to `/set-password`)
 
 **Partner portal**
 - `https://partner.traverion.com/login**`
@@ -98,12 +99,14 @@ In Supabase dashboard go to **Authentication → URL configuration** and add the
 
 **Local dev**
 - `http://localhost:5173/log-in**`
-- `http://localhost:5173/account/reset-password**`
+- `http://localhost:5173/set-password**`
 - `http://localhost:5173/login**`
 
-Traveler password reset emails redirect to `/account/reset-password` on www. Partner reset emails use `/reset-password` on `partner.traverion.com`. Each page verifies the one-time recovery session before showing **Set a new password**. After updating, the user is signed out and sent back to sign-in.
+Traveler password reset emails redirect to `/set-password` on www. Partner reset emails use `/reset-password` on `partner.traverion.com`. Each page verifies the one-time recovery session (PKCE `?code=` or hash tokens) before showing **Set a new password**. After updating, the user is signed out and sent back to sign-in.
 
-**Site URL** in Supabase can stay as your main marketing origin (e.g. `https://www.traverion.com`); the app redirects recovery links that land on `/log-in` or legacy `/reset-password` to `/account/reset-password` automatically.
+**Site URL** in Supabase can stay as your main marketing origin (e.g. `https://www.traverion.com`); the app redirects recovery links that land on `/log-in` or legacy reset paths to `/set-password` automatically.
+
+**If reset links hang on “Verifying…”:** add `https://www.traverion.com/set-password**` to Redirect URLs, then request a **new** reset email (old links keep the old `redirect_to`).
 
 ## Troubleshooting
 

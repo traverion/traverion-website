@@ -1,14 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useLayoutEffect, useState } from 'react';
+import { Loader2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import {
   establishPasswordRecoverySession,
   subscribePasswordRecovery,
   clearAuthHashFromUrl,
+  stripRecoveryQueryFromUrl,
   updatePasswordAfterRecovery,
 } from '../../lib/passwordRecoveryFlow';
 import { authInputErrorClasses } from '../../lib/authFormValidation';
 
-type Phase = 'loading' | 'form' | 'invalid' | 'success';
+type Phase = 'loading' | 'form' | 'invalid' | 'timeout' | 'success';
 
 type FieldKey = 'password' | 'confirm';
 
@@ -37,7 +39,7 @@ export default function SetNewPasswordForm({
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<FieldKey, string>>>({});
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!supabase) {
       setPhase('invalid');
       return;
@@ -48,6 +50,7 @@ export default function SetNewPasswordForm({
     const activate = () => {
       if (cancelled) return;
       clearAuthHashFromUrl();
+      stripRecoveryQueryFromUrl();
       setPhase('form');
     };
 
@@ -56,6 +59,7 @@ export default function SetNewPasswordForm({
     void establishPasswordRecoverySession(supabase).then((result) => {
       if (cancelled) return;
       if (result === 'ready') activate();
+      else if (result === 'timeout') setPhase('timeout');
       else setPhase('invalid');
     });
 
@@ -97,8 +101,10 @@ export default function SetNewPasswordForm({
 
   if (phase === 'loading') {
     return (
-      <div className="py-8 text-center text-sm text-gray-600">
-        <p>Verifying your reset link…</p>
+      <div className="py-10 text-center">
+        <Loader2 className="w-8 h-8 text-finland mx-auto mb-3 animate-spin" aria-hidden />
+        <p className="text-sm text-gray-600">Verifying your reset link…</p>
+        <p className="text-xs text-gray-500 mt-2">This usually takes a few seconds.</p>
       </div>
     );
   }
@@ -107,9 +113,33 @@ export default function SetNewPasswordForm({
     return (
       <div className="space-y-4 py-2">
         <p className="text-sm text-red-700 bg-red-50 px-3 py-2 rounded-lg border border-red-100" role="alert">
-          This reset link is invalid or has expired. Request a new password reset from the sign-in page.
+          This page only works from the secure link in your password reset email. The link may be invalid, expired, or
+          already used.
         </p>
-        <a href={loginHref} className="inline-block text-sm font-medium text-finland hover:underline">
+        <p className="text-sm text-gray-600">
+          Open the page from a <strong>new</strong> reset email, or request one from sign in → Forgot password?
+        </p>
+        <a
+          href={loginHref}
+          className="inline-flex w-full justify-center rounded-lg bg-finland px-4 py-3 text-sm font-semibold text-white hover:bg-finland-dark transition-colors"
+        >
+          {loginLabel}
+        </a>
+      </div>
+    );
+  }
+
+  if (phase === 'timeout') {
+    return (
+      <div className="space-y-4 py-2">
+        <p className="text-sm text-amber-800 bg-amber-50 px-3 py-2 rounded-lg border border-amber-100" role="alert">
+          We could not verify your reset link in time. Try opening the link from your email again, or request a new
+          reset email.
+        </p>
+        <a
+          href={loginHref}
+          className="inline-flex w-full justify-center rounded-lg bg-finland px-4 py-3 text-sm font-semibold text-white hover:bg-finland-dark transition-colors"
+        >
           {loginLabel}
         </a>
       </div>
