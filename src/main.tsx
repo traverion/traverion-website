@@ -1,6 +1,9 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { redirectIfPasswordRecoveryLandingInWrongPlace } from './lib/authRecoveryRedirect';
+import {
+  redirectIfPasswordRecoveryLandingInWrongPlace,
+  redirectLegacyTravelerResetPasswordPath,
+} from './lib/authRecoveryRedirect';
 import { redirectMainDomainAdminToStaffLogin } from './lib/adminHost';
 import {
   redirectTravelerMarketingSupplierPathsToPartnerHost,
@@ -12,6 +15,7 @@ import App from './App.tsx';
 import './index.css';
 
 redirectIfPasswordRecoveryLandingInWrongPlace();
+redirectLegacyTravelerResetPasswordPath();
 redirectMainDomainAdminToStaffLogin();
 redirectTravelerMarketingSupplierPathsToPartnerHost();
 redirectTravelerMarketingPartnerLoginShortcut();

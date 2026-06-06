@@ -1,4 +1,4 @@
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Lock } from 'lucide-react';
 import { HERO_IMG } from '../lib/heroImages';
 import { BRAND_LOGO_SRC } from '../lib/brandAssets';
 import SetNewPasswordForm from '../components/auth/SetNewPasswordForm';
@@ -22,9 +22,10 @@ function readNextAfterReset(): string {
 export default function ResetPasswordPage({ onNavigate }: ResetPasswordPageProps) {
   const nextPage = readNextAfterReset();
   const loginHref = `/log-in?next=${encodeURIComponent(nextPage)}`;
+  const siteLabel = publicSiteBaseUrl().replace(/^https?:\/\//, '');
 
   return (
-    <div className="relative min-h-screen pt-20">
+    <div className="relative min-h-screen">
       <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
         <div
           className="absolute inset-0 bg-cover bg-center scale-110"
@@ -35,24 +36,42 @@ export default function ResetPasswordPage({ onNavigate }: ResetPasswordPageProps
         />
         <div className="absolute inset-0 bg-white/55" />
       </div>
-      <div className="max-w-md mx-auto px-4 py-8 pb-12">
+
+      <header className="relative z-10 border-b border-white/60 bg-white/80 backdrop-blur-md">
+        <div className="max-w-lg mx-auto px-4 h-14 flex items-center justify-between gap-4">
+          <a href="/" className="flex items-center gap-2 min-w-0 text-gray-900">
+            <img src={BRAND_LOGO_SRC} alt="" className="h-9 w-9 object-contain flex-shrink-0" />
+            <span className="font-semibold text-finland tracking-tight truncate">Traverion</span>
+          </a>
+          <a href={loginHref} className="text-sm text-gray-600 hover:text-finland transition-colors whitespace-nowrap">
+            Sign in
+          </a>
+        </div>
+      </header>
+
+      <div className="max-w-lg mx-auto px-4 py-8 sm:py-12 pb-12">
         <button
           type="button"
           onClick={() => onNavigate('home')}
           className="mb-5 inline-flex items-center gap-2 text-gray-600 hover:text-finland"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back
+          Back to home
         </button>
 
         <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-lg">
           <div className="px-6 pt-6 pb-4 border-b border-gray-100">
-            <div className="flex items-center gap-3 mb-3">
-              <img src={BRAND_LOGO_SRC} alt="" className="h-12 w-12 object-contain flex-shrink-0" />
+            <div className="flex items-start gap-3">
+              <div className="w-11 h-11 rounded-xl bg-finland/10 flex items-center justify-center flex-shrink-0">
+                <Lock className="w-5 h-5 text-finland" aria-hidden />
+              </div>
               <div className="min-w-0">
                 <h1 className="text-2xl font-semibold text-gray-900">Set a new password</h1>
-                <p className="text-sm text-gray-600 mt-0.5">
-                  Traveler account on {publicSiteBaseUrl().replace(/^https?:\/\//, '')}
+                <p className="text-sm text-gray-600 mt-1">
+                  Traveler account on {siteLabel}
+                </p>
+                <p className="text-xs text-gray-500 mt-2">
+                  This page only works from the secure link in your reset email. Your session is verified before you can choose a new password.
                 </p>
               </div>
             </div>
@@ -60,10 +79,12 @@ export default function ResetPasswordPage({ onNavigate }: ResetPasswordPageProps
           <div className="p-6">
             <SetNewPasswordForm
               minPasswordLength={6}
+              description="Enter a new password for your traveler account. When you are done, sign in to book trips and manage bookings."
               onSuccess={() => {
                 window.location.replace(loginHref);
               }}
               loginHref={loginHref}
+              loginLabel="Back to traveler sign in"
               successHint="You can sign in with your new password."
             />
           </div>

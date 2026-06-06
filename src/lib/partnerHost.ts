@@ -30,7 +30,7 @@ export function isTraverionPartnerHost(): boolean {
 
 /**
  * Partner portal SPA routes (/login, /partner/*, …) — scoped to partner host (and localhost dev).
- * `/reset-password` exists on both www and partner; only the partner host uses the supplier shell.
+ * Partner `/reset-password` is only on partner.traverion.com; travelers use `/account/reset-password` on www.
  */
 export function isPartnerPortalPathForCurrentHost(pathname: string): boolean {
   if (typeof window === 'undefined') return false;

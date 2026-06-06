@@ -5,8 +5,11 @@ export const PARTNER_LOGIN_PATH = '/login';
 /** Password reset email links land here (recovery session in URL hash). */
 export const PARTNER_RESET_PASSWORD_PATH = '/reset-password';
 
-/** Traveler site uses the same path on www / apex. */
-export const TRAVELER_RESET_PASSWORD_PATH = '/reset-password';
+/** Traveler-only reset page on www / apex (partner uses /reset-password on partner host). */
+export const TRAVELER_RESET_PASSWORD_PATH = '/account/reset-password';
+
+/** Legacy traveler reset URL — redirect to TRAVELER_RESET_PASSWORD_PATH. */
+export const LEGACY_TRAVELER_RESET_PASSWORD_PATH = '/reset-password';
 
 /** Email confirmation links land here (hash tokens); not useful without Supabase’s signed fragment. */
 export const PARTNER_EMAIL_VERIFIED_PATH = '/email-verified';

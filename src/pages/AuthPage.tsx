@@ -6,7 +6,7 @@ import { normalizeConsumerPhone } from '../data/supabase-consumer-profile';
 import { HERO_IMG } from '../lib/heroImages';
 import { publicSiteBaseUrl } from '../lib/publicSiteUrl';
 import { BRAND_LOGO_SRC } from '../lib/brandAssets';
-import { subscribePasswordRecovery, updatePasswordAfterRecovery } from '../lib/passwordRecoveryFlow';
+import { subscribePasswordRecovery } from '../lib/passwordRecoveryFlow';
 import { DUPLICATE_TRAVERION_EMAIL_MESSAGE_PREFIX, EMAIL_ALREADY_IN_USE } from '../lib/customerSupplierAuthMessages';
 import { supplierPortalHref } from '../lib/partnerHost';
 import { authInputErrorClasses, isValidEmailFormat } from '../lib/authFormValidation';
@@ -22,8 +22,6 @@ type TravelerPageFieldKey =
   | 'phoneNumber'
   | 'password'
   | 'confirmPassword'
-  | 'recoveryPassword'
-  | 'recoveryConfirm'
   | 'form';
 type TravelerPageFieldErrors = Partial<Record<TravelerPageFieldKey, string>>;
 
@@ -65,14 +63,12 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
   const [resetPasswordFieldError, setResetPasswordFieldError] = useState<string | null>(null);
   const [resetPasswordSuccess, setResetPasswordSuccess] = useState<string | null>(null);
   const [resendSending, setResendSending] = useState(false);
-  const [recoveryMode, setRecoveryMode] = useState(false);
-  const [recoveryPassword, setRecoveryPassword] = useState('');
-  const [recoveryConfirm, setRecoveryConfirm] = useState('');
-  const [recoverySubmitting, setRecoverySubmitting] = useState(false);
-
   useEffect(() => {
     if (!supabase) return;
-    return subscribePasswordRecovery(supabase, () => setRecoveryMode(true));
+    return subscribePasswordRecovery(supabase, () => {
+      const { search, hash } = window.location;
+      window.location.replace(`${TRAVELER_RESET_PASSWORD_PATH}${search}${hash}`);
+    });
   }, []);
 
   useEffect(() => {
@@ -300,40 +296,6 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
     );
   };
 
-  const handleRecoverySubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setFieldErrors({});
-    setSuccessMessage(null);
-    if (!supabase) return;
-    const rec: TravelerPageFieldErrors = {};
-    if (!recoveryPassword) rec.recoveryPassword = 'Enter a new password.';
-    else if (recoveryPassword.length < 6) rec.recoveryPassword = 'Use at least 6 characters.';
-    if (!recoveryConfirm) rec.recoveryConfirm = 'Confirm your new password.';
-    else if (recoveryPassword && recoveryConfirm && recoveryPassword !== recoveryConfirm) {
-      rec.recoveryConfirm = 'Passwords do not match.';
-    }
-    if (Object.keys(rec).length > 0) {
-      setFieldErrors(rec);
-      return;
-    }
-    setRecoverySubmitting(true);
-    try {
-      const { error: err } = await updatePasswordAfterRecovery(supabase, recoveryPassword, { minLength: 6 });
-      if (err) {
-        setFieldErrors({ recoveryPassword: mapAuthError(err) });
-        return;
-      }
-      await supabase.auth.signOut();
-      setRecoveryMode(false);
-      setRecoveryPassword('');
-      setRecoveryConfirm('');
-      setTab('signin');
-      setSuccessMessage('Your password was updated. Sign in with your new password.');
-    } finally {
-      setRecoverySubmitting(false);
-    }
-  };
-
   return (
     <div className="relative min-h-screen pt-20">
       <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
@@ -362,98 +324,22 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
               <img src={BRAND_LOGO_SRC} alt="" className="h-12 w-12 sm:h-14 sm:w-14 object-contain flex-shrink-0" />
               <div className="min-w-0">
                 <h1 className="text-2xl font-semibold text-gray-900">
-                  {recoveryMode ? 'Set a new password' : tab === 'signin' ? 'Sign in' : 'Sign up'}
+                  {tab === 'signin' ? 'Sign in' : 'Sign up'}
                 </h1>
                 <p className="text-sm text-gray-600 mt-0.5">
-                  {recoveryMode
-                    ? 'Choose a new password for your account, then sign in.'
-                    : 'Book trips, save your cart, and manage bookings — not the partner dashboard.'}
+                  Book trips, save your cart, and manage bookings — not the partner dashboard.
                 </p>
-                {!recoveryMode && (
-                  <p className="text-xs text-gray-500 mt-2">
-                    Want to be a supplier?{' '}
-                    <a href={supplierPortalHref('/login')} className="text-finland font-medium hover:underline">
-                      Join here
-                    </a>
-                  </p>
-                )}
+                <p className="text-xs text-gray-500 mt-2">
+                  Want to be a supplier?{' '}
+                  <a href={supplierPortalHref('/login')} className="text-finland font-medium hover:underline">
+                    Join here
+                  </a>
+                </p>
               </div>
             </div>
           </div>
 
-          {recoveryMode ? (
-            <form noValidate onSubmit={(e) => void handleRecoverySubmit(e)} className="p-6 space-y-4">
-              <div>
-                <label htmlFor="auth-recovery-password" className="block text-sm font-medium text-gray-700 mb-1">
-                  New password
-                </label>
-                <input
-                  id="auth-recovery-password"
-                  type="password"
-                  name="new-password"
-                  value={recoveryPassword}
-                  onChange={(e) => {
-                    setRecoveryPassword(e.target.value);
-                    setFieldErrors((p) => {
-                      const n = { ...p };
-                      delete n.recoveryPassword;
-                      delete n.form;
-                      return n;
-                    });
-                  }}
-                  className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 outline-none ${authInputErrorClasses(!!fieldErrors.recoveryPassword)}`}
-                  autoComplete="new-password"
-                  aria-invalid={fieldErrors.recoveryPassword ? true : undefined}
-                  aria-describedby={fieldErrors.recoveryPassword ? 'auth-recovery-password-err' : undefined}
-                />
-                {fieldErrors.recoveryPassword && (
-                  <p id="auth-recovery-password-err" className="mt-1.5 text-sm text-red-600" role="alert">
-                    {fieldErrors.recoveryPassword}
-                  </p>
-                )}
-              </div>
-              <div>
-                <label htmlFor="auth-recovery-confirm" className="block text-sm font-medium text-gray-700 mb-1">
-                  Confirm new password
-                </label>
-                <input
-                  id="auth-recovery-confirm"
-                  type="password"
-                  name="confirm-password"
-                  value={recoveryConfirm}
-                  onChange={(e) => {
-                    setRecoveryConfirm(e.target.value);
-                    setFieldErrors((p) => {
-                      const n = { ...p };
-                      delete n.recoveryConfirm;
-                      delete n.form;
-                      return n;
-                    });
-                  }}
-                  className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 outline-none ${authInputErrorClasses(!!fieldErrors.recoveryConfirm)}`}
-                  autoComplete="new-password"
-                  aria-invalid={fieldErrors.recoveryConfirm ? true : undefined}
-                  aria-describedby={fieldErrors.recoveryConfirm ? 'auth-recovery-confirm-err' : undefined}
-                />
-                {fieldErrors.recoveryConfirm && (
-                  <p id="auth-recovery-confirm-err" className="mt-1.5 text-sm text-red-600" role="alert">
-                    {fieldErrors.recoveryConfirm}
-                  </p>
-                )}
-              </div>
-              {successMessage && (
-                <p className="text-sm text-gray-700 bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">{successMessage}</p>
-              )}
-              <button
-                type="submit"
-                disabled={recoverySubmitting}
-                className="w-full py-3 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark transition-colors disabled:opacity-60"
-              >
-                {recoverySubmitting ? 'Saving…' : 'Update password'}
-              </button>
-            </form>
-          ) : (
-            <>
+          <>
           <div className="flex border-b border-gray-100">
             <button
               type="button"
@@ -775,8 +661,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
             </button>
           </form>
           )}
-            </>
-          )}
+          </>
         </div>
       </div>
     </div>

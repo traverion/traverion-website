@@ -1,6 +1,6 @@
 /**
  * Password reset emails append #...&type=recovery to the redirect URL.
- * Send users to /reset-password so they see a dedicated "set new password" form,
+ * Send users to the dedicated reset page so they see "set new password",
  * not the normal sign-in screen (which may redirect logged-in users to the app).
  */
 import { isPublicTraverionMarketingHost } from './adminHost';
@@ -9,6 +9,7 @@ import {
   PARTNER_APP_BASE,
   PARTNER_LOGIN_PATH,
   PARTNER_RESET_PASSWORD_PATH,
+  LEGACY_TRAVELER_RESET_PASSWORD_PATH,
   TRAVELER_RESET_PASSWORD_PATH,
   legacySupplierPathToPartnerPath,
 } from './partnerPortalPaths';
@@ -56,7 +57,9 @@ export function redirectIfPasswordRecoveryLandingInWrongPlace(): void {
         return;
       }
     }
-    if (p === PARTNER_LOGIN_PATH || p === PARTNER_RESET_PASSWORD_PATH) {
+    // www /login is a shortcut to partner login — recovery links there belong on partner host.
+    // Traveler reset lives at /account/reset-password on www — never send www recovery to partner.
+    if (p === PARTNER_LOGIN_PATH) {
       window.location.replace(
         `${supplierPortalPublicBaseUrl()}${PARTNER_RESET_PASSWORD_PATH}${search}${fragment}`
       );
@@ -65,6 +68,11 @@ export function redirectIfPasswordRecoveryLandingInWrongPlace(): void {
   }
 
   if (p === TRAVELER_RESET_PASSWORD_PATH) return;
+
+  if (isPublicTraverionMarketingHost() && p === LEGACY_TRAVELER_RESET_PASSWORD_PATH) {
+    window.location.replace(`${origin}${TRAVELER_RESET_PASSWORD_PATH}${search}${fragment}`);
+    return;
+  }
 
   if (p === '/auth' || p === '/sign-up' || p === '/log-in') {
     window.location.replace(`${origin}${TRAVELER_RESET_PASSWORD_PATH}${search}${fragment}`);
@@ -89,4 +97,14 @@ export function redirectIfPasswordRecoveryLandingInWrongPlace(): void {
   }
 
   window.location.replace(`${origin}${TRAVELER_RESET_PASSWORD_PATH}${search}${fragment}`);
+}
+
+/** Old traveler emails used /reset-password on www — always forward to the dedicated account page. */
+export function redirectLegacyTravelerResetPasswordPath(): void {
+  if (typeof window === 'undefined') return;
+  if (isTraverionPartnerHost()) return;
+  const p = window.location.pathname.replace(/\/$/, '') || '/';
+  if (p !== LEGACY_TRAVELER_RESET_PASSWORD_PATH) return;
+  const { search, hash, origin } = window.location;
+  window.location.replace(`${origin}${TRAVELER_RESET_PASSWORD_PATH}${search}${hash}`);
 }

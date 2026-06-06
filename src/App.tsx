@@ -289,10 +289,10 @@ function App() {
     if (meta) setPageMetaWithOg(meta.title, meta.description);
     else setPageMetaWithOg('Traverion', 'Tours & activities worldwide.');
 
-    setRobotsNoIndex(currentPage === 'booking-confirmed');
+    setRobotsNoIndex(currentPage === 'booking-confirmed' || currentPage === 'reset-password');
 
     const pathMap: Record<string, string> = {
-      home: '/', packages: '/packages', auth: '/auth', 'reset-password': '/reset-password', 'email-confirmed': '/email-confirmed', cart: '/cart', account: '/account', wishlist: '/wishlist', bookings: '/bookings',
+      home: '/', packages: '/packages', auth: '/auth', 'reset-password': '/account/reset-password', 'email-confirmed': '/email-confirmed', cart: '/cart', account: '/account', wishlist: '/wishlist', bookings: '/bookings',
       'booking-confirmed': '/booking-confirmed',
       blog: '/blog', contact: '/contact', privacy: '/privacy', terms: '/terms', cookies: '/cookies',
       about: '/about', sitemap: '/sitemap',
@@ -441,7 +441,7 @@ function App() {
     currentPage === 'admin-app' ||
     isTraverionAdminHost();
 
-  const minimalTravelerChrome = currentPage === 'booking-confirmed';
+  const minimalTravelerChrome = currentPage === 'booking-confirmed' || currentPage === 'reset-password';
 
   return (
     <TranslationProvider>

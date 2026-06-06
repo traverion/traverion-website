@@ -84,10 +84,11 @@ In Supabase dashboard go to **Authentication → URL configuration** and add the
 **Traveler site (www / apex)**
 - `https://www.traverion.com/log-in**`
 - `https://www.traverion.com/sign-up**`
-- `https://www.traverion.com/reset-password**`
+- `https://www.traverion.com/account/reset-password**`
 - `https://www.traverion.com/email-confirmed**`
 - `https://traverion.com/log-in**` (if you use apex)
-- `https://traverion.com/reset-password**`
+- `https://traverion.com/account/reset-password**`
+- `https://www.traverion.com/reset-password**` (legacy — redirects to `/account/reset-password`)
 
 **Partner portal**
 - `https://partner.traverion.com/login**`
@@ -97,12 +98,12 @@ In Supabase dashboard go to **Authentication → URL configuration** and add the
 
 **Local dev**
 - `http://localhost:5173/log-in**`
-- `http://localhost:5173/reset-password**`
+- `http://localhost:5173/account/reset-password**`
 - `http://localhost:5173/login**`
 
-Password reset emails redirect to `/reset-password`. That page verifies the one-time recovery session and shows **Set a new password** (partner and traveler). After updating, the user is signed out and sent back to sign-in.
+Traveler password reset emails redirect to `/account/reset-password` on www. Partner reset emails use `/reset-password` on `partner.traverion.com`. Each page verifies the one-time recovery session before showing **Set a new password**. After updating, the user is signed out and sent back to sign-in.
 
-**Site URL** in Supabase can stay as your main marketing origin (e.g. `https://www.traverion.com`); the app also redirects recovery links that land on `/` or `/login` to `/reset-password` automatically.
+**Site URL** in Supabase can stay as your main marketing origin (e.g. `https://www.traverion.com`); the app redirects recovery links that land on `/log-in` or legacy `/reset-password` to `/account/reset-password` automatically.
 
 ## Troubleshooting
 
