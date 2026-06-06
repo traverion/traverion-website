@@ -1,12 +1,19 @@
-import { ArrowLeft, Lock } from 'lucide-react';
+import { useLayoutEffect, useState } from 'react';
+import { ArrowLeft, Lock, Loader2 } from 'lucide-react';
 import { HERO_IMG } from '../lib/heroImages';
 import { BRAND_LOGO_SRC } from '../lib/brandAssets';
 import SetNewPasswordForm from '../components/auth/SetNewPasswordForm';
+import PartnerResetPasswordPage from '../components/supplier/PartnerResetPasswordPage';
 import { publicSiteBaseUrl } from '../lib/publicSiteUrl';
+import { supabase } from '../lib/supabase';
+import { establishPasswordRecoverySession } from '../lib/passwordRecoveryFlow';
+import { resolvePasswordRecoveryPortal } from '../lib/recoveryPortal';
 
 interface ResetPasswordPageProps {
   onNavigate: (page: string) => void;
 }
+
+type PortalPhase = 'verifying' | 'traveler' | 'partner' | 'invalid';
 
 function readNextAfterReset(): string {
   try {
@@ -20,9 +27,72 @@ function readNextAfterReset(): string {
 }
 
 export default function ResetPasswordPage({ onNavigate }: ResetPasswordPageProps) {
+  const [portal, setPortal] = useState<PortalPhase>('verifying');
   const nextPage = readNextAfterReset();
   const loginHref = `/log-in?next=${encodeURIComponent(nextPage)}`;
   const siteLabel = publicSiteBaseUrl().replace(/^https?:\/\//, '');
+
+  useLayoutEffect(() => {
+    if (!supabase) {
+      setPortal('invalid');
+      return;
+    }
+
+    let cancelled = false;
+
+    void (async () => {
+      const result = await establishPasswordRecoverySession(supabase);
+      if (cancelled) return;
+      if (result !== 'ready') {
+        setPortal('invalid');
+        return;
+      }
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        setPortal('invalid');
+        return;
+      }
+      const resolved = await resolvePasswordRecoveryPortal(session.user.id);
+      if (!cancelled) setPortal(resolved);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (portal === 'partner') {
+    return <PartnerResetPasswordPage />;
+  }
+
+  if (portal === 'verifying') {
+    return (
+      <div className="relative min-h-screen flex items-center justify-center px-4">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 text-finland mx-auto mb-3 animate-spin" aria-hidden />
+          <p className="text-sm text-gray-600">Verifying your reset link…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (portal === 'invalid') {
+    return (
+      <div className="relative min-h-screen flex items-center justify-center px-4">
+        <div className="max-w-md w-full bg-white rounded-2xl border border-gray-200 shadow-lg p-6 space-y-4">
+          <p className="text-sm text-red-700 bg-red-50 px-3 py-2 rounded-lg border border-red-100" role="alert">
+            This page only works from the secure link in your password reset email.
+          </p>
+          <a
+            href={loginHref}
+            className="inline-flex w-full justify-center rounded-lg bg-finland px-4 py-3 text-sm font-semibold text-white hover:bg-finland-dark transition-colors"
+          >
+            Back to traveler sign in
+          </a>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative min-h-screen">
@@ -67,11 +137,10 @@ export default function ResetPasswordPage({ onNavigate }: ResetPasswordPageProps
               </div>
               <div className="min-w-0">
                 <h1 className="text-2xl font-semibold text-gray-900">Set a new password</h1>
-                <p className="text-sm text-gray-600 mt-1">
-                  Traveler account on {siteLabel}
-                </p>
+                <p className="text-sm text-gray-600 mt-1">Traveler account on {siteLabel}</p>
                 <p className="text-xs text-gray-500 mt-2">
-                  This page only works from the secure link in your reset email. Your session is verified before you can choose a new password.
+                  This page only works from the secure link in your reset email. Your session is verified before you can
+                  choose a new password.
                 </p>
               </div>
             </div>

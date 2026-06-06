@@ -28,11 +28,29 @@ export function redirectIfPasswordRecoveryLandingInWrongPlace(): void {
       /* ignore */
     }
   }
-  if (type !== 'recovery') return;
+  let code: string | null = null;
+  try {
+    code = new URLSearchParams(search).get('code');
+  } catch {
+    /* ignore */
+  }
 
   const p = pathname.replace(/\/$/, '') || '/';
+
+  const isResetPath =
+    p === TRAVELER_RESET_PASSWORD_PATH ||
+    p === PARTNER_RESET_PASSWORD_PATH ||
+    p === LEGACY_TRAVELER_RESET_PASSWORD_PATH ||
+    p === LEGACY_ACCOUNT_RESET_PASSWORD_PATH;
+
+  const isRecoveryCallback =
+    type === 'recovery' ||
+    (!!code && (isResetPath || p === PARTNER_LOGIN_PATH || p === '/log-in'));
+  if (!isRecoveryCallback) return;
   const host = window.location.hostname;
   const fragment = window.location.hash;
+
+  if (p === '/email-confirmed' || p === '/email-verified') return;
 
   if (host === 'admin.traverion.com') {
     if (p === '/login' || p === '/admin') return;
@@ -68,7 +86,15 @@ export function redirectIfPasswordRecoveryLandingInWrongPlace(): void {
     }
   }
 
-  if (p === TRAVELER_RESET_PASSWORD_PATH) return;
+  if (p === TRAVELER_RESET_PASSWORD_PATH) {
+    if (isTraverionPartnerHost()) {
+      window.location.replace(
+        `${supplierPortalPublicBaseUrl()}${PARTNER_RESET_PASSWORD_PATH}${search}${fragment}`
+      );
+      return;
+    }
+    return;
+  }
 
   if (
     isPublicTraverionMarketingHost() &&

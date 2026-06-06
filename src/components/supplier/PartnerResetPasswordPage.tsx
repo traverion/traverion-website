@@ -1,4 +1,4 @@
-import { Globe } from 'lucide-react';
+import { Globe, Lock } from 'lucide-react';
 import SetNewPasswordForm from '../auth/SetNewPasswordForm';
 import PartnerPortalFooter from './PartnerPortalFooter';
 import { BRAND_LOGO_SRC } from '../../lib/brandAssets';
@@ -40,10 +40,19 @@ export default function PartnerResetPasswordPage() {
 
         <div className="bg-white border border-gray-200 rounded-2xl shadow-lg overflow-hidden">
           <div className="px-6 sm:px-8 pt-6 pb-4 border-b border-gray-100">
-            <h1 className="text-xl font-semibold text-gray-900">Set a new password</h1>
-            <p className="text-sm text-gray-600 mt-1">
-              Use the secure link from your email. This page is only for completing your password reset.
-            </p>
+            <div className="flex items-start gap-3">
+              <div className="w-11 h-11 rounded-xl bg-finland/10 flex items-center justify-center flex-shrink-0">
+                <Lock className="w-5 h-5 text-finland" aria-hidden />
+              </div>
+              <div className="min-w-0">
+                <h1 className="text-xl font-semibold text-gray-900">Set a new password</h1>
+                <p className="text-sm text-gray-600 mt-1">Partner account on partner.traverion.com</p>
+                <p className="text-xs text-gray-500 mt-2">
+                  This page only works from the secure link in your reset email. Your session is verified before you can
+                  choose a new password.
+                </p>
+              </div>
+            </div>
           </div>
           <div className="px-6 sm:px-8 py-6">
             <SetNewPasswordForm

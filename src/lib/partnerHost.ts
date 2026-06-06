@@ -77,6 +77,25 @@ export function supplierPortalPublicBaseUrl(): string {
   return `https://${PARTNER_HOSTNAME}`;
 }
 
+/**
+ * Absolute partner URL for Supabase auth emails (reset, confirm).
+ * Production always uses partner.traverion.com — never the traveler site URL.
+ */
+export function partnerPortalAuthRedirectUrl(path: string): string {
+  const pathNorm = path.startsWith('/') ? path : `/${path}`;
+  if (typeof window !== 'undefined') {
+    const h = window.location.hostname;
+    if (h === 'localhost' || h === '127.0.0.1') {
+      return `${window.location.origin.replace(/\/$/, '')}${pathNorm}`;
+    }
+  }
+  const staging = import.meta.env.VITE_PARTNER_PORTAL_URL as string | undefined;
+  if (import.meta.env.DEV && typeof staging === 'string' && staging.trim()) {
+    return `${staging.replace(/\/$/, '')}${pathNorm}`;
+  }
+  return `https://${PARTNER_HOSTNAME}${pathNorm}`;
+}
+
 /** On partner host, rewrite legacy /supplier* → /login and /partner*. */
 export function rewriteLegacySupplierPathsOnPartnerHost(): void {
   if (typeof window === 'undefined') return;

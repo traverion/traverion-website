@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { ensureSupplierProfile, fetchSupplierProfile } from '../../data/supabase-supplier-profile';
 import { isPhoneAvailableForSignup } from '../../data/supabase-phone-signup';
 import { notifySupplierEvent } from '../../data/supabase-supplier-messaging';
-import { supplierPortalPublicBaseUrl } from '../../lib/partnerHost';
+import { partnerPortalAuthRedirectUrl, supplierPortalPublicBaseUrl } from '../../lib/partnerHost';
 import {
   PARTNER_EMAIL_VERIFIED_PATH,
   PARTNER_LOGIN_PATH,
@@ -12,7 +12,7 @@ import {
 } from '../../lib/partnerPortalPaths';
 import { isSignUpEmailAlreadyRegistered } from '../../lib/supabaseAuthHelpers';
 import { normalizePhoneNumber } from '../../lib/phoneNormalize';
-import { subscribePasswordRecovery, updatePasswordAfterRecovery } from '../../lib/passwordRecoveryFlow';
+import { subscribePasswordRecovery } from '../../lib/passwordRecoveryFlow';
 import {
   DUPLICATE_TRAVERION_EMAIL_MESSAGE_PREFIX,
   EMAIL_ALREADY_IN_USE,
@@ -47,8 +47,6 @@ type SupplierFieldKey =
   | 'phoneNumber'
   | 'password'
   | 'confirmPassword'
-  | 'recoveryPassword'
-  | 'recoveryConfirm'
   | 'form';
 
 type SupplierFieldErrors = Partial<Record<SupplierFieldKey, string>>;
@@ -75,14 +73,12 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
   const [resetPasswordFieldError, setResetPasswordFieldError] = useState<string | null>(null);
   const [resetPasswordSuccess, setResetPasswordSuccess] = useState<string | null>(null);
   const [resendSending, setResendSending] = useState(false);
-  const [recoveryMode, setRecoveryMode] = useState(false);
-  const [recoveryPassword, setRecoveryPassword] = useState('');
-  const [recoveryConfirm, setRecoveryConfirm] = useState('');
-  const [recoverySubmitting, setRecoverySubmitting] = useState(false);
-
   useEffect(() => {
     if (!isSupabase || !supabase) return;
-    return subscribePasswordRecovery(supabase, () => setRecoveryMode(true));
+    return subscribePasswordRecovery(supabase, () => {
+      const { search, hash } = window.location;
+      window.location.replace(`${PARTNER_RESET_PASSWORD_PATH}${search}${hash}`);
+    });
   }, [isSupabase]);
 
   useEffect(() => {
@@ -205,7 +201,7 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
             email: normalizedEmail,
             password,
             options: {
-              emailRedirectTo: `${supplierPortalPublicBaseUrl()}${PARTNER_EMAIL_VERIFIED_PATH}`,
+              emailRedirectTo: partnerPortalAuthRedirectUrl(PARTNER_EMAIL_VERIFIED_PATH),
               data: {
                 supplier_business_name: cleanBusinessName,
                 supplier_phone: cleanPhoneNumber,
@@ -319,7 +315,7 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
     if (!supabase) return { ok: false, error: 'Password reset is not configured.' };
     setResetSending(true);
     const { error: err } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
-      redirectTo: `${supplierPortalPublicBaseUrl()}${PARTNER_RESET_PASSWORD_PATH}`,
+      redirectTo: partnerPortalAuthRedirectUrl(PARTNER_RESET_PASSWORD_PATH),
     });
     setResetSending(false);
     if (err) return { ok: false, error: mapAuthError(err.message) };
@@ -376,7 +372,7 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
     const { error: err } = await supabase.auth.resend({
       type: 'signup',
       email: normalizedEmail,
-      options: { emailRedirectTo: `${supplierPortalPublicBaseUrl()}${PARTNER_EMAIL_VERIFIED_PATH}` },
+      options: { emailRedirectTo: partnerPortalAuthRedirectUrl(PARTNER_EMAIL_VERIFIED_PATH) },
     });
     setResendSending(false);
     if (err) {
@@ -384,41 +380,6 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
       return;
     }
     setSuccessMessage('Confirmation email resent. Check inbox/spam.');
-  };
-
-  const handleRecoverySubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setFieldErrors({});
-    setSuccessMessage(null);
-    if (!supabase) return;
-    const rec: SupplierFieldErrors = {};
-    if (!recoveryPassword) rec.recoveryPassword = 'Enter a new password.';
-    else if (recoveryPassword.length < 8) rec.recoveryPassword = 'Use at least 8 characters.';
-    if (!recoveryConfirm) rec.recoveryConfirm = 'Confirm your new password.';
-    else if (recoveryPassword && recoveryConfirm && recoveryPassword !== recoveryConfirm) {
-      rec.recoveryConfirm = 'Passwords do not match.';
-    }
-    if (Object.keys(rec).length > 0) {
-      setFieldErrors(rec);
-      return;
-    }
-    setRecoverySubmitting(true);
-    try {
-      const { error: err } = await updatePasswordAfterRecovery(supabase, recoveryPassword, { minLength: 8 });
-      if (err) {
-        const mapped = mapAuthError(err);
-        setFieldErrors({ recoveryPassword: mapped });
-        return;
-      }
-      await supabase.auth.signOut();
-      setRecoveryMode(false);
-      setRecoveryPassword('');
-      setRecoveryConfirm('');
-      setMode('signin');
-      setSuccessMessage('Your password was updated. Sign in with your new password.');
-    } finally {
-      setRecoverySubmitting(false);
-    }
   };
 
   return (
@@ -452,87 +413,7 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
       {/* Right: Sign up / Sign in card — wider on desktop, full width on mobile */}
       <div className="w-full max-w-md sm:max-w-lg xl:max-w-xl 2xl:max-w-[28rem] mx-auto lg:mx-0 flex-shrink-0">
         <div className="bg-white border border-gray-200 rounded-2xl shadow-lg overflow-hidden xl:shadow-xl">
-          {recoveryMode ? (
-            <form noValidate onSubmit={(e) => void handleRecoverySubmit(e)} className="p-6 sm:p-8 space-y-4 sm:space-y-5">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">Set a new password</h2>
-                <p className="text-sm text-gray-600 mt-1">Then sign in to the supplier portal.</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="supplier-recovery-password">
-                  New password
-                </label>
-                <input
-                  id="supplier-recovery-password"
-                  type="password"
-                  name="new-password"
-                  value={recoveryPassword}
-                  onChange={(e) => {
-                    setRecoveryPassword(e.target.value);
-                    setFieldErrors((prev) => {
-                      const next = { ...prev };
-                      delete next.recoveryPassword;
-                      delete next.form;
-                      return next;
-                    });
-                  }}
-                  className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 ${authInputErrorClasses(!!fieldErrors.recoveryPassword)}`}
-                  autoComplete="new-password"
-                  aria-invalid={fieldErrors.recoveryPassword ? true : undefined}
-                  aria-describedby={fieldErrors.recoveryPassword ? 'supplier-recovery-password-error' : undefined}
-                />
-                <p className="text-xs text-gray-500 mt-1">At least 8 characters</p>
-                {fieldErrors.recoveryPassword && (
-                  <p id="supplier-recovery-password-error" className="mt-1.5 text-sm text-red-600" role="alert">
-                    {fieldErrors.recoveryPassword}
-                  </p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="supplier-recovery-confirm">
-                  Confirm new password
-                </label>
-                <input
-                  id="supplier-recovery-confirm"
-                  type="password"
-                  name="confirm-password"
-                  value={recoveryConfirm}
-                  onChange={(e) => {
-                    setRecoveryConfirm(e.target.value);
-                    setFieldErrors((prev) => {
-                      const next = { ...prev };
-                      delete next.recoveryConfirm;
-                      delete next.form;
-                      return next;
-                    });
-                  }}
-                  className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 ${authInputErrorClasses(!!fieldErrors.recoveryConfirm)}`}
-                  autoComplete="new-password"
-                  aria-invalid={fieldErrors.recoveryConfirm ? true : undefined}
-                  aria-describedby={fieldErrors.recoveryConfirm ? 'supplier-recovery-confirm-error' : undefined}
-                />
-                {fieldErrors.recoveryConfirm && (
-                  <p id="supplier-recovery-confirm-error" className="mt-1.5 text-sm text-red-600" role="alert">
-                    {fieldErrors.recoveryConfirm}
-                  </p>
-                )}
-              </div>
-              {successMessage && (
-                <div className="flex items-start gap-2 p-3 rounded-lg bg-green-50 text-green-800 text-sm">
-                  <Check className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                  <span>{successMessage}</span>
-                </div>
-              )}
-              <button
-                type="submit"
-                disabled={recoverySubmitting}
-                className="w-full py-3 rounded-lg bg-finland text-white font-semibold hover:bg-finland-dark transition-colors disabled:opacity-50"
-              >
-                {recoverySubmitting ? 'Saving…' : 'Update password'}
-              </button>
-            </form>
-          ) : (
-            <>
+          <>
           {/* Tabs */}
           <div className="flex border-b border-gray-200">
             <button
@@ -812,8 +693,7 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
             </button>
           </form>
           )}
-            </>
-          )}
+          </>
         </div>
         <p className="text-center text-sm text-gray-500 mt-4">
           By continuing, you agree to list your offerings on Traverion and to our{' '}
