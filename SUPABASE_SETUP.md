@@ -108,6 +108,30 @@ Traveler password reset emails redirect to `/set-password` on www. Partner reset
 
 **If reset links hang on “Verifying…”:** add `https://www.traverion.com/set-password**` to Redirect URLs, then request a **new** reset email (old links keep the old `redirect_to`).
 
+## Partner dashboard: bookings & earnings
+
+If the supplier dashboard shows **“Bookings or earnings could not be loaded…”**, run pending migrations in **SQL Editor** (in order under `supabase/migrations/`):
+
+| Migration | What it adds |
+|-----------|----------------|
+| `002_discounts_and_earnings.sql` | `supplier_earnings` table |
+| `045_booking_stripe_payment_columns.sql` | `payment_status`, `amount_paid`, etc. on `bookings` |
+| `047_booking_number_sequence.sql` | `booking_number` on `bookings` |
+
+**Verify in SQL Editor:**
+
+```sql
+-- supplier_earnings exists
+select count(*) from public.supplier_earnings;
+
+-- booking columns the partner dashboard expects
+select booking_number, payment_status, amount_paid
+from public.bookings
+limit 1;
+```
+
+After migrations, click **Retry** on the partner dashboard. The banner now includes the underlying Supabase error when a fetch fails.
+
 ## Troubleshooting
 
 ### Common Issues:

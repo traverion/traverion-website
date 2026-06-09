@@ -120,46 +120,56 @@ export default function SupplierDashboard({
       fetchSupplierProfile(uid),
     ]);
     const failures: string[] = [];
+    const failureDetails: string[] = [];
+    const noteFailure = (key: string, reason: unknown) => {
+      failures.push(key);
+      const msg = reason instanceof Error ? reason.message : String(reason);
+      failureDetails.push(`${key}: ${msg}`);
+    };
     if (settled[0].status === 'fulfilled') {
       const listings = settled[0].value;
       setPublishedListingsCount(listings.filter((t) => t.status === 'published').length);
       setListingTitlesById(Object.fromEntries(listings.map((t) => [t.id, t.title])));
     } else {
-      failures.push('listings');
+      noteFailure('listings', settled[0].reason);
       setPublishedListingsCount(0);
       setListingTitlesById({});
     }
     if (settled[1].status === 'fulfilled') {
       setSupplierBookings(settled[1].value);
     } else {
-      failures.push('bookings');
+      noteFailure('bookings', settled[1].reason);
       setSupplierBookings([]);
     }
     if (settled[2].status === 'fulfilled') {
       setEarnings(settled[2].value);
     } else {
-      failures.push('earnings');
+      noteFailure('earnings', settled[2].reason);
       setEarnings([]);
     }
     if (settled[3].status === 'fulfilled') {
       const reviewRows = settled[3].value;
       setProviderRating(aggregateReviewRatings(reviewRows.map((r) => r.rating)));
     } else {
-      failures.push('reviews');
+      noteFailure('reviews', settled[3].reason);
       setProviderRating({ avg: 0, count: 0 });
     }
     if (settled[4].status === 'fulfilled') {
       setProfile(settled[4].value);
     } else {
-      failures.push('profile');
+      noteFailure('profile', settled[4].reason);
       setProfile(null);
     }
     if (failures.length > 0) {
       const critical = failures.includes('bookings') || failures.includes('earnings');
+      const detail =
+        failureDetails.length > 0
+          ? ` Details: ${failureDetails.slice(0, 2).join(' · ')}${failureDetails.length > 2 ? ' …' : ''}`
+          : '';
       setDashboardError(
         critical
-          ? 'Bookings or earnings could not be loaded from the server. Check your connection and try again.'
-          : 'Some profile or review data could not be refreshed. Your bookings and earnings above may still be up to date.'
+          ? `Bookings or earnings could not be loaded from the server. Check your connection and try again, or run pending Supabase migrations (002, 045, 047).${detail}`
+          : `Some profile or review data could not be refreshed. Your bookings and earnings above may still be up to date.${detail}`
       );
     }
     setDashboardLoading(false);

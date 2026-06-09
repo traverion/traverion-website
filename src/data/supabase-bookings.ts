@@ -62,6 +62,27 @@ const BOOKING_LIST_COLUMNS =
 
 const BOOKING_PAYMENT_COLUMNS = `${BOOKING_LIST_COLUMNS}, payment_status, checkout_session_id, amount_paid, currency`;
 
+/** Pre–migration 047 (no booking_number). */
+const BOOKING_PAYMENT_COLUMNS_LEGACY =
+  'id, listing_id, guest_email, guest_name, guests, booking_date, status, special_requests, cancellation_reason, refund_choice, cancelled_at, acknowledged_at, created_at, start_time, pickup_time, payment_status, checkout_session_id, amount_paid, currency';
+
+/** Pre–migration 045 (no Stripe payment columns). */
+const BOOKING_LIST_COLUMNS_LEGACY =
+  'id, listing_id, guest_email, guest_name, guests, booking_date, status, special_requests, cancellation_reason, refund_choice, cancelled_at, acknowledged_at, created_at, start_time, pickup_time';
+
+/** Core columns from early migrations (no ops / schedule fields). */
+const BOOKING_CORE_COLUMNS =
+  'id, listing_id, guest_email, guest_name, guests, booking_date, status, special_requests, created_at';
+
+function isLikelyMissingColumnError(message: string): boolean {
+  const m = message.toLowerCase();
+  return (
+    m.includes('does not exist') ||
+    m.includes('unknown column') ||
+    (m.includes('column') && m.includes('bookings'))
+  );
+}
+
 function blankForEmail(s: string | null | undefined): string {
   const t = (s ?? '').trim();
   return t ? t : '—';
@@ -379,13 +400,25 @@ export async function fetchBookingsForSupplier(supplierId: string): Promise<Book
   if (listErr) throw new Error(listErr.message);
   const ids = (listingIds ?? []).map((r: { id: string }) => r.id);
   if (ids.length === 0) return [];
-  const { data, error } = await supabase
-    .from('bookings')
-    .select(BOOKING_PAYMENT_COLUMNS)
-    .in('listing_id', ids)
-    .order('created_at', { ascending: false });
-  if (error) throw new Error(error.message);
-  return (data ?? []) as BookingRow[];
+
+  const columnTiers = [
+    BOOKING_PAYMENT_COLUMNS,
+    BOOKING_PAYMENT_COLUMNS_LEGACY,
+    BOOKING_LIST_COLUMNS_LEGACY,
+    BOOKING_CORE_COLUMNS,
+  ];
+  let lastError: string | null = null;
+  for (const columns of columnTiers) {
+    const { data, error } = await supabase
+      .from('bookings')
+      .select(columns)
+      .in('listing_id', ids)
+      .order('created_at', { ascending: false });
+    if (!error) return (data ?? []) as BookingRow[];
+    lastError = error.message;
+    if (!isLikelyMissingColumnError(error.message)) break;
+  }
+  throw new Error(lastError ?? 'Could not load bookings');
 }
 
 /** Update booking status (supplier; RLS must allow update for own listing's bookings). */

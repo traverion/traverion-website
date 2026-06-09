@@ -1,5 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
-import { Building2, FileText, ImagePlus, Shield } from 'lucide-react';
+import {
+  Building2,
+  CheckCircle2,
+  Clock,
+  FileText,
+  ImagePlus,
+  Landmark,
+  MapPin,
+  Shield,
+  Wallet,
+  AlertCircle,
+} from 'lucide-react';
 import type { User } from '@supabase/supabase-js';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
@@ -226,6 +237,101 @@ function AccountSettingsPage(p: Props) {
   );
 }
 
+type VerificationTone = 'verified' | 'rejected' | 'pending' | 'incomplete' | 'ready';
+
+function profileInputClass(disabled?: boolean): string {
+  return `w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm shadow-sm focus:ring-2 focus:ring-finland/25 focus:border-finland outline-none transition-shadow ${
+    disabled ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : 'bg-white'
+  }`;
+}
+
+function ProfileSection({
+  id,
+  icon: Icon,
+  title,
+  description,
+  children,
+}: {
+  id?: string;
+  icon: typeof Building2;
+  title: string;
+  description?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section id={id} className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+      <div className="flex items-start gap-3 px-5 py-4 sm:px-6 border-b border-gray-100 bg-gradient-to-br from-slate-50/90 to-white">
+        <div className="w-10 h-10 rounded-xl bg-finland/10 flex items-center justify-center flex-shrink-0">
+          <Icon className="w-5 h-5 text-finland" aria-hidden />
+        </div>
+        <div className="min-w-0">
+          <h2 className="text-base font-semibold text-gray-900">{title}</h2>
+          {description ? <p className="text-sm text-gray-600 mt-0.5 leading-relaxed">{description}</p> : null}
+        </div>
+      </div>
+      <div className="p-5 sm:p-6 space-y-4">{children}</div>
+    </section>
+  );
+}
+
+function StatusChip({ label, tone }: { label: string; tone: VerificationTone }) {
+  const tones: Record<VerificationTone, string> = {
+    verified: 'bg-emerald-50 text-emerald-800 ring-emerald-200/80',
+    rejected: 'bg-red-50 text-red-800 ring-red-200/80',
+    pending: 'bg-amber-50 text-amber-900 ring-amber-200/80',
+    incomplete: 'bg-slate-100 text-slate-700 ring-slate-200/80',
+    ready: 'bg-sky-50 text-sky-900 ring-sky-200/80',
+  };
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${tones[tone]}`}
+    >
+      {label}
+    </span>
+  );
+}
+
+function SaveBar({
+  saving,
+  disabled,
+  label,
+  savingLabel,
+  onClick,
+  success,
+  error,
+  errorText,
+}: {
+  saving: boolean;
+  disabled?: boolean;
+  label: string;
+  savingLabel: string;
+  onClick: () => void;
+  success?: boolean;
+  error?: boolean;
+  errorText?: string | null;
+}) {
+  return (
+    <div className="rounded-2xl border border-gray-200 bg-gray-50/80 px-5 py-4 sm:px-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <p className="text-xs text-gray-600 max-w-md">
+        Changes are saved only when you press the button. Traverion reviews submissions manually.
+      </p>
+      <div className="flex flex-col items-stretch sm:items-end gap-2 min-w-[12rem]">
+        <button
+          type="button"
+          disabled={saving || disabled}
+          onClick={onClick}
+          className="inline-flex items-center justify-center px-5 py-2.5 rounded-xl bg-finland text-white text-sm font-semibold shadow-sm hover:bg-finland-dark disabled:opacity-50 transition-colors"
+        >
+          {saving ? savingLabel : label}
+        </button>
+        {success && <span className="text-xs text-emerald-700 font-medium">Saved successfully.</span>}
+        {error && <span className="text-xs text-red-600 font-medium">Could not save. Try again.</span>}
+        {errorText ? <span className="text-xs text-red-600">{errorText}</span> : null}
+      </div>
+    </div>
+  );
+}
+
 function BusinessProfilePage(p: Props) {
   const logoInputRef = useRef<HTMLInputElement>(null);
   const companyRegInputRef = useRef<HTMLInputElement>(null);
@@ -318,25 +424,61 @@ function BusinessProfilePage(p: Props) {
     };
   }, [p.legalDocModal]);
 
-  const tabBtn = (active: boolean) =>
-    `touch-manipulation rounded-xl px-4 py-3 sm:py-2.5 min-h-[44px] sm:min-h-0 text-sm font-semibold transition-colors active:scale-[0.99] ${
-      active ? 'bg-finland text-white shadow-sm' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+  const vPay = p.payoutVerificationStatus.trim().toLowerCase();
+  const businessChip = (): { label: string; tone: VerificationTone } => {
+    if (vBus === 'verified') return { label: 'Business verified', tone: 'verified' };
+    if (vBus === 'rejected') return { label: 'Business rejected', tone: 'rejected' };
+    if (businessInReviewQueue) return { label: 'Business in review', tone: 'pending' };
+    if (draftBusinessComplete) return { label: 'Ready to submit', tone: 'ready' };
+    return { label: 'Incomplete', tone: 'incomplete' };
+  };
+  const payoutChip = (): { label: string; tone: VerificationTone } | null => {
+    if (!p.payoutIban.trim() || !p.payoutBic.trim()) return null;
+    if (vPay === 'verified') return { label: 'Payout verified', tone: 'verified' };
+    if (vPay === 'rejected') return { label: 'Payout rejected', tone: 'rejected' };
+    if ((p.payoutVerificationSubmittedAt ?? '').trim()) return { label: 'Payout in review', tone: 'pending' };
+    return { label: 'Payout pending', tone: 'incomplete' };
+  };
+  const busChip = businessChip();
+  const payChip = payoutChip();
+  const displayName = p.companyLegalName.trim() || p.operatorDisplayName || 'Your business';
+
+  const profileTabClass = (active: boolean) =>
+    `touch-manipulation pb-3 px-1 text-sm font-semibold border-b-2 transition-colors min-h-[44px] sm:min-h-0 ${
+      active
+        ? 'border-finland text-finland'
+        : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
     }`;
 
   return (
-    <div className="space-y-4 sm:space-y-5 max-w-4xl w-full min-w-0">
-      <div>
-        <h1 className="text-lg sm:text-2xl font-bold tracking-tight text-gray-900">Business profile</h1>
-        <p className="mt-1.5 text-sm text-gray-600">
-          Company details, payouts, and legal documents guests see when they book your experiences.
-        </p>
+    <div className="space-y-6 max-w-3xl w-full min-w-0">
+      <div className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+          <div className="w-16 h-16 rounded-2xl border-2 border-gray-100 bg-gray-50 overflow-hidden flex items-center justify-center flex-shrink-0 shadow-sm">
+            {p.businessLogoUrl ? (
+              <img src={p.businessLogoUrl} alt="" className="w-full h-full object-cover" />
+            ) : (
+              <Building2 className="w-8 h-8 text-gray-300" aria-hidden />
+            )}
+          </div>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-gray-900 truncate">{displayName}</h1>
+            <p className="mt-1 text-sm text-gray-600 leading-relaxed">
+              Company details, payouts, and legal documents guests see when they book your experiences.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <StatusChip label={busChip.label} tone={busChip.tone} />
+              {payChip ? <StatusChip label={payChip.label} tone={payChip.tone} /> : null}
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div className="rounded-xl border border-gray-200 bg-white p-1 shadow-sm">
-        <div className="flex flex-wrap gap-1 p-1">
+      <div className="border-b border-gray-200">
+        <nav className="-mb-px flex gap-6 sm:gap-8" aria-label="Business profile sections">
           <button
             type="button"
-            className={tabBtn(p.businessProfileTab === 'company')}
+            className={profileTabClass(p.businessProfileTab === 'company')}
             onClick={() => {
               p.setBusinessProfileTab('company');
               window.location.hash = 'company';
@@ -346,7 +488,7 @@ function BusinessProfilePage(p: Props) {
           </button>
           <button
             type="button"
-            className={tabBtn(p.businessProfileTab === 'legal')}
+            className={profileTabClass(p.businessProfileTab === 'legal')}
             onClick={() => {
               p.setBusinessProfileTab('legal');
               window.location.hash = 'legal';
@@ -354,59 +496,54 @@ function BusinessProfilePage(p: Props) {
           >
             Legal obligations
           </button>
-        </div>
+        </nav>
       </div>
 
       {p.businessProfileTab === 'company' && (
-        <>
-          <div id="supplier-business-company" className="rounded-xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm">
-            <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-gray-900">Company details</h2>
-            <p className="text-sm text-gray-600 mt-1.5 mb-5">Verification and invoicing. Insurance and policies are under Legal obligations.</p>
-            <div className="space-y-4 max-w-xl">
-              {businessLocked && (
-                <div className="rounded-lg border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-800">
-                  <p className="font-medium text-slate-900">
-                    {p.verificationStatus.trim().toLowerCase() === 'verified'
-                      ? 'Business registration is locked'
-                      : 'Business profile under review'}
-                  </p>
-                  <p className="mt-1.5 text-xs text-slate-700 leading-relaxed">
-                    {p.verificationStatus.trim().toLowerCase() === 'verified' ? (
-                      <>
-                        You cannot change your legal business information or registration proof here. Payout bank
-                        details are managed separately below. You can still update your profile photo, payout frequency,
-                        and minimum payout threshold. To change locked business details, email{' '}
-                        <a
-                          href={`mailto:${SUPPLIER_SENSITIVE_CHANGES_SUPPORT_EMAIL}?subject=Supplier%20profile%20change%20request`}
-                          className="font-medium text-finland hover:underline"
-                        >
-                          {SUPPLIER_SENSITIVE_CHANGES_SUPPORT_EMAIL}
-                        </a>
-                        .
-                      </>
-                    ) : (
-                      <>
-                        You cannot edit business registration or verification documents while Traverion reviews your
-                        business submission. You can still add or update payout bank details (IBAN/BIC) below, and you
-                        can change your profile photo, payout frequency, and threshold. Questions?{' '}
-                        <a
-                          href={`mailto:${SUPPLIER_SENSITIVE_CHANGES_SUPPORT_EMAIL}`}
-                          className="font-medium text-finland hover:underline"
-                        >
-                          {SUPPLIER_SENSITIVE_CHANGES_SUPPORT_EMAIL}
-                        </a>
-                      </>
-                    )}
-                  </p>
-                </div>
-              )}
-              <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Business profile photo</label>
-                <p className="text-xs text-gray-500 mb-3">
-                  Optional. Shown on your tour pages next to your business name so guests recognize your brand.
-                </p>
-                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                  <div className="w-24 h-24 rounded-xl border-2 border-gray-200 bg-white overflow-hidden flex items-center justify-center flex-shrink-0 shadow-sm">
+        <div className="space-y-5">
+          {businessLocked && (
+            <div className="rounded-2xl border border-slate-200 bg-slate-50/90 px-5 py-4 text-sm text-slate-800">
+              <p className="font-medium text-slate-900">
+                {p.verificationStatus.trim().toLowerCase() === 'verified'
+                  ? 'Business registration is locked'
+                  : 'Business profile under review'}
+              </p>
+              <p className="mt-1.5 text-xs text-slate-700 leading-relaxed">
+                {p.verificationStatus.trim().toLowerCase() === 'verified' ? (
+                  <>
+                    You cannot change your legal business information or registration proof here. Payout bank details are
+                    managed separately below. You can still update your profile photo, payout frequency, and minimum payout
+                    threshold. To change locked business details, email{' '}
+                    <a
+                      href={`mailto:${SUPPLIER_SENSITIVE_CHANGES_SUPPORT_EMAIL}?subject=Supplier%20profile%20change%20request`}
+                      className="font-medium text-finland hover:underline"
+                    >
+                      {SUPPLIER_SENSITIVE_CHANGES_SUPPORT_EMAIL}
+                    </a>
+                    .
+                  </>
+                ) : (
+                  <>
+                    You cannot edit business registration or verification documents while Traverion reviews your business
+                    submission. You can still add or update payout bank details (IBAN/BIC) below, and you can change your
+                    profile photo, payout frequency, and threshold. Questions?{' '}
+                    <a href={`mailto:${SUPPLIER_SENSITIVE_CHANGES_SUPPORT_EMAIL}`} className="font-medium text-finland hover:underline">
+                      {SUPPLIER_SENSITIVE_CHANGES_SUPPORT_EMAIL}
+                    </a>
+                  </>
+                )}
+              </p>
+            </div>
+          )}
+
+          <ProfileSection
+            id="supplier-business-company"
+            icon={ImagePlus}
+            title="Brand"
+            description="Optional photo shown on your tour pages so guests recognize your business."
+          >
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+              <div className="w-24 h-24 rounded-2xl border-2 border-gray-200 bg-white overflow-hidden flex items-center justify-center flex-shrink-0 shadow-sm">
                     {p.businessLogoUrl ? (
                       <img src={p.businessLogoUrl} alt="" className="w-full h-full object-cover" />
                     ) : (
@@ -442,7 +579,7 @@ function BusinessProfilePage(p: Props) {
                         type="button"
                         disabled={logoUploading}
                         onClick={() => logoInputRef.current?.click()}
-                        className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-800 hover:bg-gray-50 disabled:opacity-50"
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-800 hover:bg-gray-50 shadow-sm disabled:opacity-50"
                       >
                         <ImagePlus className="w-4 h-4" />
                         {logoUploading ? 'Uploading…' : p.businessLogoUrl ? 'Replace photo' : 'Upload photo'}
@@ -467,18 +604,24 @@ function BusinessProfilePage(p: Props) {
                         </button>
                       ) : null}
                     </div>
-                    {logoError && <p className="text-xs text-red-600">{logoError}</p>}
-                  </div>
-                </div>
+                {logoError && <p className="text-xs text-red-600">{logoError}</p>}
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Business type</label>
-                <select
-                  value={p.businessType}
-                  disabled={identityFieldsDisabled}
-                  onChange={(e) => p.setBusinessType(e.target.value as 'company' | 'individual' | '')}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
-                >
+            </div>
+          </ProfileSection>
+
+          <ProfileSection
+            icon={Landmark}
+            title="Legal identity"
+            description="Registered name and identifiers — must match your official documents."
+          >
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Business type</label>
+              <select
+                value={p.businessType}
+                disabled={identityFieldsDisabled}
+                onChange={(e) => p.setBusinessType(e.target.value as 'company' | 'individual' | '')}
+                className={profileInputClass(identityFieldsDisabled)}
+              >
                   <option value="">Not set</option>
                   <option value="company">Registered company</option>
                   <option value="individual">Individual trader</option>
@@ -498,7 +641,7 @@ function BusinessProfilePage(p: Props) {
                   disabled={identityFieldsDisabled}
                   onChange={(e) => p.setCompanyLegalName(e.target.value)}
                   placeholder="As on your business / trade registration"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  className={profileInputClass(identityFieldsDisabled)}
                 />
               </div>
               {p.businessType === 'company' && (
@@ -518,7 +661,7 @@ function BusinessProfilePage(p: Props) {
                       disabled={identityFieldsDisabled}
                       onChange={(e) => p.setCompanyRegistrationNumber(e.target.value)}
                       placeholder="As on your registration certificate"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      className={profileInputClass(identityFieldsDisabled)}
                     />
                   </div>
                   <div>
@@ -530,65 +673,69 @@ function BusinessProfilePage(p: Props) {
                       disabled={identityFieldsDisabled}
                       onChange={(e) => p.setManagingDirectors(e.target.value)}
                       placeholder="Full name"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      className={profileInputClass(identityFieldsDisabled)}
                     />
                   </div>
                 </>
               )}
-              <div className="space-y-3">
-                <p className="text-xs text-gray-500">
-                  Enter the address exactly as on your registration certificate. We check it against your uploaded
-                  document during review; if it does not match, we may return the profile as needing more information
-                  (e.g. mismatching address).
-                </p>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
-                  <p className="text-xs text-gray-500 mb-2">Street and building; as on your business registration.</p>
-                  <input
-                    type="text"
-                    value={p.addressStreet}
-                    disabled={identityFieldsDisabled}
-                    onChange={(e) => p.setAddressStreet(e.target.value)}
-                    placeholder="Street, number, unit"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
-                  <input
-                    type="text"
-                    value={p.addressCountry}
-                    disabled={identityFieldsDisabled}
-                    onChange={(e) => p.setAddressCountry(e.target.value)}
-                    placeholder="Country"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
-                  <input
-                    type="text"
-                    value={p.addressCity}
-                    disabled={identityFieldsDisabled}
-                    onChange={(e) => p.setAddressCity(e.target.value)}
-                    placeholder="City"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">ZIP / postal code</label>
-                  <input
-                    type="text"
-                    value={p.addressPostalCode}
-                    disabled={identityFieldsDisabled}
-                    onChange={(e) => p.setAddressPostalCode(e.target.value)}
-                    placeholder="Postal code"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  />
-                </div>
+          </ProfileSection>
+
+          <ProfileSection
+            icon={MapPin}
+            title="Registered address"
+            description="Must match your registration certificate — mismatches may delay verification."
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Street address</label>
+                <input
+                  type="text"
+                  value={p.addressStreet}
+                  disabled={identityFieldsDisabled}
+                  onChange={(e) => p.setAddressStreet(e.target.value)}
+                  placeholder="Street, number, unit"
+                  className={profileInputClass(identityFieldsDisabled)}
+                />
               </div>
-              {p.businessType === 'company' && (
-                <div className="rounded-lg border border-slate-200 bg-slate-50/90 p-4 space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">City</label>
+                <input
+                  type="text"
+                  value={p.addressCity}
+                  disabled={identityFieldsDisabled}
+                  onChange={(e) => p.setAddressCity(e.target.value)}
+                  placeholder="City"
+                  className={profileInputClass(identityFieldsDisabled)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">ZIP / postal code</label>
+                <input
+                  type="text"
+                  value={p.addressPostalCode}
+                  disabled={identityFieldsDisabled}
+                  onChange={(e) => p.setAddressPostalCode(e.target.value)}
+                  placeholder="Postal code"
+                  className={profileInputClass(identityFieldsDisabled)}
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Country</label>
+                <input
+                  type="text"
+                  value={p.addressCountry}
+                  disabled={identityFieldsDisabled}
+                  onChange={(e) => p.setAddressCountry(e.target.value)}
+                  placeholder="Country"
+                  className={profileInputClass(identityFieldsDisabled)}
+                />
+              </div>
+            </div>
+          </ProfileSection>
+
+          {p.businessType === 'company' && (
+            <ProfileSection icon={Landmark} title="Tax references" description="Optional — only if separate from your registration number.">
+              <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4 space-y-4">
                   <p className="text-xs text-slate-700">
                     You do not need a separate “tax ID” for verification if your{' '}
                     <span className="font-medium text-slate-900">registration number</span> above is complete. Use the
@@ -606,7 +753,7 @@ function BusinessProfilePage(p: Props) {
                         disabled={identityFieldsDisabled}
                         onChange={(e) => p.setVatId(e.target.value)}
                         placeholder="Leave blank if not VAT-registered"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+                        className={profileInputClass(identityFieldsDisabled)}
                       />
                     </div>
                     <div>
@@ -620,56 +767,52 @@ function BusinessProfilePage(p: Props) {
                         disabled={identityFieldsDisabled}
                         onChange={(e) => p.setTaxId(e.target.value)}
                         placeholder="Optional"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+                        className={profileInputClass(identityFieldsDisabled)}
                       />
                     </div>
                   </div>
-                </div>
-              )}
-              {p.businessType === 'individual' && (
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Tax or registration number</label>
-                    <p className="text-xs text-gray-500 mb-2">
-                      Required for verification: your business or tax identifier exactly as it appears on your trade or tax
-                      registration documents, in the format used in your jurisdiction.
-                    </p>
-                    <input
-                      type="text"
-                      value={p.taxId}
-                      disabled={identityFieldsDisabled}
-                      onChange={(e) => p.setTaxId(e.target.value)}
-                      placeholder="As on your registration"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland disabled:bg-gray-100 disabled:cursor-not-allowed"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">VAT ID (optional)</label>
-                    <p className="text-xs text-gray-500 mb-2">
-                      Only if you are VAT-registered. Use the format your tax authority issued.
-                    </p>
-                    <input
-                      type="text"
-                      value={p.vatId}
-                      disabled={identityFieldsDisabled}
-                      onChange={(e) => p.setVatId(e.target.value)}
-                      placeholder="Leave blank if not VAT-registered"
-                      className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland disabled:bg-gray-100 disabled:cursor-not-allowed"
-                    />
-                  </div>
-                </div>
-              )}
+              </div>
+            </ProfileSection>
+          )}
 
-              <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-4 space-y-4">
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-900">Verification documents</h3>
-                  <p className="text-xs text-gray-600 mt-1">
-                    Upload proof of your business or trade registration so Traverion can verify your account. Files are
-                    stored securely and reviewed by our team.
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Business registration proof</label>
+          {p.businessType === 'individual' && (
+            <ProfileSection icon={Landmark} title="Tax & registration" description="Required for individual trader verification.">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Tax or registration number</label>
+                <p className="text-xs text-gray-500 mb-2">
+                  Your business or tax identifier exactly as it appears on your trade or tax registration documents.
+                </p>
+                <input
+                  type="text"
+                  value={p.taxId}
+                  disabled={identityFieldsDisabled}
+                  onChange={(e) => p.setTaxId(e.target.value)}
+                  placeholder="As on your registration"
+                  className={profileInputClass(identityFieldsDisabled)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">VAT ID (optional)</label>
+                <input
+                  type="text"
+                  value={p.vatId}
+                  disabled={identityFieldsDisabled}
+                  onChange={(e) => p.setVatId(e.target.value)}
+                  placeholder="Leave blank if not VAT-registered"
+                  className={profileInputClass(identityFieldsDisabled)}
+                />
+              </div>
+            </ProfileSection>
+          )}
+
+          <ProfileSection
+            icon={FileText}
+            title="Verification documents"
+            description="Upload proof of registration — stored securely and reviewed by Traverion."
+          >
+            <div className="rounded-xl border border-amber-200/80 bg-amber-50/50 p-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Business registration proof</label>
                   <p className="text-xs text-gray-500 mb-2">
                     {p.businessType === 'company'
                       ? 'Official extract or certificate showing your company name and registration number (PDF or clear photo).'
@@ -708,7 +851,7 @@ function BusinessProfilePage(p: Props) {
                       type="button"
                       disabled={companyRegUploading || identityFieldsDisabled}
                       onClick={() => companyRegInputRef.current?.click()}
-                      className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-800 hover:bg-gray-50 disabled:opacity-50"
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-800 hover:bg-gray-50 shadow-sm disabled:opacity-50"
                     >
                       {companyRegUploading
                         ? 'Uploading…'
@@ -765,93 +908,86 @@ function BusinessProfilePage(p: Props) {
                     </p>
                   ) : null}
                 </div>
-                {docError && <p className="text-xs text-red-600">{docError}</p>}
-              </div>
+              {docError && <p className="text-xs text-red-600">{docError}</p>}
+            </div>
+          </ProfileSection>
 
-              <div className="space-y-2">
-                {p.verificationStatus.trim().toLowerCase() === 'verified' && (
-                  <div>
-                    <p className="text-sm text-gray-700">
-                      Business verification: <span className="font-semibold text-green-800">Verified</span>
-                    </p>
-                    <p className="text-sm text-green-800 bg-green-50 border border-green-200 rounded-lg px-3 py-2 mt-2">
+          <div className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm space-y-3">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5 text-finland flex-shrink-0" aria-hidden />
+              <h2 className="text-base font-semibold text-gray-900">Business verification status</h2>
+            </div>
+            {p.verificationStatus.trim().toLowerCase() === 'verified' && (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 px-4 py-3">
+                <div className="flex items-start gap-2">
+                  <StatusChip label="Verified" tone="verified" />
+                  <p className="text-sm text-emerald-900 leading-relaxed">
                       {p.payoutVerificationStatus.trim().toLowerCase() === 'verified'
                         ? 'Your business details are approved and your payout (IBAN/BIC) is verified. You can publish listings when your tours meet listing quality checks.'
-                        : 'Your business details are approved. You still need Traverion to verify your payout (IBAN/BIC) before you can publish listings; use Payment & payouts below.'}
-                    </p>
-                  </div>
-                )}
-                {p.verificationStatus.trim().toLowerCase() === 'rejected' && (
-                  <div>
-                    <p className="text-sm text-gray-700">
-                      Business verification: <span className="font-semibold text-red-800">Rejected</span>
-                    </p>
-                    <p className="text-sm text-red-800 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mt-2">
-                      Business verification was not approved. Update your details and documents here, then save again.
-                      Your payout section stays independent—contact support if you need help.
-                    </p>
-                    {p.businessVerificationFeedback.trim() ? (
-                      <div className="mt-2 rounded-lg border border-red-200 bg-white px-3 py-2 text-sm text-red-950">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-red-800 mb-1">
-                          Message from Traverion
-                        </p>
-                        <p className="text-sm text-red-900 whitespace-pre-wrap">{p.businessVerificationFeedback.trim()}</p>
-                      </div>
-                    ) : null}
-                  </div>
-                )}
-                {vBus !== 'verified' && vBus !== 'rejected' && businessInReviewQueue && (
-                  <div>
-                    <p className="text-sm text-gray-700">
-                      Business verification:{' '}
-                      <span className="font-semibold text-amber-900">Under verification</span>
-                    </p>
-                    <p className="text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-2">
-                      Traverion is reviewing the business details and documents you submitted. You can still add or
-                      update payout bank details below; each side is verified separately. We will email you when there
-                      is an update.
-                    </p>
-                  </div>
-                )}
-                {vBus !== 'verified' && vBus !== 'rejected' && !businessInReviewQueue && !draftBusinessComplete && (
-                  <div>
-                    <p className="text-sm text-gray-700">
-                      Business verification: <span className="font-semibold text-slate-800">Incomplete</span>
-                    </p>
-                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800">
-                      <p className="text-xs text-slate-700">
-                        Complete everything below, then use <span className="font-medium">Save company details</span> to
-                        submit for review.
-                      </p>
-                      <p className="text-xs font-medium text-slate-900 mt-2">Still needed:</p>
-                      <ul className="mt-1.5 list-disc list-inside text-xs text-slate-700 space-y-1">
-                        {businessProfileMissingReasons.map((line) => (
-                          <li key={line}>{line}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                )}
-                {vBus !== 'verified' && vBus !== 'rejected' && !businessInReviewQueue && draftBusinessComplete && (
-                  <div>
-                    <p className="text-sm text-gray-700">
-                      Business verification: <span className="font-semibold text-sky-900">Ready to submit</span>
-                    </p>
-                    <p className="text-sm text-sky-900 bg-sky-50 border border-sky-200 rounded-lg px-3 py-2 mt-2">
-                      Required company fields and registration proof look complete. Click{' '}
-                      <span className="font-medium">Save company details</span> below to send them to Traverion for
-                      review. Until you save, you are not in the verification queue (for example after a reset in our
-                      systems).
-                    </p>
-                  </div>
-                )}
+                        : 'Your business details are approved. You still need Traverion to verify your payout (IBAN/BIC) before you can publish listings.'}
+                  </p>
+                </div>
               </div>
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-3 flex-wrap">
-                  <button
-                    type="button"
-                    disabled={p.companySaving || identityFieldsDisabled}
-                    onClick={async () => {
+            )}
+            {p.verificationStatus.trim().toLowerCase() === 'rejected' && (
+              <div className="rounded-xl border border-red-200 bg-red-50/80 px-4 py-3 space-y-2">
+                <StatusChip label="Rejected" tone="rejected" />
+                <p className="text-sm text-red-900 leading-relaxed">
+                  Business verification was not approved. Update your details and documents, then save again.
+                </p>
+                {p.businessVerificationFeedback.trim() ? (
+                  <div className="rounded-lg border border-red-200 bg-white px-3 py-2 text-sm text-red-950">
+                    <p className="text-xs font-semibold text-red-800 mb-1">Message from Traverion</p>
+                    <p className="text-sm text-red-900 whitespace-pre-wrap">{p.businessVerificationFeedback.trim()}</p>
+                  </div>
+                ) : null}
+              </div>
+            )}
+            {vBus !== 'verified' && vBus !== 'rejected' && businessInReviewQueue && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-amber-800" aria-hidden />
+                  <StatusChip label="Under verification" tone="pending" />
+                </div>
+                <p className="text-sm text-amber-900 leading-relaxed">
+                  Traverion is reviewing your submission. Payout bank details are verified separately — we will email you
+                  when there is an update.
+                </p>
+              </div>
+            )}
+            {vBus !== 'verified' && vBus !== 'rejected' && !businessInReviewQueue && !draftBusinessComplete && (
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-slate-600" aria-hidden />
+                  <StatusChip label="Incomplete" tone="incomplete" />
+                </div>
+                <p className="text-xs text-slate-700">Complete the sections above, then save to submit for review.</p>
+                <ul className="list-disc list-inside text-xs text-slate-700 space-y-1">
+                  {businessProfileMissingReasons.map((line) => (
+                    <li key={line}>{line}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {vBus !== 'verified' && vBus !== 'rejected' && !businessInReviewQueue && draftBusinessComplete && (
+              <div className="rounded-xl border border-sky-200 bg-sky-50/80 px-4 py-3 space-y-2">
+                <StatusChip label="Ready to submit" tone="ready" />
+                <p className="text-sm text-sky-900 leading-relaxed">
+                  Required fields look complete. Save company details to send them to Traverion for review.
+                </p>
+              </div>
+            )}
+          </div>
+
+          <SaveBar
+            saving={p.companySaving}
+            disabled={identityFieldsDisabled}
+            label="Save company details"
+            savingLabel="Saving…"
+            success={p.companyMessage === 'success'}
+            error={p.companyMessage === 'error'}
+            errorText={companySaveError}
+            onClick={async () => {
                       if (!p.user?.id) return;
                       if (businessLocked) {
                         setCompanySaveError(
@@ -923,36 +1059,20 @@ function BusinessProfilePage(p: Props) {
                         p.setBusinessVerificationFeedback('');
                         p.setCompanyMessage('success');
                         p.onCompanyProfileSaved();
-                      } else {
-                        p.setCompanyMessage('error');
-                      }
-                    }}
-                    className="px-4 py-2 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark disabled:opacity-50"
-                  >
-                    {p.companySaving ? 'Saving…' : 'Save company details'}
-                  </button>
-                  {p.companyMessage === 'success' && (
-                    <span className="text-sm text-green-600">
-                      Saved. Your business is now under verification by Traverion.
-                    </span>
-                  )}
-                  {p.companyMessage === 'error' && <span className="text-sm text-red-600">Failed to save.</span>}
-                </div>
-                {companySaveError && <p className="text-sm text-red-600">{companySaveError}</p>}
-              </div>
-            </div>
-          </div>
+              } else {
+                p.setCompanyMessage('error');
+              }
+            }}
+          />
 
-          <div id="supplier-business-payout" className="rounded-xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm">
-            <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-gray-900">Payment &amp; payouts</h2>
-            <p className="text-sm text-gray-600 mt-1.5 mb-5">
-              Payouts are by bank transfer only (IBAN and BIC). Traverion verifies your bank details separately from your
-              business profile. Both must be verified before you can publish listings. Payout frequency and threshold are
-              optional.
-            </p>
-            <div className="space-y-4">
-              {payoutLocked && (
-                <div className="rounded-lg border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-800">
+          <ProfileSection
+            id="supplier-business-payout"
+            icon={Wallet}
+            title="Payment & payouts"
+            description="Bank transfer only (IBAN + BIC). Verified separately from your business profile — both required to publish listings."
+          >
+            {payoutLocked && (
+              <div className="rounded-xl border border-slate-200 bg-slate-50/90 px-4 py-3 text-sm text-slate-800">
                   <p className="font-medium text-slate-900">
                     {p.payoutVerificationStatus.trim().toLowerCase() === 'verified'
                       ? 'Payout bank details are locked'
@@ -980,89 +1100,73 @@ function BusinessProfilePage(p: Props) {
                   </p>
                 </div>
               )}
-              <div className="rounded-lg border border-gray-200 bg-gray-50/80 p-4 space-y-4">
-                <p className="text-xs text-gray-600">
-                  <span className="font-medium text-gray-800">Bank transfer:</span> enter the account that should receive
-                  payouts. Saving valid IBAN and BIC submits them for Traverion verification (independent of business
-                  verification).
-                </p>
+            <div className="rounded-xl border border-gray-200 bg-gray-50/60 p-4">
+              <p className="text-xs text-gray-600 mb-4">
+                Enter the account that should receive payouts. Saving IBAN and BIC submits them for verification.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">IBAN</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">IBAN</label>
                   <input
                     type="text"
                     value={p.payoutIban}
                     disabled={payoutDestinationLocked}
                     onChange={(e) => p.setPayoutIban(e.target.value)}
-                    placeholder="International bank account number (IBAN)"
-                    className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    placeholder="International bank account number"
+                    className={profileInputClass(payoutDestinationLocked)}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">BIC / SWIFT</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">BIC / SWIFT</label>
                   <input
                     type="text"
                     value={p.payoutBic}
                     disabled={payoutDestinationLocked}
                     onChange={(e) => p.setPayoutBic(e.target.value)}
-                    placeholder="Bank identifier (SWIFT/BIC)"
-                    className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    placeholder="Bank identifier"
+                    className={profileInputClass(payoutDestinationLocked)}
                   />
                 </div>
               </div>
-              <div className="space-y-2">
-                {p.payoutIban.trim() && p.payoutBic.trim() && p.payoutVerificationStatus.trim().toLowerCase() === 'verified' && (
-                  <div>
-                    <p className="text-sm text-gray-700">
-                      Payout verification: <span className="font-semibold text-green-800">Verified</span>
-                    </p>
-                    <p className="text-sm text-green-800 bg-green-50 border border-green-200 rounded-lg px-3 py-2 mt-2">
-                      Your bank details are approved. You still need business verification (above) before you can publish
-                      listings.
-                    </p>
-                  </div>
-                )}
-                {p.payoutIban.trim() && p.payoutBic.trim() && p.payoutVerificationStatus.trim().toLowerCase() === 'rejected' && (
-                  <div>
-                    <p className="text-sm text-gray-700">
-                      Payout verification: <span className="font-semibold text-red-800">Rejected</span>
-                    </p>
-                    <p className="text-sm text-red-800 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mt-2">
-                      Payout details were not approved. Update IBAN and BIC and save again to resubmit.
-                    </p>
-                    {p.payoutVerificationFeedback.trim() ? (
-                      <div className="mt-2 rounded-lg border border-red-200 bg-white px-3 py-2 text-sm text-red-950">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-red-800 mb-1">
-                          Message from Traverion
-                        </p>
-                        <p className="text-sm text-red-900 whitespace-pre-wrap">{p.payoutVerificationFeedback.trim()}</p>
-                      </div>
-                    ) : null}
-                  </div>
-                )}
-                {p.payoutIban.trim() &&
-                  p.payoutBic.trim() &&
-                  p.payoutVerificationStatus.trim().toLowerCase() !== 'verified' &&
-                  p.payoutVerificationStatus.trim().toLowerCase() !== 'rejected' &&
-                  (p.payoutVerificationSubmittedAt ?? '').trim() !== '' && (
-                    <div>
-                      <p className="text-sm text-gray-700">
-                        Payout verification:{' '}
-                        <span className="font-semibold text-amber-900">Under verification</span>
-                      </p>
-                      <p className="text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-2">
-                        Traverion is reviewing your bank details. You can still work on business verification above if
-                        needed. We will email you when there is an update.
-                      </p>
-                    </div>
-                  )}
+            </div>
+
+            {p.payoutIban.trim() && p.payoutBic.trim() && vPay === 'verified' && (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 px-4 py-3 space-y-1">
+                <StatusChip label="Payout verified" tone="verified" />
+                <p className="text-sm text-emerald-900">Bank details approved. Business verification is still required to publish listings.</p>
               </div>
+            )}
+            {p.payoutIban.trim() && p.payoutBic.trim() && vPay === 'rejected' && (
+              <div className="rounded-xl border border-red-200 bg-red-50/80 px-4 py-3 space-y-2">
+                <StatusChip label="Payout rejected" tone="rejected" />
+                <p className="text-sm text-red-900">Update IBAN and BIC, then save again to resubmit.</p>
+                {p.payoutVerificationFeedback.trim() ? (
+                  <div className="rounded-lg border border-red-200 bg-white px-3 py-2 text-sm text-red-950">
+                    <p className="text-xs font-semibold text-red-800 mb-1">Message from Traverion</p>
+                    <p className="text-sm text-red-900 whitespace-pre-wrap">{p.payoutVerificationFeedback.trim()}</p>
+                  </div>
+                ) : null}
+              </div>
+            )}
+            {p.payoutIban.trim() &&
+              p.payoutBic.trim() &&
+              vPay !== 'verified' &&
+              vPay !== 'rejected' &&
+              (p.payoutVerificationSubmittedAt ?? '').trim() !== '' && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-3 space-y-1">
+                  <StatusChip label="Payout in review" tone="pending" />
+                  <p className="text-sm text-amber-900">Traverion is reviewing your bank details. We will email you when there is an update.</p>
+                </div>
+              )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Payout frequency</label>
-                <p className="text-xs text-gray-500 mb-1.5">How often we settle payouts once they are enabled.</p>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Payout frequency</label>
+                <p className="text-xs text-gray-500 mb-2">How often we settle payouts once enabled.</p>
                 <select
                   value={p.paymentCycle}
                   onChange={(e) => p.setPaymentCycle(e.target.value as 'monthly' | 'biweekly' | '')}
-                  className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  className={profileInputClass()}
                 >
                   <option value="">Not set</option>
                   <option value="monthly">Monthly</option>
@@ -1070,213 +1174,206 @@ function BusinessProfilePage(p: Props) {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Minimum payout threshold (e.g. 50)
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Minimum payout threshold</label>
+                <p className="text-xs text-gray-500 mb-2">Minimum balance before a payout is sent (e.g. 50).</p>
                 <input
                   type="number"
                   min={0}
                   value={p.payoutThreshold}
                   onChange={(e) => p.setPayoutThreshold(e.target.value)}
                   placeholder="0"
-                  className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  className={profileInputClass()}
                 />
               </div>
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-3 flex-wrap">
-                  <button
-                    type="button"
-                    disabled={p.payoutSaving}
-                    onClick={async () => {
-                      if (!p.user?.id) return;
-                      setPayoutSaveError(null);
-                      p.setPayoutMessage(null);
-                      if (!payoutDestinationLocked) {
-                        if (!p.payoutIban.trim() || !p.payoutBic.trim()) {
-                          setPayoutSaveError('Enter both IBAN and BIC before saving payout details.');
-                          return;
-                        }
-                      }
-                      p.setPayoutSaving(true);
-                      const submittedNow = new Date().toISOString();
-                      const res = payoutDestinationLocked
-                        ? await p.updateSupplierPayout(p.user.id, {
-                            payment_cycle: p.paymentCycle || null,
-                            payout_threshold_min: p.payoutThreshold !== '' ? Number(p.payoutThreshold) : null,
-                          })
-                        : await p.updateSupplierPayout(p.user.id, {
-                            payout_method: 'bank',
-                            payout_iban: p.payoutIban.trim() || null,
-                            payout_bic: p.payoutBic.trim() || null,
-                            payout_paypal_email: null,
-                            payout_verification_status: 'pending',
-                            payout_verification_submitted_at: submittedNow,
-                            payout_verification_feedback: null,
-                            payment_cycle: p.paymentCycle || null,
-                            payout_threshold_min: p.payoutThreshold !== '' ? Number(p.payoutThreshold) : null,
-                          });
-                      p.setPayoutSaving(false);
-                      if (res.success) {
-                        if (!payoutDestinationLocked) {
-                          p.setPayoutVerificationStatus('pending');
-                          p.setPayoutVerificationSubmittedAt(submittedNow);
-                          p.setPayoutVerificationFeedback('');
-                        }
-                        p.setPayoutMessage('success');
-                        p.onPayoutSaved();
-                      } else {
-                        p.setPayoutMessage('error');
-                      }
-                    }}
-                    className="px-4 py-2 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark disabled:opacity-50"
-                  >
-                    {p.payoutSaving ? 'Saving…' : 'Save payout details'}
-                  </button>
-                  {p.payoutMessage === 'success' && <span className="text-sm text-green-600">Saved.</span>}
-                  {p.payoutMessage === 'error' && <span className="text-sm text-red-600">Failed to save.</span>}
-                </div>
-                {payoutSaveError && <p className="text-sm text-red-600">{payoutSaveError}</p>}
-              </div>
             </div>
-          </div>
-        </>
+          </ProfileSection>
+
+          <SaveBar
+            saving={p.payoutSaving}
+            label="Save payout details"
+            savingLabel="Saving…"
+            success={p.payoutMessage === 'success'}
+            error={p.payoutMessage === 'error'}
+            errorText={payoutSaveError}
+            onClick={async () => {
+              if (!p.user?.id) return;
+              setPayoutSaveError(null);
+              p.setPayoutMessage(null);
+              if (!payoutDestinationLocked) {
+                if (!p.payoutIban.trim() || !p.payoutBic.trim()) {
+                  setPayoutSaveError('Enter both IBAN and BIC before saving payout details.');
+                  return;
+                }
+              }
+              p.setPayoutSaving(true);
+              const submittedNow = new Date().toISOString();
+              const res = payoutDestinationLocked
+                ? await p.updateSupplierPayout(p.user.id, {
+                    payment_cycle: p.paymentCycle || null,
+                    payout_threshold_min: p.payoutThreshold !== '' ? Number(p.payoutThreshold) : null,
+                  })
+                : await p.updateSupplierPayout(p.user.id, {
+                    payout_method: 'bank',
+                    payout_iban: p.payoutIban.trim() || null,
+                    payout_bic: p.payoutBic.trim() || null,
+                    payout_paypal_email: null,
+                    payout_verification_status: 'pending',
+                    payout_verification_submitted_at: submittedNow,
+                    payout_verification_feedback: null,
+                    payment_cycle: p.paymentCycle || null,
+                    payout_threshold_min: p.payoutThreshold !== '' ? Number(p.payoutThreshold) : null,
+                  });
+              p.setPayoutSaving(false);
+              if (res.success) {
+                if (!payoutDestinationLocked) {
+                  p.setPayoutVerificationStatus('pending');
+                  p.setPayoutVerificationSubmittedAt(submittedNow);
+                  p.setPayoutVerificationFeedback('');
+                }
+                p.setPayoutMessage('success');
+                p.onPayoutSaved();
+              } else {
+                p.setPayoutMessage('error');
+              }
+            }}
+          />
+        </div>
       )}
 
       {p.businessProfileTab === 'legal' && (
         <div id="supplier-business-legal" className="space-y-5">
-          <div className="rounded-xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm">
-            <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-gray-900 flex items-center gap-2">
-              <Shield className="h-4 w-4 text-finland" aria-hidden />
-              Insurance
-            </h2>
-            <p className="text-sm text-gray-600 mt-1.5 mb-5">
-              Optional liability or tour-operator insurance details for your records and verification.
-            </p>
-            <div className="space-y-2 max-w-xl">
-              <input
-                type="text"
-                value={p.insurancePolicyNumber}
-                onChange={(e) => p.setInsurancePolicyNumber(e.target.value)}
-                placeholder="Policy number"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
-              />
-              <input
-                type="text"
-                value={p.insuranceCoverage}
-                onChange={(e) => p.setInsuranceCoverage(e.target.value)}
-                placeholder="Coverage details"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
-              />
-              <div className="grid grid-cols-2 gap-2">
+          <ProfileSection
+            icon={Shield}
+            title="Insurance"
+            description="Optional liability or tour-operator insurance for your records and verification."
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Policy number</label>
+                <input
+                  type="text"
+                  value={p.insurancePolicyNumber}
+                  onChange={(e) => p.setInsurancePolicyNumber(e.target.value)}
+                  placeholder="Policy number"
+                  className={profileInputClass()}
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Coverage details</label>
+                <input
+                  type="text"
+                  value={p.insuranceCoverage}
+                  onChange={(e) => p.setInsuranceCoverage(e.target.value)}
+                  placeholder="Coverage summary"
+                  className={profileInputClass()}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Start date</label>
                 <input
                   type="date"
                   value={p.insuranceStart}
                   onChange={(e) => p.setInsuranceStart(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+                  className={profileInputClass()}
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">End date</label>
                 <input
                   type="date"
                   value={p.insuranceEnd}
                   onChange={(e) => p.setInsuranceEnd(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+                  className={profileInputClass()}
                 />
               </div>
-              <input
-                type="text"
-                value={p.insuranceProvider}
-                onChange={(e) => p.setInsuranceProvider(e.target.value)}
-                placeholder="Provider name"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
-              />
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Provider</label>
+                <input
+                  type="text"
+                  value={p.insuranceProvider}
+                  onChange={(e) => p.setInsuranceProvider(e.target.value)}
+                  placeholder="Insurance company name"
+                  className={profileInputClass()}
+                />
+              </div>
             </div>
-          </div>
+          </ProfileSection>
 
-          <div className="rounded-xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-gray-900 flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-finland" aria-hidden />
-                  Privacy policy
-                </h2>
-                <p className="text-sm text-gray-600 mt-1.5 max-w-xl">
-                  Shown to guests on your tour pages. We pre-fill a template with <strong>{p.operatorDisplayName}</strong> and your
-                  address — edit if needed, then save.
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => p.setLegalDocModal('privacy')}
-                  className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50"
-                >
-                  Open editor
-                </button>
-                <button type="button" onClick={p.fillPrivacyTemplate} className="text-sm font-medium text-finland hover:underline">
-                  Reset to template
-                </button>
-              </div>
+          <ProfileSection
+            icon={FileText}
+            title="Privacy policy"
+            description={`Shown on tour pages. Pre-filled for ${p.operatorDisplayName} — edit if needed.`}
+          >
+            <div className="flex flex-wrap gap-2 mb-4">
+              <button
+                type="button"
+                onClick={() => p.setLegalDocModal('privacy')}
+                className="inline-flex items-center px-4 py-2 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-800 hover:bg-gray-50 shadow-sm"
+              >
+                Open editor
+              </button>
+              <button
+                type="button"
+                onClick={p.fillPrivacyTemplate}
+                className="inline-flex items-center px-4 py-2 rounded-xl text-sm font-semibold text-finland hover:bg-finland/5"
+              >
+                Reset to template
+              </button>
             </div>
-            <p className="mt-4 text-xs text-gray-500 line-clamp-4 whitespace-pre-wrap rounded-lg bg-gray-50 border border-gray-100 p-3 max-h-32 overflow-hidden">
+            <p className="text-xs text-gray-600 line-clamp-4 whitespace-pre-wrap rounded-xl bg-gray-50 border border-gray-100 p-4 max-h-36 overflow-hidden">
               {p.privacyPolicyText || 'No text saved yet — open the editor or reset to template.'}
             </p>
-          </div>
+          </ProfileSection>
 
-          <div className="rounded-xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-gray-900 flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-finland" aria-hidden />
-                  Terms & conditions
-                </h2>
-                <p className="text-sm text-gray-600 mt-1.5 max-w-xl">
-                  Contract terms for bookings with <strong>{p.operatorDisplayName}</strong>. Guests see these when they book.
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => p.setLegalDocModal('terms')}
-                  className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50"
-                >
-                  Open editor
-                </button>
-                <button type="button" onClick={p.fillTermsTemplate} className="text-sm font-medium text-finland hover:underline">
-                  Reset to template
-                </button>
-              </div>
+          <ProfileSection
+            icon={FileText}
+            title="Terms & conditions"
+            description={`Booking contract terms for ${p.operatorDisplayName}. Guests see these when they book.`}
+          >
+            <div className="flex flex-wrap gap-2 mb-4">
+              <button
+                type="button"
+                onClick={() => p.setLegalDocModal('terms')}
+                className="inline-flex items-center px-4 py-2 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-800 hover:bg-gray-50 shadow-sm"
+              >
+                Open editor
+              </button>
+              <button
+                type="button"
+                onClick={p.fillTermsTemplate}
+                className="inline-flex items-center px-4 py-2 rounded-xl text-sm font-semibold text-finland hover:bg-finland/5"
+              >
+                Reset to template
+              </button>
             </div>
-            <p className="mt-4 text-xs text-gray-500 line-clamp-4 whitespace-pre-wrap rounded-lg bg-gray-50 border border-gray-100 p-3 max-h-32 overflow-hidden">
+            <p className="text-xs text-gray-600 line-clamp-4 whitespace-pre-wrap rounded-xl bg-gray-50 border border-gray-100 p-4 max-h-36 overflow-hidden">
               {p.termsConditionsText || 'No text saved yet — open the editor or reset to template.'}
             </p>
-          </div>
+          </ProfileSection>
 
-          <div className="flex items-center gap-3 flex-wrap">
-            <button
-              type="button"
-              disabled={p.legalSaving}
-              onClick={async () => {
-                if (!p.user?.id) return;
-                p.setLegalSaving(true);
-                p.setLegalMessage(null);
-                const res = await patchSupplierProfile(p.user.id, {
-                  insurance_policy_number: p.insurancePolicyNumber.trim() || null,
-                  insurance_coverage: p.insuranceCoverage.trim() || null,
-                  insurance_start: p.insuranceStart || null,
-                  insurance_end: p.insuranceEnd || null,
-                  insurance_provider: p.insuranceProvider.trim() || null,
-                  privacy_policy_text: p.privacyPolicyText.trim() || null,
-                  terms_conditions_text: p.termsConditionsText.trim() || null,
-                });
-                p.setLegalSaving(false);
-                p.setLegalMessage(res.success ? 'success' : 'error');
-              }}
-              className="px-4 py-2 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark disabled:opacity-50"
-            >
-              {p.legalSaving ? 'Saving…' : 'Save legal & insurance'}
-            </button>
-            {p.legalMessage === 'success' && <span className="text-sm text-green-600">Saved.</span>}
-            {p.legalMessage === 'error' && <span className="text-sm text-red-600">Failed to save.</span>}
-          </div>
+          <SaveBar
+            saving={p.legalSaving}
+            label="Save legal & insurance"
+            savingLabel="Saving…"
+            success={p.legalMessage === 'success'}
+            error={p.legalMessage === 'error'}
+            onClick={async () => {
+              if (!p.user?.id) return;
+              p.setLegalSaving(true);
+              p.setLegalMessage(null);
+              const res = await patchSupplierProfile(p.user.id, {
+                insurance_policy_number: p.insurancePolicyNumber.trim() || null,
+                insurance_coverage: p.insuranceCoverage.trim() || null,
+                insurance_start: p.insuranceStart || null,
+                insurance_end: p.insuranceEnd || null,
+                insurance_provider: p.insuranceProvider.trim() || null,
+                privacy_policy_text: p.privacyPolicyText.trim() || null,
+                terms_conditions_text: p.termsConditionsText.trim() || null,
+              });
+              p.setLegalSaving(false);
+              p.setLegalMessage(res.success ? 'success' : 'error');
+            }}
+          />
         </div>
       )}
 
