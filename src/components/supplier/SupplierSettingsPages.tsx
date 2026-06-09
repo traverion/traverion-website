@@ -10,6 +10,9 @@ import {
   Shield,
   Wallet,
   AlertCircle,
+  Mail,
+  KeyRound,
+  ChevronRight,
 } from 'lucide-react';
 import type { User } from '@supabase/supabase-js';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -152,91 +155,6 @@ export default function SupplierSettingsPages(props: Props) {
   return <BusinessProfilePage {...props} />;
 }
 
-function AccountSettingsPage(p: Props) {
-  return (
-    <div className="space-y-4 sm:space-y-5 max-w-4xl w-full min-w-0">
-      <div>
-        <h1 className="text-lg sm:text-2xl font-bold tracking-tight text-gray-900">Account settings</h1>
-        <p className="mt-1.5 text-sm text-gray-600">
-          Sign-in and password. Business details and payouts live under{' '}
-          <span className="font-medium text-gray-800">Business profile</span>.
-        </p>
-      </div>
-
-      <div
-        id="supplier-account-email"
-        className="rounded-xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm"
-      >
-        <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-gray-900">Account</h2>
-        <p className="text-sm text-gray-600 mt-1.5 mb-5">Sign-in email and verification status.</p>
-        <p className="text-gray-900 font-medium">{p.supplierEmail || '—'}</p>
-        <p className="mt-1 text-xs text-gray-500">
-          You are signed in as the <span className="font-medium text-gray-700">account owner</span> for this supplier
-          account.
-        </p>
-        <div
-          className={`mt-3 rounded-lg border px-3 py-2 text-sm ${
-            p.supplierEmailVerified
-              ? 'border-green-200 bg-green-50 text-green-700'
-              : 'border-amber-200 bg-amber-50 text-amber-800'
-          }`}
-        >
-          {p.supplierEmailVerified
-            ? 'Email verification: Verified'
-            : 'Email verification: Not verified. Verify your email before you can log in.'}
-        </div>
-        {!p.supplierEmailVerified && p.supplierEmail && p.isSupabase && (
-          <div className="mt-2">
-            <button
-              type="button"
-              disabled={p.verificationSending}
-              onClick={async () => {
-                if (!p.supabase || !p.supplierEmail) return;
-                p.setVerificationMessage(null);
-                p.setVerificationSending(true);
-                const { error } = await p.supabase.auth.resend({
-                  type: 'signup',
-                  email: p.supplierEmail.trim().toLowerCase(),
-                  options: { emailRedirectTo: `${supplierPortalPublicBaseUrl()}${PARTNER_EMAIL_VERIFIED_PATH}` },
-                });
-                p.setVerificationSending(false);
-                p.setVerificationMessage(error ? 'error' : 'sent');
-              }}
-              className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-            >
-              {p.verificationSending ? 'Sending verification…' : 'Resend verification email'}
-            </button>
-            {p.verificationMessage === 'sent' && (
-              <p className="mt-2 text-xs text-green-700">Verification email sent. Check inbox/spam.</p>
-            )}
-            {p.verificationMessage === 'error' && (
-              <p className="mt-2 text-xs text-red-600">Could not resend right now. Try again shortly.</p>
-            )}
-          </div>
-        )}
-      </div>
-
-      <div id="supplier-account-security" className="rounded-xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm">
-        <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-gray-900">Security & password</h2>
-        <p className="text-sm text-gray-600 mt-1.5 mb-5">
-          Change your sign-in password on a separate page. You will be asked for your current password, then your new
-          one twice.
-        </p>
-        <button
-          type="button"
-          onClick={() => p.handleNavigate('change-password')}
-          className="inline-flex items-center justify-center px-4 py-2.5 rounded-lg border-2 border-finland bg-finland text-white text-sm font-semibold shadow-sm hover:bg-finland-dark transition-colors"
-        >
-          Change your password
-        </button>
-        {!p.isSupabase && (
-          <p className="mt-3 text-xs text-amber-700">Connect Supabase auth to enable password changes.</p>
-        )}
-      </div>
-    </div>
-  );
-}
-
 type VerificationTone = 'verified' | 'rejected' | 'pending' | 'incomplete' | 'ready';
 
 function profileInputClass(disabled?: boolean): string {
@@ -328,6 +246,144 @@ function SaveBar({
         {error && <span className="text-xs text-red-600 font-medium">Could not save. Try again.</span>}
         {errorText ? <span className="text-xs text-red-600">{errorText}</span> : null}
       </div>
+    </div>
+  );
+}
+
+function accountEmailInitial(email: string): string {
+  const local = email.split('@')[0]?.trim() ?? '';
+  return (local[0] ?? '?').toUpperCase();
+}
+
+function AccountSettingsPage(p: Props) {
+  const email = p.supplierEmail.trim() || '—';
+
+  return (
+    <div className="space-y-6 max-w-3xl w-full min-w-0">
+      <div className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+          <div className="w-16 h-16 rounded-2xl bg-finland text-white flex items-center justify-center text-2xl font-bold flex-shrink-0 shadow-sm">
+            {email !== '—' ? accountEmailInitial(email) : '?'}
+          </div>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-gray-900">Account settings</h1>
+            <p className="mt-1 text-sm text-gray-600 leading-relaxed">
+              Sign-in email and password for this supplier portal.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <StatusChip
+                label={p.supplierEmailVerified ? 'Email verified' : 'Email not verified'}
+                tone={p.supplierEmailVerified ? 'verified' : 'pending'}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        onClick={() => p.handleNavigate('business-profile')}
+        className="w-full rounded-2xl border border-gray-200 bg-white p-4 sm:p-5 shadow-sm text-left hover:border-finland/30 hover:bg-finland/[0.02] transition-colors group"
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-start gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-finland/10 flex items-center justify-center flex-shrink-0">
+              <Building2 className="w-5 h-5 text-finland" aria-hidden />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-gray-900">Business profile</p>
+              <p className="text-xs text-gray-600 mt-0.5">Company details, payouts, and legal documents</p>
+            </div>
+          </div>
+          <ChevronRight
+            className="w-5 h-5 text-gray-400 group-hover:text-finland flex-shrink-0 transition-colors"
+            aria-hidden
+          />
+        </div>
+      </button>
+
+      <ProfileSection
+        id="supplier-account-email"
+        icon={Mail}
+        title="Sign-in email"
+        description="The address you use to log in. Contact support if you need to change it."
+      >
+        <div className="rounded-xl border border-gray-200 bg-gray-50/60 px-4 py-3.5">
+          <p className="text-sm font-semibold text-gray-900 break-all">{email}</p>
+          <p className="mt-1 text-xs text-gray-500">Signed in as account owner for this supplier account.</p>
+        </div>
+
+        {p.supplierEmailVerified ? (
+          <div className="flex items-start gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50/80 px-4 py-3">
+            <CheckCircle2 className="w-4 h-4 text-emerald-700 mt-0.5 flex-shrink-0" aria-hidden />
+            <p className="text-sm text-emerald-900 leading-relaxed">Your email is verified. You can use the partner portal normally.</p>
+          </div>
+        ) : (
+          <div className="rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-3.5 space-y-3">
+            <StatusChip label="Verification required" tone="pending" />
+            <p className="text-sm text-amber-900 leading-relaxed">
+              Verify your email before you can log in. Check your inbox and spam folder for the confirmation link.
+            </p>
+            {p.supplierEmail && p.isSupabase ? (
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  disabled={p.verificationSending}
+                  onClick={async () => {
+                    if (!p.supabase || !p.supplierEmail) return;
+                    p.setVerificationMessage(null);
+                    p.setVerificationSending(true);
+                    const { error } = await p.supabase.auth.resend({
+                      type: 'signup',
+                      email: p.supplierEmail.trim().toLowerCase(),
+                      options: { emailRedirectTo: `${supplierPortalPublicBaseUrl()}${PARTNER_EMAIL_VERIFIED_PATH}` },
+                    });
+                    p.setVerificationSending(false);
+                    p.setVerificationMessage(error ? 'error' : 'sent');
+                  }}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-amber-300/80 bg-white text-sm font-semibold text-amber-950 hover:bg-amber-50 disabled:opacity-50 shadow-sm"
+                >
+                  {p.verificationSending ? 'Sending…' : 'Resend verification email'}
+                </button>
+                {p.verificationMessage === 'sent' && (
+                  <p className="text-xs text-emerald-700 font-medium">Verification email sent. Check inbox and spam.</p>
+                )}
+                {p.verificationMessage === 'error' && (
+                  <p className="text-xs text-red-600 font-medium">Could not resend right now. Try again shortly.</p>
+                )}
+              </div>
+            ) : null}
+          </div>
+        )}
+      </ProfileSection>
+
+      <ProfileSection
+        id="supplier-account-security"
+        icon={KeyRound}
+        title="Password"
+        description="Change your sign-in password. You will confirm your current password first."
+      >
+        <ul className="rounded-xl border border-gray-200 bg-gray-50/60 px-4 py-3 text-xs text-gray-600 space-y-1.5 list-disc list-inside">
+          <li>Minimum 8 characters</li>
+          <li>Must be different from your current password</li>
+          <li>You stay signed in after a successful change</li>
+        </ul>
+
+        <button
+          type="button"
+          onClick={() => p.handleNavigate('change-password')}
+          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-finland text-white text-sm font-semibold shadow-sm hover:bg-finland-dark transition-colors"
+        >
+          Change password
+          <ChevronRight className="w-4 h-4" aria-hidden />
+        </button>
+
+        {!p.isSupabase && (
+          <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+            Supabase auth is not connected in this environment — password changes are unavailable.
+          </p>
+        )}
+      </ProfileSection>
     </div>
   );
 }
