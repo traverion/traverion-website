@@ -16,6 +16,9 @@ import {
   Info,
   MapPin,
   Users,
+  List,
+  Clock,
+  Filter,
 } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import {
@@ -118,6 +121,122 @@ function bookingTimesLine(b: BookingRow): string | null {
   if (s && p) return `Start ${s} · Pickup ${p}`;
   if (s) return `Start ${s}`;
   return `Pickup ${p}`;
+}
+
+function plannerInputClass(): string {
+  return 'w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-finland focus:ring-2 focus:ring-finland/25 outline-none transition-shadow';
+}
+
+function getActiveDatePreset(dateFrom: string, dateTo: string): 'today' | 'week' | 'month' | 'clear' | 'custom' {
+  if (!dateFrom && !dateTo) return 'clear';
+  const now = toYmd(new Date());
+  if (dateFrom === now && dateTo === now) return 'today';
+  if (dateFrom === now) {
+    const end7 = toYmd(addDays(new Date(), 7));
+    const end30 = toYmd(addDays(new Date(), 30));
+    if (dateTo === end7) return 'week';
+    if (dateTo === end30) return 'month';
+  }
+  return 'custom';
+}
+
+function bookingStatusStyles(status: string): string {
+  if (status === 'confirmed') return 'bg-emerald-50 text-emerald-800 ring-emerald-200/80';
+  if (status === 'pending') return 'bg-amber-50 text-amber-900 ring-amber-200/80';
+  if (status === 'cancelled') return 'bg-red-50 text-red-800 ring-red-200/80';
+  return 'bg-slate-100 text-slate-700 ring-slate-200/80';
+}
+
+type PlannerBookingCardProps = {
+  booking: BookingRow;
+  listingTitle: string;
+  guideMeta: ListingGuideMeta | undefined;
+  missingPickup: boolean;
+  urgentSoon?: boolean;
+  showActivityDate?: boolean;
+  onOpen: () => void;
+};
+
+function PlannerBookingCard({
+  booking,
+  listingTitle,
+  guideMeta,
+  missingPickup,
+  urgentSoon,
+  showActivityDate,
+  onOpen,
+}: PlannerBookingCardProps) {
+  const guestsN = Number(booking.guests ?? 0);
+  const activityParsed = booking.booking_date ? parseYmdLocal(booking.booking_date) : null;
+  const actDate =
+    showActivityDate && activityParsed
+      ? activityParsed.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
+      : null;
+  const times = bookingTimesLine(booking);
+  const guide = guideScheduleSummary(guideMeta);
+
+  return (
+    <article
+      className={`group rounded-2xl border p-4 transition-all duration-200 ease-out hover:shadow-md ${
+        urgentSoon
+          ? 'border-red-200 bg-red-50/40 hover:border-red-300'
+          : missingPickup
+            ? 'border-amber-200/90 bg-amber-50/30 hover:border-amber-300'
+            : 'border-gray-200 bg-white hover:border-finland/25'
+      }`}
+    >
+      {urgentSoon && (
+        <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-red-700">
+          <AlertCircle className="h-3.5 w-3.5 shrink-0" aria-hidden />
+          Starts within 24 hours — pickup details still incomplete
+        </p>
+      )}
+      {!urgentSoon && missingPickup && (
+        <p className="mb-2 text-xs font-semibold text-amber-800">Meeting or pickup copy incomplete for this listing</p>
+      )}
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 flex-1 space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="truncate text-sm font-semibold text-gray-900">{listingTitle}</h3>
+            <span
+              className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold capitalize ring-1 ring-inset ${bookingStatusStyles(booking.status)}`}
+            >
+              {booking.status}
+            </span>
+          </div>
+
+          <p className="text-sm text-gray-800">
+            {booking.guest_name ?? booking.guest_email ?? 'Guest'}
+            {actDate ? <span className="text-gray-500"> · {actDate}</span> : null}
+          </p>
+
+          <div className="flex flex-wrap items-center gap-3 text-xs text-gray-600">
+            <span className="inline-flex items-center gap-1">
+              <Users className="h-3.5 w-3.5 text-gray-400" aria-hidden />
+              <span className="font-semibold tabular-nums text-gray-800">{guestsN}</span> guest{guestsN === 1 ? '' : 's'}
+            </span>
+            {times ? (
+              <span className="inline-flex items-center gap-1 font-medium text-finland">
+                <Clock className="h-3.5 w-3.5" aria-hidden />
+                {times}
+              </span>
+            ) : null}
+          </div>
+
+          {guide ? <p className="line-clamp-2 text-xs text-gray-500">{guide}</p> : null}
+        </div>
+
+        <button
+          type="button"
+          onClick={onOpen}
+          className="inline-flex shrink-0 items-center justify-center rounded-xl bg-finland px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-finland-dark active:scale-[0.98]"
+        >
+          Pickup details
+        </button>
+      </div>
+    </article>
+  );
 }
 
 export default function SupplierPickupPlanner() {
@@ -529,29 +648,84 @@ export default function SupplierPickupPlanner() {
     return `${firstLabel} - ${lastLabel}`;
   }, [calendarDates, calendarRange, effectiveCalendarDate]);
 
+  const plannerStats = useMemo(() => {
+    const guestTotal = listBookings.reduce((sum, b) => sum + Number(b.guests ?? 0), 0);
+    const needsPickup = listBookings.filter((b) => needsPickupInfo(b.listing_id)).length;
+    return { bookings: listBookings.length, guests: guestTotal, needsPickup };
+  }, [listBookings, needsPickupInfo]);
+
+  const activeDatePreset = getActiveDatePreset(dateFrom, dateTo);
+
+  const presetChipClass = (preset: 'today' | 'week' | 'month' | 'clear') =>
+    `rounded-full px-3 py-1.5 text-xs font-semibold transition-all duration-200 ${
+      activeDatePreset === preset
+        ? 'bg-finland text-white shadow-sm'
+        : 'border border-gray-200 bg-white text-gray-700 hover:border-finland/30 hover:text-finland'
+    }`;
+
+  const viewTabClass = (tab: PlannerView) =>
+    `inline-flex items-center gap-1.5 pb-3 px-1 text-sm font-semibold border-b-2 transition-colors ${
+      view === tab
+        ? 'border-finland text-finland'
+        : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+    }`;
+
   if (!user) return null;
 
   return (
-    <div className="space-y-3 sm:space-y-4 w-full min-w-0">
-      <div>
-        <h1 className="text-lg sm:text-2xl font-semibold tracking-tight text-gray-900">Pickup planner</h1>
-        <p className="mt-0.5 text-sm text-gray-600 leading-snug">
-          Filter by date and listing, then use <strong>Pickup details</strong> on each booking to manage guest contact, pickup
-          times, and meeting information for that customer.
-        </p>
-        {!canEditBookings && (
-          <p className="mt-1 text-xs text-amber-700">
-            Your role is {role}. You can view pickup plans, but booking status actions are restricted.
-          </p>
+    <div className="space-y-6 max-w-4xl w-full min-w-0 animate-fade-in-up">
+      <div className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-finland/10 flex items-center justify-center flex-shrink-0">
+            <ClipboardList className="w-6 h-6 text-finland" aria-hidden />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-gray-900">Pickup planner</h1>
+            <p className="mt-1 text-sm text-gray-600 leading-relaxed">
+              Plan guest pickups day by day. Filter your bookings, then open <strong className="font-semibold text-gray-800">Pickup details</strong> to set times and review meeting info.
+            </p>
+            {!canEditBookings && (
+              <p className="mt-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                Your role is {role}. You can view plans, but booking actions are restricted.
+              </p>
+            )}
+          </div>
+        </div>
+
+        {!loading && listBookings.length > 0 && (
+          <div className="mt-5 grid grid-cols-3 gap-3 border-t border-gray-100 pt-5">
+            <div className="rounded-xl bg-gray-50 px-3 py-2.5 text-center">
+              <p className="text-lg font-bold tabular-nums text-gray-900">{plannerStats.bookings}</p>
+              <p className="text-[11px] font-medium text-gray-500">Bookings</p>
+            </div>
+            <div className="rounded-xl bg-gray-50 px-3 py-2.5 text-center">
+              <p className="text-lg font-bold tabular-nums text-gray-900">{plannerStats.guests}</p>
+              <p className="text-[11px] font-medium text-gray-500">Guests</p>
+            </div>
+            <div className={`rounded-xl px-3 py-2.5 text-center ${plannerStats.needsPickup > 0 ? 'bg-amber-50' : 'bg-emerald-50/80'}`}>
+              <p className={`text-lg font-bold tabular-nums ${plannerStats.needsPickup > 0 ? 'text-amber-900' : 'text-emerald-800'}`}>
+                {plannerStats.needsPickup}
+              </p>
+              <p className={`text-[11px] font-medium ${plannerStats.needsPickup > 0 ? 'text-amber-800' : 'text-emerald-700'}`}>
+                Need pickup info
+              </p>
+            </div>
+          </div>
         )}
       </div>
 
-      <div className="flex gap-2.5 rounded-lg border border-sky-200/80 bg-sky-50/90 px-3 py-2 text-sm text-sky-950">
-        <Info className="mt-0.5 h-4 w-4 shrink-0 text-sky-700" aria-hidden />
-        <p>
-          Only bookings that match your filters below are shown. Meeting point and pickup instructions are shared across
-          all bookings on the same listing.
-        </p>
+      <div className="rounded-2xl border border-sky-200/70 bg-gradient-to-br from-sky-50/90 to-white px-4 py-3.5 text-sm text-sky-950">
+        <div className="flex gap-3">
+          <Info className="mt-0.5 h-4 w-4 shrink-0 text-sky-700" aria-hidden />
+          <div className="space-y-1">
+            <p className="font-semibold text-sky-950">How this page works</p>
+            <ol className="list-decimal list-inside text-xs text-sky-900/90 space-y-0.5">
+              <li>Use filters to narrow by listing or date range</li>
+              <li>Open <span className="font-medium">Pickup details</span> on a booking for guest info and times</li>
+              <li>Meeting point &amp; instructions are shared per listing — edit once, applies to all</li>
+            </ol>
+          </div>
+        </div>
       </div>
 
       {error && (
@@ -570,152 +744,133 @@ export default function SupplierPickupPlanner() {
         </div>
       )}
 
-      <div className="rounded-lg border border-gray-200 bg-white p-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="inline-flex rounded-md border border-gray-200 bg-gray-50 p-0.5">
-            <button
-              type="button"
-              onClick={() => setView('table')}
-              className={`rounded px-3 py-1.5 text-sm font-medium transition-colors ${
-                view === 'table' ? 'bg-white text-finland shadow-sm' : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
+      <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-4 sm:px-5">
+          <nav className="-mb-px flex gap-6" aria-label="Pickup planner view">
+            <button type="button" onClick={() => setView('table')} className={viewTabClass('table')}>
+              <List className="h-4 w-4" aria-hidden />
               List
             </button>
-            <button
-              type="button"
-              onClick={() => setView('calendar')}
-              className={`inline-flex items-center gap-1.5 rounded px-3 py-1.5 text-sm font-medium transition-colors ${
-                view === 'calendar' ? 'bg-white text-finland shadow-sm' : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              <CalendarDays className="h-4 w-4" />
+            <button type="button" onClick={() => setView('calendar')} className={viewTabClass('calendar')}>
+              <CalendarDays className="h-4 w-4" aria-hidden />
               Calendar
             </button>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {!loading && (
-              <>
-                {listBookings.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={exportCsv}
-                    className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 px-2.5 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                  >
-                    <Download className="h-4 w-4" />
-                    Export CSV
-                  </button>
-                )}
-              </>
-            )}
-          </div>
+          </nav>
+          {!loading && listBookings.length > 0 && (
+            <button
+              type="button"
+              onClick={exportCsv}
+              className="my-2 inline-flex items-center gap-1.5 rounded-xl border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              <Download className="h-4 w-4" aria-hidden />
+              Export CSV
+            </button>
+          )}
         </div>
 
-        <div className="mt-3 flex flex-wrap items-end gap-x-4 gap-y-2 border-t border-gray-100 pt-3">
-          <div>
-            <label className="block text-xs font-medium text-gray-500">Listing</label>
-            <select
-              value={listingFilterId}
-              onChange={(e) => setListingFilterId(e.target.value)}
-              className="mt-0.5 min-w-[11rem] rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm focus:ring-2 focus:ring-finland"
-            >
-              <option value="">All listings</option>
-              {listingSelectOptions.map((opt) => (
-                <option key={opt.id} value={opt.id}>
-                  {opt.title}
-                </option>
-              ))}
-            </select>
+        <div className="p-4 sm:p-5 space-y-4">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+            <Filter className="h-3.5 w-3.5" aria-hidden />
+            Filters
           </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500">From</label>
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-              className="mt-0.5 rounded-md border border-gray-300 px-2 py-1.5 text-sm focus:ring-2 focus:ring-finland"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500">To</label>
-            <input
-              type="date"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-              className="mt-0.5 rounded-md border border-gray-300 px-2 py-1.5 text-sm focus:ring-2 focus:ring-finland"
-            />
-          </div>
-          <label className="flex cursor-pointer items-center gap-2 pb-1 text-sm text-gray-700">
-            <input
-              type="checkbox"
-              checked={needsPickupOnly}
-              onChange={(e) => setNeedsPickupOnly(e.target.checked)}
-              className="rounded border-gray-300 text-finland focus:ring-finland"
-            />
-            Needs pickup details
-          </label>
-          <div>
-            <label className="block text-xs font-medium text-gray-500">Sort by date</label>
-            <select
-              value={sortDate}
-              onChange={(e) => setSortDate(e.target.value as 'asc' | 'desc')}
-              className="mt-0.5 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm focus:ring-2 focus:ring-finland"
-            >
-              <option value="asc">Earliest first</option>
-              <option value="desc">Latest first</option>
-            </select>
-          </div>
-        </div>
 
-        <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-gray-50 pt-2 text-xs text-gray-500">
-          <span className="font-medium text-gray-600">Quick range</span>
-          <button
-            type="button"
-            onClick={() => setPreset('today')}
-            className="rounded border border-gray-200 px-2 py-1 text-gray-700 hover:bg-gray-50"
-          >
-            Today
-          </button>
-          <button
-            type="button"
-            onClick={() => setPreset('week')}
-            className="rounded border border-gray-200 px-2 py-1 text-gray-700 hover:bg-gray-50"
-          >
-            +7 days
-          </button>
-          <button
-            type="button"
-            onClick={() => setPreset('month')}
-            className="rounded border border-gray-200 px-2 py-1 text-gray-700 hover:bg-gray-50"
-          >
-            +30 days
-          </button>
-          <button
-            type="button"
-            onClick={() => setPreset('clear')}
-            className="rounded border border-gray-200 px-2 py-1 text-gray-500 hover:bg-gray-50"
-          >
-            All dates
-          </button>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">Listing</label>
+              <select
+                value={listingFilterId}
+                onChange={(e) => setListingFilterId(e.target.value)}
+                className={plannerInputClass()}
+              >
+                <option value="">All listings</option>
+                {listingSelectOptions.map((opt) => (
+                  <option key={opt.id} value={opt.id}>
+                    {opt.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">From</label>
+              <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className={plannerInputClass()} />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">To</label>
+              <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className={plannerInputClass()} />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">Sort</label>
+              <select
+                value={sortDate}
+                onChange={(e) => setSortDate(e.target.value as 'asc' | 'desc')}
+                className={plannerInputClass()}
+              >
+                <option value="asc">Earliest first</option>
+                <option value="desc">Latest first</option>
+              </select>
+            </div>
+            <label className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-gray-200 bg-gray-50/60 px-3 py-2.5 text-sm text-gray-700 hover:border-amber-200 transition-colors sm:col-span-2">
+              <input
+                type="checkbox"
+                checked={needsPickupOnly}
+                onChange={(e) => setNeedsPickupOnly(e.target.checked)}
+                className="rounded border-gray-300 text-finland focus:ring-finland"
+              />
+              <span>
+                <span className="font-medium text-gray-900">Needs pickup details only</span>
+                <span className="block text-xs text-gray-500">Show bookings missing meeting point or instructions</span>
+              </span>
+            </label>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            <span className="text-xs font-semibold text-gray-500 mr-1">Quick range</span>
+            <button type="button" onClick={() => setPreset('today')} className={presetChipClass('today')}>
+              Today
+            </button>
+            <button type="button" onClick={() => setPreset('week')} className={presetChipClass('week')}>
+              +7 days
+            </button>
+            <button type="button" onClick={() => setPreset('month')} className={presetChipClass('month')}>
+              +30 days
+            </button>
+            <button type="button" onClick={() => setPreset('clear')} className={presetChipClass('clear')}>
+              All dates
+            </button>
+            {activeDatePreset === 'custom' && (dateFrom || dateTo) ? (
+              <span className="text-xs text-gray-500 ml-1">Custom range selected</span>
+            ) : null}
+          </div>
         </div>
       </div>
 
       {loading ? (
-        <div className="rounded-lg border border-gray-200 bg-white py-12 text-center">
-          <p className="text-sm text-gray-500">Loading…</p>
+        <div className="rounded-2xl border border-gray-200 bg-white p-6 space-y-4 animate-pulse">
+          <div className="h-5 w-40 rounded-lg bg-gray-200" />
+          <div className="space-y-3">
+            <div className="h-24 rounded-2xl bg-gray-100" />
+            <div className="h-24 rounded-2xl bg-gray-100" />
+            <div className="h-24 rounded-2xl bg-gray-100" />
+          </div>
         </div>
       ) : view === 'calendar' ? (
         sorted.length === 0 ? (
-        <div className="rounded-lg border border-gray-200 bg-white py-12 text-center">
-          <ClipboardList className="mx-auto mb-3 h-12 w-12 text-gray-300" />
+        <div className="rounded-2xl border border-gray-200 bg-white py-14 text-center px-6 animate-scale-in">
+          <ClipboardList className="mx-auto mb-3 h-12 w-12 text-gray-300" aria-hidden />
           <h2 className="text-lg font-semibold text-gray-900">No bookings match</h2>
-          <p className="mt-1 text-sm text-gray-500">
-            Try widening the date range or adjusting listing filters. Bookings without an activity date are hidden when a date
-            range is set. Cancelled bookings are excluded here.
+          <p className="mt-2 text-sm text-gray-500 max-w-md mx-auto">
+            Widen the date range or clear listing filters. Cancelled bookings are hidden here.
           </p>
+          <button
+            type="button"
+            onClick={() => setPreset('clear')}
+            className="mt-5 rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+          >
+            Show all dates
+          </button>
         </div>
       ) : (
-        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+        <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm animate-fade-in">
           <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 flex flex-wrap items-center gap-2 justify-between">
             <div className="inline-flex rounded-lg border border-gray-200 p-0.5 bg-white">
               <button
@@ -775,8 +930,8 @@ export default function SupplierPickupPlanner() {
               const dayName = d.toLocaleDateString(undefined, { weekday: 'short' });
               const dayNumber = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
               return (
-                <section key={key} className="border border-gray-200 rounded-lg overflow-hidden">
-                  <header className="px-3 py-2 border-b border-gray-100 bg-gray-50 flex flex-col gap-0.5">
+                <section key={key} className="border border-gray-200 rounded-2xl overflow-hidden shadow-sm transition-shadow hover:shadow-md">
+                  <header className="px-3 py-2.5 border-b border-gray-100 bg-gradient-to-r from-slate-50/90 to-white flex flex-col gap-0.5">
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-sm font-semibold text-gray-800">{dayName}</p>
                       <p className="text-xs text-gray-500">{dayNumber}</p>
@@ -797,10 +952,10 @@ export default function SupplierPickupPlanner() {
                         return (
                           <div
                             key={b.id}
-                            className={`flex items-stretch gap-2 rounded-md border px-2 py-2 ${
+                            className={`flex items-stretch gap-2 rounded-xl border px-2.5 py-2 transition-colors ${
                               needsPickupInfo(b.listing_id)
-                                ? 'border-amber-200 bg-amber-50'
-                                : 'border-gray-200 bg-white'
+                                ? 'border-amber-200 bg-amber-50/80'
+                                : 'border-gray-200 bg-white hover:border-finland/20'
                             }`}
                           >
                             <div className="min-w-0 flex-1 text-left">
@@ -828,7 +983,7 @@ export default function SupplierPickupPlanner() {
                             <button
                               type="button"
                               onClick={() => setSelectedBookingId(b.id)}
-                              className="shrink-0 self-center rounded-md bg-finland px-2 py-1.5 text-[11px] font-medium text-white hover:bg-finland-dark"
+                              className="shrink-0 self-center rounded-lg bg-finland px-2.5 py-1.5 text-[11px] font-semibold text-white hover:bg-finland-dark transition-colors"
                             >
                               Pickup details
                             </button>
@@ -844,19 +999,25 @@ export default function SupplierPickupPlanner() {
         </div>
         )
       ) : sorted.length === 0 ? (
-        <div className="rounded-lg border border-gray-200 bg-white py-12 text-center">
-          <ClipboardList className="mx-auto mb-3 h-12 w-12 text-gray-300" />
+        <div className="rounded-2xl border border-gray-200 bg-white py-14 text-center px-6 animate-scale-in">
+          <ClipboardList className="mx-auto mb-3 h-12 w-12 text-gray-300" aria-hidden />
           <h2 className="text-lg font-semibold text-gray-900">No bookings match</h2>
-          <p className="mt-1 text-sm text-gray-500">
-            Try widening the date range or adjusting listing filters. Bookings without an activity date are hidden when a date
-            range is set. Cancelled bookings are excluded here.
+          <p className="mt-2 text-sm text-gray-500 max-w-md mx-auto">
+            Widen the date range or clear listing filters. Cancelled bookings are hidden here.
           </p>
+          <button
+            type="button"
+            onClick={() => setPreset('clear')}
+            className="mt-5 rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+          >
+            Show all dates
+          </button>
         </div>
       ) : listBookings.length === 0 ? (
-        <div className="rounded-lg border border-gray-200 bg-white py-10 text-center">
-          <p className="text-sm font-medium text-gray-900">Nothing in this view</p>
-          <p className="mt-1 px-4 text-sm text-gray-500">
-            Clear the listing filter or uncheck &quot;Needs pickup details&quot; to see all rows that match your dates.
+        <div className="rounded-2xl border border-gray-200 bg-white py-12 text-center px-6 animate-scale-in">
+          <p className="text-base font-semibold text-gray-900">Nothing in this view</p>
+          <p className="mt-2 text-sm text-gray-500 max-w-sm mx-auto">
+            Clear the listing filter or turn off &quot;Needs pickup details only&quot; to see more bookings.
           </p>
           <button
             type="button"
@@ -865,23 +1026,30 @@ export default function SupplierPickupPlanner() {
               setNeedsPickupOnly(false);
               setSortDate('asc');
             }}
-            className="mt-4 px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50"
+            className="mt-5 rounded-xl bg-finland px-4 py-2.5 text-sm font-semibold text-white hover:bg-finland-dark"
           >
-            Clear quick filters
+            Clear filters
           </button>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+        <div className="space-y-4 animate-fade-in">
           {bookingsGroupedByDate.orderedKeys.length === 0 && bookingsGroupedByDate.noDate.length === 0 ? (
-            <div className="px-4 py-10 text-center text-sm text-gray-500">No dated bookings in this filtered set.</div>
+            <div className="rounded-2xl border border-gray-200 bg-white px-4 py-10 text-center text-sm text-gray-500">
+              No dated bookings in this filtered set.
+            </div>
           ) : (
             <>
-              {bookingsGroupedByDate.orderedKeys.map((ymd) => {
+              {bookingsGroupedByDate.orderedKeys.map((ymd, sectionIndex) => {
                 const sectionOpen = dateSectionOpen[ymd] !== false;
                 const dayRows = bookingsGroupedByDate.byDay.get(ymd) ?? [];
                 const dayGuestTotal = dayRows.reduce((sum, b) => sum + Number(b.guests ?? 0), 0);
+                const dayNeedsPickup = dayRows.filter((b) => needsPickupInfo(b.listing_id)).length;
                 return (
-                  <div key={ymd} className="border-b border-gray-100 last:border-b-0">
+                  <section
+                    key={ymd}
+                    className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden"
+                    style={{ animation: `fade-in-up 0.5s ease-out ${Math.min(sectionIndex, 4) * 0.06}s both` }}
+                  >
                     <button
                       type="button"
                       onClick={() =>
@@ -890,90 +1058,56 @@ export default function SupplierPickupPlanner() {
                           return { ...prev, [ymd]: !open };
                         })
                       }
-                      className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left hover:bg-gray-50/80"
+                      className="flex w-full items-center justify-between gap-3 px-4 py-3.5 sm:px-5 text-left bg-gradient-to-r from-slate-50/90 to-white hover:from-slate-100/80 transition-colors"
                     >
-                      <span className="text-sm font-semibold text-gray-900">{formatPickupSectionDate(ymd)}</span>
-                      <span className="flex items-center gap-2 text-xs text-gray-500">
-                        {dayRows.length} booking{dayRows.length === 1 ? '' : 's'} · {dayGuestTotal} guest
-                        {dayGuestTotal === 1 ? '' : 's'}
-                        <ChevronDown
-                          className={`h-4 w-4 text-gray-400 transition-transform ${sectionOpen ? 'rotate-0' : '-rotate-90'}`}
-                        />
-                      </span>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-gray-900">{formatPickupSectionDate(ymd)}</p>
+                        <p className="mt-0.5 text-xs text-gray-500">
+                          {dayRows.length} booking{dayRows.length === 1 ? '' : 's'} · {dayGuestTotal} guest
+                          {dayGuestTotal === 1 ? '' : 's'}
+                          {dayNeedsPickup > 0 ? (
+                            <span className="text-amber-700 font-medium"> · {dayNeedsPickup} need pickup info</span>
+                          ) : null}
+                        </p>
+                      </div>
+                      <ChevronDown
+                        className={`h-5 w-5 shrink-0 text-gray-400 transition-transform duration-300 ease-out ${
+                          sectionOpen ? 'rotate-0' : '-rotate-90'
+                        }`}
+                        aria-hidden
+                      />
                     </button>
-                    {sectionOpen && (
-                      <ul className="divide-y divide-gray-100 border-t border-gray-50">
-                        {dayRows.map((b) => {
-                          const missing = needsPickupInfo(b.listing_id);
-                          const hrs = hoursUntilBookingDayStart(b.booking_date);
-                          const urgentSoon = hrs !== null && hrs > 0 && hrs <= 24 && missing;
-                          const guestsN = Number(b.guests ?? 0);
-                          const activityParsed = b.booking_date ? parseYmdLocal(b.booking_date) : null;
-                          const actDate = activityParsed
-                            ? activityParsed.toLocaleDateString(undefined, {
-                                weekday: 'short',
-                                month: 'short',
-                                day: 'numeric',
-                              })
-                            : null;
-                          return (
-                            <li
-                              key={b.id}
-                              className={`flex flex-col gap-2 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4 ${
-                                missing ? 'bg-amber-50/30' : ''
-                              }`}
-                            >
-                              <div className="min-w-0 flex-1">
-                                {urgentSoon && (
-                                  <p className="mb-1 flex items-center gap-1.5 text-xs font-medium text-red-700">
-                                    <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-                                    Starting within 24 hours — meeting or pickup details still incomplete
-                                  </p>
-                                )}
-                                {!urgentSoon && missing && (
-                                  <p className="mb-1 text-xs font-medium text-amber-800">
-                                    Pickup or meeting copy incomplete for this listing
-                                  </p>
-                                )}
-                                <p className="truncate text-sm font-semibold text-gray-900">
-                                  {listingTitles[b.listing_id] ?? 'Listing'}
-                                </p>
-                                {guideScheduleSummary(listingGuideMeta[b.listing_id]) ? (
-                                  <p className="truncate text-xs text-gray-500">
-                                    {guideScheduleSummary(listingGuideMeta[b.listing_id])}
-                                  </p>
-                                ) : null}
-                                {bookingTimesLine(b) ? (
-                                  <p className="truncate text-xs text-finland/90 font-medium">{bookingTimesLine(b)}</p>
-                                ) : null}
-                                <p className="truncate text-xs text-gray-500">
-                                  {b.guest_name ?? b.guest_email ?? 'Guest'}
-                                  {actDate ? <> · {actDate}</> : null} · <span className="capitalize">{b.status}</span>
-                                </p>
-                                <p className="mt-1 text-sm text-gray-800">
-                                  <span className="font-semibold tabular-nums">{guestsN}</span> spot
-                                  {guestsN === 1 ? '' : 's'} booked
-                                </p>
-                              </div>
-                              <div className="flex shrink-0 items-center">
-                                <button
-                                  type="button"
-                                  onClick={() => setSelectedBookingId(b.id)}
-                                  className="rounded-lg bg-finland px-3 py-2 text-sm font-medium text-white hover:bg-finland-dark"
-                                >
-                                  Pickup details
-                                </button>
-                              </div>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    )}
-                  </div>
+                    <div
+                      className={`grid transition-[grid-template-rows] duration-300 ease-out ${
+                        sectionOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+                      }`}
+                    >
+                      <div className="overflow-hidden">
+                        <div className="space-y-3 border-t border-gray-100 p-4 sm:p-5">
+                          {dayRows.map((b) => {
+                            const missing = needsPickupInfo(b.listing_id);
+                            const hrs = hoursUntilBookingDayStart(b.booking_date);
+                            const urgentSoon = hrs !== null && hrs > 0 && hrs <= 24 && missing;
+                            return (
+                              <PlannerBookingCard
+                                key={b.id}
+                                booking={b}
+                                listingTitle={listingTitles[b.listing_id] ?? 'Listing'}
+                                guideMeta={listingGuideMeta[b.listing_id]}
+                                missingPickup={missing}
+                                urgentSoon={urgentSoon}
+                                onOpen={() => setSelectedBookingId(b.id)}
+                              />
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  </section>
                 );
               })}
               {bookingsGroupedByDate.noDate.length > 0 && (
-                <div className="border-t border-gray-200">
+                <section className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
                   <button
                     type="button"
                     onClick={() =>
@@ -983,71 +1117,42 @@ export default function SupplierPickupPlanner() {
                         return { ...prev, [k]: !open };
                       })
                     }
-                    className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left hover:bg-gray-50/80"
+                    className="flex w-full items-center justify-between gap-3 px-4 py-3.5 sm:px-5 text-left bg-gradient-to-r from-slate-50/90 to-white hover:from-slate-100/80 transition-colors"
                   >
-                    <span className="text-sm font-semibold text-gray-900">No activity date</span>
-                    <span className="flex items-center gap-2 text-xs text-gray-500">
-                      {bookingsGroupedByDate.noDate.length} booking{bookingsGroupedByDate.noDate.length === 1 ? '' : 's'}
-                      <ChevronDown
-                        className={`h-4 w-4 text-gray-400 transition-transform ${
-                          dateSectionOpen.__nodate !== false ? 'rotate-0' : '-rotate-90'
-                        }`}
-                      />
-                    </span>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">No activity date</p>
+                      <p className="mt-0.5 text-xs text-gray-500">
+                        {bookingsGroupedByDate.noDate.length} booking{bookingsGroupedByDate.noDate.length === 1 ? '' : 's'}
+                      </p>
+                    </div>
+                    <ChevronDown
+                      className={`h-5 w-5 shrink-0 text-gray-400 transition-transform duration-300 ease-out ${
+                        dateSectionOpen.__nodate !== false ? 'rotate-0' : '-rotate-90'
+                      }`}
+                      aria-hidden
+                    />
                   </button>
-                  {dateSectionOpen.__nodate !== false && (
-                    <ul className="divide-y divide-gray-100 border-t border-gray-50">
-                      {bookingsGroupedByDate.noDate.map((b) => {
-                        const missing = needsPickupInfo(b.listing_id);
-                        const guestsN = Number(b.guests ?? 0);
-                        return (
-                          <li
+                  <div
+                    className={`grid transition-[grid-template-rows] duration-300 ease-out ${
+                      dateSectionOpen.__nodate !== false ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+                    }`}
+                  >
+                    <div className="overflow-hidden">
+                      <div className="space-y-3 border-t border-gray-100 p-4 sm:p-5">
+                        {bookingsGroupedByDate.noDate.map((b) => (
+                          <PlannerBookingCard
                             key={b.id}
-                            className={`flex flex-col gap-2 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4 ${
-                              missing ? 'bg-amber-50/30' : ''
-                            }`}
-                          >
-                            <div className="min-w-0 flex-1">
-                              {missing && (
-                                <p className="mb-1 text-xs font-medium text-amber-800">
-                                  Pickup or meeting copy incomplete for this listing
-                                </p>
-                              )}
-                              <p className="truncate text-sm font-semibold text-gray-900">
-                                {listingTitles[b.listing_id] ?? 'Listing'}
-                              </p>
-                              {guideScheduleSummary(listingGuideMeta[b.listing_id]) ? (
-                                <p className="truncate text-xs text-gray-500">
-                                  {guideScheduleSummary(listingGuideMeta[b.listing_id])}
-                                </p>
-                              ) : null}
-                              {bookingTimesLine(b) ? (
-                                <p className="truncate text-xs text-finland/90 font-medium">{bookingTimesLine(b)}</p>
-                              ) : null}
-                              <p className="truncate text-xs text-gray-500">
-                                {b.guest_name ?? b.guest_email ?? 'Guest'} ·{' '}
-                                <span className="capitalize">{b.status}</span>
-                              </p>
-                              <p className="mt-1 text-sm text-gray-800">
-                                <span className="font-semibold tabular-nums">{guestsN}</span> spot
-                                {guestsN === 1 ? '' : 's'} booked
-                              </p>
-                            </div>
-                            <div className="flex shrink-0 items-center">
-                              <button
-                                type="button"
-                                onClick={() => setSelectedBookingId(b.id)}
-                                className="rounded-lg bg-finland px-3 py-2 text-sm font-medium text-white hover:bg-finland-dark"
-                              >
-                                Pickup details
-                              </button>
-                            </div>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
-                </div>
+                            booking={b}
+                            listingTitle={listingTitles[b.listing_id] ?? 'Listing'}
+                            guideMeta={listingGuideMeta[b.listing_id]}
+                            missingPickup={needsPickupInfo(b.listing_id)}
+                            onOpen={() => setSelectedBookingId(b.id)}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </section>
               )}
             </>
           )}
@@ -1059,15 +1164,15 @@ export default function SupplierPickupPlanner() {
           <button
             type="button"
             onClick={() => setSelectedBookingId(null)}
-            className="fixed inset-0 bg-black/30 z-40 cursor-default"
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] z-40 cursor-default animate-fade-in"
             aria-label="Close pickup details"
           />
-          <aside className="fixed right-0 top-0 h-full w-full sm:w-[28rem] bg-white border-l border-gray-200 shadow-xl z-50 flex flex-col">
-            <div className="px-5 py-4 border-b border-gray-200 flex items-start justify-between gap-3">
+          <aside className="fixed right-0 top-0 h-full w-full sm:w-[28rem] bg-white border-l border-gray-200 shadow-2xl z-50 flex flex-col animate-slide-in-right">
+            <div className="px-5 py-4 border-b border-gray-100 bg-gradient-to-br from-slate-50/90 to-white flex items-start justify-between gap-3">
               <div>
                 <h2 className="text-lg font-semibold text-gray-900">Pickup details</h2>
                 <p className="mt-0.5 text-xs text-gray-500">
-                  Guest contact, pickup times, and meeting info for this booking.
+                  Guest contact, times, and meeting info for this booking.
                 </p>
               </div>
               <button
@@ -1080,9 +1185,9 @@ export default function SupplierPickupPlanner() {
               </button>
             </div>
             <div className="p-5 space-y-5 overflow-y-auto">
-              <div className="rounded-lg border border-gray-200 bg-gray-50/80 px-3 py-3 space-y-2">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1.5">
-                  <Users className="h-3.5 w-3.5" aria-hidden />
+              <div className="rounded-2xl border border-gray-200 bg-gray-50/70 px-4 py-3.5 space-y-2">
+                <p className="text-xs font-semibold text-gray-600 flex items-center gap-1.5">
+                  <Users className="h-3.5 w-3.5 text-finland" aria-hidden />
                   Customer
                 </p>
                 <p className="text-sm font-medium text-gray-900">
@@ -1095,9 +1200,9 @@ export default function SupplierPickupPlanner() {
                   <span className="font-semibold tabular-nums">{selectedBooking.guests ?? '—'}</span> spot
                   {Number(selectedBooking.guests ?? 0) === 1 ? '' : 's'} booked
                 </p>
-                <div className="pt-1 border-t border-gray-200/80">
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1.5 mt-2">
-                    <MapPin className="h-3.5 w-3.5" aria-hidden />
+                <div className="pt-2 border-t border-gray-200/80">
+                  <p className="text-xs font-semibold text-gray-600 flex items-center gap-1.5 mt-2">
+                    <MapPin className="h-3.5 w-3.5 text-finland" aria-hidden />
                     Address and special requests
                   </p>
                   <p className="text-sm text-gray-800 mt-1 whitespace-pre-wrap">
@@ -1105,15 +1210,15 @@ export default function SupplierPickupPlanner() {
                   </p>
                 </div>
               </div>
-              <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Tour / listing</p>
-                <p className="text-sm font-medium text-gray-900 mt-1">
+              <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3">
+                <p className="text-xs font-semibold text-gray-600">Tour / listing</p>
+                <p className="text-sm font-semibold text-gray-900 mt-1">
                   {listingTitles[selectedBooking.listing_id] ?? '—'}
                 </p>
               </div>
               {listingGuideMeta[selectedBooking.listing_id] ? (
-                <div className="rounded-lg border border-gray-100 bg-gray-50/80 px-3 py-2.5 space-y-1.5">
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Experience timing and location</p>
+                <div className="rounded-2xl border border-gray-200 bg-gray-50/70 px-4 py-3 space-y-1.5">
+                  <p className="text-xs font-semibold text-gray-600">Experience timing and location</p>
                   {guideScheduleSummary(listingGuideMeta[selectedBooking.listing_id]) ? (
                     <>
                       <p className="text-sm text-gray-800">
@@ -1149,8 +1254,8 @@ export default function SupplierPickupPlanner() {
                 </div>
               ) : null}
               {selectedBooking.status !== 'cancelled' && (
-                <div className="rounded-lg border border-gray-200 bg-white px-3 py-3 space-y-3">
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">This booking — times</p>
+                <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3.5 space-y-3">
+                  <p className="text-xs font-semibold text-gray-600">This booking — times</p>
                   <p className="text-[11px] text-gray-500">
                     Start time is copied from the listing when the booking is created; adjust here if this instance differs.
                     Set pickup once you know where the guest is staying.
@@ -1163,7 +1268,7 @@ export default function SupplierPickupPlanner() {
                         value={scheduleDraft.start}
                         onChange={(e) => setScheduleDraft((d) => ({ ...d, start: e.target.value }))}
                         disabled={!canEditBookings}
-                        className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-finland disabled:opacity-60"
+                        className={plannerInputClass()}
                       />
                     </div>
                     <div>
@@ -1173,7 +1278,7 @@ export default function SupplierPickupPlanner() {
                         value={scheduleDraft.pickup}
                         onChange={(e) => setScheduleDraft((d) => ({ ...d, pickup: e.target.value }))}
                         disabled={!canEditBookings}
-                        className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-finland disabled:opacity-60"
+                        className={plannerInputClass()}
                       />
                     </div>
                   </div>
@@ -1181,7 +1286,7 @@ export default function SupplierPickupPlanner() {
                     type="button"
                     onClick={handleSaveScheduleTimes}
                     disabled={!canEditBookings || updatingId === selectedBooking.id}
-                    className="w-full sm:w-auto px-3 py-2 rounded-lg bg-finland text-white text-sm font-medium hover:bg-finland-dark disabled:opacity-50"
+                    className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-finland text-white text-sm font-semibold hover:bg-finland-dark disabled:opacity-50 transition-colors"
                   >
                     {updatingId === selectedBooking.id ? 'Saving…' : 'Save times'}
                   </button>
@@ -1200,23 +1305,25 @@ export default function SupplierPickupPlanner() {
                 </div>
               </div>
 
-              <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Meeting point</p>
+              <div className="rounded-2xl border border-gray-200 px-4 py-3">
+                <p className="text-xs font-semibold text-gray-600">Meeting point</p>
                 <p className="text-sm text-gray-800 mt-1">
-                  {meetingPoints[selectedBooking.listing_id] || 'Missing'}
+                  {meetingPoints[selectedBooking.listing_id] || (
+                    <span className="text-amber-700 font-medium">Missing — edit on listing</span>
+                  )}
                 </p>
               </div>
-              <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Pickup instructions (listing)</p>
+              <div className="rounded-2xl border border-gray-200 px-4 py-3">
+                <p className="text-xs font-semibold text-gray-600">Pickup instructions (listing)</p>
                 <p className="text-sm text-gray-800 mt-1 whitespace-pre-wrap">
-                  {pickupInstructions[selectedBooking.listing_id] || 'Missing'}
+                  {pickupInstructions[selectedBooking.listing_id] || (
+                    <span className="text-amber-700 font-medium">Missing — edit on listing</span>
+                  )}
                 </p>
               </div>
               {selectedBooking.status !== 'cancelled' && (
-                <div className="border border-amber-200 bg-amber-50/50 rounded-lg p-3 space-y-3">
-                  <p className="text-xs font-semibold text-amber-900 uppercase tracking-wide">
-                    Cancel booking
-                  </p>
+                <div className="border border-amber-200 bg-amber-50/50 rounded-2xl p-4 space-y-3">
+                  <p className="text-xs font-semibold text-amber-900">Cancel booking</p>
                   <div>
                     <label className="block text-xs font-medium text-amber-900 mb-1">Reason</label>
                     <select
@@ -1250,7 +1357,7 @@ export default function SupplierPickupPlanner() {
                 </div>
               )}
             </div>
-            <div className="mt-auto p-4 border-t border-gray-200 bg-gray-50 flex items-center gap-2 justify-end">
+            <div className="mt-auto p-4 border-t border-gray-200 bg-gray-50/90 flex flex-wrap items-center gap-2 justify-end">
               {selectedBooking.status !== 'cancelled' && (
                 <>
                   {!selectedBooking.acknowledged_at && (
