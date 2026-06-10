@@ -2,7 +2,22 @@ import type { ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { X } from 'lucide-react';
 
-export const SUPPLIER_PAGE_CLASS = 'space-y-6 max-w-4xl w-full min-w-0 animate-fade-in-up';
+/** Full-width supplier portal pages — fills the main column on desktop, fluid on mobile. */
+export const SUPPLIER_PAGE_CLASS = 'space-y-4 sm:space-y-6 w-full min-w-0 max-w-full animate-fade-in-up';
+
+/** @deprecated Use SUPPLIER_PAGE_CLASS (all portal pages are full-width now). */
+export const SUPPLIER_PAGE_WIDE_CLASS = SUPPLIER_PAGE_CLASS;
+
+export const SUPPLIER_STAT_GRID_CLASS =
+  'grid w-full min-w-0 grid-cols-1 min-[480px]:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4';
+
+/** Three-up summary chips in page heroes (bookings, pickup, etc.). */
+export const SUPPLIER_HERO_STAT_GRID_CLASS =
+  'mt-5 grid w-full min-w-0 grid-cols-3 gap-2 sm:gap-3 border-t border-gray-100 pt-5';
+
+/** Two-up summary chips in page heroes (reviews, etc.). */
+export const SUPPLIER_HERO_STAT_GRID_2_CLASS =
+  'mt-5 grid w-full min-w-0 grid-cols-2 gap-2 sm:gap-3 border-t border-gray-100 pt-5';
 
 export const SUPPLIER_MODAL_OVERLAY_CLASS =
   'fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/35 backdrop-blur-md p-0 sm:p-4 sm:pt-[max(1rem,env(safe-area-inset-top))]';
@@ -90,8 +105,12 @@ export function SupplierListSkeleton({ rows = 3 }: { rows?: number }) {
 }
 
 export function SupplierStatSkeletonGrid({ count = 4 }: { count?: number }) {
+  const gridClass =
+    count === 3
+      ? 'grid w-full min-w-0 grid-cols-1 min-[480px]:grid-cols-3 gap-3 sm:gap-4'
+      : SUPPLIER_STAT_GRID_CLASS;
   return (
-    <div className={`grid gap-3 sm:gap-4 ${count === 3 ? 'grid-cols-3' : 'grid-cols-2 lg:grid-cols-4'}`}>
+    <div className={gridClass}>
       {Array.from({ length: count }, (_, i) => (
         <div
           key={i}

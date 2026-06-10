@@ -29,7 +29,7 @@ import { openSupplierListingEditor, openSupplierBooking } from '../../lib/suppli
 import { decrementAvailabilityBooked } from '../../data/supabase-availability';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { canManageBookings } from '../../lib/supplierTeamRoles';
-import { SUPPLIER_PAGE_CLASS } from '../../components/supplier/supplierUi';
+import { SUPPLIER_HERO_STAT_GRID_CLASS, SUPPLIER_PAGE_CLASS } from '../../components/supplier/supplierUi';
 
 function toYmd(d: Date): string {
   const y = d.getFullYear();
@@ -552,7 +552,7 @@ export default function SupplierPickupPlanner() {
       : 'No activity date';
 
     return (
-      <div className="space-y-6 max-w-3xl w-full min-w-0 animate-fade-in-up">
+      <div className={SUPPLIER_PAGE_CLASS}>
         <button
           type="button"
           onClick={() => setSelectedBookingId(null)}
@@ -844,7 +844,7 @@ export default function SupplierPickupPlanner() {
         </div>
 
         {!loading && listBookings.length > 0 && (
-          <div className="mt-5 grid grid-cols-3 gap-3 border-t border-gray-100 pt-5">
+          <div className={SUPPLIER_HERO_STAT_GRID_CLASS}>
             <div className="rounded-xl bg-gray-50 px-3 py-2.5 text-center">
               <p className="text-lg font-bold tabular-nums text-gray-900">{plannerStats.bookings}</p>
               <p className="text-[11px] font-medium text-gray-500">Bookings</p>

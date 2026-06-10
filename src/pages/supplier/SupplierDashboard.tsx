@@ -1,6 +1,11 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Calendar, CalendarDays, DollarSign, MapPin, ArrowRight, Star, AlertCircle, RefreshCw, LayoutDashboard } from 'lucide-react';
-import { SUPPLIER_PAGE_CLASS, SupplierStatSkeletonGrid } from '../../components/supplier/supplierUi';
+import {
+  SUPPLIER_PAGE_CLASS,
+  SUPPLIER_SECTION_HEADER_CLASS,
+  SUPPLIER_STAT_GRID_CLASS,
+  SupplierStatSkeletonGrid,
+} from '../../components/supplier/supplierUi';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { fetchMyListings } from '../../data/supabase-listings';
 import { fetchSupplierEarnings } from '../../data/supabase-earnings';
@@ -10,14 +15,7 @@ import { fetchSupplierProfile } from '../../data/supabase-supplier-profile';
 import SupplierPortalNoticePanel from '../../components/supplier/SupplierPortalNoticePanel';
 
 interface SupplierDashboardProps {
-  onNavigateToListings?: () => void;
-  onNavigateToSettings?: () => void;
   onNavigateToBookings?: () => void;
-  /** When false, setup is complete and the banner is hidden. */
-  showSupplierSetupBanner?: boolean;
-  supplierSetupDoneCount?: number;
-  supplierSetupNextLabel?: string;
-  onSupplierSetupNext?: () => void;
 }
 
 function isPeriodInMonth(periodStart: string, periodEnd: string, year: number, month: number): boolean {
@@ -53,15 +51,7 @@ function isNonCancelledBooking(status: string): boolean {
   return status !== 'cancelled';
 }
 
-export default function SupplierDashboard({
-  onNavigateToListings,
-  onNavigateToSettings,
-  onNavigateToBookings,
-  showSupplierSetupBanner = false,
-  supplierSetupDoneCount = 0,
-  supplierSetupNextLabel = '',
-  onSupplierSetupNext,
-}: SupplierDashboardProps) {
+export default function SupplierDashboard({ onNavigateToBookings }: SupplierDashboardProps) {
   const { user, isSupabase } = useSupplierAuth();
   /** Published / live on Traverion only — drafts excluded (see My listings for all rows). */
   const [publishedListingsCount, setPublishedListingsCount] = useState<number | null>(null);
@@ -260,8 +250,13 @@ export default function SupplierDashboard({
       const tail = c === 'USD' ? '' : ` ${c}`;
       return `${sym}${grossCollectedNewBookingsThisMonth.sum.toFixed(0)}${tail} on Stripe (new orders). Net above is payout accrual.`;
     }
-    return 'Payout accrual from supplier_earnings (non-cancelled rows overlapping this month).';
+    return earningsThisMonth > 0 ? 'Accrued payouts for this month.' : undefined;
   })();
+
+  const reviewStatValue =
+    providerRating.count > 0
+      ? `${providerRating.avg.toFixed(1)} (${providerRating.count} ${providerRating.count === 1 ? 'review' : 'reviews'})`
+      : 'No reviews yet';
 
   const stats: {
     label: string;
@@ -279,7 +274,7 @@ export default function SupplierDashboard({
     },
     {
       label: 'Review rating',
-      value: `${providerRating.avg.toFixed(1)} (${providerRating.count} ${providerRating.count === 1 ? 'review' : 'reviews'})`,
+      value: reviewStatValue,
       icon: Star,
       color: 'bg-amber-500/10 text-amber-600',
     },
@@ -293,9 +288,12 @@ export default function SupplierDashboard({
     },
   ];
 
+  const businessLabel =
+    profile?.company_legal_name?.trim() || profile?.display_name?.trim() || null;
+
   return (
     <div className={SUPPLIER_PAGE_CLASS}>
-      <div className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm">
+      <div className="w-full min-w-0 rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex gap-4 min-w-0">
             {profile?.business_logo_url ? (
@@ -313,9 +311,13 @@ export default function SupplierDashboard({
                 <LayoutDashboard className="w-6 h-6 text-finland" aria-hidden />
               </div>
             )}
-            <div className="min-w-0">
-              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-gray-900">Dashboard</h1>
-              <p className="mt-1 text-sm text-gray-600 leading-relaxed">Key metrics and today&apos;s schedule at a glance.</p>
+            <div className="min-w-0 flex-1">
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-gray-900">
+                {businessLabel ? businessLabel : 'Dashboard'}
+              </h1>
+              <p className="mt-1 text-sm text-gray-600 leading-relaxed">
+                {businessLabel ? 'Your supplier overview' : "Key metrics and today's schedule at a glance."}
+              </p>
             </div>
           </div>
           {isSupabase && user && (
@@ -352,20 +354,20 @@ export default function SupplierDashboard({
       {dashboardLoading && publishedListingsCount === null ? (
         <SupplierStatSkeletonGrid count={4} />
       ) : (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className={SUPPLIER_STAT_GRID_CLASS}>
           {stats.map(({ label, value, icon: Icon, color, caption }) => (
             <div
               key={label}
-              className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-5 flex items-center gap-3 sm:gap-4 min-w-0 shadow-sm transition-all duration-200 hover:shadow-md"
+              className="flex min-h-[5.5rem] w-full min-w-0 items-center gap-3 sm:gap-4 rounded-2xl border border-gray-200 bg-white p-4 sm:p-5 shadow-sm transition-all duration-200 hover:shadow-md sm:min-h-[6.25rem]"
             >
-              <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center shrink-0 ${color}`}>
-                <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
+              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl sm:h-12 sm:w-12 ${color}`}>
+                <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
               </div>
-              <div className="min-w-0">
-                <p className="text-xs sm:text-sm text-gray-500 leading-snug">{label}</p>
-                <p className="text-lg sm:text-xl font-semibold text-gray-900 tabular-nums break-words">{value}</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-medium leading-snug text-gray-500 sm:text-sm">{label}</p>
+                <p className="mt-0.5 text-lg font-semibold leading-tight text-gray-900 tabular-nums sm:text-xl">{value}</p>
                 {caption ? (
-                  <p className="text-[11px] sm:text-xs text-gray-500 mt-1 leading-snug">{caption}</p>
+                  <p className="mt-1 text-[11px] leading-snug text-gray-500 sm:text-xs">{caption}</p>
                 ) : null}
               </div>
             </div>
@@ -376,15 +378,15 @@ export default function SupplierDashboard({
       {isSupabase && user && <SupplierPortalNoticePanel userId={user.id} />}
 
       {isSupabase && user && (
-        <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 px-5 py-4 sm:px-6 border-b border-gray-100 bg-gradient-to-br from-slate-50/90 to-white">
-            <div className="flex items-start gap-3">
-              <div className="w-11 h-11 rounded-2xl bg-finland/10 text-finland flex items-center justify-center flex-shrink-0">
-                <CalendarDays className="w-6 h-6" />
+        <div className="w-full min-w-0 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+          <div className={`${SUPPLIER_SECTION_HEADER_CLASS} flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between`}>
+            <div className="flex min-w-0 items-start gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-finland/10 text-finland">
+                <CalendarDays className="h-6 w-6" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <h2 className="text-lg font-semibold text-gray-900">Today</h2>
-                <p className="text-sm text-gray-600 mt-0.5">
+                <p className="mt-0.5 text-sm text-gray-600">
                   {now.toLocaleDateString(undefined, {
                     weekday: 'long',
                     year: 'numeric',
@@ -392,25 +394,56 @@ export default function SupplierDashboard({
                     day: 'numeric',
                   })}
                 </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {todayTotalBookings === 0
-                    ? 'No bookings on your calendar for today.'
-                    : `${todayTotalBookings} booking${todayTotalBookings === 1 ? '' : 's'} today${todayScheduleRows.length > 0 ? ` across ${todayScheduleRows.length} listing${todayScheduleRows.length === 1 ? '' : 's'}` : ''}.`}
-                </p>
               </div>
             </div>
             {onNavigateToBookings && (
               <button
                 type="button"
                 onClick={onNavigateToBookings}
-                className="inline-flex items-center gap-1 text-sm font-semibold text-finland hover:text-finland-dark hover:underline shrink-0"
+                className="inline-flex shrink-0 items-center justify-center gap-1.5 self-start rounded-xl border border-finland/20 bg-finland/5 px-4 py-2 text-sm font-semibold text-finland transition-colors hover:bg-finland/10 sm:self-center"
               >
                 Open bookings
-                <ArrowRight className="w-4 h-4" />
+                <ArrowRight className="h-4 w-4" />
               </button>
             )}
           </div>
 
+          {todayScheduleRows.length === 0 ? (
+            <div className="flex flex-col items-center justify-center border-t border-gray-100 bg-slate-50/50 px-5 py-10 text-center sm:px-6">
+              <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-sm ring-1 ring-gray-200/80">
+                <CalendarDays className="h-6 w-6 text-gray-300" aria-hidden />
+              </div>
+              <p className="text-sm font-medium text-gray-700">Nothing scheduled for today</p>
+              <p className="mt-1 max-w-md text-sm text-gray-500">
+                Trip-date bookings will show here grouped by listing.
+              </p>
+            </div>
+          ) : (
+            <>
+              <p className="border-b border-gray-100 px-5 py-2.5 text-xs text-gray-500 sm:px-6">
+                {todayTotalBookings} booking{todayTotalBookings === 1 ? '' : 's'} across{' '}
+                {todayScheduleRows.length} listing{todayScheduleRows.length === 1 ? '' : 's'}
+              </p>
+              <ul className="divide-y divide-gray-100">
+                {todayScheduleRows.map((row) => (
+                  <li
+                    key={row.listingId}
+                    className="flex flex-col gap-2 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6"
+                  >
+                    <p className="min-w-0 text-sm font-semibold text-gray-900">{row.title}</p>
+                    <div className="flex shrink-0 items-center gap-4 text-sm">
+                      <span className="tabular-nums font-semibold text-finland">
+                        {row.bookings} booking{row.bookings === 1 ? '' : 's'}
+                      </span>
+                      <span className="text-gray-500">
+                        {row.guests} guest{row.guests === 1 ? '' : 's'}
+                      </span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
         </div>
       )}
     </div>

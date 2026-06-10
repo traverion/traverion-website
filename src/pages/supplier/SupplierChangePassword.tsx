@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ArrowLeft, CheckCircle2, KeyRound, Shield } from 'lucide-react';
+import { SUPPLIER_PAGE_CLASS } from '../../components/supplier/supplierUi';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 type Props = {
@@ -88,7 +89,7 @@ export default function SupplierChangePassword({ onBack, userEmail, isSupabase, 
   };
 
   return (
-    <div className="space-y-6 max-w-3xl w-full min-w-0 animate-fade-in-up">
+    <div className={SUPPLIER_PAGE_CLASS}>
       <button
         type="button"
         onClick={onBack}

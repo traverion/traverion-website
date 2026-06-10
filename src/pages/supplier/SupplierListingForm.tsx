@@ -1071,7 +1071,7 @@ export default function SupplierListingForm({
       aria-labelledby="supplier-option-modal-title"
     >
       <div className="absolute inset-0 bg-slate-900/40 motion-safe:animate-fade-in" aria-hidden />
-      <div className="relative z-10 flex max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)))] w-full max-w-4xl flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl motion-safe:animate-slide-up sm:rounded-2xl sm:motion-safe:animate-none">
+      <div className="relative z-10 flex max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)))] w-full max-w-6xl flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl motion-safe:animate-slide-up sm:rounded-2xl sm:motion-safe:animate-none lg:max-w-7xl">
         <div className="flex shrink-0 items-start justify-between gap-3 border-b border-gray-200 px-4 py-3 sm:px-5">
           <h2 id="supplier-option-modal-title" className="text-base font-semibold text-gray-900 pr-8">
             {optionModalEditingId ? 'Edit option' : 'New option'}

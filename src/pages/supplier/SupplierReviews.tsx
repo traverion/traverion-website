@@ -6,6 +6,7 @@ import { Star, MessageSquare, Send, AlertCircle, RefreshCw } from 'lucide-react'
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import {
   SUPPLIER_PAGE_CLASS,
+  SUPPLIER_HERO_STAT_GRID_2_CLASS,
   SUPPLIER_SECTION_HEADER_CLASS,
   SupplierListSkeleton,
 } from '../../components/supplier/supplierUi';
@@ -162,7 +163,7 @@ export default function SupplierReviews() {
         </div>
 
         {!loading && reviews.length > 0 && (
-          <div className="mt-5 grid grid-cols-2 gap-3 border-t border-gray-100 pt-5 max-w-xl">
+          <div className={SUPPLIER_HERO_STAT_GRID_2_CLASS}>
           <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
             <p className="text-xs uppercase tracking-wide text-gray-500 font-medium">Total reviews</p>
             <p className="text-2xl font-semibold text-gray-900 mt-1">{reviews.length}</p>

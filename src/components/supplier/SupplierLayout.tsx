@@ -3,14 +3,11 @@ import {
   LayoutDashboard,
   MapPin,
   Calendar,
-  DollarSign,
   Building2,
   Users,
   LogOut,
   Menu,
   X,
-  Star,
-  Tag,
   ClipboardList,
   UserCircle2,
   ChevronDown,
@@ -88,14 +85,11 @@ type SupplierSection =
 type AccountShortcutTarget = 'company' | 'legal' | 'account' | 'security' | 'payout';
 type BusinessProfileTab = 'company' | 'legal';
 
+/** Core sidebar — earnings, discounts, reviews, and pickup live under Account (desktop) or bottom bar (mobile). */
 const NAV_ITEMS: { id: SupplierSection; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'listings', label: 'My listings', icon: MapPin },
   { id: 'bookings', label: 'Bookings', icon: Calendar },
-  { id: 'earnings', label: 'Earnings', icon: DollarSign },
-  { id: 'discounts', label: 'Discounts & offers', icon: Tag },
-  { id: 'reviews', label: 'Reviews', icon: Star },
-  { id: 'pickup', label: 'Pickup planner', icon: ClipboardList },
   { id: 'business-profile', label: 'Business profile', icon: Building2 },
   { id: 'account-settings', label: 'Account settings', icon: Users },
 ];
@@ -739,40 +733,8 @@ export default function SupplierLayout() {
   const onboardingHasListing = onboardingListingCount !== null && onboardingListingCount > 0;
   const onboardingBusinessVerified = verificationStatus.trim().toLowerCase() === 'verified';
   const onboardingPayoutVerified = payoutVerificationStatus.trim().toLowerCase() === 'verified';
-  const onboardingDoneCount = [onboardingHasListing, onboardingPayoutVerified, onboardingBusinessVerified].filter(
-    Boolean
-  ).length;
-  const onboardingComplete = onboardingDoneCount === 3;
-  const payoutSubmittedForReview = (payoutVerificationSubmittedAt ?? '').trim() !== '';
-  const payoutV = payoutVerificationStatus.trim().toLowerCase();
-  const onboardingNextLabel =
-    !onboardingBusinessVerified
-      ? verificationStatus.trim().toLowerCase() === 'rejected'
-        ? 'Update profile after rejection'
-        : onboardingHasCompany && ['pending', ''].includes(verificationStatus.trim().toLowerCase())
-          ? 'Business verification in progress'
-          : 'Complete business profile'
-      : !onboardingHasPayout
-        ? 'Add bank details (IBAN + BIC)'
-        : !onboardingPayoutVerified
-          ? payoutV === 'rejected'
-            ? 'Update payout details after rejection'
-            : payoutV === 'pending' && payoutSubmittedForReview
-              ? 'Payout verification in progress'
-              : 'Save payout details for verification'
-          : !onboardingHasListing
-            ? 'Publish your first listing'
-            : 'Open business profile';
-  const onboardingNextAction =
-    !onboardingBusinessVerified
-      ? () => openSettingsFocus('company')
-      : !onboardingHasPayout
-        ? () => openSettingsFocus('payout')
-        : !onboardingPayoutVerified
-          ? () => openSettingsFocus('payout')
-          : !onboardingHasListing
-            ? () => handleNavigate('listings')
-            : () => handleNavigate('business-profile');
+  const onboardingComplete =
+    onboardingHasListing && onboardingPayoutVerified && onboardingBusinessVerified;
 
   const normalizedPathForVerify = pathname.replace(/\/$/, '') || '/';
   if (normalizedPathForVerify === PARTNER_EMAIL_VERIFIED_PATH) {
@@ -1049,7 +1011,12 @@ export default function SupplierLayout() {
             </button>
             {accountMenuOpen && (
               <div className="hidden lg:block absolute right-0 top-12 w-72 bg-white border border-gray-200 rounded-xl shadow-lg p-2 z-50">
-                <p className="px-3 pt-2 pb-1 text-xs uppercase tracking-wide text-gray-500">Traverion supplier account</p>
+                <p className="px-3 pt-2 pb-1 text-xs uppercase tracking-wide text-gray-500">Operations</p>
+                <button type="button" onClick={() => handleNavigate('pickup')} className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-sm">Pickup planner</button>
+                <button type="button" onClick={() => handleNavigate('reviews')} className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-sm">Reviews</button>
+                <button type="button" onClick={() => handleNavigate('earnings')} className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-sm">Earnings</button>
+                <button type="button" onClick={() => handleNavigate('discounts')} className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-sm">Discounts &amp; offers</button>
+                <p className="px-3 pt-3 pb-1 text-xs uppercase tracking-wide text-gray-500">Account</p>
                 <button type="button" onClick={() => openSettingsFocus('company')} className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-sm">Business profile</button>
                 <button type="button" onClick={() => openSettingsFocus('legal')} className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-sm">Legal obligations</button>
                 <button type="button" onClick={() => openSettingsFocus('account')} className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-sm">Account settings</button>
@@ -1098,15 +1065,7 @@ export default function SupplierLayout() {
           )}
           <div key={section} className="lux-page-enter w-full min-w-0 max-w-full">
           {section === 'dashboard' && (
-            <SupplierDashboard
-              onNavigateToListings={() => handleNavigate('listings')}
-              onNavigateToSettings={() => handleNavigate('business-profile')}
-              onNavigateToBookings={() => handleNavigate('bookings')}
-              showSupplierSetupBanner={false}
-              supplierSetupDoneCount={onboardingDoneCount}
-              supplierSetupNextLabel={onboardingNextLabel}
-              onSupplierSetupNext={onboardingNextAction}
-            />
+            <SupplierDashboard onNavigateToBookings={() => handleNavigate('bookings')} />
           )}
           {section === 'listings' && <SupplierListings />}
           {section === 'bookings' && <SupplierBookings />}

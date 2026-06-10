@@ -17,6 +17,7 @@ import {
 import { SkeletonListItem } from '../../components/ui/Skeleton';
 import {
   SUPPLIER_PAGE_CLASS,
+  SUPPLIER_HERO_STAT_GRID_CLASS,
   SUPPLIER_SECTION_HEADER_CLASS,
   SupplierModalHeader,
   SupplierModalShell,
@@ -374,7 +375,7 @@ export default function SupplierBookings() {
         }
       >
         {!loading && bookings.length > 0 && (
-          <div className="mt-5 grid grid-cols-3 gap-3 border-t border-gray-100 pt-5">
+          <div className={SUPPLIER_HERO_STAT_GRID_CLASS}>
             <div className="rounded-xl bg-gray-50 px-3 py-2.5 text-center">
               <p className="text-lg font-bold text-gray-900 tabular-nums">{bookingStats.total}</p>
               <p className="text-[11px] font-medium text-gray-500">Total</p>

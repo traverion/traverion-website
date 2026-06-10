@@ -36,6 +36,7 @@ import {
 } from '../../lib/supplierVerificationLocks';
 import { supplierPortalPublicBaseUrl } from '../../lib/partnerHost';
 import { PARTNER_EMAIL_VERIFIED_PATH } from '../../lib/partnerPortalPaths';
+import { SUPPLIER_PAGE_CLASS } from './supplierUi';
 
 type BusinessProfileTab = 'company' | 'legal';
 
@@ -260,7 +261,7 @@ function AccountSettingsPage(p: Props) {
   const email = p.supplierEmail.trim() || '—';
 
   return (
-    <div className="space-y-6 max-w-3xl w-full min-w-0 animate-fade-in-up">
+    <div className={SUPPLIER_PAGE_CLASS}>
       <div className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center gap-4">
           <div className="w-16 h-16 rounded-2xl bg-finland text-white flex items-center justify-center text-2xl font-bold flex-shrink-0 shadow-sm">
@@ -508,7 +509,7 @@ function BusinessProfilePage(p: Props) {
     }`;
 
   return (
-    <div className="space-y-6 max-w-3xl w-full min-w-0 animate-fade-in-up">
+    <div className={SUPPLIER_PAGE_CLASS}>
       <div className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center gap-4">
           <div className="w-16 h-16 rounded-2xl border-2 border-gray-100 bg-gray-50 overflow-hidden flex items-center justify-center flex-shrink-0 shadow-sm">
@@ -1442,7 +1443,7 @@ function BusinessProfilePage(p: Props) {
             aria-label="Close editor"
             onClick={() => p.setLegalDocModal(null)}
           />
-          <div className="relative z-[71] flex max-h-[90dvh] w-full max-w-3xl min-h-0 flex-col rounded-t-2xl border border-gray-200 bg-white shadow-xl sm:max-h-[90vh] sm:rounded-2xl motion-safe:animate-slide-up sm:motion-safe:animate-none overflow-hidden">
+          <div className="relative z-[71] flex max-h-[90dvh] w-full max-w-5xl min-h-0 flex-col rounded-t-2xl border border-gray-200 bg-white shadow-xl sm:max-h-[90vh] sm:rounded-2xl motion-safe:animate-slide-up sm:motion-safe:animate-none overflow-hidden">
             <div className="flex shrink-0 items-center justify-between border-b border-gray-100 bg-gradient-to-br from-slate-50/90 to-white px-5 py-4">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-10 h-10 rounded-xl bg-finland/10 flex items-center justify-center shrink-0">
