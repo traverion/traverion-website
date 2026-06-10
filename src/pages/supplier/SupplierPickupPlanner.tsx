@@ -1,21 +1,17 @@
 /**
  * Supplier: pickup planner – bookings with meeting / pickup, filters, CSV, deep link to edit listing pickup fields.
  */
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   ClipboardList,
   AlertCircle,
   RefreshCw,
   ExternalLink,
   Download,
-  CalendarDays,
-  ChevronLeft,
-  ChevronRight,
   ChevronDown,
   X,
   MapPin,
   Users,
-  List,
   Clock,
   Filter,
 } from 'lucide-react';
@@ -39,9 +35,6 @@ function toYmd(d: Date): string {
   const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
 }
-
-type PlannerView = 'table' | 'calendar';
-type CalendarRange = 'day' | 'week';
 
 type ListingGuideMeta = {
   duration: string;
@@ -70,20 +63,6 @@ function parseYmdLocal(ymd: string): Date | null {
   const [y, m, d] = ymd.split('-').map(Number);
   if (!y || !m || !d) return null;
   return new Date(y, m - 1, d);
-}
-
-function startOfWeek(d: Date): Date {
-  const copy = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  const day = copy.getDay();
-  const diff = day === 0 ? -6 : 1 - day; // Monday start
-  copy.setDate(copy.getDate() + diff);
-  return copy;
-}
-
-function addDays(d: Date, n: number): Date {
-  const copy = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  copy.setDate(copy.getDate() + n);
-  return copy;
 }
 
 /** Hours from now until start of local calendar day for the booking date (negative = past). */
@@ -124,19 +103,6 @@ function bookingTimesLine(b: BookingRow): string | null {
 
 function plannerInputClass(): string {
   return 'w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-finland focus:ring-2 focus:ring-finland/25 outline-none transition-shadow';
-}
-
-function getActiveDatePreset(dateFrom: string, dateTo: string): 'today' | 'week' | 'month' | 'clear' | 'custom' {
-  if (!dateFrom && !dateTo) return 'clear';
-  const now = toYmd(new Date());
-  if (dateFrom === now && dateTo === now) return 'today';
-  if (dateFrom === now) {
-    const end7 = toYmd(addDays(new Date(), 7));
-    const end30 = toYmd(addDays(new Date(), 30));
-    if (dateTo === end7) return 'week';
-    if (dateTo === end30) return 'month';
-  }
-  return 'custom';
 }
 
 function bookingStatusStyles(status: string): string {
@@ -250,10 +216,6 @@ export default function SupplierPickupPlanner() {
   const [loading, setLoading] = useState(true);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-  const [view, setView] = useState<PlannerView>('table');
-  const prevViewRef = useRef<PlannerView>('table');
-  const [calendarRange, setCalendarRange] = useState<CalendarRange>('week');
-  const [calendarAnchorDate, setCalendarAnchorDate] = useState<string>(toYmd(new Date()));
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState('');
@@ -329,32 +291,6 @@ export default function SupplierPickupPlanner() {
     load();
   }, [load]);
 
-  const setPreset = (preset: 'today' | 'week' | 'month' | 'clear') => {
-    if (preset === 'clear') {
-      setDateFrom('');
-      setDateTo('');
-      return;
-    }
-    const now = new Date();
-    if (preset === 'today') {
-      const s = toYmd(now);
-      setDateFrom(s);
-      setDateTo(s);
-      return;
-    }
-    if (preset === 'week') {
-      setDateFrom(toYmd(now));
-      const end = new Date(now);
-      end.setDate(end.getDate() + 7);
-      setDateTo(toYmd(end));
-      return;
-    }
-    setDateFrom(toYmd(now));
-    const end = new Date(now);
-    end.setDate(end.getDate() + 30);
-    setDateTo(toYmd(end));
-  };
-
   /** Active pickup work only: hide cancelled (status narrowing was removed as non-essential UI). */
   const filtered = useMemo(() => {
     return bookings.filter((b) => {
@@ -417,66 +353,6 @@ export default function SupplierPickupPlanner() {
         .sort((a, b) => a.title.localeCompare(b.title)),
     [listingTitles]
   );
-
-  const effectiveCalendarDate = useMemo(
-    () => parseYmdLocal(calendarAnchorDate) ?? new Date(),
-    [calendarAnchorDate]
-  );
-
-  const calendarDates = useMemo(() => {
-    if (calendarRange === 'day') {
-      return [new Date(effectiveCalendarDate.getFullYear(), effectiveCalendarDate.getMonth(), effectiveCalendarDate.getDate())];
-    }
-    const start = startOfWeek(effectiveCalendarDate);
-    return Array.from({ length: 7 }, (_, i) => addDays(start, i));
-  }, [calendarRange, effectiveCalendarDate]);
-
-  const calendarBookingsByDate = useMemo(() => {
-    const byDate: Record<string, BookingRow[]> = {};
-    calendarDates.forEach((d) => {
-      byDate[toYmd(d)] = [];
-    });
-    for (const b of listBookings) {
-      if (!b.booking_date) continue;
-      if (byDate[b.booking_date]) byDate[b.booking_date].push(b);
-    }
-    Object.keys(byDate).forEach((k) => {
-      byDate[k].sort(
-        (a, b) => a.created_at.localeCompare(b.created_at)
-      );
-    });
-    return byDate;
-  }, [calendarDates, listBookings]);
-
-  /** When switching to Calendar, jump the visible week/day if no bookings fall in the current range (common “toggle does nothing” case). */
-  useEffect(() => {
-    const prev = prevViewRef.current;
-    prevViewRef.current = view;
-    if (prev === 'calendar' || view !== 'calendar' || listBookings.length === 0) return;
-
-    const dated = listBookings
-      .map((b) => b.booking_date)
-      .filter((d): d is string => !!d)
-      .sort();
-    if (dated.length === 0) return;
-
-    const anchor = parseYmdLocal(calendarAnchorDate) ?? new Date();
-    let rangeStartYmd: string;
-    let rangeEndYmd: string;
-    if (calendarRange === 'day') {
-      rangeStartYmd = toYmd(anchor);
-      rangeEndYmd = rangeStartYmd;
-    } else {
-      const wk = startOfWeek(anchor);
-      rangeStartYmd = toYmd(wk);
-      rangeEndYmd = toYmd(addDays(wk, 6));
-    }
-
-    const hasInRange = dated.some((d) => d >= rangeStartYmd && d <= rangeEndYmd);
-    if (!hasInRange) {
-      setCalendarAnchorDate(dated[0]);
-    }
-  }, [view, listBookings, calendarRange, calendarAnchorDate]);
 
   const selectedBooking = useMemo(
     () => sorted.find((b) => b.id === selectedBookingId) ?? null,
@@ -559,16 +435,6 @@ export default function SupplierPickupPlanner() {
     URL.revokeObjectURL(url);
   };
 
-  const shiftCalendar = (direction: -1 | 1) => {
-    const anchor = parseYmdLocal(calendarAnchorDate) ?? new Date();
-    const delta = calendarRange === 'day' ? 1 : 7;
-    setCalendarAnchorDate(toYmd(addDays(anchor, direction * delta)));
-  };
-
-  const jumpCalendarToday = () => {
-    setCalendarAnchorDate(toYmd(new Date()));
-  };
-
   const handleAcknowledgeSelected = async () => {
     if (!canEditBookings) return;
     if (!selectedBooking || selectedBooking.status === 'cancelled' || selectedBooking.acknowledged_at) return;
@@ -627,47 +493,11 @@ export default function SupplierPickupPlanner() {
     setUpdatingId(null);
   };
 
-  const calendarLabel = useMemo(() => {
-    if (calendarRange === 'day') {
-      return effectiveCalendarDate.toLocaleDateString(undefined, {
-        weekday: 'long',
-        month: 'long',
-        day: 'numeric',
-        year: 'numeric',
-      });
-    }
-    const first = calendarDates[0];
-    const last = calendarDates[calendarDates.length - 1];
-    const firstLabel = first.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-    const lastLabel = last.toLocaleDateString(undefined, {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
-    return `${firstLabel} - ${lastLabel}`;
-  }, [calendarDates, calendarRange, effectiveCalendarDate]);
-
   const plannerStats = useMemo(() => {
     const guestTotal = listBookings.reduce((sum, b) => sum + Number(b.guests ?? 0), 0);
     const needsPickup = listBookings.filter((b) => needsPickupInfo(b.listing_id)).length;
     return { bookings: listBookings.length, guests: guestTotal, needsPickup };
   }, [listBookings, needsPickupInfo]);
-
-  const activeDatePreset = getActiveDatePreset(dateFrom, dateTo);
-
-  const presetChipClass = (preset: 'today' | 'week' | 'month' | 'clear') =>
-    `rounded-full px-3 py-1.5 text-xs font-semibold transition-all duration-200 ${
-      activeDatePreset === preset
-        ? 'bg-finland text-white shadow-sm'
-        : 'border border-gray-200 bg-white text-gray-700 hover:border-finland/30 hover:text-finland'
-    }`;
-
-  const viewTabClass = (tab: PlannerView) =>
-    `inline-flex items-center gap-1.5 pb-3 px-1 text-sm font-semibold border-b-2 transition-colors ${
-      view === tab
-        ? 'border-finland text-finland'
-        : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
-    }`;
 
   if (!user) return null;
 
@@ -730,22 +560,16 @@ export default function SupplierPickupPlanner() {
       )}
 
       <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-4 sm:px-5">
-          <nav className="-mb-px flex gap-6" aria-label="Pickup planner view">
-            <button type="button" onClick={() => setView('table')} className={viewTabClass('table')}>
-              <List className="h-4 w-4" aria-hidden />
-              List
-            </button>
-            <button type="button" onClick={() => setView('calendar')} className={viewTabClass('calendar')}>
-              <CalendarDays className="h-4 w-4" aria-hidden />
-              Calendar
-            </button>
-          </nav>
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4 sm:px-5 pt-4">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+            <Filter className="h-3.5 w-3.5" aria-hidden />
+            Filters
+          </div>
           {!loading && listBookings.length > 0 && (
             <button
               type="button"
               onClick={exportCsv}
-              className="my-2 inline-flex items-center gap-1.5 rounded-xl border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
             >
               <Download className="h-4 w-4" aria-hidden />
               Export CSV
@@ -753,12 +577,7 @@ export default function SupplierPickupPlanner() {
           )}
         </div>
 
-        <div className="p-4 sm:p-5 space-y-4">
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
-            <Filter className="h-3.5 w-3.5" aria-hidden />
-            Filters
-          </div>
-
+        <div className="p-4 sm:p-5 pt-3 space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <div className="sm:col-span-2">
               <label className="block text-xs font-medium text-gray-600 mb-1.5">Listing</label>
@@ -807,25 +626,6 @@ export default function SupplierPickupPlanner() {
               </span>
             </label>
           </div>
-
-          <div className="flex flex-wrap items-center gap-2 pt-1">
-            <span className="text-xs font-semibold text-gray-500 mr-1">Quick range</span>
-            <button type="button" onClick={() => setPreset('today')} className={presetChipClass('today')}>
-              Today
-            </button>
-            <button type="button" onClick={() => setPreset('week')} className={presetChipClass('week')}>
-              +7 days
-            </button>
-            <button type="button" onClick={() => setPreset('month')} className={presetChipClass('month')}>
-              +30 days
-            </button>
-            <button type="button" onClick={() => setPreset('clear')} className={presetChipClass('clear')}>
-              All dates
-            </button>
-            {activeDatePreset === 'custom' && (dateFrom || dateTo) ? (
-              <span className="text-xs text-gray-500 ml-1">Custom range selected</span>
-            ) : null}
-          </div>
         </div>
       </div>
 
@@ -838,151 +638,6 @@ export default function SupplierPickupPlanner() {
             <div className="h-24 rounded-2xl bg-gray-100" />
           </div>
         </div>
-      ) : view === 'calendar' ? (
-        sorted.length === 0 ? (
-        <div className="rounded-2xl border border-gray-200 bg-white py-14 text-center px-6 animate-scale-in">
-          <ClipboardList className="mx-auto mb-3 h-12 w-12 text-gray-300" aria-hidden />
-          <h2 className="text-lg font-semibold text-gray-900">No bookings match</h2>
-          <p className="mt-2 text-sm text-gray-500 max-w-md mx-auto">
-            Widen the date range or clear listing filters. Cancelled bookings are hidden here.
-          </p>
-          <button
-            type="button"
-            onClick={() => setPreset('clear')}
-            className="mt-5 rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-          >
-            Show all dates
-          </button>
-        </div>
-      ) : (
-        <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm animate-fade-in">
-          <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 flex flex-wrap items-center gap-2 justify-between">
-            <div className="inline-flex rounded-lg border border-gray-200 p-0.5 bg-white">
-              <button
-                type="button"
-                onClick={() => setCalendarRange('day')}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium ${
-                  calendarRange === 'day' ? 'bg-finland/10 text-finland' : 'text-gray-600'
-                }`}
-              >
-                Day
-              </button>
-              <button
-                type="button"
-                onClick={() => setCalendarRange('week')}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium ${
-                  calendarRange === 'week' ? 'bg-finland/10 text-finland' : 'text-gray-600'
-                }`}
-              >
-                Week
-              </button>
-            </div>
-            <div className="flex flex-wrap items-center justify-center gap-2 sm:flex-nowrap sm:justify-end min-w-0 flex-1 sm:flex-none sm:max-w-full">
-              <button
-                type="button"
-                onClick={() => shiftCalendar(-1)}
-                className="p-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100 shrink-0"
-                aria-label="Previous"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <p className="text-sm font-medium text-gray-800 min-w-0 flex-[1_1_100%] sm:flex-initial sm:min-w-[12rem] text-center order-first sm:order-none">
-                {calendarLabel}
-              </p>
-              <button
-                type="button"
-                onClick={() => shiftCalendar(1)}
-                className="p-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100 shrink-0"
-                aria-label="Next"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
-                onClick={jumpCalendarToday}
-                className="px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-100 shrink-0"
-              >
-                Today
-              </button>
-            </div>
-          </div>
-          <div className={`grid gap-3 p-4 ${calendarRange === 'day' ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-4'}`}>
-            {calendarDates.map((d) => {
-              const key = toYmd(d);
-              const dayBookings = calendarBookingsByDate[key] ?? [];
-              const dayGuests = dayBookings.reduce((sum, b) => sum + Number(b.guests ?? 0), 0);
-              const pickupGaps = dayBookings.filter((b) => needsPickupInfo(b.listing_id)).length;
-              const dayName = d.toLocaleDateString(undefined, { weekday: 'short' });
-              const dayNumber = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-              return (
-                <section key={key} className="border border-gray-200 rounded-2xl overflow-hidden shadow-sm transition-shadow hover:shadow-md">
-                  <header className="px-3 py-2.5 border-b border-gray-100 bg-gradient-to-r from-slate-50/90 to-white flex flex-col gap-0.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm font-semibold text-gray-800">{dayName}</p>
-                      <p className="text-xs text-gray-500">{dayNumber}</p>
-                    </div>
-                    <p className="text-[11px] text-gray-500">
-                      {dayBookings.length} booking{dayBookings.length === 1 ? '' : 's'} · {dayGuests} guest{dayGuests === 1 ? '' : 's'}
-                      {pickupGaps > 0 ? (
-                        <span className="text-amber-700 font-medium"> · {pickupGaps} missing pickup/meeting</span>
-                      ) : null}
-                    </p>
-                  </header>
-                  <div className="p-2 space-y-2 min-h-20">
-                    {dayBookings.length === 0 ? (
-                      <p className="text-xs text-gray-400 px-1 py-2">No bookings</p>
-                    ) : (
-                      dayBookings.map((b) => {
-                        const spots = Number(b.guests ?? 0);
-                        return (
-                          <div
-                            key={b.id}
-                            className={`flex items-stretch gap-2 rounded-xl border px-2.5 py-2 transition-colors ${
-                              needsPickupInfo(b.listing_id)
-                                ? 'border-amber-200 bg-amber-50/80'
-                                : 'border-gray-200 bg-white hover:border-finland/20'
-                            }`}
-                          >
-                            <div className="min-w-0 flex-1 text-left">
-                              <p className="text-xs font-semibold text-gray-800 truncate">
-                                {listingTitles[b.listing_id] ?? 'Listing'}
-                              </p>
-                              <p className="text-xs text-gray-600 truncate">
-                                {b.guest_name ?? b.guest_email ?? 'Guest'}
-                              </p>
-                              <p className="text-xs text-gray-800 mt-0.5">
-                                <span className="font-semibold tabular-nums">{spots}</span> spot{spots === 1 ? '' : 's'} booked
-                              </p>
-                              <p className="text-[11px] text-gray-500 mt-0.5 truncate">
-                                {meetingPoints[b.listing_id] || 'Meeting point missing'}
-                              </p>
-                              {bookingTimesLine(b) ? (
-                                <p className="text-[11px] text-finland/90 font-medium mt-0.5 truncate">{bookingTimesLine(b)}</p>
-                              ) : null}
-                              {guideScheduleSummary(listingGuideMeta[b.listing_id]) ? (
-                                <p className="text-[10px] text-gray-400 mt-0.5 truncate">
-                                  {guideScheduleSummary(listingGuideMeta[b.listing_id])}
-                                </p>
-                              ) : null}
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => setSelectedBookingId(b.id)}
-                              className="shrink-0 self-center rounded-lg bg-finland px-2.5 py-1.5 text-[11px] font-semibold text-white hover:bg-finland-dark transition-colors"
-                            >
-                              Pickup details
-                            </button>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                </section>
-              );
-            })}
-          </div>
-        </div>
-        )
       ) : sorted.length === 0 ? (
         <div className="rounded-2xl border border-gray-200 bg-white py-14 text-center px-6 animate-scale-in">
           <ClipboardList className="mx-auto mb-3 h-12 w-12 text-gray-300" aria-hidden />
@@ -992,10 +647,13 @@ export default function SupplierPickupPlanner() {
           </p>
           <button
             type="button"
-            onClick={() => setPreset('clear')}
+            onClick={() => {
+              setDateFrom('');
+              setDateTo('');
+            }}
             className="mt-5 rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
           >
-            Show all dates
+            Clear dates
           </button>
         </div>
       ) : listBookings.length === 0 ? (
