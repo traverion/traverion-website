@@ -14,6 +14,12 @@ import {
 } from '../../data/supabase-discounts';
 import { parseListingExtras, materializedBookingOptions } from '../../types/listingExtras';
 import DiscountOfferWizardModal from '../../components/supplier/DiscountOfferWizardModal';
+import {
+  SUPPLIER_PAGE_CLASS,
+  SUPPLIER_SECTION_HEADER_CLASS,
+  SupplierListSkeleton,
+  SupplierPageHero,
+} from '../../components/supplier/supplierUi';
 
 function optionLabelForDiscount(tour: TourPackage, d: ListingDiscount): string {
   if (!d.booking_option_id?.trim()) return 'All options';
@@ -116,41 +122,26 @@ export default function SupplierDiscountsOffers() {
   const publishedCount = useMemo(() => listings.filter((l) => l.status !== 'draft').length, [listings]);
 
   return (
-    <div className="space-y-4 sm:space-y-5 w-full min-w-0">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 text-finland mb-0.5 sm:mb-1">
-            <Tag className="w-5 h-5 sm:w-6 sm:h-6 shrink-0" aria-hidden />
-            <h1 className="text-lg sm:text-2xl font-semibold tracking-tight text-gray-900">Discounts &amp; offers</h1>
-          </div>
-          <p className="text-sm text-gray-600 mt-0.5 sm:mt-1 sm:text-base max-w-2xl leading-snug">
-            Run time-limited percentage promotions on a specific booking option. Travelers see the reduced “from” price on
-            Traverion while the offer is active. Each run can last up to 30 days.
-          </p>
-        </div>
-        <div className="grid grid-cols-1 xs:grid-cols-2 gap-2 shrink-0 sm:flex sm:flex-row sm:w-auto">
-          <button
-            type="button"
-            onClick={goToListings}
-            className="inline-flex items-center justify-center gap-2 px-4 py-3 sm:py-2.5 rounded-xl border border-gray-300 text-gray-800 font-medium hover:bg-gray-50 min-h-[48px] touch-manipulation"
-          >
-            <MapPin className="w-4 h-4" />
-            My listings
-          </button>
-          {canEdit && (
+    <div className={SUPPLIER_PAGE_CLASS}>
+      <SupplierPageHero
+        icon={Tag}
+        title="Discounts & offers"
+        description="Time-limited percentage promotions on a booking option (up to 30 days)."
+        actions={
+          canEdit ? (
             <button
               type="button"
               onClick={openNew}
               disabled={listings.length === 0}
               title={listings.length === 0 ? 'Add a listing first' : undefined}
-              className="inline-flex items-center justify-center gap-2 px-4 py-3 sm:py-2.5 rounded-xl bg-finland text-white font-semibold hover:bg-finland-dark min-h-[48px] touch-manipulation shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex items-center justify-center gap-2 px-4 py-3 sm:py-2.5 rounded-xl bg-finland text-white font-semibold hover:bg-finland-dark min-h-[48px] touch-manipulation shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <Plus className="w-5 h-5 shrink-0" />
               New discount offer
             </button>
-          )}
-        </div>
-      </div>
+          ) : undefined
+        }
+      />
 
       {!canEdit && (
         <p className="text-sm text-amber-900 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
@@ -165,9 +156,9 @@ export default function SupplierDiscountsOffers() {
       )}
 
       {loading ? (
-        <p className="text-sm text-gray-500">Loading…</p>
+        <SupplierListSkeleton rows={3} />
       ) : listings.length === 0 ? (
-        <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center shadow-sm">
+        <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center shadow-sm animate-scale-in">
           <p className="text-gray-700 font-medium">No tours yet</p>
           <p className="text-sm text-gray-500 mt-2 max-w-md mx-auto">
             Add and publish a listing with at least one bookable option, then you can attach timed discounts here.
@@ -189,7 +180,7 @@ export default function SupplierDiscountsOffers() {
           )}
 
           <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-            <div className="px-4 py-3 sm:px-5 sm:py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 bg-gray-50/60">
+            <div className={`${SUPPLIER_SECTION_HEADER_CLASS} flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2`}>
               <h2 className="text-base font-semibold text-gray-900">Your offers</h2>
               <p className="text-xs text-gray-500">
                 {rows.length} total · {rows.filter((r) => offerStatus(r.discount) === 'active').length} active now
@@ -229,7 +220,7 @@ export default function SupplierDiscountsOffers() {
                         : 'bg-gray-100 text-gray-600';
                   const pct = d.type === 'percent' ? `${Math.round(Number(d.value))}%` : `$${d.value}`;
                   return (
-                    <article key={d.id} className="p-4 sm:px-5 sm:py-4 w-full min-w-0 max-w-full space-y-3">
+                    <article key={d.id} className="p-4 sm:px-5 sm:py-4 w-full min-w-0 max-w-full space-y-3 transition-colors duration-200 hover:bg-slate-50/60">
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between min-w-0">
                         <div className="flex gap-3 min-w-0 flex-1">
                           {listing.image?.trim() ? (

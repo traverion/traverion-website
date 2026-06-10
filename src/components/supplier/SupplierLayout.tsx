@@ -84,11 +84,9 @@ type SupplierSection =
   | 'pickup'
   | 'business-profile'
   | 'account-settings'
-  | 'change-password'
-  | 'badges';
+  | 'change-password';
 type AccountShortcutTarget = 'company' | 'legal' | 'account' | 'security' | 'payout';
 type BusinessProfileTab = 'company' | 'legal';
-type BadgeVariant = 'gold' | 'verified' | 'trusted';
 
 const NAV_ITEMS: { id: SupplierSection; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -101,7 +99,7 @@ const NAV_ITEMS: { id: SupplierSection; label: string; icon: typeof LayoutDashbo
   { id: 'business-profile', label: 'Business profile', icon: Building2 },
   { id: 'account-settings', label: 'Account settings', icon: Users },
 ];
-const ROUTABLE_SECTIONS = [...NAV_ITEMS.map((n) => n.id), 'change-password', 'badges'] as const;
+const ROUTABLE_SECTIONS = [...NAV_ITEMS.map((n) => n.id), 'change-password'] as const;
 type ExtraSupplierSection = (typeof ROUTABLE_SECTIONS)[number];
 
 function getSectionFromPath(pathname: string): SupplierSection | null {
@@ -370,8 +368,6 @@ export default function SupplierLayout() {
   const [legalSaving, setLegalSaving] = useState(false);
   const [legalMessage, setLegalMessage] = useState<'success' | 'error' | null>(null);
   const [legalDocModal, setLegalDocModal] = useState<'privacy' | 'terms' | null>(null);
-  const [badgeEnabled, setBadgeEnabled] = useState(false);
-  const [badgeVariant, setBadgeVariant] = useState<BadgeVariant>('gold');
   const [verificationSending, setVerificationSending] = useState(false);
   const [verificationMessage, setVerificationMessage] = useState<'sent' | 'error' | null>(null);
   const [businessLogoUrl, setBusinessLogoUrl] = useState<string>('');
@@ -635,21 +631,6 @@ export default function SupplierLayout() {
     const onPop = () => syncFromPath(true);
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
-  }, []);
-
-  useEffect(() => {
-    const savedBadge = localStorage.getItem('supplier_badge_state');
-    if (savedBadge) {
-      try {
-        const parsed = JSON.parse(savedBadge) as { enabled?: boolean; variant?: BadgeVariant };
-        setBadgeEnabled(!!parsed.enabled);
-        if (parsed.variant === 'gold' || parsed.variant === 'verified' || parsed.variant === 'trusted') {
-          setBadgeVariant(parsed.variant);
-        }
-      } catch {
-        // ignore invalid local data
-      }
-    }
   }, []);
 
   useEffect(() => {
@@ -1073,8 +1054,6 @@ export default function SupplierLayout() {
                 <button type="button" onClick={() => openSettingsFocus('legal')} className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-sm">Legal obligations</button>
                 <button type="button" onClick={() => openSettingsFocus('account')} className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-sm">Account settings</button>
                 <button type="button" onClick={() => openSettingsFocus('security')} className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-sm">Security and password</button>
-                <button type="button" onClick={() => handleNavigate('badges')} className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-sm">Brand assets</button>
-                <button type="button" onClick={() => handleNavigate('discounts')} className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-sm">Discounts &amp; offers</button>
                 <button type="button" onClick={() => signOut()} className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-sm text-red-600">Log out</button>
               </div>
             )}
@@ -1099,7 +1078,6 @@ export default function SupplierLayout() {
               <button type="button" onClick={() => openSettingsFocus('legal')} className="touch-manipulation w-full text-left px-4 py-3.5 min-h-[44px] rounded-xl border border-gray-200 active:bg-gray-50">Legal obligations</button>
               <button type="button" onClick={() => openSettingsFocus('account')} className="touch-manipulation w-full text-left px-4 py-3.5 min-h-[44px] rounded-xl border border-gray-200 active:bg-gray-50">Account settings</button>
               <button type="button" onClick={() => openSettingsFocus('security')} className="touch-manipulation w-full text-left px-4 py-3.5 min-h-[44px] rounded-xl border border-gray-200 active:bg-gray-50">Security and password</button>
-              <button type="button" onClick={() => handleNavigate('badges')} className="touch-manipulation w-full text-left px-4 py-3.5 min-h-[44px] rounded-xl border border-gray-200 active:bg-gray-50">Brand assets</button>
               <button type="button" onClick={() => signOut()} className="touch-manipulation w-full text-left px-4 py-3.5 min-h-[44px] rounded-xl border border-red-200 text-red-600 active:bg-red-50">Log out</button>
             </div>
           </div>
@@ -1143,49 +1121,6 @@ export default function SupplierLayout() {
               isSupabase={isSupabase}
               supabase={supabase}
             />
-          )}
-          {section === 'badges' && (
-            <div className="space-y-4 sm:space-y-5 w-full min-w-0">
-              <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Brand assets</h1>
-              <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-6 space-y-4 max-w-2xl">
-                <p className="text-sm text-gray-500">Configure your supplier trust badge for Traverion partner-facing use.</p>
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={badgeEnabled}
-                    onChange={(e) => {
-                      const enabled = e.target.checked;
-                      setBadgeEnabled(enabled);
-                      localStorage.setItem('supplier_badge_state', JSON.stringify({ enabled, variant: badgeVariant }));
-                    }}
-                    className="rounded border-gray-300 text-finland focus:ring-finland"
-                  />
-                  <span className="text-sm text-gray-800">Enable promotional badge</span>
-                </label>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Badge style</label>
-                  <select
-                    value={badgeVariant}
-                    onChange={(e) => {
-                      const variant = e.target.value as BadgeVariant;
-                      setBadgeVariant(variant);
-                      localStorage.setItem('supplier_badge_state', JSON.stringify({ enabled: badgeEnabled, variant }));
-                    }}
-                    className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-finland"
-                  >
-                    <option value="gold">Gold partner</option>
-                    <option value="verified">Verified operator</option>
-                    <option value="trusted">Trusted host</option>
-                  </select>
-                </div>
-                <div className="rounded-lg border border-gray-200 p-4 bg-gray-50">
-                  <p className="text-xs text-gray-500 mb-1">Preview</p>
-                  <p className="text-sm font-medium text-gray-900">
-                    {badgeEnabled ? `${badgeVariant === 'gold' ? 'Gold Partner' : badgeVariant === 'verified' ? 'Verified Operator' : 'Trusted Host'} · Traverion` : 'Badge disabled'}
-                  </p>
-                </div>
-              </div>
-            </div>
           )}
           {(section === 'business-profile' || section === 'account-settings') && (
             <SupplierSettingsPages

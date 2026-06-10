@@ -88,7 +88,7 @@ export default function SupplierChangePassword({ onBack, userEmail, isSupabase, 
   };
 
   return (
-    <div className="space-y-6 max-w-3xl w-full min-w-0">
+    <div className="space-y-6 max-w-3xl w-full min-w-0 animate-fade-in-up">
       <button
         type="button"
         onClick={onBack}

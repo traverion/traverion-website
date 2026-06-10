@@ -1,6 +1,6 @@
 import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Pencil, Plus, Trash2, X } from 'lucide-react';
+import { MapPin, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { TourPackage } from '../../types/tour';
 import type { ListingBookingOption, ListingExtras, ScheduleStyle, VenueSetting } from '../../types/listingExtras';
 import {
@@ -1404,9 +1404,13 @@ export default function SupplierListingForm({
         <div className="sm:hidden flex justify-center pt-2 pb-1 shrink-0" aria-hidden>
           <div className="h-1.5 w-12 rounded-full bg-gray-300" />
         </div>
-        <div className="shrink-0 border-b border-gray-200 px-5 py-4 sm:px-6">
+        <div className="shrink-0 border-b border-gray-100 bg-gradient-to-br from-slate-50/90 to-white px-5 py-4 sm:px-6">
           <div className="mb-3 flex items-start justify-between gap-3">
-            <div className="min-w-0">
+            <div className="flex gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-xl bg-finland/10 flex items-center justify-center shrink-0">
+                <MapPin className="w-5 h-5 text-finland" aria-hidden />
+              </div>
+              <div className="min-w-0">
               <h2 id="supplier-listing-editor-title" className="text-xl font-semibold text-gray-900">
                 {editingId ? 'Edit listing' : 'Create listing'}
               </h2>
@@ -1416,6 +1420,7 @@ export default function SupplierListingForm({
                 <span className="font-medium text-gray-700">Save as draft</span> to keep working. To take a live listing offline,
                 use <span className="font-medium text-gray-700">Deactivate</span> under the gear menu on My listings.
               </p>
+              </div>
             </div>
             <button
               type="button"

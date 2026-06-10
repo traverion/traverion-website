@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { UserCircle2 } from 'lucide-react';
 import { BRAND_LOGO_SRC } from '../../lib/brandAssets';
 import { supplierPortalHref } from '../../lib/partnerHost';
 import { publicSiteBaseUrl } from '../../lib/publicSiteUrl';
@@ -43,7 +44,10 @@ export default function SupplierPortalTravelerNotice({ email, onSignOut }: Props
         </div>
       </header>
       <main className="flex-1 flex items-center justify-center p-6">
-        <div className="max-w-md w-full rounded-2xl border border-gray-200 bg-white p-8 shadow-sm text-center">
+        <div className="max-w-md w-full rounded-2xl border border-gray-200 bg-white p-8 shadow-sm text-center animate-scale-in">
+          <div className="inline-flex w-12 h-12 rounded-2xl bg-finland/10 text-finland items-center justify-center mb-4">
+            <UserCircle2 className="w-6 h-6" aria-hidden />
+          </div>
           <h1 className="text-xl font-semibold text-gray-900 mb-2">Traveler account</h1>
           <p className="text-sm text-gray-600 mb-1">
             You’re signed in as{' '}

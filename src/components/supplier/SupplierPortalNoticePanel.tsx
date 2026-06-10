@@ -87,11 +87,7 @@ export default function SupplierPortalNoticePanel({ userId }: SupplierPortalNoti
   };
 
   if (loading && rows.length === 0) {
-    return (
-      <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-4 py-3 text-sm text-gray-500">
-        Loading messages…
-      </div>
-    );
+    return null;
   }
 
   if (error) {
@@ -106,26 +102,22 @@ export default function SupplierPortalNoticePanel({ userId }: SupplierPortalNoti
   }
 
   if (visible.length === 0) {
-    return (
-      <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-gray-500 shadow-sm ring-1 ring-slate-900/5">
-        No messages from the Traverion Support
-      </div>
-    );
+    return null;
   }
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between gap-2">
+    <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+      <div className="px-5 py-3 border-b border-gray-100 bg-gradient-to-br from-slate-50/90 to-white">
         <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">Messages from Traverion</h2>
       </div>
-      <ul className="space-y-2">
+      <ul className="space-y-2 p-4">
         {visible.map((n) => {
           const vs = variantStyles(n.variant);
           const Icon = vs.icon;
           return (
             <li
               key={n.id}
-              className={`relative flex gap-3 rounded-xl border-2 px-4 py-3 pr-11 shadow-sm ${vs.wrap}`}
+              className={`relative flex gap-3 rounded-2xl border px-4 py-3 pr-11 shadow-sm transition-all duration-200 hover:shadow-md ${vs.wrap}`}
             >
               <Icon className={`w-5 h-5 shrink-0 mt-0.5 ${vs.iconClass}`} aria-hidden />
               <div className="min-w-0 flex-1">

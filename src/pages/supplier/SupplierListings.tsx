@@ -40,6 +40,7 @@ import { getListingPublishBlockers } from '../../lib/listingPublishGate';
 import { normalizeListingForDraftSave } from '../../lib/listingDraftUtils';
 import { getReviewAggregatesForListingIds } from '../../data/supabase-reviews';
 import { SkeletonListItem } from '../../components/ui/Skeleton';
+import { SUPPLIER_PAGE_CLASS, SUPPLIER_SECTION_HEADER_CLASS, SupplierModalHeader, SupplierPageHero } from '../../components/supplier/supplierUi';
 
 function verificationStatusLabel(status: string): string {
   const s = status.toLowerCase();
@@ -595,40 +596,42 @@ export default function SupplierListings() {
   };
 
   return (
-    <div className="space-y-4 sm:space-y-5 w-full min-w-0">
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-6">
-        <div className="min-w-0 flex-1">
-          <h1 className="text-lg sm:text-2xl font-semibold tracking-tight text-gray-900">My listings</h1>
-          <p className="text-sm text-gray-600 mt-0.5 sm:mt-1 sm:text-base leading-snug">
-            Manage your tours and activities. <span className="font-medium text-gray-800">Publish</span> drafts when they are
-            ready to go live. Live listings stay published; use the gear menu to <span className="font-medium text-gray-800">Deactivate</span>{' '}
-            if you need to hide one temporarily. Closing the editor without finishing keeps a draft when save-on-close is available.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => {
-            if (!canEditListings || !canPostNewListing) return;
-            setEditingId(null);
-            setShowForm(true);
-            setFormFocusSection(null);
-            window.history.pushState({}, '', `${PARTNER_APP_BASE}/listings`);
-            window.dispatchEvent(new PopStateEvent('popstate'));
-          }}
-          disabled={!canEditListings || !canPostNewListing}
-          title={
-            !canEditListings
-              ? 'Your role can view listings but cannot add new ones.'
-              : !canPostNewListing
-                ? 'Traverion must approve your business and your payout (IBAN + BIC) before you can add a tour.'
-                : undefined
-          }
-          className="inline-flex w-full shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-finland px-5 py-3 text-[15px] font-semibold text-white shadow-sm transition-colors hover:bg-finland-dark active:scale-[0.99] disabled:opacity-50 touch-manipulation min-h-[48px] md:w-auto md:self-center"
-        >
-          <Plus className="h-5 w-5 shrink-0" aria-hidden />
-          <span>Add listing</span>
-        </button>
-      </div>
+    <div className={SUPPLIER_PAGE_CLASS}>
+      <SupplierPageHero
+        icon={MapPin}
+        title="My listings"
+        description={
+          <>
+            Manage your tours and activities. <span className="font-medium text-gray-800">Publish</span> drafts when ready; use the gear menu to{' '}
+            <span className="font-medium text-gray-800">Deactivate</span> live listings temporarily.
+          </>
+        }
+        actions={
+          <button
+            type="button"
+            onClick={() => {
+              if (!canEditListings || !canPostNewListing) return;
+              setEditingId(null);
+              setShowForm(true);
+              setFormFocusSection(null);
+              window.history.pushState({}, '', `${PARTNER_APP_BASE}/listings`);
+              window.dispatchEvent(new PopStateEvent('popstate'));
+            }}
+            disabled={!canEditListings || !canPostNewListing}
+            title={
+              !canEditListings
+                ? 'Your role can view listings but cannot add new ones.'
+                : !canPostNewListing
+                  ? 'Traverion must approve your business and your payout (IBAN + BIC) before you can add a tour.'
+                  : undefined
+            }
+            className="inline-flex w-full shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-finland px-5 py-3 text-[15px] font-semibold text-white shadow-sm transition-colors hover:bg-finland-dark active:scale-[0.99] disabled:opacity-50 touch-manipulation min-h-[48px] md:w-auto"
+          >
+            <Plus className="h-5 w-5 shrink-0" aria-hidden />
+            <span>Add listing</span>
+          </button>
+        }
+      />
 
       {!canEditListings && (
         <div className="p-4 rounded-lg bg-slate-50 border border-slate-200 text-slate-800 text-sm">
@@ -799,7 +802,7 @@ export default function SupplierListings() {
           <SkeletonListItem />
         </div>
       ) : listings.length === 0 && !showForm ? (
-        <div className="bg-white border border-gray-200 rounded-xl p-8 sm:p-12 text-center">
+        <div className="bg-white border border-gray-200 rounded-2xl p-8 sm:p-12 text-center shadow-sm animate-scale-in">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gray-100 text-gray-400 mb-4">
             <MapPin className="w-7 h-7" />
           </div>
@@ -829,13 +832,16 @@ export default function SupplierListings() {
         </div>
       ) : (
         listings.length > 0 && (
-          <div className="space-y-3 w-full min-w-0">
-            <h2 className="text-lg font-medium text-gray-900">Your listings ({listings.length})</h2>
-            <div className="border border-gray-200 rounded-2xl bg-white shadow-sm divide-y divide-gray-200">
+          <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden w-full min-w-0">
+            <div className={`${SUPPLIER_SECTION_HEADER_CLASS} flex items-center justify-between gap-2`}>
+              <h2 className="text-base font-semibold text-gray-900">Your listings</h2>
+              <span className="text-xs text-gray-500 tabular-nums">{listings.length} total</span>
+            </div>
+            <div className="divide-y divide-gray-100">
               {listings.map((listing) => {
                 const isLive = listing.status !== 'draft';
                 return (
-                  <article key={listing.id} className="p-4 sm:p-5 w-full min-w-0 max-w-full">
+                  <article key={listing.id} className="p-4 sm:p-5 w-full min-w-0 max-w-full transition-colors duration-200 hover:bg-slate-50/60">
                     <div className="flex gap-3 min-w-0">
                       <img
                         src={listing.image}
@@ -995,7 +1001,7 @@ export default function SupplierListings() {
             <div className="fixed inset-0 z-[80] flex items-end justify-center p-0 sm:items-center sm:p-4 sm:pt-[max(1rem,env(safe-area-inset-top))]">
               <button
                 type="button"
-                className="absolute inset-0 bg-slate-900/45 backdrop-blur-[1px]"
+                className="absolute inset-0 bg-slate-900/35 backdrop-blur-md"
                 aria-label="Close"
                 disabled={deleteBusy}
                 onClick={() => !deleteBusy && setListingPendingDelete(null)}
@@ -1004,12 +1010,15 @@ export default function SupplierListings() {
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="supplier-delete-listing-title"
-                className="relative z-[81] max-h-[min(calc(100dvh_-_env(safe-area-inset-bottom)_-_0.75rem),92dvh)] w-full max-w-md overflow-y-auto rounded-t-2xl border border-gray-200 bg-white p-4 shadow-2xl sm:rounded-2xl sm:p-6 pb-[max(1rem,env(safe-area-inset-bottom))]"
+                className="relative z-[81] max-h-[min(calc(100dvh_-_env(safe-area-inset-bottom)_-_0.75rem),92dvh)] w-full max-w-md overflow-hidden rounded-t-2xl border border-gray-200 bg-white shadow-2xl sm:rounded-2xl motion-safe:animate-slide-up sm:motion-safe:animate-none"
               >
-                <h3 id="supplier-delete-listing-title" className="text-lg font-semibold text-gray-900">
-                  Remove this listing?
-                </h3>
-                <p className="mt-2 text-sm text-gray-600">
+                <SupplierModalHeader
+                  icon={Trash2}
+                  title="Remove this listing?"
+                  onClose={deleteBusy ? undefined : () => setListingPendingDelete(null)}
+                />
+                <div className="p-4 sm:p-6 overflow-y-auto pb-[max(1rem,env(safe-area-inset-bottom))]">
+                <p className="text-sm text-gray-600">
                   <span className="font-medium text-gray-900">{listingPendingDelete.title}</span> will be removed from
                   your supplier account. This cannot be undone.
                 </p>
@@ -1031,6 +1040,7 @@ export default function SupplierListings() {
                     {deleteBusy ? 'Removing…' : 'Remove listing'}
                   </button>
                 </div>
+                </div>
               </div>
             </div>,
             document.body
@@ -1042,7 +1052,7 @@ export default function SupplierListings() {
             <div className="fixed inset-0 z-[80] flex items-end justify-center p-0 sm:items-center sm:p-4 sm:pt-[max(1rem,env(safe-area-inset-top))]">
               <button
                 type="button"
-                className="absolute inset-0 bg-slate-900/45 backdrop-blur-[1px]"
+                className="absolute inset-0 bg-slate-900/35 backdrop-blur-md"
                 aria-label="Close"
                 disabled={deactivateBusy}
                 onClick={() => !deactivateBusy && setListingPendingDeactivate(null)}
@@ -1051,12 +1061,15 @@ export default function SupplierListings() {
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="supplier-deactivate-listing-title"
-                className="relative z-[81] max-h-[min(calc(100dvh_-_env(safe-area-inset-bottom)_-_0.75rem),92dvh)] w-full max-w-md overflow-y-auto rounded-t-2xl border border-gray-200 bg-white p-4 shadow-2xl sm:rounded-2xl sm:p-6 pb-[max(1rem,env(safe-area-inset-bottom))]"
+                className="relative z-[81] max-h-[min(calc(100dvh_-_env(safe-area-inset-bottom)_-_0.75rem),92dvh)] w-full max-w-md overflow-hidden rounded-t-2xl border border-gray-200 bg-white shadow-2xl sm:rounded-2xl motion-safe:animate-slide-up sm:motion-safe:animate-none"
               >
-                <h3 id="supplier-deactivate-listing-title" className="text-lg font-semibold text-gray-900">
-                  Take this listing offline?
-                </h3>
-                <p className="mt-2 text-sm text-gray-600">
+                <SupplierModalHeader
+                  icon={EyeOff}
+                  title="Take this listing offline?"
+                  onClose={deactivateBusy ? undefined : () => setListingPendingDeactivate(null)}
+                />
+                <div className="p-4 sm:p-6 overflow-y-auto pb-[max(1rem,env(safe-area-inset-bottom))]">
+                <p className="text-sm text-gray-600">
                   <span className="font-medium text-gray-900">{listingPendingDeactivate.title}</span> will be hidden from
                   Traverion until you publish it again from this page.
                 </p>
@@ -1077,6 +1090,7 @@ export default function SupplierListings() {
                   >
                     {deactivateBusy ? 'Updating…' : 'Deactivate'}
                   </button>
+                </div>
                 </div>
               </div>
             </div>,

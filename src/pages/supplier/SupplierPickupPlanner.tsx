@@ -29,6 +29,7 @@ import { openSupplierListingEditor, openSupplierBooking } from '../../lib/suppli
 import { decrementAvailabilityBooked } from '../../data/supabase-availability';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { canManageBookings } from '../../lib/supplierTeamRoles';
+import { SUPPLIER_PAGE_CLASS } from '../../components/supplier/supplierUi';
 
 function toYmd(d: Date): string {
   const y = d.getFullYear();
@@ -823,7 +824,7 @@ export default function SupplierPickupPlanner() {
   }
 
   return (
-    <div className="space-y-6 max-w-4xl w-full min-w-0 animate-fade-in-up">
+    <div className={SUPPLIER_PAGE_CLASS}>
       <div className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-start gap-4">
           <div className="w-12 h-12 rounded-2xl bg-finland/10 flex items-center justify-center flex-shrink-0">

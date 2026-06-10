@@ -13,6 +13,7 @@ import {
   Mail,
   KeyRound,
   ChevronRight,
+  X,
 } from 'lucide-react';
 import type { User } from '@supabase/supabase-js';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -259,7 +260,7 @@ function AccountSettingsPage(p: Props) {
   const email = p.supplierEmail.trim() || '—';
 
   return (
-    <div className="space-y-6 max-w-3xl w-full min-w-0">
+    <div className="space-y-6 max-w-3xl w-full min-w-0 animate-fade-in-up">
       <div className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center gap-4">
           <div className="w-16 h-16 rounded-2xl bg-finland text-white flex items-center justify-center text-2xl font-bold flex-shrink-0 shadow-sm">
@@ -507,7 +508,7 @@ function BusinessProfilePage(p: Props) {
     }`;
 
   return (
-    <div className="space-y-6 max-w-3xl w-full min-w-0">
+    <div className="space-y-6 max-w-3xl w-full min-w-0 animate-fade-in-up">
       <div className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center gap-4">
           <div className="w-16 h-16 rounded-2xl border-2 border-gray-100 bg-gray-50 overflow-hidden flex items-center justify-center flex-shrink-0 shadow-sm">
@@ -1441,17 +1442,23 @@ function BusinessProfilePage(p: Props) {
             aria-label="Close editor"
             onClick={() => p.setLegalDocModal(null)}
           />
-          <div className="relative z-[71] flex max-h-[90dvh] w-full max-w-3xl min-h-0 flex-col rounded-t-xl border border-gray-200 bg-white shadow-xl sm:max-h-[90vh] sm:rounded-xl">
-            <div className="flex shrink-0 items-center justify-between border-b border-gray-200 px-5 py-4">
-              <h3 className="text-lg font-semibold text-gray-900">
-                {p.legalDocModal === 'privacy' ? 'Privacy policy' : 'Terms & conditions'}
-              </h3>
+          <div className="relative z-[71] flex max-h-[90dvh] w-full max-w-3xl min-h-0 flex-col rounded-t-2xl border border-gray-200 bg-white shadow-xl sm:max-h-[90vh] sm:rounded-2xl motion-safe:animate-slide-up sm:motion-safe:animate-none overflow-hidden">
+            <div className="flex shrink-0 items-center justify-between border-b border-gray-100 bg-gradient-to-br from-slate-50/90 to-white px-5 py-4">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-xl bg-finland/10 flex items-center justify-center shrink-0">
+                  <FileText className="w-5 h-5 text-finland" aria-hidden />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 truncate">
+                  {p.legalDocModal === 'privacy' ? 'Privacy policy' : 'Terms & conditions'}
+                </h3>
+              </div>
               <button
                 type="button"
                 onClick={() => p.setLegalDocModal(null)}
-                className="p-2 rounded-lg text-gray-500 hover:bg-gray-100"
+                className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 shrink-0"
+                aria-label="Close"
               >
-                Close
+                <X className="w-5 h-5" aria-hidden />
               </button>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4">

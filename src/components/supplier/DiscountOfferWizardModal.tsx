@@ -170,7 +170,7 @@ export default function DiscountOfferWizardModal({ open, onClose, listings, edit
     <div className="fixed inset-0 z-[90] flex items-end sm:items-center justify-center p-0 sm:p-4 sm:pt-[max(1rem,env(safe-area-inset-top))]">
       <button
         type="button"
-        className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+        className="absolute inset-0 bg-slate-900/35 backdrop-blur-md"
         aria-label="Close"
         onClick={() => !submitting && onClose()}
       />
@@ -178,9 +178,9 @@ export default function DiscountOfferWizardModal({ open, onClose, listings, edit
         role="dialog"
         aria-modal="true"
         aria-labelledby="discount-wizard-title"
-        className="relative z-[91] flex w-full max-w-lg max-h-[min(calc(100dvh_-_env(safe-area-inset-bottom)),92dvh)] sm:max-h-[min(92dvh,720px)] flex-col rounded-t-2xl sm:rounded-2xl bg-white shadow-2xl border border-gray-200 overflow-hidden"
+        className="relative z-[91] flex w-full max-w-lg max-h-[min(calc(100dvh_-_env(safe-area-inset-bottom)),92dvh)] sm:max-h-[min(92dvh,720px)] flex-col rounded-t-2xl sm:rounded-2xl bg-white shadow-2xl border border-gray-200 overflow-hidden motion-safe:animate-slide-up sm:motion-safe:animate-none"
       >
-        <div className="flex items-center justify-between gap-2 sm:gap-3 px-3 py-2.5 sm:px-4 sm:py-3 border-b border-gray-100 bg-gray-50/80 shrink-0">
+        <div className="flex items-center justify-between gap-2 sm:gap-3 px-3 py-2.5 sm:px-4 sm:py-3 border-b border-gray-100 bg-gradient-to-br from-slate-50/90 to-white shrink-0">
           <div className="flex items-center gap-2 min-w-0">
             <div className="w-9 h-9 rounded-xl bg-finland/10 text-finland flex items-center justify-center shrink-0">
               <Tag className="w-4 h-4" aria-hidden />

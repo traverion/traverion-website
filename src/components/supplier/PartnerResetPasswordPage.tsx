@@ -38,10 +38,10 @@ export default function PartnerResetPasswordPage() {
           <span className="font-semibold text-gray-900">Traverion for suppliers</span>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-2xl shadow-lg overflow-hidden">
-          <div className="px-6 sm:px-8 pt-6 pb-4 border-b border-gray-100">
+        <div className="bg-white border border-gray-200 rounded-2xl shadow-lg overflow-hidden animate-fade-in-up">
+          <div className="px-6 sm:px-8 pt-6 pb-4 border-b border-gray-100 bg-gradient-to-br from-slate-50/90 to-white">
             <div className="flex items-start gap-3">
-              <div className="w-11 h-11 rounded-xl bg-finland/10 flex items-center justify-center flex-shrink-0">
+              <div className="w-11 h-11 rounded-2xl bg-finland/10 flex items-center justify-center flex-shrink-0">
                 <Lock className="w-5 h-5 text-finland" aria-hidden />
               </div>
               <div className="min-w-0">

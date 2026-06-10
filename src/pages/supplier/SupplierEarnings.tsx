@@ -3,6 +3,12 @@ import { DollarSign, TrendingUp, Calendar, FileText, Receipt, AlertCircle, Refre
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { fetchSupplierEarnings, SupplierEarning } from '../../data/supabase-earnings';
 import { fetchSupplierProfile } from '../../data/supabase-supplier-profile';
+import {
+  SUPPLIER_PAGE_CLASS,
+  SUPPLIER_SECTION_HEADER_CLASS,
+  SupplierListSkeleton,
+  SupplierPageHero,
+} from '../../components/supplier/supplierUi';
 
 function formatMoney(amount: number, currency: string) {
   const c = currency || 'USD';
@@ -108,11 +114,12 @@ export default function SupplierEarnings() {
   };
 
   return (
-    <div className="space-y-4 sm:space-y-5 w-full min-w-0">
-      <div>
-        <h1 className="text-lg sm:text-2xl font-semibold tracking-tight text-gray-900">Earnings</h1>
-        <p className="text-sm text-gray-600 mt-0.5 sm:mt-1 sm:text-base">Payouts and transaction history</p>
-      </div>
+    <div className={SUPPLIER_PAGE_CLASS}>
+      <SupplierPageHero
+        icon={DollarSign}
+        title="Earnings"
+        description="Track pending payouts, paid totals, and period history for your supplier account."
+      />
 
       {error && (
         <div className="p-4 rounded-lg bg-red-50 text-red-700 text-sm flex items-center justify-between gap-4">
@@ -123,9 +130,12 @@ export default function SupplierEarnings() {
         </div>
       )}
 
+      {loading ? (
+        <SupplierListSkeleton rows={2} />
+      ) : (
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-        <div className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-5 flex items-center gap-3 sm:gap-4 shadow-sm">
-          <div className="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0">
+        <div className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-5 flex items-center gap-3 sm:gap-4 shadow-sm transition-all duration-200 hover:shadow-md">
+          <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0">
             <TrendingUp className="w-6 h-6" />
           </div>
           <div className="min-w-0">
@@ -144,8 +154,8 @@ export default function SupplierEarnings() {
             )}
           </div>
         </div>
-        <div className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-5 flex items-center gap-3 sm:gap-4 shadow-sm">
-          <div className="w-12 h-12 rounded-xl bg-green-500/10 text-green-600 flex items-center justify-center shrink-0">
+        <div className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-5 flex items-center gap-3 sm:gap-4 shadow-sm transition-all duration-200 hover:shadow-md">
+          <div className="w-12 h-12 rounded-2xl bg-green-500/10 text-green-600 flex items-center justify-center shrink-0">
             <DollarSign className="w-6 h-6" />
           </div>
           <div className="min-w-0">
@@ -154,8 +164,9 @@ export default function SupplierEarnings() {
           </div>
         </div>
       </div>
+      )}
 
-      {isSupabase && (
+      {!loading && isSupabase && (
         <div className="flex items-start gap-2 p-3 rounded-lg bg-gray-50 border border-gray-100 text-sm text-gray-700">
           <Info className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />
           <span>{nextPayoutLabel}</span>
@@ -163,10 +174,10 @@ export default function SupplierEarnings() {
       )}
 
       <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
-        <div className="px-4 py-3 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className={`${SUPPLIER_SECTION_HEADER_CLASS} flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3`}>
           <div className="flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-gray-500" />
-            <span className="font-medium text-gray-900">History</span>
+            <Calendar className="w-5 h-5 text-finland" />
+            <span className="font-semibold text-gray-900">History</span>
             <span className="text-sm text-gray-500">({filteredEarnings.length} row{filteredEarnings.length === 1 ? '' : 's'})</span>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -194,9 +205,11 @@ export default function SupplierEarnings() {
           </div>
         </div>
         {loading ? (
-          <div className="p-8 text-center text-gray-500">Loading…</div>
+          <div className="p-6">
+            <SupplierListSkeleton rows={3} />
+          </div>
         ) : earningsForInvoices.length === 0 ? (
-          <div className="p-12 text-center">
+          <div className="p-12 text-center animate-scale-in">
             <DollarSign className="w-12 h-12 text-gray-300 mx-auto mb-3" />
             <p className="text-gray-500">No earnings yet</p>
             <p className="text-sm text-gray-400 mt-1">When you have completed bookings, payouts will appear here.</p>
@@ -242,36 +255,6 @@ export default function SupplierEarnings() {
         )}
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-xl p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-2 flex items-center gap-2">
-          <FileText className="w-5 h-5 text-finland" />
-          Invoices & payment confirmations
-        </h2>
-        <p className="text-sm text-gray-500 mb-4">
-          Invoices are generated per period. When a payout is made, a payment confirmation is available. Download links will be available when payment processing is integrated.
-        </p>
-        {earningsForInvoices.length > 0 ? (
-          <ul className="space-y-2 text-sm">
-            {earningsForInvoices.slice(0, 10).map((e) => (
-              <li key={e.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
-                <span>{e.period_start} – {e.period_end}</span>
-                <span className="flex items-center gap-2">
-                  <button type="button" className="text-finland hover:underline" disabled>
-                    Download invoice
-                  </button>
-                  {e.status === 'paid' && (
-                    <button type="button" className="text-green-600 hover:underline" disabled>
-                      Payment confirmation
-                    </button>
-                  )}
-                </span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-gray-500 text-sm">No invoices yet.</p>
-        )}
-      </div>
     </div>
   );
 }

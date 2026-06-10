@@ -5,6 +5,11 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Star, MessageSquare, Send, AlertCircle, RefreshCw } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import {
+  SUPPLIER_PAGE_CLASS,
+  SUPPLIER_SECTION_HEADER_CLASS,
+  SupplierListSkeleton,
+} from '../../components/supplier/supplierUi';
+import {
   fetchReviewsForSupplierListings,
   getReviewRepliesByReviewIds,
   submitReviewReply,
@@ -29,7 +34,6 @@ export default function SupplierReviews() {
   const [error, setError] = useState<string | null>(null);
   const [replyError, setReplyError] = useState<string | null>(null);
   const [highlightReviewId, setHighlightReviewId] = useState<string | null>(null);
-  const [draftToneByReview, setDraftToneByReview] = useState<Record<string, 'friendly' | 'professional' | 'short'>>({});
   const [filterListingId, setFilterListingId] = useState('');
   const [filterRating, setFilterRating] = useState<number | ''>('');
   const [filterReply, setFilterReply] = useState<'all' | 'unreplied' | 'replied'>('all');
@@ -130,21 +134,6 @@ export default function SupplierReviews() {
     }
   };
 
-  const generateReplyDraft = (
-    r: ReviewDisplay & { listing_title?: string },
-    tone: 'friendly' | 'professional' | 'short'
-  ) => {
-    const guest = r.guest_name?.trim() || 'there';
-    const listing = r.listing_title || 'your experience';
-    if (tone === 'short') {
-      return `Hi ${guest}, thank you for your review of ${listing}. We appreciate your feedback and hope to welcome you again soon.`;
-    }
-    if (tone === 'professional') {
-      return `Hello ${guest}, thank you for taking the time to share your feedback about ${listing}. We appreciate your comments and continuously use guest input to improve the experience. We hope to host you again in the future.`;
-    }
-    return `Hi ${guest}! Thank you so much for the lovely review on ${listing}. We're really happy you joined us, and your feedback means a lot to our team. Hope to see you again soon!`;
-  };
-
   const unrepliedCount = reviews.filter(
     (r) => reviewHasWrittenFeedback(r) && !replies[r.id]
   ).length;
@@ -158,7 +147,7 @@ export default function SupplierReviews() {
   if (!user) return null;
 
   return (
-    <div className="space-y-6 max-w-4xl w-full min-w-0 animate-fade-in-up">
+    <div className={SUPPLIER_PAGE_CLASS}>
       <div className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-start gap-4">
           <div className="w-12 h-12 rounded-2xl bg-finland/10 flex items-center justify-center flex-shrink-0">
@@ -215,24 +204,20 @@ export default function SupplierReviews() {
       )}
 
       {loading ? (
-        <div className="rounded-2xl border border-gray-200 bg-white p-6 space-y-4 animate-pulse">
-          <div className="h-5 w-40 rounded-lg bg-gray-200" />
-          <div className="space-y-3">
-            <div className="h-28 rounded-2xl bg-gray-100" />
-            <div className="h-28 rounded-2xl bg-gray-100" />
-            <div className="h-28 rounded-2xl bg-gray-100" />
-          </div>
-        </div>
+        <SupplierListSkeleton rows={3} />
       ) : reviews.length === 0 ? (
-        <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
+        <div className="bg-white border border-gray-200 rounded-2xl p-12 text-center shadow-sm animate-scale-in">
           <Star className="w-12 h-12 text-gray-300 mx-auto mb-3" />
           <h2 className="text-lg font-semibold text-gray-900">No reviews yet</h2>
           <p className="text-gray-500 mt-1">Reviews from customers will appear here once they leave feedback.</p>
         </div>
       ) : (
         <div className="space-y-4 sm:space-y-5">
-          <div className="bg-white border border-gray-200 rounded-xl px-3 py-3 sm:px-4 sm:py-4">
-            <div className="flex flex-col gap-3">
+          <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+            <div className={`${SUPPLIER_SECTION_HEADER_CLASS} text-xs font-semibold uppercase tracking-wide text-gray-500`}>
+              Filters
+            </div>
+            <div className="flex flex-col gap-3 px-3 py-3 sm:px-4 sm:py-4">
               <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
                 <div className="flex flex-col gap-1 min-w-[min(100%,12rem)] flex-1 sm:flex-none sm:min-w-[11rem]">
                   <label className="text-[11px] font-medium uppercase tracking-wide text-gray-500">Product</label>
@@ -319,7 +304,7 @@ export default function SupplierReviews() {
             <div
               key={r.id}
               id={`supplier-review-card-${r.id}`}
-              className={`bg-white border rounded-xl p-4 sm:p-6 transition-shadow ${
+              className={`bg-white border rounded-2xl p-4 sm:p-6 transition-all duration-200 hover:shadow-md ${
                 highlightReviewId === r.id
                   ? 'border-finland ring-2 ring-finland/25 shadow-md'
                   : reviewHasWrittenFeedback(r) && !replies[r.id]
@@ -374,43 +359,8 @@ export default function SupplierReviews() {
                 <div className="mt-4">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     <MessageSquare className="w-4 h-4 inline mr-1" />
-                    Reply (optional)
+                    Reply
                   </label>
-                  <div className="flex flex-wrap items-center gap-2 mb-2">
-                    {([
-                      { id: 'friendly', label: 'Friendly' },
-                      { id: 'professional', label: 'Professional' },
-                      { id: 'short', label: 'Short' },
-                    ] as const).map((t) => (
-                      <button
-                        key={t.id}
-                        type="button"
-                        onClick={() => {
-                          setDraftToneByReview((prev) => ({ ...prev, [r.id]: t.id }));
-                          const draft = generateReplyDraft(r, t.id);
-                          setReplyText((prev) => ({ ...prev, [r.id]: draft }));
-                        }}
-                        className={`px-2.5 py-1 rounded-full text-xs border ${
-                          (draftToneByReview[r.id] ?? 'friendly') === t.id
-                            ? 'bg-finland/10 text-finland border-finland/30'
-                            : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
-                        }`}
-                      >
-                        {t.label} draft
-                      </button>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const tone = draftToneByReview[r.id] ?? 'friendly';
-                        const draft = generateReplyDraft(r, tone);
-                        setReplyText((prev) => ({ ...prev, [r.id]: draft }));
-                      }}
-                      className="text-xs text-gray-500 hover:text-gray-700 underline"
-                    >
-                      Regenerate
-                    </button>
-                  </div>
                   <textarea
                     value={replyText[r.id] ?? ''}
                     onChange={(e) => setReplyText((prev) => ({ ...prev, [r.id]: e.target.value }))}
