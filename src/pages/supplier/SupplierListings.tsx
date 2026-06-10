@@ -39,6 +39,7 @@ import { publicTourListingUrl } from '../../lib/publicSiteUrl';
 import { getListingPublishBlockers } from '../../lib/listingPublishGate';
 import { normalizeListingForDraftSave } from '../../lib/listingDraftUtils';
 import { getReviewAggregatesForListingIds } from '../../data/supabase-reviews';
+import { SkeletonListItem } from '../../components/ui/Skeleton';
 
 function verificationStatusLabel(status: string): string {
   const s = status.toLowerCase();
@@ -792,7 +793,11 @@ export default function SupplierListings() {
       )}
 
       {loading ? (
-        <p className="text-gray-500">Loading listings…</p>
+        <div className="space-y-3 animate-fade-in-up">
+          <SkeletonListItem />
+          <SkeletonListItem />
+          <SkeletonListItem />
+        </div>
       ) : listings.length === 0 && !showForm ? (
         <div className="bg-white border border-gray-200 rounded-xl p-8 sm:p-12 text-center">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gray-100 text-gray-400 mb-4">

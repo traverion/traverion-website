@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { SkeletonListItem } from '../../components/ui/Skeleton';
 import {
   Calendar,
   RefreshCw,
@@ -1703,40 +1704,74 @@ export default function SupplierBookings() {
     [isSupabase, user?.id, opsNotes]
   );
 
+  const bookingStats = useMemo(() => {
+    const confirmed = bookings.filter((b) => b.status === 'confirmed').length;
+    const needsAction = bookings.filter((b) => b.status !== 'confirmed' && b.status !== 'cancelled').length;
+    return { total: bookings.length, confirmed, needsAction };
+  }, [bookings]);
+
   return (
-    <div className="space-y-4 sm:space-y-5 w-full min-w-0">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-        <div className="min-w-0">
-          <h1 className="text-lg sm:text-2xl font-semibold tracking-tight text-gray-900">Bookings</h1>
-          <p className="text-sm text-gray-600 mt-0.5 sm:mt-1 sm:text-base leading-snug">
-            Filter and manage bookings in a scroll-friendly list — no sideways scrolling.
-          </p>
-          {!canEditBookings && (
-            <p className="text-xs text-amber-700 mt-1">
-              Your role is {role}. You can view bookings, but edit actions are restricted.
-            </p>
-          )}
+    <div className="space-y-6 max-w-4xl w-full min-w-0 animate-fade-in-up">
+      <div className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex gap-4 min-w-0">
+            <div className="w-12 h-12 rounded-2xl bg-finland/10 flex items-center justify-center flex-shrink-0">
+              <Calendar className="w-6 h-6 text-finland" aria-hidden />
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-gray-900">Bookings</h1>
+              <p className="mt-1 text-sm text-gray-600 leading-relaxed">
+                Filter and manage bookings in a scroll-friendly list — confirm, message guests, and track activity dates.
+              </p>
+              {!canEditBookings && (
+                <p className="mt-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  Your role is {role}. You can view bookings, but edit actions are restricted.
+                </p>
+              )}
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:items-center sm:w-auto sm:shrink-0">
+            <button
+              type="button"
+              onClick={() => setBatchModal(true)}
+              disabled={!canEditBookings}
+              className="touch-manipulation inline-flex items-center justify-center gap-2 px-3 py-2.5 sm:px-4 sm:py-2 min-h-[44px] rounded-xl border border-gray-300 text-sm text-gray-800 font-medium hover:bg-gray-50 active:scale-[0.99]"
+            >
+              <Trash2 className="w-4 h-4 shrink-0" />
+              <span className="truncate">Batch cancel</span>
+            </button>
+            <button
+              type="button"
+              onClick={load}
+              disabled={loading}
+              className="touch-manipulation inline-flex items-center justify-center gap-2 px-3 py-2.5 sm:px-4 sm:py-2 min-h-[44px] rounded-xl border border-gray-300 text-sm text-gray-800 font-medium hover:bg-gray-50 disabled:opacity-50 active:scale-[0.99]"
+            >
+              <RefreshCw className={`w-4 h-4 shrink-0 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
+          </div>
         </div>
-        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:items-center sm:w-auto sm:shrink-0">
-          <button
-            type="button"
-            onClick={() => setBatchModal(true)}
-            disabled={!canEditBookings}
-            className="touch-manipulation inline-flex items-center justify-center gap-2 px-3 py-2.5 sm:px-4 sm:py-2 min-h-[44px] rounded-xl border border-gray-300 text-sm text-gray-800 font-medium hover:bg-gray-50 active:scale-[0.99]"
-          >
-            <Trash2 className="w-4 h-4 shrink-0" />
-            <span className="truncate">Batch cancellation</span>
-          </button>
-          <button
-            type="button"
-            onClick={load}
-            disabled={loading}
-            className="touch-manipulation inline-flex items-center justify-center gap-2 px-3 py-2.5 sm:px-4 sm:py-2 min-h-[44px] rounded-xl border border-gray-300 text-sm text-gray-800 font-medium hover:bg-gray-50 disabled:opacity-50 active:scale-[0.99]"
-          >
-            <RefreshCw className={`w-4 h-4 shrink-0 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </button>
-        </div>
+
+        {!loading && bookings.length > 0 && (
+          <div className="mt-5 grid grid-cols-3 gap-3 border-t border-gray-100 pt-5">
+            <div className="rounded-xl bg-gray-50 px-3 py-2.5 text-center">
+              <p className="text-lg font-bold tabular-nums text-gray-900">{bookingStats.total}</p>
+              <p className="text-[11px] font-medium text-gray-500">Total</p>
+            </div>
+            <div className="rounded-xl bg-emerald-50/80 px-3 py-2.5 text-center">
+              <p className="text-lg font-bold tabular-nums text-emerald-800">{bookingStats.confirmed}</p>
+              <p className="text-[11px] font-medium text-emerald-700">Confirmed</p>
+            </div>
+            <div className={`rounded-xl px-3 py-2.5 text-center ${bookingStats.needsAction > 0 ? 'bg-amber-50' : 'bg-gray-50'}`}>
+              <p className={`text-lg font-bold tabular-nums ${bookingStats.needsAction > 0 ? 'text-amber-900' : 'text-gray-900'}`}>
+                {bookingStats.needsAction}
+              </p>
+              <p className={`text-[11px] font-medium ${bookingStats.needsAction > 0 ? 'text-amber-800' : 'text-gray-500'}`}>
+                Needs action
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="bg-white border border-gray-200 rounded-xl px-3 py-3 sm:px-4">
@@ -1867,8 +1902,11 @@ export default function SupplierBookings() {
 
 
       {loading ? (
-        <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
-          <p className="text-gray-500">Loading bookings…</p>
+        <div className="space-y-3">
+          <SkeletonListItem />
+          <SkeletonListItem />
+          <SkeletonListItem />
+          <SkeletonListItem />
         </div>
       ) : bookings.length === 0 ? (
         <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">

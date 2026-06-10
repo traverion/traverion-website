@@ -9,11 +9,12 @@ import {
   ExternalLink,
   Download,
   ChevronDown,
-  X,
+  ArrowLeft,
   MapPin,
   Users,
   Clock,
   Filter,
+  CheckCircle2,
 } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import {
@@ -226,6 +227,7 @@ export default function SupplierPickupPlanner() {
   const [sortDate, setSortDate] = useState<'asc' | 'desc'>('asc');
   const [dateSectionOpen, setDateSectionOpen] = useState<Record<string, boolean>>({});
   const [scheduleDraft, setScheduleDraft] = useState({ start: '', pickup: '' });
+  const [actionFeedback, setActionFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const load = useCallback(async () => {
     const uid = user?.id;
@@ -374,6 +376,34 @@ export default function SupplierPickupPlanner() {
     }
   }, [selectedBookingId]);
 
+  useEffect(() => {
+    if (!actionFeedback) return;
+    const timer = window.setTimeout(() => setActionFeedback(null), 4000);
+    return () => window.clearTimeout(timer);
+  }, [actionFeedback]);
+
+  const showActionFeedback = (type: 'success' | 'error', text: string) => {
+    setActionFeedback({ type, text });
+  };
+
+  const actionFeedbackBanner = actionFeedback ? (
+    <div
+      className={`flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium ${
+        actionFeedback.type === 'success'
+          ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+          : 'border-red-200 bg-red-50 text-red-700'
+      }`}
+      role="status"
+    >
+      {actionFeedback.type === 'success' ? (
+        <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden />
+      ) : (
+        <AlertCircle className="h-4 w-4 shrink-0" aria-hidden />
+      )}
+      {actionFeedback.text}
+    </div>
+  ) : null;
+
   const handleSaveScheduleTimes = async () => {
     if (!canEditBookings || !selectedBooking || selectedBooking.status === 'cancelled') return;
     setUpdatingId(selectedBooking.id);
@@ -395,6 +425,9 @@ export default function SupplierPickupPlanner() {
             : b
         )
       );
+      showActionFeedback('success', 'Times saved for this booking.');
+    } else {
+      showActionFeedback('error', 'Could not save times. Try again.');
     }
     setUpdatingId(null);
   };
@@ -446,6 +479,9 @@ export default function SupplierPickupPlanner() {
           b.id === selectedBooking.id ? { ...b, acknowledged_at: new Date().toISOString() } : b
         )
       );
+      showActionFeedback('success', 'Booking acknowledged.');
+    } else {
+      showActionFeedback('error', 'Could not acknowledge booking. Try again.');
     }
     setUpdatingId(null);
   };
@@ -459,6 +495,9 @@ export default function SupplierPickupPlanner() {
       setBookings((prev) =>
         prev.map((b) => (b.id === selectedBooking.id ? { ...b, status: 'confirmed' } : b))
       );
+      showActionFeedback('success', 'Booking confirmed.');
+    } else {
+      showActionFeedback('error', 'Could not confirm booking. Try again.');
     }
     setUpdatingId(null);
   };
@@ -489,6 +528,9 @@ export default function SupplierPickupPlanner() {
             : b
         )
       );
+      showActionFeedback('success', 'Booking cancelled.');
+    } else {
+      showActionFeedback('error', 'Could not cancel booking. Try again.');
     }
     setUpdatingId(null);
   };
@@ -500,6 +542,285 @@ export default function SupplierPickupPlanner() {
   }, [listBookings, needsPickupInfo]);
 
   if (!user) return null;
+
+  if (selectedBooking) {
+    const listingTitle = listingTitles[selectedBooking.listing_id] ?? 'Listing';
+    const guideMeta = listingGuideMeta[selectedBooking.listing_id];
+    const activityDate = selectedBooking.booking_date
+      ? formatPickupSectionDate(selectedBooking.booking_date)
+      : 'No activity date';
+
+    return (
+      <div className="space-y-6 max-w-3xl w-full min-w-0 animate-fade-in-up">
+        <button
+          type="button"
+          onClick={() => setSelectedBookingId(null)}
+          className="inline-flex items-center gap-1.5 text-sm font-semibold text-finland hover:text-finland-dark transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" aria-hidden />
+          Back to pickup planner
+        </button>
+
+        {actionFeedbackBanner}
+
+        <div className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Pickup details</p>
+              <h1 className="mt-1 text-xl sm:text-2xl font-bold tracking-tight text-gray-900">{listingTitle}</h1>
+              <p className="mt-1 text-sm text-gray-600">
+                {selectedBooking.guest_name ?? selectedBooking.guest_email ?? 'Guest'} · {activityDate}
+              </p>
+            </div>
+            <span
+              className={`inline-flex self-start rounded-full px-3 py-1 text-xs font-semibold capitalize ring-1 ring-inset ${bookingStatusStyles(selectedBooking.status)}`}
+            >
+              {selectedBooking.status}
+            </span>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-4 text-sm text-gray-700 border-t border-gray-100 pt-4">
+            <span>
+              <span className="font-semibold tabular-nums text-gray-900">{selectedBooking.guests ?? '—'}</span> guests
+            </span>
+            {bookingTimesLine(selectedBooking) ? (
+              <span className="inline-flex items-center gap-1 font-medium text-finland">
+                <Clock className="h-3.5 w-3.5" aria-hidden />
+                {bookingTimesLine(selectedBooking)}
+              </span>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="space-y-5">
+          <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-100 bg-gradient-to-br from-slate-50/90 to-white">
+              <h2 className="text-base font-semibold text-gray-900 flex items-center gap-2">
+                <Users className="w-5 h-5 text-finland" aria-hidden />
+                Customer
+              </h2>
+            </div>
+            <div className="p-5 sm:p-6 space-y-3">
+              <p className="text-sm font-semibold text-gray-900">
+                {selectedBooking.guest_name ?? selectedBooking.guest_email ?? '—'}
+              </p>
+              {selectedBooking.guest_name && selectedBooking.guest_email ? (
+                <p className="text-sm text-gray-600 break-all">{selectedBooking.guest_email}</p>
+              ) : null}
+              <div className="rounded-xl border border-gray-200 bg-gray-50/70 px-4 py-3">
+                <p className="text-xs font-semibold text-gray-600 flex items-center gap-1.5">
+                  <MapPin className="h-3.5 w-3.5 text-finland" aria-hidden />
+                  Address and special requests
+                </p>
+                <p className="text-sm text-gray-800 mt-2 whitespace-pre-wrap">
+                  {selectedBooking.special_requests || 'No special requests or address notes.'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {guideMeta ? (
+            <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+              <div className="px-5 py-4 border-b border-gray-100 bg-gradient-to-br from-slate-50/90 to-white">
+                <h2 className="text-base font-semibold text-gray-900">Experience timing and location</h2>
+              </div>
+              <div className="p-5 sm:p-6 space-y-2 text-sm text-gray-800">
+                {guideScheduleSummary(guideMeta) ? (
+                  <>
+                    <p>
+                      <span className="text-gray-500">Duration:</span> {guideMeta.duration}
+                    </p>
+                    <p>
+                      <span className="text-gray-500">Typical time / season:</span> {guideMeta.bestTime}
+                    </p>
+                    <p>
+                      <span className="text-gray-500">Start location:</span> {guideMeta.startLocation}
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-gray-600">
+                    Add duration, typical time, and start location on the listing for clearer timing context.
+                  </p>
+                )}
+                {guideMeta.defaultStartTime ? (
+                  <p className="text-xs text-gray-600 pt-2 border-t border-gray-100">
+                    Listing default start {guideMeta.defaultStartTime}. Assign pickup between {guideMeta.pickupWindowMin}–
+                    {guideMeta.pickupWindowMax} minutes before.
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+
+          {selectedBooking.status !== 'cancelled' && (
+            <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+              <div className="px-5 py-4 border-b border-gray-100 bg-gradient-to-br from-slate-50/90 to-white">
+                <h2 className="text-base font-semibold text-gray-900 flex items-center gap-2">
+                  <Clock className="w-5 h-5 text-finland" aria-hidden />
+                  Times for this booking
+                </h2>
+                <p className="text-sm text-gray-600 mt-0.5">Adjust start and pickup if this instance differs from the listing default.</p>
+              </div>
+              <div className="p-5 sm:p-6 space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Start</label>
+                    <input
+                      type="time"
+                      value={scheduleDraft.start}
+                      onChange={(e) => setScheduleDraft((d) => ({ ...d, start: e.target.value }))}
+                      disabled={!canEditBookings}
+                      className={plannerInputClass()}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Pickup</label>
+                    <input
+                      type="time"
+                      value={scheduleDraft.pickup}
+                      onChange={(e) => setScheduleDraft((d) => ({ ...d, pickup: e.target.value }))}
+                      disabled={!canEditBookings}
+                      className={plannerInputClass()}
+                    />
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSaveScheduleTimes}
+                  disabled={!canEditBookings || updatingId === selectedBooking.id}
+                  className="inline-flex items-center justify-center px-5 py-2.5 rounded-xl bg-finland text-white text-sm font-semibold hover:bg-finland-dark disabled:opacity-50 transition-colors"
+                >
+                  {updatingId === selectedBooking.id ? 'Saving…' : 'Save times'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div className="rounded-2xl border border-gray-200 bg-white px-5 py-4 shadow-sm">
+              <p className="text-xs font-semibold text-gray-600">Meeting point</p>
+              <p className="text-sm text-gray-800 mt-2">
+                {meetingPoints[selectedBooking.listing_id] || (
+                  <span className="text-amber-700 font-medium">Missing — edit on listing</span>
+                )}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-gray-200 bg-white px-5 py-4 shadow-sm">
+              <p className="text-xs font-semibold text-gray-600">Pickup instructions</p>
+              <p className="text-sm text-gray-800 mt-2 whitespace-pre-wrap">
+                {pickupInstructions[selectedBooking.listing_id] || (
+                  <span className="text-amber-700 font-medium">Missing — edit on listing</span>
+                )}
+              </p>
+            </div>
+          </div>
+
+          {selectedBooking.status !== 'cancelled' && (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50/50 p-5 space-y-3">
+              <p className="text-sm font-semibold text-amber-900">Cancel booking</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-amber-900 mb-1.5">Reason</label>
+                  <select
+                    value={cancelReason}
+                    onChange={(e) => setCancelReason(e.target.value)}
+                    className={plannerInputClass()}
+                  >
+                    <option value="">Select reason</option>
+                    {CANCELLATION_REASONS.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-amber-900 mb-1.5">Refund option</label>
+                  <select
+                    value={cancelRefund}
+                    onChange={(e) => setCancelRefund(e.target.value as RefundChoice | '')}
+                    className={plannerInputClass()}
+                  >
+                    <option value="">Choose refund option</option>
+                    {REFUND_CHOICES.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-2xl border border-gray-200 bg-gray-50/80 px-5 py-4 sm:px-6 space-y-3">
+          <div className="flex flex-wrap gap-2">
+            {selectedBooking.status !== 'cancelled' && (
+              <>
+                {!selectedBooking.acknowledged_at && (
+                  <button
+                    type="button"
+                    disabled={!canEditBookings || updatingId === selectedBooking.id}
+                    onClick={handleAcknowledgeSelected}
+                    className="px-4 py-2 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+                  >
+                    Acknowledge
+                  </button>
+                )}
+                {selectedBooking.status !== 'confirmed' && (
+                  <button
+                    type="button"
+                    disabled={!canEditBookings || updatingId === selectedBooking.id}
+                    onClick={handleConfirmSelected}
+                    className="px-4 py-2 rounded-xl border border-emerald-200 bg-emerald-50 text-sm font-semibold text-emerald-800 hover:bg-emerald-100 disabled:opacity-60"
+                  >
+                    Confirm
+                  </button>
+                )}
+                <button
+                  type="button"
+                  disabled={!canEditBookings || updatingId === selectedBooking.id || !cancelReason}
+                  onClick={handleCancelSelected}
+                  className="px-4 py-2 rounded-xl border border-red-200 bg-red-50 text-sm font-semibold text-red-800 hover:bg-red-100 disabled:opacity-60"
+                >
+                  Cancel booking
+                </button>
+              </>
+            )}
+            <button
+              type="button"
+              onClick={() => openSupplierBooking(selectedBooking.id)}
+              className="px-4 py-2 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-700 hover:bg-gray-50"
+            >
+              Open in bookings
+            </button>
+            <button
+              type="button"
+              onClick={() => openSupplierListingEditor(selectedBooking.listing_id, 'meeting')}
+              className="px-4 py-2 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-700 hover:bg-gray-50"
+            >
+              Edit meeting
+            </button>
+            <button
+              type="button"
+              onClick={() => openSupplierListingEditor(selectedBooking.listing_id, 'schedule')}
+              className="px-4 py-2 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-700 hover:bg-gray-50"
+            >
+              Edit schedule
+            </button>
+            <button
+              type="button"
+              onClick={() => openSupplierListingEditor(selectedBooking.listing_id, 'pickup')}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-finland text-white text-sm font-semibold hover:bg-finland-dark"
+            >
+              <ExternalLink className="w-4 h-4" aria-hidden />
+              Edit pickup
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 max-w-4xl w-full min-w-0 animate-fade-in-up">
@@ -558,6 +879,8 @@ export default function SupplierPickupPlanner() {
           </button>
         </div>
       )}
+
+      {actionFeedbackBanner}
 
       <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-3 px-4 sm:px-5 pt-4">
@@ -800,271 +1123,6 @@ export default function SupplierPickupPlanner() {
             </>
           )}
         </div>
-      )}
-
-      {selectedBooking && (
-        <>
-          <button
-            type="button"
-            onClick={() => setSelectedBookingId(null)}
-            className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] z-40 cursor-default animate-fade-in"
-            aria-label="Close pickup details"
-          />
-          <aside className="fixed right-0 top-0 h-full w-full sm:w-[28rem] bg-white border-l border-gray-200 shadow-2xl z-50 flex flex-col animate-slide-in-right">
-            <div className="px-5 py-4 border-b border-gray-100 bg-gradient-to-br from-slate-50/90 to-white flex items-start justify-between gap-3">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">Pickup details</h2>
-                <p className="mt-0.5 text-xs text-gray-500">
-                  Guest contact, times, and meeting info for this booking.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSelectedBookingId(null)}
-                className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 shrink-0"
-                aria-label="Close pickup details"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-5 space-y-5 overflow-y-auto">
-              <div className="rounded-2xl border border-gray-200 bg-gray-50/70 px-4 py-3.5 space-y-2">
-                <p className="text-xs font-semibold text-gray-600 flex items-center gap-1.5">
-                  <Users className="h-3.5 w-3.5 text-finland" aria-hidden />
-                  Customer
-                </p>
-                <p className="text-sm font-medium text-gray-900">
-                  {selectedBooking.guest_name ?? selectedBooking.guest_email ?? '—'}
-                </p>
-                {selectedBooking.guest_name && selectedBooking.guest_email ? (
-                  <p className="text-sm text-gray-600 break-all">{selectedBooking.guest_email}</p>
-                ) : null}
-                <p className="text-sm text-gray-800">
-                  <span className="font-semibold tabular-nums">{selectedBooking.guests ?? '—'}</span> spot
-                  {Number(selectedBooking.guests ?? 0) === 1 ? '' : 's'} booked
-                </p>
-                <div className="pt-2 border-t border-gray-200/80">
-                  <p className="text-xs font-semibold text-gray-600 flex items-center gap-1.5 mt-2">
-                    <MapPin className="h-3.5 w-3.5 text-finland" aria-hidden />
-                    Address and special requests
-                  </p>
-                  <p className="text-sm text-gray-800 mt-1 whitespace-pre-wrap">
-                    {selectedBooking.special_requests || 'No special requests or address notes.'}
-                  </p>
-                </div>
-              </div>
-              <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3">
-                <p className="text-xs font-semibold text-gray-600">Tour / listing</p>
-                <p className="text-sm font-semibold text-gray-900 mt-1">
-                  {listingTitles[selectedBooking.listing_id] ?? '—'}
-                </p>
-              </div>
-              {listingGuideMeta[selectedBooking.listing_id] ? (
-                <div className="rounded-2xl border border-gray-200 bg-gray-50/70 px-4 py-3 space-y-1.5">
-                  <p className="text-xs font-semibold text-gray-600">Experience timing and location</p>
-                  {guideScheduleSummary(listingGuideMeta[selectedBooking.listing_id]) ? (
-                    <>
-                      <p className="text-sm text-gray-800">
-                        <span className="text-gray-500">Duration:</span>{' '}
-                        {listingGuideMeta[selectedBooking.listing_id].duration}
-                      </p>
-                      <p className="text-sm text-gray-800">
-                        <span className="text-gray-500">Typical time / season:</span>{' '}
-                        {listingGuideMeta[selectedBooking.listing_id].bestTime}
-                      </p>
-                      <p className="text-sm text-gray-800">
-                        <span className="text-gray-500">Start location:</span>{' '}
-                        {listingGuideMeta[selectedBooking.listing_id].startLocation}
-                      </p>
-                    </>
-                  ) : (
-                    <p className="text-sm text-gray-600">
-                      Add duration, typical time, and start location on the listing so timing context is clear for this tour.
-                    </p>
-                  )}
-                  {listingGuideMeta[selectedBooking.listing_id].defaultStartTime ? (
-                    <p className="text-[11px] text-gray-600 pt-1 border-t border-gray-200/80">
-                      Listing default start {listingGuideMeta[selectedBooking.listing_id].defaultStartTime}. Assign guest
-                      pickup between{' '}
-                      {listingGuideMeta[selectedBooking.listing_id].pickupWindowMin}–
-                      {listingGuideMeta[selectedBooking.listing_id].pickupWindowMax} minutes before that time.
-                    </p>
-                  ) : (
-                    <p className="text-[11px] text-gray-500 pt-1 border-t border-gray-200/80">
-                      Set a default start time and pickup window on the listing to standardize timing across bookings.
-                    </p>
-                  )}
-                </div>
-              ) : null}
-              {selectedBooking.status !== 'cancelled' && (
-                <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3.5 space-y-3">
-                  <p className="text-xs font-semibold text-gray-600">This booking — times</p>
-                  <p className="text-[11px] text-gray-500">
-                    Start time is copied from the listing when the booking is created; adjust here if this instance differs.
-                    Set pickup once you know where the guest is staying.
-                  </p>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Start</label>
-                      <input
-                        type="time"
-                        value={scheduleDraft.start}
-                        onChange={(e) => setScheduleDraft((d) => ({ ...d, start: e.target.value }))}
-                        disabled={!canEditBookings}
-                        className={plannerInputClass()}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Pickup</label>
-                      <input
-                        type="time"
-                        value={scheduleDraft.pickup}
-                        onChange={(e) => setScheduleDraft((d) => ({ ...d, pickup: e.target.value }))}
-                        disabled={!canEditBookings}
-                        className={plannerInputClass()}
-                      />
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleSaveScheduleTimes}
-                    disabled={!canEditBookings || updatingId === selectedBooking.id}
-                    className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-finland text-white text-sm font-semibold hover:bg-finland-dark disabled:opacity-50 transition-colors"
-                  >
-                    {updatingId === selectedBooking.id ? 'Saving…' : 'Save times'}
-                  </button>
-                </div>
-              )}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Activity date</p>
-                  <p className="text-sm text-gray-800 mt-1">
-                    {selectedBooking.booking_date ? new Date(selectedBooking.booking_date).toLocaleDateString() : '—'}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</p>
-                  <p className="text-sm text-gray-800 mt-1 capitalize">{selectedBooking.status}</p>
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-gray-200 px-4 py-3">
-                <p className="text-xs font-semibold text-gray-600">Meeting point</p>
-                <p className="text-sm text-gray-800 mt-1">
-                  {meetingPoints[selectedBooking.listing_id] || (
-                    <span className="text-amber-700 font-medium">Missing — edit on listing</span>
-                  )}
-                </p>
-              </div>
-              <div className="rounded-2xl border border-gray-200 px-4 py-3">
-                <p className="text-xs font-semibold text-gray-600">Pickup instructions (listing)</p>
-                <p className="text-sm text-gray-800 mt-1 whitespace-pre-wrap">
-                  {pickupInstructions[selectedBooking.listing_id] || (
-                    <span className="text-amber-700 font-medium">Missing — edit on listing</span>
-                  )}
-                </p>
-              </div>
-              {selectedBooking.status !== 'cancelled' && (
-                <div className="border border-amber-200 bg-amber-50/50 rounded-2xl p-4 space-y-3">
-                  <p className="text-xs font-semibold text-amber-900">Cancel booking</p>
-                  <div>
-                    <label className="block text-xs font-medium text-amber-900 mb-1">Reason</label>
-                    <select
-                      value={cancelReason}
-                      onChange={(e) => setCancelReason(e.target.value)}
-                      className="w-full px-3 py-2 border border-amber-300 rounded-lg bg-white text-sm"
-                    >
-                      <option value="">Select reason</option>
-                      {CANCELLATION_REASONS.map((r) => (
-                        <option key={r.id} value={r.id}>
-                          {r.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-amber-900 mb-1">Refund option</label>
-                    <select
-                      value={cancelRefund}
-                      onChange={(e) => setCancelRefund(e.target.value as RefundChoice | '')}
-                      className="w-full px-3 py-2 border border-amber-300 rounded-lg bg-white text-sm"
-                    >
-                      <option value="">Choose refund option</option>
-                      {REFUND_CHOICES.map((r) => (
-                        <option key={r.id} value={r.id}>
-                          {r.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              )}
-            </div>
-            <div className="mt-auto p-4 border-t border-gray-200 bg-gray-50/90 flex flex-wrap items-center gap-2 justify-end">
-              {selectedBooking.status !== 'cancelled' && (
-                <>
-                  {!selectedBooking.acknowledged_at && (
-                    <button
-                      type="button"
-                      disabled={!canEditBookings || updatingId === selectedBooking.id}
-                      onClick={handleAcknowledgeSelected}
-                      className="px-3 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-60"
-                    >
-                      Acknowledge
-                    </button>
-                  )}
-                  {selectedBooking.status !== 'confirmed' && (
-                    <button
-                      type="button"
-                      disabled={!canEditBookings || updatingId === selectedBooking.id}
-                      onClick={handleConfirmSelected}
-                      className="px-3 py-2 rounded-lg border border-green-300 bg-green-50 text-sm text-green-800 hover:bg-green-100 disabled:opacity-60"
-                    >
-                      Confirm
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    disabled={!canEditBookings || updatingId === selectedBooking.id || !cancelReason}
-                    onClick={handleCancelSelected}
-                    className="px-3 py-2 rounded-lg border border-red-300 bg-red-50 text-sm text-red-800 hover:bg-red-100 disabled:opacity-60"
-                  >
-                    Cancel booking
-                  </button>
-                </>
-              )}
-              <button
-                type="button"
-                onClick={() => openSupplierBooking(selectedBooking.id)}
-                className="px-3 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-100"
-              >
-                Open in bookings
-              </button>
-              <button
-                type="button"
-                onClick={() => openSupplierListingEditor(selectedBooking.listing_id, 'meeting')}
-                className="px-3 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-100"
-              >
-                Edit meeting
-              </button>
-              <button
-                type="button"
-                onClick={() => openSupplierListingEditor(selectedBooking.listing_id, 'schedule')}
-                className="px-3 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-100"
-              >
-                Edit listing schedule
-              </button>
-              <button
-                type="button"
-                onClick={() => openSupplierListingEditor(selectedBooking.listing_id, 'pickup')}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-finland text-white text-sm font-medium hover:bg-finland-dark"
-              >
-                <ExternalLink className="w-4 h-4" />
-                Edit pickup
-              </button>
-            </div>
-          </aside>
-        </>
       )}
 
     </div>

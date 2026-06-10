@@ -77,13 +77,43 @@ export default function SupplierReviews() {
     return () => window.removeEventListener('popstate', onPop);
   }, [readHighlightFromUrl]);
 
+  const listingOptions = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const r of reviews) {
+      if (r.listing_id) m.set(r.listing_id, (r.listing_title ?? 'Listing').trim() || 'Listing');
+    }
+    return [...m.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  }, [reviews]);
+
+  const filteredReviews = useMemo(() => {
+    return reviews.filter((r) => {
+      if (filterListingId && r.listing_id !== filterListingId) return false;
+      if (filterRating !== '' && Number(r.rating) !== filterRating) return false;
+      if (filterReply === 'unreplied') {
+        if (!reviewHasWrittenFeedback(r) || replies[r.id]) return false;
+      }
+      if (filterReply === 'replied') {
+        if (!replies[r.id]) return false;
+      }
+      return true;
+    });
+  }, [reviews, filterListingId, filterRating, filterReply, replies]);
+
+  const hasActiveFilters =
+    Boolean(filterListingId) || filterRating !== '' || filterReply !== 'all';
+
+  const unrepliedInFiltered = useMemo(
+    () => filteredReviews.filter((r) => reviewHasWrittenFeedback(r) && !replies[r.id]).length,
+    [filteredReviews, replies]
+  );
+
   useEffect(() => {
     if (!highlightReviewId || loading) return;
     const el = document.getElementById(`supplier-review-card-${highlightReviewId}`);
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
-  }, [highlightReviewId, loading, reviews.length, filteredReviews]);
+  }, [highlightReviewId, loading, filteredReviews]);
 
   const handleSubmitReply = async (reviewId: string) => {
     if (!user) return;
@@ -119,36 +149,6 @@ export default function SupplierReviews() {
     (r) => reviewHasWrittenFeedback(r) && !replies[r.id]
   ).length;
 
-  const listingOptions = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const r of reviews) {
-      if (r.listing_id) m.set(r.listing_id, (r.listing_title ?? 'Listing').trim() || 'Listing');
-    }
-    return [...m.entries()].sort((a, b) => a[1].localeCompare(b[1]));
-  }, [reviews]);
-
-  const filteredReviews = useMemo(() => {
-    return reviews.filter((r) => {
-      if (filterListingId && r.listing_id !== filterListingId) return false;
-      if (filterRating !== '' && Number(r.rating) !== filterRating) return false;
-      if (filterReply === 'unreplied') {
-        if (!reviewHasWrittenFeedback(r) || replies[r.id]) return false;
-      }
-      if (filterReply === 'replied') {
-        if (!replies[r.id]) return false;
-      }
-      return true;
-    });
-  }, [reviews, filterListingId, filterRating, filterReply, replies]);
-
-  const hasActiveFilters =
-    Boolean(filterListingId) || filterRating !== '' || filterReply !== 'all';
-
-  const unrepliedInFiltered = useMemo(
-    () => filteredReviews.filter((r) => reviewHasWrittenFeedback(r) && !replies[r.id]).length,
-    [filteredReviews, replies]
-  );
-
   const clearFilters = () => {
     setFilterListingId('');
     setFilterRating('');
@@ -158,14 +158,22 @@ export default function SupplierReviews() {
   if (!user) return null;
 
   return (
-    <div className="space-y-4 sm:space-y-5 w-full min-w-0">
-      <div>
-        <h1 className="text-lg sm:text-2xl font-semibold tracking-tight text-gray-900">Reviews</h1>
-        <p className="text-sm text-gray-600 mt-0.5 sm:mt-1 sm:text-base">See and respond to customer reviews for your listings.</p>
-      </div>
+    <div className="space-y-6 max-w-4xl w-full min-w-0 animate-fade-in-up">
+      <div className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-finland/10 flex items-center justify-center flex-shrink-0">
+            <Star className="w-6 h-6 text-finland" aria-hidden />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-gray-900">Reviews</h1>
+            <p className="mt-1 text-sm text-gray-600 leading-relaxed">
+              See and respond to customer reviews for your listings. Written reviews can get a public reply.
+            </p>
+          </div>
+        </div>
 
-      {!loading && reviews.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-2 gap-3 max-w-xl">
+        {!loading && reviews.length > 0 && (
+          <div className="mt-5 grid grid-cols-2 gap-3 border-t border-gray-100 pt-5 max-w-xl">
           <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
             <p className="text-xs uppercase tracking-wide text-gray-500 font-medium">Total reviews</p>
             <p className="text-2xl font-semibold text-gray-900 mt-1">{reviews.length}</p>
@@ -185,7 +193,8 @@ export default function SupplierReviews() {
             </p>
           </div>
         </div>
-      )}
+        )}
+      </div>
 
       {error && (
         <div className="p-4 rounded-lg bg-red-50 text-red-700 text-sm flex items-center justify-between gap-4">
@@ -206,8 +215,13 @@ export default function SupplierReviews() {
       )}
 
       {loading ? (
-        <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
-          <p className="text-gray-500">Loading reviews…</p>
+        <div className="rounded-2xl border border-gray-200 bg-white p-6 space-y-4 animate-pulse">
+          <div className="h-5 w-40 rounded-lg bg-gray-200" />
+          <div className="space-y-3">
+            <div className="h-28 rounded-2xl bg-gray-100" />
+            <div className="h-28 rounded-2xl bg-gray-100" />
+            <div className="h-28 rounded-2xl bg-gray-100" />
+          </div>
         </div>
       ) : reviews.length === 0 ? (
         <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">

@@ -1089,13 +1089,17 @@ export default function SupplierLayout() {
               </button>
             </div>
             <div className="p-4 space-y-2 overflow-y-auto max-h-[calc(100dvh-3.5rem)] pb-[max(1rem,calc(5.25rem+env(safe-area-inset-bottom)))]">
-              <p className="px-1 pt-1 pb-2 text-xs uppercase tracking-wide text-gray-500">Traverion supplier account</p>
+              <p className="px-1 pt-1 pb-2 text-xs uppercase tracking-wide text-gray-500">Operations</p>
+              <button type="button" onClick={() => handleNavigate('pickup')} className="touch-manipulation w-full text-left px-4 py-3.5 min-h-[44px] rounded-xl border border-gray-200 active:bg-gray-50">Pickup planner</button>
+              <button type="button" onClick={() => handleNavigate('reviews')} className="touch-manipulation w-full text-left px-4 py-3.5 min-h-[44px] rounded-xl border border-gray-200 active:bg-gray-50">Reviews</button>
+              <button type="button" onClick={() => handleNavigate('earnings')} className="touch-manipulation w-full text-left px-4 py-3.5 min-h-[44px] rounded-xl border border-gray-200 active:bg-gray-50">Earnings</button>
+              <button type="button" onClick={() => handleNavigate('discounts')} className="touch-manipulation w-full text-left px-4 py-3.5 min-h-[44px] rounded-xl border border-gray-200 active:bg-gray-50">Discounts &amp; offers</button>
+              <p className="px-1 pt-3 pb-2 text-xs uppercase tracking-wide text-gray-500">Account</p>
               <button type="button" onClick={() => openSettingsFocus('company')} className="touch-manipulation w-full text-left px-4 py-3.5 min-h-[44px] rounded-xl border border-gray-200 active:bg-gray-50">Business profile</button>
               <button type="button" onClick={() => openSettingsFocus('legal')} className="touch-manipulation w-full text-left px-4 py-3.5 min-h-[44px] rounded-xl border border-gray-200 active:bg-gray-50">Legal obligations</button>
               <button type="button" onClick={() => openSettingsFocus('account')} className="touch-manipulation w-full text-left px-4 py-3.5 min-h-[44px] rounded-xl border border-gray-200 active:bg-gray-50">Account settings</button>
               <button type="button" onClick={() => openSettingsFocus('security')} className="touch-manipulation w-full text-left px-4 py-3.5 min-h-[44px] rounded-xl border border-gray-200 active:bg-gray-50">Security and password</button>
               <button type="button" onClick={() => handleNavigate('badges')} className="touch-manipulation w-full text-left px-4 py-3.5 min-h-[44px] rounded-xl border border-gray-200 active:bg-gray-50">Brand assets</button>
-              <button type="button" onClick={() => handleNavigate('discounts')} className="touch-manipulation w-full text-left px-4 py-3.5 min-h-[44px] rounded-xl border border-gray-200 active:bg-gray-50">Discounts &amp; offers</button>
               <button type="button" onClick={() => signOut()} className="touch-manipulation w-full text-left px-4 py-3.5 min-h-[44px] rounded-xl border border-red-200 text-red-600 active:bg-red-50">Log out</button>
             </div>
           </div>
@@ -1301,7 +1305,7 @@ export default function SupplierLayout() {
               { id: 'dashboard' as SupplierSection, label: 'Home', icon: LayoutDashboard },
               { id: 'listings' as SupplierSection, label: 'Listings', icon: MapPin },
               { id: 'bookings' as SupplierSection, label: 'Bookings', icon: Calendar },
-              { id: 'earnings' as SupplierSection, label: 'Earn', icon: DollarSign },
+              { id: 'pickup' as SupplierSection, label: 'Pickup', icon: ClipboardList },
             ] as const
           ).map((tab) => {
             const active = section === tab.id;
