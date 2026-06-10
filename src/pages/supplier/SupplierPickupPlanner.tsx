@@ -13,7 +13,6 @@ import {
   ChevronRight,
   ChevronDown,
   X,
-  Info,
   MapPin,
   Users,
   List,
@@ -712,20 +711,6 @@ export default function SupplierPickupPlanner() {
             </div>
           </div>
         )}
-      </div>
-
-      <div className="rounded-2xl border border-sky-200/70 bg-gradient-to-br from-sky-50/90 to-white px-4 py-3.5 text-sm text-sky-950">
-        <div className="flex gap-3">
-          <Info className="mt-0.5 h-4 w-4 shrink-0 text-sky-700" aria-hidden />
-          <div className="space-y-1">
-            <p className="font-semibold text-sky-950">How this page works</p>
-            <ol className="list-decimal list-inside text-xs text-sky-900/90 space-y-0.5">
-              <li>Use filters to narrow by listing or date range</li>
-              <li>Open <span className="font-medium">Pickup details</span> on a booking for guest info and times</li>
-              <li>Meeting point &amp; instructions are shared per listing — edit once, applies to all</li>
-            </ol>
-          </div>
-        </div>
       </div>
 
       {error && (
