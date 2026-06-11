@@ -6,14 +6,19 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Clock,
   Download,
   Mail,
+  MapPin,
   RefreshCw,
   ShoppingCart,
   Tag,
   Trash2,
   Users,
 } from 'lucide-react';
+import type { TourPackage } from '../../types/tour';
+import { LISTING_PLACEHOLDER_IMAGE } from '../../lib/listingQualityScore';
+import { orderedPhotoUrls, photoSlotsFromTourPackage } from '../../lib/listingPhotoGrid';
 import { SkeletonListItem } from '../../components/ui/Skeleton';
 import {
   SUPPLIER_PAGE_CLASS,
@@ -36,6 +41,41 @@ import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { canManageBookings } from '../../lib/supplierTeamRoles';
 
 const BOOKINGS_PAGE_SIZE = 10;
+
+type ListingBookingMeta = {
+  title: string;
+  imageUrl: string;
+  location: string;
+  duration: string;
+};
+
+function buildListingMeta(listing: TourPackage): ListingBookingMeta {
+  const urls = orderedPhotoUrls(photoSlotsFromTourPackage(listing));
+  const imageUrl = urls[0] || listing.image || LISTING_PLACEHOLDER_IMAGE;
+  const location =
+    [listing.city, listing.country ?? listing.destination].filter(Boolean).join(', ') ||
+    listing.destination ||
+    '—';
+  return {
+    title: listing.title,
+    imageUrl,
+    location,
+    duration: listing.duration || '—',
+  };
+}
+
+function formatBookingMoney(amount: number | null | undefined, currency: string | null | undefined): string | null {
+  if (amount == null || !Number.isFinite(Number(amount)) || Number(amount) <= 0) return null;
+  const c = (currency ?? 'USD').trim() || 'USD';
+  if (c === 'USD') return `$${Number(amount).toFixed(2)}`;
+  return `${Number(amount).toFixed(2)} ${c}`;
+}
+
+function bookingStatusClass(status: string): string {
+  if (status === 'confirmed') return 'bg-emerald-50 text-emerald-800 ring-emerald-200/80';
+  if (status === 'cancelled') return 'bg-slate-100 text-slate-600 ring-slate-200/80';
+  return 'bg-amber-50 text-amber-900 ring-amber-200/80';
+}
 
 const CANCELLATION_REASONS = [
   { id: 'customer_request', label: 'Customer requested cancellation' },
@@ -152,7 +192,7 @@ export default function SupplierBookings() {
   const canEditBookings = canManageBookings(role);
 
   const [bookings, setBookings] = useState<BookingRow[]>([]);
-  const [listingTitles, setListingTitles] = useState<Record<string, string>>({});
+  const [listingMeta, setListingMeta] = useState<Record<string, ListingBookingMeta>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -184,12 +224,12 @@ export default function SupplierBookings() {
         fetchBookingsForSupplier(uid),
         fetchMyListings(uid),
       ]);
-      const titles: Record<string, string> = {};
+      const meta: Record<string, ListingBookingMeta> = {};
       myListings.forEach((listing) => {
-        titles[listing.id] = listing.title;
+        meta[listing.id] = buildListingMeta(listing);
       });
       setBookings(bookingsList);
-      setListingTitles(titles);
+      setListingMeta(meta);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load bookings');
     } finally {
@@ -233,7 +273,7 @@ export default function SupplierBookings() {
       if (filterDateTo && (!b.booking_date || b.booking_date > filterDateTo)) return false;
       if (!q) return true;
 
-      const title = (listingTitles[b.listing_id] ?? '').toLowerCase();
+      const title = (listingMeta[b.listing_id]?.title ?? '').toLowerCase();
       const idLower = b.id.toLowerCase();
       const guestName = (b.guest_name ?? '').toLowerCase();
       const guestEmail = (b.guest_email ?? '').toLowerCase();
@@ -244,7 +284,7 @@ export default function SupplierBookings() {
         guestEmail.includes(q)
       );
     });
-  }, [bookings, filterDateFrom, filterDateTo, filterListingId, filterQuery, listingTitles, todayIso, view]);
+  }, [bookings, filterDateFrom, filterDateTo, filterListingId, filterQuery, listingMeta, todayIso, view]);
 
   const totalPages = Math.max(1, Math.ceil(filteredBookings.length / BOOKINGS_PAGE_SIZE));
   const safePage = Math.min(Math.max(bookingsListPage, 1), totalPages);
@@ -342,8 +382,8 @@ export default function SupplierBookings() {
   );
 
   const listingOptions = useMemo(
-    () => Object.entries(listingTitles).map(([id, title]) => ({ id, title })),
-    [listingTitles]
+    () => Object.entries(listingMeta).map(([id, m]) => ({ id, title: m.title })),
+    [listingMeta]
   );
 
   return (
@@ -364,7 +404,12 @@ export default function SupplierBookings() {
             </button>
             <button
               type="button"
-              onClick={() => downloadBookingsCsv(filteredBookings, listingTitles)}
+              onClick={() =>
+                downloadBookingsCsv(
+                  filteredBookings,
+                  Object.fromEntries(Object.entries(listingMeta).map(([id, m]) => [id, m.title]))
+                )
+              }
               disabled={filteredBookings.length === 0}
               className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
@@ -532,98 +577,133 @@ export default function SupplierBookings() {
                 typeof booking.booking_number === 'number' && booking.booking_number > 0
                   ? `#${booking.booking_number}`
                   : booking.id.slice(0, 8);
-              const listingTitle = listingTitles[booking.listing_id] ?? 'Listing';
+              const meta = listingMeta[booking.listing_id];
+              const listingTitle = meta?.title ?? 'Listing';
+              const paidLabel = formatBookingMoney(booking.amount_paid, booking.currency);
+              const needsAck = !booking.acknowledged_at && booking.status !== 'cancelled';
               return (
                 <article
                   key={booking.id}
                   id={`supplier-booking-row-${booking.id}`}
-                  className={`w-full max-w-full min-w-0 space-y-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition-all duration-200 hover:shadow-md sm:p-5 ${
-                    highlightBookingId === booking.id ? 'bg-finland/[0.04] ring-2 ring-finland/30' : ''
+                  className={`w-full min-w-0 overflow-hidden rounded-2xl border border-gray-200/90 bg-white shadow-sm transition-all duration-300 ease-out hover:border-gray-300 hover:shadow-md ${
+                    highlightBookingId === booking.id ? 'ring-2 ring-finland/35 border-finland/30' : ''
                   }`}
                 >
-                  <div className="flex min-w-0 items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold leading-snug text-gray-900 sm:text-base">{listingTitle}</p>
-                      <p className="mt-0.5 text-xs text-gray-500">
-                        {booking.guest_name || 'Guest'}
-                        {booking.guest_email ? ` · ${booking.guest_email}` : ''}
-                      </p>
+                  <div className="flex min-w-0 gap-0 sm:gap-0">
+                    <div className="relative w-24 shrink-0 sm:w-32 md:w-36">
+                      <img
+                        src={meta?.imageUrl ?? LISTING_PLACEHOLDER_IMAGE}
+                        alt=""
+                        className="h-full min-h-[7.5rem] w-full object-cover sm:min-h-[8.5rem]"
+                      />
+                      <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/10 to-transparent sm:bg-gradient-to-t sm:from-black/15 sm:to-transparent" />
                     </div>
-                    <div className="shrink-0 text-right">
-                      <span
-                        className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
-                          booking.status === 'confirmed'
-                            ? 'bg-green-100 text-green-800'
-                            : booking.status === 'cancelled'
-                              ? 'bg-gray-100 text-gray-600'
-                              : 'bg-amber-100 text-amber-800'
-                        }`}
-                      >
-                        {booking.status}
-                      </span>
-                      <p className="mt-1 flex items-center justify-end gap-1.5 text-xs text-gray-500">
-                        <ShoppingCart className="h-3.5 w-3.5 shrink-0 text-gray-400" aria-hidden />
-                        {formatPurchaseDateShort(booking.created_at)}
-                      </p>
-                    </div>
-                  </div>
 
-                  <div className="flex flex-col gap-2 border-t border-gray-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="min-w-0 flex-1 space-y-2">
-                      <p className="flex min-w-0 items-start gap-2 text-sm text-gray-700">
-                        <Calendar className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" aria-hidden />
-                        <span className="min-w-0 break-words">
+                    <div className="flex min-w-0 flex-1 flex-col p-3.5 sm:p-4 md:p-5">
+                      <div className="flex min-w-0 items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold leading-snug text-gray-900 sm:text-base">{listingTitle}</p>
+                          {meta ? (
+                            <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-gray-500">
+                              <span className="inline-flex items-center gap-1">
+                                <MapPin className="h-3 w-3 shrink-0" aria-hidden />
+                                {meta.location}
+                              </span>
+                              <span className="inline-flex items-center gap-1">
+                                <Clock className="h-3 w-3 shrink-0" aria-hidden />
+                                {meta.duration}
+                              </span>
+                            </p>
+                          ) : null}
+                        </div>
+                        <div className="flex shrink-0 flex-col items-end gap-1.5">
+                          <span
+                            className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize ring-1 ${bookingStatusClass(booking.status)}`}
+                          >
+                            {booking.status}
+                          </span>
+                          {needsAck ? (
+                            <span className="inline-flex rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-semibold text-sky-800 ring-1 ring-sky-200/80">
+                              Needs ack
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      <p className="mt-2.5 text-sm font-medium text-gray-800">{booking.guest_name || 'Guest'}</p>
+                      {booking.guest_email ? (
+                        <p className="mt-0.5 truncate text-xs text-gray-500">{booking.guest_email}</p>
+                      ) : null}
+
+                      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-gray-600">
+                        <span className="inline-flex items-center gap-1 rounded-lg bg-slate-50 px-2 py-1 font-medium ring-1 ring-slate-200/80">
+                          <Calendar className="h-3.5 w-3.5 text-gray-400" aria-hidden />
                           {formatActivityDateLong(booking.booking_date, startHm)}
                         </span>
-                      </p>
-                      <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-gray-600">
-                        <span className="inline-flex items-center gap-1.5">
-                          <Tag className="h-4 w-4 shrink-0 text-gray-400" aria-hidden />
-                          <span className="font-mono text-xs sm:text-sm">{refLabel}</span>
+                        <span className="inline-flex items-center gap-1 rounded-lg bg-slate-50 px-2 py-1 ring-1 ring-slate-200/80">
+                          <Tag className="h-3.5 w-3.5 text-gray-400" aria-hidden />
+                          <span className="font-mono">{refLabel}</span>
                         </span>
-                        <span className="inline-flex items-center gap-1.5">
-                          <Users className="h-4 w-4 shrink-0 text-gray-400" aria-hidden />
+                        <span className="inline-flex items-center gap-1 rounded-lg bg-slate-50 px-2 py-1 ring-1 ring-slate-200/80">
+                          <Users className="h-3.5 w-3.5 text-gray-400" aria-hidden />
                           {booking.guests} guest{booking.guests === 1 ? '' : 's'}
                         </span>
+                        {paidLabel ? (
+                          <span className="inline-flex items-center gap-1 rounded-lg bg-finland/5 px-2 py-1 font-semibold text-finland ring-1 ring-finland/15">
+                            {paidLabel}
+                          </span>
+                        ) : null}
                         {pickupHm ? (
-                          <span className="inline-flex items-baseline gap-1.5 text-gray-600">
-                            <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">Pickup</span>
-                            <span className="font-medium text-gray-800">{pickupHm}</span>
+                          <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2 py-1 font-medium text-emerald-800 ring-1 ring-emerald-200/80">
+                            Pickup {pickupHm}
                           </span>
                         ) : null}
                       </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setBookingDetailsOpen((prev) => ({
-                          ...prev,
-                          [booking.id]: !prev[booking.id],
-                        }))
-                      }
-                      className="inline-flex shrink-0 items-center justify-center gap-1 self-start text-sm font-medium text-finland hover:underline sm:self-center"
-                      aria-expanded={detailsOpen}
-                    >
-                      {detailsOpen ? 'Hide details' : 'Show details'}
-                      <ChevronDown
-                        className={`h-4 w-4 transition-transform ${detailsOpen ? 'rotate-180' : ''}`}
-                        aria-hidden
-                      />
-                    </button>
-                  </div>
 
-                  {booking.status !== 'cancelled' && !booking.pickup_time && (
-                    <div className="flex items-center gap-2 rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                      <AlertCircle className="h-4 w-4 shrink-0" aria-hidden />
-                      <span>Pickup time not set.</span>
-                      <a href="/partner/pickup" className="font-medium underline underline-offset-2 hover:text-amber-950">
-                        Open pickup planner
-                      </a>
-                    </div>
-                  )}
+                      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-gray-100 pt-3">
+                        <p className="flex items-center gap-1.5 text-xs text-gray-500">
+                          <ShoppingCart className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                          Booked {formatPurchaseDateShort(booking.created_at)}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setBookingDetailsOpen((prev) => ({
+                              ...prev,
+                              [booking.id]: !prev[booking.id],
+                            }))
+                          }
+                          className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-sm font-semibold text-finland transition-colors hover:bg-finland/5"
+                          aria-expanded={detailsOpen}
+                        >
+                          {detailsOpen ? 'Hide details' : 'Show details'}
+                          <ChevronDown
+                            className={`h-4 w-4 transition-transform duration-300 ${detailsOpen ? 'rotate-180' : ''}`}
+                            aria-hidden
+                          />
+                        </button>
+                      </div>
 
-                  {detailsOpen && (
-                    <div className="space-y-3 border-t border-gray-100 pt-3">
+                      {booking.status !== 'cancelled' && !booking.pickup_time && (
+                        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-amber-200/80 bg-amber-50/90 px-3 py-2 text-sm text-amber-950">
+                          <AlertCircle className="h-4 w-4 shrink-0" aria-hidden />
+                          <span>Pickup time not set.</span>
+                          <a
+                            href="/partner/pickup"
+                            className="font-semibold text-amber-900 underline underline-offset-2 hover:text-amber-950"
+                          >
+                            Open pickup planner
+                          </a>
+                        </div>
+                      )}
+
+                      <div
+                        className={`grid transition-all duration-300 ease-out ${
+                          detailsOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+                        }`}
+                      >
+                        <div className="overflow-hidden">
+                          <div className="space-y-3 border-t border-gray-100 pt-3">
                       {booking.guest_email ? (
                         <p className="break-all text-sm text-gray-700">
                           <span className="font-medium text-gray-500">Email </span>
@@ -691,8 +771,11 @@ export default function SupplierBookings() {
                           </button>
                         )}
                       </div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                  )}
+                  </div>
                 </article>
               );
             })}
