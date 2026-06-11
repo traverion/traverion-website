@@ -3,11 +3,14 @@ import {
   LayoutDashboard,
   MapPin,
   Calendar,
+  DollarSign,
   Building2,
   Users,
   LogOut,
   Menu,
   X,
+  Star,
+  Tag,
   ClipboardList,
   UserCircle2,
   ChevronDown,
@@ -85,11 +88,14 @@ type SupplierSection =
 type AccountShortcutTarget = 'company' | 'legal' | 'account' | 'security' | 'payout';
 type BusinessProfileTab = 'company' | 'legal';
 
-/** Core sidebar — earnings, discounts, reviews, and pickup live under Account (desktop) or bottom bar (mobile). */
 const NAV_ITEMS: { id: SupplierSection; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'listings', label: 'My listings', icon: MapPin },
   { id: 'bookings', label: 'Bookings', icon: Calendar },
+  { id: 'earnings', label: 'Earnings', icon: DollarSign },
+  { id: 'discounts', label: 'Discounts & offers', icon: Tag },
+  { id: 'reviews', label: 'Reviews', icon: Star },
+  { id: 'pickup', label: 'Pickup planner', icon: ClipboardList },
   { id: 'business-profile', label: 'Business profile', icon: Building2 },
   { id: 'account-settings', label: 'Account settings', icon: Users },
 ];
