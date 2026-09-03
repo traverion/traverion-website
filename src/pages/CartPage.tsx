@@ -1,5 +1,5 @@
 /**
- * Consumer: cart items with option to request booking (no payment yet).
+ * Consumer: saved items. Booking happens on the experience page via Stripe checkout.
  */
 import { useState, useEffect, useCallback } from 'react';
 import { ShoppingCart, LogIn, ArrowLeft, Trash2, Calendar, Users, RefreshCw } from 'lucide-react';
@@ -7,20 +7,16 @@ import { SkeletonListItem } from '../components/ui/Skeleton';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { fetchCartWithListings, removeFromCart, type CartItemWithListing } from '../data/supabase-cart';
-import { submitBooking } from '../data/supabase-bookings';
 
 interface CartPageProps {
   onNavigate: (page: string) => void;
   onBookTour?: (listingId: string) => void;
 }
 
-export default function CartPage({ onNavigate }: CartPageProps) {
+export default function CartPage({ onNavigate, onBookTour }: CartPageProps) {
   const { user } = useAuth();
   const [items, setItems] = useState<CartItemWithListing[]>([]);
   const [loading, setLoading] = useState(true);
-  const [submittingId, setSubmittingId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -51,28 +47,13 @@ export default function CartPage({ onNavigate }: CartPageProps) {
     if (ok) setItems((prev) => prev.filter((i) => i.id !== cartItemId));
   };
 
-  const handleRequestBooking = async (item: CartItemWithListing) => {
-    if (!user?.email) return;
-    setSubmittingId(item.id);
-    setError(null);
-    const result = await submitBooking({
-      tour_id: item.listing_id,
-      tour_title: item.listing_title ?? 'Tour',
-      customer_name: user.email.split('@')[0] ?? 'Guest',
-      customer_email: user.email,
-      travelers: item.guests,
-      departure_date: item.booking_date,
-      status: 'pending',
-      total_price: (item.price_per_person ?? 0) * item.guests,
-      currency: item.currency ?? 'USD',
-    });
-    setSubmittingId(null);
-    if (result.success) {
-      await removeFromCart(user.id, item.id);
-      setItems((prev) => prev.filter((i) => i.id !== item.id));
-    } else {
-      setError(result.error ?? 'Request failed');
+  const handleContinueBooking = (item: CartItemWithListing) => {
+    if (onBookTour) {
+      onBookTour(item.listing_id);
+      return;
     }
+    window.history.pushState({}, '', `/packages?tour=${encodeURIComponent(item.listing_id)}`);
+    onNavigate('packages');
   };
 
   if (!isSupabaseConfigured()) {
@@ -83,7 +64,7 @@ export default function CartPage({ onNavigate }: CartPageProps) {
             <ShoppingCart className="w-14 h-14 text-gray-300 mx-auto mb-4" />
             <h1 className="text-2xl font-semibold text-gray-900 mb-2">Cart unavailable</h1>
             <p className="text-gray-600 mb-6">
-              Cart requests are available only in the live app setup. You can still browse tours and book directly.
+              Cart requests are available only in the live app setup. You can still browse experiences and book directly.
             </p>
             <button
               type="button"
@@ -105,7 +86,7 @@ export default function CartPage({ onNavigate }: CartPageProps) {
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-10">
             <ShoppingCart className="w-14 h-14 text-gray-300 mx-auto mb-4" />
             <h1 className="text-2xl font-semibold text-gray-900 mb-2">Your cart</h1>
-            <p className="text-gray-600 mb-6">Log in to add tours to your cart and request bookings.</p>
+            <p className="text-gray-600 mb-6">Sign in to see experiences you saved. Booking happens on the experience page.</p>
             <button
               type="button"
               onClick={() => {
@@ -154,11 +135,6 @@ export default function CartPage({ onNavigate }: CartPageProps) {
             </button>
           </div>
         )}
-        {error && (
-          <div className="mb-4 p-3 rounded-lg bg-red-50 text-red-700 text-sm">
-            {error}
-          </div>
-        )}
         {loading ? (
           <div className="space-y-4">
             {[1, 2, 3].map((i) => (
@@ -168,7 +144,7 @@ export default function CartPage({ onNavigate }: CartPageProps) {
         ) : items.length === 0 ? (
           <div className="bg-white rounded-xl border border-gray-200 p-10 text-center">
             <ShoppingCart className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-600">Your cart is empty.</p>
+            <p className="text-gray-600">Your cart is empty. Save an experience, then book it from the listing.</p>
             <button
               type="button"
               onClick={() => onNavigate('packages')}
@@ -208,11 +184,10 @@ export default function CartPage({ onNavigate }: CartPageProps) {
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => handleRequestBooking(item)}
-                    disabled={!!submittingId}
-                    className="px-4 py-2 rounded-lg bg-finland text-white text-sm font-medium hover:bg-finland-dark disabled:opacity-50"
+                    onClick={() => handleContinueBooking(item)}
+                    className="px-4 py-2 rounded-lg bg-finland text-white text-sm font-medium hover:bg-finland-dark"
                   >
-                    {submittingId === item.id ? 'Requesting…' : 'Request booking'}
+                    Book this experience
                   </button>
                   <button
                     type="button"

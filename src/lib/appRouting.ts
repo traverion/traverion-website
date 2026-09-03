@@ -1,13 +1,17 @@
 /**
  * Maps URL pathnames to the app's internal page id (used on load, popstate, etc.).
  */
+/** Old hardcoded SEA brochure URLs — keep reachable as the live catalog, not a second product. */
+const LEGACY_BROCHURE_PATHS = new Set([
+  '/14-vietnam-thailand',
+  '/9-vietnam',
+  '/12-vietnam',
+  '/10-thailand',
+  '/10-cambodia',
+  '/14-indochina',
+]);
+
 const PATH_TO_PAGE: Record<string, string> = {
-  '/14-vietnam-thailand': 'thailand-vietnam-14-day',
-  '/9-vietnam': 'vietnam-9-day',
-  '/12-vietnam': 'vietnam-12-day',
-  '/10-thailand': 'thailand-10-day',
-  '/10-cambodia': 'cambodia-10-day',
-  '/14-indochina': 'indochina-14-day',
   '/packages': 'packages',
   '/cart': 'cart',
   '/auth': 'auth',
@@ -34,6 +38,14 @@ const PATH_TO_PAGE: Record<string, string> = {
 export interface ParsedRoute {
   page: string;
   destinationSlug: string | null;
+}
+
+export function normalizeLegacyBrochurePathname(pathname: string): string {
+  const normalized =
+    pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
+  if (!LEGACY_BROCHURE_PATHS.has(normalized) || typeof window === 'undefined') return pathname;
+  window.history.replaceState(window.history.state, '', '/packages');
+  return '/packages';
 }
 
 /**
@@ -77,6 +89,9 @@ export function parsePathname(pathname: string, options?: ParsePathnameOptions):
     return { page: 'home', destinationSlug: null };
   }
 
+  if (LEGACY_BROCHURE_PATHS.has(normalized)) {
+    return { page: 'packages', destinationSlug: null };
+  }
   const mapped = PATH_TO_PAGE[normalized];
   if (mapped) {
     return { page: mapped, destinationSlug: null };

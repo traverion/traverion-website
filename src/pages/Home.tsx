@@ -1,4 +1,4 @@
-import { ArrowRight, Search } from 'lucide-react';
+import { ArrowRight, Search, ShieldCheck } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import { getAllListings, SHOW_SEED_LISTINGS } from '../data/listings';
 import { getDestinationsFromListings } from '../data/activities';
@@ -11,6 +11,7 @@ import { getReviewAggregatesForListingIds } from '../data/supabase-reviews';
 import { isSupabaseListingId } from '../lib/discount-display';
 import { PublicListingBrowseCard } from '../components/PublicListingBrowseCard';
 import { supplierPortalHref } from '../lib/partnerHost';
+import { TRAVERION_STANDARD_CANCELLATION_POLICY } from '../types/listingExtras';
 
 const TAG_LABELS: Record<string, string> = {
   'free-cancellation': 'Free cancellation',
@@ -22,54 +23,6 @@ const TAG_LABELS: Record<string, string> = {
 
 const MAX_RESULTS_HOME = 12;
 
-/** Hardcoded popular experiences (GetYourGuide-style) – clicking runs search for that term */
-const POPULAR_EXPERIENCES = [
-  {
-    id: 'northern-lights',
-    title: 'Northern Lights',
-    subtitle: 'Iceland, Norway & Finland',
-    searchQuery: 'Northern Lights',
-    image: 'https://images.pexels.com/photos/1933239/pexels-photo-1933239.jpeg?auto=compress&cs=tinysrgb&w=800',
-  },
-  {
-    id: 'rome-vespa',
-    title: 'Rome Vespa tour',
-    subtitle: 'Italy',
-    searchQuery: 'Rome Vespa tour',
-    image: 'https://images.pexels.com/photos/4276793/pexels-photo-4276793.jpeg?auto=compress&cs=tinysrgb&w=800',
-  },
-  {
-    id: 'santorini-sunset',
-    title: 'Santorini Sunset Cruise',
-    subtitle: 'Greece',
-    searchQuery: 'Santorini sunset cruise',
-    image: 'https://images.pexels.com/photos/1029599/pexels-photo-1029599.jpeg?auto=compress&cs=tinysrgb&w=800',
-  },
-];
-
-function matchSearch(tour: TourPackage, q: string): boolean {
-  if (!q.trim()) return true;
-  const term = q.toLowerCase().trim();
-  const searchable = [
-    tour.title,
-    tour.destination,
-    tour.city,
-    tour.country,
-    tour.description,
-    tour.highlights?.join(' '),
-  ]
-    .filter(Boolean)
-    .join(' ')
-    .toLowerCase();
-  return searchable.includes(term);
-}
-
-function matchCountry(tour: TourPackage, countryId: string): boolean {
-  if (countryId === 'all') return true;
-  const tourCountry = (tour.country ?? '').toLowerCase().replace(/\s+/g, '-');
-  return tourCountry === countryId.toLowerCase();
-}
-
 interface HomeProps {
   onTourSelect: (tour: TourPackage) => void;
   onNavigate?: (page: string) => void;
@@ -78,7 +31,6 @@ interface HomeProps {
 export default function Home({ onTourSelect, onNavigate }: HomeProps) {
   const { listings: supplierListings } = usePublishedSupplierListings({ emptyOnFirstError: false });
   const [searchTerm, setSearchTerm] = useState('');
-  const [countryId, setCountryId] = useState('all');
   const [discountsByListing, setDiscountsByListing] = useState<Map<string, import('../data/supabase-discounts').ListingDiscount[]>>(new Map());
   const [reviewAggregates, setReviewAggregates] = useState<Map<string, { rating: number; count: number }>>(
     () => new Map()
@@ -93,23 +45,14 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
     return base;
   }, [supplierListings]);
 
-  const countryOptions = useMemo(() => {
-    const all = getDestinationsFromListings(allListings);
-    return all.filter((d) => d.type === 'world' || d.type === 'region');
+  const placeChips = useMemo(() => {
+    return getDestinationsFromListings(allListings)
+      .filter((d) => d.type === 'city' || d.type === 'region')
+      .slice(0, 8);
   }, [allListings]);
 
-  const filteredListings = useMemo(() => {
-    return allListings.filter(
-      (tour) => matchSearch(tour, searchTerm) && matchCountry(tour, countryId)
-    );
-  }, [allListings, searchTerm, countryId]);
-
-  const displayedListings = useMemo(
-    () => filteredListings.slice(0, MAX_RESULTS_HOME),
-    [filteredListings]
-  );
-  const hasMore = filteredListings.length > MAX_RESULTS_HOME;
-  const hasActiveFilter = searchTerm.trim() !== '' || countryId !== 'all';
+  const displayedListings = useMemo(() => allListings.slice(0, MAX_RESULTS_HOME), [allListings]);
+  const hasMore = allListings.length > MAX_RESULTS_HOME;
 
   const displayedIds = useMemo(
     () => displayedListings.map((t) => t.id).filter(isSupabaseListingId),
@@ -120,202 +63,173 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
   useEffect(() => {
     if (!isSupabaseConfigured() || !displayedIdsKey) {
       setDiscountsByListing(new Map());
-      return;
-    }
-    fetchDiscountsByListingIds(displayedIdsKey.split(',')).then(setDiscountsByListing);
-  }, [displayedIdsKey]);
-
-  useEffect(() => {
-    if (!isSupabaseConfigured() || !displayedIdsKey) {
       setReviewAggregates(new Map());
       return;
     }
     const ids = displayedIdsKey.split(',');
     let cancelled = false;
-    getReviewAggregatesForListingIds(ids).then((m) => {
-      if (!cancelled) setReviewAggregates(m);
-    });
+    Promise.all([fetchDiscountsByListingIds(ids), getReviewAggregatesForListingIds(ids)]).then(
+      ([discounts, reviews]) => {
+        if (cancelled) return;
+        setDiscountsByListing(discounts);
+        setReviewAggregates(reviews);
+      }
+    );
     return () => {
       cancelled = true;
     };
   }, [displayedIdsKey]);
 
-  const goToPackagesWithFilters = () => {
+  const goToPackages = (extra?: { q?: string; destination?: string }) => {
     if (!onNavigate) return;
     const params = new URLSearchParams();
-    if (searchTerm.trim()) params.set('q', searchTerm.trim());
-    if (countryId !== 'all') params.set('destination', countryId);
+    const q = (extra?.q ?? searchTerm).trim();
+    if (q) params.set('q', q);
+    if (extra?.destination) params.set('destination', extra.destination);
     const query = params.toString();
     window.history.pushState({}, '', query ? `/packages?${query}` : '/packages');
     onNavigate('packages');
   };
 
+  const submitSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    goToPackages();
+  };
+
   return (
     <div className="min-h-screen bg-white">
-      {/* Hero banner: tour image background + search + filter (pt clears fixed header) */}
-      <section className="relative text-white pt-24 sm:pt-28 pb-14 sm:pb-20 min-h-[520px] sm:min-h-[520px] lg:min-h-[580px] flex items-center overflow-hidden">
-        <div
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-          style={{
-            backgroundImage: 'url(/banner1.jpg)',
-          }}
-        />
-        <div className="absolute inset-0 bg-black/45" aria-hidden />
-        <div className="relative z-10 w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h1 className="text-2xl sm:text-3xl font-semibold text-center mb-2 uppercase tracking-wide !text-white drop-shadow-md">
-            Find tours & activities
-          </h1>
-          <p className="!text-white/95 text-center text-sm sm:text-base mb-8 drop-shadow-md [text-shadow:0_1px_12px_rgba(0,0,0,0.5)]">
-            Search by tour name or location, or filter by country.
+      <section className="relative text-white pt-24 sm:pt-28 pb-16 sm:pb-24 min-h-[560px] sm:min-h-[620px] flex items-center overflow-hidden">
+        <div className="page-hero-media" aria-hidden>
+          <img src="/banner1.jpg" alt="" />
+        </div>
+        <div className="absolute inset-0 bg-black/40" aria-hidden />
+        <div className="relative z-10 w-full max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 page-hero-content">
+          <p className="page-hero-eyebrow text-center text-xs sm:text-sm tracking-[0.18em] uppercase font-medium mb-3">
+            Tours &amp; activities
           </p>
-          <div className="bg-white rounded-xl shadow-lg p-3 sm:p-4 flex justify-center">
+          <h1 className="page-hero-title text-3xl sm:text-5xl font-semibold text-center tracking-tight mb-3">
+            Find an experience worth the trip
+          </h1>
+          <p className="page-hero-subtitle text-center text-sm sm:text-lg mb-8 max-w-xl mx-auto font-normal">
+            Browse live tours from independent operators. Book in minutes, with free cancellation up to 24 hours before.
+          </p>
+          <form
+            onSubmit={submitSearch}
+            className="bg-white rounded-2xl p-2 sm:p-2.5 flex flex-col sm:flex-row gap-2 shadow-none"
+          >
+            <label className="sr-only" htmlFor="home-search">
+              Search experiences
+            </label>
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+              <input
+                id="home-search"
+                type="search"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Northern lights, Lisbon, food tour…"
+                className="w-full h-12 sm:h-14 pl-11 pr-4 rounded-xl border-0 text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-finland/30 text-base"
+              />
+            </div>
             <button
-              type="button"
-              onClick={goToPackagesWithFilters}
-              className="inline-flex items-center gap-2 px-8 py-3 bg-finland text-white font-medium rounded-lg hover:bg-finland-dark transition-colors"
+              type="submit"
+              className="h-12 sm:h-14 px-8 rounded-xl bg-finland text-white font-semibold hover:bg-finland-dark transition-colors"
             >
-              <Search className="w-5 h-5" />
               Search
             </button>
+          </form>
+          {placeChips.length > 0 && (
+            <div className="mt-5 flex flex-wrap justify-center gap-2">
+              {placeChips.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => goToPackages({ destination: p.id })}
+                  className="lux-flat text-xs sm:text-sm px-3 py-1.5 rounded-full bg-white/15 text-white border border-white/25 hover:bg-white hover:text-gray-900 transition-colors"
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="py-4 border-b border-gray-100 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-wrap justify-center gap-x-8 gap-y-2 text-sm text-gray-600">
+            <span className="inline-flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-finland" aria-hidden />
+              {TRAVERION_STANDARD_CANCELLATION_POLICY.split('.')[0]}.
+            </span>
+            <span className="inline-flex items-center gap-2">
+              <span className="w-4 h-4 rounded-full bg-finland/10 text-finland text-[10px] font-bold flex items-center justify-center">
+                $
+              </span>
+              Secure card checkout
+            </span>
           </div>
-          <div className="mt-4 flex justify-center">
+        </div>
+      </section>
+
+      <section className="py-10 sm:py-14 bg-gray-50/80">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-6">
+            <div>
+              <h2 className="text-2xl sm:text-3xl font-semibold text-gray-900 tracking-tight">Experiences</h2>
+              <p className="mt-1 text-sm text-gray-600">
+                What operators are offering on Traverion right now.
+              </p>
+            </div>
             <button
               type="button"
-              onClick={() => {
-                window.history.pushState({}, '', '/packages');
-                onNavigate?.('packages');
-              }}
-              className="px-6 py-2.5 rounded-lg border-2 border-white text-white font-medium hover:bg-white hover:text-gray-900 transition-colors"
+              onClick={() => goToPackages()}
+              className="lux-flat inline-flex items-center gap-1.5 text-sm font-semibold text-finland hover:text-finland-dark self-start"
             >
-              ALL TOURS
+              All experiences <ArrowRight className="w-4 h-4" />
             </button>
           </div>
-        </div>
-      </section>
-
-      {/* Trust strip (GetYourGuide-style) */}
-      <section className="py-4 bg-white border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-wrap justify-center gap-6 sm:gap-10 text-sm text-gray-600">
-            <span className="flex items-center gap-2">
-              <span className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-600 font-semibold text-xs">✓</span>
-              Free cancellation
-            </span>
-            <span className="flex items-center gap-2">
-              <span className="w-8 h-8 rounded-full bg-finland/10 flex items-center justify-center text-finland font-semibold text-xs">$</span>
-              Best price guarantee
-            </span>
-            <span className="flex items-center gap-2">
-              <span className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 font-semibold text-xs">★</span>
-              Verified reviews
-            </span>
-          </div>
-        </div>
-      </section>
-
-      {/* Listings */}
-      <section className="py-8 sm:py-10 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4 uppercase tracking-wide">
-            {hasActiveFilter
-              ? filteredListings.length === 0
-                ? 'No tours match your search'
-                : `Tours & activities (${filteredListings.length})`
-              : 'Tours & activities'}
-          </h2>
 
           {allListings.length === 0 ? (
-            <div className="text-center py-12 bg-white rounded-2xl border border-gray-100">
-              <p className="text-gray-500 mb-6">No tours listed yet.</p>
+            <div className="text-center py-16 bg-white rounded-3xl border border-gray-100">
+              <p className="text-gray-700 font-medium mb-2">No experiences listed yet</p>
+              <p className="text-sm text-gray-500 mb-6 max-w-md mx-auto">
+                Operators are setting up tours on Traverion. If you run experiences, you can publish yours today.
+              </p>
               <a
                 href={supplierPortalHref('/login')}
                 className="inline-flex items-center gap-2 bg-finland text-white font-semibold px-6 py-3 rounded-xl hover:bg-finland-dark transition-colors"
               >
-                List your tour
+                List your experience
               </a>
             </div>
           ) : (
             <>
-              {!hasActiveFilter && (
-                <p className="text-sm text-gray-600 mb-5 max-w-2xl">
-                  Browse featured experiences below. Use{' '}
-                  <button
-                    type="button"
-                    onClick={goToPackagesWithFilters}
-                    className="text-finland font-medium hover:underline"
-                  >
-                    Search
-                  </button>{' '}
-                  in the hero or open the{' '}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      window.history.pushState({}, '', '/packages');
-                      onNavigate?.('packages');
-                    }}
-                    className="text-finland font-medium hover:underline"
-                  >
-                    full tours page
-                  </button>{' '}
-                  for filters, sort, and the complete catalog.
-                </p>
-              )}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                {displayedListings.map((tour, index) => (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
+                {displayedListings.map((item, index) => (
                   <PublicListingBrowseCard
-                    key={tour.id}
-                    tour={tour}
+                    key={item.id}
+                    tour={item}
                     index={index}
-                    onSelect={() => onTourSelect(tour)}
+                    onSelect={() => onTourSelect(item)}
                     discountsByListing={discountsByListing}
-                    reviewAggregate={reviewAggregates.get(tour.id)}
+                    reviewAggregate={reviewAggregates.get(item.id)}
                     tagLabels={TAG_LABELS}
-                    size="compact"
+                    size="default"
                     showViewDetailsHint
                   />
                 ))}
               </div>
-              {hasMore ? (
-                <div className="mt-8 text-center">
+              {hasMore && (
+                <div className="mt-10 text-center">
                   <button
                     type="button"
-                    onClick={() => {
-                      if (hasActiveFilter) {
-                        goToPackagesWithFilters();
-                        return;
-                      }
-                      window.history.pushState({}, '', '/packages');
-                      onNavigate?.('packages');
-                    }}
-                    className="inline-flex items-center gap-2 text-finland font-semibold hover:text-finland-dark transition-colors"
+                    onClick={() => goToPackages()}
+                    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-finland text-white font-semibold hover:bg-finland-dark"
                   >
-                    {hasActiveFilter ? (
-                      <>
-                        View all {filteredListings.length} results <ArrowRight className="w-4 h-4" />
-                      </>
-                    ) : (
-                      <>
-                        View all tours &amp; filters <ArrowRight className="w-4 h-4" />
-                      </>
-                    )}
+                    View all {allListings.length} experiences <ArrowRight className="w-4 h-4" />
                   </button>
                 </div>
-              ) : (
-                !hasActiveFilter &&
-                displayedListings.length > 0 && (
-                  <div className="mt-8 text-center">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        window.history.pushState({}, '', '/packages');
-                        onNavigate?.('packages');
-                      }}
-                      className="inline-flex items-center gap-2 text-finland font-semibold hover:text-finland-dark transition-colors"
-                    >
-                      Tours page — search, sort &amp; full catalog <ArrowRight className="w-4 h-4" />
-                    </button>
-                  </div>
-                )
               )}
             </>
           )}

@@ -9,7 +9,7 @@ export type BookingDateFieldProps = {
   onChange: (value: string) => void;
   min?: string;
   className?: string;
-  inputRef?: React.RefObject<HTMLInputElement | null>;
+  hint?: string;
 };
 
 function openNativeDatePicker(el: HTMLInputElement | null) {
@@ -33,15 +33,14 @@ export default function BookingDateField({
   onChange,
   min,
   className = '',
-  inputRef: externalRef,
+  hint,
 }: BookingDateFieldProps) {
   const internalRef = useRef<HTMLInputElement>(null);
-  const inputRef = externalRef ?? internalRef;
   const displayLabel = value.trim() ? formatBookingDateDisplay(value) : '';
 
   const openPicker = useCallback(() => {
-    openNativeDatePicker(inputRef.current);
-  }, [inputRef]);
+    openNativeDatePicker(internalRef.current);
+  }, []);
 
   return (
     <div className={className}>
@@ -73,7 +72,7 @@ export default function BookingDateField({
         )}
         <input
           id={id}
-          ref={inputRef}
+          ref={internalRef}
           type="date"
           value={value}
           min={min ?? new Date().toISOString().slice(0, 10)}
@@ -93,6 +92,7 @@ export default function BookingDateField({
           {displayLabel}
         </p>
       ) : null}
+      {hint ? <p className="mt-1 text-xs text-gray-500">{hint}</p> : null}
     </div>
   );
 }

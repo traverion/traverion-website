@@ -1069,7 +1069,7 @@ export default function SupplierLayout() {
               onProfile={() => openSettingsFocus('company')}
             />
           )}
-          <div key={section} className="lux-page-enter w-full min-w-0 max-w-full">
+          <div className="lux-page-enter w-full min-w-0 max-w-full">
           {section === 'dashboard' && (
             <SupplierDashboard onNavigateToBookings={() => handleNavigate('bookings')} />
           )}

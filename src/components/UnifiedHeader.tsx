@@ -1,15 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
-import { Menu, X, User, LogOut, LayoutDashboard, ShoppingCart, Calendar } from 'lucide-react';
-import { useTranslation } from '../contexts/TranslationContext';
+import { Menu, X, User, LogOut, LayoutDashboard, Calendar } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
-import { fetchCartCount } from '../data/supabase-cart';
-import { fetchMyBookings } from '../data/supabase-bookings';
 import { BRAND_LOGO_SRC } from '../lib/brandAssets';
 import {
   clearBookingsUnread,
   getBookingNotificationEventName,
-  getBookingsSeenAt,
   hasBookingsUnread,
 } from '../lib/customerBookingNotifications';
 
@@ -19,57 +15,27 @@ interface UnifiedHeaderProps {
 }
 
 export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeaderProps) {
-  const { t } = useTranslation();
   const { user, signOut } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const [cartCount, setCartCount] = useState(0);
   const [hasUnreadBookings, setHasUnreadBookings] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!isSupabaseConfigured() || !user?.id) {
-      setCartCount(0);
-      return;
-    }
-    fetchCartCount(user.id).then(setCartCount).catch(() => setCartCount(0));
-  }, [user?.id, currentPage]);
 
   useEffect(() => {
     if (!isSupabaseConfigured() || !user?.id) {
       setHasUnreadBookings(false);
       return;
     }
-    let cancelled = false;
-    const refresh = async () => {
-      const localUnread = hasBookingsUnread(user.id);
-      if (localUnread) {
-        if (!cancelled) setHasUnreadBookings(true);
-        return;
-      }
-      try {
-        const list = await fetchMyBookings();
-        const newest = list[0]?.created_at ? Date.parse(list[0].created_at) : 0;
-        const seenRaw = getBookingsSeenAt(user.id);
-        const seen = seenRaw ? Date.parse(seenRaw) : 0;
-        if (!cancelled) setHasUnreadBookings(Boolean(newest && (!seen || newest > seen)));
-      } catch {
-        if (!cancelled) setHasUnreadBookings(false);
-      }
-    };
-    void refresh();
+    const refresh = () => setHasUnreadBookings(hasBookingsUnread(user.id));
+    refresh();
     const eventName = getBookingNotificationEventName();
-    const onStorage = () => {
-      void refresh();
-    };
-    window.addEventListener('storage', onStorage);
-    window.addEventListener(eventName, onStorage);
+    window.addEventListener('storage', refresh);
+    window.addEventListener(eventName, refresh);
     return () => {
-      cancelled = true;
-      window.removeEventListener('storage', onStorage);
-      window.removeEventListener(eventName, onStorage);
+      window.removeEventListener('storage', refresh);
+      window.removeEventListener(eventName, refresh);
     };
-  }, [user?.id, currentPage]);
+  }, [user?.id]);
 
   const openBookings = () => {
     if (user?.id) clearBookingsUnread(user.id);
@@ -119,73 +85,27 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
             <button
               type="button"
               onClick={() => onNavigate('home')}
-              className={`lux-nav-link font-light uppercase ${
+              className={`lux-nav-link font-medium ${
                 currentPage === 'home' ? 'text-finland lux-nav-link--active' : 'text-gray-700 hover:text-finland'
               }`}
             >
-              {t.navigation?.home || 'Home'}
+              Home
             </button>
             <button
               type="button"
               onClick={() => onNavigate('packages')}
-              className={`lux-nav-link font-light uppercase ${
-                currentPage === 'packages' ? 'text-finland lux-nav-link--active' : 'text-gray-700 hover:text-finland'
+              className={`lux-nav-link font-medium ${
+                currentPage === 'packages' || currentPage === 'tour-details' || currentPage === 'destination'
+                  ? 'text-finland lux-nav-link--active'
+                  : 'text-gray-700 hover:text-finland'
               }`}
             >
-              {t.navigation?.tours || t.navigation?.packages || 'Tours'}
-            </button>
-            <button
-              type="button"
-              onClick={() => onNavigate('about')}
-              className={`lux-nav-link font-light uppercase ${
-                currentPage === 'about' ? 'text-finland lux-nav-link--active' : 'text-gray-700 hover:text-finland'
-              }`}
-            >
-              About
-            </button>
-            <button
-              type="button"
-              onClick={() => onNavigate('blog')}
-              className={`lux-nav-link font-light uppercase ${
-                currentPage === 'blog' ? 'text-finland lux-nav-link--active' : 'text-gray-700 hover:text-finland'
-              }`}
-            >
-              {t.navigation?.blog || 'Blog'}
-            </button>
-            <button
-              type="button"
-              onClick={() => onNavigate('contact')}
-              className={`lux-nav-link font-light uppercase ${
-                currentPage === 'contact' ? 'text-finland lux-nav-link--active' : 'text-gray-700 hover:text-finland'
-              }`}
-            >
-              {t.navigation?.contact || 'Contact'}
+              Experiences
             </button>
           </nav>
 
           {/* Action area: Cart, Profile (icon + label) */}
           <div className="flex items-center gap-4 sm:gap-6" ref={userMenuRef}>
-            <button
-              type="button"
-              onClick={() => {
-                if (isSupabaseConfigured() && !user) {
-                  window.history.pushState({}, '', '/sign-up?next=cart');
-                  onNavigate('auth');
-                } else onNavigate('cart');
-              }}
-              className="lux-tap-target hidden lg:flex flex-col items-center gap-0.5 p-1.5 text-gray-600 hover:text-finland relative rounded-lg"
-              aria-label="Cart"
-              title="Cart"
-            >
-              <ShoppingCart className="w-5 h-5" />
-              {cartCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] rounded-full bg-finland text-white text-[10px] font-bold flex items-center justify-center px-1">
-                  {cartCount > 99 ? '99+' : cartCount}
-                </span>
-              )}
-              <span className="text-[10px] font-medium uppercase tracking-wide">Cart</span>
-            </button>
-            {/* Profile: dropdown with Log in / Sign up when not logged in; My bookings & Log out when logged in */}
             <div className="relative hidden lg:block">
               <button
                 type="button"
@@ -290,7 +210,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
               onClick={() => onNavigate('packages')}
               className="btn-luxury bg-finland text-white px-4 sm:px-5 py-1.5 rounded-lg font-medium hover:bg-finland-dark shadow-soft hover:shadow-soft-lg hidden lg:block text-sm"
             >
-              FIND TOURS
+              Find experiences
             </button>
             <button
               type="button"
@@ -316,7 +236,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                   currentPage === 'home' ? 'bg-finland/10 text-finland' : 'text-gray-700 hover:bg-gray-50'
                 }`}
               >
-                {t.navigation?.home || 'Home'}
+                Home
               </button>
               <button
                 onClick={() => {
@@ -324,61 +244,13 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                   setIsMobileMenuOpen(false);
                 }}
                 className={`lux-flat text-left px-4 py-3 rounded-lg transition-colors duration-300 ease-lux font-medium ${
-                  currentPage === 'packages' ? 'bg-finland/10 text-finland' : 'text-gray-700 hover:bg-gray-50'
+                  currentPage === 'packages' || currentPage === 'tour-details'
+                    ? 'bg-finland/10 text-finland'
+                    : 'text-gray-700 hover:bg-gray-50'
                 }`}
               >
-                {t.navigation?.tours || t.navigation?.packages || 'Tours'}
+                Experiences
               </button>
-              <button
-                onClick={() => {
-                  onNavigate('about');
-                  setIsMobileMenuOpen(false);
-                }}
-                className={`lux-flat text-left px-4 py-3 rounded-lg transition-colors duration-300 ease-lux font-medium ${
-                  currentPage === 'about' ? 'bg-finland/10 text-finland' : 'text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                About
-              </button>
-              <button
-                onClick={() => {
-                  onNavigate('blog');
-                  setIsMobileMenuOpen(false);
-                }}
-                className={`lux-flat text-left px-4 py-3 rounded-lg transition-colors duration-300 ease-lux font-medium ${
-                  currentPage === 'blog' ? 'bg-finland/10 text-finland' : 'text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                {t.navigation?.blog || 'Blog'}
-              </button>
-              <button
-                onClick={() => {
-                  onNavigate('contact');
-                  setIsMobileMenuOpen(false);
-                }}
-                className={`lux-flat text-left px-4 py-3 rounded-lg transition-colors duration-300 ease-lux font-medium ${
-                  currentPage === 'contact' ? 'bg-finland/10 text-finland' : 'text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                {t.navigation?.contact || 'Contact'}
-              </button>
-              
-              {/* Mobile: Cart (requires Supabase for synced cart) */}
-              {isSupabaseConfigured() && (
-                <button
-                  onClick={() => {
-                    if (!user) {
-                      window.history.pushState({}, '', '/sign-up?next=cart');
-                      onNavigate('auth');
-                    } else onNavigate('cart');
-                    setIsMobileMenuOpen(false);
-                  }}
-                  className="lux-flat w-full text-left px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                >
-                  <ShoppingCart className="w-5 h-5" />
-                  Cart {cartCount > 0 && `(${cartCount})`}
-                </button>
-              )}
               {!isSupabaseConfigured() && (
                 <div className="px-4 py-3 rounded-lg bg-gray-50 border border-gray-100 text-sm text-gray-600">
                   <p className="mb-2">Accounts and saved cart need the live site configuration.</p>
@@ -458,7 +330,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                   }}
                   className="btn-luxury w-full bg-finland text-white px-4 py-3 rounded-lg font-medium hover:bg-finland-dark transition-all duration-300 ease-lux shadow-lg text-center"
                 >
-                  FIND TOURS
+                  Find experiences
                 </button>
               </div>
             </nav>

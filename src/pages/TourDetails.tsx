@@ -9,11 +9,9 @@ import {
   Share2,
   CheckCircle,
   XCircle,
-  ShoppingCart,
   Info,
   ChevronDown,
 } from 'lucide-react';
-import { useTranslation } from '../contexts/TranslationContext';
 import { useAuth } from '../contexts/AuthContext';
 import LuxuryButton from '../components/ui/LuxuryButton';
 import { getListingById, getListingByIdAsync } from '../data/listings';
@@ -34,12 +32,12 @@ import {
   userHasReviewedListing,
   type ReviewDisplay,
 } from '../data/supabase-reviews';
-import { addToCart } from '../data/supabase-cart';
 import { fetchSupplierPublicLegal } from '../data/supabase-supplier-profile';
 import { setPageMetaWithOg, setTourJsonLd, clearTourJsonLd } from '../lib/seo';
 import { Skeleton } from '../components/ui/Skeleton';
 import { dateNotInPast } from '../lib/validation';
 import { checkAvailability } from '../data/supabase-availability';
+import { optionRunsOnDate, formatOptionWeekdays } from '../lib/booking-quote';
 import BookingPage from './BookingPage';
 import {
   getPartySizeBounds,
@@ -57,7 +55,6 @@ interface TourDetailsProps {
 }
 
 export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
-  const { t } = useTranslation();
   const { user, requestAuth } = useAuth();
   const [tour, setTour] = useState<TourPackage | null>(null);
   const [tourLoadError, setTourLoadError] = useState<string | null>(null);
@@ -70,7 +67,6 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
-  const [addToCartMessage, setAddToCartMessage] = useState<'success' | 'error' | null>(null);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewTitle, setReviewTitle] = useState('');
   const [reviewComment, setReviewComment] = useState('');
@@ -94,6 +90,11 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
 
   const partyBounds = useMemo(() => (tour ? getPartySizeBounds(tour) : { min: 1, max: 12 }), [tour]);
   const tourVariants = useMemo(() => (tour ? getTourBookingVariants(tour) : []), [tour]);
+  const weekdayHint = useMemo(() => {
+    const unique = [...new Set(tourVariants.map((v) => formatOptionWeekdays(v.listingOption?.weekdays)))];
+    if (unique.length === 1) return `Runs ${unique[0]}`;
+    return undefined;
+  }, [tourVariants]);
 
   const scrollToOptionsSection = useCallback(() => {
     window.setTimeout(() => {
@@ -238,7 +239,16 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     const guestErr = guestCountValidationError(guests, variantBounds);
     if (guestErr) {
       setBookingCardError(guestErr);
+      setVariantChecking(false);
       return;
+    }
+    if (variant.listingOption) {
+      const dayErr = optionRunsOnDate(variant.listingOption, bookingDate.trim());
+      if (dayErr) {
+        setBookingCardError(dayErr);
+        setVariantChecking(false);
+        return;
+      }
     }
     setBookingCardError(null);
     try {
@@ -645,6 +655,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                       setBookingCardError(null);
                       setBookingVariantsOpen(false);
                     }}
+                    hint={weekdayHint}
                   />
                   <GuestStepper
                     id="tour-booking-guests"
@@ -680,33 +691,14 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                       Select one option below to continue.
                     </p>
                   )}
-                  {isSupabaseConfigured() && user && (
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        if (!bookingDate.trim()) {
-                          setAddToCartMessage('error');
-                          return;
-                        }
-                        const res = await addToCart(user.id, tour.id, bookingDate, guests);
-                        setAddToCartMessage(res.success ? 'success' : 'error');
-                        if (res.success) setTimeout(() => setAddToCartMessage(null), 2000);
-                      }}
-                      className="w-full border border-finland text-finland py-2.5 px-4 rounded-lg font-medium hover:bg-finland/5 transition-all flex items-center justify-center gap-2"
-                    >
-                      <ShoppingCart className="w-4 h-4" />
-                      Add to cart
-                    </button>
-                  )}
-                  {addToCartMessage === 'success' && <p className="text-sm text-green-600">Added to cart.</p>}
-                  {addToCartMessage === 'error' && <p className="text-sm text-red-600">Select a date first or try again.</p>}
                   <div className="mt-3 space-y-1.5 text-xs text-gray-600">
                     <p className="flex items-center gap-2">
                       <CheckCircle className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />{' '}
                       {tour.cancellationPolicy?.trim() || TRAVERION_STANDARD_CANCELLATION_POLICY}
                     </p>
-                    <p className="flex items-center gap-2"><Shield className="w-3.5 h-3.5 text-finland flex-shrink-0" /> Best price guarantee</p>
-                    <p className="flex items-center gap-2"><Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500 flex-shrink-0" /> Reserve now, pay later</p>
+                    <p className="flex items-center gap-2">
+                      <Shield className="w-3.5 h-3.5 text-finland flex-shrink-0" /> Secure checkout — you pay to confirm
+                    </p>
                   </div>
                 </div>
               </div>
@@ -729,21 +721,36 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
           >
             <div className="px-4 pt-3 pb-1 text-sm font-semibold text-gray-900">Choose your option</div>
             <ul className="max-h-[24rem] overflow-y-auto overscroll-contain py-1 [scrollbar-gutter:stable]">
-              {tourVariants.map((v) => (
-                <li key={v.id} role="option">
+              {tourVariants.map((v) => {
+                const dayErr =
+                  v.listingOption && bookingDate.trim()
+                    ? optionRunsOnDate(v.listingOption, bookingDate.trim())
+                    : null;
+                return (
+                <li key={v.id} role="option" aria-disabled={Boolean(dayErr)}>
                   <button
                     type="button"
-                    className="w-full px-4 py-3 text-left transition-colors hover:bg-finland/5 active:bg-finland/10 sm:py-3.5"
+                    disabled={Boolean(dayErr)}
+                    className={`w-full px-4 py-3 text-left transition-colors sm:py-3.5 ${
+                      dayErr ? 'opacity-50 cursor-not-allowed' : 'hover:bg-finland/5 active:bg-finland/10'
+                    }`}
                     onClick={() => void handlePickTourVariant(v)}
                   >
                     <span className="font-medium text-gray-900">{v.label}</span>
+                    {v.listingOption ? (
+                      <span className="mt-0.5 block text-xs text-gray-500">
+                        {formatOptionWeekdays(v.listingOption.weekdays)}
+                      </span>
+                    ) : null}
                     <span className="mt-0.5 block text-xs leading-snug text-gray-600">{v.subtitle}</span>
                     <span className="mt-1.5 block text-sm font-semibold text-finland">
                       From ${v.pricePerPerson} <span className="font-normal text-gray-500">/ person</span>
                     </span>
+                    {dayErr ? <span className="mt-1 block text-xs text-red-600">{dayErr}</span> : null}
                   </button>
                 </li>
-              ))}
+                );
+              })}
             </ul>
           </div>
         </div>

@@ -4,30 +4,6 @@
   "framework": "vite",
   "rewrites": [
     {
-      "source": "/14-vietnam-thailand",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/9-vietnam",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/12-vietnam",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/10-thailand",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/10-cambodia",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/14-indochina",
-      "destination": "/index.html"
-    },
-    {
       "source": "/packages",
       "destination": "/index.html"
     },
@@ -132,32 +108,62 @@
     },
     {
       "source": "/thailand-vietnam-14-day",
-      "destination": "/14-vietnam-thailand",
+      "destination": "/packages",
       "permanent": true
     },
     {
       "source": "/vietnam-9-day",
-      "destination": "/9-vietnam",
+      "destination": "/packages",
       "permanent": true
     },
     {
       "source": "/vietnam-12-day",
-      "destination": "/12-vietnam",
+      "destination": "/packages",
       "permanent": true
     },
     {
       "source": "/thailand-10-day",
-      "destination": "/10-thailand",
+      "destination": "/packages",
       "permanent": true
     },
     {
       "source": "/cambodia-10-day",
-      "destination": "/10-cambodia",
+      "destination": "/packages",
       "permanent": true
     },
     {
       "source": "/indochina-14-day",
-      "destination": "/14-indochina",
+      "destination": "/packages",
+      "permanent": true
+    },
+    {
+      "source": "/14-vietnam-thailand",
+      "destination": "/packages",
+      "permanent": true
+    },
+    {
+      "source": "/9-vietnam",
+      "destination": "/packages",
+      "permanent": true
+    },
+    {
+      "source": "/12-vietnam",
+      "destination": "/packages",
+      "permanent": true
+    },
+    {
+      "source": "/10-thailand",
+      "destination": "/packages",
+      "permanent": true
+    },
+    {
+      "source": "/10-cambodia",
+      "destination": "/packages",
+      "permanent": true
+    },
+    {
+      "source": "/14-indochina",
+      "destination": "/packages",
       "permanent": true
     }
   ],

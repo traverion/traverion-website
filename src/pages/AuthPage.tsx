@@ -327,7 +327,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
                   {tab === 'signin' ? 'Sign in' : 'Sign up'}
                 </h1>
                 <p className="text-sm text-gray-600 mt-0.5">
-                  Book trips, save your cart, and manage bookings — not the partner dashboard.
+                  Book trips and manage your bookings — not the partner dashboard.
                 </p>
                 <p className="text-xs text-gray-500 mt-2">
                   Want to be a supplier?{' '}

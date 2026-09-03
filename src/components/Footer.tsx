@@ -40,7 +40,7 @@ export default function Footer({ onNavigate }: { onNavigate?: (page: string) => 
               <span className="font-semibold text-lg text-white">TRAVERION</span>
             </a>
             <p className="text-sm text-gray-400 max-w-xs">
-              Book tours and activities worldwide. Best price guarantee.
+              Discover and book tours and activities from independent operators. Holiday packages are coming next.
             </p>
           </div>
 
@@ -62,7 +62,6 @@ export default function Footer({ onNavigate }: { onNavigate?: (page: string) => 
             <h3 className="font-semibold text-white mb-3 text-sm uppercase tracking-wide">Company</h3>
             <ul className="space-y-2">
               <li><button type="button" onClick={() => nav('about')} className={`${linkClass} text-left bg-transparent border-0 cursor-pointer`}>About Us</button></li>
-              <li><button type="button" onClick={() => nav('blog')} className={`${linkClass} text-left bg-transparent border-0 cursor-pointer`}>Blog</button></li>
             </ul>
           </div>
 

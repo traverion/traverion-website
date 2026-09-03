@@ -27,6 +27,7 @@ import { createBookingCheckoutSession, submitBooking } from '../data/supabase-bo
 import type { ListingDiscount } from '../data/supabase-discounts';
 import { fetchConsumerProfileRow } from '../data/supabase-consumer-profile';
 import { getDisplayPriceForBookingVariant } from '../lib/discount-display';
+import { quoteBooking, formatOptionWeekdays } from '../lib/booking-quote';
 import {
   checkAvailability,
   incrementAvailabilityBooked,
@@ -160,16 +161,45 @@ export default function BookingPage({
   const fallbackBasePrice = tour.price?.startingFrom ?? 0;
   const priceInfo = useMemo(() => {
     const day = date.trim() || new Date().toISOString().slice(0, 10);
-    if (presentation === 'modal' && selectedVariant) {
-      return getDisplayPriceForBookingVariant(tour, selectedVariant, discountsByListing ?? new Map(), day);
+    const optionId =
+      selectedVariant && selectedVariant.id !== '__default__' ? selectedVariant.id : undefined;
+    const quoted = quoteBooking({
+      tour,
+      discounts: discountsByListing?.get(tour.id) ?? [],
+      bookingDate: day,
+      guests,
+      bookingOptionId: optionId,
+    });
+    if (quoted.ok) {
+      return {
+        price: quoted.unitPrice,
+        originalPrice: quoted.originalUnitPrice,
+        label: quoted.discountLabel,
+        quote: quoted,
+      };
     }
-    return { price: fallbackBasePrice, originalPrice: fallbackBasePrice, label: undefined as string | undefined };
-  }, [presentation, selectedVariant, tour, date, discountsByListing, fallbackBasePrice]);
+    if (presentation === 'modal' && selectedVariant) {
+      return {
+        ...getDisplayPriceForBookingVariant(tour, selectedVariant, discountsByListing ?? new Map(), day),
+        quote: quoted,
+      };
+    }
+    return { price: fallbackBasePrice, originalPrice: fallbackBasePrice, label: undefined as string | undefined, quote: quoted };
+  }, [presentation, selectedVariant, tour, date, guests, discountsByListing, fallbackBasePrice]);
 
   const pricePerPerson = priceInfo.price;
   const total = pricePerPerson * guests;
   const cancellationText =
     tour.cancellationPolicy?.trim() || TRAVERION_STANDARD_CANCELLATION_POLICY;
+
+  const weekdayHint = useMemo(() => {
+    const opt = selectedVariant?.listingOption;
+    if (!opt) return undefined;
+    return `Runs ${formatOptionWeekdays(opt.weekdays)}`;
+  }, [selectedVariant]);
+
+  const quoteBlockReason =
+    date.trim() && priceInfo.quote && !priceInfo.quote.ok ? priceInfo.quote.error : null;
 
   const leadGuestName = useMemo(
     () => [firstName, lastName].map((s) => s.trim()).filter(Boolean).join(' '),
@@ -373,6 +403,10 @@ export default function BookingPage({
       setError(guestErr);
       return;
     }
+    if (priceInfo.quote && !priceInfo.quote.ok) {
+      setError(priceInfo.quote.error);
+      return;
+    }
     setError(null);
     setAvailabilityModalOpen(true);
     setAvailabilityChecking(true);
@@ -459,6 +493,20 @@ export default function BookingPage({
         }
       }
       if (isSupabaseConfigured()) {
+        const optionId =
+          selectedVariant && selectedVariant.id !== '__default__' ? selectedVariant.id : undefined;
+        const quoted = quoteBooking({
+          tour,
+          discounts: discountsByListing?.get(tour.id) ?? [],
+          bookingDate: date,
+          guests,
+          bookingOptionId: optionId,
+        });
+        if (!quoted.ok) {
+          setError(quoted.error);
+          setSubmitting(false);
+          return;
+        }
         const checkout = await createBookingCheckoutSession({
           listingId: tour.id,
           listingTitle: tour.title,
@@ -467,8 +515,8 @@ export default function BookingPage({
           customerName: leadGuestName,
           customerPhone: phone.trim() || undefined,
           specialRequests: mergedSpecialRequests() || undefined,
-          totalAmount: total,
-          currency,
+          bookingOptionId: quoted.optionId ?? undefined,
+          currency: quoted.currency,
           successPath: '/booking-confirmed',
           cancelPath: '/bookings?payment=cancelled',
         });
@@ -564,6 +612,10 @@ export default function BookingPage({
                 type="button"
                 onClick={() => {
                   setError(null);
+                  if (priceInfo.quote && !priceInfo.quote.ok) {
+                    setError(priceInfo.quote.error);
+                    return;
+                  }
                   if (isSupabaseConfigured() && !user) {
                     requestAuth({ onSuccess: () => setStep('contact') });
                     return;
@@ -587,6 +639,7 @@ export default function BookingPage({
                 id="booking-flow-date-input"
                 value={date}
                 onChange={setDate}
+                hint={weekdayHint}
               />
               <GuestStepper
                 id="booking-flow-guests"
@@ -605,13 +658,14 @@ export default function BookingPage({
               aria-atomic="true"
             >
               {error && <p className="text-sm text-red-600">{error}</p>}
+              {!error && quoteBlockReason && <p className="text-sm text-red-600">{quoteBlockReason}</p>}
             </div>
             <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-between sm:items-center">
               <div className="text-sm text-gray-600">
                 <p>
                   <span className="text-gray-500">Estimated total</span>{' '}
                   <strong className="text-gray-900">
-                    {currency} {total}
+                    {currency} {quoteBlockReason ? '—' : total}
                   </strong>
                 </p>
                 <p className="text-xs text-gray-500 mt-0.5">
@@ -621,7 +675,7 @@ export default function BookingPage({
               <button
                 type="button"
                 onClick={handleCheckAvailability}
-                disabled={availabilityChecking || availabilityModalOpen}
+                disabled={availabilityChecking || availabilityModalOpen || Boolean(quoteBlockReason)}
                 className="w-full sm:w-auto px-6 py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark disabled:opacity-60 transition-all duration-200 ease-smooth active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2"
               >
                 {availabilityChecking ? 'Checking…' : 'Check availability'}

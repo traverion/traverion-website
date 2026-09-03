@@ -127,25 +127,17 @@ export default function Packages({ onTourSelect }: PackagesProps) {
     return () => window.removeEventListener('popstate', onPopState);
   }, [syncStateFromUrl]);
 
-  // Sync from sessionStorage (hero search)
+  // Sync leftover hero search payload, if any
   useEffect(() => {
     const searchCriteria = sessionStorage.getItem('searchCriteria');
     if (searchCriteria) {
       try {
-        const criteria = JSON.parse(searchCriteria);
-        if (criteria.destination) {
-          setSearchTerm(criteria.destination);
-          const lower = criteria.destination.toLowerCase();
-          if (lower.includes('hanoi')) setSelectedDestination('hanoi');
-          else if (lower.includes('ho chi minh') || lower.includes('saigon')) setSelectedDestination('ho-chi-minh-city');
-          else if (lower.includes('bangkok')) setSelectedDestination('bangkok');
-          else if (lower.includes('vietnam')) setSelectedDestination('vietnam');
-          else if (lower.includes('thailand')) setSelectedDestination('thailand');
-          else if (lower.includes('cambodia')) setSelectedDestination('cambodia');
-        }
+        const criteria = JSON.parse(searchCriteria) as { destination?: string; q?: string };
+        const q = String(criteria.q ?? criteria.destination ?? '').trim();
+        if (q) setSearchTerm(q);
         sessionStorage.removeItem('searchCriteria');
-      } catch (error) {
-        console.error('Error parsing search criteria:', error);
+      } catch {
+        sessionStorage.removeItem('searchCriteria');
       }
     }
   }, []);
@@ -190,13 +182,18 @@ export default function Packages({ onTourSelect }: PackagesProps) {
   useEffect(() => {
     if (!isSupabaseConfigured() || !supabaseListingIdsKey) {
       setReviewAggregates(new Map());
+      setDiscountsByListing(new Map());
       return;
     }
     const ids = supabaseListingIdsKey.split(',');
     let cancelled = false;
-    getReviewAggregatesForListingIds(ids).then((map) => {
-      if (!cancelled) setReviewAggregates(map);
-    });
+    Promise.all([getReviewAggregatesForListingIds(ids), fetchDiscountsByListingIds(ids)]).then(
+      ([reviews, discounts]) => {
+        if (cancelled) return;
+        setReviewAggregates(reviews);
+        setDiscountsByListing(discounts);
+      }
+    );
     return () => {
       cancelled = true;
     };
@@ -265,22 +262,6 @@ export default function Packages({ onTourSelect }: PackagesProps) {
     sortBy,
     ratingSortScore,
   ]);
-
-  const listingIdsForDiscounts = useMemo(
-    () => filteredPackages.map((t) => t.id).filter(isSupabaseListingId),
-    [filteredPackages]
-  );
-  const listingIdsForDiscountsKey = useMemo(
-    () => listingIdsForDiscounts.join(','),
-    [listingIdsForDiscounts]
-  );
-  useEffect(() => {
-    if (!isSupabaseConfigured() || !listingIdsForDiscountsKey) {
-      setDiscountsByListing(new Map());
-      return;
-    }
-    fetchDiscountsByListingIds(listingIdsForDiscountsKey.split(',')).then(setDiscountsByListing);
-  }, [listingIdsForDiscountsKey]);
 
   const hasActiveFilters =
     searchTerm.trim() !== '' ||
@@ -720,6 +701,11 @@ export default function Packages({ onTourSelect }: PackagesProps) {
             </div>
           </div>
         ) : null}
+
+        <p className="mt-12 text-center text-sm text-gray-500 max-w-lg mx-auto">
+          Holiday packages from travel agencies will appear here as operators publish them — they are part of Traverion,
+          not a separate site.
+        </p>
       </div>
     </div>
   );

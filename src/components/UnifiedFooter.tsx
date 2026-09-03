@@ -97,15 +97,7 @@ export default function UnifiedFooter({ currentPage, onNavigate }: UnifiedFooter
                 currentPage === 'packages' ? 'text-sky-600' : ''
               }`}
             >
-              {t.navigation?.packages || 'Packages'}
-            </button>
-            <button
-              onClick={() => onNavigate('blog')}
-              className={`text-gray-700 hover:text-sky-600 transition-colors duration-300 font-medium ${
-                currentPage === 'blog' ? 'text-sky-600' : ''
-              }`}
-            >
-              {t.navigation?.blog || 'Blog'}
+              {t.navigation?.packages || 'Experiences'}
             </button>
             <button
               onClick={() => onNavigate('contact')}

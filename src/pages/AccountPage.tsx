@@ -129,7 +129,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
             <LayoutDashboard className="w-14 h-14 text-gray-300 mx-auto mb-4" />
             <h1 className="text-2xl font-semibold text-gray-900">My account</h1>
             <p className="mt-2 text-gray-600 mb-6">
-              Sign in to see your bookings, saved tours, and cart in one place.
+              Sign in to see your bookings and saved experiences.
             </p>
             <button
               type="button"
@@ -179,7 +179,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
     {
       id: 'cart',
       title: 'Cart',
-      description: 'Request bookings from your cart',
+      description: 'Saved items — book from the experience page',
       icon: ShoppingCart,
       count: stats != null ? badge(stats.cart) : undefined,
       onClick: () => onNavigate('cart'),
@@ -203,7 +203,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
             {user.email}
           </p>
           <p className="text-gray-600 mt-3 text-sm">
-            Everything you need as a guest: trips you booked, ideas you saved, and cart requests.
+            Everything you need as a guest: trips you booked and ideas you saved.
           </p>
         </div>
 

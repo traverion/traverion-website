@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { getAllListingsAsync } from '../data/listings';
 import { isSupabaseConfigured } from '../lib/supabase';
 import type { TourPackage } from '../types/tour';
@@ -13,7 +13,6 @@ type Options = {
 
 /**
  * Loads published supplier listings from Supabase for the public site (Packages, Home, etc.).
- * Refetches when the tab becomes visible again so newly published tours show without a full reload.
  */
 export function usePublishedSupplierListings(options?: Options): {
   listings: TourPackage[] | null;
@@ -23,9 +22,11 @@ export function usePublishedSupplierListings(options?: Options): {
   const emptyOnFirstError = options?.emptyOnFirstError !== false;
   const [listings, setListings] = useState<TourPackage[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const lastReloadAt = useRef(0);
 
   const reload = useCallback(() => {
     if (!isSupabaseConfigured()) return;
+    lastReloadAt.current = Date.now();
     getAllListingsAsync({ includeSeed: false, includeHolidayPackages: false })
       .then((data) => {
         setListings(data);
@@ -43,7 +44,9 @@ export function usePublishedSupplierListings(options?: Options): {
     if (!isSupabaseConfigured()) return;
     reload();
     const onVis = () => {
-      if (document.visibilityState === 'visible') reload();
+      if (document.visibilityState !== 'visible') return;
+      if (Date.now() - lastReloadAt.current < 45_000) return;
+      reload();
     };
     const onPublishedChanged = () => reload();
     document.addEventListener('visibilitychange', onVis);

@@ -151,14 +151,29 @@ export async function createBookingCheckoutSession(params: {
   customerName?: string;
   customerPhone?: string;
   specialRequests?: string;
-  totalAmount: number;
+  /** Display-only; Stripe amount is computed on the server from listing + discounts. */
+  totalAmount?: number;
   currency?: string;
+  bookingOptionId?: string;
   successPath?: string;
   cancelPath?: string;
 }): Promise<{ success: boolean; checkoutUrl?: string; bookingId?: string; error?: string }> {
   if (!supabase) return { success: false, error: 'Supabase not configured' };
   const { data, error } = await supabase.functions.invoke('create-booking-checkout-session', {
-    body: params,
+    body: {
+      bookingId: params.bookingId,
+      listingId: params.listingId,
+      listingTitle: params.listingTitle,
+      bookingDate: params.bookingDate,
+      guests: params.guests,
+      customerName: params.customerName,
+      customerPhone: params.customerPhone,
+      specialRequests: params.specialRequests,
+      currency: params.currency,
+      bookingOptionId: params.bookingOptionId,
+      successPath: params.successPath,
+      cancelPath: params.cancelPath,
+    },
   });
   if (error) {
     return { success: false, error: await readEdgeFunctionErrorMessage(error, data) };

@@ -4,7 +4,6 @@ import StickyBookingButton from './components/StickyBookingButton';
 import Footer from './components/Footer';
 import SupplierLayout from './components/supplier/SupplierLayout';
 import Home from './pages/Home';
-import SimpleHome from './pages/SimpleHome';
 import Packages from './pages/Packages';
 import Blog from './pages/Blog';
 import TourDetails from './pages/TourDetails';
@@ -13,13 +12,6 @@ import BookingConfirmationPage from './pages/BookingConfirmationPage';
 import CartPage from './pages/CartPage';
 import AccountPage from './pages/AccountPage';
 import WishlistPage from './pages/WishlistPage';
-import TourPackage from './pages/TourPackage';
-import Vietnam9Day from './pages/Vietnam9Day';
-import Vietnam12Day from './pages/Vietnam12Day';
-import Thailand10Day from './pages/Thailand10Day';
-import Cambodia10Day from './pages/Cambodia10Day';
-import Indochina14Day from './pages/Indochina14Day';
-import ThailandVietnam14Day from './pages/ThailandVietnam14Day';
 import Contact from './pages/Contact';
 import AuthPage from './pages/AuthPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
@@ -50,6 +42,7 @@ import {
 } from './lib/seo';
 import {
   normalizePublicTourDeepLinkPathname,
+  normalizeLegacyBrochurePathname,
   parsePathname,
   shouldClearSelectedTour,
   mapStripeReturnRoute,
@@ -68,7 +61,7 @@ function readInitialRoute(): { page: string; destinationSlug: string | null } {
   if (isTraverionAdminHost()) {
     return parsePathname(window.location.pathname, { adminHost: true });
   }
-  const path = normalizePublicTourDeepLinkPathname(window.location.pathname);
+  const path = normalizeLegacyBrochurePathname(normalizePublicTourDeepLinkPathname(window.location.pathname));
   let { page, destinationSlug } = parsePathname(path);
   page = mapStripeReturnRoute(page, window.location.search);
   return { page, destinationSlug };
@@ -96,7 +89,7 @@ function App() {
     const adminHost = isTraverionAdminHost();
     const pathForParse = adminHost
       ? window.location.pathname
-      : normalizePublicTourDeepLinkPathname(window.location.pathname);
+      : normalizeLegacyBrochurePathname(normalizePublicTourDeepLinkPathname(window.location.pathname));
     let { page, destinationSlug } = parsePathname(pathForParse, { adminHost });
     page = mapStripeReturnRoute(page, window.location.search);
     setCurrentPage(page);
@@ -198,12 +191,6 @@ function App() {
       return;
     }
     const urlMapping: { [key: string]: string } = {
-      'thailand-vietnam-14-day': '/14-vietnam-thailand',
-      'vietnam-9-day': '/9-vietnam',
-      'vietnam-12-day': '/12-vietnam',
-      'thailand-10-day': '/10-thailand',
-      'cambodia-10-day': '/10-cambodia',
-      'indochina-14-day': '/14-indochina',
       'packages': '/packages',
       'cart': '/cart',
       'auth': '/auth',
@@ -273,7 +260,7 @@ function App() {
       wishlist: { title: 'Wishlist', description: 'Tours and activities you have saved.' },
       bookings: { title: 'My bookings', description: 'View your tour and activity reservations and their status.' },
       'booking-confirmed': { title: 'Booking confirmed', description: 'Your tour payment was successful.' },
-      blog: { title: 'Blog', description: 'Travel stories and tips from Traverion.' },
+      blog: { title: 'Stories coming later', description: 'Traverion is not publishing editorial articles yet.' },
       contact: { title: 'Contact', description: 'Get in touch with Traverion.' },
       privacy: { title: 'Privacy Policy', description: 'Traverion privacy policy.' },
       terms: { title: 'Terms of Service', description: 'Traverion terms of service.' },
@@ -343,7 +330,21 @@ function App() {
           <Home onTourSelect={handleTourSelect} />
         );
       case 'cart':
-        return <CartPage onNavigate={setCurrentPage} />;
+        return (
+          <CartPage
+            onNavigate={setCurrentPage}
+            onBookTour={(listingId) => {
+              void getListingByIdAsync(listingId).then((t) => {
+                if (!t) {
+                  window.history.pushState({}, '', '/packages');
+                  setCurrentPage('packages');
+                  return;
+                }
+                handleTourSelect(t);
+              });
+            }}
+          />
+        );
       case 'account':
         return <AccountPage onNavigate={setCurrentPage} />;
       case 'wishlist':
@@ -368,25 +369,6 @@ function App() {
         );
       case 'booking-confirmed':
         return <BookingConfirmationPage onNavigate={setCurrentPage} />;
-      case 'tour-package':
-        return selectedTour ? (
-          <TourPackage 
-            tourId={selectedTour.id} 
-            onBack={handleBackToTours}
-          />
-        ) : <Home onTourSelect={handleTourSelect} />;
-      case 'vietnam-9-day':
-        return <Vietnam9Day onBack={() => setCurrentPage('packages')} />;
-      case 'vietnam-12-day':
-        return <Vietnam12Day onBack={() => setCurrentPage('packages')} />;
-      case 'thailand-10-day':
-        return <Thailand10Day onBack={() => setCurrentPage('packages')} />;
-      case 'cambodia-10-day':
-        return <Cambodia10Day onBack={() => setCurrentPage('packages')} />;
-      case 'indochina-14-day':
-        return <Indochina14Day onBack={() => setCurrentPage('packages')} />;
-      case 'thailand-vietnam-14-day':
-        return <ThailandVietnam14Day onBack={() => setCurrentPage('packages')} />;
       case 'contact':
         return <Contact onNavigate={setCurrentPage} />;
       case 'legal-notice':
@@ -419,7 +401,7 @@ function App() {
       case 'admin-app':
         return <AdminGate mode="dashboard-only" />;
       default:
-        return <SimpleHome onTourSelect={handleTourSelect} onNavigate={setCurrentPage} />;
+        return <Home onTourSelect={handleTourSelect} onNavigate={setCurrentPage} />;
     }
   };
 
@@ -460,7 +442,7 @@ function App() {
           <div className="min-h-screen bg-white relative flex flex-col">
             <UnifiedHeader currentPage={currentPage} onNavigate={setCurrentPage} />
             <main className="flex-grow overflow-x-hidden">
-              <div key={currentPage} className="lux-page-enter min-h-[min(50vh,480px)]">
+              <div className="lux-page-enter min-h-[min(50vh,480px)]">
                 {renderPage()}
               </div>
             </main>

@@ -266,7 +266,7 @@ export default function AuthModal() {
 
         {!(tab === 'signin' && passwordResetPanel) && (
         <p className="px-6 pt-3 pb-1 text-xs text-gray-500 leading-relaxed border-b border-gray-50">
-          Traveler account — bookings and cart, not the partner dashboard. Want to be a supplier?{' '}
+          Traveler account — bookings and saved trips, not the partner dashboard. Want to be a supplier?{' '}
           <a
             href={supplierPortalHref('/login')}
             className="text-finland font-medium hover:underline"

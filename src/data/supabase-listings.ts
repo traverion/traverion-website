@@ -225,7 +225,9 @@ export async function fetchAllListings(): Promise<TourPackage[]> {
   if (!supabase) return [];
   const { data, error } = await supabase
     .from('listings')
-    .select('*')
+    .select(
+      'id, supplier_id, title, destination, duration, style, start_location, end_location, price_starting_from, price_currency, category, tour_type, validity, image, description, highlights, includes, excludes, difficulty, group_size, best_time, rating, reviews, is_popular, city, region, country, tags, status, cancellation_policy, meeting_point, pickup_instructions, default_start_time, pickup_window_minutes_before_min, pickup_window_minutes_before_max, experience_start_style, dropoff_mode, dropoff_location, experience_language, experience_kind, listing_subtitle, listing_extras, created_at, updated_at'
+    )
     .or('status.eq.published,status.is.null')
     .order('created_at', { ascending: false });
   if (error) throw new Error(error.message);

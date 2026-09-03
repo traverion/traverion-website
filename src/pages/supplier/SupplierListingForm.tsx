@@ -58,10 +58,10 @@ const MAX_TIMELINE_LENGTH = 800;
 
 const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-const WIZARD_STEP_COUNT = 7;
+const WIZARD_STEP_COUNT = 4;
 
 function wizardStepStorageKey(editingId: string | null) {
-  return `traverion-listing-wizard-step-${editingId ?? 'create'}`;
+  return `traverion-listing-wizard-step-v2-${editingId ?? 'create'}`;
 }
 
 function readWizardStepFromStorage(editingId: string | null): number | null {
@@ -452,38 +452,34 @@ function listingPhotosReadyToPublish(form: ListingFormState): boolean {
 
 function isStepSatisfied(idx: number, form: ListingFormState): boolean {
   if (idx === 0) {
-    return form.experienceLanguage.trim().length > 0 && form.title.trim().length > 0;
-  }
-  if (idx === 1) {
-    return form.experienceKind === 'tour' || form.experienceKind === 'ticket' || form.experienceKind === 'transportation';
-  }
-  if (idx === 2) {
     const sub = form.subtitle.trim();
     const desc = form.description.trim();
     return (
+      form.experienceLanguage.trim().length > 0 &&
+      form.title.trim().length > 0 &&
+      (form.experienceKind === 'tour' || form.experienceKind === 'ticket' || form.experienceKind === 'transportation') &&
       sub.length > 0 &&
       sub.length <= MAX_SUBTITLE_LENGTH &&
       desc.length >= MIN_LISTING_DESCRIPTION_LENGTH &&
       desc.length <= MAX_DESCRIPTION_LENGTH
     );
   }
-  if (idx === 3) {
+  if (idx === 1) {
     const inc = form.includes.map((s) => s.trim()).filter(Boolean).length;
     const exc = form.excludes.map((s) => s.trim()).filter(Boolean).length;
-    return inc >= 2 && exc >= 1;
-  }
-  if (idx === 4) {
     return (
+      inc >= 2 &&
+      exc >= 1 &&
       form.city.trim().length > 0 &&
       form.country.trim().length > 0 &&
       form.duration.trim().length > 0
     );
   }
-  if (idx === 5) {
+  if (idx === 2) {
     const active = materializedBookingOptions(form.bookingOptions);
     return active.length >= 1 && active.every(isBookingOptionOkForStep);
   }
-  if (idx === 6) {
+  if (idx === 3) {
     if (form.status === 'draft') {
       return orderedPhotoUrls(normalizePhotoSlots(form.photoSlots)).length >= 1;
     }
@@ -545,14 +541,7 @@ interface SupplierListingFormProps {
   canPostNewListing?: boolean;
 }
 
-type StepId =
-  | 'language_title'
-  | 'category'
-  | 'subtitle_details'
-  | 'inclusions_info'
-  | 'location_start'
-  | 'cost_options'
-  | 'photos';
+type StepId = 'the_experience' | 'practical' | 'cost_options' | 'photos';
 
 export default function SupplierListingForm({
   editingId,
@@ -608,13 +597,10 @@ export default function SupplierListingForm({
 
   const steps = useMemo(
     () => [
-      { id: 'language_title' as StepId, label: 'Language & title' },
-      { id: 'category' as StepId, label: 'Category' },
-      { id: 'subtitle_details' as StepId, label: 'Subtitle & details' },
-      { id: 'inclusions_info' as StepId, label: 'Inclusions & Info' },
-      { id: 'location_start' as StepId, label: 'Location & start' },
-      { id: 'cost_options' as StepId, label: 'Cost & options' },
-      { id: 'photos' as StepId, label: 'Tour photos' },
+      { id: 'the_experience' as StepId, label: 'The experience' },
+      { id: 'practical' as StepId, label: 'Place & includes' },
+      { id: 'cost_options' as StepId, label: 'Price & options' },
+      { id: 'photos' as StepId, label: 'Photos' },
     ],
     []
   );
@@ -645,32 +631,32 @@ export default function SupplierListingForm({
     () => ({
       language: 0,
       title: 0,
-      category: 1,
-      kind: 1,
-      subtitle: 2,
-      highlights: 2,
-      description: 2,
-      includes: 3,
-      excludes: 3,
-      accessibility: 3,
-      venue: 3,
-      languages: 3,
-      location: 4,
-      destination: 4,
-      duration: 4,
-      schedule: 4,
-      price: 5,
-      group: 5,
-      tags: 5,
-      meeting: 5,
-      pickup: 5,
-      pickup_timing: 5,
-      start: 4,
-      dropoff: 5,
-      image: 6,
-      gallery: 6,
-      hero: 6,
-      photos: 6,
+      category: 0,
+      kind: 0,
+      subtitle: 0,
+      highlights: 0,
+      description: 0,
+      includes: 1,
+      excludes: 1,
+      accessibility: 1,
+      venue: 1,
+      languages: 1,
+      location: 1,
+      destination: 1,
+      duration: 1,
+      schedule: 1,
+      start: 1,
+      price: 2,
+      group: 2,
+      tags: 2,
+      meeting: 2,
+      pickup: 2,
+      pickup_timing: 2,
+      dropoff: 2,
+      image: 3,
+      gallery: 3,
+      hero: 3,
+      photos: 3,
     }),
     []
   );
@@ -1415,10 +1401,8 @@ export default function SupplierListingForm({
                 {editingId ? 'Edit listing' : 'Create listing'}
               </h2>
               <p className="text-xs text-gray-500 mt-1">
-                This is what travelers will see once a listing is live. Close anytime — unfinished work can be saved as a draft.
-                On the last step, use <span className="font-medium text-gray-700">Publish</span> to go live, or{' '}
-                <span className="font-medium text-gray-700">Save as draft</span> to keep working. To take a live listing offline,
-                use <span className="font-medium text-gray-700">Deactivate</span> under the gear menu on My listings.
+                This is what travelers will see once a listing is live. Close anytime — unfinished work is saved as a draft.
+                Required fields are marked. Extra details stay optional until you publish.
               </p>
               </div>
             </div>
@@ -1500,12 +1484,11 @@ export default function SupplierListingForm({
           <div className="space-y-1">
             <p className="text-xs text-gray-600">
               {publishBlockersPreview.length === 0
-                ? 'Meets basic publish checks — use Publish on the Tour photos step when you are ready.'
+                ? 'Ready to publish — use Publish on Photos when you are happy with the listing.'
                 : `${publishBlockersPreview.length} item${publishBlockersPreview.length === 1 ? '' : 's'} left before publish`}
             </p>
             <p className="text-[11px] text-gray-400">
-              Step {stepIdx + 1} of {steps.length} · publish from the Tour photos step or use{' '}
-              <span className="font-medium text-gray-500">→ Publish</span> on My listings for drafts
+              Step {stepIdx + 1} of {steps.length} · drafts save automatically when you close
             </p>
           </div>
         </div>
@@ -1565,7 +1548,7 @@ export default function SupplierListingForm({
             </div>
           )}
 
-          {stepIdx === 1 && (
+          {stepIdx === 0 && (
             <div className="space-y-4 transition-all duration-300 ease-out opacity-100 translate-y-0">
               <div id="supplier-listing-field-category">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
@@ -1594,7 +1577,7 @@ export default function SupplierListingForm({
             </div>
           )}
 
-          {stepIdx === 2 && (
+          {stepIdx === 0 && (
             <div className="space-y-5 transition-all duration-300 ease-out opacity-100 translate-y-0">
               <div id="supplier-listing-field-subtitle">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Subtitle *</label>
@@ -1681,7 +1664,7 @@ export default function SupplierListingForm({
             </div>
           )}
 
-          {stepIdx === 3 && (
+          {stepIdx === 1 && (
             <div className="space-y-5 transition-all duration-300 ease-out opacity-100 translate-y-0">
               <div id="supplier-listing-field-includes">
                 <label className="block text-sm font-medium text-gray-700 mb-1">What&apos;s included *</label>
@@ -1725,8 +1708,25 @@ export default function SupplierListingForm({
                   ))}
                 </div>
               </div>
-              <div id="supplier-listing-field-accessibility" className="rounded-xl border border-gray-100 bg-gray-50/80 p-4 space-y-4">
-                <h3 className="text-sm font-semibold text-gray-900">Good to know</h3>
+              <details
+                id="supplier-listing-field-accessibility"
+                className="rounded-xl border border-gray-100 bg-gray-50/80 p-4 group"
+              >
+                <summary className="cursor-pointer list-none flex items-start justify-between gap-3">
+                  <span>
+                    <span className="block text-sm font-semibold text-gray-900">Optional: good to know</span>
+                    <span className="block text-xs text-gray-500 mt-0.5">Accessibility, age, setting, extra languages</span>
+                  </span>
+                  <span className="text-xs text-finland font-medium mt-0.5">
+                    {form.accessibilitySummary.trim() ||
+                    form.minGuestAge.trim() ||
+                    (form.venueSetting && form.venueSetting !== 'unspecified') ||
+                    form.additionalLanguages.length > 0
+                      ? 'Saved'
+                      : 'Add'}
+                  </span>
+                </summary>
+                <div className="mt-4 space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Accessibility &amp; mobility (optional)</label>
                   <textarea
@@ -1776,7 +1776,7 @@ export default function SupplierListingForm({
                 </div>
                 <div id="supplier-listing-field-languages">
                   <label className="block text-sm font-medium text-gray-700 mb-2">Additional languages offered (optional)</label>
-                  <p className="text-xs text-gray-500 mb-2">Besides the primary language you set in step 1.</p>
+                  <p className="text-xs text-gray-500 mb-2">Besides the primary language you set earlier.</p>
                   <div className="flex flex-wrap gap-2">
                     {LANGUAGE_OPTIONS.filter((o) => o.code !== 'other').map((o) => {
                       const disabled = o.code === form.experienceLanguage;
@@ -1805,11 +1805,12 @@ export default function SupplierListingForm({
                     })}
                   </div>
                 </div>
-              </div>
+                </div>
+              </details>
             </div>
           )}
 
-          {stepIdx === 4 && (
+          {stepIdx === 1 && (
             <div className="space-y-4 transition-all duration-300 ease-out opacity-100 translate-y-0">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" id="supplier-listing-field-location">
                 <div>
@@ -1885,8 +1886,22 @@ export default function SupplierListingForm({
                   You will set the exact meeting or pickup place for each bookable option under Cost &amp; options.
                 </p>
               </div>
-              <div id="supplier-listing-field-schedule" className="rounded-xl border border-gray-100 bg-gray-50/80 p-4 space-y-3">
-                <h3 className="text-sm font-semibold text-gray-900">How timing works</h3>
+              <details
+                id="supplier-listing-field-schedule"
+                className="rounded-xl border border-gray-100 bg-gray-50/80 p-4 group"
+              >
+                <summary className="cursor-pointer list-none flex items-start justify-between gap-3">
+                  <span>
+                    <span className="block text-sm font-semibold text-gray-900">Optional: how timing works</span>
+                    <span className="block text-xs text-gray-500 mt-0.5">Fixed slot, flexible window, or arrange with guests</span>
+                  </span>
+                  <span className="text-xs text-finland font-medium mt-0.5">
+                    {form.typicalTimelineNotes.trim() || (form.scheduleStyle && form.scheduleStyle !== 'flexible')
+                      ? 'Saved'
+                      : 'Add'}
+                  </span>
+                </summary>
+                <div className="mt-4 space-y-3">
                 <p className="text-xs text-gray-600">
                   Helps travelers understand whether they are booking a fixed slot, flexible window, or arranging time with you.
                 </p>
@@ -1934,11 +1949,12 @@ export default function SupplierListingForm({
                     {form.typicalTimelineNotes.length}/{MAX_TIMELINE_LENGTH}
                   </p>
                 </div>
-              </div>
+                </div>
+              </details>
             </div>
           )}
 
-          {stepIdx === 5 && (
+          {stepIdx === 2 && (
             <div className="space-y-4 transition-all duration-300 ease-out opacity-100 translate-y-0">
               <div className="rounded-xl border border-finland/20 bg-finland/5 p-4 sm:p-5">
                 <h3 className="text-sm font-semibold text-gray-900">Cost &amp; bookable options</h3>
@@ -2019,8 +2035,18 @@ export default function SupplierListingForm({
                   </select>
                 </div>
               </div>
-              <div id="supplier-listing-field-tags">
-                <label className="block text-sm font-medium text-gray-700 mb-3">Tags</label>
+              <details
+                id="supplier-listing-field-tags"
+                className="group"
+              >
+                <summary className="cursor-pointer list-none flex items-start justify-between gap-3 rounded-xl border border-gray-100 bg-gray-50/80 px-4 py-3">
+                  <span>
+                    <span className="block text-sm font-semibold text-gray-900">Optional: tags</span>
+                    <span className="block text-xs text-gray-500 mt-0.5">Help travelers filter (pickup, small group, etc.)</span>
+                  </span>
+                  <span className="text-xs text-finland font-medium mt-0.5">{form.tags.length > 0 ? 'Saved' : 'Add'}</span>
+                </summary>
+                <div className="mt-3 px-1">
                 <div className="flex flex-wrap gap-x-4 gap-y-3">
                   {TAG_OPTIONS.map((tag) => (
                     <label
@@ -2037,11 +2063,12 @@ export default function SupplierListingForm({
                     </label>
                   ))}
                 </div>
-              </div>
+                </div>
+              </details>
             </div>
           )}
 
-          {stepIdx === 6 && (
+          {stepIdx === 3 && (
             <div className="space-y-4">
               <div className="rounded-xl border border-gray-200 bg-white p-4 sm:p-5 space-y-4 shadow-sm">
                 <div>
@@ -2128,7 +2155,7 @@ export default function SupplierListingForm({
                     disabled={
                       submitting ||
                       draftCloseBusy ||
-                      !isStepSatisfied(6, form) ||
+                      !isStepSatisfied(3, form) ||
                       !lastStepSubmitArmed ||
                       publishBlockersPreview.length > 0
                     }
@@ -2145,7 +2172,7 @@ export default function SupplierListingForm({
                       type="button"
                       onClick={() => void runSubmit('draft')}
                       disabled={
-                        submitting || draftCloseBusy || !isStepSatisfied(6, form) || !lastStepSubmitArmed
+                        submitting || draftCloseBusy || !isStepSatisfied(3, form) || !lastStepSubmitArmed
                       }
                       className="touch-manipulation flex-1 sm:flex-none px-4 py-3 sm:py-2.5 rounded-lg border border-gray-300 text-gray-800 font-medium hover:bg-gray-50 disabled:opacity-50 min-h-[44px]"
                     >
