@@ -3,7 +3,12 @@ import { getListingBookingOptionDurationIssue, materializedBookingOptions } from
 import type { ListingBookingOption } from '../types/listingExtras';
 import { LISTING_PLACEHOLDER_IMAGE, MIN_LISTING_DESCRIPTION_LENGTH } from './listingQualityScore';
 
-function optionPublishIssues(o: ListingBookingOption, index: number, multi: boolean): string[] {
+function optionPublishIssues(
+  o: ListingBookingOption,
+  index: number,
+  multi: boolean,
+  todayIso: string
+): string[] {
   const issues: string[] = [];
   const prefix = multi ? `Option ${index + 1}${o.name.trim() ? ` (“${o.name.trim()}”)` : ''}: ` : '';
   if (!o.name.trim()) issues.push(`${prefix}Add a name (e.g. small group tour, bus tour).`.trim());
@@ -29,6 +34,10 @@ function optionPublishIssues(o: ListingBookingOption, index: number, multi: bool
       issues.push(`${prefix}Add a starting date when an ending date is set, or remove the ending date.`.trim());
     } else if (df > dt) {
       issues.push(`${prefix}Ending date must be on or after the starting date.`.trim());
+    } else if (dt < todayIso) {
+      issues.push(
+        `${prefix}The last available date is in the past. Extend the season or travelers cannot pick a date.`.trim()
+      );
     }
   }
   return issues;
@@ -37,7 +46,8 @@ function optionPublishIssues(o: ListingBookingOption, index: number, multi: bool
 /**
  * Human-readable blockers before publishing a listing. Keeps the bar reasonable for a first tour.
  */
-export function getListingPublishBlockers(listing: TourPackage): string[] {
+export function getListingPublishBlockers(listing: TourPackage, todayIso?: string): string[] {
+  const today = todayIso ?? new Date().toISOString().slice(0, 10);
   const out: string[] = [];
   const title = listing.title?.trim() ?? '';
   if (title.length < 10) {
@@ -62,7 +72,7 @@ export function getListingPublishBlockers(listing: TourPackage): string[] {
   const price = listing.price?.startingFrom;
   if (bookingOptions.length > 0) {
     for (let i = 0; i < bookingOptions.length; i++) {
-      out.push(...optionPublishIssues(bookingOptions[i], i, bookingOptions.length > 1));
+      out.push(...optionPublishIssues(bookingOptions[i], i, bookingOptions.length > 1, today));
     }
   } else if (typeof price !== 'number' || price <= 0) {
     out.push('Set a starting price greater than zero.');

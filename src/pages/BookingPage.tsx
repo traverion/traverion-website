@@ -23,14 +23,14 @@ import {
 import { TourPackage } from '../types/tour';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
-import { createBookingCheckoutSession, submitBooking } from '../data/supabase-bookings';
+import { createBookingCheckoutSession } from '../data/supabase-bookings';
 import type { ListingDiscount } from '../data/supabase-discounts';
 import { fetchConsumerProfileRow } from '../data/supabase-consumer-profile';
 import { getDisplayPriceForBookingVariant } from '../lib/discount-display';
 import { quoteBooking, formatOptionWeekdays } from '../lib/booking-quote';
+import { isListingVisibleToTravelers } from '../lib/product-workflows';
 import {
   checkAvailability,
-  incrementAvailabilityBooked,
   type AvailabilityCheckOption,
 } from '../data/supabase-availability';
 import AvailabilityOptionsModal from '../components/booking/AvailabilityOptionsModal';
@@ -477,6 +477,10 @@ export default function BookingPage({
 
   const handleConfirmBooking = async () => {
     if (isSupabaseConfigured() && !user) return;
+    if (!isListingVisibleToTravelers(tour.status)) {
+      setError('This experience is not available to book.');
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
@@ -532,27 +536,11 @@ export default function BookingPage({
         return;
       }
 
-      const result = await submitBooking({
-        tour_id: tour.id,
-        tour_title: tour.title,
-        customer_name: leadGuestName,
-        customer_email: email,
-        travelers: guests,
-        departure_date: date,
-        status: 'confirmed',
-        special_requests: mergedSpecialRequests() || undefined,
-        total_price: total,
-        currency,
-      });
-      if (result.success) {
-        await incrementAvailabilityBooked(tour.id, date);
-        analytics.bookComplete(tour.id, guests);
-        if (user?.id) markBookingsUnread(user.id);
-        clearBookingDraft(tour.id);
-        setStep('done');
-      } else {
-        setError(humanizeBookingSubmitError(result.error));
-      }
+      setError(
+        'Card checkout is not available in this environment. No booking was created, and nothing was charged.'
+      );
+      setSubmitting(false);
+      return;
     } catch (err) {
       setError(humanizeBookingSubmitError(err instanceof Error ? err.message : undefined));
     } finally {
@@ -691,8 +679,8 @@ export default function BookingPage({
             <p className="text-sm text-gray-500 mb-6 flex items-start gap-2">
               <Shield className="w-4 h-4 text-finland shrink-0 mt-0.5" aria-hidden />
               <span>
-                Your details are only used to send this request to the operator and to email you updates. You are not
-                charged on this page.
+                Your details are used for the booking confirmation. You are not charged on this page — payment happens
+                on the next step.
                 {user?.email ? (
                   <>
                     {' '}
@@ -844,8 +832,9 @@ export default function BookingPage({
             <p className="text-sm text-gray-600 mb-6 flex items-start gap-2 rounded-xl bg-finland/5 border border-finland/15 px-3 py-2.5">
               <ClipboardList className="w-4 h-4 text-finland shrink-0 mt-0.5" aria-hidden />
               <span>
-                After you confirm, the provider reviews your request and follows up by email. You are not charged on
-                this page — payment terms, if any, are agreed with the operator later.
+                {isSupabaseConfigured()
+                  ? `Continue to pay ${currency} ${total} and confirm this booking. You are not charged until checkout completes.`
+                  : 'Live card checkout is not configured in this environment. We will not pretend a payment succeeded.'}
               </span>
             </p>
 
@@ -902,7 +891,7 @@ export default function BookingPage({
                   {currency} {total}
                 </span>
               </div>
-              <p className="text-xs text-gray-500 mt-2">Estimated total. Final price may be confirmed by the provider.</p>
+              <p className="text-xs text-gray-500 mt-2">This is the amount you pay at checkout.</p>
             </div>
 
             <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 mb-6">
@@ -1040,7 +1029,7 @@ export default function BookingPage({
               id="booking-flow-modal-title"
               className="truncate pr-2 text-base font-semibold text-gray-900 sm:text-lg"
             >
-              {step === 'done' ? 'Request sent' : 'Book this experience'}
+              {step === 'done' ? 'Booking' : 'Book this experience'}
             </h2>
             <button
               type="button"

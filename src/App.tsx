@@ -187,6 +187,20 @@ function App() {
       }
       return;
     }
+    if (currentPage === 'packages') {
+      const fromQuery = new URLSearchParams(window.location.search).get('tour');
+      const fromPath = /^\/tour\/([0-9a-f-]{36})$/i.exec(
+        (window.location.pathname.replace(/\/$/, '') || '/')
+      );
+      const tourId = fromQuery || fromPath?.[1] || '';
+      const next =
+        tourId && /^[0-9a-f-]{36}$/i.test(tourId) ? `/packages?tour=${tourId}` : '/packages';
+      const current = `${window.location.pathname}${window.location.search}`;
+      if (current !== next) {
+        window.history.replaceState({}, '', next);
+      }
+      return;
+    }
     if (currentPage === 'auth' || currentPage === 'email-confirmed') {
       return;
     }

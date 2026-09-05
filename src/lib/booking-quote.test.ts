@@ -224,6 +224,34 @@ describe('getListingPublishBlockers', () => {
     );
     expect(ready).toEqual([]);
   });
+
+  it('blocks an option whose season already ended', () => {
+    const ended = getListingPublishBlockers(
+      tour({
+        subtitle: 'Northern lights by snowmobile with a local guide',
+        description: 'A'.repeat(120),
+        image: 'https://example.com/real.jpg',
+        listingExtras: {
+          bookingOptions: [
+            option({
+              id: 'opt-small',
+              name: 'Small group',
+              priceUsd: 149,
+              availabilityDateFrom: '2025-01-01',
+              availabilityDateTo: '2025-03-01',
+            }),
+          ],
+          galleryImageUrls: [
+            'https://example.com/2.jpg',
+            'https://example.com/3.jpg',
+            'https://example.com/4.jpg',
+          ],
+        },
+      }),
+      '2026-09-05'
+    );
+    expect(ended.some((m) => m.toLowerCase().includes('past'))).toBe(true);
+  });
 });
 
 describe('parsePathname legacy brochure URLs', () => {
@@ -231,6 +259,7 @@ describe('parsePathname legacy brochure URLs', () => {
     expect(parsePathname('/9-vietnam').page).toBe('packages');
     expect(parsePathname('/14-indochina').page).toBe('packages');
     expect(parsePathname('/packages').page).toBe('packages');
+    expect(parsePathname('/tour/ec6e5d7e-b5d6-4428-94a4-e3ae0801a4b5').page).toBe('packages');
     expect(parsePathname('/').page).toBe('home');
     expect(parsePathname('/cart').page).toBe('cart');
     expect(parsePathname('/account').page).toBe('account');

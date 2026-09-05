@@ -342,7 +342,7 @@ export default function SupplierBookings() {
       const ok = await updateBookingStatus(booking.id, status, options);
       if (ok) {
         if (status === 'cancelled' && previousStatus === 'confirmed' && booking.booking_date) {
-          await decrementAvailabilityBooked(booking.listing_id, booking.booking_date);
+          await decrementAvailabilityBooked(booking.listing_id, booking.booking_date, booking.guests ?? 1);
         }
         setBookings((prev) =>
           prev.map((b) =>

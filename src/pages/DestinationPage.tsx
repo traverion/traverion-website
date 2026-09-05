@@ -140,7 +140,7 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
                     )}
                   </div>
                   <div className="absolute bottom-3 right-3 bg-black/60 text-white text-sm font-semibold px-2.5 py-1 rounded-md">
-                    From ${tour.price.startingFrom}
+                    From {tour.price.currency ?? 'USD'} {tour.price.startingFrom}
                   </div>
                 </div>
                 <div className="p-4">
@@ -162,7 +162,7 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
                     </div>
                   )}
                   <div className="mt-3 pt-3 border-t border-gray-100">
-                    <span className="text-lg font-bold text-finland">From ${tour.price.startingFrom}</span>
+                    <span className="text-lg font-bold text-finland">From {tour.price.currency ?? 'USD'} {tour.price.startingFrom}</span>
                     <span className="text-sm text-gray-500 ml-1">/ person</span>
                   </div>
                 </div>

@@ -1,3 +1,4 @@
+import { nextBookedCount, previousBookedCount } from '../lib/availability-ops';
 import { supabase } from '../lib/supabase';
 
 export type AvailabilityRow = {
@@ -122,7 +123,8 @@ export async function checkAvailability(
 /** Increment booked count when a booking is confirmed. Call after status → confirmed. */
 export async function incrementAvailabilityBooked(
   listingId: string,
-  date: string
+  date: string,
+  guests = 1
 ): Promise<boolean> {
   if (!supabase) return false;
   const { data: row } = await supabase
@@ -132,7 +134,7 @@ export async function incrementAvailabilityBooked(
     .eq('available_date', date)
     .single();
   if (!row) return true;
-  const newBooked = (row.booked ?? 0) + 1;
+  const newBooked = nextBookedCount(row.booked ?? 0, guests);
   const { error } = await supabase
     .from('listing_availability')
     .update({ booked: newBooked })
@@ -141,10 +143,11 @@ export async function incrementAvailabilityBooked(
   return !error;
 }
 
-/** Decrement booked when a booking is cancelled. */
+/** Decrement booked when a booking is cancelled. Releases guest count, not a flat −1. */
 export async function decrementAvailabilityBooked(
   listingId: string,
-  date: string
+  date: string,
+  guests = 1
 ): Promise<boolean> {
   if (!supabase) return false;
   const { data: row } = await supabase
@@ -154,7 +157,7 @@ export async function decrementAvailabilityBooked(
     .eq('available_date', date)
     .single();
   if (!row) return true;
-  const newBooked = Math.max(0, (row.booked ?? 0) - 1);
+  const newBooked = previousBookedCount(row.booked ?? 0, guests);
   const { error } = await supabase
     .from('listing_availability')
     .update({ booked: newBooked })
@@ -180,5 +183,19 @@ export async function upsertAvailability(
     );
     if (error) return { success: false, error: error.message };
   }
+  return { success: true };
+}
+
+export async function deleteAvailability(
+  listingId: string,
+  date: string
+): Promise<{ success: boolean; error?: string }> {
+  if (!supabase) return { success: false, error: 'Supabase not configured' };
+  const { error } = await supabase
+    .from('listing_availability')
+    .delete()
+    .eq('listing_id', listingId)
+    .eq('available_date', date);
+  if (error) return { success: false, error: error.message };
   return { success: true };
 }

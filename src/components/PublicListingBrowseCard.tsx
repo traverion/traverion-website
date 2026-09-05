@@ -39,6 +39,7 @@ export function PublicListingBrowseCard({
   const hasDiscount = Boolean(label && price < originalPrice);
   const fromAmount = hasDiscount ? price : originalPrice;
   const showStrikethrough = hasDiscount && originalPrice > fromAmount;
+  const currency = tour.price?.currency ?? 'USD';
   const locationLine =
     [tour.city, tour.country].filter(Boolean).join(', ') || tour.destination || 'Various locations';
   const extraTags =
@@ -97,13 +98,13 @@ export function PublicListingBrowseCard({
               <div className="text-right">
                 {showStrikethrough && (
                   <span className="block text-xs font-medium text-gray-400 line-through">
-                    ${originalPrice.toFixed(0)}
+                    {currency} {originalPrice.toFixed(0)}
                   </span>
                 )}
-                <span className="text-lg font-bold leading-tight text-finland">From ${fromAmount.toFixed(0)}</span>
+                <span className="text-lg font-bold leading-tight text-finland">From {currency} {fromAmount.toFixed(0)}</span>
               </div>
             ) : (
-              <span className="text-lg font-bold text-gray-900">From ${originalPrice.toFixed(0)}</span>
+              <span className="text-lg font-bold text-gray-900">From {currency} {originalPrice.toFixed(0)}</span>
             )}
           </div>
         </div>
@@ -122,16 +123,16 @@ export function PublicListingBrowseCard({
               ? 'border border-emerald-200/80 bg-gradient-to-r from-finland/[0.08] to-emerald-50 shadow-sm'
               : 'border border-gray-100 bg-gray-50/90'
           } ${size === 'compact' ? 'py-2' : ''}`}
-          aria-label={hasDiscount ? `From ${fromAmount} dollars, ${label}` : `From ${originalPrice} dollars`}
+          aria-label={hasDiscount ? `From ${currency} ${fromAmount}, ${label}` : `From ${currency} ${originalPrice}`}
         >
           <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-600">From</span>
           {showStrikethrough && (
-            <span className="text-sm font-medium text-gray-500 line-through">${originalPrice.toFixed(0)}</span>
+            <span className="text-sm font-medium text-gray-500 line-through">{currency} {originalPrice.toFixed(0)}</span>
           )}
           <span
             className={`font-bold tracking-tight ${hasDiscount ? 'text-finland' : 'text-gray-900'} ${size === 'compact' ? 'text-xl' : 'text-2xl'}`}
           >
-            ${fromAmount.toFixed(0)}
+            {currency} {fromAmount.toFixed(0)}
           </span>
           {hasDiscount && label && (
             <span className="ml-auto inline-flex items-center rounded-full bg-emerald-600 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white shadow-sm sm:ml-0">

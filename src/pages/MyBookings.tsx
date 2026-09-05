@@ -121,7 +121,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
     setCancellingId(null);
     setCancelConfirm(null);
     if (res.success) {
-      if (b.booking_date) await decrementAvailabilityBooked(b.listing_id, b.booking_date);
+      if (b.booking_date) await decrementAvailabilityBooked(b.listing_id, b.booking_date, b.guests ?? 1);
       load();
     } else {
       setError(res.error ?? 'Could not cancel booking');

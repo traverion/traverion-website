@@ -3,6 +3,7 @@ import {
   LayoutDashboard,
   MapPin,
   Calendar,
+  CalendarDays,
   DollarSign,
   Building2,
   Users,
@@ -27,6 +28,7 @@ import SupplierBookings from '../../pages/supplier/SupplierBookings';
 import SupplierEarnings from '../../pages/supplier/SupplierEarnings';
 import SupplierReviews from '../../pages/supplier/SupplierReviews';
 import SupplierPickupPlanner from '../../pages/supplier/SupplierPickupPlanner';
+import SupplierAvailability from '../../pages/supplier/SupplierAvailability';
 import SupplierDiscountsOffers from '../../pages/supplier/SupplierDiscountsOffers';
 import SupplierChangePassword from '../../pages/supplier/SupplierChangePassword';
 import {
@@ -77,6 +79,7 @@ export const SUPPLIER_LOGIN_PATH = PARTNER_LOGIN_PATH;
 type SupplierSection =
   | 'dashboard'
   | 'listings'
+  | 'availability'
   | 'bookings'
   | 'earnings'
   | 'discounts'
@@ -90,7 +93,8 @@ type BusinessProfileTab = 'company' | 'legal';
 
 const NAV_ITEMS: { id: SupplierSection; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'listings', label: 'My listings', icon: MapPin },
+  { id: 'listings', label: 'Products', icon: MapPin },
+  { id: 'availability', label: 'Availability', icon: CalendarDays },
   { id: 'bookings', label: 'Bookings', icon: Calendar },
   { id: 'earnings', label: 'Earnings', icon: DollarSign },
   { id: 'discounts', label: 'Discounts & offers', icon: Tag },
@@ -1018,6 +1022,7 @@ export default function SupplierLayout() {
             {accountMenuOpen && (
               <div className="hidden lg:block absolute right-0 top-12 w-72 bg-white border border-gray-200 rounded-xl shadow-lg p-2 z-50">
                 <p className="px-3 pt-2 pb-1 text-xs uppercase tracking-wide text-gray-500">Operations</p>
+                <button type="button" onClick={() => handleNavigate('availability')} className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-sm">Availability</button>
                 <button type="button" onClick={() => handleNavigate('pickup')} className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-sm">Pickup planner</button>
                 <button type="button" onClick={() => handleNavigate('reviews')} className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-sm">Reviews</button>
                 <button type="button" onClick={() => handleNavigate('earnings')} className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-sm">Earnings</button>
@@ -1042,6 +1047,7 @@ export default function SupplierLayout() {
             </div>
             <div className="p-4 space-y-2 overflow-y-auto max-h-[calc(100dvh-3.5rem)] pb-[max(1rem,calc(5.25rem+env(safe-area-inset-bottom)))]">
               <p className="px-1 pt-1 pb-2 text-xs uppercase tracking-wide text-gray-500">Operations</p>
+              <button type="button" onClick={() => handleNavigate('availability')} className="touch-manipulation w-full text-left px-4 py-3.5 min-h-[44px] rounded-xl border border-gray-200 active:bg-gray-50">Availability</button>
               <button type="button" onClick={() => handleNavigate('pickup')} className="touch-manipulation w-full text-left px-4 py-3.5 min-h-[44px] rounded-xl border border-gray-200 active:bg-gray-50">Pickup planner</button>
               <button type="button" onClick={() => handleNavigate('reviews')} className="touch-manipulation w-full text-left px-4 py-3.5 min-h-[44px] rounded-xl border border-gray-200 active:bg-gray-50">Reviews</button>
               <button type="button" onClick={() => handleNavigate('earnings')} className="touch-manipulation w-full text-left px-4 py-3.5 min-h-[44px] rounded-xl border border-gray-200 active:bg-gray-50">Earnings</button>
@@ -1074,6 +1080,7 @@ export default function SupplierLayout() {
             <SupplierDashboard onNavigateToBookings={() => handleNavigate('bookings')} />
           )}
           {section === 'listings' && <SupplierListings />}
+          {section === 'availability' && <SupplierAvailability />}
           {section === 'bookings' && <SupplierBookings />}
           {section === 'earnings' && <SupplierEarnings />}
           {section === 'discounts' && <SupplierDiscountsOffers />}

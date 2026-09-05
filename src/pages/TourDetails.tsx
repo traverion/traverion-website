@@ -38,6 +38,7 @@ import { Skeleton } from '../components/ui/Skeleton';
 import { dateNotInPast } from '../lib/validation';
 import { checkAvailability } from '../data/supabase-availability';
 import { optionRunsOnDate, formatOptionWeekdays } from '../lib/booking-quote';
+import { isListingVisibleToTravelers } from '../lib/product-workflows';
 import BookingPage from './BookingPage';
 import {
   getPartySizeBounds,
@@ -89,6 +90,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   const optionsSectionRef = useRef<HTMLDivElement>(null);
 
   const partyBounds = useMemo(() => (tour ? getPartySizeBounds(tour) : { min: 1, max: 12 }), [tour]);
+  const canBook = Boolean(tour && isListingVisibleToTravelers(tour.status));
   const tourVariants = useMemo(() => (tour ? getTourBookingVariants(tour) : []), [tour]);
   const weekdayHint = useMemo(() => {
     const unique = [...new Set(tourVariants.map((v) => formatOptionWeekdays(v.listingOption?.weekdays)))];
@@ -211,6 +213,11 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
 
   const handleCheckAvailabilityToggle = () => {
     if (!tour || variantChecking) return;
+    if (!isListingVisibleToTravelers(tour.status)) {
+      setBookingCardError('This experience is not available to book.');
+      setBookingVariantsOpen(false);
+      return;
+    }
     const dateCheck = dateNotInPast(bookingDate.trim());
     if (!dateCheck.valid) {
       setBookingCardError(dateCheck.message ?? 'Please select a date');
@@ -233,6 +240,11 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
 
   const handlePickTourVariant = async (variant: TourBookingVariant) => {
     if (!tour) return;
+    if (!isListingVisibleToTravelers(tour.status)) {
+      setBookingCardError('This experience is not available to book.');
+      setBookingVariantsOpen(false);
+      return;
+    }
     setBookingVariantsOpen(false);
     setVariantChecking(true);
     const variantBounds = getPartySizeBoundsForVariant(tour, variant);
@@ -449,25 +461,15 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                     <span>{tour.difficulty}</span>
                   </span>
                 </div>
-                <div className="mb-6 grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  <div className="rounded-lg border border-green-200 bg-green-50/70 px-3 py-2 text-xs text-gray-700 shadow-sm transition-all duration-200 ease-smooth hover:-translate-y-0.5 hover:shadow">
-                    <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-semibold text-green-800 mb-1">
-                      <CheckCircle className="w-3.5 h-3.5" aria-hidden />
-                      Free cancellation
-                    </span>
-                    <div>Cancel up to 24h before start time</div>
-                  </div>
-                  <div className="rounded-lg border border-finland/30 bg-finland/5 px-3 py-2 text-xs text-gray-700 shadow-sm transition-all duration-200 ease-smooth hover:-translate-y-0.5 hover:shadow">
-                    <span className="inline-flex items-center gap-1 rounded-full bg-finland/15 px-2 py-0.5 text-[11px] font-semibold text-finland mb-1">
-                      <Shield className="w-3.5 h-3.5" aria-hidden />
-                      Policy protection
-                    </span>
-                    <div>Standard Traverion booking terms apply</div>
-                  </div>
-                  <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 shadow-sm transition-all duration-200 ease-smooth hover:-translate-y-0.5 hover:shadow">
-                    <strong className="text-gray-900">Secure request</strong>
-                    <div>No card charge on this step</div>
-                  </div>
+                <div className="mb-6 flex flex-col sm:flex-row sm:flex-wrap gap-x-6 gap-y-2 text-sm text-gray-600">
+                  <span className="inline-flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-600 shrink-0" aria-hidden />
+                    {tour.cancellationPolicy?.trim() || TRAVERION_STANDARD_CANCELLATION_POLICY.split('.')[0]}.
+                  </span>
+                  <span className="inline-flex items-center gap-2">
+                    <Shield className="w-4 h-4 text-finland shrink-0" aria-hidden />
+                    Pay securely to confirm — you are not charged until checkout
+                  </span>
                 </div>
                 <p className="text-gray-700 leading-relaxed">{tour.description}</p>
 
@@ -631,15 +633,30 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
 
             {/* Right: Sticky booking card */}
             <div className="lg:col-span-1">
-              <div className="lg:sticky lg:top-24 bg-white rounded-xl border border-gray-200 shadow-lg p-6 transition-all duration-200 ease-smooth hover:shadow-xl">
+              <div className="lg:sticky lg:top-24 bg-white rounded-2xl border border-gray-200 shadow-lg p-6">
+                {!canBook ? (
+                  <div>
+                    <p className="text-lg font-semibold text-gray-900">Not bookable yet</p>
+                    <p className="mt-2 text-sm text-gray-600">
+                      This experience is a draft. Travelers will see a booking option once the operator publishes it.
+                    </p>
+                  </div>
+                ) : (
+                <>
                 {(() => {
                   const { price, originalPrice, label } = getDisplayPriceForTour(tour, discountsByListing);
                   const hasDiscount = label && price < originalPrice;
+                  const currency = tour.price?.currency ?? 'USD';
+                  const shown = hasDiscount ? price : tour.price.startingFrom;
                   return (
                     <>
                       <div className="text-2xl font-bold text-gray-900 mb-1">
-                        From ${(hasDiscount ? price : tour.price.startingFrom).toFixed(0)}
-                        {hasDiscount && <span className="text-base font-normal text-gray-500 ml-1 line-through">was ${originalPrice}</span>}
+                        From {currency} {Number(shown).toFixed(0)}
+                        {hasDiscount && (
+                          <span className="text-base font-normal text-gray-500 ml-1 line-through">
+                            {currency} {originalPrice}
+                          </span>
+                        )}
                       </div>
                       {hasDiscount && <p className="text-sm text-green-600 mb-1">{label}</p>}
                       <p className="text-sm text-gray-500 mb-4">per person</p>
@@ -701,9 +718,12 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                     </p>
                   </div>
                 </div>
+                </>
+                )}
               </div>
             </div>
           </div>
+          {canBook ? (
           <div
             ref={optionsSectionRef}
             id="tour-booking-variants-list"
@@ -744,7 +764,8 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                     ) : null}
                     <span className="mt-0.5 block text-xs leading-snug text-gray-600">{v.subtitle}</span>
                     <span className="mt-1.5 block text-sm font-semibold text-finland">
-                      From ${v.pricePerPerson} <span className="font-normal text-gray-500">/ person</span>
+                      From {tour.price?.currency ?? 'USD'} {v.pricePerPerson}{' '}
+                      <span className="font-normal text-gray-500">/ person</span>
                     </span>
                     {dayErr ? <span className="mt-1 block text-xs text-red-600">{dayErr}</span> : null}
                   </button>
@@ -753,6 +774,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
               })}
             </ul>
           </div>
+          ) : null}
         </div>
       </section>
 
@@ -975,7 +997,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
         </div>
       )}
 
-      {bookingModalOpen && tour && selectedBookingVariant && (
+      {bookingModalOpen && tour && selectedBookingVariant && canBook && (
         <BookingPage
           tour={tour}
           presentation="modal"

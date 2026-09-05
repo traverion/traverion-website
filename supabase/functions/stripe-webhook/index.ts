@@ -21,7 +21,8 @@ function amountToMajor(amountMinor: number | null | undefined): number | null {
 async function incrementAvailabilityBookedAdmin(
   admin: SupabaseClient,
   listingId: string,
-  bookingDate: string | null
+  bookingDate: string | null,
+  guests: number
 ) {
   if (!bookingDate) return;
   const { data: row } = await admin
@@ -31,9 +32,10 @@ async function incrementAvailabilityBookedAdmin(
     .eq('available_date', bookingDate)
     .maybeSingle();
   if (!row) return;
+  const party = Number.isFinite(guests) ? Math.max(1, Math.floor(guests)) : 1;
   await admin
     .from('listing_availability')
-    .update({ booked: (row.booked ?? 0) + 1 })
+    .update({ booked: (row.booked ?? 0) + party })
     .eq('listing_id', listingId)
     .eq('available_date', bookingDate);
 }
@@ -74,7 +76,12 @@ async function notifyPaidBookingSideEffects(params: {
     }
   }
 
-  await incrementAvailabilityBookedAdmin(admin, booking.listing_id, booking.booking_date ?? null);
+  await incrementAvailabilityBookedAdmin(
+    admin,
+    booking.listing_id,
+    booking.booking_date ?? null,
+    Number(booking.guests ?? 1)
+  );
 
   const { data: listing } = await admin
     .from('listings')

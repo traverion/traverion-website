@@ -514,7 +514,11 @@ export default function SupplierPickupPlanner() {
     });
     if (ok) {
       if (previousStatus === 'confirmed' && selectedBooking.booking_date) {
-        await decrementAvailabilityBooked(selectedBooking.listing_id, selectedBooking.booking_date);
+        await decrementAvailabilityBooked(
+          selectedBooking.listing_id,
+          selectedBooking.booking_date,
+          selectedBooking.guests ?? 1
+        );
       }
       setBookings((prev) =>
         prev.map((b) =>

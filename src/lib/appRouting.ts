@@ -92,6 +92,9 @@ export function parsePathname(pathname: string, options?: ParsePathnameOptions):
   if (LEGACY_BROCHURE_PATHS.has(normalized)) {
     return { page: 'packages', destinationSlug: null };
   }
+  if (/^\/tour\/[0-9a-f-]{36}$/i.test(normalized)) {
+    return { page: 'packages', destinationSlug: null };
+  }
   const mapped = PATH_TO_PAGE[normalized];
   if (mapped) {
     return { page: mapped, destinationSlug: null };
