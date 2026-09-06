@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clientAmountConflictsWithQuote, formatOptionWeekdays, quoteBooking, weekdayIndexMondayFirst } from './booking-quote';
+import { clientAmountConflictsWithQuote, formatOptionWeekdays, listingRunsOnDate, quoteBooking, weekdayIndexMondayFirst } from './booking-quote';
 import type { TourPackage } from '../types/tour';
 import type { ListingBookingOption } from '../types/listingExtras';
 import { getListingPublishBlockers } from './listingPublishGate';
@@ -184,6 +184,58 @@ describe('quoteBooking', () => {
     expect(q.ok).toBe(false);
     if (q.ok) return;
     expect(q.code).toBe('option');
+  });
+});
+
+describe('listingRunsOnDate', () => {
+  it('keeps listings with no booking options', () => {
+    expect(listingRunsOnDate(tour({ listingExtras: { bookingOptions: [] } }), '2026-09-12')).toBe(true);
+  });
+
+  it('hides a listing when no option runs that weekday', () => {
+    expect(
+      listingRunsOnDate(
+        tour({
+          listingExtras: {
+            bookingOptions: [
+              option({
+                id: 'opt-small',
+                name: 'Small group',
+                priceUsd: 149,
+                weekdays: [true, true, true, true, true, false, false],
+              }),
+            ],
+          },
+        }),
+        '2026-09-12'
+      )
+    ).toBe(false);
+  });
+
+  it('keeps a listing when at least one option runs', () => {
+    expect(
+      listingRunsOnDate(
+        tour({
+          listingExtras: {
+            bookingOptions: [
+              option({
+                id: 'weekday',
+                name: 'Weekday',
+                priceUsd: 149,
+                weekdays: [true, true, true, true, true, false, false],
+              }),
+              option({
+                id: 'weekend',
+                name: 'Weekend',
+                priceUsd: 169,
+                weekdays: [false, false, false, false, false, true, true],
+              }),
+            ],
+          },
+        }),
+        '2026-09-12'
+      )
+    ).toBe(true);
   });
 });
 

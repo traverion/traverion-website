@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useDeferredValue } from 'react';
+import { useState, useEffect, useMemo, useCallback, useDeferredValue, useRef } from 'react';
 import { Search, Globe, PlusCircle, Filter, X, SlidersHorizontal } from 'lucide-react';
 import { getAllListings, SHOW_SEED_LISTINGS, durationToMinutes } from '../data/listings';
 import { isSupabaseConfigured } from '../lib/supabase';
@@ -11,6 +11,8 @@ import { fetchDiscountsByListingIds } from '../data/supabase-discounts';
 import { getReviewAggregatesForListingIds } from '../data/supabase-reviews';
 import { isSupabaseListingId } from '../lib/discount-display';
 import { setListingsJsonLd } from '../lib/seo';
+import { listingRunsOnDate } from '../lib/booking-quote';
+import { getPartySizeBounds } from '../lib/booking-flow';
 import { SkeletonCardGrid } from '../components/ui/Skeleton';
 import { PublicListingBrowseCard } from '../components/PublicListingBrowseCard';
 import { supplierPortalHref } from '../lib/partnerHost';
@@ -59,6 +61,8 @@ function parsePackagesSearchParams(search: string): {
   tags: string[];
   sort: SortOption;
   price: string;
+  date: string;
+  guests: string;
 } {
   const params = new URLSearchParams(search);
   const tagsParam = params.get('tags');
@@ -68,6 +72,8 @@ function parsePackagesSearchParams(search: string): {
     tags: tagsParam ? tagsParam.split(',').filter(Boolean) : [],
     sort: (params.get('sort') as SortOption) ?? 'recommended',
     price: params.get('price') ?? 'all',
+    date: params.get('date') ?? '',
+    guests: params.get('guests') ?? '',
   };
 }
 
@@ -77,6 +83,8 @@ function buildPackagesSearchParams(state: {
   selectedTags: string[];
   sortBy: SortOption;
   priceRange: string;
+  date: string;
+  guests: string;
 }): string {
   const p = new URLSearchParams();
   if (state.searchTerm) p.set('q', state.searchTerm);
@@ -84,16 +92,23 @@ function buildPackagesSearchParams(state: {
   if (state.selectedTags.length) p.set('tags', state.selectedTags.join(','));
   if (state.sortBy !== 'recommended') p.set('sort', state.sortBy);
   if (state.priceRange !== 'all') p.set('price', state.priceRange);
+  if (state.date) p.set('date', state.date);
+  if (state.guests) p.set('guests', state.guests);
   const s = p.toString();
   return s ? `?${s}` : '';
 }
 
 export default function Packages({ onTourSelect }: PackagesProps) {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedDestination, setSelectedDestination] = useState('all');
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [sortBy, setSortBy] = useState<SortOption>('recommended');
-  const [priceRange, setPriceRange] = useState('all');
+  const initialFilters = parsePackagesSearchParams(
+    typeof window === 'undefined' ? '' : window.location.search
+  );
+  const [searchTerm, setSearchTerm] = useState(initialFilters.searchTerm);
+  const [selectedDestination, setSelectedDestination] = useState(initialFilters.destination);
+  const [selectedTags, setSelectedTags] = useState<string[]>(initialFilters.tags);
+  const [sortBy, setSortBy] = useState<SortOption>(initialFilters.sort);
+  const [priceRange, setPriceRange] = useState(initialFilters.price);
+  const [filterDate, setFilterDate] = useState(initialFilters.date);
+  const [filterGuests, setFilterGuests] = useState(initialFilters.guests);
   const [showHolidayPackages] = useState(false);
   const [filterBarSticky, setFilterBarSticky] = useState(false);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
@@ -115,6 +130,8 @@ export default function Packages({ onTourSelect }: PackagesProps) {
     setSelectedTags(parsed.tags);
     setSortBy(parsed.sort);
     setPriceRange(parsed.price);
+    setFilterDate(parsed.date);
+    setFilterGuests(parsed.guests);
   }, []);
 
   useEffect(() => {
@@ -142,20 +159,28 @@ export default function Packages({ onTourSelect }: PackagesProps) {
     }
   }, []);
 
-  // Write URL when filters change (shareable links)
+  // Write URL when filters change (shareable links). Skip the first paint so we never
+  // clobber a just-arrived search query with empty default state.
+  const urlWriteReady = useRef(false);
   useEffect(() => {
+    if (!urlWriteReady.current) {
+      urlWriteReady.current = true;
+      return;
+    }
     const query = buildPackagesSearchParams({
       searchTerm,
       selectedDestination,
       selectedTags,
       sortBy,
       priceRange,
+      date: filterDate,
+      guests: filterGuests,
     });
     const newUrl = `${window.location.pathname}${query}`;
     if (window.location.pathname + window.location.search !== newUrl) {
       window.history.replaceState({}, '', newUrl);
     }
-  }, [searchTerm, selectedDestination, selectedTags, sortBy, priceRange]);
+  }, [searchTerm, selectedDestination, selectedTags, sortBy, priceRange, filterDate, filterGuests]);
 
   useEffect(() => {
     const onScroll = () => setFilterBarSticky(window.scrollY > 360);
@@ -243,7 +268,14 @@ export default function Packages({ onTourSelect }: PackagesProps) {
       else if (priceRange === '100-500') matchesPrice = tour.price.startingFrom >= 100 && tour.price.startingFrom < 500;
       else if (priceRange === '500-1000') matchesPrice = tour.price.startingFrom >= 500 && tour.price.startingFrom <= 1000;
       else if (priceRange === '1000plus') matchesPrice = tour.price.startingFrom > 1000;
-      return matchesSearch && matchesDest && matchesTag && matchesPrice;
+      const matchesDate = !filterDate || listingRunsOnDate(tour, filterDate);
+      const guestCount = Number.parseInt(filterGuests, 10);
+      const matchesGuests =
+        !filterGuests ||
+        !Number.isFinite(guestCount) ||
+        guestCount < 1 ||
+        guestCount <= getPartySizeBounds(tour).max;
+      return matchesSearch && matchesDest && matchesTag && matchesPrice && matchesDate && matchesGuests;
     });
 
     if (sortBy === 'price-asc') list = [...list].sort((a, b) => a.price.startingFrom - b.price.startingFrom);
@@ -260,6 +292,8 @@ export default function Packages({ onTourSelect }: PackagesProps) {
     selectedTags,
     priceRange,
     sortBy,
+    filterDate,
+    filterGuests,
     ratingSortScore,
   ]);
 
@@ -267,7 +301,9 @@ export default function Packages({ onTourSelect }: PackagesProps) {
     searchTerm.trim() !== '' ||
     selectedDestination !== 'all' ||
     selectedTags.length > 0 ||
-    priceRange !== 'all';
+    priceRange !== 'all' ||
+    filterDate !== '' ||
+    filterGuests !== '';
 
   const clearAllFilters = () => {
     setSearchTerm('');
@@ -275,6 +311,8 @@ export default function Packages({ onTourSelect }: PackagesProps) {
     setSelectedTags([]);
     setPriceRange('all');
     setSortBy('recommended');
+    setFilterDate('');
+    setFilterGuests('');
   };
 
   const toggleTag = (tagId: string) => {
@@ -341,6 +379,24 @@ export default function Packages({ onTourSelect }: PackagesProps) {
                 className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland transition-all text-sm"
               />
             </div>
+            <input
+              type="date"
+              value={filterDate}
+              onChange={(e) => setFilterDate(e.target.value)}
+              aria-label="Date"
+              className="px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland bg-white text-sm text-gray-700"
+            />
+            <input
+              type="number"
+              min={1}
+              max={99}
+              inputMode="numeric"
+              value={filterGuests}
+              onChange={(e) => setFilterGuests(e.target.value)}
+              placeholder="Guests"
+              aria-label="Guests"
+              className="w-full sm:w-24 px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland bg-white text-sm text-gray-700"
+            />
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -410,6 +466,26 @@ export default function Packages({ onTourSelect }: PackagesProps) {
                   className="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 hover:bg-gray-200 border border-gray-200/80"
                 >
                   {PRICE_CHIPS.find((c) => c.id === priceRange)?.label ?? priceRange}
+                  <X className="w-3.5 h-3.5 opacity-70" aria-hidden />
+                </button>
+              )}
+              {filterDate && (
+                <button
+                  type="button"
+                  onClick={() => setFilterDate('')}
+                  className="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 hover:bg-gray-200 border border-gray-200/80"
+                >
+                  {filterDate}
+                  <X className="w-3.5 h-3.5 opacity-70" aria-hidden />
+                </button>
+              )}
+              {filterGuests && (
+                <button
+                  type="button"
+                  onClick={() => setFilterGuests('')}
+                  className="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 hover:bg-gray-200 border border-gray-200/80"
+                >
+                  {filterGuests} {filterGuests === '1' ? 'guest' : 'guests'}
                   <X className="w-3.5 h-3.5 opacity-70" aria-hidden />
                 </button>
               )}

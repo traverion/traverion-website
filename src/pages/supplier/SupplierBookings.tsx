@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AlertCircle,
-  Calendar,
   CheckCircle,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Clock,
@@ -11,8 +9,6 @@ import {
   Mail,
   MapPin,
   RefreshCw,
-  ShoppingCart,
-  Tag,
   Trash2,
   Users,
 } from 'lucide-react';
@@ -116,14 +112,6 @@ function formatActivityDateLong(bookingDate: string | null, startHm: string | nu
   return startHm ? `${datePart} · ${startHm}` : datePart;
 }
 
-function formatPurchaseDateShort(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-}
-
 function csvEscape(value: unknown): string {
   const s = String(value ?? '');
   if (s.includes('"') || s.includes(',') || s.includes('\n')) {
@@ -203,7 +191,6 @@ export default function SupplierBookings() {
   const [filterQuery, setFilterQuery] = useState('');
 
   const [bookingsListPage, setBookingsListPage] = useState(1);
-  const [bookingDetailsOpen, setBookingDetailsOpen] = useState<Record<string, boolean>>({});
   const [highlightBookingId, setHighlightBookingId] = useState<string | null>(null);
 
   const [cancelModal, setCancelModal] = useState<BookingRow | null>(null);
@@ -250,10 +237,13 @@ export default function SupplierBookings() {
     return () => window.removeEventListener('popstate', syncHighlightFromUrl);
   }, []);
 
-  useEffect(() => {
-    if (!highlightBookingId) return;
-    setBookingDetailsOpen((prev) => ({ ...prev, [highlightBookingId]: true }));
-  }, [highlightBookingId]);
+  const setSelectedBookingId = useCallback((id: string | null) => {
+    const url = new URL(window.location.href);
+    if (id) url.searchParams.set('booking', id);
+    else url.searchParams.delete('booking');
+    window.history.pushState({}, '', `${url.pathname}${url.search}`);
+    setHighlightBookingId(id);
+  }, []);
 
   const todayIso = new Date().toISOString().slice(0, 10);
 
@@ -380,6 +370,11 @@ export default function SupplierBookings() {
   const listingOptions = useMemo(
     () => Object.entries(listingMeta).map(([id, m]) => ({ id, title: m.title })),
     [listingMeta]
+  );
+
+  const selectedBooking = useMemo(
+    () => (highlightBookingId ? bookings.find((b) => b.id === highlightBookingId) ?? null : null),
+    [bookings, highlightBookingId]
   );
 
   return (
@@ -551,219 +546,59 @@ export default function SupplierBookings() {
         <div className="space-y-4">
           <div className="space-y-4">
             {paginatedBookings.map((booking) => {
-              const detailsOpen = !!bookingDetailsOpen[booking.id];
               const startHm = booking.start_time ? pgTimeToHm(booking.start_time) ?? null : null;
               const pickupHm = booking.pickup_time ? pgTimeToHm(booking.pickup_time) ?? null : null;
-              const refLabel =
-                typeof booking.booking_number === 'number' && booking.booking_number > 0
-                  ? `#${booking.booking_number}`
-                  : booking.id.slice(0, 8);
               const meta = listingMeta[booking.listing_id];
-              const listingTitle = meta?.title ?? 'Listing';
+              const listingTitle = meta?.title ?? 'Tour';
               const paidLabel = formatBookingMoney(booking.amount_paid, booking.currency);
               const needsAck = !booking.acknowledged_at && booking.status !== 'cancelled';
               return (
                 <article
                   key={booking.id}
                   id={`supplier-booking-row-${booking.id}`}
-                  className={`w-full min-w-0 overflow-hidden rounded-2xl bg-paper-raised transition-shadow duration-300 ${
-                    highlightBookingId === booking.id ? 'ring-2 ring-finland/35' : ''
-                  }`}
                 >
-                  <div className="flex min-w-0 gap-0 sm:gap-0">
-                    <div className="relative w-24 shrink-0 sm:w-32 md:w-36">
-                      <img
-                        src={meta?.imageUrl ?? LISTING_PLACEHOLDER_IMAGE}
-                        alt=""
-                        className="h-full min-h-[7.5rem] w-full object-cover sm:min-h-[8.5rem]"
-                      />
-                      <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/10 to-transparent sm:bg-gradient-to-t sm:from-black/15 sm:to-transparent" />
-                    </div>
-
-                    <div className="flex min-w-0 flex-1 flex-col p-3.5 sm:p-4 md:p-5">
-                      <div className="flex min-w-0 items-start justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-semibold leading-snug text-gray-900 sm:text-base">{listingTitle}</p>
-                          {meta ? (
-                            <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-gray-500">
-                              <span className="inline-flex items-center gap-1">
-                                <MapPin className="h-3 w-3 shrink-0" aria-hidden />
-                                {meta.location}
-                              </span>
-                              <span className="inline-flex items-center gap-1">
-                                <Clock className="h-3 w-3 shrink-0" aria-hidden />
-                                {meta.duration}
-                              </span>
-                            </p>
-                          ) : null}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedBookingId(booking.id)}
+                    className={`lux-flat flex w-full min-w-0 items-stretch overflow-hidden rounded-2xl bg-paper-raised text-left transition-shadow ${
+                      highlightBookingId === booking.id ? 'ring-2 ring-finland/35' : ''
+                    }`}
+                  >
+                    <img
+                      src={meta?.imageUrl ?? LISTING_PLACEHOLDER_IMAGE}
+                      alt=""
+                      className="w-20 sm:w-28 object-cover shrink-0"
+                    />
+                    <div className="min-w-0 flex-1 p-3.5 sm:p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-semibold text-ink truncate">{booking.guest_name || 'Guest'}</p>
+                          <p className="mt-0.5 text-sm text-ink-muted truncate">{listingTitle}</p>
                         </div>
-                        <div className="flex shrink-0 flex-col items-end gap-1.5">
-                          <span
-                            className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize ring-1 ${bookingStatusClass(booking.status)}`}
-                          >
-                            {booking.status}
-                          </span>
-                          {needsAck ? (
-                            <span className="inline-flex rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-semibold text-sky-800 ring-1 ring-sky-200/80">
-                              Needs ack
-                            </span>
-                          ) : null}
-                        </div>
+                        <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize ring-1 ${bookingStatusClass(booking.status)}`}>
+                          {booking.status}
+                        </span>
                       </div>
-
-                      <p className="mt-2.5 text-sm font-medium text-gray-800">{booking.guest_name || 'Guest'}</p>
-                      {booking.guest_email ? (
-                        <p className="mt-0.5 truncate text-xs text-gray-500">{booking.guest_email}</p>
+                      <p className="mt-2 text-sm text-ink-muted">
+                        {formatActivityDateLong(booking.booking_date, startHm)}
+                        {' · '}
+                        {booking.guests} guest{booking.guests === 1 ? '' : 's'}
+                        {paidLabel ? ` · ${paidLabel}` : ''}
+                        {pickupHm ? ` · Pickup ${pickupHm}` : ''}
+                      </p>
+                      {needsAck ? (
+                        <p className="mt-1 text-xs font-medium text-sky-800">Needs acknowledgment</p>
                       ) : null}
-
-                      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-gray-600">
-                        <span className="inline-flex items-center gap-1 rounded-lg bg-slate-50 px-2 py-1 font-medium ring-1 ring-slate-200/80">
-                          <Calendar className="h-3.5 w-3.5 text-gray-400" aria-hidden />
-                          {formatActivityDateLong(booking.booking_date, startHm)}
-                        </span>
-                        <span className="inline-flex items-center gap-1 rounded-lg bg-slate-50 px-2 py-1 ring-1 ring-slate-200/80">
-                          <Tag className="h-3.5 w-3.5 text-gray-400" aria-hidden />
-                          <span className="font-mono">{refLabel}</span>
-                        </span>
-                        <span className="inline-flex items-center gap-1 rounded-lg bg-slate-50 px-2 py-1 ring-1 ring-slate-200/80">
-                          <Users className="h-3.5 w-3.5 text-gray-400" aria-hidden />
-                          {booking.guests} guest{booking.guests === 1 ? '' : 's'}
-                        </span>
-                        {paidLabel ? (
-                          <span className="inline-flex items-center gap-1 rounded-lg bg-finland/5 px-2 py-1 font-semibold text-finland ring-1 ring-finland/15">
-                            {paidLabel}
-                          </span>
-                        ) : null}
-                        {pickupHm ? (
-                          <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2 py-1 font-medium text-emerald-800 ring-1 ring-emerald-200/80">
-                            Pickup {pickupHm}
-                          </span>
-                        ) : null}
-                      </div>
-
-                      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-gray-100 pt-3">
-                        <p className="flex items-center gap-1.5 text-xs text-gray-500">
-                          <ShoppingCart className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                          Booked {formatPurchaseDateShort(booking.created_at)}
-                        </p>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setBookingDetailsOpen((prev) => ({
-                              ...prev,
-                              [booking.id]: !prev[booking.id],
-                            }))
-                          }
-                          className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-sm font-semibold text-finland transition-colors hover:bg-finland/5"
-                          aria-expanded={detailsOpen}
-                        >
-                          {detailsOpen ? 'Hide details' : 'Show details'}
-                          <ChevronDown
-                            className={`h-4 w-4 transition-transform duration-300 ${detailsOpen ? 'rotate-180' : ''}`}
-                            aria-hidden
-                          />
-                        </button>
-                      </div>
-
-                      {booking.status !== 'cancelled' && !booking.pickup_time && (
-                        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-amber-200/80 bg-amber-50/90 px-3 py-2 text-sm text-amber-950">
-                          <AlertCircle className="h-4 w-4 shrink-0" aria-hidden />
-                          <span>Pickup time not set.</span>
-                          <a
-                            href="/partner/pickup"
-                            className="font-semibold text-amber-900 underline underline-offset-2 hover:text-amber-950"
-                          >
-                            Open pickup planner
-                          </a>
-                        </div>
-                      )}
-
-                      <div
-                        className={`grid transition-all duration-300 ease-out ${
-                          detailsOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
-                        }`}
-                      >
-                        <div className="overflow-hidden">
-                          <div className="space-y-3 border-t border-gray-100 pt-3">
-                      {booking.guest_email ? (
-                        <p className="break-all text-sm text-gray-700">
-                          <span className="font-medium text-gray-500">Email </span>
-                          <a href={`mailto:${booking.guest_email}`} className="text-finland hover:underline">
-                            {booking.guest_email}
-                          </a>
-                        </p>
-                      ) : null}
-
-                      {booking.special_requests ? (
-                        <div>
-                          <p className="mb-1 text-xs font-medium uppercase tracking-wide text-gray-500">Requests & notes</p>
-                          <p className="whitespace-pre-wrap break-words text-sm text-gray-700">
-                            {booking.special_requests}
-                          </p>
-                        </div>
-                      ) : (
-                        <p className="text-sm text-gray-500">No special requests.</p>
-                      )}
-
-                      {booking.acknowledged_at && (
-                        <p className="text-xs text-gray-500">Acknowledged</p>
-                      )}
-
-                      <div className="flex flex-wrap gap-2">
-                        {booking.guest_email ? (
-                          <a
-                            href={`mailto:${booking.guest_email}?subject=Your booking – ${listingTitle}`}
-                            className="inline-flex min-h-[40px] touch-manipulation items-center justify-center gap-1 rounded-xl bg-gray-100 px-3 py-2 text-xs font-semibold text-gray-800"
-                          >
-                            <Mail className="h-3.5 w-3.5" aria-hidden />
-                            Contact
-                          </a>
-                        ) : null}
-                        {booking.status !== 'confirmed' && booking.status !== 'cancelled' && (
-                          <button
-                            type="button"
-                            onClick={() => void handleStatusChange(booking, 'confirmed')}
-                            disabled={!canEditBookings || updatingId === booking.id}
-                            className="min-h-[40px] touch-manipulation rounded-xl bg-green-100 px-3 py-2 text-xs font-semibold text-green-800 disabled:opacity-50"
-                          >
-                            Confirm
-                          </button>
-                        )}
-                        {!booking.acknowledged_at && booking.status !== 'cancelled' && (
-                          <button
-                            type="button"
-                            onClick={() => void handleAcknowledge(booking)}
-                            disabled={!canEditBookings || updatingId === booking.id}
-                            className="inline-flex min-h-[40px] touch-manipulation items-center justify-center gap-1.5 rounded-xl bg-blue-100 px-3 py-2 text-xs font-semibold text-blue-800 disabled:opacity-50"
-                          >
-                            <CheckCircle className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                            Acknowledge
-                          </button>
-                        )}
-                        {booking.status !== 'cancelled' && (
-                          <button
-                            type="button"
-                            onClick={() => setCancelModal(booking)}
-                            disabled={!canEditBookings || updatingId === booking.id}
-                            className="inline-flex min-h-[40px] touch-manipulation items-center justify-center gap-1.5 rounded-xl border border-red-200 px-3 py-2 text-xs font-semibold text-red-700 disabled:opacity-50"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" aria-hidden />
-                            Cancel
-                          </button>
-                        )}
-                      </div>
-                          </div>
-                        </div>
-                      </div>
                     </div>
-                  </div>
+                  </button>
                 </article>
               );
             })}
+
           </div>
 
           <nav
-            className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white px-3 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:px-4"
+            className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
             aria-label="Bookings pages"
           >
             <p className="text-sm text-gray-600">
@@ -820,6 +655,142 @@ export default function SupplierBookings() {
             ) : null}
           </nav>
         </div>
+      )}
+
+      {selectedBooking && (
+        <SupplierModalShell onClose={() => setSelectedBookingId(null)} maxWidth="lg">
+          {(() => {
+            const booking = selectedBooking;
+            const startHm = booking.start_time ? pgTimeToHm(booking.start_time) ?? null : null;
+            const pickupHm = booking.pickup_time ? pgTimeToHm(booking.pickup_time) ?? null : null;
+            const meta = listingMeta[booking.listing_id];
+            const listingTitle = meta?.title ?? 'Tour';
+            const paidLabel = formatBookingMoney(booking.amount_paid, booking.currency);
+            const needsAck = !booking.acknowledged_at && booking.status !== 'cancelled';
+            const busy = updatingId === booking.id;
+            const refLabel =
+              typeof booking.booking_number === 'number' && booking.booking_number > 0
+                ? `#${booking.booking_number}`
+                : booking.id.slice(0, 8);
+            return (
+              <>
+                <SupplierModalHeader
+                  icon={Users}
+                  title={booking.guest_name || 'Guest'}
+                  subtitle={`${listingTitle} · ${refLabel}`}
+                  onClose={() => setSelectedBookingId(null)}
+                />
+                <div className="space-y-5 p-4 sm:p-5">
+                  <div className="flex items-start gap-4">
+                    <img
+                      src={meta?.imageUrl ?? LISTING_PLACEHOLDER_IMAGE}
+                      alt=""
+                      className="h-20 w-20 sm:h-24 sm:w-24 rounded-2xl object-cover shrink-0"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize ring-1 ${bookingStatusClass(booking.status)}`}>
+                        {booking.status}
+                      </span>
+                      <p className="mt-2 font-sans text-base font-semibold text-ink">{listingTitle}</p>
+                      {meta ? (
+                        <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm text-ink-muted">
+                          <span className="inline-flex items-center gap-1">
+                            <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                            {meta.location}
+                          </span>
+                          <span className="inline-flex items-center gap-1">
+                            <Clock className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                            {meta.duration}
+                          </span>
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">When</dt>
+                      <dd className="mt-0.5 text-ink">{formatActivityDateLong(booking.booking_date, startHm)}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Party</dt>
+                      <dd className="mt-0.5 text-ink">
+                        {booking.guests} guest{booking.guests === 1 ? '' : 's'}
+                      </dd>
+                    </div>
+                    {pickupHm ? (
+                      <div>
+                        <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Pickup</dt>
+                        <dd className="mt-0.5 text-ink">{pickupHm}</dd>
+                      </div>
+                    ) : null}
+                    {paidLabel ? (
+                      <div>
+                        <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Paid</dt>
+                        <dd className="mt-0.5 text-ink">{paidLabel}</dd>
+                      </div>
+                    ) : null}
+                    {booking.guest_email ? (
+                      <div className="sm:col-span-2">
+                        <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Contact</dt>
+                        <dd className="mt-0.5">
+                          <a
+                            href={`mailto:${booking.guest_email}`}
+                            className="inline-flex items-center gap-1.5 text-finland hover:underline"
+                          >
+                            <Mail className="h-3.5 w-3.5" aria-hidden />
+                            {booking.guest_email}
+                          </a>
+                        </dd>
+                      </div>
+                    ) : null}
+                    {booking.special_requests?.trim() ? (
+                      <div className="sm:col-span-2">
+                        <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Notes</dt>
+                        <dd className="mt-0.5 whitespace-pre-wrap text-ink">{booking.special_requests.trim()}</dd>
+                      </div>
+                    ) : null}
+                  </dl>
+
+                  {canEditBookings && booking.status !== 'cancelled' ? (
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {booking.status === 'pending' ? (
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => void handleStatusChange(booking, 'confirmed')}
+                          className="inline-flex items-center gap-1.5 rounded-full bg-finland px-4 py-2 text-sm font-semibold text-white hover:bg-finland-dark disabled:opacity-50"
+                        >
+                          <CheckCircle className="h-4 w-4" aria-hidden />
+                          {busy ? 'Saving…' : 'Confirm'}
+                        </button>
+                      ) : null}
+                      {needsAck ? (
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => void handleAcknowledge(booking)}
+                          className="inline-flex items-center gap-1.5 rounded-full bg-paper px-4 py-2 text-sm font-semibold text-ink ring-1 ring-black/[0.08] hover:bg-paper-raised disabled:opacity-50"
+                        >
+                          {busy ? 'Saving…' : 'Acknowledge'}
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => setCancelModal(booking)}
+                        className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
+                      >
+                        <Trash2 className="h-4 w-4" aria-hidden />
+                        Cancel
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              </>
+            );
+          })()}
+        </SupplierModalShell>
       )}
 
       {cancelModal && (

@@ -180,24 +180,18 @@ function App() {
       return;
     }
     if (currentPage === 'tour-details' && selectedTour) {
-      const qs = new URLSearchParams({ tour: selectedTour.id }).toString();
-      const next = `/packages?${qs}`;
-      if (window.location.pathname !== '/packages' || window.location.search !== `?${qs}`) {
+      const params = new URLSearchParams(window.location.search);
+      params.set('tour', selectedTour.id);
+      const next = `/packages?${params.toString()}`;
+      const current = `${window.location.pathname}${window.location.search}`;
+      if (current !== next) {
         window.history.replaceState({}, '', next);
       }
       return;
     }
     if (currentPage === 'packages') {
-      const fromQuery = new URLSearchParams(window.location.search).get('tour');
-      const fromPath = /^\/tour\/([0-9a-f-]{36})$/i.exec(
-        (window.location.pathname.replace(/\/$/, '') || '/')
-      );
-      const tourId = fromQuery || fromPath?.[1] || '';
-      const next =
-        tourId && /^[0-9a-f-]{36}$/i.test(tourId) ? `/packages?tour=${tourId}` : '/packages';
-      const current = `${window.location.pathname}${window.location.search}`;
-      if (current !== next) {
-        window.history.replaceState({}, '', next);
+      if (window.location.pathname !== '/packages') {
+        window.history.replaceState({}, '', `/packages${window.location.search}`);
       }
       return;
     }
@@ -311,7 +305,10 @@ function App() {
   const handleBackToTours = () => {
     setSelectedTour(null);
     setCurrentPage('packages');
-    window.history.replaceState({}, '', '/packages');
+    const params = new URLSearchParams(window.location.search);
+    params.delete('tour');
+    const qs = params.toString();
+    window.history.replaceState({}, '', qs ? `/packages?${qs}` : '/packages');
   };
 
   const renderPage = () => {

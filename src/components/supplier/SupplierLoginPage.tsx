@@ -19,13 +19,15 @@ export default function SupplierLoginPage({ onAuthenticated, isSupabase }: Suppl
   const [auth, setAuth] = useState<'signup' | 'signin' | null>(null);
 
   return (
-    <div className="relative min-h-[100dvh] text-white overflow-hidden bg-ink">
-      <img
-        src={HERO_IMG.vacation}
-        alt=""
-        className="absolute inset-0 h-full w-full object-cover"
-      />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/45 to-black/25" />
+    <div className="relative isolate min-h-[100dvh] w-full text-white bg-ink">
+      <div className="pointer-events-none fixed inset-0 -z-10">
+        <img
+          src={HERO_IMG.vacation}
+          alt=""
+          className="h-full w-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/45 to-black/25" />
+      </div>
 
       <header className="relative z-10 flex items-center justify-between px-5 sm:px-8 py-5">
         <a href={mainSiteUrl} className="flex items-center gap-2.5 text-white no-lux-interaction">

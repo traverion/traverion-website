@@ -48,6 +48,17 @@ import {
   type TourBookingVariant,
 } from '../lib/booking-flow';
 import BookingDateField from '../components/booking/BookingDateField';
+
+function readSearchPrefill(): { date: string; guests: number } {
+  if (typeof window === 'undefined') return { date: '', guests: 1 };
+  const p = new URLSearchParams(window.location.search);
+  const date = (p.get('date') ?? '').trim();
+  const g = Number.parseInt(p.get('guests') ?? '', 10);
+  return {
+    date: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : '',
+    guests: Number.isFinite(g) && g >= 1 ? Math.min(99, Math.floor(g)) : 1,
+  };
+}
 import GuestStepper from '../components/booking/GuestStepper';
 
 interface TourDetailsProps {
@@ -71,8 +82,8 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewTitle, setReviewTitle] = useState('');
   const [reviewComment, setReviewComment] = useState('');
-  const [bookingDate, setBookingDate] = useState('');
-  const [guests, setGuests] = useState(1);
+  const [bookingDate, setBookingDate] = useState(() => readSearchPrefill().date);
+  const [guests, setGuests] = useState(() => readSearchPrefill().guests);
   const [discountsByListing, setDiscountsByListing] = useState<Map<string, import('../data/supabase-discounts').ListingDiscount[]>>(new Map());
   const [supplierLegal, setSupplierLegal] = useState<{
     operatorName: string;
@@ -360,33 +371,31 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     uniqueGallery.length > 0 ? uniqueGallery : stockFallback;
 
   return (
-    <div className="min-h-screen bg-paper pt-20">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 sticky top-20 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <LuxuryButton variant="outline" onClick={onBack} className="group">
-              <ArrowLeft className="mr-2 w-4 h-4 transition-transform duration-200 ease-smooth group-hover:-translate-x-0.5" />
-              Back to Tours
-            </LuxuryButton>
-            
-            <div className="flex items-center space-x-4">
-              <button className="p-2 rounded-full bg-gray-100 text-gray-600 hover:bg-finland/10 hover:text-finland transition-all duration-300">
-                <Share2 size={20} />
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Hero: full-width gallery */}
+    <div className="min-h-screen bg-paper pt-20 pb-24 lg:pb-0">
       <section className="relative">
-        <div className="relative h-96 lg:h-[70vh]">
+        <div className="relative h-[28rem] lg:h-[70vh]">
             <div
               className="absolute inset-0 bg-cover bg-center transition-all duration-1000"
               style={{ backgroundImage: `url(${images[selectedImage]})` }}
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/20" />
+            <div className="absolute top-4 left-4 right-4 z-10 flex items-center justify-between">
+              <button
+                type="button"
+                onClick={onBack}
+                className="lux-flat inline-flex items-center gap-2 rounded-full bg-black/35 px-3.5 py-2 text-sm font-medium text-white backdrop-blur-sm hover:bg-black/50"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Tours
+              </button>
+              <button
+                type="button"
+                className="lux-flat p-2 rounded-full bg-black/35 text-white backdrop-blur-sm hover:bg-black/50"
+                aria-label="Share"
+              >
+                <Share2 size={18} />
+              </button>
+            </div>
             
             {/* Image Thumbnails */}
             <div className="absolute bottom-4 left-4 right-4 flex space-x-2 overflow-x-auto">
@@ -407,8 +416,8 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
         </div>
       </section>
 
-      {/* Content + Sticky booking widget - GetYourGuide style */}
-      <section className="bg-gray-50 py-8">
+      {/* Content + Sticky booking widget */}
+      <section className="bg-paper py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Left: Title + description + stats (no pricing/CTA here on desktop; they're in sidebar) */}
@@ -633,7 +642,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
 
             {/* Right: Sticky booking card */}
             <div className="lg:col-span-1">
-              <div className="lg:sticky lg:top-24 bg-paper-raised rounded-2xl p-6 ring-1 ring-black/[0.06]">
+              <div id="tour-booking-panel" className="lg:sticky lg:top-24 bg-paper-raised rounded-2xl p-6 ring-1 ring-black/[0.06]">
                 {!canBook ? (
                   <div>
                     <p className="text-lg font-semibold text-gray-900">Not bookable yet</p>
@@ -731,7 +740,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
             aria-label="Tour options"
             className={`mt-4 lg:mt-6 rounded-xl border bg-white transition-all duration-300 ease-out motion-reduce:transition-none ${
               bookingVariantsOpen
-                ? `max-h-[28rem] opacity-100 translate-y-0 border-2 border-finland/45 shadow-[0_12px_48px_-12px_rgba(0,53,128,0.28),0_4px_18px_-6px_rgba(0,53,128,0.16)] ring-2 ring-finland/35 ring-offset-2 ring-offset-gray-50 motion-reduce:ring-0 motion-reduce:ring-offset-0 motion-reduce:shadow-md motion-reduce:border-finland/30 ${
+                ? `max-h-[28rem] opacity-100 translate-y-0 border-2 border-finland/45 shadow-[0_12px_48px_-12px_rgba(0,53,128,0.28),0_4px_18px_-6px_rgba(0,53,128,0.16)] ring-2 ring-finland/35 ring-offset-2 ring-offset-paper motion-reduce:ring-0 motion-reduce:ring-offset-0 motion-reduce:shadow-md motion-reduce:border-finland/30 ${
                     optionsAttentionPulse
                       ? 'ring-finland/55 shadow-[0_16px_56px_-10px_rgba(0,53,128,0.38),0_6px_22px_-6px_rgba(0,53,128,0.22)]'
                       : ''
@@ -800,7 +809,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
 
       {/* What's Included / Excluded */}
       {(tour.includes.some((s) => String(s).trim()) || tour.excludes.some((s) => String(s).trim())) && (
-        <section className="py-16 bg-gray-50">
+        <section className="py-16 bg-paper">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
               <div>
@@ -879,7 +888,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
           )}
 
           {showReviewForm && user && (
-            <div className="bg-gray-50 rounded-xl p-6 max-w-xl">
+            <div className="bg-paper-raised rounded-xl p-6 max-w-xl ring-1 ring-black/[0.06]">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Write a review</h3>
               <div className="space-y-4">
                 <div>
@@ -966,6 +975,36 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
           )}
         </div>
       </section>
+
+      {canBook ? (
+        <div className="lg:hidden fixed inset-x-0 bottom-0 z-40 border-t border-black/[0.06] bg-paper-raised/95 backdrop-blur-md px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          <div className="flex items-center justify-between gap-3">
+            {(() => {
+              const { price, originalPrice, label } = getDisplayPriceForTour(tour, discountsByListing);
+              const hasDiscount = Boolean(label && price < originalPrice);
+              const currency = tour.price?.currency ?? 'USD';
+              const shown = hasDiscount ? price : tour.price.startingFrom;
+              return (
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-ink">
+                    From {currency} {Number(shown).toFixed(0)}
+                  </p>
+                  <p className="text-xs text-ink-muted">per person</p>
+                </div>
+              );
+            })()}
+            <button
+              type="button"
+              onClick={() => {
+                document.getElementById('tour-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+              className="shrink-0 rounded-full bg-finland px-5 py-2.5 text-sm font-semibold text-white hover:bg-finland-dark"
+            >
+              Check dates
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {legalModal && supplierLegal && (
         <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4">

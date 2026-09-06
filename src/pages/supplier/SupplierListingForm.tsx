@@ -597,9 +597,9 @@ export default function SupplierListingForm({
 
   const steps = useMemo(
     () => [
-      { id: 'the_experience' as StepId, label: 'The tour' },
-      { id: 'practical' as StepId, label: 'Place & includes' },
-      { id: 'cost_options' as StepId, label: 'Price & options' },
+      { id: 'the_experience' as StepId, label: 'Basics' },
+      { id: 'practical' as StepId, label: 'Place' },
+      { id: 'cost_options' as StepId, label: 'Price' },
       { id: 'photos' as StepId, label: 'Photos' },
     ],
     []
@@ -1385,11 +1385,8 @@ export default function SupplierListingForm({
             e.preventDefault();
           }}
           onClick={(e) => e.stopPropagation()}
-          className="pointer-events-auto motion-safe:animate-slide-up motion-reduce:animate-none flex min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden border-0 bg-paper shadow-none h-[min(100dvh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)))] max-h-[min(100dvh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)))] rounded-none"
+          className="pointer-events-auto motion-safe:animate-fade-in motion-reduce:animate-none flex min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden border-0 bg-paper shadow-none h-[min(100dvh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)))] max-h-[min(100dvh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)))] rounded-none"
         >
-        <div className="sm:hidden flex justify-center pt-2 pb-1 shrink-0" aria-hidden>
-          <div className="h-1.5 w-12 rounded-full bg-gray-300" />
-        </div>
         <div className="shrink-0 border-b border-black/[0.06] bg-paper px-5 py-4 sm:px-8">
           <div className="mb-3 flex items-center justify-between gap-3">
             <button
@@ -1404,12 +1401,14 @@ export default function SupplierListingForm({
               {draftCloseBusy ? 'Saving' : 'Saved'}
             </p>
           </div>
-          <div className="mb-4 min-w-0">
+          <div className="mb-5 min-w-0">
             <h2 id="supplier-listing-editor-title" className="font-display text-2xl sm:text-3xl text-ink">
-              {editingId ? form.title.trim() || 'Tour workspace' : 'Create your tour'}
+              {editingId ? form.title.trim() || 'Tour' : 'Create your tour'}
             </h2>
             <p className="text-sm text-ink-muted mt-1 max-w-xl">
-              This is what travelers will see. Close anytime — unfinished work is saved as a draft.
+              {editingId
+                ? 'You are editing what travelers will see.'
+                : 'Close anytime — unfinished work is saved as a draft.'}
             </p>
           </div>
           {draftCloseError && (
@@ -1420,74 +1419,29 @@ export default function SupplierListingForm({
               {submitError}
             </p>
           )}
-          <nav aria-label="Listing setup steps" className="mb-3 w-full min-w-0">
-            <ol className="flex w-full min-w-0 list-none m-0 p-0">
-              {steps.map((step, idx) => {
-                const done = stepsThroughIndexComplete(idx, form);
-                const current = idx === stepIdx;
-                const n = steps.length;
-                return (
-                  <li key={step.id} className="relative min-w-0 flex-1 list-none">
-                    <button
-                      type="button"
-                      onClick={() => setStepIdxPersisted(idx)}
-                      className="touch-manipulation group flex w-full flex-col items-center rounded-lg px-0.5 py-0.5 outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2"
-                      aria-current={current ? 'step' : undefined}
-                    >
-                      <div className="relative flex h-8 w-full items-center justify-center">
-                        {idx > 0 && (
-                          <div
-                            className={`pointer-events-none absolute left-0 top-1/2 z-0 h-0.5 w-[calc(50%-1rem)] -translate-y-1/2 rounded-full ${
-                              stepsThroughIndexComplete(idx - 1, form) ? 'bg-finland/50' : 'bg-gray-200'
-                            }`}
-                            aria-hidden
-                          />
-                        )}
-                        {idx < n - 1 && (
-                          <div
-                            className={`pointer-events-none absolute right-0 top-1/2 z-0 h-0.5 w-[calc(50%-1rem)] -translate-y-1/2 rounded-full ${
-                              stepsThroughIndexComplete(idx, form) ? 'bg-finland/50' : 'bg-gray-200'
-                            }`}
-                            aria-hidden
-                          />
-                        )}
-                        <span
-                          className={`relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold border-2 transition-colors ${
-                            done
-                              ? 'bg-finland text-white border-finland'
-                              : current
-                                ? 'border-finland bg-finland/10 text-finland'
-                                : 'border-gray-200 bg-white text-gray-400 group-hover:border-gray-300'
-                          }`}
-                        >
-                          {done ? '✓' : idx + 1}
-                        </span>
-                      </div>
-                      <span
-                        className={`mt-1.5 inline-block max-w-[6.5rem] sm:max-w-none text-center text-[10px] font-semibold leading-tight sm:text-xs transition-shadow ${
-                          current
-                            ? 'rounded-md bg-finland/12 px-1.5 py-0.5 text-finland shadow-[0_0_0_1px_rgba(0,86,140,0.2),0_4px_14px_rgba(0,86,140,0.22)]'
-                            : 'text-gray-600'
-                        }`}
-                      >
-                        {step.label}
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ol>
+          <nav aria-label={editingId ? 'Tour sections' : 'Create tour steps'} className="flex gap-1 overflow-x-auto pb-0.5">
+            {steps.map((step, idx) => {
+              const current = idx === stepIdx;
+              return (
+                <button
+                  key={step.id}
+                  type="button"
+                  onClick={() => setStepIdxPersisted(idx)}
+                  aria-current={current ? 'step' : undefined}
+                  className={`lux-flat shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                    current ? 'bg-ink text-paper-raised' : 'text-ink-muted hover:text-ink'
+                  }`}
+                >
+                  {step.label}
+                </button>
+              );
+            })}
           </nav>
-          <div className="space-y-1">
-            <p className="text-xs text-gray-600">
-              {publishBlockersPreview.length === 0
-                ? 'Ready to publish — use Publish on Photos when you are happy with the listing.'
-                : `${publishBlockersPreview.length} item${publishBlockersPreview.length === 1 ? '' : 's'} left before publish`}
-            </p>
-            <p className="text-[11px] text-gray-400">
-              Step {stepIdx + 1} of {steps.length} · drafts save automatically when you close
-            </p>
-          </div>
+          <p className="mt-3 text-xs text-ink-muted">
+            {publishBlockersPreview.length === 0
+              ? 'Ready to publish — open Photos when you want to go live.'
+              : `${publishBlockersPreview.length} item${publishBlockersPreview.length === 1 ? '' : 's'} left before publish`}
+          </p>
         </div>
 
         {publishBlockers && publishBlockers.length > 0 && (

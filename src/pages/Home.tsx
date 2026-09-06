@@ -1,4 +1,4 @@
-import { ArrowRight, Search, ShieldCheck } from 'lucide-react';
+import { ArrowRight, Calendar, Search, ShieldCheck, Users } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import { getAllListings, SHOW_SEED_LISTINGS } from '../data/listings';
 import { getDestinationsFromListings } from '../data/activities';
@@ -31,6 +31,8 @@ interface HomeProps {
 export default function Home({ onTourSelect, onNavigate }: HomeProps) {
   const { listings: supplierListings } = usePublishedSupplierListings({ emptyOnFirstError: false });
   const [searchTerm, setSearchTerm] = useState('');
+  const [when, setWhen] = useState('');
+  const [who, setWho] = useState('');
   const [discountsByListing, setDiscountsByListing] = useState<Map<string, import('../data/supabase-discounts').ListingDiscount[]>>(new Map());
   const [reviewAggregates, setReviewAggregates] = useState<Map<string, { rating: number; count: number }>>(
     () => new Map()
@@ -80,12 +82,24 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
     };
   }, [displayedIdsKey]);
 
-  const goToPackages = (extra?: { q?: string; destination?: string }) => {
+  const goToPackages = (extra?: { q?: string; destination?: string; date?: string; guests?: string }) => {
     if (!onNavigate) return;
     const params = new URLSearchParams();
     const q = (extra?.q ?? searchTerm).trim();
-    if (q) params.set('q', q);
-    if (extra?.destination) params.set('destination', extra.destination);
+    const destText = extra?.destination?.trim();
+    const date = (extra?.date ?? when).trim();
+    const guests = (extra?.guests ?? who).trim();
+    if (destText) {
+      const match = placeChips.find(
+        (p) => p.id === destText || p.label.toLowerCase() === destText.toLowerCase()
+      );
+      if (match) params.set('destination', match.id);
+      else params.set('q', destText);
+    } else if (q) {
+      params.set('q', q);
+    }
+    if (date) params.set('date', date);
+    if (guests) params.set('guests', guests);
     const query = params.toString();
     window.history.pushState({}, '', query ? `/packages?${query}` : '/packages');
     onNavigate('packages');
@@ -115,20 +129,50 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
           </p>
           <form
             onSubmit={submitSearch}
-            className="bg-white rounded-2xl p-2 sm:p-2.5 flex flex-col sm:flex-row gap-2 shadow-none"
+            className="bg-white rounded-2xl p-2 sm:p-2.5 grid grid-cols-1 sm:grid-cols-[1fr_auto_auto_auto] gap-2 shadow-none"
           >
             <label className="sr-only" htmlFor="home-search">
-              Search tours
+              Where
             </label>
-            <div className="relative flex-1">
+            <div className="relative min-w-0">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
               <input
                 id="home-search"
                 type="search"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Northern lights, Lisbon, food tour…"
+                placeholder="Where"
                 className="w-full h-12 sm:h-14 pl-11 pr-4 rounded-xl border-0 text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-finland/30 text-base"
+              />
+            </div>
+            <label className="sr-only" htmlFor="home-when">
+              When
+            </label>
+            <div className="relative">
+              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              <input
+                id="home-when"
+                type="date"
+                value={when}
+                onChange={(e) => setWhen(e.target.value)}
+                className="w-full sm:w-[10.5rem] h-12 sm:h-14 pl-10 pr-3 rounded-xl border-0 text-gray-900 focus:ring-2 focus:ring-finland/30 text-base"
+              />
+            </div>
+            <label className="sr-only" htmlFor="home-who">
+              Guests
+            </label>
+            <div className="relative">
+              <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              <input
+                id="home-who"
+                type="number"
+                min={1}
+                max={99}
+                inputMode="numeric"
+                value={who}
+                onChange={(e) => setWho(e.target.value)}
+                placeholder="Guests"
+                className="w-full sm:w-[7.5rem] h-12 sm:h-14 pl-10 pr-3 rounded-xl border-0 text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-finland/30 text-base"
               />
             </div>
             <button

@@ -2,8 +2,8 @@
  * Consumer: list of the logged-in user's bookings with status.
  * RLS ensures only rows where guest_email = auth user email are returned.
  */
-import { useState, useEffect, useCallback } from 'react';
-import { Calendar, Users, MapPin, LogIn, RefreshCw, XCircle, ArrowLeft, Clock, CheckCircle, Home } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Calendar, Users, LogIn, RefreshCw, XCircle, ArrowLeft, Clock, CheckCircle, Home } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import {
@@ -15,8 +15,6 @@ import {
 } from '../data/supabase-bookings';
 import { fetchListingTitlesByIds, pgTimeToHm } from '../data/supabase-listings';
 import { decrementAvailabilityBooked } from '../data/supabase-availability';
-import PageHero from '../components/PageHero';
-import { HERO_IMG } from '../lib/heroImages';
 import { clearBookingsUnread } from '../lib/customerBookingNotifications';
 
 interface MyBookingsProps {
@@ -58,6 +56,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   const [stayDrafts, setStayDrafts] = useState<Record<string, string>>({});
   const [staySavingId, setStaySavingId] = useState<string | null>(null);
   const [paymentBanner, setPaymentBanner] = useState<'success' | 'cancelled' | null>(null);
+  const [tripView, setTripView] = useState<'upcoming' | 'past' | 'cancelled'>('upcoming');
 
   /** Tour start is within 24 hours from now → no refund. Otherwise full refund. */
   const getRefundChoiceForCancel = useCallback((bookingDate: string | null): 'full_refund' | 'no_refund' => {
@@ -170,34 +169,40 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
     }
   }, []);
 
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const visibleBookings = useMemo(() => {
+    return bookings.filter((b) => {
+      if (tripView === 'cancelled') return b.status === 'cancelled';
+      if (tripView === 'past') {
+        return b.status !== 'cancelled' && !!b.booking_date && b.booking_date < todayIso;
+      }
+      return b.status !== 'cancelled' && (!b.booking_date || b.booking_date >= todayIso);
+    });
+  }, [bookings, todayIso, tripView]);
+
   if (!isSupabaseConfigured()) {
     return (
-      <div className="min-h-screen bg-gray-50 pt-20">
-        <PageHero
-          imageSrc={HERO_IMG.beach2}
-          overlay="slateSoft"
-          title="Trips"
-          subtitle="Upcoming and past tours you booked."
-        />
-        <div className="max-w-2xl mx-auto px-4 py-8 pb-12">
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 text-center">
-            <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">Bookings unavailable</h2>
-            <p className="text-gray-600 mb-5">
+      <div className="min-h-screen bg-paper pt-20">
+        <div className="max-w-2xl mx-auto px-4 py-12 pb-16">
+          <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Trips</h1>
+          <p className="mt-2 text-ink-muted">Upcoming and past tours you booked.</p>
+          <div className="mt-10 max-w-md">
+            <h2 className="font-display text-2xl text-ink">Bookings unavailable</h2>
+            <p className="mt-3 text-sm text-ink-muted">
               Booking history is available only in the live app setup.
             </p>
-            <div className="flex flex-wrap items-center justify-center gap-2">
+            <div className="mt-6 flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={() => onNavigate('packages')}
-                className="px-5 py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark"
+                className="px-5 py-2.5 rounded-full bg-finland text-white font-medium hover:bg-finland-dark"
               >
                 Browse tours
               </button>
               <button
                 type="button"
                 onClick={() => onNavigate('contact')}
-                className="px-5 py-2.5 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50"
+                className="px-5 py-2.5 rounded-full text-ink-muted hover:text-ink"
               >
                 Contact support
               </button>
@@ -210,76 +215,53 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gray-50 pt-20">
-        <PageHero
-          imageSrc={HERO_IMG.beach2}
-          overlay="slateSoft"
-          title="Trips"
-          subtitle="Log in to see your reservations and their status (confirmed or cancelled)."
-        />
-        <div className="max-w-xl mx-auto px-4 py-8 pb-12 text-center">
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-10">
-            <Calendar className="w-14 h-14 text-gray-300 mx-auto mb-4" />
-            <h1 className="text-2xl font-semibold text-gray-900 mb-2">Trips</h1>
-            <p className="text-gray-600 mb-6">Log in to see your reservations and their status (confirmed or cancelled).</p>
-            <button
-              type="button"
-              onClick={() => {
-                window.history.pushState({}, '', '/log-in?next=account');
-                onNavigate('auth');
-              }}
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark"
-            >
-              <LogIn className="w-5 h-5" />
-              Log in
-            </button>
-          </div>
+      <div className="min-h-screen bg-paper pt-20">
+        <div className="max-w-xl mx-auto px-4 py-12 pb-16">
+          <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Trips</h1>
+          <p className="mt-2 text-ink-muted">Log in to see tours you’ve booked.</p>
+          <button
+            type="button"
+            onClick={() => {
+              window.history.pushState({}, '', '/log-in?next=account');
+              onNavigate('auth');
+            }}
+            className="mt-8 inline-flex items-center gap-2 px-6 py-3 rounded-full bg-finland text-white font-medium hover:bg-finland-dark"
+          >
+            <LogIn className="w-5 h-5" />
+            Log in
+          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-20">
-      <PageHero
-        imageSrc={HERO_IMG.beach2}
-        overlay="slateSoft"
-        title="Your bookings"
-        subtitle="View status of your tour and activity reservations."
-      />
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 pb-12">
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+    <div className="min-h-screen bg-paper pt-20">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-12 pb-16">
+        <div className="flex flex-wrap items-end justify-between gap-4 mb-8">
+          <div>
+            <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Trips</h1>
+            <p className="mt-2 text-ink-muted">Tours you’ve booked.</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={() => onNavigate('account')}
-              className="inline-flex items-center gap-1.5 text-gray-600 hover:text-finland font-medium"
+              className="lux-flat inline-flex items-center gap-1.5 text-sm text-ink-muted hover:text-ink"
             >
               <ArrowLeft className="w-4 h-4" />
-              My account
+              Account
             </button>
-            <span className="text-gray-300 hidden sm:inline" aria-hidden>
-              |
-            </span>
             <button
               type="button"
-              onClick={() => onNavigate('packages')}
-              className="text-gray-500 hover:text-finland"
+              onClick={load}
+              disabled={loading}
+              className="lux-flat inline-flex items-center gap-2 px-3 py-2 text-sm text-ink-muted hover:text-ink disabled:opacity-50"
             >
-              Browse tours
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
             </button>
           </div>
-        </div>
-        <div className="flex justify-end mb-8">
-          <button
-            type="button"
-            onClick={load}
-            disabled={loading}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </button>
         </div>
 
         {error && (
@@ -358,26 +340,57 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
         )}
 
         {loading ? (
-          <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-            <p className="text-gray-500">Loading your bookings…</p>
-          </div>
+          <p className="text-ink-muted">Loading your trips…</p>
         ) : bookings.length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-            <Calendar className="w-14 h-14 text-gray-300 mx-auto mb-4" />
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">No bookings yet</h2>
-            <p className="text-gray-600 mb-6">When you book a tour or activity, it will appear here with its status.</p>
+          <div className="max-w-md py-8">
+            <h2 className="font-display text-2xl text-ink">No trips yet</h2>
+            <p className="mt-3 text-sm text-ink-muted">When you book a tour, it will show up here.</p>
             <button
               type="button"
               onClick={() => onNavigate('packages')}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark"
+              className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-finland text-white font-medium hover:bg-finland-dark"
             >
-              <MapPin className="w-5 h-5" />
               Browse tours
             </button>
           </div>
         ) : (
+          <div className="space-y-6">
+            <div className="flex gap-1 rounded-full bg-black/[0.04] p-1 w-fit">
+              {([
+                ['upcoming', 'Upcoming'],
+                ['past', 'Past'],
+                ['cancelled', 'Cancelled'],
+              ] as const).map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setTripView(id)}
+                  className={`lux-flat rounded-full px-3.5 py-1.5 text-sm font-medium ${
+                    tripView === id ? 'bg-paper-raised text-ink shadow-sm' : 'text-ink-muted'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            {visibleBookings.length === 0 ? (
+              <div className="py-8 max-w-md">
+                <h2 className="font-display text-2xl text-ink">
+                  {tripView === 'upcoming'
+                    ? 'No upcoming trips'
+                    : tripView === 'past'
+                      ? 'No past trips'
+                      : 'No cancelled trips'}
+                </h2>
+                <p className="mt-3 text-sm text-ink-muted">
+                  {tripView === 'upcoming'
+                    ? 'Book a tour and it will appear here.'
+                    : 'Nothing in this list right now.'}
+                </p>
+              </div>
+            ) : (
           <div className="space-y-4">
-            {bookings.map((b) => (
+            {visibleBookings.map((b) => (
               <div
                 key={b.id}
                 className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-4"
@@ -498,6 +511,8 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                 </div>
               </div>
             ))}
+          </div>
+            )}
           </div>
         )}
 

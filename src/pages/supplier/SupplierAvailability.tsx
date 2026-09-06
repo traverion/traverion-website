@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { fetchMyListings } from '../../data/supabase-listings';
+import { fetchBookingsForSupplier, type BookingRow } from '../../data/supabase-bookings';
 import {
   deleteAvailability,
   fetchAvailabilityByListingId,
@@ -16,6 +17,8 @@ import {
   defaultCapacityForOpenDay,
   remainingCapacity,
 } from '../../lib/availability-ops';
+import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
+import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { SUPPLIER_PAGE_CLASS, SupplierEmptyState } from '../../components/supplier/supplierUi';
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -34,6 +37,7 @@ export default function SupplierAvailability() {
   const [listings, setListings] = useState<TourPackage[]>([]);
   const [listingId, setListingId] = useState<string>('');
   const [rows, setRows] = useState<AvailabilityRow[]>([]);
+  const [bookings, setBookings] = useState<BookingRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingIso, setSavingIso] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -42,6 +46,24 @@ export default function SupplierAvailability() {
   const listing = listings.find((l) => l.id === listingId) ?? null;
   const cells = useMemo(() => buildMonthCells(year, monthIndex0), [year, monthIndex0]);
   const rowByDate = useMemo(() => new Map(rows.map((r) => [r.available_date, r])), [rows]);
+  const guestsByDate = useMemo(() => {
+    const map = new Map<string, { guests: number; count: number }>();
+    for (const b of bookings) {
+      if (b.listing_id !== listingId || !b.booking_date) continue;
+      const cur = map.get(b.booking_date) ?? { guests: 0, count: 0 };
+      cur.guests += b.guests ?? 0;
+      cur.count += 1;
+      map.set(b.booking_date, cur);
+    }
+    return map;
+  }, [bookings, listingId]);
+  const dayBookings = useMemo(
+    () =>
+      editing
+        ? bookings.filter((b) => b.listing_id === listingId && b.booking_date === editing.iso)
+        : [],
+    [bookings, editing, listingId]
+  );
 
   const loadListings = useCallback(async () => {
     if (!isSupabase || !user?.id) {
@@ -52,8 +74,12 @@ export default function SupplierAvailability() {
     setLoading(true);
     setError(null);
     try {
-      const mine = await fetchMyListings(user.id);
+      const [mine, mineBookings] = await Promise.all([
+        fetchMyListings(user.id),
+        fetchBookingsForSupplier(user.id).catch(() => [] as BookingRow[]),
+      ]);
       setListings(mine);
+      setBookings(mineBookings.filter((b) => b.status !== 'cancelled'));
       setListingId((prev) => prev || mine[0]?.id || '');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not load tours');
@@ -125,6 +151,13 @@ export default function SupplierAvailability() {
     year: 'numeric',
     timeZone: 'UTC',
   });
+  const localTodayIso = (() => {
+    const n = new Date();
+    const y = n.getFullYear();
+    const m = String(n.getMonth() + 1).padStart(2, '0');
+    const d = String(n.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  })();
 
   return (
     <div className={`${SUPPLIER_PAGE_CLASS} min-h-[70vh]`}>
@@ -132,7 +165,7 @@ export default function SupplierAvailability() {
         <div>
           <h1 className="font-display text-3xl sm:text-4xl text-ink">Calendar</h1>
           <p className="mt-2 text-sm text-ink-muted max-w-lg">
-            Open days follow each tour’s weekday rules. Tap a date to cap spots.
+          Open days follow each tour’s weekday rules. Dots are booked guests. Tap a date to see the departure.
           </p>
         </div>
         {!isSupabase || !user ? null : listings.length > 0 ? (
@@ -175,7 +208,20 @@ export default function SupplierAvailability() {
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
-            <p className="font-display text-xl sm:text-2xl text-ink">{monthLabel}</p>
+            <div className="text-center">
+              <p className="font-display text-xl sm:text-2xl text-ink">{monthLabel}</p>
+              <button
+                type="button"
+                onClick={() => {
+                  const n = new Date();
+                  setYear(n.getFullYear());
+                  setMonthIndex0(n.getMonth());
+                }}
+                className="lux-flat mt-1 text-xs font-semibold text-finland"
+              >
+                Today
+              </button>
+            </div>
             <button
               type="button"
               onClick={() => shiftMonth(1)}
@@ -202,6 +248,8 @@ export default function SupplierAvailability() {
               const open = cell.inMonth && weekdayOpen(cell.iso);
               const cap = rowByDate.get(cell.iso);
               const remaining = cap ? remainingCapacity(cap.capacity, cap.booked) : null;
+              const booked = guestsByDate.get(cell.iso);
+              const isToday = cell.iso === localTodayIso;
               const isEditing = editing?.iso === cell.iso;
               const busy = savingIso === cell.iso;
               return (
@@ -210,7 +258,7 @@ export default function SupplierAvailability() {
                   type="button"
                   disabled={!cell.inMonth || busy}
                   onClick={() => {
-                    if (!open && !cap) return;
+                    if (!open && !cap && !booked) return;
                     setEditing({
                       iso: cell.iso,
                       capacity: String(cap?.capacity ?? defaultSpots(listing)),
@@ -221,17 +269,25 @@ export default function SupplierAvailability() {
                       ? 'bg-transparent text-ink-faint'
                       : isEditing
                         ? 'bg-paper-raised ring-2 ring-finland/30'
+                        : isToday
+                          ? 'bg-paper-raised'
+                          : booked
+                            ? 'bg-finland/10'
                         : cap
                         ? remaining === 0
                           ? 'bg-rose-50'
-                          : 'bg-finland/10'
+                          : 'bg-finland/8'
                         : open
                           ? 'hover:bg-paper-raised'
                           : 'text-ink-faint'
                   }`}
                 >
                   <span className="block text-sm font-semibold text-ink">{cell.day}</span>
-                  {cell.inMonth && cap ? (
+                  {cell.inMonth && booked ? (
+                    <span className="mt-0.5 block text-[10px] leading-tight text-ink">
+                      {booked.guests} guest{booked.guests === 1 ? '' : 's'}
+                    </span>
+                  ) : cell.inMonth && cap ? (
                     <span className="mt-0.5 block text-[10px] leading-tight text-ink-muted">
                       {remaining}/{cap.capacity} left
                     </span>
@@ -244,10 +300,33 @@ export default function SupplierAvailability() {
           </div>
 
           {editing ? (
-            <div className="mt-8 max-w-lg motion-safe:animate-fade-in-up">
-              <p className="font-sans text-base font-semibold text-ink">{editing.iso}</p>
-              <p className="mt-1 text-sm text-ink-muted">
-                Daily cap is optional. Clearing it returns the date to weekday rules on the tour option.
+            <div className="mt-8 max-w-xl motion-safe:animate-fade-in-up">
+              <p className="font-sans text-base font-semibold text-ink">
+                {new Date(`${editing.iso}T12:00:00`).toLocaleDateString('en-GB', {
+                  weekday: 'long',
+                  day: 'numeric',
+                  month: 'long',
+                })}
+              </p>
+              {dayBookings.length === 0 ? (
+                <p className="mt-2 text-sm text-ink-muted">No bookings on this date.</p>
+              ) : (
+                <ul className="mt-3 space-y-2">
+                  {dayBookings.map((b) => (
+                    <li key={b.id}>
+                      <button
+                        type="button"
+                        onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings?booking=${b.id}`)}
+                        className="lux-flat text-left text-sm font-semibold text-ink"
+                      >
+                        {b.guest_name?.trim() || 'Guest'} · {b.guests} guest{b.guests === 1 ? '' : 's'}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <p className="mt-4 text-sm text-ink-muted">
+                Daily cap is optional. Clearing it returns the date to weekday rules.
               </p>
               <div className="mt-4 flex flex-col sm:flex-row gap-2 sm:items-center">
                 <label className="text-sm text-ink" htmlFor="day-capacity">

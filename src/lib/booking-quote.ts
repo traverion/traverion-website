@@ -73,6 +73,18 @@ export function optionRunsOnDate(option: ListingBookingOption, isoDate: string):
   return null;
 }
 
+/**
+ * Whether a listing can run on this date for search.
+ * If it has no booking options, do not hide it. If it has options, keep it when at least one option runs.
+ */
+export function listingRunsOnDate(tour: QuoteTourSlice, isoDate: string): boolean {
+  if (!ISO_DATE.test(isoDate)) return true;
+  const extras = parseListingExtras(tour.listingExtras);
+  const opts = materializedBookingOptions(extras.bookingOptions);
+  if (opts.length === 0) return true;
+  return opts.some((o) => optionRunsOnDate(o, isoDate) === null);
+}
+
 function money(n: number): number {
   return Math.round(n * 100) / 100;
 }
