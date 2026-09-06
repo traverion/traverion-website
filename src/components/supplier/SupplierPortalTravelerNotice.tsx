@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { UserCircle2 } from 'lucide-react';
 import { BRAND_LOGO_SRC } from '../../lib/brandAssets';
 import { supplierPortalHref } from '../../lib/partnerHost';
 import { publicSiteBaseUrl } from '../../lib/publicSiteUrl';
@@ -34,53 +33,41 @@ export default function SupplierPortalTravelerNotice({ email, onSignOut }: Props
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-lg mx-auto px-4 py-4 flex items-center justify-between">
-          <a href={travelerHome} className="flex items-center gap-2 text-gray-900">
-            <img src={BRAND_LOGO_SRC} alt="" className="h-10 w-10 object-contain" />
-            <span className="font-semibold text-finland">TRAVERION</span>
-          </a>
-        </div>
+    <div className="min-h-[100dvh] bg-paper text-ink flex flex-col">
+      <header className="px-5 sm:px-8 py-5 flex items-center">
+        <a href={travelerHome} className="flex items-center gap-2.5 text-ink">
+          <img src={BRAND_LOGO_SRC} alt="" className="h-10 w-10 object-contain" />
+          <span className="font-sans text-sm font-semibold tracking-[0.18em]">TRAVERION</span>
+        </a>
       </header>
-      <main className="flex-1 flex items-center justify-center p-6">
-        <div className="max-w-md w-full rounded-2xl border border-gray-200 bg-white p-8 shadow-sm text-center animate-scale-in">
-          <div className="inline-flex w-12 h-12 rounded-2xl bg-finland/10 text-finland items-center justify-center mb-4">
-            <UserCircle2 className="w-6 h-6" aria-hidden />
-          </div>
-          <h1 className="text-xl font-semibold text-gray-900 mb-2">Traveler account</h1>
-          <p className="text-sm text-gray-600 mb-1">
-            You’re signed in as{' '}
-            <span className="font-medium text-gray-800">{email?.trim() ? email : 'this account'}</span>.
+      <main className="flex-1 flex items-center justify-center px-5 pb-16">
+        <div className="max-w-md w-full">
+          <h1 className="font-display text-3xl text-ink tracking-tight">Traveler account</h1>
+          <p className="mt-3 text-sm text-ink-muted">
+            You’re signed in as {email?.trim() ? email : 'this account'}.
           </p>
-          <p className="text-sm text-gray-600 mb-6">
-            This area is for <strong>tour partners</strong> (suppliers) with a Traverion partner profile. Bookings
-            and your traveler profile are on the main site.
+          <p className="mt-2 text-sm text-ink-muted leading-relaxed">
+            This area is for tour partners with a Traverion partner profile. Bookings and your traveler profile are on
+            the main site.
           </p>
-          <div className="flex flex-col gap-2">
-            <a
-              href={travelerHome}
-              className="inline-flex justify-center items-center rounded-xl bg-finland text-white font-semibold px-4 py-3 hover:bg-finland-dark transition-colors"
-            >
+          <div className="flex flex-col gap-2 mt-8">
+            <a href={travelerHome} className="tv-btn-primary inline-flex justify-center">
               Go to Traverion home
             </a>
-            <a
-              href={travelerPackages}
-              className="inline-flex justify-center items-center rounded-xl border border-gray-200 text-gray-700 font-medium px-4 py-3 hover:bg-gray-50 transition-colors"
-            >
+            <a href={travelerPackages} className="tv-btn-secondary inline-flex justify-center">
               Browse tours
             </a>
             <button
               type="button"
               onClick={handleSignOut}
               disabled={signingOut}
-              className="inline-flex justify-center items-center rounded-xl text-finland font-medium px-4 py-3 hover:bg-finland/5 transition-colors disabled:opacity-50"
+              className="tv-btn-ghost disabled:opacity-50"
             >
               {signingOut ? 'Signing out…' : 'Sign out'}
             </button>
-            <p className="text-xs text-gray-500 pt-2 leading-relaxed">
+            <p className="text-xs text-ink-faint pt-2 leading-relaxed">
               Want to list tours? Open{' '}
-              <a href={supplierPortalHref('/login')} className="text-finland underline font-medium">
+              <a href={supplierPortalHref('/login')} className="font-medium text-ink underline">
                 Partner sign-up
               </a>{' '}
               — sign out first. Partner and traveler are separate accounts; one email can only be one role (use e.g.{' '}

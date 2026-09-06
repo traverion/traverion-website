@@ -53,14 +53,14 @@ export default function SupplierLoginPage({ onAuthenticated, isSupabase }: Suppl
 
       <main className="relative z-10 flex min-h-[calc(100dvh-5.5rem)] flex-col justify-end sm:justify-center px-5 sm:px-10 lg:px-16 pb-10 sm:pb-16">
         <div className="max-w-xl motion-safe:animate-fade-in-up">
-          <p className="text-xs uppercase tracking-[0.22em] text-white/70 mb-4">For tour operators</p>
+          <p className="text-xs uppercase tracking-[0.22em] text-white/70 mb-4">Traverion Partner</p>
           <h1 className="font-display text-[2.35rem] sm:text-5xl lg:text-6xl leading-[1.05] text-white mb-5">
             Sell your tours.
             <br />
             Run the day.
           </h1>
           <p className="text-base sm:text-lg text-white/80 max-w-md mb-8 leading-relaxed font-sans">
-            Traverion helps travel businesses publish tours, take bookings, and operate — without an admin maze.
+            Publish tours, take bookings, and operate — without an admin maze.
           </p>
           <div className="flex flex-col sm:flex-row gap-3">
             <button
@@ -68,7 +68,7 @@ export default function SupplierLoginPage({ onAuthenticated, isSupabase }: Suppl
               onClick={() => setAuth('signup')}
               className="h-12 px-7 rounded-full bg-white text-ink font-semibold hover:bg-paper transition-colors"
             >
-              Create supplier account
+              Create account
             </button>
             <button
               type="button"
@@ -90,14 +90,11 @@ export default function SupplierLoginPage({ onAuthenticated, isSupabase }: Suppl
             onClick={() => setAuth(null)}
           />
           <div className="relative w-full sm:max-w-md bg-paper-raised text-ink rounded-t-3xl sm:rounded-3xl p-6 sm:p-8 max-h-[92dvh] overflow-y-auto shadow-soft-xl motion-safe:animate-slide-up">
-            <div className="flex items-center justify-between mb-4">
-              <p className="font-sans text-sm font-semibold tracking-wide">
-                {auth === 'signup' ? 'Create account' : 'Log in'}
-              </p>
+            <div className="flex items-start justify-end mb-4">
               <button
                 type="button"
                 onClick={() => setAuth(null)}
-                className="lux-tap-target p-2 rounded-full text-ink-muted hover:bg-paper"
+                className="lux-flat p-2 rounded-full text-ink-muted hover:text-ink"
                 aria-label="Close"
               >
                 <X className="w-5 h-5" />
@@ -108,6 +105,7 @@ export default function SupplierLoginPage({ onAuthenticated, isSupabase }: Suppl
               isSupabase={isSupabase}
               initialMode={auth}
               compact
+              onModeChange={(mode) => setAuth(mode)}
             />
           </div>
         </div>

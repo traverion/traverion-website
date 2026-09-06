@@ -1,5 +1,4 @@
 import { useLayoutEffect, useState } from 'react';
-import { Loader2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import {
   establishPasswordRecoverySession,
@@ -8,7 +7,6 @@ import {
   stripRecoveryQueryFromUrl,
   updatePasswordAfterRecovery,
 } from '../../lib/passwordRecoveryFlow';
-import { authInputErrorClasses } from '../../lib/authFormValidation';
 
 type Phase = 'loading' | 'form' | 'invalid' | 'timeout' | 'success';
 
@@ -102,9 +100,8 @@ export default function SetNewPasswordForm({
   if (phase === 'loading') {
     return (
       <div className="py-10 text-center">
-        <Loader2 className="w-8 h-8 text-finland mx-auto mb-3 animate-spin" aria-hidden />
-        <p className="text-sm text-gray-600">Verifying your reset link…</p>
-        <p className="text-xs text-gray-500 mt-2">This usually takes a few seconds.</p>
+        <p className="font-display text-2xl text-ink">Verifying your reset link</p>
+        <p className="mt-2 text-sm text-ink-muted">This usually takes a few seconds.</p>
       </div>
     );
   }
@@ -112,17 +109,14 @@ export default function SetNewPasswordForm({
   if (phase === 'invalid') {
     return (
       <div className="space-y-4 py-2">
-        <p className="text-sm text-red-700 bg-red-50 px-3 py-2 rounded-lg border border-red-100" role="alert">
+        <p className="text-sm text-ink-muted" role="alert">
           This page only works from the secure link in your password reset email. The link may be invalid, expired, or
           already used.
         </p>
-        <p className="text-sm text-gray-600">
-          Open the page from a <strong>new</strong> reset email, or request one from sign in → Forgot password?
+        <p className="text-sm text-ink-muted">
+          Open the page from a new reset email, or request one from log in → Forgot password.
         </p>
-        <a
-          href={loginHref}
-          className="inline-flex w-full justify-center rounded-lg bg-finland px-4 py-3 text-sm font-semibold text-white hover:bg-finland-dark transition-colors"
-        >
+        <a href={loginHref} className="tv-btn-primary inline-flex w-full justify-center">
           {loginLabel}
         </a>
       </div>
@@ -132,14 +126,11 @@ export default function SetNewPasswordForm({
   if (phase === 'timeout') {
     return (
       <div className="space-y-4 py-2">
-        <p className="text-sm text-amber-800 bg-amber-50 px-3 py-2 rounded-lg border border-amber-100" role="alert">
+        <p className="text-sm text-ink-muted" role="alert">
           We could not verify your reset link in time. Try opening the link from your email again, or request a new
           reset email.
         </p>
-        <a
-          href={loginHref}
-          className="inline-flex w-full justify-center rounded-lg bg-finland px-4 py-3 text-sm font-semibold text-white hover:bg-finland-dark transition-colors"
-        >
+        <a href={loginHref} className="tv-btn-primary inline-flex w-full justify-center">
           {loginLabel}
         </a>
       </div>
@@ -149,14 +140,8 @@ export default function SetNewPasswordForm({
   if (phase === 'success') {
     return (
       <div className="space-y-4 py-2">
-        <div className="rounded-lg border border-green-100 bg-green-50 px-3 py-3 text-sm text-green-900">
-          Your password was updated. {successHint}
-        </div>
-        <button
-          type="button"
-          onClick={onSuccess}
-          className="w-full py-3 rounded-lg bg-finland text-white font-semibold hover:bg-finland-dark transition-colors"
-        >
+        <p className="text-sm text-ink">Your password was updated. {successHint}</p>
+        <button type="button" onClick={onSuccess} className="tv-btn-primary w-full">
           Continue to sign in
         </button>
       </div>
@@ -165,9 +150,9 @@ export default function SetNewPasswordForm({
 
   return (
     <form noValidate onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
-      <p className="text-sm text-gray-600">{description}</p>
+      <p className="text-sm text-ink-muted">{description}</p>
       <div>
-        <label htmlFor="set-new-password" className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor="set-new-password" className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">
           New password
         </label>
         <input
@@ -184,18 +169,18 @@ export default function SetNewPasswordForm({
             });
           }}
           autoComplete="new-password"
-          className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 outline-none ${authInputErrorClasses(!!fieldErrors.password)}`}
+          className="tv-input"
           aria-invalid={fieldErrors.password ? true : undefined}
         />
-        <p className="text-xs text-gray-500 mt-1">At least {minPasswordLength} characters</p>
+        <p className="text-xs text-ink-faint mt-1">At least {minPasswordLength} characters</p>
         {fieldErrors.password && (
-          <p className="mt-1.5 text-sm text-red-600" role="alert">
+          <p className="mt-1.5 text-sm text-red-800" role="alert">
             {fieldErrors.password}
           </p>
         )}
       </div>
       <div>
-        <label htmlFor="set-new-password-confirm" className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor="set-new-password-confirm" className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">
           Confirm new password
         </label>
         <input
@@ -212,23 +197,19 @@ export default function SetNewPasswordForm({
             });
           }}
           autoComplete="new-password"
-          className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 outline-none ${authInputErrorClasses(!!fieldErrors.confirm)}`}
+          className="tv-input"
           aria-invalid={fieldErrors.confirm ? true : undefined}
         />
         {fieldErrors.confirm && (
-          <p className="mt-1.5 text-sm text-red-600" role="alert">
+          <p className="mt-1.5 text-sm text-red-800" role="alert">
             {fieldErrors.confirm}
           </p>
         )}
       </div>
-      <button
-        type="submit"
-        disabled={submitting}
-        className="w-full py-3 rounded-lg bg-finland text-white font-semibold hover:bg-finland-dark transition-colors disabled:opacity-50"
-      >
+      <button type="submit" disabled={submitting} className="tv-btn-primary w-full disabled:opacity-50">
         {submitting ? 'Saving…' : 'Update password'}
       </button>
-      <a href={loginHref} className="block text-center text-sm text-finland hover:underline">
+      <a href={loginHref} className="lux-flat block text-center text-sm text-ink-muted hover:text-ink">
         {loginLabel}
       </a>
     </form>

@@ -64,6 +64,21 @@ export function redirectIfPasswordRecoveryLandingInWrongPlace(): void {
     return;
   }
 
+  // Localhost serves traveler + partner on one origin. Partner reset stays at /reset-password.
+  if (host === 'localhost' || host === '127.0.0.1') {
+    if (p === PARTNER_RESET_PASSWORD_PATH) return;
+    if (
+      p === PARTNER_LOGIN_PATH ||
+      p === PARTNER_APP_BASE ||
+      p.startsWith(`${PARTNER_APP_BASE}/`) ||
+      p.startsWith('/supplier') ||
+      p === '/supplier-log-in'
+    ) {
+      window.location.replace(`${origin}${PARTNER_RESET_PASSWORD_PATH}${search}${fragment}`);
+      return;
+    }
+  }
+
   if (isPublicTraverionMarketingHost()) {
     const legacySupplier =
       p === '/supplier-log-in' || p === '/supplier' || p.startsWith('/supplier/');
@@ -133,6 +148,9 @@ export function redirectIfPasswordRecoveryLandingInWrongPlace(): void {
 export function redirectLegacyTravelerResetPasswordPath(): void {
   if (typeof window === 'undefined') return;
   if (isTraverionPartnerHost()) return;
+  const host = window.location.hostname;
+  // Localhost serves the partner reset page at /reset-password (same origin as the traveler app).
+  if (host === 'localhost' || host === '127.0.0.1') return;
   const p = window.location.pathname.replace(/\/$/, '') || '/';
   if (p !== LEGACY_TRAVELER_RESET_PASSWORD_PATH && p !== LEGACY_ACCOUNT_RESET_PASSWORD_PATH) return;
   const { search, hash, origin } = window.location;

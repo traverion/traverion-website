@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { LogIn, UserPlus, Globe, Check, MapPin, Users, CreditCard } from 'lucide-react';
+import { Globe, MapPin, Users, CreditCard } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { ensureSupplierProfile, fetchSupplierProfile } from '../../data/supabase-supplier-profile';
 import { isPhoneAvailableForSignup } from '../../data/supabase-phone-signup';
@@ -21,7 +21,7 @@ import {
 import { consumePartnerAuthFlash } from '../../lib/partnerAuthFlash';
 import { publicSiteBaseUrl } from '../../lib/publicSiteUrl';
 import { fetchConsumerProfile } from '../../data/supabase-consumer-profile';
-import { authInputErrorClasses, isValidEmailFormat } from '../../lib/authFormValidation';
+import { isValidEmailFormat } from '../../lib/authFormValidation';
 import ForgotPasswordInline, { type ForgotPasswordSendResult } from '../../components/auth/ForgotPasswordInline';
 
 /** Fire-and-forget welcome email (Edge Function dedupes via welcome_email_sent_at). */
@@ -38,6 +38,7 @@ interface SupplierAuthProps {
   isSupabase: boolean;
   initialMode?: Mode;
   compact?: boolean;
+  onModeChange?: (mode: Mode) => void;
 }
 
 type Mode = 'signin' | 'signup';
@@ -63,6 +64,7 @@ export default function SupplierAuth({
   isSupabase,
   initialMode = 'signup',
   compact = false,
+  onModeChange,
 }: SupplierAuthProps) {
   const [mode, setMode] = useState<Mode>(initialMode);
   const [email, setEmail] = useState('');
@@ -86,6 +88,14 @@ export default function SupplierAuth({
       window.location.replace(`${PARTNER_RESET_PASSWORD_PATH}${search}${hash}`);
     });
   }, [isSupabase]);
+
+  useEffect(() => {
+    setMode(initialMode);
+  }, [initialMode]);
+
+  useEffect(() => {
+    onModeChange?.(mode);
+  }, [mode, onModeChange]);
 
   useEffect(() => {
     const flash = consumePartnerAuthFlash();
@@ -119,7 +129,7 @@ export default function SupplierAuth({
     if (m.includes('email not confirmed')) {
       return 'Please confirm your email before signing in.';
     }
-    return message;
+    return 'Something went wrong. Check your details and try again.';
   };
 
   /** Map Supabase / server messages to the most relevant field (avoid generic banner-only errors). */
@@ -418,27 +428,10 @@ export default function SupplierAuth({
       )}
 
       <div className={`w-full ${compact ? '' : 'max-w-md sm:max-w-lg xl:max-w-xl 2xl:max-w-[28rem] mx-auto lg:mx-0 flex-shrink-0'}`}>
-        <div className={compact ? '' : 'bg-white border border-gray-200 rounded-2xl shadow-lg overflow-hidden xl:shadow-xl'}>
+        <div className={compact ? '' : 'overflow-hidden'}>
           <>
-          {/* Tabs */}
-          <div className="flex border-b border-gray-200">
-            <button
-              type="button"
-              onClick={() => {
-                setMode('signup');
-                setFieldErrors({});
-                setSuccessMessage(null);
-                exitPartnerPasswordReset();
-              }}
-              className={`flex-1 flex items-center justify-center gap-2 py-4 text-sm font-medium transition-colors ${
-                mode === 'signup'
-                  ? 'bg-finland text-white'
-                  : 'text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              <UserPlus className="w-4 h-4" />
-              Create account
-            </button>
+          {!(mode === 'signin' && passwordResetPanel) && (
+          <div className="flex gap-1 rounded-full bg-black/[0.04] p-1 mb-5 w-fit">
             <button
               type="button"
               onClick={() => {
@@ -447,16 +440,28 @@ export default function SupplierAuth({
                 setSuccessMessage(null);
                 exitPartnerPasswordReset();
               }}
-              className={`flex-1 flex items-center justify-center gap-2 py-4 text-sm font-medium transition-colors ${
-                mode === 'signin'
-                  ? 'bg-finland text-white'
-                  : 'text-gray-600 hover:bg-gray-50'
+              className={`lux-flat rounded-full px-3.5 py-1.5 text-sm font-medium ${
+                mode === 'signin' ? 'bg-paper-raised text-ink shadow-sm' : 'text-ink-muted'
               }`}
             >
-              <LogIn className="w-4 h-4" />
-              Sign in
+              Log in
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMode('signup');
+                setFieldErrors({});
+                setSuccessMessage(null);
+                exitPartnerPasswordReset();
+              }}
+              className={`lux-flat rounded-full px-3.5 py-1.5 text-sm font-medium ${
+                mode === 'signup' ? 'bg-paper-raised text-ink shadow-sm' : 'text-ink-muted'
+              }`}
+            >
+              Sign up
             </button>
           </div>
+          )}
 
           {mode === 'signin' && passwordResetPanel ? (
             <ForgotPasswordInline
@@ -474,24 +479,23 @@ export default function SupplierAuth({
               emailInputId="supplier-forgot-reset-email"
             />
           ) : (
-          <form noValidate onSubmit={handleSubmit} className="p-6 sm:p-8 space-y-4 sm:space-y-5">
+          <form noValidate onSubmit={handleSubmit} className={`${compact ? 'space-y-4' : 'p-6 sm:p-8 space-y-4 sm:space-y-5'} motion-safe:animate-fade-in`} key={mode}>
             {fieldErrors.form && (
-              <p className="text-sm text-red-700 bg-red-50 px-3 py-2 rounded-lg border border-red-100" role="alert">
+              <p className="text-sm text-red-800" role="alert">
                 {fieldErrors.form}
               </p>
             )}
             {successMessage && (
-              <div className="flex items-start gap-2 p-3 rounded-lg bg-green-50 text-green-800 text-sm">
-                <Check className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                <span>{successMessage}</span>
-              </div>
+              <p className="text-sm text-ink" role="status">
+                {successMessage}
+              </p>
             )}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="supplier-auth-email">
+              <label className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5" htmlFor="supplier-auth-email">
                 Email
               </label>
               {mode === 'signup' && (
-                <p className="text-xs text-gray-500 mb-2">
+                <p className="text-xs text-ink-faint mb-2">
                   Partner login is separate from the traveler site. If this email is already used for bookings, use a
                   different address or an inbox alias (e.g. <span className="font-mono text-[11px]">you+partner@gmail.com</span>
                   ).
@@ -512,7 +516,7 @@ export default function SupplierAuth({
                   });
                 }}
                 placeholder="you@company.com"
-                className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 ${authInputErrorClasses(!!fieldErrors.email)}`}
+                className="tv-input"
                 autoComplete="email"
                 aria-invalid={fieldErrors.email ? true : undefined}
                 aria-describedby={fieldErrors.email ? 'supplier-auth-email-error' : undefined}
@@ -525,11 +529,11 @@ export default function SupplierAuth({
             </div>
             {mode === 'signup' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="supplier-auth-business">
+                <label className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5" htmlFor="supplier-auth-business">
                   Business name
                 </label>
-                <p className="text-xs text-gray-500 mb-2">
-                  Use your <span className="font-medium text-gray-700">registered business name</span> as it appears on
+                <p className="text-xs text-ink-faint mb-2">
+                  Use your <span className="font-medium text-ink">registered business name</span> as it appears on
                   official documents. Our team will verify that it matches your registration before you can go live.
                 </p>
                 <input
@@ -547,7 +551,7 @@ export default function SupplierAuth({
                     });
                   }}
                   placeholder="Registered legal / trading name"
-                  className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 ${authInputErrorClasses(!!fieldErrors.businessName)}`}
+                  className="tv-input"
                   autoComplete="organization"
                   aria-invalid={fieldErrors.businessName ? true : undefined}
                   aria-describedby={fieldErrors.businessName ? 'supplier-auth-business-error' : undefined}
@@ -561,7 +565,7 @@ export default function SupplierAuth({
             )}
             {mode === 'signup' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="supplier-auth-phone">
+                <label className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5" htmlFor="supplier-auth-phone">
                   Phone number
                 </label>
                 <input
@@ -579,7 +583,7 @@ export default function SupplierAuth({
                     });
                   }}
                   placeholder="+358 40 123 4567"
-                  className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 ${authInputErrorClasses(!!fieldErrors.phoneNumber)}`}
+                  className="tv-input"
                   autoComplete="tel"
                   aria-invalid={fieldErrors.phoneNumber ? true : undefined}
                   aria-describedby={fieldErrors.phoneNumber ? 'supplier-auth-phone-error' : undefined}
@@ -592,7 +596,7 @@ export default function SupplierAuth({
               </div>
             )}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="supplier-auth-password">
+              <label className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5" htmlFor="supplier-auth-password">
                 Password
               </label>
               <input
@@ -610,13 +614,13 @@ export default function SupplierAuth({
                   });
                 }}
                 placeholder="••••••••"
-                className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 ${authInputErrorClasses(!!fieldErrors.password)}`}
+                className="tv-input"
                 autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
                 aria-invalid={fieldErrors.password ? true : undefined}
                 aria-describedby={fieldErrors.password ? 'supplier-auth-password-error' : undefined}
               />
               {mode === 'signup' && (
-                <p className="text-xs text-gray-500 mt-1">At least 8 characters</p>
+                <p className="text-xs text-ink-faint mt-1">At least 8 characters</p>
               )}
               {fieldErrors.password && (
                 <p id="supplier-auth-password-error" className="mt-1.5 text-sm text-red-600" role="alert">
@@ -632,7 +636,7 @@ export default function SupplierAuth({
                     setResetPasswordSuccess(null);
                     setPasswordResetPanel(true);
                   }}
-                  className="mt-2 text-xs text-finland hover:underline"
+                  className="lux-flat mt-2 text-sm text-ink-muted hover:text-ink"
                 >
                   Forgot password?
                 </button>
@@ -640,7 +644,7 @@ export default function SupplierAuth({
             </div>
             {mode === 'signup' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="supplier-auth-confirm">
+                <label className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5" htmlFor="supplier-auth-confirm">
                   Confirm password
                 </label>
                 <input
@@ -658,7 +662,7 @@ export default function SupplierAuth({
                     });
                   }}
                   placeholder="••••••••"
-                  className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 ${authInputErrorClasses(!!fieldErrors.confirmPassword)}`}
+                  className="tv-input"
                   autoComplete="new-password"
                   aria-invalid={fieldErrors.confirmPassword ? true : undefined}
                   aria-describedby={fieldErrors.confirmPassword ? 'supplier-auth-confirm-error' : undefined}
@@ -675,7 +679,7 @@ export default function SupplierAuth({
                 type="button"
                 onClick={handleResendConfirmation}
                 disabled={resendSending}
-                className="w-full py-2.5 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 disabled:opacity-50"
+                className="tv-btn-secondary w-full disabled:opacity-50"
               >
                 {resendSending ? 'Resending confirmation…' : 'Resend confirmation email'}
               </button>
@@ -683,27 +687,23 @@ export default function SupplierAuth({
             <button
               type="submit"
               disabled={submitting}
-              className="w-full py-3 rounded-lg bg-finland text-white font-semibold hover:bg-finland-dark transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+              className="tv-btn-primary w-full disabled:opacity-50"
             >
-              {mode === 'signup' ? (
-                <>
-                  <UserPlus className="w-5 h-5" />
-                  {submitting ? 'Creating account…' : 'Create account'}
-                </>
-              ) : (
-                <>
-                  <LogIn className="w-5 h-5" />
-                  {submitting ? 'Signing in…' : 'Sign in'}
-                </>
-              )}
+              {mode === 'signup'
+                ? submitting
+                  ? 'Creating account…'
+                  : 'Create account'
+                : submitting
+                  ? 'Signing in…'
+                  : 'Log in'}
             </button>
           </form>
           )}
           </>
         </div>
-        <p className="text-center text-sm text-gray-500 mt-4">
+        <p className="text-center text-sm text-ink-muted mt-4">
           By continuing, you agree to list your offerings on Traverion and to our{' '}
-          <a href="/termsofservice" className="text-finland font-medium hover:underline">
+          <a href="/termsofservice" className="font-medium text-ink hover:underline">
             partner terms of service
           </a>
           .

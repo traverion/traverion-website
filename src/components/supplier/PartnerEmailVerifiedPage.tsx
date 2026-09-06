@@ -1,14 +1,13 @@
 import { useLayoutEffect, useState } from 'react';
-import { CheckCircle2, Loader2 } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
 import { BRAND_LOGO_SRC } from '../../lib/brandAssets';
+import { supabase } from '../../lib/supabase';
 import {
   PARTNER_EMAIL_VERIFIED_PATH,
   PARTNER_LOGIN_PATH,
   PARTNER_APP_BASE,
 } from '../../lib/partnerPortalPaths';
 
-type Phase = 'checking' | 'verified' | 'invalid' | 'unconfigured';
+type Phase = 'checking' | 'verified' | 'already' | 'invalid' | 'unconfigured';
 
 /**
  * Partner email confirmation landing. Supabase appends signed tokens in the URL (#access_token…&type=signup).
@@ -37,9 +36,9 @@ export default function PartnerEmailVerifiedPage() {
       }
     };
 
-    const succeed = async () => {
+    const succeed = async (kind: 'verified' | 'already') => {
       if (cancelled) return;
-      setPhase('verified');
+      setPhase(kind);
       stripSensitiveUrl();
       await new Promise((r) => setTimeout(r, 900));
       if (cancelled) return;
@@ -56,12 +55,18 @@ export default function PartnerEmailVerifiedPage() {
           fail();
           return;
         }
-        await succeed();
+        await succeed('verified');
         return;
       }
 
       const hash = window.location.hash.replace(/^#/, '');
       if (!hash) {
+        const { data } = await supabase.auth.getSession();
+        if (cancelled) return;
+        if (data.session?.user?.email_confirmed_at) {
+          await succeed('already');
+          return;
+        }
         fail();
         return;
       }
@@ -90,7 +95,7 @@ export default function PartnerEmailVerifiedPage() {
         return;
       }
 
-      await succeed();
+      await succeed('verified');
     })();
 
     return () => {
@@ -99,47 +104,42 @@ export default function PartnerEmailVerifiedPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-lg mx-auto px-4 py-4 flex items-center justify-center">
-          <img src={BRAND_LOGO_SRC} alt="" className="h-10 w-10 object-contain" />
-        </div>
+    <div className="min-h-[100dvh] bg-paper text-ink flex flex-col">
+      <header className="px-5 sm:px-8 py-5 flex justify-center">
+        <img src={BRAND_LOGO_SRC} alt="" className="h-10 w-10 object-contain" />
       </header>
-      <main className="flex-1 flex items-center justify-center p-6">
-        <div className="max-w-md w-full rounded-2xl border border-gray-200 bg-white p-10 shadow-soft-lg text-center">
+      <main className="flex-1 flex items-center justify-center px-5 pb-16">
+        <div className="max-w-md w-full text-center">
           {phase === 'checking' && (
             <>
-              <Loader2 className="w-14 h-14 text-finland mx-auto mb-4 animate-spin" aria-hidden />
-              <h1 className="text-xl font-semibold text-gray-900 mb-2">Confirming your email…</h1>
-              <p className="text-sm text-gray-600">Please wait a moment.</p>
+              <h1 className="font-display text-3xl text-ink tracking-tight">Confirming your email</h1>
+              <p className="mt-3 text-sm text-ink-muted">Please wait a moment.</p>
             </>
           )}
           {phase === 'verified' && (
             <>
-              <div
-                className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 motion-safe:animate-scale-in"
-                style={{ animationDuration: '0.45s', animationFillMode: 'both' }}
-              >
-                <CheckCircle2 className="w-10 h-10 motion-safe:animate-pulse" strokeWidth={2} aria-hidden />
-              </div>
-              <h1 className="text-2xl font-bold text-gray-900 mb-2 tracking-tight">Account verified</h1>
-              <p className="text-sm text-gray-600 mb-1">Your partner email is confirmed.</p>
-              <p className="text-xs text-ink-muted">Continuing to your workspace…</p>
+              <h1 className="font-display text-3xl text-ink tracking-tight">Account verified</h1>
+              <p className="mt-3 text-sm text-ink-muted">Your partner email is confirmed. Continuing to your workspace…</p>
+            </>
+          )}
+          {phase === 'already' && (
+            <>
+              <h1 className="font-display text-3xl text-ink tracking-tight">Already verified</h1>
+              <p className="mt-3 text-sm text-ink-muted">This email is already confirmed. Continuing to your workspace…</p>
             </>
           )}
           {(phase === 'invalid' || phase === 'unconfigured') && (
             <>
-              <h1 className="text-xl font-semibold text-gray-900 mb-2">Link not valid</h1>
-              <p className="text-sm text-gray-600 mb-6 leading-relaxed">
+              <h1 className="font-display text-3xl text-ink tracking-tight">
+                {phase === 'unconfigured' ? 'Sign-in is not available' : 'This link has expired'}
+              </h1>
+              <p className="mt-3 text-sm text-ink-muted leading-relaxed">
                 {phase === 'unconfigured'
                   ? 'Sign-in is not configured on this environment.'
-                  : 'This confirmation link is missing, expired, or was already used. Open the latest email from Traverion or sign in if you already confirmed.'}
+                  : 'This confirmation link is missing, expired, or was already used. Open the latest email from Traverion, or log in if you already confirmed.'}
               </p>
-              <a
-                href={PARTNER_LOGIN_PATH}
-                className="inline-flex w-full justify-center rounded-xl bg-finland px-4 py-3 text-sm font-semibold text-white hover:bg-finland-dark transition-colors"
-              >
-                Go to partner sign in
+              <a href={PARTNER_LOGIN_PATH} className="tv-btn-primary mt-8 inline-flex">
+                Log in
               </a>
             </>
           )}

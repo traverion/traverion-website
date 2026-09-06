@@ -179,7 +179,13 @@ export async function updatePasswordAfterRecovery(
     return { error: `Use at least ${options.minLength} characters.` };
   }
   const { error } = await client.auth.updateUser({ password: newPassword });
-  if (error) return { error: error.message };
+  if (error) {
+    const m = error.message.toLowerCase();
+    if (m.includes('same as') || m.includes('different from the old')) {
+      return { error: 'Choose a password that is different from your current one.' };
+    }
+    return { error: 'Could not update your password. Try the reset link again.' };
+  }
   clearPasswordRecoveryActive();
   return {};
 }

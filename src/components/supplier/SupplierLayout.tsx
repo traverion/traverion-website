@@ -594,8 +594,8 @@ export default function SupplierLayout() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-500">Loading...</p>
+      <div className="min-h-screen bg-paper flex items-center justify-center">
+        <p className="text-ink-muted">Loading...</p>
       </div>
     );
   }
@@ -607,8 +607,8 @@ export default function SupplierLayout() {
   if (onPortalPath && !user) {
     window.location.replace(SUPPLIER_LOGIN_PATH);
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-500">Redirecting to login...</p>
+      <div className="min-h-screen bg-paper flex items-center justify-center">
+        <p className="text-ink-muted">Redirecting to login...</p>
       </div>
     );
   }
@@ -616,8 +616,8 @@ export default function SupplierLayout() {
   if (onLoginPath && user) {
     if (partnerGateView === 'checking' || partnerGateView === 'blocked') {
       return (
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-          <p className="text-gray-500">
+        <div className="min-h-screen bg-paper flex items-center justify-center">
+          <p className="text-ink-muted">
             {partnerGateView === 'blocked' ? 'Redirecting to sign in…' : 'Checking partner account…'}
           </p>
         </div>
@@ -625,22 +625,22 @@ export default function SupplierLayout() {
     }
     if (partnerGateView === 'error') {
       return (
-        <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-4 p-6 text-center">
-          <p className="text-sm text-gray-600 max-w-md">
+        <div className="min-h-screen bg-paper flex flex-col items-center justify-center gap-4 p-6 text-center">
+          <p className="text-sm text-ink-muted max-w-md">
             We could not verify your partner account. Check your connection and try again.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3">
             <button
               type="button"
               onClick={() => setPartnerGateRetryKey((k) => k + 1)}
-              className="rounded-xl bg-finland px-4 py-2.5 text-sm font-semibold text-white hover:bg-finland-dark transition-colors"
+              className="tv-btn-primary"
             >
               Try again
             </button>
             <button
               type="button"
               onClick={() => void signOut()}
-              className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+              className="tv-btn-secondary"
             >
               Sign out
             </button>
@@ -651,8 +651,8 @@ export default function SupplierLayout() {
     if (partnerGateView === 'allowed') {
       window.location.replace(PARTNER_APP_BASE);
       return (
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-          <p className="text-gray-500">Redirecting...</p>
+        <div className="min-h-screen bg-paper flex items-center justify-center">
+          <p className="text-ink-muted">Redirecting...</p>
         </div>
       );
     }
@@ -662,29 +662,29 @@ export default function SupplierLayout() {
   if (needsPartnerProfileGate) {
     if (partnerGateView === 'checking') {
       return (
-        <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-3 text-gray-500">
+        <div className="min-h-screen bg-paper flex flex-col items-center justify-center gap-3 text-ink-muted">
           <p className="text-sm">Checking partner account…</p>
         </div>
       );
     }
     if (partnerGateView === 'error') {
       return (
-        <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-4 p-6 text-center">
-          <p className="text-sm text-gray-600 max-w-md">
+        <div className="min-h-screen bg-paper flex flex-col items-center justify-center gap-4 p-6 text-center">
+          <p className="text-sm text-ink-muted max-w-md">
             We could not verify your partner account. Check your connection and try again.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3">
             <button
               type="button"
               onClick={() => setPartnerGateRetryKey((k) => k + 1)}
-              className="rounded-xl bg-finland px-4 py-2.5 text-sm font-semibold text-white hover:bg-finland-dark transition-colors"
+              className="tv-btn-primary"
             >
               Try again
             </button>
             <button
               type="button"
               onClick={() => void signOut()}
-              className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+              className="tv-btn-secondary"
             >
               Sign out
             </button>
@@ -694,8 +694,8 @@ export default function SupplierLayout() {
     }
     if (partnerGateView === 'blocked') {
       return (
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-          <p className="text-gray-500">Redirecting to sign in…</p>
+        <div className="min-h-screen bg-paper flex items-center justify-center">
+          <p className="text-ink-muted">Redirecting to sign in…</p>
         </div>
       );
     }

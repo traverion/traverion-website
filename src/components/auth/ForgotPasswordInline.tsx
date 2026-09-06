@@ -1,5 +1,3 @@
-import { authInputErrorClasses } from '../../lib/authFormValidation';
-
 export type ForgotPasswordSendResult = { ok: true } | { ok: false; error: string };
 
 type Props = {
@@ -31,39 +29,29 @@ export default function ForgotPasswordInline({
   onSubmit,
   onBack,
   emailInputId,
-  className = 'p-6 sm:p-8 space-y-4 sm:space-y-5',
+  className = 'space-y-4',
 }: Props) {
   return (
-    <form noValidate onSubmit={onSubmit} className={className}>
+    <form noValidate onSubmit={onSubmit} className={`${className} motion-safe:animate-fade-in`}>
       <div className="flex flex-col gap-1">
-        <button
-          type="button"
-          onClick={onBack}
-          className="self-start text-sm font-medium text-finland hover:underline"
-        >
+        <button type="button" onClick={onBack} className="lux-flat self-start text-sm text-ink-muted hover:text-ink">
           Back to sign in
         </button>
-        <h2 className="text-lg font-semibold text-gray-900 pt-1">{title}</h2>
-        <p className="text-sm text-gray-600">{description}</p>
+        <h2 className="font-display text-2xl text-ink tracking-tight pt-2">{title}</h2>
+        <p className="text-sm text-ink-muted">{description}</p>
       </div>
 
       {successMessage ? (
         <div className="space-y-4">
-          <div className="rounded-lg border border-green-100 bg-green-50 px-3 py-3 text-sm text-green-900">
-            {successMessage}
-          </div>
-          <button
-            type="button"
-            onClick={onBack}
-            className="w-full py-3 rounded-lg bg-finland text-white font-semibold hover:bg-finland-dark transition-colors"
-          >
+          <p className="text-sm text-ink">{successMessage}</p>
+          <button type="button" onClick={onBack} className="tv-btn-primary w-full">
             Done
           </button>
         </div>
       ) : (
         <>
           <div>
-            <label htmlFor={emailInputId} className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor={emailInputId} className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">
               Email for reset link
             </label>
             <input
@@ -75,30 +63,21 @@ export default function ForgotPasswordInline({
               placeholder="you@example.com"
               autoComplete="email"
               disabled={sending}
-              className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 outline-none ${authInputErrorClasses(!!fieldError)}`}
+              className="tv-input"
               aria-invalid={fieldError ? true : undefined}
               aria-describedby={fieldError ? `${emailInputId}-err` : undefined}
             />
             {fieldError && (
-              <p id={`${emailInputId}-err`} className="mt-1.5 text-sm text-red-600" role="alert">
+              <p id={`${emailInputId}-err`} className="mt-1.5 text-sm text-red-800" role="alert">
                 {fieldError}
               </p>
             )}
           </div>
           <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-1">
-            <button
-              type="button"
-              onClick={onBack}
-              disabled={sending}
-              className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-            >
+            <button type="button" onClick={onBack} disabled={sending} className="tv-btn-ghost disabled:opacity-50">
               Cancel
             </button>
-            <button
-              type="submit"
-              disabled={sending}
-              className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-finland text-white text-sm font-semibold hover:bg-finland-dark disabled:opacity-50"
-            >
+            <button type="submit" disabled={sending} className="tv-btn-primary disabled:opacity-50">
               {sending ? 'Sending…' : 'Send reset link'}
             </button>
           </div>
