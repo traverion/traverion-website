@@ -1,15 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   Building2,
-  CheckCircle2,
-  Clock,
   FileText,
   ImagePlus,
   Landmark,
   MapPin,
   Shield,
   Wallet,
-  AlertCircle,
   Mail,
   KeyRound,
   ChevronRight,
@@ -36,7 +33,7 @@ import {
 } from '../../lib/supplierVerificationLocks';
 import { supplierPortalPublicBaseUrl } from '../../lib/partnerHost';
 import { PARTNER_EMAIL_VERIFIED_PATH } from '../../lib/partnerPortalPaths';
-import { SUPPLIER_PAGE_CLASS } from './supplierUi';
+import { SUPPLIER_PAGE_CLASS, SupplierPageHero } from './supplierUi';
 
 type BusinessProfileTab = 'company' | 'legal';
 
@@ -157,17 +154,12 @@ export default function SupplierSettingsPages(props: Props) {
   return <BusinessProfilePage {...props} />;
 }
 
-type VerificationTone = 'verified' | 'rejected' | 'pending' | 'incomplete' | 'ready';
-
 function profileInputClass(disabled?: boolean): string {
-  return `w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm shadow-sm focus:ring-2 focus:ring-finland/25 focus:border-finland outline-none transition-shadow ${
-    disabled ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : 'bg-white'
-  }`;
+  return `tv-input ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`;
 }
 
 function ProfileSection({
   id,
-  icon: Icon,
   title,
   description,
   children,
@@ -179,35 +171,13 @@ function ProfileSection({
   children: React.ReactNode;
 }) {
   return (
-    <section id={id} className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-      <div className="flex items-start gap-3 px-5 py-4 sm:px-6 border-b border-gray-100 bg-gradient-to-br from-slate-50/90 to-white">
-        <div className="w-10 h-10 rounded-xl bg-finland/10 flex items-center justify-center flex-shrink-0">
-          <Icon className="w-5 h-5 text-finland" aria-hidden />
-        </div>
-        <div className="min-w-0">
-          <h2 className="text-base font-semibold text-gray-900">{title}</h2>
-          {description ? <p className="text-sm text-gray-600 mt-0.5 leading-relaxed">{description}</p> : null}
-        </div>
+    <section id={id} className="space-y-4">
+      <div>
+        <h2 className="font-display text-2xl text-ink tracking-tight">{title}</h2>
+        {description ? <p className="mt-1 text-sm text-ink-muted leading-relaxed">{description}</p> : null}
       </div>
-      <div className="p-5 sm:p-6 space-y-4">{children}</div>
+      <div className="space-y-4">{children}</div>
     </section>
-  );
-}
-
-function StatusChip({ label, tone }: { label: string; tone: VerificationTone }) {
-  const tones: Record<VerificationTone, string> = {
-    verified: 'bg-emerald-50 text-emerald-800 ring-emerald-200/80',
-    rejected: 'bg-red-50 text-red-800 ring-red-200/80',
-    pending: 'bg-amber-50 text-amber-900 ring-amber-200/80',
-    incomplete: 'bg-slate-100 text-slate-700 ring-slate-200/80',
-    ready: 'bg-sky-50 text-sky-900 ring-sky-200/80',
-  };
-  return (
-    <span
-      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${tones[tone]}`}
-    >
-      {label}
-    </span>
   );
 }
 
@@ -231,8 +201,8 @@ function SaveBar({
   errorText?: string | null;
 }) {
   return (
-    <div className="rounded-2xl border border-gray-200 bg-gray-50/80 px-5 py-4 sm:px-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-      <p className="text-xs text-gray-600 max-w-md">
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-2">
+      <p className="text-xs text-ink-muted max-w-md">
         Changes are saved only when you press the button. Traverion reviews submissions manually.
       </p>
       <div className="flex flex-col items-stretch sm:items-end gap-2 min-w-[12rem]">
@@ -240,21 +210,16 @@ function SaveBar({
           type="button"
           disabled={saving || disabled}
           onClick={onClick}
-          className="inline-flex items-center justify-center px-5 py-2.5 rounded-xl bg-finland text-white text-sm font-semibold shadow-sm hover:bg-finland-dark disabled:opacity-50 transition-colors"
+          className="tv-btn-primary disabled:opacity-50"
         >
           {saving ? savingLabel : label}
         </button>
-        {success && <span className="text-xs text-emerald-700 font-medium">Saved successfully.</span>}
-        {error && <span className="text-xs text-red-600 font-medium">Could not save. Try again.</span>}
-        {errorText ? <span className="text-xs text-red-600">{errorText}</span> : null}
+        {success && <span className="text-xs text-emerald-800 font-medium">Saved successfully.</span>}
+        {error && <span className="text-xs text-red-700 font-medium">Could not save. Try again.</span>}
+        {errorText ? <span className="text-xs text-red-700">{errorText}</span> : null}
       </div>
     </div>
   );
-}
-
-function accountEmailInitial(email: string): string {
-  const local = email.split('@')[0]?.trim() ?? '';
-  return (local[0] ?? '?').toUpperCase();
 }
 
 function AccountSettingsPage(p: Props) {
@@ -262,46 +227,25 @@ function AccountSettingsPage(p: Props) {
 
   return (
     <div className={SUPPLIER_PAGE_CLASS}>
-      <div className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-          <div className="w-16 h-16 rounded-2xl bg-finland text-white flex items-center justify-center text-2xl font-bold flex-shrink-0 shadow-sm">
-            {email !== '—' ? accountEmailInitial(email) : '?'}
-          </div>
-          <div className="min-w-0 flex-1">
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-gray-900">Account settings</h1>
-            <p className="mt-1 text-sm text-gray-600 leading-relaxed">
-              Sign-in email and password for this supplier portal.
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <StatusChip
-                label={p.supplierEmailVerified ? 'Email verified' : 'Email not verified'}
-                tone={p.supplierEmailVerified ? 'verified' : 'pending'}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
+      <SupplierPageHero
+        title="Account"
+        description="Sign-in email and password for this supplier portal."
+      >
+        <p className="mt-3 text-sm text-ink-muted">
+          {p.supplierEmailVerified ? 'Email verified' : 'Email not verified'}
+        </p>
+      </SupplierPageHero>
 
       <button
         type="button"
         onClick={() => p.handleNavigate('business-profile')}
-        className="w-full rounded-2xl border border-gray-200 bg-white p-4 sm:p-5 shadow-sm text-left hover:border-finland/30 hover:bg-finland/[0.02] transition-colors group"
+        className="lux-flat mb-10 flex w-full items-center justify-between gap-3 py-3 text-left"
       >
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-start gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-xl bg-finland/10 flex items-center justify-center flex-shrink-0">
-              <Building2 className="w-5 h-5 text-finland" aria-hidden />
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-gray-900">Business profile</p>
-              <p className="text-xs text-gray-600 mt-0.5">Company details, payouts, and legal documents</p>
-            </div>
-          </div>
-          <ChevronRight
-            className="w-5 h-5 text-gray-400 group-hover:text-finland flex-shrink-0 transition-colors"
-            aria-hidden
-          />
+        <div className="min-w-0">
+          <p className="font-semibold text-ink">Business</p>
+          <p className="mt-0.5 text-sm text-ink-muted">Company details, payouts, and legal documents</p>
         </div>
+        <ChevronRight className="w-5 h-5 text-ink-faint shrink-0" aria-hidden />
       </button>
 
       <ProfileSection
@@ -310,19 +254,15 @@ function AccountSettingsPage(p: Props) {
         title="Sign-in email"
         description="The address you use to log in. Contact support if you need to change it."
       >
-        <div className="rounded-xl border border-gray-200 bg-gray-50/60 px-4 py-3.5">
-          <p className="text-sm font-semibold text-gray-900 break-all">{email}</p>
-          <p className="mt-1 text-xs text-gray-500">Signed in as account owner for this supplier account.</p>
+        <div>
+          <p className="font-semibold text-ink break-all">{email}</p>
+          <p className="mt-1 text-sm text-ink-muted">Signed in as account owner for this supplier account.</p>
         </div>
 
         {p.supplierEmailVerified ? (
-          <div className="flex items-start gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50/80 px-4 py-3">
-            <CheckCircle2 className="w-4 h-4 text-emerald-700 mt-0.5 flex-shrink-0" aria-hidden />
-            <p className="text-sm text-emerald-900 leading-relaxed">Your email is verified. You can use the partner portal normally.</p>
-          </div>
+          <p className="text-sm text-ink-muted">Your email is verified. You can use the partner portal normally.</p>
         ) : (
-          <div className="rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-3.5 space-y-3">
-            <StatusChip label="Verification required" tone="pending" />
+          <div className="space-y-3">
             <p className="text-sm text-amber-900 leading-relaxed">
               Verify your email before you can log in. Check your inbox and spam folder for the confirmation link.
             </p>
@@ -343,15 +283,15 @@ function AccountSettingsPage(p: Props) {
                     p.setVerificationSending(false);
                     p.setVerificationMessage(error ? 'error' : 'sent');
                   }}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-amber-300/80 bg-white text-sm font-semibold text-amber-950 hover:bg-amber-50 disabled:opacity-50 shadow-sm"
+                  className="tv-btn-secondary disabled:opacity-50"
                 >
                   {p.verificationSending ? 'Sending…' : 'Resend verification email'}
                 </button>
                 {p.verificationMessage === 'sent' && (
-                  <p className="text-xs text-emerald-700 font-medium">Verification email sent. Check inbox and spam.</p>
+                  <p className="text-xs text-emerald-800 font-medium">Verification email sent. Check inbox and spam.</p>
                 )}
                 {p.verificationMessage === 'error' && (
-                  <p className="text-xs text-red-600 font-medium">Could not resend right now. Try again shortly.</p>
+                  <p className="text-xs text-red-700 font-medium">Could not resend right now. Try again shortly.</p>
                 )}
               </div>
             ) : null}
@@ -365,7 +305,7 @@ function AccountSettingsPage(p: Props) {
         title="Password"
         description="Change your sign-in password. You will confirm your current password first."
       >
-        <ul className="rounded-xl border border-gray-200 bg-gray-50/60 px-4 py-3 text-xs text-gray-600 space-y-1.5 list-disc list-inside">
+        <ul className="text-sm text-ink-muted space-y-1.5 list-disc list-inside">
           <li>Minimum 8 characters</li>
           <li>Must be different from your current password</li>
           <li>You stay signed in after a successful change</li>
@@ -374,14 +314,14 @@ function AccountSettingsPage(p: Props) {
         <button
           type="button"
           onClick={() => p.handleNavigate('change-password')}
-          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-finland text-white text-sm font-semibold shadow-sm hover:bg-finland-dark transition-colors"
+          className="tv-btn-primary inline-flex items-center justify-center gap-2"
         >
           Change password
           <ChevronRight className="w-4 h-4" aria-hidden />
         </button>
 
         {!p.isSupabase && (
-          <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+          <p className="text-sm text-amber-800">
             Supabase auth is not connected in this environment — password changes are unavailable.
           </p>
         )}
@@ -461,6 +401,10 @@ function BusinessProfilePage(p: Props) {
     const prevBodyRight = body.style.right;
     const prevBodyWidth = body.style.width;
     const scrollY = window.scrollY;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') p.setLegalDocModal(null);
+    };
+    window.addEventListener('keydown', onKey);
     html.style.overflow = 'hidden';
     html.style.overscrollBehavior = 'none';
     body.style.overflow = 'hidden';
@@ -470,6 +414,7 @@ function BusinessProfilePage(p: Props) {
     body.style.right = '0';
     body.style.width = '100%';
     return () => {
+      window.removeEventListener('keydown', onKey);
       html.style.overflow = prevHtmlOverflow;
       html.style.overscrollBehavior = prevHtmlOverscroll;
       body.style.overflow = prevBodyOverflow;
@@ -483,57 +428,40 @@ function BusinessProfilePage(p: Props) {
   }, [p.legalDocModal]);
 
   const vPay = p.payoutVerificationStatus.trim().toLowerCase();
-  const businessChip = (): { label: string; tone: VerificationTone } => {
-    if (vBus === 'verified') return { label: 'Business verified', tone: 'verified' };
-    if (vBus === 'rejected') return { label: 'Business rejected', tone: 'rejected' };
-    if (businessInReviewQueue) return { label: 'Business in review', tone: 'pending' };
-    if (draftBusinessComplete) return { label: 'Ready to submit', tone: 'ready' };
-    return { label: 'Incomplete', tone: 'incomplete' };
+  const businessChip = (): { label: string } => {
+    if (vBus === 'verified') return { label: 'Business verified' };
+    if (vBus === 'rejected') return { label: 'Business rejected' };
+    if (businessInReviewQueue) return { label: 'Business in review' };
+    if (draftBusinessComplete) return { label: 'Ready to submit' };
+    return { label: 'Incomplete' };
   };
-  const payoutChip = (): { label: string; tone: VerificationTone } | null => {
+  const payoutChip = (): { label: string } | null => {
     if (!p.payoutIban.trim() || !p.payoutBic.trim()) return null;
-    if (vPay === 'verified') return { label: 'Payout verified', tone: 'verified' };
-    if (vPay === 'rejected') return { label: 'Payout rejected', tone: 'rejected' };
-    if ((p.payoutVerificationSubmittedAt ?? '').trim()) return { label: 'Payout in review', tone: 'pending' };
-    return { label: 'Payout pending', tone: 'incomplete' };
+    if (vPay === 'verified') return { label: 'Payout verified' };
+    if (vPay === 'rejected') return { label: 'Payout rejected' };
+    if ((p.payoutVerificationSubmittedAt ?? '').trim()) return { label: 'Payout in review' };
+    return { label: 'Payout pending' };
   };
   const busChip = businessChip();
   const payChip = payoutChip();
   const displayName = p.companyLegalName.trim() || p.operatorDisplayName || 'Your business';
 
   const profileTabClass = (active: boolean) =>
-    `touch-manipulation pb-3 px-1 text-sm font-semibold border-b-2 transition-colors min-h-[44px] sm:min-h-0 ${
-      active
-        ? 'border-finland text-finland'
-        : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+    `lux-flat rounded-full px-3.5 py-1.5 text-sm font-medium ${
+      active ? 'bg-paper-raised text-ink shadow-sm' : 'text-ink-muted'
     }`;
 
   return (
     <div className={SUPPLIER_PAGE_CLASS}>
-      <div className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-          <div className="w-16 h-16 rounded-2xl border-2 border-gray-100 bg-gray-50 overflow-hidden flex items-center justify-center flex-shrink-0 shadow-sm">
-            {p.businessLogoUrl ? (
-              <img src={p.businessLogoUrl} alt="" className="w-full h-full object-cover" />
-            ) : (
-              <Building2 className="w-8 h-8 text-gray-300" aria-hidden />
-            )}
-          </div>
-          <div className="min-w-0 flex-1">
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-gray-900 truncate">{displayName}</h1>
-            <p className="mt-1 text-sm text-gray-600 leading-relaxed">
-              Company details, payouts, and legal documents guests see when they book your tours.
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <StatusChip label={busChip.label} tone={busChip.tone} />
-              {payChip ? <StatusChip label={payChip.label} tone={payChip.tone} /> : null}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="border-b border-gray-200">
-        <nav className="-mb-px flex gap-6 sm:gap-8" aria-label="Business profile sections">
+      <SupplierPageHero
+        title={displayName}
+        description="Company details, payouts, and legal documents guests see when they book your tours."
+      >
+        <p className="mt-3 text-sm text-ink-muted">
+          {busChip.label}
+          {payChip ? ` · ${payChip.label}` : ''}
+        </p>
+        <nav className="mt-6 flex gap-1 rounded-full bg-black/[0.04] p-1 w-fit" aria-label="Business profile sections">
           <button
             type="button"
             className={profileTabClass(p.businessProfileTab === 'company')}
@@ -552,21 +480,21 @@ function BusinessProfilePage(p: Props) {
               window.location.hash = 'legal';
             }}
           >
-            Legal obligations
+            Legal
           </button>
         </nav>
-      </div>
+      </SupplierPageHero>
 
       {p.businessProfileTab === 'company' && (
-        <div className="space-y-5">
+        <div className="space-y-10">
           {businessLocked && (
-            <div className="rounded-2xl border border-slate-200 bg-slate-50/90 px-5 py-4 text-sm text-slate-800">
-              <p className="font-medium text-slate-900">
+            <div className="text-sm text-ink">
+              <p className="font-medium">
                 {p.verificationStatus.trim().toLowerCase() === 'verified'
                   ? 'Business registration is locked'
                   : 'Business profile under review'}
               </p>
-              <p className="mt-1.5 text-xs text-slate-700 leading-relaxed">
+              <p className="mt-1.5 text-sm text-ink-muted leading-relaxed">
                 {p.verificationStatus.trim().toLowerCase() === 'verified' ? (
                   <>
                     You cannot change your legal business information or registration proof here. Payout bank details are
@@ -601,7 +529,7 @@ function BusinessProfilePage(p: Props) {
             description="Optional photo shown on your tour pages so guests recognize your business."
           >
             <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-              <div className="w-24 h-24 rounded-2xl border-2 border-gray-200 bg-white overflow-hidden flex items-center justify-center flex-shrink-0 shadow-sm">
+              <div className="w-24 h-24 rounded-2xl bg-black/[0.04] overflow-hidden flex items-center justify-center flex-shrink-0">
                     {p.businessLogoUrl ? (
                       <img src={p.businessLogoUrl} alt="" className="w-full h-full object-cover" />
                     ) : (
@@ -637,7 +565,7 @@ function BusinessProfilePage(p: Props) {
                         type="button"
                         disabled={logoUploading}
                         onClick={() => logoInputRef.current?.click()}
-                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-800 hover:bg-gray-50 shadow-sm disabled:opacity-50"
+                        className="tv-btn-secondary disabled:opacity-50"
                       >
                         <ImagePlus className="w-4 h-4" />
                         {logoUploading ? 'Uploading…' : p.businessLogoUrl ? 'Replace photo' : 'Upload photo'}
@@ -793,7 +721,7 @@ function BusinessProfilePage(p: Props) {
 
           {p.businessType === 'company' && (
             <ProfileSection icon={Landmark} title="Tax references" description="Optional — only if separate from your registration number.">
-              <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4 space-y-4">
+              <div className="space-y-4">
                   <p className="text-xs text-slate-700">
                     You do not need a separate “tax ID” for verification if your{' '}
                     <span className="font-medium text-slate-900">registration number</span> above is complete. Use the
@@ -868,7 +796,7 @@ function BusinessProfilePage(p: Props) {
             title="Verification documents"
             description="Upload proof of registration — stored securely and reviewed by Traverion."
           >
-            <div className="rounded-xl border border-amber-200/80 bg-amber-50/50 p-4 space-y-4">
+            <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Business registration proof</label>
                   <p className="text-xs text-gray-500 mb-2">
@@ -909,7 +837,7 @@ function BusinessProfilePage(p: Props) {
                       type="button"
                       disabled={companyRegUploading || identityFieldsDisabled}
                       onClick={() => companyRegInputRef.current?.click()}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-800 hover:bg-gray-50 shadow-sm disabled:opacity-50"
+                      className="tv-btn-secondary disabled:opacity-50"
                     >
                       {companyRegUploading
                         ? 'Uploading…'
@@ -970,57 +898,37 @@ function BusinessProfilePage(p: Props) {
             </div>
           </ProfileSection>
 
-          <div className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm space-y-3">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-5 h-5 text-finland flex-shrink-0" aria-hidden />
-              <h2 className="text-base font-semibold text-gray-900">Business verification status</h2>
-            </div>
+          <section className="space-y-3">
+            <h2 className="font-display text-2xl text-ink tracking-tight">Verification</h2>
             {p.verificationStatus.trim().toLowerCase() === 'verified' && (
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 px-4 py-3">
-                <div className="flex items-start gap-2">
-                  <StatusChip label="Verified" tone="verified" />
-                  <p className="text-sm text-emerald-900 leading-relaxed">
-                      {p.payoutVerificationStatus.trim().toLowerCase() === 'verified'
-                        ? 'Your business details are approved and your payout (IBAN/BIC) is verified. You can publish listings when your tours meet listing quality checks.'
-                        : 'Your business details are approved. You still need Traverion to verify your payout (IBAN/BIC) before you can publish listings.'}
-                  </p>
-                </div>
-              </div>
+              <p className="text-sm text-ink-muted leading-relaxed">
+                {p.payoutVerificationStatus.trim().toLowerCase() === 'verified'
+                  ? 'Your business details are approved and your payout (IBAN/BIC) is verified. You can publish listings when your tours meet listing quality checks.'
+                  : 'Your business details are approved. You still need Traverion to verify your payout (IBAN/BIC) before you can publish listings.'}
+              </p>
             )}
             {p.verificationStatus.trim().toLowerCase() === 'rejected' && (
-              <div className="rounded-xl border border-red-200 bg-red-50/80 px-4 py-3 space-y-2">
-                <StatusChip label="Rejected" tone="rejected" />
-                <p className="text-sm text-red-900 leading-relaxed">
+              <div className="space-y-2">
+                <p className="text-sm text-red-800 leading-relaxed">
                   Business verification was not approved. Update your details and documents, then save again.
                 </p>
                 {p.businessVerificationFeedback.trim() ? (
-                  <div className="rounded-lg border border-red-200 bg-white px-3 py-2 text-sm text-red-950">
-                    <p className="text-xs font-semibold text-red-800 mb-1">Message from Traverion</p>
-                    <p className="text-sm text-red-900 whitespace-pre-wrap">{p.businessVerificationFeedback.trim()}</p>
-                  </div>
+                  <p className="text-sm text-red-900 whitespace-pre-wrap">
+                    {p.businessVerificationFeedback.trim()}
+                  </p>
                 ) : null}
               </div>
             )}
             {vBus !== 'verified' && vBus !== 'rejected' && businessInReviewQueue && (
-              <div className="rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-3 space-y-2">
-                <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-amber-800" aria-hidden />
-                  <StatusChip label="Under verification" tone="pending" />
-                </div>
-                <p className="text-sm text-amber-900 leading-relaxed">
-                  Traverion is reviewing your submission. Payout bank details are verified separately — we will email you
-                  when there is an update.
-                </p>
-              </div>
+              <p className="text-sm text-ink-muted leading-relaxed">
+                Traverion is reviewing your submission. Payout bank details are verified separately — we will email you
+                when there is an update.
+              </p>
             )}
             {vBus !== 'verified' && vBus !== 'rejected' && !businessInReviewQueue && !draftBusinessComplete && (
-              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 space-y-2">
-                <div className="flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 text-slate-600" aria-hidden />
-                  <StatusChip label="Incomplete" tone="incomplete" />
-                </div>
-                <p className="text-xs text-slate-700">Complete the sections above, then save to submit for review.</p>
-                <ul className="list-disc list-inside text-xs text-slate-700 space-y-1">
+              <div className="space-y-2">
+                <p className="text-sm text-ink-muted">Complete the sections above, then save to submit for review.</p>
+                <ul className="list-disc list-inside text-sm text-ink-muted space-y-1">
                   {businessProfileMissingReasons.map((line) => (
                     <li key={line}>{line}</li>
                   ))}
@@ -1028,14 +936,11 @@ function BusinessProfilePage(p: Props) {
               </div>
             )}
             {vBus !== 'verified' && vBus !== 'rejected' && !businessInReviewQueue && draftBusinessComplete && (
-              <div className="rounded-xl border border-sky-200 bg-sky-50/80 px-4 py-3 space-y-2">
-                <StatusChip label="Ready to submit" tone="ready" />
-                <p className="text-sm text-sky-900 leading-relaxed">
-                  Required fields look complete. Save company details to send them to Traverion for review.
-                </p>
-              </div>
+              <p className="text-sm text-ink-muted leading-relaxed">
+                Required fields look complete. Save company details to send them to Traverion for review.
+              </p>
             )}
-          </div>
+          </section>
 
           <SaveBar
             saving={p.companySaving}
@@ -1130,13 +1035,13 @@ function BusinessProfilePage(p: Props) {
             description="Bank transfer only (IBAN + BIC). Verified separately from your business profile — both required to publish listings."
           >
             {payoutLocked && (
-              <div className="rounded-xl border border-slate-200 bg-slate-50/90 px-4 py-3 text-sm text-slate-800">
-                  <p className="font-medium text-slate-900">
+              <div className="text-sm text-ink">
+                  <p className="font-medium">
                     {p.payoutVerificationStatus.trim().toLowerCase() === 'verified'
                       ? 'Payout bank details are locked'
                       : 'Payout details under review'}
                   </p>
-                  <p className="mt-1.5 text-xs text-slate-700 leading-relaxed">
+                  <p className="mt-1.5 text-sm text-ink-muted leading-relaxed">
                     {p.payoutVerificationStatus.trim().toLowerCase() === 'verified' ? (
                       <>
                         You cannot change IBAN or BIC here. Business details are managed separately above. You can still
@@ -1158,8 +1063,8 @@ function BusinessProfilePage(p: Props) {
                   </p>
                 </div>
               )}
-            <div className="rounded-xl border border-gray-200 bg-gray-50/60 p-4">
-              <p className="text-xs text-gray-600 mb-4">
+            <div>
+              <p className="text-sm text-ink-muted mb-4">
                 Enter the account that should receive payouts. Saving IBAN and BIC submits them for verification.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1189,20 +1094,15 @@ function BusinessProfilePage(p: Props) {
             </div>
 
             {p.payoutIban.trim() && p.payoutBic.trim() && vPay === 'verified' && (
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 px-4 py-3 space-y-1">
-                <StatusChip label="Payout verified" tone="verified" />
-                <p className="text-sm text-emerald-900">Bank details approved. Business verification is still required to publish listings.</p>
-              </div>
+              <p className="text-sm text-ink-muted">
+                Bank details approved. Business verification is still required to publish listings.
+              </p>
             )}
             {p.payoutIban.trim() && p.payoutBic.trim() && vPay === 'rejected' && (
-              <div className="rounded-xl border border-red-200 bg-red-50/80 px-4 py-3 space-y-2">
-                <StatusChip label="Payout rejected" tone="rejected" />
-                <p className="text-sm text-red-900">Update IBAN and BIC, then save again to resubmit.</p>
+              <div className="space-y-2">
+                <p className="text-sm text-red-800">Update IBAN and BIC, then save again to resubmit.</p>
                 {p.payoutVerificationFeedback.trim() ? (
-                  <div className="rounded-lg border border-red-200 bg-white px-3 py-2 text-sm text-red-950">
-                    <p className="text-xs font-semibold text-red-800 mb-1">Message from Traverion</p>
-                    <p className="text-sm text-red-900 whitespace-pre-wrap">{p.payoutVerificationFeedback.trim()}</p>
-                  </div>
+                  <p className="text-sm text-red-900 whitespace-pre-wrap">{p.payoutVerificationFeedback.trim()}</p>
                 ) : null}
               </div>
             )}
@@ -1211,10 +1111,9 @@ function BusinessProfilePage(p: Props) {
               vPay !== 'verified' &&
               vPay !== 'rejected' &&
               (p.payoutVerificationSubmittedAt ?? '').trim() !== '' && (
-                <div className="rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-3 space-y-1">
-                  <StatusChip label="Payout in review" tone="pending" />
-                  <p className="text-sm text-amber-900">Traverion is reviewing your bank details. We will email you when there is an update.</p>
-                </div>
+                <p className="text-sm text-ink-muted">
+                  Traverion is reviewing your bank details. We will email you when there is an update.
+                </p>
               )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1299,7 +1198,7 @@ function BusinessProfilePage(p: Props) {
       )}
 
       {p.businessProfileTab === 'legal' && (
-        <div id="supplier-business-legal" className="space-y-5">
+        <div id="supplier-business-legal" className="space-y-10">
           <ProfileSection
             icon={Shield}
             title="Insurance"
@@ -1366,7 +1265,7 @@ function BusinessProfilePage(p: Props) {
               <button
                 type="button"
                 onClick={() => p.setLegalDocModal('privacy')}
-                className="inline-flex items-center px-4 py-2 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-800 hover:bg-gray-50 shadow-sm"
+                className="tv-btn-secondary"
               >
                 Open editor
               </button>
@@ -1378,7 +1277,7 @@ function BusinessProfilePage(p: Props) {
                 Reset to template
               </button>
             </div>
-            <p className="text-xs text-gray-600 line-clamp-4 whitespace-pre-wrap rounded-xl bg-gray-50 border border-gray-100 p-4 max-h-36 overflow-hidden">
+            <p className="text-sm text-ink-muted line-clamp-4 whitespace-pre-wrap max-h-36 overflow-hidden">
               {p.privacyPolicyText || 'No text saved yet — open the editor or reset to template.'}
             </p>
           </ProfileSection>
@@ -1392,7 +1291,7 @@ function BusinessProfilePage(p: Props) {
               <button
                 type="button"
                 onClick={() => p.setLegalDocModal('terms')}
-                className="inline-flex items-center px-4 py-2 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-800 hover:bg-gray-50 shadow-sm"
+                className="tv-btn-secondary"
               >
                 Open editor
               </button>
@@ -1404,7 +1303,7 @@ function BusinessProfilePage(p: Props) {
                 Reset to template
               </button>
             </div>
-            <p className="text-xs text-gray-600 line-clamp-4 whitespace-pre-wrap rounded-xl bg-gray-50 border border-gray-100 p-4 max-h-36 overflow-hidden">
+            <p className="text-sm text-ink-muted line-clamp-4 whitespace-pre-wrap max-h-36 overflow-hidden">
               {p.termsConditionsText || 'No text saved yet — open the editor or reset to template.'}
             </p>
           </ProfileSection>
@@ -1443,20 +1342,15 @@ function BusinessProfilePage(p: Props) {
             aria-label="Close editor"
             onClick={() => p.setLegalDocModal(null)}
           />
-          <div className="relative z-[71] flex max-h-[90dvh] w-full max-w-5xl min-h-0 flex-col rounded-t-2xl border border-gray-200 bg-white shadow-xl sm:max-h-[90vh] sm:rounded-2xl motion-safe:animate-slide-up sm:motion-safe:animate-none overflow-hidden">
-            <div className="flex shrink-0 items-center justify-between border-b border-gray-100 bg-gradient-to-br from-slate-50/90 to-white px-5 py-4">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-10 h-10 rounded-xl bg-finland/10 flex items-center justify-center shrink-0">
-                  <FileText className="w-5 h-5 text-finland" aria-hidden />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900 truncate">
-                  {p.legalDocModal === 'privacy' ? 'Privacy policy' : 'Terms & conditions'}
-                </h3>
-              </div>
+          <div className="relative z-[71] flex max-h-[90dvh] w-full max-w-5xl min-h-0 flex-col rounded-t-2xl bg-paper-raised shadow-xl ring-1 ring-black/[0.08] sm:max-h-[90vh] sm:rounded-2xl motion-safe:animate-slide-up sm:motion-safe:animate-none overflow-hidden">
+            <div className="flex shrink-0 items-center justify-between border-b border-black/[0.06] px-5 py-4">
+              <h3 className="font-display text-2xl text-ink tracking-tight truncate">
+                {p.legalDocModal === 'privacy' ? 'Privacy policy' : 'Terms & conditions'}
+              </h3>
               <button
                 type="button"
                 onClick={() => p.setLegalDocModal(null)}
-                className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 shrink-0"
+                className="lux-flat p-2 rounded-full text-ink-muted hover:text-ink shrink-0"
                 aria-label="Close"
               >
                 <X className="w-5 h-5" aria-hidden />
@@ -1464,7 +1358,7 @@ function BusinessProfilePage(p: Props) {
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4">
               <textarea
-                className="min-h-[min(50vh,420px)] w-full resize-y rounded-lg border border-gray-300 px-3 py-2 font-mono text-sm leading-relaxed text-gray-800 focus:ring-2 focus:ring-finland"
+                className="tv-input min-h-[min(50vh,420px)] w-full resize-y font-mono text-sm leading-relaxed"
                 value={p.legalDocModal === 'privacy' ? p.privacyPolicyText : p.termsConditionsText}
                 onChange={(e) =>
                   p.legalDocModal === 'privacy'
@@ -1472,22 +1366,22 @@ function BusinessProfilePage(p: Props) {
                     : p.setTermsConditionsText(e.target.value)
                 }
               />
-              <p className="mt-2 text-xs text-gray-500">
+              <p className="mt-2 text-xs text-ink-faint">
                 Not legal advice. Have counsel review before relying on this text.
               </p>
             </div>
-            <div className="flex shrink-0 flex-wrap justify-end gap-2 rounded-b-xl border-t border-gray-200 bg-gray-50 px-4 py-3">
+            <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-black/[0.06] px-4 py-3">
               <button
                 type="button"
                 onClick={() => (p.legalDocModal === 'privacy' ? p.fillPrivacyTemplate() : p.fillTermsTemplate())}
-                className="px-3 py-2 text-sm font-medium text-finland hover:underline"
+                className="tv-btn-ghost"
               >
                 Insert template
               </button>
               <button
                 type="button"
                 onClick={() => p.setLegalDocModal(null)}
-                className="px-4 py-2 rounded-lg bg-finland text-white text-sm font-medium hover:bg-finland-dark"
+                className="tv-btn-primary"
               >
                 Done
               </button>
