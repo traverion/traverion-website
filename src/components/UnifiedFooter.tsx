@@ -97,7 +97,7 @@ export default function UnifiedFooter({ currentPage, onNavigate }: UnifiedFooter
                 currentPage === 'packages' ? 'text-sky-600' : ''
               }`}
             >
-              {t.navigation?.packages || 'Experiences'}
+              {t.navigation?.packages || 'Tours'}
             </button>
             <button
               onClick={() => onNavigate('contact')}

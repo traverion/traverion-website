@@ -1,6 +1,6 @@
 import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { MapPin, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { Pencil, Plus, Trash2, X } from 'lucide-react';
 import { TourPackage } from '../../types/tour';
 import type { ListingBookingOption, ListingExtras, ScheduleStyle, VenueSetting } from '../../types/listingExtras';
 import {
@@ -597,7 +597,7 @@ export default function SupplierListingForm({
 
   const steps = useMemo(
     () => [
-      { id: 'the_experience' as StepId, label: 'The experience' },
+      { id: 'the_experience' as StepId, label: 'The tour' },
       { id: 'practical' as StepId, label: 'Place & includes' },
       { id: 'cost_options' as StepId, label: 'Price & options' },
       { id: 'photos' as StepId, label: 'Photos' },
@@ -1371,7 +1371,7 @@ export default function SupplierListingForm({
       <button
         type="button"
         className="absolute inset-0 z-[80] bg-slate-900/35 backdrop-blur-md motion-safe:animate-fade-in supports-[backdrop-filter]:bg-slate-900/25 cursor-pointer border-0 p-0"
-        aria-label="Close listing editor"
+        aria-label="Close tour editor"
         onClick={() => void handleCloseIntent()}
       />
       <div className="relative z-[81] flex min-h-0 w-full flex-1 flex-col justify-stretch px-0 py-0 pointer-events-none">
@@ -1385,35 +1385,32 @@ export default function SupplierListingForm({
             e.preventDefault();
           }}
           onClick={(e) => e.stopPropagation()}
-          className="pointer-events-auto motion-safe:animate-slide-up motion-reduce:animate-none flex min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden border-0 bg-white shadow-none sm:shadow-none h-[min(100dvh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)))] max-h-[min(100dvh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)))] rounded-none"
+          className="pointer-events-auto motion-safe:animate-slide-up motion-reduce:animate-none flex min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden border-0 bg-paper shadow-none h-[min(100dvh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)))] max-h-[min(100dvh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)))] rounded-none"
         >
         <div className="sm:hidden flex justify-center pt-2 pb-1 shrink-0" aria-hidden>
           <div className="h-1.5 w-12 rounded-full bg-gray-300" />
         </div>
-        <div className="shrink-0 border-b border-gray-100 bg-gradient-to-br from-slate-50/90 to-white px-5 py-4 sm:px-6">
-          <div className="mb-3 flex items-start justify-between gap-3">
-            <div className="flex gap-3 min-w-0">
-              <div className="w-10 h-10 rounded-xl bg-finland/10 flex items-center justify-center shrink-0">
-                <MapPin className="w-5 h-5 text-finland" aria-hidden />
-              </div>
-              <div className="min-w-0">
-              <h2 id="supplier-listing-editor-title" className="text-xl font-semibold text-gray-900">
-                {editingId ? 'Edit listing' : 'Create listing'}
-              </h2>
-              <p className="text-xs text-gray-500 mt-1">
-                This is what travelers will see once a listing is live. Close anytime — unfinished work is saved as a draft.
-                Required fields are marked. Extra details stay optional until you publish.
-              </p>
-              </div>
-            </div>
+        <div className="shrink-0 border-b border-black/[0.06] bg-paper px-5 py-4 sm:px-8">
+          <div className="mb-3 flex items-center justify-between gap-3">
             <button
               type="button"
               disabled={draftCloseBusy || submitting}
               onClick={() => void handleCloseIntent()}
-              className="shrink-0 px-3 py-1.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              className="lux-flat text-sm font-medium text-ink-muted hover:text-ink disabled:opacity-50"
             >
-              {draftCloseBusy ? 'Saving…' : 'Close'}
+              {draftCloseBusy ? 'Saving…' : '← Exit'}
             </button>
+            <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint">
+              {draftCloseBusy ? 'Saving' : 'Saved'}
+            </p>
+          </div>
+          <div className="mb-4 min-w-0">
+            <h2 id="supplier-listing-editor-title" className="font-display text-2xl sm:text-3xl text-ink">
+              {editingId ? form.title.trim() || 'Tour workspace' : 'Create your tour'}
+            </h2>
+            <p className="text-sm text-ink-muted mt-1 max-w-xl">
+              This is what travelers will see. Close anytime — unfinished work is saved as a draft.
+            </p>
           </div>
           {draftCloseError && (
             <p className="mb-3 text-sm text-red-600 rounded-lg border border-red-200 bg-red-50 px-3 py-2">{draftCloseError}</p>
@@ -1519,7 +1516,7 @@ export default function SupplierListingForm({
             <div className="space-y-5 transition-all duration-300 ease-out opacity-100 translate-y-0">
               <div id="supplier-listing-field-language">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Primary language of the tour *</label>
-                <p className="text-xs text-gray-500 mb-2">The main language guests can expect from your team during the experience.</p>
+                <p className="text-xs text-gray-500 mb-2">The main language guests hear during the tour.</p>
                 <select
                   value={form.experienceLanguage}
                   onChange={(e) => setForm((f) => ({ ...f, experienceLanguage: e.target.value }))}
@@ -1597,7 +1594,7 @@ export default function SupplierListingForm({
                 </p>
               </div>
               <div id="supplier-listing-field-description">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Information about the experience *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">About this tour *</label>
                 <p className="text-xs text-gray-500 mb-2">
                   Main description for guests (at least {MIN_LISTING_DESCRIPTION_LENGTH} characters for publishing, max{' '}
                   {MAX_DESCRIPTION_LENGTH}).
@@ -1631,7 +1628,7 @@ export default function SupplierListingForm({
                     className="text-sm text-red-600 mt-1.5"
                     role="alert"
                   >
-                    Add at least {MIN_LISTING_DESCRIPTION_LENGTH} characters to continue — describe the experience, what
+                    Add at least {MIN_LISTING_DESCRIPTION_LENGTH} characters to continue — describe the tour, what
                     guests should expect, and any practical details.
                   </p>
                 )}

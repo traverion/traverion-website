@@ -33,7 +33,7 @@ export function PublicListingBrowseCard({
   showTagPills = true,
   showViewDetailsHint = false,
 }: PublicListingBrowseCardProps) {
-  const imgClass = size === 'compact' ? 'h-40' : 'h-48';
+  const imgClass = size === 'compact' ? 'h-44' : 'h-56 sm:h-64';
   const padClass = size === 'compact' ? 'p-3' : 'p-4';
   const { price, originalPrice, label } = getDisplayPriceForTour(tour, discountsByListing);
   const hasDiscount = Boolean(label && price < originalPrice);
@@ -56,7 +56,7 @@ export function PublicListingBrowseCard({
         }
       }}
       onClick={onSelect}
-      className="group relative bg-white rounded-2xl overflow-hidden border border-gray-100 cursor-pointer shadow-sm hover:shadow-lg hover:border-finland/15 hover:-translate-y-1 transition-all duration-300 ease-[cubic-bezier(0.33,1,0.68,1)] motion-safe:animate-fade-in-up focus:outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2"
+      className="group relative bg-paper-raised rounded-2xl overflow-hidden cursor-pointer shadow-none hover:shadow-soft-lg hover:-translate-y-0.5 transition-all duration-300 ease-[cubic-bezier(0.33,1,0.68,1)] motion-safe:animate-fade-in-up focus:outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2"
       style={{ animationDelay: `${Math.min(index * 45, 320)}ms` }}
     >
       <div className={`relative ${imgClass} overflow-hidden bg-gray-100`}>

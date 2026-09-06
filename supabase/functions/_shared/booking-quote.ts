@@ -166,7 +166,7 @@ export function quoteListingBooking(input: {
   const guests = Number(input.guests);
   const status = (input.listing.status ?? '').trim();
   if (status && status !== 'published') {
-    return { ok: false, error: 'This experience is not available to book.' };
+    return { ok: false, error: 'This tour is not available to book.' };
   }
   if (!ISO_DATE.test(date)) return { ok: false, error: 'Choose a valid date.' };
   if (date < today) return { ok: false, error: 'Choose a date that is today or later.' };
@@ -192,15 +192,15 @@ export function quoteListingBooking(input: {
     const dayErr = optionRunsOnDate(option, date);
     if (dayErr) return { ok: false, error: dayErr };
     if (guests < option.minPersons) {
-      return { ok: false, error: `At least ${option.minPersons} guests are required for this experience.` };
+      return { ok: false, error: `At least ${option.minPersons} guests are required for this tour.` };
     }
     if (guests > option.maxPersons) {
-      return { ok: false, error: `No more than ${option.maxPersons} guests allowed for this experience.` };
+      return { ok: false, error: `No more than ${option.maxPersons} guests allowed for this tour.` };
     }
     const base = option.priceUsd > 0 ? option.priceUsd : fallbackBase;
-    if (!(base > 0)) return { ok: false, error: 'This experience does not have a bookable price yet.' };
+    if (!(base > 0)) return { ok: false, error: 'This tour does not have a bookable price yet.' };
     const unit = bestPrice(base, applicable(input.discounts, option.id, date));
-    if (!(unit > 0)) return { ok: false, error: 'This experience does not have a bookable price yet.' };
+    if (!(unit > 0)) return { ok: false, error: 'This tour does not have a bookable price yet.' };
     return {
       ok: true,
       currency,
@@ -213,20 +213,20 @@ export function quoteListingBooking(input: {
 
   const bounds = parseGroupSize(input.listing.group_size);
   if (guests < bounds.min) {
-    return { ok: false, error: `At least ${bounds.min} guests are required for this experience.` };
+    return { ok: false, error: `At least ${bounds.min} guests are required for this tour.` };
   }
   if (guests > bounds.max) {
-    return { ok: false, error: `No more than ${bounds.max} guests allowed for this experience.` };
+    return { ok: false, error: `No more than ${bounds.max} guests allowed for this tour.` };
   }
-  if (!(fallbackBase > 0)) return { ok: false, error: 'This experience does not have a bookable price yet.' };
+  if (!(fallbackBase > 0)) return { ok: false, error: 'This tour does not have a bookable price yet.' };
   const unit = bestPrice(fallbackBase, applicable(input.discounts, null, date));
-  if (!(unit > 0)) return { ok: false, error: 'This experience does not have a bookable price yet.' };
+  if (!(unit > 0)) return { ok: false, error: 'This tour does not have a bookable price yet.' };
   return {
     ok: true,
     currency,
     unitPrice: unit,
     totalAmount: money(unit * guests),
     optionId: null,
-    optionLabel: 'Standard experience',
+    optionLabel: 'Standard tour',
   };
 }

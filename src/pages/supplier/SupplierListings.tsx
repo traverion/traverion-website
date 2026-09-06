@@ -2,16 +2,12 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Plus,
-  MapPin,
   Pencil,
   Trash2,
-  Eye,
   EyeOff,
   AlertCircle,
   RefreshCw,
-  ExternalLink,
   Cog,
-  Star,
 } from 'lucide-react';
 import { TourPackage } from '../../types/tour';
 import { getSupplierListings, setSupplierListings } from '../../data/listings';
@@ -38,9 +34,8 @@ import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { publicTourListingUrl } from '../../lib/publicSiteUrl';
 import { getListingPublishBlockers } from '../../lib/listingPublishGate';
 import { normalizeListingForDraftSave } from '../../lib/listingDraftUtils';
-import { getReviewAggregatesForListingIds } from '../../data/supabase-reviews';
 import { SkeletonListItem } from '../../components/ui/Skeleton';
-import { SUPPLIER_PAGE_CLASS, SUPPLIER_SECTION_HEADER_CLASS, SupplierModalHeader, SupplierPageHero } from '../../components/supplier/supplierUi';
+import { SUPPLIER_PAGE_CLASS, SupplierEmptyState, SupplierModalHeader, SupplierPageHero } from '../../components/supplier/supplierUi';
 
 function verificationStatusLabel(status: string): string {
   const s = status.toLowerCase();
@@ -48,48 +43,6 @@ function verificationStatusLabel(status: string): string {
   if (s === 'rejected') return 'Rejected';
   if (s === 'verified') return 'Verified';
   return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
-}
-
-function ListingReviewsTableCell({
-  listing,
-  aggregate,
-  isSupabase,
-}: {
-  listing: TourPackage;
-  aggregate?: { rating: number; count: number };
-  isSupabase: boolean;
-}) {
-  const count = isSupabase ? aggregate?.count ?? 0 : listing.reviews;
-  const rating = isSupabase ? aggregate?.rating ?? 0 : listing.rating;
-
-  if (!count) {
-    return (
-      <span className="text-xs text-gray-500 tabular-nums">No reviews yet</span>
-    );
-  }
-
-  const inner = (
-    <>
-      <Star className="h-3.5 w-3.5 shrink-0 fill-finland text-finland sm:h-4 sm:w-4" aria-hidden />
-      <span className="font-semibold text-gray-900 tabular-nums">{rating}</span>
-      <span className="text-xs font-medium text-gray-500">({count})</span>
-    </>
-  );
-
-  if (isSupabase) {
-    return (
-      <button
-        type="button"
-        onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/reviews`)}
-        className="inline-flex max-w-full items-center gap-1 rounded-lg border border-transparent px-1.5 py-1 text-left text-sm text-gray-800 transition-colors hover:border-finland/25 hover:bg-finland/[0.06] focus:outline-none focus-visible:ring-2 focus-visible:ring-finland/35 focus-visible:ring-offset-1"
-        title="Open Reviews to read and reply"
-      >
-        {inner}
-      </button>
-    );
-  }
-
-  return <span className="inline-flex items-center gap-1 text-sm text-gray-800">{inner}</span>;
 }
 
 export default function SupplierListings() {
@@ -100,9 +53,6 @@ export default function SupplierListings() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formFocusSection, setFormFocusSection] = useState<string | null>(null);
   const [listings, setListings] = useState<TourPackage[]>([]);
-  const [reviewAggregates, setReviewAggregates] = useState<Map<string, { rating: number; count: number }>>(
-    () => new Map()
-  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   /** Row id whose gear actions dropdown is open (Edit / Deactivate / Delete). */
@@ -250,7 +200,7 @@ export default function SupplierListings() {
     setFormFocusSection(null);
     const params = new URLSearchParams(window.location.search);
     if (params.get('edit')) {
-      window.history.replaceState({}, '', `${PARTNER_APP_BASE}/listings`);
+      window.history.replaceState({}, '', `${PARTNER_APP_BASE}/tours`);
     }
   }, [canEditListings]);
 
@@ -285,7 +235,7 @@ export default function SupplierListings() {
       setShowForm(false);
       setEditingId(null);
       setFormFocusSection(null);
-      window.history.replaceState({}, '', `${PARTNER_APP_BASE}/listings`);
+      window.history.replaceState({}, '', `${PARTNER_APP_BASE}/tours`);
     }, 200);
 
     return () => {
@@ -302,24 +252,16 @@ export default function SupplierListings() {
       setLoading(true);
       setError(null);
       fetchMyListings(uid)
-        .then(async (data) => {
+        .then((data) => {
           setListings(data);
-          try {
-            const agg = await getReviewAggregatesForListingIds(data.map((l) => l.id));
-            setReviewAggregates(agg);
-          } catch {
-            setReviewAggregates(new Map());
-          }
           setLoading(false);
         })
         .catch((e) => {
           setError(e instanceof Error ? e.message : 'Failed to load listings');
-          setReviewAggregates(new Map());
           setLoading(false);
         });
     } else {
       setListings(getSupplierListings());
-      setReviewAggregates(new Map());
       setLoading(false);
     }
   }, [isSupabase, user?.id]);
@@ -598,14 +540,8 @@ export default function SupplierListings() {
   return (
     <div className={SUPPLIER_PAGE_CLASS}>
       <SupplierPageHero
-        icon={MapPin}
-        title="My listings"
-        description={
-          <>
-            Manage your tours and activities. <span className="font-medium text-gray-800">Publish</span> drafts when ready; use the gear menu to{' '}
-            <span className="font-medium text-gray-800">Deactivate</span> live listings temporarily.
-          </>
-        }
+        title="Tours"
+        description="Your inventory, as travelers will see it."
         actions={
           <button
             type="button"
@@ -614,7 +550,7 @@ export default function SupplierListings() {
               setEditingId(null);
               setShowForm(true);
               setFormFocusSection(null);
-              window.history.pushState({}, '', `${PARTNER_APP_BASE}/listings`);
+              window.history.pushState({}, '', `${PARTNER_APP_BASE}/tours`);
               window.dispatchEvent(new PopStateEvent('popstate'));
             }}
             disabled={!canEditListings || !canPostNewListing}
@@ -628,7 +564,7 @@ export default function SupplierListings() {
             className="inline-flex w-full shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-finland px-5 py-3 text-[15px] font-semibold text-white shadow-sm transition-colors hover:bg-finland-dark active:scale-[0.99] disabled:opacity-50 touch-manipulation min-h-[48px] md:w-auto"
           >
             <Plus className="h-5 w-5 shrink-0" aria-hidden />
-            <span>Add listing</span>
+            <span>Create tour</span>
           </button>
         }
       />
@@ -739,7 +675,7 @@ export default function SupplierListings() {
                 className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-finland text-white text-sm font-medium hover:bg-finland-dark"
               >
                 <Pencil className="w-4 h-4" />
-                Edit listing
+                Edit tour
               </button>
               <button
                 type="button"
@@ -787,7 +723,7 @@ export default function SupplierListings() {
             setShowForm(false);
             setEditingId(null);
             setFormFocusSection(null);
-            window.history.pushState({}, '', `${PARTNER_APP_BASE}/listings`);
+            window.history.pushState({}, '', `${PARTNER_APP_BASE}/tours`);
             window.dispatchEvent(new PopStateEvent('popstate'));
           }}
           focusSection={formFocusSection}
@@ -802,128 +738,113 @@ export default function SupplierListings() {
           <SkeletonListItem />
         </div>
       ) : listings.length === 0 && !showForm ? (
-        <div className="bg-white border border-gray-200 rounded-2xl p-8 sm:p-12 text-center shadow-sm animate-scale-in">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gray-100 text-gray-400 mb-4">
-            <MapPin className="w-7 h-7" />
-          </div>
-          <h2 className="text-lg font-semibold text-gray-900">No listings yet</h2>
-          <p className="text-gray-500 mt-1 max-w-sm mx-auto">
-            Add your first tour or activity to start receiving bookings from travelers worldwide.
-          </p>
-          <button
-            type="button"
-            onClick={() => {
-              if (!canEditListings || !canPostNewListing) return;
-              setShowForm(true);
-            }}
-            disabled={!canEditListings || !canPostNewListing}
-            title={
-              !canEditListings
-                ? 'Your role cannot add listings.'
-                : !canPostNewListing
-                  ? 'Business verification and payout verification (IBAN + BIC) required.'
-                  : undefined
-            }
-            className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark transition-colors disabled:opacity-50"
-          >
-            <Plus className="w-5 h-5" />
-            Add your first listing
-          </button>
-        </div>
+        <SupplierEmptyState
+          title="No tours yet"
+          body="Create your first tour. Photos, price, and meeting point — then publish when you’re ready."
+          action={
+            <button
+              type="button"
+              onClick={() => {
+                if (!canEditListings || !canPostNewListing) return;
+                setShowForm(true);
+              }}
+              disabled={!canEditListings || !canPostNewListing}
+              title={
+                !canEditListings
+                  ? 'Your role cannot add tours.'
+                  : !canPostNewListing
+                    ? 'Business verification and payout verification (IBAN + BIC) required.'
+                    : undefined
+              }
+              className="inline-flex items-center gap-2 h-12 px-6 rounded-full bg-finland text-white font-semibold hover:bg-finland-dark disabled:opacity-50"
+            >
+              <Plus className="w-5 h-5" />
+              Create a tour
+            </button>
+          }
+        />
       ) : (
         listings.length > 0 && (
-          <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden w-full min-w-0">
-            <div className={`${SUPPLIER_SECTION_HEADER_CLASS} flex items-center justify-between gap-2`}>
-              <h2 className="text-base font-semibold text-gray-900">Your listings</h2>
-              <span className="text-xs text-gray-500 tabular-nums">{listings.length} total</span>
-            </div>
-            <div className="divide-y divide-gray-100">
-              {listings.map((listing) => {
-                const isLive = listing.status !== 'draft';
-                return (
-                  <article key={listing.id} className="p-4 sm:p-5 w-full min-w-0 max-w-full transition-colors duration-200 hover:bg-slate-50/60">
-                    <div className="flex gap-3 min-w-0">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+            {listings.map((listing) => {
+              const isLive = listing.status !== 'draft';
+              const currency = listing.price?.currency ?? 'USD';
+              const from = listing.price?.startingFrom;
+              const money =
+                from == null
+                  ? null
+                  : currency === 'USD'
+                    ? `$${from}`
+                    : currency === 'EUR'
+                      ? `€${from}`
+                      : `${from} ${currency}`;
+              const place = [listing.city, listing.country ?? listing.destination].filter(Boolean).join(', ');
+              return (
+                <article key={listing.id} className="group min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => openSupplierListingEditor(listing.id)}
+                    className="lux-flat block w-full text-left"
+                  >
+                    <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-black/[0.04]">
                       <img
                         src={listing.image}
                         alt=""
-                        className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg object-cover shrink-0"
+                        className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]"
                       />
-                      <div className="min-w-0 flex-1 space-y-2">
-                        <p className="font-semibold text-gray-900 leading-snug break-words">{listing.title}</p>
-                        <p className="text-sm text-gray-600 break-words">
-                          {listing.city && `${listing.city}, `}
-                          {listing.country ?? listing.destination} · {listing.duration}
-                        </p>
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-                          <span className="font-medium text-gray-900">
-                            From ${listing.price.startingFrom}
-                          </span>
-                          <ListingReviewsTableCell
-                            listing={listing}
-                            aggregate={reviewAggregates.get(listing.id)}
-                            isSupabase={Boolean(isSupabase)}
-                          />
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span
-                            className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full ${
-                              isLive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
-                            }`}
-                          >
-                            {isLive ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
-                            {isLive ? 'Live' : 'Offline'}
-                          </span>
-                          {isSupabase && canEditListings && !isLive && (
-                            <button
-                              type="button"
-                              onClick={() => handleStatusChange(listing, 'published')}
-                              disabled={!canPostNewListing}
-                              title={
-                                !canPostNewListing
-                                  ? 'Business and payout verification required to publish'
-                                  : 'Publish on Traverion'
-                              }
-                              className="text-xs text-finland hover:underline disabled:opacity-40 disabled:no-underline disabled:cursor-not-allowed touch-manipulation min-h-[44px] sm:min-h-0 py-1"
-                            >
-                              → Publish
-                            </button>
-                          )}
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2 pt-1">
-                          {isLive ? (
-                            <a
-                              href={publicTourListingUrl(listing.id)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="touch-manipulation inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-finland/35 bg-white px-3 text-xs font-medium text-finland shadow-sm hover:bg-finland/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-finland/35 focus-visible:ring-offset-1"
-                              title="Opens the public tour page on Traverion"
-                            >
-                              <ExternalLink className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                              View on site
-                            </a>
-                          ) : null}
-                          <button
-                            type="button"
-                            data-listing-gear={listing.id}
-                            onClick={() =>
-                              setListingActionsMenuId((id) => (id === listing.id ? null : listing.id))
-                            }
-                            disabled={!canEditListings}
-                            aria-expanded={listingActionsMenuId === listing.id}
-                            aria-haspopup="menu"
-                            aria-label="Listing actions"
-                            className="touch-manipulation inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 shadow-sm hover:bg-gray-50 hover:text-finland focus:outline-none focus-visible:ring-2 focus-visible:ring-finland/30 focus-visible:ring-offset-1 disabled:pointer-events-none disabled:opacity-40"
-                            title={canEditListings ? 'Listing actions' : 'View only'}
-                          >
-                            <Cog className="h-4 w-4" aria-hidden />
-                          </button>
-                        </div>
-                      </div>
+                      <span
+                        className={`absolute left-3 top-3 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                          isLive ? 'bg-paper-raised text-ink' : 'bg-ink/70 text-paper-raised'
+                        }`}
+                      >
+                        {isLive ? 'Published' : 'Draft'}
+                      </span>
                     </div>
-                  </article>
-                );
-              })}
-            </div>
+                    <div className="pt-3">
+                      <h2 className="font-sans text-base font-semibold text-ink leading-snug">{listing.title}</h2>
+                      <p className="mt-1 text-sm text-ink-muted">{place || listing.duration}</p>
+                      {money ? <p className="mt-1 text-sm text-ink">From {money}</p> : null}
+                    </div>
+                  </button>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    {isSupabase && canEditListings && !isLive && (
+                      <button
+                        type="button"
+                        onClick={() => handleStatusChange(listing, 'published')}
+                        disabled={!canPostNewListing}
+                        className="text-xs font-semibold text-finland hover:underline disabled:opacity-40"
+                      >
+                        Publish
+                      </button>
+                    )}
+                    {isLive ? (
+                      <a
+                        href={publicTourListingUrl(listing.id)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs font-medium text-ink-muted hover:text-ink"
+                      >
+                        View on Traverion
+                      </a>
+                    ) : null}
+                    <button
+                      type="button"
+                      data-listing-gear={listing.id}
+                      onClick={() =>
+                        setListingActionsMenuId((id) => (id === listing.id ? null : listing.id))
+                      }
+                      disabled={!canEditListings}
+                      aria-expanded={listingActionsMenuId === listing.id}
+                      aria-haspopup="menu"
+                      aria-label="Tour actions"
+                      className="ml-auto lux-flat inline-flex h-9 w-9 items-center justify-center rounded-full text-ink-muted hover:text-ink disabled:opacity-40"
+                    >
+                      <Cog className="h-4 w-4" aria-hidden />
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
           </div>
         )
       )}

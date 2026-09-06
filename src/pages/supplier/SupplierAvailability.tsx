@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { fetchMyListings } from '../../data/supabase-listings';
 import {
@@ -16,7 +16,7 @@ import {
   defaultCapacityForOpenDay,
   remainingCapacity,
 } from '../../lib/availability-ops';
-import { SUPPLIER_PAGE_CLASS, SupplierPageHero } from '../../components/supplier/supplierUi';
+import { SUPPLIER_PAGE_CLASS, SupplierEmptyState } from '../../components/supplier/supplierUi';
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -56,7 +56,7 @@ export default function SupplierAvailability() {
       setListings(mine);
       setListingId((prev) => prev || mine[0]?.id || '');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not load products');
+      setError(e instanceof Error ? e.message : 'Could not load tours');
     } finally {
       setLoading(false);
     }
@@ -127,54 +127,59 @@ export default function SupplierAvailability() {
   });
 
   return (
-    <div className={SUPPLIER_PAGE_CLASS}>
-      <SupplierPageHero
-        icon={CalendarDays}
-        title="Availability"
-        description="Weekdays come from each product option. Set a daily cap only when you need one — otherwise travelers can book any open weekday."
-      />
+    <div className={`${SUPPLIER_PAGE_CLASS} min-h-[70vh]`}>
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="font-display text-3xl sm:text-4xl text-ink">Calendar</h1>
+          <p className="mt-2 text-sm text-ink-muted max-w-lg">
+            Open days follow each tour’s weekday rules. Tap a date to cap spots.
+          </p>
+        </div>
+        {!isSupabase || !user ? null : listings.length > 0 ? (
+          <label className="block sm:min-w-[16rem]">
+            <span className="sr-only">Tour</span>
+            <select
+              id="availability-listing"
+              value={listingId}
+              onChange={(e) => setListingId(e.target.value)}
+              className="w-full rounded-full border-0 bg-paper-raised px-4 py-2.5 text-sm text-ink shadow-none ring-1 ring-black/[0.06]"
+            >
+              {listings.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.title}
+                  {l.status === 'draft' ? ' (draft)' : ''}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+      </div>
 
       {!isSupabase || !user ? (
-        <p className="text-sm text-gray-600">Sign in to manage availability.</p>
+        <p className="text-sm text-ink-muted">Sign in to manage availability.</p>
       ) : loading ? (
-        <p className="text-sm text-gray-500">Loading products…</p>
+        <p className="text-sm text-ink-muted">Loading calendar…</p>
       ) : listings.length === 0 ? (
-        <div className="rounded-2xl border border-gray-200 bg-white p-6 text-sm text-gray-600">
-          Create a product first. Then you can cap specific dates here.
-        </div>
+        <SupplierEmptyState
+          title="Create a tour first"
+          body="Then you can cap specific dates here."
+        />
       ) : (
-        <div className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-6">
-          <label className="block text-sm font-medium text-gray-800 mb-2" htmlFor="availability-listing">
-            Product
-          </label>
-          <select
-            id="availability-listing"
-            value={listingId}
-            onChange={(e) => setListingId(e.target.value)}
-            className="w-full max-w-lg rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900"
-          >
-            {listings.map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.title}
-                {l.status === 'draft' ? ' (draft)' : ''}
-              </option>
-            ))}
-          </select>
-
-          <div className="mt-6 flex items-center justify-between gap-3">
+        <div>
+          <div className="flex items-center justify-between gap-3 mb-6">
             <button
               type="button"
               onClick={() => shiftMonth(-1)}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50"
+              className="lux-flat inline-flex h-11 w-11 items-center justify-center rounded-full text-ink hover:bg-paper-raised"
               aria-label="Previous month"
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
-            <p className="text-base font-semibold text-gray-900">{monthLabel}</p>
+            <p className="font-display text-xl sm:text-2xl text-ink">{monthLabel}</p>
             <button
               type="button"
               onClick={() => shiftMonth(1)}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50"
+              className="lux-flat inline-flex h-11 w-11 items-center justify-center rounded-full text-ink hover:bg-paper-raised"
               aria-label="Next month"
             >
               <ChevronRight className="w-5 h-5" />
@@ -182,17 +187,17 @@ export default function SupplierAvailability() {
           </div>
 
           {error ? (
-            <p className="mt-3 text-sm text-red-600" role="alert">
+            <p className="mb-3 text-sm text-red-600" role="alert">
               {error}
             </p>
           ) : null}
 
-          <div className="mt-4 grid grid-cols-7 gap-1 text-center text-[11px] font-medium uppercase tracking-wide text-gray-500">
+          <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-medium uppercase tracking-[0.14em] text-ink-faint mb-2">
             {WEEKDAYS.map((d) => (
               <div key={d}>{d}</div>
             ))}
           </div>
-          <div className="mt-1 grid grid-cols-7 gap-1">
+          <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
             {cells.map((cell) => {
               const open = cell.inMonth && weekdayOpen(cell.iso);
               const cap = rowByDate.get(cell.iso);
@@ -211,27 +216,27 @@ export default function SupplierAvailability() {
                       capacity: String(cap?.capacity ?? defaultSpots(listing)),
                     });
                   }}
-                  className={`min-h-[4.25rem] rounded-xl p-1.5 text-left transition-colors disabled:opacity-40 ${
+                  className={`lux-flat min-h-[4.5rem] sm:min-h-[5.5rem] rounded-xl p-1.5 text-left transition-colors disabled:opacity-40 ${
                     !cell.inMonth
-                      ? 'bg-transparent text-gray-300'
+                      ? 'bg-transparent text-ink-faint'
                       : isEditing
-                        ? 'bg-white border border-finland ring-2 ring-finland/20'
+                        ? 'bg-paper-raised ring-2 ring-finland/30'
                         : cap
                         ? remaining === 0
-                          ? 'bg-rose-50 border border-rose-100'
-                          : 'bg-finland/8 border border-finland/20'
+                          ? 'bg-rose-50'
+                          : 'bg-finland/10'
                         : open
-                          ? 'bg-gray-50 border border-gray-100 hover:border-finland/30'
-                          : 'bg-white border border-transparent text-gray-400'
+                          ? 'hover:bg-paper-raised'
+                          : 'text-ink-faint'
                   }`}
                 >
-                  <span className="block text-sm font-semibold text-gray-900">{cell.day}</span>
+                  <span className="block text-sm font-semibold text-ink">{cell.day}</span>
                   {cell.inMonth && cap ? (
-                    <span className="mt-0.5 block text-[10px] leading-tight text-gray-600">
+                    <span className="mt-0.5 block text-[10px] leading-tight text-ink-muted">
                       {remaining}/{cap.capacity} left
                     </span>
                   ) : cell.inMonth && open ? (
-                    <span className="mt-0.5 block text-[10px] leading-tight text-gray-400">Open</span>
+                    <span className="mt-0.5 block text-[10px] leading-tight text-ink-faint">Open</span>
                   ) : null}
                 </button>
               );
@@ -239,13 +244,13 @@ export default function SupplierAvailability() {
           </div>
 
           {editing ? (
-            <div className="mt-5 rounded-xl border border-gray-200 bg-slate-50 p-4">
-              <p className="text-sm font-medium text-gray-900">{editing.iso}</p>
-              <p className="mt-1 text-xs text-gray-600">
-                Daily cap is optional. Clearing it returns the date to weekday rules on the product option.
+            <div className="mt-8 max-w-lg motion-safe:animate-fade-in-up">
+              <p className="font-sans text-base font-semibold text-ink">{editing.iso}</p>
+              <p className="mt-1 text-sm text-ink-muted">
+                Daily cap is optional. Clearing it returns the date to weekday rules on the tour option.
               </p>
-              <div className="mt-3 flex flex-col sm:flex-row gap-2 sm:items-center">
-                <label className="text-sm text-gray-700" htmlFor="day-capacity">
+              <div className="mt-4 flex flex-col sm:flex-row gap-2 sm:items-center">
+                <label className="text-sm text-ink" htmlFor="day-capacity">
                   Spots
                 </label>
                 <input
@@ -255,33 +260,33 @@ export default function SupplierAvailability() {
                   max={99}
                   value={editing.capacity}
                   onChange={(e) => setEditing({ ...editing, capacity: e.target.value })}
-                  className="w-24 rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                  className="w-24 rounded-xl border-0 bg-paper-raised px-3 py-2 text-sm ring-1 ring-black/[0.08]"
                 />
                 <button
                   type="button"
                   onClick={() => void saveCap(editing.iso, Math.max(0, Math.floor(Number(editing.capacity) || 0)))}
-                  className="rounded-lg bg-finland px-4 py-2 text-sm font-medium text-white hover:bg-finland-dark"
+                  className="rounded-full bg-finland px-5 py-2 text-sm font-semibold text-white hover:bg-finland-dark"
                 >
                   Save cap
                 </button>
                 <button
                   type="button"
                   onClick={() => void clearCap(editing.iso)}
-                  className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                  className="lux-flat rounded-full px-4 py-2 text-sm text-ink-muted hover:text-ink"
                 >
-                  Clear cap
+                  Clear
                 </button>
                 <button
                   type="button"
                   onClick={() => setEditing(null)}
-                  className="text-sm text-gray-500 hover:text-gray-800"
+                  className="lux-flat text-sm text-ink-faint hover:text-ink"
                 >
                   Cancel
                 </button>
               </div>
             </div>
           ) : (
-            <p className="mt-4 text-xs text-gray-500">Tap a date to add or change a daily cap.</p>
+            <p className="mt-6 text-xs text-ink-faint">Tap a date to add or change a daily cap.</p>
           )}
         </div>
       )}

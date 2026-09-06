@@ -116,9 +116,8 @@ export default function SupplierEarnings() {
   return (
     <div className={SUPPLIER_PAGE_CLASS}>
       <SupplierPageHero
-        icon={DollarSign}
-        title="Earnings"
-        description="Track pending payouts, paid totals, and period history for your supplier account."
+        title="Money"
+        description="Pending payouts and paid history."
       />
 
       {error && (

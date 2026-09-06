@@ -97,7 +97,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-paper">
       <section className="relative text-white pt-24 sm:pt-28 pb-16 sm:pb-24 min-h-[560px] sm:min-h-[620px] flex items-center overflow-hidden">
         <div className="page-hero-media" aria-hidden>
           <img src="/banner1.jpg" alt="" />
@@ -105,10 +105,10 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
         <div className="absolute inset-0 bg-black/40" aria-hidden />
         <div className="relative z-10 w-full max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 page-hero-content">
           <p className="page-hero-eyebrow text-center text-xs sm:text-sm tracking-[0.18em] uppercase font-medium mb-3">
-            Tours &amp; activities
+            Tours
           </p>
-          <h1 className="page-hero-title text-3xl sm:text-5xl font-semibold text-center tracking-tight mb-3">
-            Find an experience worth the trip
+          <h1 className="page-hero-title font-display text-3xl sm:text-5xl lg:text-6xl text-center tracking-tight mb-4">
+            Find a tour worth the trip
           </h1>
           <p className="page-hero-subtitle text-center text-sm sm:text-lg mb-8 max-w-xl mx-auto font-normal">
             Browse live tours from independent operators. Book in minutes, with free cancellation up to 24 hours before.
@@ -118,7 +118,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
             className="bg-white rounded-2xl p-2 sm:p-2.5 flex flex-col sm:flex-row gap-2 shadow-none"
           >
             <label className="sr-only" htmlFor="home-search">
-              Search experiences
+              Search tours
             </label>
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
@@ -172,13 +172,13 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
         </div>
       </section>
 
-      <section className="py-10 sm:py-14 bg-gray-50/80">
+      <section className="py-10 sm:py-14 bg-paper">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-6">
             <div>
-              <h2 className="text-2xl sm:text-3xl font-semibold text-gray-900 tracking-tight">Experiences</h2>
-              <p className="mt-1 text-sm text-gray-600">
-                What operators are offering on Traverion right now.
+              <h2 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Tours</h2>
+              <p className="mt-1 text-sm text-ink-muted">
+                Live from independent operators on Traverion.
               </p>
             </div>
             <button
@@ -186,21 +186,21 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
               onClick={() => goToPackages()}
               className="lux-flat inline-flex items-center gap-1.5 text-sm font-semibold text-finland hover:text-finland-dark self-start"
             >
-              All experiences <ArrowRight className="w-4 h-4" />
+              All tours <ArrowRight className="w-4 h-4" />
             </button>
           </div>
 
           {allListings.length === 0 ? (
-            <div className="text-center py-16 bg-white rounded-3xl border border-gray-100">
-              <p className="text-gray-700 font-medium mb-2">No experiences listed yet</p>
-              <p className="text-sm text-gray-500 mb-6 max-w-md mx-auto">
-                Operators are setting up tours on Traverion. If you run experiences, you can publish yours today.
+            <div className="text-center py-16">
+              <p className="font-display text-2xl text-ink mb-2">No tours listed yet</p>
+              <p className="text-sm text-ink-muted mb-6 max-w-md mx-auto">
+                Operators are publishing tours on Traverion. If you run tours, you can list yours today.
               </p>
               <a
                 href={supplierPortalHref('/login')}
                 className="inline-flex items-center gap-2 bg-finland text-white font-semibold px-6 py-3 rounded-xl hover:bg-finland-dark transition-colors"
               >
-                List your experience
+                List your tours
               </a>
             </div>
           ) : (
@@ -227,7 +227,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                     onClick={() => goToPackages()}
                     className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-finland text-white font-semibold hover:bg-finland-dark"
                   >
-                    View all {allListings.length} experiences <ArrowRight className="w-4 h-4" />
+                    View all {allListings.length} tours <ArrowRight className="w-4 h-4" />
                   </button>
                 </div>
               )}

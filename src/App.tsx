@@ -265,7 +265,7 @@ function App() {
 
     const metaByPage: Record<string, { title: string; description?: string }> = {
       home: { title: 'Traverion', description: 'Book tours and activities worldwide. Find and reserve experiences with free cancellation.' },
-      packages: { title: 'Tours & activities', description: 'Browse and book tours and activities worldwide. Filter by destination, price, and more.' },
+      packages: { title: 'Tours', description: 'Browse and book tours worldwide. Filter by destination, price, and more.' },
       auth: { title: 'Sign in', description: 'Sign in or create an account to manage your bookings and cart.' },
       'reset-password': { title: 'Set a new password', description: 'Choose a new password for your Traverion traveler account.' },
       'email-confirmed': { title: 'Email confirmed', description: 'Your Traverion traveler email was verified.' },
@@ -288,7 +288,7 @@ function App() {
     };
     const meta = metaByPage[currentPage];
     if (meta) setPageMetaWithOg(meta.title, meta.description);
-    else setPageMetaWithOg('Traverion', 'Tours & activities worldwide.');
+    else setPageMetaWithOg('Traverion', 'Tours worldwide.');
 
     setRobotsNoIndex(currentPage === 'booking-confirmed' || currentPage === 'reset-password');
 

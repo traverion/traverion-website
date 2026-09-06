@@ -176,8 +176,8 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
         <PageHero
           imageSrc={HERO_IMG.beach2}
           overlay="slateSoft"
-          title="Your bookings"
-          subtitle="View reservations and status for tours you have booked with Traverion."
+          title="Trips"
+          subtitle="Upcoming and past tours you booked."
         />
         <div className="max-w-2xl mx-auto px-4 py-8 pb-12">
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 text-center">
@@ -214,13 +214,13 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
         <PageHero
           imageSrc={HERO_IMG.beach2}
           overlay="slateSoft"
-          title="Your bookings"
+          title="Trips"
           subtitle="Log in to see your reservations and their status (confirmed or cancelled)."
         />
         <div className="max-w-xl mx-auto px-4 py-8 pb-12 text-center">
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-10">
             <Calendar className="w-14 h-14 text-gray-300 mx-auto mb-4" />
-            <h1 className="text-2xl font-semibold text-gray-900 mb-2">Your bookings</h1>
+            <h1 className="text-2xl font-semibold text-gray-900 mb-2">Trips</h1>
             <p className="text-gray-600 mb-6">Log in to see your reservations and their status (confirmed or cancelled).</p>
             <button
               type="button"

@@ -5,6 +5,7 @@ import { BRAND_LOGO_SRC } from '../../lib/brandAssets';
 import {
   PARTNER_EMAIL_VERIFIED_PATH,
   PARTNER_LOGIN_PATH,
+  PARTNER_APP_BASE,
 } from '../../lib/partnerPortalPaths';
 
 type Phase = 'checking' | 'verified' | 'invalid' | 'unconfigured';
@@ -40,10 +41,9 @@ export default function PartnerEmailVerifiedPage() {
       if (cancelled) return;
       setPhase('verified');
       stripSensitiveUrl();
-      await new Promise((r) => setTimeout(r, 2600));
+      await new Promise((r) => setTimeout(r, 900));
       if (cancelled) return;
-      await supabase.auth.signOut();
-      window.location.replace(PARTNER_LOGIN_PATH);
+      window.location.replace(`${PARTNER_APP_BASE}/onboarding`);
     };
 
     void (async () => {
@@ -124,7 +124,7 @@ export default function PartnerEmailVerifiedPage() {
               </div>
               <h1 className="text-2xl font-bold text-gray-900 mb-2 tracking-tight">Account verified</h1>
               <p className="text-sm text-gray-600 mb-1">Your partner email is confirmed.</p>
-              <p className="text-xs text-gray-500">Taking you to sign in…</p>
+              <p className="text-xs text-ink-muted">Continuing to your workspace…</p>
             </>
           )}
           {(phase === 'invalid' || phase === 'unconfigured') && (

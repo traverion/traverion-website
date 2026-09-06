@@ -141,7 +141,7 @@ export function quoteBooking(input: {
   const guests = Number(input.guests);
 
   if (!isListingBookable(input.tour.status)) {
-    return { ok: false, code: 'unpublished', error: 'This experience is not available to book.' };
+    return { ok: false, code: 'unpublished', error: 'This tour is not available to book.' };
   }
   if (!ISO_DATE.test(date)) {
     return { ok: false, code: 'bad_date', error: 'Choose a valid date.' };
@@ -193,13 +193,13 @@ export function quoteBooking(input: {
 
     const base = variant.pricePerPerson > 0 ? variant.pricePerPerson : fallbackBase;
     if (!(base > 0)) {
-      return { ok: false, code: 'price', error: 'This experience does not have a bookable price yet.' };
+      return { ok: false, code: 'price', error: 'This tour does not have a bookable price yet.' };
     }
     const at = new Date(`${date}T12:00:00`);
     const applicable = discountsApplicableToOption(input.discounts as ListingDiscount[], option.id, at);
     const { price: unitPrice, label } = bestUnitPrice(base, applicable);
     if (!(unitPrice > 0)) {
-      return { ok: false, code: 'price', error: 'This experience does not have a bookable price yet.' };
+      return { ok: false, code: 'price', error: 'This tour does not have a bookable price yet.' };
     }
     return {
       ok: true,
@@ -219,11 +219,11 @@ export function quoteBooking(input: {
   const partyErr = guestCountValidationError(guests, bounds);
   if (partyErr) return { ok: false, code: 'party', error: partyErr };
   if (!(fallbackBase > 0)) {
-    return { ok: false, code: 'price', error: 'This experience does not have a bookable price yet.' };
+    return { ok: false, code: 'price', error: 'This tour does not have a bookable price yet.' };
   }
   const { price: unitPrice, label } = bestUnitPrice(fallbackBase, listingWideDiscounts(input.discounts, date));
   if (!(unitPrice > 0)) {
-    return { ok: false, code: 'price', error: 'This experience does not have a bookable price yet.' };
+    return { ok: false, code: 'price', error: 'This tour does not have a bookable price yet.' };
   }
   return {
     ok: true,
@@ -234,7 +234,7 @@ export function quoteBooking(input: {
     guests,
     bookingDate: date,
     optionId: null,
-    optionLabel: 'Standard experience',
+    optionLabel: 'Standard tour',
     discountLabel: label,
   };
 }

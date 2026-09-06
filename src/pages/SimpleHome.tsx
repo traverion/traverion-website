@@ -1,4 +1,3 @@
-import { useTranslation } from '../contexts/TranslationContext';
 import TUIHeroSection from '../components/TUIHeroSection';
 import AurinkoStyleSaleBanner from '../components/AurinkoStyleSaleBanner';
 import FeaturedDestinations from '../components/FeaturedDestinations';
@@ -8,8 +7,7 @@ interface SimpleHomeProps {
   onNavigate?: (page: string) => void;
 }
 
-export default function SimpleHome({ onTourSelect, onNavigate }: SimpleHomeProps) {
-  const { t } = useTranslation();
+export default function SimpleHome({ onTourSelect: _onTourSelect, onNavigate }: SimpleHomeProps) {
 
   return (
     <div className="min-h-screen bg-white pt-32">

@@ -87,7 +87,7 @@ export function computeListingQuality(listing: TourPackage): {
     let earned = 0;
     let tip = '';
     if (!img) {
-      tip = 'Add a strong hero image of the experience.';
+      tip = 'Add a strong hero image of the tour.';
     } else if (img === LISTING_PLACEHOLDER_IMAGE || img.includes('pexels.com/photos/346885')) {
       earned = 4;
       tip = 'Replace the default stock photo with your own tour imagery.';
@@ -166,12 +166,12 @@ export function computeListingQuality(listing: TourPackage): {
       tip = 'Add the main base or starting city (required with country).';
     } else if (city && !country) {
       earned = 4;
-      tip = 'Add the country for this experience.';
+      tip = 'Add the country for this tour.';
     } else if (dest && dest.length >= 3) {
       earned = 3;
       tip = 'Add city and country in the structured fields for discovery and trust.';
     } else {
-      tip = 'Add city and country — use Logistics for route detail if the experience spans a wider area.';
+      tip = 'Add city and country — use Logistics for route detail if the tour spans a wider area.';
     }
     checks.push({ id: 'location', label: 'Location details', max, earned, tip });
   }

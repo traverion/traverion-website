@@ -287,7 +287,7 @@ export default function Packages({ onTourSelect }: PackagesProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-20">
+    <div className="min-h-screen bg-paper pt-20">
       {/* Hero + search & filters over banner (same asset as home) */}
       <section className="relative border-b border-gray-200 overflow-hidden min-h-[300px] sm:min-h-[360px] lg:min-h-[400px]">
         <div
@@ -296,8 +296,8 @@ export default function Packages({ onTourSelect }: PackagesProps) {
         />
         <div className="absolute inset-0 bg-black/50" aria-hidden />
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-8 sm:pt-10 sm:pb-10">
-          <h1 className="text-3xl sm:text-4xl font-semibold !text-white mb-2 uppercase tracking-wide drop-shadow-md">
-            Tours & activities
+          <h1 className="font-display text-3xl sm:text-5xl !text-white mb-2 tracking-tight drop-shadow-md">
+            Tours
           </h1>
           <div className="mb-6">
             <p className="!text-white/95 text-base sm:text-lg drop-shadow-md [text-shadow:0_1px_12px_rgba(0,0,0,0.5)]">

@@ -217,7 +217,7 @@ export const en = {
 
   // Listings / Tours page
   listings: {
-    title: 'Tours & activities',
+    title: 'Tours',
     subtitle: 'tours · Free cancellation on most',
     recommended: 'Recommended for you',
     allTours: 'All tours & activities',

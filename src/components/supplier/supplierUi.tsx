@@ -3,7 +3,9 @@ import type { LucideIcon } from 'lucide-react';
 import { X } from 'lucide-react';
 
 /** Full-width supplier portal pages — fills the main column on desktop, fluid on mobile. */
-export const SUPPLIER_PAGE_CLASS = 'space-y-4 sm:space-y-6 w-full min-w-0 max-w-full animate-fade-in-up';
+export const SUPPLIER_PAGE_CLASS = 'w-full min-w-0 max-w-full motion-safe:animate-fade-in';
+
+export const SUPPLIER_SECTION_HEADER_CLASS = 'pb-4 mb-4 border-b border-black/[0.06]';
 
 /** @deprecated Use SUPPLIER_PAGE_CLASS (all portal pages are full-width now). */
 export const SUPPLIER_PAGE_WIDE_CLASS = SUPPLIER_PAGE_CLASS;
@@ -27,31 +29,23 @@ export const SUPPLIER_MODAL_PANEL_CLASS =
 
 export const SUPPLIER_MODAL_PANEL_SCROLL_CLASS = `${SUPPLIER_MODAL_PANEL_CLASS} max-h-[min(calc(100dvh-env(safe-area-inset-bottom)-0.75rem),92dvh)] overflow-y-auto pb-[max(1rem,env(safe-area-inset-bottom))]`;
 
-export const SUPPLIER_SECTION_HEADER_CLASS =
-  'px-5 py-4 border-b border-gray-100 bg-gradient-to-br from-slate-50/90 to-white';
-
 type SupplierPageHeroProps = {
-  icon: LucideIcon;
+  icon?: LucideIcon;
   title: string;
   description: ReactNode;
   actions?: ReactNode;
   children?: ReactNode;
 };
 
-export function SupplierPageHero({ icon: Icon, title, description, actions, children }: SupplierPageHeroProps) {
+export function SupplierPageHero({ title, description, actions, children }: SupplierPageHeroProps) {
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex gap-4 min-w-0">
-          <div className="w-12 h-12 rounded-2xl bg-finland/10 flex items-center justify-center flex-shrink-0">
-            <Icon className="w-6 h-6 text-finland" aria-hidden />
-          </div>
-          <div className="min-w-0">
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-gray-900">{title}</h1>
-            <p className="mt-1 text-sm text-gray-600 leading-relaxed">{description}</p>
-          </div>
+    <div className="mb-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">{title}</h1>
+          {description ? <p className="mt-2 text-sm sm:text-base text-ink-muted max-w-xl leading-relaxed">{description}</p> : null}
         </div>
-        {actions ? <div className="shrink-0 w-full sm:w-auto">{actions}</div> : null}
+        {actions ? <div className="shrink-0">{actions}</div> : null}
       </div>
       {children}
     </div>
@@ -93,13 +87,28 @@ export function SupplierModalHeader({ icon: Icon, title, subtitle, onClose }: Su
 
 export function SupplierListSkeleton({ rows = 3 }: { rows?: number }) {
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-6 space-y-4 animate-pulse">
-      <div className="h-5 w-40 rounded-lg bg-gray-200" />
-      <div className="space-y-3">
-        {Array.from({ length: rows }, (_, i) => (
-          <div key={i} className="h-24 rounded-2xl bg-gray-100" />
-        ))}
-      </div>
+    <div className="space-y-4 animate-pulse">
+      {Array.from({ length: rows }, (_, i) => (
+        <div key={i} className="h-28 rounded-2xl bg-black/[0.04]" />
+      ))}
+    </div>
+  );
+}
+
+export function SupplierEmptyState({
+  title,
+  body,
+  action,
+}: {
+  title: string;
+  body: string;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="py-16 sm:py-24 max-w-md">
+      <h2 className="font-display text-2xl sm:text-3xl text-ink">{title}</h2>
+      <p className="mt-3 text-sm sm:text-base text-ink-muted leading-relaxed">{body}</p>
+      {action ? <div className="mt-6">{action}</div> : null}
     </div>
   );
 }

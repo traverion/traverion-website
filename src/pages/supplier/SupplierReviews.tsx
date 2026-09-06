@@ -6,9 +6,9 @@ import { Star, MessageSquare, Send, AlertCircle, RefreshCw } from 'lucide-react'
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import {
   SUPPLIER_PAGE_CLASS,
-  SUPPLIER_HERO_STAT_GRID_2_CLASS,
-  SUPPLIER_SECTION_HEADER_CLASS,
+  SupplierEmptyState,
   SupplierListSkeleton,
+  SupplierPageHero,
 } from '../../components/supplier/supplierUi';
 import {
   fetchReviewsForSupplierListings,
@@ -107,11 +107,6 @@ export default function SupplierReviews() {
   const hasActiveFilters =
     Boolean(filterListingId) || filterRating !== '' || filterReply !== 'all';
 
-  const unrepliedInFiltered = useMemo(
-    () => filteredReviews.filter((r) => reviewHasWrittenFeedback(r) && !replies[r.id]).length,
-    [filteredReviews, replies]
-  );
-
   useEffect(() => {
     if (!highlightReviewId || loading) return;
     const el = document.getElementById(`supplier-review-card-${highlightReviewId}`);
@@ -135,10 +130,6 @@ export default function SupplierReviews() {
     }
   };
 
-  const unrepliedCount = reviews.filter(
-    (r) => reviewHasWrittenFeedback(r) && !replies[r.id]
-  ).length;
-
   const clearFilters = () => {
     setFilterListingId('');
     setFilterRating('');
@@ -149,42 +140,10 @@ export default function SupplierReviews() {
 
   return (
     <div className={SUPPLIER_PAGE_CLASS}>
-      <div className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-start gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-finland/10 flex items-center justify-center flex-shrink-0">
-            <Star className="w-6 h-6 text-finland" aria-hidden />
-          </div>
-          <div className="min-w-0 flex-1">
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-gray-900">Reviews</h1>
-            <p className="mt-1 text-sm text-gray-600 leading-relaxed">
-              See and respond to customer reviews for your listings. Written reviews can get a public reply.
-            </p>
-          </div>
-        </div>
-
-        {!loading && reviews.length > 0 && (
-          <div className={SUPPLIER_HERO_STAT_GRID_2_CLASS}>
-          <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
-            <p className="text-xs uppercase tracking-wide text-gray-500 font-medium">Total reviews</p>
-            <p className="text-2xl font-semibold text-gray-900 mt-1">{reviews.length}</p>
-            {hasActiveFilters ? (
-              <p className="text-xs text-gray-500 mt-1">{filteredReviews.length} match current filters</p>
-            ) : null}
-          </div>
-          <div className="bg-white border border-amber-200 bg-amber-50/40 rounded-2xl p-4 shadow-sm">
-            <p className="text-xs uppercase tracking-wide text-amber-800 font-medium">Not replied</p>
-            <p className="text-2xl font-semibold text-amber-900 mt-1">
-              {hasActiveFilters ? unrepliedInFiltered : unrepliedCount}
-            </p>
-            <p className="text-xs text-amber-800/80 mt-1">
-              {hasActiveFilters
-                ? 'Among filtered reviews (written only; star-only excluded).'
-                : 'Written reviews only; star-only ratings are excluded.'}
-            </p>
-          </div>
-        </div>
-        )}
-      </div>
+      <SupplierPageHero
+        title="Reviews"
+        description="What guests said about your tours. Reply to written reviews."
+      />
 
       {error && (
         <div className="p-4 rounded-lg bg-red-50 text-red-700 text-sm flex items-center justify-between gap-4">
@@ -207,27 +166,26 @@ export default function SupplierReviews() {
       {loading ? (
         <SupplierListSkeleton rows={3} />
       ) : reviews.length === 0 ? (
-        <div className="bg-white border border-gray-200 rounded-2xl p-12 text-center shadow-sm animate-scale-in">
-          <Star className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-          <h2 className="text-lg font-semibold text-gray-900">No reviews yet</h2>
-          <p className="text-gray-500 mt-1">Reviews from customers will appear here once they leave feedback.</p>
-        </div>
+        <SupplierEmptyState
+          title="No reviews yet"
+          body="When guests rate a tour, their feedback appears here."
+        />
       ) : (
         <div className="space-y-4 sm:space-y-5">
           <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
-            <div className={`${SUPPLIER_SECTION_HEADER_CLASS} text-xs font-semibold uppercase tracking-wide text-gray-500`}>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint mb-3">
               Filters
-            </div>
+            </p>
             <div className="flex flex-col gap-3 px-3 py-3 sm:px-4 sm:py-4">
               <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
                 <div className="flex flex-col gap-1 min-w-[min(100%,12rem)] flex-1 sm:flex-none sm:min-w-[11rem]">
-                  <label className="text-[11px] font-medium uppercase tracking-wide text-gray-500">Product</label>
+                  <label className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Tour</label>
                   <select
                     value={filterListingId}
                     onChange={(e) => setFilterListingId(e.target.value)}
                     className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white text-sm w-full"
                   >
-                    <option value="">All products</option>
+                    <option value="">All tours</option>
                     {listingOptions.map(([id, title]) => (
                       <option key={id} value={id}>
                         {title}

@@ -97,10 +97,10 @@ function orderTag(n: number | undefined): string {
 }
 
 function buildDetailRows(p: Payload): string {
-  const title = String(p.listingTitle ?? 'Your experience').trim() || 'Your experience';
+  const title = String(p.listingTitle ?? 'Your tour').trim() || 'Your tour';
   const rows: string[] = [];
   const ref = orderTag(p.bookingNumber);
-  rows.push(detailRow('Experience', title));
+  rows.push(detailRow('Tour', title));
   if (ref) rows.push(detailRow('Booking number', `#${ref}`));
   if (p.bookingDate) rows.push(detailRow('Date', p.bookingDate));
   if (typeof p.guests === 'number' && p.guests > 0) rows.push(detailRow('Guests', String(p.guests)));
@@ -184,11 +184,11 @@ serve(async (req) => {
         extraHtml = `<table role="presentation" style="margin:12px 0 0;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:14px 16px;width:100%;">
 <tr><td style="font-size:12px;color:#166534;text-transform:uppercase;letter-spacing:0.05em;font-weight:600;">Payment receipt</td></tr>
 <tr><td style="font-size:22px;font-weight:700;color:#14532d;padding-top:4px;">${escapeHtml(currency)} ${amount.toFixed(2)}</td></tr>
-<tr><td style="font-size:13px;color:#15803d;padding-top:6px;">Charged for this experience. Keep this email for your records.</td></tr>
+<tr><td style="font-size:13px;color:#15803d;padding-top:6px;">Charged for this tour. Keep this email for your records.</td></tr>
 </table>`;
       }
       footerNote =
-        'The experience provider may follow up by email about meeting point, pickup, or what to bring.';
+        'The tour operator may follow up by email about meeting point, pickup, or what to bring.';
     } else if (kind === 'your_details_updated') {
       headline = 'Your booking details were saved';
       intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">We updated the notes on your booking. Here is what changed (previous value → new value):</p>`;
@@ -196,7 +196,7 @@ serve(async (req) => {
       footerNote = 'If you did not make this change, contact the provider or Traverion support immediately.';
     } else if (kind === 'host_updated_schedule') {
       headline = 'Your host updated meeting times';
-      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">The experience provider updated the schedule for your booking. Compare the previous and new times below.</p>`;
+      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">The tour operator updated the schedule for your booking. Compare the previous and new times below.</p>`;
       extraHtml = fieldDiffTableHtml(diffs);
       footerNote = 'Please arrive on time for the updated pickup or start time. Reply to the provider if you need help.';
     } else if (kind === 'booking_cancelled') {

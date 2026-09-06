@@ -166,7 +166,7 @@ ${bodyText}
     sub = 'A booking was cancelled.';
   } else if (payload.eventType === 'new_review') {
     headline = 'New review';
-    sub = 'Someone left a review on your experience.';
+    sub = 'Someone left a review on your tour.';
   } else if (payload.eventType === 'guest_message') {
     headline = 'Guest updated their booking details';
     sub = 'A guest changed notes or meeting / place-of-stay information. Compare previous vs new values below.';

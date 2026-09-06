@@ -76,8 +76,8 @@ export function getPartySizeBoundsForVariant(
 export function formatPartySizeHint(bounds: { min: number; max: number }): string {
   if (bounds.min === bounds.max) {
     return bounds.min === 1
-      ? 'This experience is for 1 guest only.'
-      : `This experience is for exactly ${bounds.min} guests.`;
+      ? 'This tour is for 1 guest only.'
+      : `This tour is for exactly ${bounds.min} guests.`;
   }
   return `${bounds.min}–${bounds.max} guests per booking.`;
 }
@@ -86,11 +86,11 @@ export function guestCountBoundaryMessage(boundary: 'min' | 'max', bounds: { min
   if (boundary === 'min') {
     return bounds.min === 1
       ? 'At least 1 guest is required.'
-      : `At least ${bounds.min} guests are required for this experience.`;
+      : `At least ${bounds.min} guests are required for this tour.`;
   }
   return bounds.max === 1
     ? 'This option allows only 1 guest.'
-    : `No more than ${bounds.max} guests allowed for this experience.`;
+    : `No more than ${bounds.max} guests allowed for this tour.`;
 }
 
 export function guestCountValidationError(
@@ -130,7 +130,7 @@ export function getTourBookingVariants(tour: TourPackage): TourBookingVariant[] 
   return [
     {
       id: '__default__',
-      label: 'Standard experience',
+      label: 'Standard tour',
       subtitle: `${bounds.min}–${bounds.max} guests`,
       pricePerPerson: basePrice,
       listingOption: null,

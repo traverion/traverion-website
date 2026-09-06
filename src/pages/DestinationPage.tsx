@@ -103,7 +103,7 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
           <ArrowLeft className="w-4 h-4" />
           Back to all tours
         </button>
-        <h1 className="text-3xl font-semibold text-gray-900 mb-2">Tours & activities in {label}</h1>
+        <h1 className="text-3xl font-semibold text-gray-900 mb-2">Tours in {label}</h1>
         <p className="text-gray-600 mb-8">
           {listings.length} {listings.length === 1 ? 'tour' : 'tours'} in this destination
         </p>

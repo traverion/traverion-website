@@ -6,18 +6,27 @@ export default {
       colors: {
         finland: {
           DEFAULT: '#003580',
-          light: '#0047AB',
-          dark: '#002F6C',
+          light: '#1a4d96',
+          dark: '#00285f',
+        },
+        ink: {
+          DEFAULT: '#1c1917',
+          muted: '#57534e',
+          faint: '#a8a29e',
+        },
+        paper: {
+          DEFAULT: '#f6f3ee',
+          raised: '#fffcf8',
         },
       },
       screens: {
         'xs': '475px',
       },
       fontFamily: {
-        'sans': ['Open Sans', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
-        'display': ['Open Sans', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
-        'heading': ['Open Sans', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
-        'body': ['Open Sans', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+        sans: ['"Plus Jakarta Sans"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        display: ['Fraunces', 'Georgia', 'serif'],
+        heading: ['Fraunces', 'Georgia', 'serif'],
+        body: ['"Plus Jakarta Sans"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
       },
       fontWeight: {
         'light': '300',

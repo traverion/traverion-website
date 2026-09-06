@@ -22,8 +22,7 @@ import { orderedPhotoUrls, photoSlotsFromTourPackage } from '../../lib/listingPh
 import { SkeletonListItem } from '../../components/ui/Skeleton';
 import {
   SUPPLIER_PAGE_CLASS,
-  SUPPLIER_HERO_STAT_GRID_CLASS,
-  SUPPLIER_SECTION_HEADER_CLASS,
+  SupplierEmptyState,
   SupplierModalHeader,
   SupplierModalShell,
   SupplierPageHero,
@@ -90,7 +89,7 @@ const REFUND_CHOICES = [
 ] as const;
 
 type RefundChoice = (typeof REFUND_CHOICES)[number]['id'];
-type BookingView = 'all' | 'pending' | 'needs_ack' | 'upcoming' | 'cancelled';
+type BookingView = 'today' | 'upcoming' | 'past' | 'all';
 
 function bookingPaginationRange(totalPages: number, current: number): (number | 'ellipsis')[] {
   if (totalPages <= 1) return [];
@@ -261,13 +260,17 @@ export default function SupplierBookings() {
   const filteredBookings = useMemo(() => {
     const q = filterQuery.trim().toLowerCase();
     return bookings.filter((b) => {
-      if (view === 'pending' && b.status !== 'pending') return false;
-      if (view === 'needs_ack' && (b.status === 'cancelled' || !!b.acknowledged_at)) return false;
+      if (view === 'today') {
+        if (b.booking_date !== todayIso || b.status === 'cancelled') return false;
+      }
       if (view === 'upcoming') {
         if (!b.booking_date) return false;
-        if (b.booking_date < todayIso || b.status === 'cancelled') return false;
+        if (b.booking_date <= todayIso || b.status === 'cancelled') return false;
       }
-      if (view === 'cancelled' && b.status !== 'cancelled') return false;
+      if (view === 'past') {
+        if (!b.booking_date) return false;
+        if (b.booking_date >= todayIso) return false;
+      }
       if (filterListingId && b.listing_id !== filterListingId) return false;
       if (filterDateFrom && (!b.booking_date || b.booking_date < filterDateFrom)) return false;
       if (filterDateTo && (!b.booking_date || b.booking_date > filterDateTo)) return false;
@@ -322,13 +325,6 @@ export default function SupplierBookings() {
     setFilterDateTo('');
     setFilterQuery('');
   }, [filteredBookings, highlightBookingId]);
-
-  const bookingStats = useMemo(() => {
-    const total = bookings.length;
-    const confirmed = bookings.filter((b) => b.status === 'confirmed').length;
-    const needsAction = bookings.filter((b) => b.status !== 'cancelled' && (!b.acknowledged_at || b.status !== 'confirmed')).length;
-    return { total, confirmed, needsAction };
-  }, [bookings]);
 
   const handleStatusChange = useCallback(
     async (
@@ -389,15 +385,15 @@ export default function SupplierBookings() {
   return (
     <div className={SUPPLIER_PAGE_CLASS}>
       <SupplierPageHero
-        icon={Calendar}
         title="Bookings"
-        description="Manage incoming supplier bookings, confirm availability, and keep guests updated."
+        description="Guests, tours, dates, and what needs a decision."
         actions={
+          bookings.length > 0 ? (
           <div className="flex flex-wrap items-center justify-end gap-2">
             <button
               type="button"
               onClick={() => void load()}
-              className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+              className="lux-flat inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm text-ink-muted hover:text-ink"
             >
               <RefreshCw className="h-4 w-4" aria-hidden />
               Refresh
@@ -411,50 +407,49 @@ export default function SupplierBookings() {
                 )
               }
               disabled={filteredBookings.length === 0}
-              className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+              className="lux-flat inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm text-ink-muted hover:text-ink disabled:opacity-50"
             >
               <Download className="h-4 w-4" aria-hidden />
-              Export CSV
+              Export
             </button>
           </div>
+          ) : undefined
         }
       >
-        {!loading && bookings.length > 0 && (
-          <div className={SUPPLIER_HERO_STAT_GRID_CLASS}>
-            <div className="rounded-xl bg-gray-50 px-3 py-2.5 text-center">
-              <p className="text-lg font-bold text-gray-900 tabular-nums">{bookingStats.total}</p>
-              <p className="text-[11px] font-medium text-gray-500">Total</p>
-            </div>
-            <div className="rounded-xl bg-emerald-50/80 px-3 py-2.5 text-center">
-              <p className="text-lg font-bold text-emerald-800 tabular-nums">{bookingStats.confirmed}</p>
-              <p className="text-[11px] font-medium text-emerald-700">Confirmed</p>
-            </div>
-            <div className={`rounded-xl px-3 py-2.5 text-center ${bookingStats.needsAction > 0 ? 'bg-amber-50' : 'bg-gray-50'}`}>
-              <p className={`text-lg font-bold tabular-nums ${bookingStats.needsAction > 0 ? 'text-amber-900' : 'text-gray-900'}`}>
-                {bookingStats.needsAction}
-              </p>
-              <p className={`text-[11px] font-medium ${bookingStats.needsAction > 0 ? 'text-amber-800' : 'text-gray-500'}`}>
-                Needs action
-              </p>
-            </div>
+        {bookings.length > 0 && (
+          <div className="mt-6 flex gap-1 rounded-full bg-black/[0.04] p-1 w-fit">
+            {([
+              ['today', 'Today'],
+              ['upcoming', 'Upcoming'],
+              ['past', 'Past'],
+              ['all', 'All'],
+            ] as const).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setView(id)}
+                className={`lux-flat rounded-full px-3.5 py-1.5 text-sm font-medium ${
+                  view === id ? 'bg-paper-raised text-ink shadow-sm' : 'text-ink-muted'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
           </div>
         )}
       </SupplierPageHero>
 
-      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-        <div className={`${SUPPLIER_SECTION_HEADER_CLASS} text-xs font-semibold uppercase tracking-wide text-gray-500`}>
-          Filters
-        </div>
-        <div className="flex flex-col gap-3 px-3 py-3 sm:px-4 sm:py-4">
-          <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
+      {bookings.length > 0 && (
+      <div className="mb-6">
+        <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
             <div className="flex min-w-[min(100%,12rem)] flex-1 flex-col gap-1 sm:flex-none sm:min-w-[11rem]">
-              <label className="text-[11px] font-medium uppercase tracking-wide text-gray-500">Product</label>
+              <label className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Tour</label>
               <select
                 value={filterListingId}
                 onChange={(e) => setFilterListingId(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-finland"
+                className="w-full rounded-xl border-0 bg-paper-raised px-3 py-2 text-sm ring-1 ring-black/[0.06] focus:ring-2 focus:ring-finland"
               >
-                <option value="">All products</option>
+                <option value="">All tours</option>
                 {listingOptions.map((option) => (
                   <option key={option.id} value={option.id}>
                     {option.title}
@@ -481,20 +476,6 @@ export default function SupplierBookings() {
                   aria-label="Activity date to"
                 />
               </div>
-            </div>
-            <div className="flex min-w-[10rem] flex-col gap-1">
-              <label className="text-[11px] font-medium uppercase tracking-wide text-gray-500">Status view</label>
-              <select
-                value={view}
-                onChange={(e) => setView(e.target.value as BookingView)}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-finland"
-              >
-                <option value="all">All statuses</option>
-                <option value="pending">Pending</option>
-                <option value="needs_ack">Needs acknowledgment</option>
-                <option value="upcoming">Upcoming</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
             </div>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end sm:gap-3">
@@ -530,8 +511,8 @@ export default function SupplierBookings() {
               )}
             </div>
           </div>
-        </div>
       </div>
+      )}
 
       {error && (
         <div className="flex items-center justify-between gap-4 rounded-lg bg-red-50 p-4 text-sm text-red-700">
@@ -557,15 +538,15 @@ export default function SupplierBookings() {
           <SkeletonListItem />
         </div>
       ) : bookings.length === 0 ? (
-        <div className="rounded-2xl border border-gray-200 bg-white p-12 text-center shadow-sm">
-          <h2 className="text-lg font-semibold text-gray-900">No bookings yet</h2>
-          <p className="mt-1 text-gray-500">Bookings appear here when travelers reserve your experiences.</p>
-        </div>
+        <SupplierEmptyState
+          title="No bookings yet"
+          body="When travelers book your tours, they appear here."
+        />
       ) : filteredBookings.length === 0 ? (
-        <div className="rounded-2xl border border-gray-200 bg-white p-12 text-center shadow-sm">
-          <h2 className="text-lg font-semibold text-gray-900">No matching bookings</h2>
-          <p className="mt-1 text-gray-500">Try another status, date range, or search term.</p>
-        </div>
+        <SupplierEmptyState
+          title="Nothing in this view"
+          body="Try another tab, date range, or search."
+        />
       ) : (
         <div className="space-y-4">
           <div className="space-y-4">
@@ -585,8 +566,8 @@ export default function SupplierBookings() {
                 <article
                   key={booking.id}
                   id={`supplier-booking-row-${booking.id}`}
-                  className={`w-full min-w-0 overflow-hidden rounded-2xl border border-gray-200/90 bg-white shadow-sm transition-all duration-300 ease-out hover:border-gray-300 hover:shadow-md ${
-                    highlightBookingId === booking.id ? 'ring-2 ring-finland/35 border-finland/30' : ''
+                  className={`w-full min-w-0 overflow-hidden rounded-2xl bg-paper-raised transition-shadow duration-300 ${
+                    highlightBookingId === booking.id ? 'ring-2 ring-finland/35' : ''
                   }`}
                 >
                   <div className="flex min-w-0 gap-0 sm:gap-0">

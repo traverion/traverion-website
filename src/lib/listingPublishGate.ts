@@ -81,7 +81,7 @@ export function getListingPublishBlockers(listing: TourPackage, todayIso?: strin
   const heroIsPlaceholder =
     !img || img === LISTING_PLACEHOLDER_IMAGE || img.includes('pexels.com/photos/346885');
   if (heroIsPlaceholder) {
-    out.push('Replace the placeholder hero image with a real photo of your experience.');
+    out.push('Replace the placeholder hero image with a real photo of your tour.');
   }
   const city = listing.city?.trim();
   const country = listing.country?.trim();

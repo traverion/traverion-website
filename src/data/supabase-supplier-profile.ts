@@ -1,4 +1,3 @@
-import type { User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { normalizePhoneNumber } from '../lib/phoneNormalize';
 
@@ -203,8 +202,9 @@ type PartnerSignupMeta = {
 };
 
 /** True when this auth user went through partner sign-up (metadata from SupplierAuth). */
-export function authUserHasPartnerSignupMetadata(user: Pick<User, 'user_metadata'>): boolean {
-  const m = user.user_metadata as PartnerSignupMeta | undefined;
+export function authUserHasPartnerSignupMetadata(user: object | null | undefined): boolean {
+  if (!user) return false;
+  const m = (user as { user_metadata?: PartnerSignupMeta }).user_metadata;
   return Boolean(m?.supplier_business_name?.trim()) || Boolean(m?.supplier_phone?.trim());
 }
 
@@ -213,7 +213,7 @@ export function authUserHasPartnerSignupMetadata(user: Pick<User, 'user_metadata
  * Use when the row is missing but the user is clearly a partner (e.g. after email-confirm deep link without re-running the login form).
  */
 export async function ensureSupplierProfileFromAuthUser(
-  user: Pick<User, 'id' | 'email' | 'user_metadata'>
+  user: { id: string; email?: string | null; user_metadata?: unknown }
 ): Promise<{ success: boolean; error?: string }> {
   const m = user.user_metadata as PartnerSignupMeta | undefined;
   const business = m?.supplier_business_name?.trim() || null;

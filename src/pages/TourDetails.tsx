@@ -214,7 +214,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   const handleCheckAvailabilityToggle = () => {
     if (!tour || variantChecking) return;
     if (!isListingVisibleToTravelers(tour.status)) {
-      setBookingCardError('This experience is not available to book.');
+      setBookingCardError('This tour is not available to book.');
       setBookingVariantsOpen(false);
       return;
     }
@@ -241,7 +241,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   const handlePickTourVariant = async (variant: TourBookingVariant) => {
     if (!tour) return;
     if (!isListingVisibleToTravelers(tour.status)) {
-      setBookingCardError('This experience is not available to book.');
+      setBookingCardError('This tour is not available to book.');
       setBookingVariantsOpen(false);
       return;
     }
@@ -294,7 +294,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     const isLoading = isSupabaseConfigured() && !tourLoadError;
     if (isLoading) {
       return (
-        <div className="min-h-screen bg-white pt-20 animate-fade-in">
+        <div className="min-h-screen bg-paper pt-20 animate-fade-in">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <Skeleton className="h-10 w-48 mb-8" />
             <Skeleton className="h-80 w-full rounded-xl mb-8" />
@@ -315,7 +315,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       );
     }
     return (
-      <div className="min-h-screen bg-white pt-20 flex items-center justify-center">
+      <div className="min-h-screen bg-paper pt-20 flex items-center justify-center">
         <div className="text-center max-w-md px-4">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">
             {tourLoadError ? 'Something went wrong' : 'Tour not found'}
@@ -360,7 +360,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     uniqueGallery.length > 0 ? uniqueGallery : stockFallback;
 
   return (
-    <div className="min-h-screen bg-white pt-20">
+    <div className="min-h-screen bg-paper pt-20">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 sticky top-20 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -605,7 +605,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                       </h2>
                     </div>
                     <p className="text-sm text-gray-600 mt-1.5 mb-4">
-                      Privacy and booking terms for this experience provider.
+                      Privacy and booking terms for this tour operator.
                     </p>
                     <div className="flex flex-wrap gap-2">
                       {supplierLegal.privacy_policy_text?.trim() ? (
@@ -633,12 +633,12 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
 
             {/* Right: Sticky booking card */}
             <div className="lg:col-span-1">
-              <div className="lg:sticky lg:top-24 bg-white rounded-2xl border border-gray-200 shadow-lg p-6">
+              <div className="lg:sticky lg:top-24 bg-paper-raised rounded-2xl p-6 ring-1 ring-black/[0.06]">
                 {!canBook ? (
                   <div>
                     <p className="text-lg font-semibold text-gray-900">Not bookable yet</p>
                     <p className="mt-2 text-sm text-gray-600">
-                      This experience is a draft. Travelers will see a booking option once the operator publishes it.
+                      This tour is a draft. Travelers will see a booking option once the operator publishes it.
                     </p>
                   </div>
                 ) : (
@@ -841,7 +841,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl font-heading font-bold text-gray-900 mb-6">Reviews</h2>
           {reviews.length === 0 && !showReviewForm && (
-            <p className="text-gray-600 mb-6">No reviews yet. Be the first to leave one after your experience.</p>
+            <p className="text-gray-600 mb-6">No reviews yet. Be the first to leave one after your tour.</p>
           )}
           <div className="space-y-6 mb-8">
             {reviews.map((r) => (
@@ -907,7 +907,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                     value={reviewTitle}
                     onChange={(e) => setReviewTitle(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
-                    placeholder="Sum up your experience"
+                    placeholder="Sum up your tour"
                   />
                 </div>
                 <div>

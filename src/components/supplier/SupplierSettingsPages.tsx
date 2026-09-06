@@ -522,7 +522,7 @@ function BusinessProfilePage(p: Props) {
           <div className="min-w-0 flex-1">
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-gray-900 truncate">{displayName}</h1>
             <p className="mt-1 text-sm text-gray-600 leading-relaxed">
-              Company details, payouts, and legal documents guests see when they book your experiences.
+              Company details, payouts, and legal documents guests see when they book your tours.
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
               <StatusChip label={busChip.label} tone={busChip.tone} />

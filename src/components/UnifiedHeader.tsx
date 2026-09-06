@@ -57,7 +57,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
   }, [isUserMenuOpen]);
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-[9999] bg-white/95 backdrop-blur-md shadow-md border-b border-gray-100/80 supports-[backdrop-filter]:bg-white/88 transition-shadow duration-500 ease-lux">
+    <header className="fixed top-0 left-0 right-0 z-[9999] bg-paper-raised/90 backdrop-blur-md border-b border-black/[0.06]">
       {/* Logo & Navigation */}
       <div className="bg-white py-1.5 sm:py-2 px-4 border-b border-gray-200">
         <div className="max-w-7xl mx-auto flex flex-row justify-between items-center gap-3 sm:gap-4">
@@ -100,7 +100,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                   : 'text-gray-700 hover:text-finland'
               }`}
             >
-              Experiences
+              Tours
             </button>
           </nav>
 
@@ -175,7 +175,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                       >
                         <span className="inline-flex items-center gap-2">
                           <Calendar className="w-4 h-4" />
-                          My bookings
+                          Trips
                         </span>
                         {hasUnreadBookings ? <span className="h-2.5 w-2.5 rounded-full bg-red-500" /> : null}
                       </button>
@@ -210,7 +210,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
               onClick={() => onNavigate('packages')}
               className="btn-luxury bg-finland text-white px-4 sm:px-5 py-1.5 rounded-lg font-medium hover:bg-finland-dark shadow-soft hover:shadow-soft-lg hidden lg:block text-sm"
             >
-              Find experiences
+              Find tours
             </button>
             <button
               type="button"
@@ -249,7 +249,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                     : 'text-gray-700 hover:bg-gray-50'
                 }`}
               >
-                Experiences
+                Tours
               </button>
               {!isSupabaseConfigured() && (
                 <div className="px-4 py-3 rounded-lg bg-gray-50 border border-gray-100 text-sm text-gray-600">
@@ -307,7 +307,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                     >
                       <span className="inline-flex items-center gap-2">
                         <Calendar className="w-5 h-5" />
-                        My bookings
+                        Trips
                       </span>
                       {hasUnreadBookings ? <span className="h-2.5 w-2.5 rounded-full bg-red-500" /> : null}
                     </button>
@@ -330,7 +330,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                   }}
                   className="btn-luxury w-full bg-finland text-white px-4 py-3 rounded-lg font-medium hover:bg-finland-dark transition-all duration-300 ease-lux shadow-lg text-center"
                 >
-                  Find experiences
+                  Find tours
                 </button>
               </div>
             </nav>

@@ -478,7 +478,7 @@ export default function BookingPage({
   const handleConfirmBooking = async () => {
     if (isSupabaseConfigured() && !user) return;
     if (!isListingVisibleToTravelers(tour.status)) {
-      setError('This experience is not available to book.');
+      setError('This tour is not available to book.');
       return;
     }
     setSubmitting(true);
@@ -564,7 +564,7 @@ export default function BookingPage({
             </p>
             <div className="space-y-3 text-sm text-gray-700 mb-6 rounded-xl border border-gray-200 bg-slate-50 p-4 sm:p-5">
               <p>
-                <span className="font-medium text-gray-900">Experience</span> — {tour.title}
+                <span className="font-medium text-gray-900">Tour</span> — {tour.title}
               </p>
               <p>
                 <span className="font-medium text-gray-900">Option</span> — {selectedVariant.label}
@@ -840,7 +840,7 @@ export default function BookingPage({
 
             <div className="space-y-3 text-sm text-gray-700 mb-6 rounded-xl border border-gray-200 bg-slate-50 p-4 sm:p-5">
               <p>
-                <span className="font-medium text-gray-900">Experience</span> — {tour.title}
+                <span className="font-medium text-gray-900">Tour</span> — {tour.title}
               </p>
               <p>
                 <span className="font-medium text-gray-900">Date</span> — {dateDisplay || date}
@@ -1029,7 +1029,7 @@ export default function BookingPage({
               id="booking-flow-modal-title"
               className="truncate pr-2 text-base font-semibold text-gray-900 sm:text-lg"
             >
-              {step === 'done' ? 'Booking' : 'Book this experience'}
+              {step === 'done' ? 'Booking' : 'Book this tour'}
             </h2>
             <button
               type="button"

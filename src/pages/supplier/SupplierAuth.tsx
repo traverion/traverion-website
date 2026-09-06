@@ -7,7 +7,6 @@ import { notifySupplierEvent } from '../../data/supabase-supplier-messaging';
 import { partnerPortalAuthRedirectUrl, supplierPortalPublicBaseUrl } from '../../lib/partnerHost';
 import {
   PARTNER_EMAIL_VERIFIED_PATH,
-  PARTNER_LOGIN_PATH,
   PARTNER_RESET_PASSWORD_PATH,
 } from '../../lib/partnerPortalPaths';
 import { isSignUpEmailAlreadyRegistered } from '../../lib/supabaseAuthHelpers';
@@ -37,6 +36,8 @@ function sendSupplierWelcomeEmail(userId: string): void {
 interface SupplierAuthProps {
   onAuthenticated: () => void;
   isSupabase: boolean;
+  initialMode?: Mode;
+  compact?: boolean;
 }
 
 type Mode = 'signin' | 'signup';
@@ -57,8 +58,13 @@ const BENEFITS = [
   { icon: CreditCard, text: 'Manage everything in one place — listings, bookings, payouts' },
 ];
 
-export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAuthProps) {
-  const [mode, setMode] = useState<Mode>('signup');
+export default function SupplierAuth({
+  onAuthenticated,
+  isSupabase,
+  initialMode = 'signup',
+  compact = false,
+}: SupplierAuthProps) {
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [email, setEmail] = useState('');
   const [businessName, setBusinessName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -221,7 +227,7 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
           if (data.session) {
             if (!data.user?.email_confirmed_at) {
               await supabase.auth.signOut();
-              setSuccessMessage('Check your email to confirm your account, then sign in below.');
+              setSuccessMessage('Check your email to confirm your account. After you confirm, you’ll continue signed in.');
               setMode('signin');
               return;
             }
@@ -239,7 +245,7 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
             onAuthenticated();
             return;
           }
-          setSuccessMessage('Check your email to confirm your account, then sign in below.');
+          setSuccessMessage('Check your email to confirm your account. After you confirm, you’ll continue signed in.');
           setMode('signin');
         } else {
           const { data, error: err } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
@@ -383,8 +389,8 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
   };
 
   return (
-    <div className="w-full flex flex-col lg:flex-row lg:items-stretch xl:items-center lg:justify-between xl:justify-center gap-10 lg:gap-12 xl:gap-16 2xl:gap-20 px-0 sm:px-2 py-6 sm:py-8">
-      {/* Left: value prop + benefits (GYG/Viator style) */}
+    <div className={`w-full ${compact ? '' : 'flex flex-col lg:flex-row lg:items-stretch xl:items-center lg:justify-between xl:justify-center gap-10 lg:gap-12 xl:gap-16 2xl:gap-20 px-0 sm:px-2 py-6 sm:py-8'}`}>
+      {!compact && (
       <div className="w-full lg:flex-1 lg:max-w-lg xl:max-w-xl 2xl:max-w-2xl min-w-0">
         <div className="flex items-center gap-3 text-finland mb-4">
           <div className="w-12 h-12 rounded-xl bg-finland/10 flex items-center justify-center">
@@ -396,7 +402,7 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
           List once. Reach travelers everywhere.
         </h1>
         <p className="text-base sm:text-lg text-gray-600 mb-8 max-w-prose">
-          Add your tours and activities to Traverion. Get in front of travelers searching for experiences worldwide — no upfront cost.
+          Add your tours to Traverion. Travelers find them, book them, and you run the day.
         </p>
         <ul className="space-y-4">
           {BENEFITS.map(({ icon: Icon, text }) => (
@@ -409,10 +415,10 @@ export default function SupplierAuth({ onAuthenticated, isSupabase }: SupplierAu
           ))}
         </ul>
       </div>
+      )}
 
-      {/* Right: Sign up / Sign in card — wider on desktop, full width on mobile */}
-      <div className="w-full max-w-md sm:max-w-lg xl:max-w-xl 2xl:max-w-[28rem] mx-auto lg:mx-0 flex-shrink-0">
-        <div className="bg-white border border-gray-200 rounded-2xl shadow-lg overflow-hidden xl:shadow-xl">
+      <div className={`w-full ${compact ? '' : 'max-w-md sm:max-w-lg xl:max-w-xl 2xl:max-w-[28rem] mx-auto lg:mx-0 flex-shrink-0'}`}>
+        <div className={compact ? '' : 'bg-white border border-gray-200 rounded-2xl shadow-lg overflow-hidden xl:shadow-xl'}>
           <>
           {/* Tabs */}
           <div className="flex border-b border-gray-200">

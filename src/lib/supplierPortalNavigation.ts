@@ -34,7 +34,7 @@ export function navigateSupplierUrl(pathnameAndSearch: string): void {
 
 /** Open listings section with edit form and optional quality deep-link focus. */
 export function openSupplierListingEditor(listingId: string, qualityCheckId?: string): void {
-  const path = `${PARTNER_APP_BASE}/listings`;
+  const path = `${PARTNER_APP_BASE}/tours`;
   const q = new URLSearchParams();
   q.set('edit', listingId);
   if (qualityCheckId) {
