@@ -423,18 +423,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
             {/* Left: Title + description + stats (no pricing/CTA here on desktop; they're in sidebar) */}
             <div className="lg:col-span-2 space-y-8">
               <div>
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {tour.isPopular && (
-                    <span className="bg-finland text-white px-3 py-1 rounded-full text-sm font-medium">Popular</span>
-                  )}
-                  {tour.discount && (
-                    <span className="bg-finland text-white px-3 py-1 rounded-full text-sm font-medium">{tour.discount} OFF</span>
-                  )}
-                  {(tour.tags?.includes('free-cancellation') || !tour.tags?.length) && (
-                    <span className="bg-gray-200 text-gray-700 px-3 py-1 rounded-full text-sm">Free cancellation</span>
-                  )}
-                </div>
-                <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-2">{tour.title}</h1>
+                <h1 className="font-display text-3xl lg:text-5xl text-ink tracking-tight mb-3">{tour.title}</h1>
                 {tour.subtitle?.trim() && (
                   <p className="text-lg text-gray-600 mb-3 leading-snug">{tour.subtitle.trim()}</p>
                 )}
@@ -442,7 +431,10 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                   <MapPin size={20} className="mr-2 text-finland" />
                   <span>{tour.destination}</span>
                 </div>
-                <div className="flex flex-wrap gap-4 text-sm text-gray-600 mb-6">
+                <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-ink-muted mb-6">
+                  {(tour.tags?.includes('free-cancellation') || !tour.tags?.length) && (
+                    <span>Free cancellation</span>
+                  )}
                   <span className="flex items-center flex-wrap gap-x-2">
                     <Star size={18} className="text-finland fill-finland mr-1 flex-shrink-0" />
                     <strong className="text-gray-900">

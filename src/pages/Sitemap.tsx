@@ -1,8 +1,5 @@
-import { ArrowLeft, FileText } from 'lucide-react';
-import LuxuryButton from '../components/ui/LuxuryButton';
-import PageHero from '../components/PageHero';
-import { HERO_IMG } from '../lib/heroImages';
-import { navigateBackOrFallback } from '../lib/appRouting';
+import { FileText } from 'lucide-react';
+import LegalPageShell from '../components/LegalPageShell';
 import { supplierPortalHref } from '../lib/partnerHost';
 
 const partnerPortalLoginHref = supplierPortalHref('/login');
@@ -66,28 +63,11 @@ export default function Sitemap({ onNavigate }: SitemapProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-20">
-      <PageHero
-        imageSrc={HERO_IMG.thailand}
-        overlay="slateSoft"
-        eyebrow="Navigation"
-        title="Sitemap"
-        subtitle="Every main page on Traverion — support, legal, company, and partner programs — in one place."
-      />
-
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <LuxuryButton
-          variant="outline"
-          onClick={() =>
-            navigateBackOrFallback(() => {
-              onNavigate?.('home');
-            })
-          }
-          className="mb-8"
-        >
-          <ArrowLeft className="mr-2 w-4 h-4" />
-          Back
-        </LuxuryButton>
+    <LegalPageShell
+      title="Sitemap"
+      subtitle="Every main page on Traverion — support, legal, company, and partner programs — in one place."
+      onNavigate={onNavigate}
+    >
 
         <p className="text-gray-600 mb-8 max-w-2xl">
           Use the links below to jump to any section of the site. Supplier login opens the partner portal in
@@ -129,7 +109,6 @@ export default function Sitemap({ onNavigate }: SitemapProps) {
             </div>
           ))}
         </div>
-      </div>
-    </div>
+    </LegalPageShell>
   );
 }

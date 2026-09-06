@@ -30,7 +30,7 @@ export function PublicListingBrowseCard({
   reviewAggregate,
   tagLabels,
   size = 'default',
-  showTagPills = true,
+  showTagPills = false,
   showViewDetailsHint = false,
 }: PublicListingBrowseCardProps) {
   const imgClass = size === 'compact' ? 'h-44' : 'h-56 sm:h-64';
@@ -71,19 +71,9 @@ export function PublicListingBrowseCard({
           aria-hidden
         />
         <div className="absolute top-2.5 left-2.5 flex flex-wrap gap-1.5">
-          {tour.isPopular && (
-            <span className="bg-finland text-white text-[11px] font-semibold px-2 py-0.5 rounded-md shadow-sm">
-              Popular
-            </span>
-          )}
           {tour.tags?.includes('free-cancellation') && (
-            <span className="bg-white/95 text-gray-800 text-[11px] font-medium px-2 py-0.5 rounded-md shadow-sm">
+            <span className="bg-white/95 text-ink text-[11px] font-medium px-2 py-0.5 rounded-full">
               Free cancellation
-            </span>
-          )}
-          {tour.tags?.includes('bestseller') && (
-            <span className="bg-amber-500 text-white text-[11px] font-semibold px-2 py-0.5 rounded-md shadow-sm">
-              Bestseller
             </span>
           )}
         </div>

@@ -1,8 +1,5 @@
-import { ArrowLeft, Shield, Lock, Eye, Database, Mail, UserCheck } from 'lucide-react';
-import LuxuryButton from '../components/ui/LuxuryButton';
-import PageHero from '../components/PageHero';
-import { HERO_IMG } from '../lib/heroImages';
-import { navigateBackOrFallback } from '../lib/appRouting';
+import { Shield, Lock, Eye, Database, Mail, UserCheck } from 'lucide-react';
+import LegalPageShell from '../components/LegalPageShell';
 
 type PrivacyProps = {
   onNavigate?: (page: string) => void;
@@ -12,33 +9,12 @@ const LAST_UPDATED = '2026-03-26';
 
 export default function Privacy({ onNavigate }: PrivacyProps) {
   return (
-    <div className="min-h-screen bg-gray-50 pt-20">
-      <PageHero
-        imageSrc={HERO_IMG.laos}
-        overlay="slateSoft"
-        eyebrow="Your privacy"
-        title="Privacy Policy"
-        subtitle="How we collect, use, and protect personal data when you use Traverion — including bookings, accounts, and marketing preferences."
-      />
-
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <LuxuryButton
-          variant="outline"
-          onClick={() =>
-            navigateBackOrFallback(() => {
-              onNavigate?.('home');
-            })
-          }
-          className="mb-8"
-        >
-          <ArrowLeft className="mr-2 w-4 h-4" />
-          Back
-        </LuxuryButton>
-
-        <p className="text-gray-600 text-sm mb-6">Last updated: {LAST_UPDATED}</p>
-
-        {/* Content */}
-        <div className="bg-white rounded-xl shadow-lg p-6 sm:p-8 space-y-8 border border-gray-100">
+    <LegalPageShell
+      title="Privacy Policy"
+      subtitle="How we collect, use, and protect personal data when you use Traverion — including bookings, accounts, and marketing preferences."
+      onNavigate={onNavigate}
+    >
+        <p className="text-sm text-ink-faint">Last updated: {LAST_UPDATED}</p>
           <section>
             <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
               <Lock className="w-6 h-6 text-sky-600" />
@@ -139,8 +115,6 @@ export default function Privacy({ onNavigate }: PrivacyProps) {
               </div>
             </div>
           </section>
-        </div>
-      </div>
-    </div>
+    </LegalPageShell>
   );
 }

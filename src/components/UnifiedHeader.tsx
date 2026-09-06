@@ -57,47 +57,38 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
   }, [isUserMenuOpen]);
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-[9999] bg-paper-raised/90 backdrop-blur-md border-b border-black/[0.06]">
-      {/* Logo & Navigation */}
-      <div className="bg-white py-1.5 sm:py-2 px-4 border-b border-gray-200">
-        <div className="max-w-7xl mx-auto flex flex-row justify-between items-center gap-3 sm:gap-4">
-          {/* Logo + tagline (left on mobile and desktop) */}
-          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-shrink">
+    <header className="fixed top-0 left-0 right-0 z-[9999] bg-paper/90 backdrop-blur-md">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+          <button type="button" onClick={() => onNavigate('home')} className="lux-flat flex items-center gap-2 min-w-0">
             <img 
               src={BRAND_LOGO_SRC} 
-              alt="TRAVERION Logo" 
-              className="w-14 h-14 sm:w-[4.5rem] sm:h-[4.5rem] object-contain flex-shrink-0"
+              alt="TRAVERION" 
+              className="w-10 h-10 sm:w-12 sm:h-12 object-contain"
               onError={(e) => {
-                // Fallback if image fails to load
                 e.currentTarget.style.display = 'none';
               }}
             />
-            <div className="flex-shrink-0 min-w-0 leading-tight">
-              <h1 className="text-lg sm:text-xl font-light text-finland">
-                TRAVERION
-              </h1>
-              <p className="hidden sm:block text-[11px] sm:text-xs text-gray-600 font-light mt-0.5">Tours & Activities · Worldwide</p>
-            </div>
-          </div>
+            <span className="font-sans text-[11px] font-semibold tracking-[0.18em] text-ink">TRAVERION</span>
+          </button>
 
           {/* Navigation */}
-          <nav className="hidden lg:flex items-center gap-8">
+          <nav className="hidden lg:flex items-center gap-6 flex-1 justify-center">
             <button
               type="button"
               onClick={() => onNavigate('home')}
-              className={`lux-nav-link font-medium ${
-                currentPage === 'home' ? 'text-finland lux-nav-link--active' : 'text-gray-700 hover:text-finland'
+              className={`lux-flat text-sm font-medium ${
+                currentPage === 'home' ? 'text-ink' : 'text-ink-muted hover:text-ink'
               }`}
             >
-              Home
+              Explore
             </button>
             <button
               type="button"
               onClick={() => onNavigate('packages')}
-              className={`lux-nav-link font-medium ${
+              className={`lux-flat text-sm font-medium ${
                 currentPage === 'packages' || currentPage === 'tour-details' || currentPage === 'destination'
-                  ? 'text-finland lux-nav-link--active'
-                  : 'text-gray-700 hover:text-finland'
+                  ? 'text-ink'
+                  : 'text-ink-muted hover:text-ink'
               }`}
             >
               Tours
@@ -208,7 +199,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
             <button
               type="button"
               onClick={() => onNavigate('packages')}
-              className="btn-luxury bg-finland text-white px-4 sm:px-5 py-1.5 rounded-lg font-medium hover:bg-finland-dark shadow-soft hover:shadow-soft-lg hidden lg:block text-sm"
+              className="tv-btn-primary hidden lg:inline-flex h-10 px-5 text-sm"
             >
               Find tours
             </button>
@@ -236,7 +227,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                   currentPage === 'home' ? 'bg-finland/10 text-finland' : 'text-gray-700 hover:bg-gray-50'
                 }`}
               >
-                Home
+                Explore
               </button>
               <button
                 onClick={() => {
@@ -336,7 +327,6 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
             </nav>
           </div>
         )}
-      </div>
     </header>
   );
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useDeferredValue, useRef } from 'react';
-import { Search, Globe, PlusCircle, Filter, X, SlidersHorizontal } from 'lucide-react';
+import { Search, Filter, X } from 'lucide-react';
 import { getAllListings, SHOW_SEED_LISTINGS, durationToMinutes } from '../data/listings';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { usePublishedSupplierListings } from '../hooks/usePublishedSupplierListings';
@@ -110,7 +110,6 @@ export default function Packages({ onTourSelect }: PackagesProps) {
   const [filterDate, setFilterDate] = useState(initialFilters.date);
   const [filterGuests, setFilterGuests] = useState(initialFilters.guests);
   const [showHolidayPackages] = useState(false);
-  const [filterBarSticky, setFilterBarSticky] = useState(false);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const { listings: supplierListings, error: listingsLoadError, reload: reloadSupplierListings } =
     usePublishedSupplierListings();
@@ -181,12 +180,6 @@ export default function Packages({ onTourSelect }: PackagesProps) {
       window.history.replaceState({}, '', newUrl);
     }
   }, [searchTerm, selectedDestination, selectedTags, sortBy, priceRange, filterDate, filterGuests]);
-
-  useEffect(() => {
-    const onScroll = () => setFilterBarSticky(window.scrollY > 360);
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
 
   const allListings = useMemo(() => {
     const base =
@@ -324,389 +317,196 @@ export default function Packages({ onTourSelect }: PackagesProps) {
     if (onTourSelect) onTourSelect(tour);
   };
 
+  const extraFilterCount =
+    (selectedDestination !== 'all' ? 1 : 0) +
+    selectedTags.length +
+    (priceRange !== 'all' ? 1 : 0);
+
   return (
     <div className="min-h-screen bg-paper pt-20">
-      {/* Hero + search & filters over banner (same asset as home) */}
-      <section className="relative border-b border-gray-200 overflow-hidden min-h-[300px] sm:min-h-[360px] lg:min-h-[400px]">
-        <div
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-          style={{ backgroundImage: 'url(/banner1.jpg)' }}
-        />
-        <div className="absolute inset-0 bg-black/50" aria-hidden />
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-8 sm:pt-10 sm:pb-10">
-          <h1 className="font-display text-3xl sm:text-5xl !text-white mb-2 tracking-tight drop-shadow-md">
-            Tours
-          </h1>
-          <div className="mb-6">
-            <p className="!text-white/95 text-base sm:text-lg drop-shadow-md [text-shadow:0_1px_12px_rgba(0,0,0,0.5)]">
-              {filteredPackages.length} {filteredPackages.length === 1 ? 'tour' : 'tours'} · Free cancellation on most
-            </p>
-            {searchTerm.trim() !== '' && searchTerm !== deferredSearch && (
-              <p className="!text-white/75 text-sm mt-1 drop-shadow-md" aria-live="polite">
-                Updating results…
-              </p>
-            )}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-12 pb-16 motion-safe:animate-fade-in">
+        <h1 className="font-display text-4xl sm:text-5xl text-ink tracking-tight">Tours</h1>
+        <p className="mt-2 text-ink-muted">
+          {filteredPackages.length} {filteredPackages.length === 1 ? 'tour' : 'tours'}
+          {searchTerm.trim() !== '' && searchTerm !== deferredSearch ? ' · Updating…' : ''}
+        </p>
+
+        {listingsLoadError && isSupabaseConfigured() && (
+          <div className="mt-6 flex items-center justify-between gap-4 text-sm text-red-800">
+            <span>{listingsLoadError}</span>
+            <button type="button" onClick={() => reloadSupplierListings()} className="tv-btn-ghost">
+              Try again
+            </button>
           </div>
-        {/* Sticky filter bar - white card on hero */}
-        <div
-          className={`mb-0 transition-all duration-200 ${
-            filterBarSticky
-              ? 'sticky top-20 z-30 bg-white/95 backdrop-blur-md border border-gray-200 rounded-xl shadow-lg py-4 px-4'
-              : 'bg-white border border-gray-200 rounded-xl shadow-xl py-4 px-4 ring-1 ring-black/5'
-          }`}
-        >
-          {listingsLoadError && isSupabaseConfigured() && (
-            <div className="mb-4 p-4 rounded-lg bg-red-50 text-red-700 text-sm flex items-center justify-between gap-4">
-              <span>{listingsLoadError}</span>
-              <button
-                type="button"
-                onClick={() => reloadSupplierListings()}
-                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-100 text-red-800 font-medium hover:bg-red-200"
-              >
-                Try again
-              </button>
-            </div>
-          )}
-          {/* Search row */}
-          <div className="flex flex-col sm:flex-row gap-4 mb-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search tours or destinations..."
-                className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland transition-all text-sm"
-              />
-            </div>
-            <input
-              type="date"
-              value={filterDate}
-              onChange={(e) => setFilterDate(e.target.value)}
-              aria-label="Date"
-              className="px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland bg-white text-sm text-gray-700"
-            />
-            <input
-              type="number"
-              min={1}
-              max={99}
-              inputMode="numeric"
-              value={filterGuests}
-              onChange={(e) => setFilterGuests(e.target.value)}
-              placeholder="Guests"
-              aria-label="Guests"
-              className="w-full sm:w-24 px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland bg-white text-sm text-gray-700"
-            />
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                className="lg:hidden flex items-center gap-2 px-4 py-2.5 border border-gray-200 rounded-lg bg-white text-sm font-medium text-gray-700"
-                onClick={() => setMobileFiltersOpen(true)}
-              >
-                <Filter className="w-4 h-4" />
-                Filters
-              </button>
-              <span className="text-sm text-gray-500 whitespace-nowrap hidden sm:block">Sort:</span>
-              <span className="text-sm text-gray-500 hidden sm:inline">
-                {filteredPackages.length} {filteredPackages.length === 1 ? 'tour' : 'tours'}
-              </span>
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as SortOption)}
-                className="px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland bg-white text-sm font-medium text-gray-700"
-              >
-                <option value="recommended">Recommended</option>
-                <option value="price-asc">Price: low to high</option>
-                <option value="price-desc">Price: high to low</option>
-                <option value="rating">Top rated (by reviews)</option>
-                <option value="duration">Duration</option>
-              </select>
-            </div>
-          </div>
-
-          {hasActiveFilters && (
-            <div className="flex flex-wrap items-center gap-2 mb-4" aria-label="Active filters">
-              <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Applied</span>
-              {searchTerm.trim() !== '' && (
-                <button
-                  type="button"
-                  onClick={() => setSearchTerm('')}
-                  className="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 hover:bg-gray-200 border border-gray-200/80"
-                >
-                  “{searchTerm.trim().slice(0, 36)}
-                  {searchTerm.trim().length > 36 ? '…' : ''}”
-                  <X className="w-3.5 h-3.5 opacity-70" aria-hidden />
-                </button>
-              )}
-              {selectedDestination !== 'all' && (
-                <button
-                  type="button"
-                  onClick={() => setSelectedDestination('all')}
-                  className="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 hover:bg-gray-200 border border-gray-200/80"
-                >
-                  {destinationOptions.find((c) => c.id === selectedDestination)?.label ?? selectedDestination}
-                  <X className="w-3.5 h-3.5 opacity-70" aria-hidden />
-                </button>
-              )}
-              {selectedTags.map((tagId) => (
-                <button
-                  key={tagId}
-                  type="button"
-                  onClick={() => toggleTag(tagId)}
-                  className="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-full text-xs font-medium bg-finland/10 text-finland hover:bg-finland/15 border border-finland/20"
-                >
-                  {TAG_OPTIONS.find((t) => t.id === tagId)?.label ?? tagId}
-                  <X className="w-3.5 h-3.5 opacity-70" aria-hidden />
-                </button>
-              ))}
-              {priceRange !== 'all' && (
-                <button
-                  type="button"
-                  onClick={() => setPriceRange('all')}
-                  className="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 hover:bg-gray-200 border border-gray-200/80"
-                >
-                  {PRICE_CHIPS.find((c) => c.id === priceRange)?.label ?? priceRange}
-                  <X className="w-3.5 h-3.5 opacity-70" aria-hidden />
-                </button>
-              )}
-              {filterDate && (
-                <button
-                  type="button"
-                  onClick={() => setFilterDate('')}
-                  className="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 hover:bg-gray-200 border border-gray-200/80"
-                >
-                  {filterDate}
-                  <X className="w-3.5 h-3.5 opacity-70" aria-hidden />
-                </button>
-              )}
-              {filterGuests && (
-                <button
-                  type="button"
-                  onClick={() => setFilterGuests('')}
-                  className="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 hover:bg-gray-200 border border-gray-200/80"
-                >
-                  {filterGuests} {filterGuests === '1' ? 'guest' : 'guests'}
-                  <X className="w-3.5 h-3.5 opacity-70" aria-hidden />
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* Filter chips - destination, tags, price (hidden on mobile; use Filters drawer) */}
-          <div className="hidden lg:flex flex-wrap items-center gap-2">
-            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide mr-1 flex items-center gap-1">
-              <SlidersHorizontal className="w-3.5 h-3.5" /> Destination
-            </span>
-            {destinationOptions.map((chip) => (
-              <button
-                key={chip.id}
-                onClick={() => setSelectedDestination(chip.id)}
-                className={`filter-chip px-4 py-2 rounded-full text-sm font-medium ${
-                  selectedDestination === chip.id
-                    ? 'bg-finland text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                {chip.label}
-              </button>
-            ))}
-            <span className="w-px h-5 bg-gray-200 mx-1" />
-            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide mr-1">Tags</span>
-            {TAG_OPTIONS.map((tag) => (
-              <button
-                key={tag.id}
-                onClick={() => toggleTag(tag.id)}
-                className={`filter-chip px-4 py-2 rounded-full text-sm font-medium ${
-                  selectedTags.includes(tag.id)
-                    ? 'bg-finland text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                {tag.label}
-              </button>
-            ))}
-            <span className="w-px h-5 bg-gray-200 mx-1" />
-            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide mr-1">Price</span>
-            {PRICE_CHIPS.map((chip) => (
-              <button
-                key={chip.id}
-                onClick={() => setPriceRange(chip.id)}
-                className={`filter-chip px-4 py-2 rounded-full text-sm font-medium ${
-                  priceRange === chip.id
-                    ? 'bg-finland text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                {chip.label}
-              </button>
-            ))}
-            {hasActiveFilters && (
-              <button
-                type="button"
-                onClick={clearAllFilters}
-                className="ml-2 px-3 py-2 rounded-full text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-              >
-                Clear all
-              </button>
-            )}
-          </div>
-          {/* Mobile filter drawer — above fixed header (z-9999), full height + safe areas */}
-          {mobileFiltersOpen && (
-            <div className="lg:hidden fixed inset-0 z-[10000]">
-              <div
-                className="absolute inset-0 bg-black/50"
-                onClick={() => setMobileFiltersOpen(false)}
-                aria-hidden
-              />
-              <aside
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="filters-drawer-title"
-                className="absolute top-0 right-0 bottom-0 w-full max-w-[min(100vw,24rem)] flex flex-col bg-white shadow-2xl"
-                style={{
-                  paddingTop: 'max(0px, env(safe-area-inset-top, 0px))',
-                }}
-              >
-                <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-gray-200">
-                  <h3 id="filters-drawer-title" className="font-semibold text-gray-900 text-lg">
-                    Filters
-                  </h3>
-                  <button
-                    type="button"
-                    onClick={() => setMobileFiltersOpen(false)}
-                    className="p-2 -mr-2 text-gray-500 rounded-lg hover:bg-gray-100"
-                    aria-label="Close filters"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-                <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 space-y-4 pb-2">
-                  <div>
-                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Destination</p>
-                    <div className="flex flex-wrap gap-2">
-                      {destinationOptions.map((chip) => (
-                        <button
-                          key={chip.id}
-                          onClick={() => setSelectedDestination(chip.id)}
-                          className={`px-4 py-2 rounded-full text-sm font-medium ${
-                            selectedDestination === chip.id ? 'bg-finland text-white' : 'bg-gray-100 text-gray-700'
-                          }`}
-                        >
-                          {chip.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Tags</p>
-                    <div className="flex flex-wrap gap-2">
-                      {TAG_OPTIONS.map((tag) => (
-                        <button
-                          key={tag.id}
-                          onClick={() => toggleTag(tag.id)}
-                          className={`px-4 py-2 rounded-full text-sm font-medium ${
-                            selectedTags.includes(tag.id) ? 'bg-finland text-white' : 'bg-gray-100 text-gray-700'
-                          }`}
-                        >
-                          {tag.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Price</p>
-                    <div className="flex flex-wrap gap-2">
-                      {PRICE_CHIPS.map((chip) => (
-                        <button
-                          key={chip.id}
-                          onClick={() => setPriceRange(chip.id)}
-                          className={`px-4 py-2 rounded-full text-sm font-medium ${
-                            priceRange === chip.id ? 'bg-finland text-white' : 'bg-gray-100 text-gray-700'
-                          }`}
-                        >
-                          {chip.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-                <div
-                  className="flex-shrink-0 p-4 border-t border-gray-200 space-y-2 bg-white"
-                  style={{
-                    paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 1rem))',
-                  }}
-                >
-                  {hasActiveFilters && (
-                    <button
-                      type="button"
-                      onClick={() => { clearAllFilters(); setMobileFiltersOpen(false); }}
-                      className="w-full py-2.5 rounded-lg border border-gray-300 text-gray-700 font-medium"
-                    >
-                      Clear all filters
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setMobileFiltersOpen(false)}
-                    className="w-full py-3 rounded-lg bg-finland text-white font-semibold"
-                  >
-                    Show {filteredPackages.length} results
-                  </button>
-                </div>
-              </aside>
-            </div>
-          )}
-
-          {/* Holiday / multi-day packages hidden from UI for now */}
-        </div>
-        </div>
-      </section>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Recommended - GYG style (only when we have listings) */}
-        {SHOW_SEED_LISTINGS && selectedDestination === 'all' && selectedTags.length === 0 && !searchTerm && allListings.length > 0 && (
-          <section className="mb-10">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Recommended for you</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-              {allListings
-                .filter(a => a.isPopular)
-                .slice(0, 4)
-                .map((tour, index) => (
-                  <PublicListingBrowseCard
-                    key={tour.id}
-                    tour={tour}
-                    index={index}
-                    onSelect={() => handleTourSelect(tour)}
-                    discountsByListing={discountsByListing}
-                    reviewAggregate={reviewAggregates.get(tour.id)}
-                    tagLabels={TAG_LABELS}
-                    size="compact"
-                    showTagPills={false}
-                  />
-                ))}
-            </div>
-          </section>
         )}
 
-        {/* Listing grid - only when we have listings */}
-        {allListings.length > 0 && (
-          <>
-            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-              <h2 className="text-xl font-semibold text-gray-900">
-                {hasActiveFilters ? 'Results' : 'All tours & activities'}
-              </h2>
-              {hasActiveFilters && (
-                <button
-                  type="button"
-                  onClick={clearAllFilters}
-                  className="text-sm text-finland hover:text-finland-dark font-medium"
-                >
-                  Clear filters
+        <div className="mt-8 flex flex-col lg:flex-row gap-3 lg:items-center">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-faint" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Where or what"
+              className="tv-input pl-10"
+            />
+          </div>
+          <input
+            type="date"
+            value={filterDate}
+            onChange={(e) => setFilterDate(e.target.value)}
+            aria-label="Date"
+            className="tv-input lg:w-40"
+          />
+          <input
+            type="number"
+            min={1}
+            max={99}
+            inputMode="numeric"
+            value={filterGuests}
+            onChange={(e) => setFilterGuests(e.target.value)}
+            placeholder="Guests"
+            aria-label="Guests"
+            className="tv-input lg:w-28"
+          />
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as SortOption)}
+            className="tv-input lg:w-48"
+            aria-label="Sort"
+          >
+            <option value="recommended">Recommended</option>
+            <option value="price-asc">Price: low to high</option>
+            <option value="price-desc">Price: high to low</option>
+            <option value="rating">Top rated</option>
+            <option value="duration">Duration</option>
+          </select>
+          <button
+            type="button"
+            className="tv-btn-secondary shrink-0"
+            onClick={() => setMobileFiltersOpen(true)}
+          >
+            <Filter className="w-4 h-4" />
+            Filters{extraFilterCount > 0 ? ` · ${extraFilterCount}` : ''}
+          </button>
+        </div>
+
+        {hasActiveFilters && (
+          <div className="mt-4 flex flex-wrap items-center gap-2" aria-label="Active filters">
+            {searchTerm.trim() !== '' && (
+              <button type="button" onClick={() => setSearchTerm('')} className="tv-btn-ghost text-xs">
+                “{searchTerm.trim().slice(0, 36)}{searchTerm.trim().length > 36 ? '…' : ''}” <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+            {selectedDestination !== 'all' && (
+              <button type="button" onClick={() => setSelectedDestination('all')} className="tv-btn-ghost text-xs">
+                {destinationOptions.find((c) => c.id === selectedDestination)?.label ?? selectedDestination} <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+            {selectedTags.map((tagId) => (
+              <button key={tagId} type="button" onClick={() => toggleTag(tagId)} className="tv-btn-ghost text-xs">
+                {TAG_OPTIONS.find((t) => t.id === tagId)?.label ?? tagId} <X className="w-3.5 h-3.5" />
+              </button>
+            ))}
+            {priceRange !== 'all' && (
+              <button type="button" onClick={() => setPriceRange('all')} className="tv-btn-ghost text-xs">
+                {PRICE_CHIPS.find((c) => c.id === priceRange)?.label ?? priceRange} <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+            {filterDate && (
+              <button type="button" onClick={() => setFilterDate('')} className="tv-btn-ghost text-xs">
+                {filterDate} <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+            {filterGuests && (
+              <button type="button" onClick={() => setFilterGuests('')} className="tv-btn-ghost text-xs">
+                {filterGuests} {filterGuests === '1' ? 'guest' : 'guests'} <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+            <button type="button" onClick={clearAllFilters} className="text-sm font-medium text-finland">
+              Clear
+            </button>
+          </div>
+        )}
+
+        {mobileFiltersOpen && (
+          <div className="tv-sheet-overlay">
+            <button type="button" className="absolute inset-0" aria-label="Close filters" onClick={() => setMobileFiltersOpen(false)} />
+            <aside role="dialog" aria-modal="true" aria-labelledby="filters-drawer-title" className="tv-sheet-panel relative motion-safe:animate-slide-up">
+              <div className="flex items-center justify-between mb-6">
+                <h3 id="filters-drawer-title" className="font-display text-2xl">Filters</h3>
+                <button type="button" onClick={() => setMobileFiltersOpen(false)} className="lux-tap-target p-2" aria-label="Close">
+                  <X className="w-5 h-5" />
                 </button>
-              )}
-            </div>
-            {filteredPackages.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              </div>
+              <div className="space-y-6">
+                <div>
+                  <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">Destination</p>
+                  <div className="flex flex-wrap gap-2">
+                    {destinationOptions.map((chip) => (
+                      <button
+                        key={chip.id}
+                        type="button"
+                        onClick={() => setSelectedDestination(chip.id)}
+                        className={`px-3 py-1.5 rounded-full text-sm ${
+                          selectedDestination === chip.id ? 'bg-ink text-paper-raised' : 'bg-paper text-ink'
+                        }`}
+                      >
+                        {chip.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">Price</p>
+                  <div className="flex flex-wrap gap-2">
+                    {PRICE_CHIPS.map((chip) => (
+                      <button
+                        key={chip.id}
+                        type="button"
+                        onClick={() => setPriceRange(chip.id)}
+                        className={`px-3 py-1.5 rounded-full text-sm ${
+                          priceRange === chip.id ? 'bg-ink text-paper-raised' : 'bg-paper text-ink'
+                        }`}
+                      >
+                        {chip.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">Details</p>
+                  <div className="flex flex-wrap gap-2">
+                    {TAG_OPTIONS.map((tag) => (
+                      <button
+                        key={tag.id}
+                        type="button"
+                        onClick={() => toggleTag(tag.id)}
+                        className={`px-3 py-1.5 rounded-full text-sm ${
+                          selectedTags.includes(tag.id) ? 'bg-ink text-paper-raised' : 'bg-paper text-ink'
+                        }`}
+                      >
+                        {tag.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="mt-8 flex gap-2">
+                {extraFilterCount > 0 ? (
+                  <button type="button" onClick={() => { clearAllFilters(); setMobileFiltersOpen(false); }} className="tv-btn-secondary flex-1">
+                    Clear
+                  </button>
+                ) : null}
+                <button type="button" onClick={() => setMobileFiltersOpen(false)} className="tv-btn-primary flex-1">
+                  Show {filteredPackages.length}
+                </button>
+              </div>
+            </aside>
+          </div>
+        )}
+        {allListings.length > 0 && filteredPackages.length > 0 ? (
+        <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {filteredPackages.map((tour, index) => (
             <PublicListingBrowseCard
               key={tour.id}
@@ -717,70 +517,40 @@ export default function Packages({ onTourSelect }: PackagesProps) {
               reviewAggregate={reviewAggregates.get(tour.id)}
               tagLabels={TAG_LABELS}
               size="default"
+              showTagPills={false}
             />
           ))}
         </div>
-            ) : (
-              <div className="text-center py-20">
-                <Search className="w-14 h-14 mx-auto text-gray-300 mb-4" />
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">No tours found</h3>
-                <p className="text-gray-500 mb-4">Try different filters or search terms</p>
-                <div className="flex flex-wrap items-center justify-center gap-2">
-                  {hasActiveFilters && (
-                    <button
-                      type="button"
-                      onClick={clearAllFilters}
-                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark transition-colors"
-                    >
-                      Clear filters
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-colors"
-                  >
-                    Edit search
+        ) : allListings.length > 0 ? (
+              <div className="py-16 max-w-md">
+                <h3 className="font-display text-2xl text-ink">No tours match</h3>
+                <p className="mt-2 text-ink-muted">Change the search or clear filters.</p>
+                {hasActiveFilters ? (
+                  <button type="button" onClick={clearAllFilters} className="tv-btn-primary mt-6">
+                    Clear filters
                   </button>
-                </div>
+                ) : null}
               </div>
-            )}
-          </>
-        )}
+        ) : null}
 
         {isSupabaseConfigured() && supplierListings === null ? (
           <div className="py-8">
             <SkeletonCardGrid count={6} />
           </div>
         ) : allListings.length === 0 ? (
-          <div className="text-center py-20 px-4">
-            <Globe className="w-16 h-16 mx-auto text-gray-300 mb-4" />
-            <h3 className="text-2xl font-semibold text-gray-900 mb-2">No tours published yet</h3>
-            <p className="text-gray-500 mb-6 max-w-md mx-auto">
-              We are adding new tours. Try again soon or contact us if you need help finding something specific.
+          <div className="py-16 max-w-md">
+            <h3 className="font-display text-2xl text-ink">No tours published yet</h3>
+            <p className="mt-2 text-ink-muted">
+              When operators publish, they appear here. If you run tours, you can list yours today.
             </p>
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              <button
-                type="button"
-                onClick={() => window.location.reload()}
-                className="inline-flex items-center gap-2 bg-finland text-white font-semibold px-6 py-3 rounded-xl hover:bg-finland-dark transition-colors"
-              >
-                Refresh
-              </button>
-              <a
-                href={supplierPortalHref('/login')}
-                className="inline-flex items-center gap-2 border border-gray-300 text-gray-700 font-semibold px-6 py-3 rounded-xl hover:bg-gray-50 transition-colors"
-              >
-                <PlusCircle className="w-5 h-5" />
-                Become a supplier
-              </a>
-            </div>
+            <a href={supplierPortalHref('/login')} className="tv-btn-primary mt-6 inline-flex">
+              List your tours
+            </a>
           </div>
         ) : null}
 
-        <p className="mt-12 text-center text-sm text-gray-500 max-w-lg mx-auto">
-          Holiday packages from travel agencies will appear here as operators publish them — they are part of Traverion,
-          not a separate site.
+        <p className="mt-16 text-sm text-ink-faint max-w-lg">
+          Packages from agencies will join this catalog when operators publish them.
         </p>
       </div>
     </div>

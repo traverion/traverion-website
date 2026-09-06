@@ -1,8 +1,5 @@
-import { ArrowLeft, Building2, Mail } from 'lucide-react';
-import LuxuryButton from '../components/ui/LuxuryButton';
-import PageHero from '../components/PageHero';
-import { HERO_IMG } from '../lib/heroImages';
-import { navigateBackOrFallback } from '../lib/appRouting';
+import { Building2, Mail } from 'lucide-react';
+import LegalPageShell from '../components/LegalPageShell';
 import type { MouseEvent } from 'react';
 
 type LegalNoticeProps = {
@@ -20,31 +17,11 @@ export default function LegalNotice({ onNavigate }: LegalNoticeProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-20">
-      <PageHero
-        imageSrc={HERO_IMG.banner}
-        overlay="slate"
-        eyebrow="Legal"
-        title="Legal notice"
-        subtitle="Operator identification, contact details for official correspondence, and links to our policies."
-      />
-
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <LuxuryButton
-          variant="outline"
-          onClick={() =>
-            navigateBackOrFallback(() => {
-              onNavigate?.('home');
-            })
-          }
-          className="mb-8"
-        >
-          <ArrowLeft className="mr-2 w-4 h-4" />
-          Back
-        </LuxuryButton>
-
-        <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
-          <div className="p-6 sm:p-8 space-y-8 text-gray-700">
+    <LegalPageShell
+      title="Legal notice"
+      subtitle="Operator identification, contact details for official correspondence, and links to our policies."
+      onNavigate={onNavigate}
+    >
             <section>
               <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
                 <Building2 className="w-6 h-6 text-finland shrink-0" />
@@ -141,12 +118,9 @@ export default function LegalNotice({ onNavigate }: LegalNoticeProps) {
               </ul>
             </section>
 
-            <p className="text-sm text-gray-500 pt-4 border-t border-gray-100">
+            <p className="text-sm text-ink-faint pt-4">
               Last updated: {LAST_UPDATED}
             </p>
-          </div>
-        </div>
-      </div>
-    </div>
+    </LegalPageShell>
   );
 }

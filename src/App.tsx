@@ -54,7 +54,8 @@ import {
 } from './lib/adminHost';
 import { getListingByIdAsync } from './data/listings';
 import { isPartnerMarketingPathForCurrentHost, isPartnerPortalPathForCurrentHost } from './lib/partnerHost';
-import { TourPackage as TourPackageType } from './types/tour';
+import { rememberProductReturn, isStaticConsumerPage } from './lib/navReturn';
+import type { TourPackage as TourPackageType } from './types/tour';
 
 function readInitialRoute(): { page: string; destinationSlug: string | null } {
   if (typeof window === 'undefined') return { page: 'home', destinationSlug: null };
@@ -297,6 +298,13 @@ function App() {
     setCanonicalUrl(path);
   }, [currentPage, destinationSlug, isSupplierArea]);
 
+  const handleNavigate = useCallback((page: string) => {
+    if (isStaticConsumerPage(page) && !isStaticConsumerPage(currentPage)) {
+      rememberProductReturn(currentPage, `${window.location.pathname}${window.location.search}`);
+    }
+    setCurrentPage(page);
+  }, [currentPage]);
+
   const handleTourSelect = (tour: TourPackageType) => {
     setSelectedTour(tour);
     setCurrentPage('tour-details');
@@ -314,16 +322,16 @@ function App() {
   const renderPage = () => {
     switch (currentPage) {
       case 'home':
-        return <Home onTourSelect={handleTourSelect} onNavigate={setCurrentPage} />;
+        return <Home onTourSelect={handleTourSelect} onNavigate={handleNavigate} />;
       case 'packages':
-        return <Packages onTourSelect={handleTourSelect} onNavigate={setCurrentPage} />;
+        return <Packages onTourSelect={handleTourSelect} onNavigate={handleNavigate} />;
       case 'destination':
         return (
           <DestinationPage
             slug={destinationSlug}
             onTourSelect={handleTourSelect}
             onBack={() => setCurrentPage('packages')}
-            onNavigate={setCurrentPage}
+            onNavigate={handleNavigate}
           />
         );
       case 'blog':
@@ -343,7 +351,7 @@ function App() {
       case 'cart':
         return (
           <CartPage
-            onNavigate={setCurrentPage}
+            onNavigate={handleNavigate}
             onBookTour={(listingId) => {
               void getListingByIdAsync(listingId).then((t) => {
                 if (!t) {
@@ -357,47 +365,47 @@ function App() {
           />
         );
       case 'account':
-        return <AccountPage onNavigate={setCurrentPage} />;
+        return <AccountPage onNavigate={handleNavigate} />;
       case 'wishlist':
         return (
           <WishlistPage
-            onNavigate={setCurrentPage}
+            onNavigate={handleNavigate}
             onTourSelect={(t) => handleTourSelect(t as TourPackageType)}
           />
         );
       case 'auth':
-        return <AuthPage onNavigate={setCurrentPage} />;
+        return <AuthPage onNavigate={handleNavigate} />;
       case 'reset-password':
-        return <ResetPasswordPage onNavigate={setCurrentPage} />;
+        return <ResetPasswordPage onNavigate={handleNavigate} />;
       case 'email-confirmed':
         return <EmailConfirmedSuccess />;
       case 'bookings':
         return (
           <MyBookings
-            onNavigate={setCurrentPage}
+            onNavigate={handleNavigate}
             onTourSelect={(t) => handleTourSelect(t as TourPackageType)}
           />
         );
       case 'booking-confirmed':
-        return <BookingConfirmationPage onNavigate={setCurrentPage} />;
+        return <BookingConfirmationPage onNavigate={handleNavigate} />;
       case 'contact':
-        return <Contact onNavigate={setCurrentPage} />;
+        return <Contact onNavigate={handleNavigate} />;
       case 'legal-notice':
-        return <LegalNotice onNavigate={setCurrentPage} />;
+        return <LegalNotice onNavigate={handleNavigate} />;
       case 'affiliate':
-        return <AffiliatePage onNavigate={setCurrentPage} />;
+        return <AffiliatePage onNavigate={handleNavigate} />;
       case 'content-creator':
-        return <ContentCreatorPage onNavigate={setCurrentPage} />;
+        return <ContentCreatorPage onNavigate={handleNavigate} />;
       case 'privacy':
-        return <Privacy onNavigate={setCurrentPage} />;
+        return <Privacy onNavigate={handleNavigate} />;
       case 'terms':
-        return <Terms onNavigate={setCurrentPage} />;
+        return <Terms onNavigate={handleNavigate} />;
       case 'cookies':
-        return <Cookies onNavigate={setCurrentPage} />;
+        return <Cookies onNavigate={handleNavigate} />;
       case 'about':
-        return <About onNavigate={setCurrentPage} />;
+        return <About onNavigate={handleNavigate} />;
       case 'sitemap':
-        return <Sitemap onNavigate={setCurrentPage} />;
+        return <Sitemap onNavigate={handleNavigate} />;
       case 'admin':
         if (typeof window !== 'undefined' && isPublicTraverionMarketingHost()) {
           return (
@@ -412,7 +420,7 @@ function App() {
       case 'admin-app':
         return <AdminGate mode="dashboard-only" />;
       default:
-        return <Home onTourSelect={handleTourSelect} onNavigate={setCurrentPage} />;
+        return <Home onTourSelect={handleTourSelect} onNavigate={handleNavigate} />;
     }
   };
 
@@ -445,20 +453,20 @@ function App() {
             <AuthModal />
           </>
         ) : minimalTravelerChrome ? (
-          <div className="min-h-screen bg-white">
+          <div className="min-h-screen bg-paper">
             {renderPage()}
             <AuthModal />
           </div>
         ) : (
-          <div className="min-h-screen bg-white relative flex flex-col">
-            <UnifiedHeader currentPage={currentPage} onNavigate={setCurrentPage} />
+          <div className="min-h-screen bg-paper relative flex flex-col">
+            <UnifiedHeader currentPage={currentPage} onNavigate={handleNavigate} />
             <main className="flex-grow overflow-x-hidden">
               <div className="lux-page-enter min-h-[min(50vh,480px)]">
                 {renderPage()}
               </div>
             </main>
-            <Footer onNavigate={setCurrentPage} />
-            <StickyBookingButton onNavigate={setCurrentPage} />
+            <Footer onNavigate={handleNavigate} />
+            <StickyBookingButton onNavigate={handleNavigate} />
             <AuthModal />
           </div>
         )}

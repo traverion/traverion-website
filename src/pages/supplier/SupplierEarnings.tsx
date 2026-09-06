@@ -1,14 +1,11 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { DollarSign, TrendingUp, Calendar, FileText, Receipt, AlertCircle, RefreshCw, Info, Download } from 'lucide-react';
+import { AlertCircle, RefreshCw } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { fetchSupplierEarnings, SupplierEarning } from '../../data/supabase-earnings';
 import { fetchSupplierProfile } from '../../data/supabase-supplier-profile';
-import {
-  SUPPLIER_PAGE_CLASS,
-  SUPPLIER_SECTION_HEADER_CLASS,
-  SupplierListSkeleton,
-  SupplierPageHero,
-} from '../../components/supplier/supplierUi';
+import { SUPPLIER_PAGE_CLASS, SupplierListSkeleton } from '../../components/supplier/supplierUi';
+import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
+import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 
 function formatMoney(amount: number, currency: string) {
   const c = currency || 'USD';
@@ -113,147 +110,119 @@ export default function SupplierEarnings() {
     URL.revokeObjectURL(url);
   };
 
+  const hasMoney = pending > 0 || paid > 0 || earningsForInvoices.length > 0;
+
   return (
     <div className={SUPPLIER_PAGE_CLASS}>
-      <SupplierPageHero
-        title="Money"
-        description="Pending payouts and paid history."
-      />
+      <header className="pt-2 sm:pt-8 mb-10">
+        <h1 className="font-display text-4xl sm:text-5xl text-ink tracking-tight">Money</h1>
+        <p className="mt-2 text-ink-muted max-w-xl">
+          Payouts from completed bookings. Nothing here is estimated.
+        </p>
+      </header>
 
       {error && (
-        <div className="p-4 rounded-lg bg-red-50 text-red-700 text-sm flex items-center justify-between gap-4">
-          <span className="flex items-center gap-2"><AlertCircle className="w-4 h-4 flex-shrink-0" />{error}</span>
-          <button type="button" onClick={() => load()} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-100 text-red-800 font-medium hover:bg-red-200">
+        <div className="mb-8 flex items-center justify-between gap-4 text-sm text-red-800">
+          <span className="flex items-center gap-2"><AlertCircle className="w-4 h-4 shrink-0" />{error}</span>
+          <button type="button" onClick={() => load()} className="tv-btn-ghost">
             <RefreshCw className="w-4 h-4" /> Try again
           </button>
         </div>
       )}
 
       {loading ? (
-        <SupplierListSkeleton rows={2} />
+        <SupplierListSkeleton rows={3} />
+      ) : !hasMoney ? (
+        <div className="max-w-md py-8">
+          <p className="font-display text-2xl text-ink">No payouts yet</p>
+          <p className="mt-2 text-sm text-ink-muted leading-relaxed">
+            When travelers complete paid bookings, pending and paid amounts appear here. Traverion does not invent balances.
+          </p>
+          <button
+            type="button"
+            onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/business-profile#supplier-business-payout`)}
+            className="tv-btn-secondary mt-6"
+          >
+            Payout account
+          </button>
+        </div>
       ) : (
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-        <div className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-5 flex items-center gap-3 sm:gap-4 shadow-sm transition-all duration-200 hover:shadow-md">
-          <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0">
-            <TrendingUp className="w-6 h-6" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-sm text-gray-500">Pending payout</p>
-            <p className="text-xl font-semibold text-gray-900 tabular-nums">{formatMoney(pending, primaryCurrency)}</p>
-            {payoutProgressPct !== null && (
-              <div className="mt-2">
-                <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-amber-500 transition-all duration-300"
-                    style={{ width: `${payoutProgressPct}%` }}
-                  />
-                </div>
-                <p className="text-xs text-gray-500 mt-1">{payoutProgressPct}% of minimum threshold (pending)</p>
-              </div>
-            )}
-          </div>
-        </div>
-        <div className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-5 flex items-center gap-3 sm:gap-4 shadow-sm transition-all duration-200 hover:shadow-md">
-          <div className="w-12 h-12 rounded-2xl bg-green-500/10 text-green-600 flex items-center justify-center shrink-0">
-            <DollarSign className="w-6 h-6" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-sm text-gray-500">Paid out</p>
-            <p className="text-xl font-semibold text-gray-900 tabular-nums">{formatMoney(paid, primaryCurrency)}</p>
-          </div>
-        </div>
-      </div>
-      )}
-
-      {!loading && isSupabase && (
-        <div className="flex items-start gap-2 p-3 rounded-lg bg-gray-50 border border-gray-100 text-sm text-gray-700">
-          <Info className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />
-          <span>{nextPayoutLabel}</span>
-        </div>
-      )}
-
-      <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
-        <div className={`${SUPPLIER_SECTION_HEADER_CLASS} flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3`}>
-          <div className="flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-finland" />
-            <span className="font-semibold text-gray-900">History</span>
-            <span className="text-sm text-gray-500">({filteredEarnings.length} row{filteredEarnings.length === 1 ? '' : 's'})</span>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {(['all', 'pending', 'paid'] as const).map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => setStatusFilter(s)}
-                className={`px-3 py-1.5 rounded-full text-sm border ${
-                  statusFilter === s ? 'bg-finland/10 text-finland border-finland/20' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
-                }`}
-              >
-                {s === 'all' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}
-              </button>
-            ))}
+        <>
+          <section className="mb-12">
+            <p className="text-[11px] uppercase tracking-[0.18em] text-ink-faint mb-2">Available to pay out</p>
+            <p className="font-display text-5xl sm:text-6xl tabular-nums text-ink tracking-tight">
+              {formatMoney(pending, primaryCurrency)}
+            </p>
+            {payoutProgressPct !== null ? (
+              <p className="mt-3 text-sm text-ink-muted">{payoutProgressPct}% of your payout minimum</p>
+            ) : null}
+            <p className="mt-4 text-sm text-ink-muted max-w-lg">{nextPayoutLabel}</p>
+            {paid > 0 ? (
+              <p className="mt-6 text-sm text-ink-muted">
+                Paid to date <span className="tabular-nums font-semibold text-ink">{formatMoney(paid, primaryCurrency)}</span>
+              </p>
+            ) : null}
             <button
               type="button"
-              onClick={exportCsv}
-              disabled={filteredEarnings.length === 0}
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/business-profile#supplier-business-payout`)}
+              className="tv-btn-ghost mt-4 -ml-2"
             >
-              <Download className="w-4 h-4" />
-              Export CSV
+              Payout account
             </button>
-          </div>
-        </div>
-        {loading ? (
-          <div className="p-6">
-            <SupplierListSkeleton rows={3} />
-          </div>
-        ) : earningsForInvoices.length === 0 ? (
-          <div className="p-12 text-center animate-scale-in">
-            <DollarSign className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500">No earnings yet</p>
-            <p className="text-sm text-gray-400 mt-1">When you have completed bookings, payouts will appear here.</p>
-          </div>
-        ) : filteredEarnings.length === 0 ? (
-          <div className="p-8 text-center text-gray-500 text-sm">No rows for this filter.</div>
-        ) : (
-          <div className="divide-y divide-gray-100">
-            {filteredEarnings.map((e) => (
-              <article key={e.id} className="px-4 py-4 sm:px-5 w-full min-w-0 max-w-full space-y-2">
-                <div className="flex flex-wrap items-start justify-between gap-2 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 min-w-0 break-words">
-                    {e.period_start} – {e.period_end}
-                  </p>
-                  <p className="text-base font-semibold tabular-nums text-gray-900 shrink-0">
-                    {formatMoney(Number(e.amount), e.currency)}
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
-                  <span
-                    className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${
-                      e.status === 'paid' ? 'bg-green-100 text-green-800' : e.status === 'pending' ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-600'
+          </section>
+
+          <section>
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <h2 className="text-[11px] uppercase tracking-[0.18em] text-ink-faint">History</h2>
+              <div className="flex flex-wrap items-center gap-1">
+                {(['all', 'pending', 'paid'] as const).map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setStatusFilter(s)}
+                    className={`lux-flat rounded-full px-3 py-1.5 text-sm font-medium ${
+                      statusFilter === s ? 'bg-ink text-paper-raised' : 'text-ink-muted hover:text-ink'
                     }`}
                   >
-                    {e.status}
-                  </span>
-                  <span className="inline-flex items-center gap-1 text-gray-600 min-w-0 break-all">
-                    <FileText className="w-4 h-4 shrink-0" aria-hidden />
-                    <span className="text-xs sm:text-sm">Invoice {(e as { invoice_number?: string }).invoice_number ?? '—'}</span>
-                  </span>
-                  {e.status === 'paid' ? (
-                    <span className="inline-flex items-center gap-1 text-green-700 min-w-0 break-all" title="Payment confirmation">
-                      <Receipt className="w-4 h-4 shrink-0" aria-hidden />
-                      <span className="text-xs sm:text-sm">{(e as { payment_reference?: string }).payment_reference ?? 'Paid'}</span>
-                    </span>
-                  ) : (
-                    <span className="text-gray-400 text-sm">Payment —</span>
-                  )}
-                </div>
-              </article>
-            ))}
-          </div>
-        )}
-      </div>
-
+                    {s === 'all' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={exportCsv}
+                  disabled={filteredEarnings.length === 0}
+                  className="tv-btn-ghost text-sm disabled:opacity-40"
+                >
+                  Export
+                </button>
+              </div>
+            </div>
+            {filteredEarnings.length === 0 ? (
+              <p className="text-sm text-ink-muted">No rows for this filter.</p>
+            ) : (
+              <ul className="divide-y divide-black/[0.06]">
+                {filteredEarnings.map((e) => (
+                  <li key={e.id} className="py-4 flex items-baseline justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-ink">
+                        {e.period_start} – {e.period_end}
+                      </p>
+                      <p className="mt-0.5 text-xs text-ink-muted">
+                        {e.status === 'paid' ? 'Paid' : e.status === 'pending' ? 'Pending' : e.status}
+                        {e.invoice_number ? ` · ${e.invoice_number}` : ''}
+                        {e.status === 'paid' && e.payment_reference ? ` · ${e.payment_reference}` : ''}
+                      </p>
+                    </div>
+                    <p className="tabular-nums font-semibold text-ink shrink-0">
+                      {formatMoney(Number(e.amount), e.currency)}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </>
+      )}
     </div>
   );
 }

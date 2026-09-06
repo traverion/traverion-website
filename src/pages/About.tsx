@@ -1,8 +1,5 @@
-import { ArrowLeft, Heart, Compass, Users } from 'lucide-react';
-import LuxuryButton from '../components/ui/LuxuryButton';
-import PageHero from '../components/PageHero';
-import { HERO_IMG } from '../lib/heroImages';
-import { navigateBackOrFallback } from '../lib/appRouting';
+import { Heart, Compass, Users } from 'lucide-react';
+import LegalPageShell from '../components/LegalPageShell';
 
 type AboutProps = {
   onNavigate?: (page: string) => void;
@@ -17,30 +14,11 @@ export default function About({ onNavigate }: AboutProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-20">
-      <PageHero
-        imageSrc={HERO_IMG.thailand}
-        overlay="slateSoft"
-        eyebrow="Company"
-        title="About Traverion"
-        subtitle="A Finland-rooted team building a clearer, kinder way to book tours and activities online — for travelers and for local operators who deserve a global stage."
-      />
-
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <LuxuryButton
-          variant="outline"
-          onClick={() =>
-            navigateBackOrFallback(() => {
-              onNavigate?.('home');
-            })
-          }
-          className="mb-8"
-        >
-          <ArrowLeft className="mr-2 w-4 h-4" />
-          Back
-        </LuxuryButton>
-
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 sm:p-8 space-y-6 text-gray-700">
+    <LegalPageShell
+      title="About Traverion"
+      subtitle="A Finland-rooted team building a clearer way to book tours — for travelers and for operators who deserve a global stage."
+      onNavigate={onNavigate}
+    >
           <p className="text-lg leading-relaxed">
             Traverion is a tours and activities platform where travelers can discover and book experiences
             worldwide, and where local providers can list and manage their offerings with tools designed
@@ -52,9 +30,8 @@ export default function About({ onNavigate }: AboutProps) {
             the best tours and holiday trips with confidence, while helping local operators reach global
             travelers fairly and sustainably.
           </p>
-        </div>
 
-        <div className="grid sm:grid-cols-3 gap-4 mt-8">
+        <div className="grid sm:grid-cols-3 gap-8 mt-4">
           <div className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm">
             <Heart className="w-8 h-8 text-finland mb-3" />
             <h3 className="font-bold text-gray-900 mb-2">Trust</h3>
@@ -93,7 +70,6 @@ export default function About({ onNavigate }: AboutProps) {
             page — we read every message.
           </p>
         </div>
-      </div>
-    </div>
+    </LegalPageShell>
   );
 }

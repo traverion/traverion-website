@@ -1,11 +1,8 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Send, CheckCircle } from 'lucide-react';
+import { Send, CheckCircle } from 'lucide-react';
 import LuxuryButton from '../components/ui/LuxuryButton';
-import LuxuryCard from '../components/ui/LuxuryCard';
 import LuxuryInput from '../components/ui/LuxuryInput';
-import PageHero from '../components/PageHero';
-import { HERO_IMG } from '../lib/heroImages';
-import { navigateBackOrFallback } from '../lib/appRouting';
+import LegalPageShell from '../components/LegalPageShell';
 import { submitContactInquiry, type ContactInquiry } from '../data/supabase-contact';
 import { buildInquiryEmailSubject } from '../lib/contactEmailSubject';
 import { CONTACT_PRESETS, takeContactPrefill } from '../lib/contactPrefill';
@@ -35,11 +32,6 @@ export default function AffiliatePage({ onNavigate }: AffiliatePageProps) {
       message: pre.message?.trim() ? pre.message : prev.message,
     }));
   }, []);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,82 +91,55 @@ export default function AffiliatePage({ onNavigate }: AffiliatePageProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-20">
-      <PageHero
-        imageSrc={HERO_IMG.thailand}
-        overlay="slateSoft"
-        title="Become an affiliate"
-        subtitle="Partner with Traverion and earn when your audience books tours and activities through our platform."
-      />
-
-      <div className="max-w-lg mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <LuxuryButton
-          variant="outline"
-          onClick={() =>
-            navigateBackOrFallback(() => {
-              onNavigate?.('home');
-            })
-          }
-          className="mb-8"
-        >
-          <ArrowLeft className="mr-2 w-4 h-4" />
-          Back
-        </LuxuryButton>
-
-        <LuxuryCard variant="elevated" className="p-6 sm:p-8">
-          {isSubmitted ? (
-            <div className="text-center py-6">
-              <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <CheckCircle className="w-7 h-7 text-green-500" />
-              </div>
-              <h2 className="text-xl font-bold text-gray-900 mb-2">Application received</h2>
-              <p className="text-gray-600 text-sm leading-relaxed">
-                Thank you. We will review your details and get back to you by email.
-              </p>
-            </div>
-          ) : (
-            <>
-              <h2 className="text-lg font-semibold text-gray-900 mb-1">Affiliate application</h2>
-              <p className="text-sm text-gray-500 mb-6">
-                This form is only for partnership requests. It is kept separate from general customer
-                enquiries.
-              </p>
-              <form onSubmit={handleSubmit} className="space-y-4">
+    <LegalPageShell
+      title="Become an affiliate"
+      subtitle="Earn when your audience books tours through Traverion."
+      onNavigate={onNavigate}
+    >
+      {isSubmitted ? (
+        <div>
+          <CheckCircle className="w-8 h-8 text-finland mb-3" />
+          <h2>Application received</h2>
+          <p>Thank you. We will review your details and get back to you by email.</p>
+        </div>
+      ) : (
+        <>
+          <p>
+            This form is only for partnership requests. It is kept separate from general customer
+            enquiries.
+          </p>
+          <form onSubmit={handleSubmit} className="space-y-4 max-w-lg">
                 <LuxuryInput
                   type="text"
-                  name="name"
                   placeholder="Your name"
                   value={formData.name}
-                  onChange={handleChange}
+                  onChange={(e) => setFormData((p) => ({ ...p, name: e.target.value }))}
                   required
                 />
                 <LuxuryInput
                   type="email"
-                  name="email"
                   placeholder="Email"
                   value={formData.email}
-                  onChange={handleChange}
+                  onChange={(e) => setFormData((p) => ({ ...p, email: e.target.value }))}
                   required
                 />
                 <LuxuryInput
                   type="tel"
-                  name="phone"
                   placeholder="Phone (optional)"
                   value={formData.phone}
-                  onChange={handleChange}
+                  onChange={(e) => setFormData((p) => ({ ...p, phone: e.target.value }))}
                 />
                 <LuxuryInput
                   type="text"
-                  name="subject"
                   placeholder="Website, channel, or business name"
                   value={formData.subject}
-                  onChange={handleChange}
+                  onChange={(e) => setFormData((p) => ({ ...p, subject: e.target.value }))}
                   required
                 />
                 <textarea
                   name="message"
                   value={formData.message}
-                  onChange={handleChange}
+                  onChange={(e) => setFormData((p) => ({ ...p, message: e.target.value }))}
                   placeholder="Describe your audience, traffic, and how you would promote Traverion..."
                   rows={8}
                   className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-finland focus:border-transparent transition-all resize-y text-sm"
@@ -196,8 +161,6 @@ export default function AffiliatePage({ onNavigate }: AffiliatePageProps) {
               </form>
             </>
           )}
-        </LuxuryCard>
-      </div>
-    </div>
+    </LegalPageShell>
   );
 }

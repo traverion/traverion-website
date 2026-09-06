@@ -163,13 +163,25 @@ export default function SupplierDashboard({ onNavigateToBookings }: SupplierDash
     .sort((a, b) => (a.booking_date ?? '').localeCompare(b.booking_date ?? ''))
     .slice(0, 4);
 
+  const hour = now.getHours();
+  const hello = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+
   return (
-    <div className={SUPPLIER_PAGE_CLASS}>
-      <header className="pt-2 sm:pt-8 mb-10">
-        <p className="text-sm text-ink-muted mb-2">{dateLabel}</p>
-        <h1 className="font-display text-4xl sm:text-5xl text-ink">
-          {firstName ? `Good day, ${firstName}.` : 'Today'}
-        </h1>
+    <div className={`${SUPPLIER_PAGE_CLASS} motion-safe:animate-fade-in`}>
+      <header className="pt-2 sm:pt-8 mb-10 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+        <div>
+          <p className="text-sm text-ink-muted mb-2">{dateLabel}</p>
+          <h1 className="font-display text-4xl sm:text-5xl text-ink">
+            {firstName ? `${hello}, ${firstName}.` : hello}
+          </h1>
+        </div>
+        <button
+          type="button"
+          onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/listings?new=1`)}
+          className="tv-btn-primary self-start"
+        >
+          New listing
+        </button>
       </header>
 
       {dashboardError && (
@@ -181,26 +193,33 @@ export default function SupplierDashboard({ onNavigateToBookings }: SupplierDash
         {dashboardLoading && publishedListingsCount === null ? (
           <p className="text-ink-muted text-sm">Loading…</p>
         ) : todayScheduleRows.length === 0 ? (
-          <p className="font-display text-2xl text-ink-muted">No tours today.</p>
+          <div className="max-w-md">
+            <p className="font-display text-2xl text-ink">No operations today</p>
+            <p className="mt-2 text-sm text-ink-muted">When you have a tour running today, guests show up here.</p>
+          </div>
         ) : (
           <ul className="space-y-4">
             {todayScheduleRows.map((row) => (
               <li key={row.listingId}>
-                <p className="font-sans text-lg font-semibold text-ink">{row.title}</p>
-                <p className="text-sm text-ink-muted">
-                  {row.guests} guests · {row.bookings} booking{row.bookings === 1 ? '' : 's'}
-                </p>
+                <button
+                  type="button"
+                  onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/calendar`)}
+                  className="lux-flat text-left"
+                >
+                  <p className="font-sans text-lg font-semibold text-ink">{row.title}</p>
+                  <p className="text-sm text-ink-muted">
+                    {row.guests} guests · {row.bookings} booking{row.bookings === 1 ? '' : 's'}
+                  </p>
+                </button>
               </li>
             ))}
           </ul>
         )}
       </section>
 
+      {upcoming.length > 0 && (
       <section className="mb-12">
         <h2 className="text-[11px] uppercase tracking-[0.18em] text-ink-faint mb-4">Upcoming</h2>
-        {upcoming.length === 0 ? (
-          <p className="text-ink-muted text-sm">Nothing scheduled after today.</p>
-        ) : (
           <ul className="space-y-4">
             {upcoming.map((b) => (
               <li key={b.id} className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1">
@@ -217,15 +236,13 @@ export default function SupplierDashboard({ onNavigateToBookings }: SupplierDash
               </li>
             ))}
           </ul>
-        )}
       </section>
+      )}
 
+      {attentionCount > 0 && (
       <section className="mb-12">
         <h2 className="text-[11px] uppercase tracking-[0.18em] text-ink-faint mb-4">Needs attention</h2>
-        {attentionCount === 0 ? (
-          <p className="text-ink-muted text-sm">You’re clear.</p>
-        ) : (
-          <ul className="space-y-2 text-sm">
+        <ul className="space-y-2 text-sm">
             {pendingBookings.length > 0 && (
               <li>
                 <button type="button" onClick={() => onNavigateToBookings?.()} className="lux-flat text-finland font-medium">
@@ -235,8 +252,8 @@ export default function SupplierDashboard({ onNavigateToBookings }: SupplierDash
             )}
             {draftListingsCount > 0 && (
               <li>
-                <button type="button" onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/tours`)} className="lux-flat text-finland font-medium">
-                  {draftListingsCount} draft tour{draftListingsCount === 1 ? '' : 's'}
+                <button type="button" onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/listings`)} className="lux-flat text-finland font-medium">
+                  {draftListingsCount} draft listing{draftListingsCount === 1 ? '' : 's'}
                 </button>
               </li>
             )}
@@ -248,8 +265,8 @@ export default function SupplierDashboard({ onNavigateToBookings }: SupplierDash
               </li>
             )}
           </ul>
-        )}
       </section>
+      )}
 
       {recentBookings.length > 0 && (
         <section className="mb-12">

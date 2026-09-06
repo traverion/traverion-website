@@ -13,7 +13,7 @@ function TikTokIcon({ className }: { className?: string }) {
 }
 
 const linkClass =
-  'lux-flat text-gray-400 hover:text-white text-sm transition-colors duration-300 ease-lux underline decoration-gray-500 underline-offset-2 hover:decoration-white';
+  'lux-flat text-ink-muted hover:text-ink text-sm transition-colors underline decoration-transparent underline-offset-2 hover:decoration-ink';
 
 /** Footer: Support, Company, Work With Us — partner login is on partner.traverion.com/login when live. */
 export default function Footer({ onNavigate }: { onNavigate?: (page: string) => void }) {
@@ -30,23 +30,23 @@ export default function Footer({ onNavigate }: { onNavigate?: (page: string) => 
   };
 
   return (
-    <footer className="bg-[#0f172a] text-white">
+    <footer className="bg-paper border-t border-black/[0.06] text-ink">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 lg:gap-12">
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
             <a href="/" className="inline-flex items-center gap-2 mb-4">
               <img src={BRAND_LOGO_SRC} alt="" className="h-11 w-auto object-contain" />
-              <span className="font-semibold text-lg text-white">TRAVERION</span>
+              <span className="font-sans text-sm font-semibold tracking-[0.18em] text-ink">TRAVERION</span>
             </a>
-            <p className="text-sm text-gray-400 max-w-xs">
-              Discover and book tours and activities from independent operators. Holiday packages are coming next.
+            <p className="text-sm text-ink-muted max-w-xs">
+              Discover and book tours from independent operators. Holiday packages are coming next.
             </p>
           </div>
 
           {/* Support */}
           <div>
-            <h3 className="font-semibold text-white mb-3 text-sm uppercase tracking-wide">Support</h3>
+            <h3 className="font-sans text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint mb-3">Support</h3>
             <ul className="space-y-2">
               <li><button type="button" onClick={() => nav('contact')} className={`${linkClass} text-left bg-transparent border-0 cursor-pointer`}>Contact</button></li>
               <li><button type="button" onClick={() => nav('legal-notice')} className={`${linkClass} text-left bg-transparent border-0 cursor-pointer`}>Legal Notice</button></li>
@@ -59,7 +59,7 @@ export default function Footer({ onNavigate }: { onNavigate?: (page: string) => 
 
           {/* Company */}
           <div>
-            <h3 className="font-semibold text-white mb-3 text-sm uppercase tracking-wide">Company</h3>
+            <h3 className="font-sans text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint mb-3">Company</h3>
             <ul className="space-y-2">
               <li><button type="button" onClick={() => nav('about')} className={`${linkClass} text-left bg-transparent border-0 cursor-pointer`}>About Us</button></li>
             </ul>
@@ -67,7 +67,7 @@ export default function Footer({ onNavigate }: { onNavigate?: (page: string) => 
 
           {/* Want to work with us? */}
           <div>
-            <h3 className="font-semibold text-white mb-3 text-sm uppercase tracking-wide">Want to work with us?</h3>
+            <h3 className="font-sans text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint mb-3">Work with us</h3>
             <ul className="space-y-2">
               <li>
                 <a href={affiliateUrl} className={linkClass}>
@@ -86,9 +86,9 @@ export default function Footer({ onNavigate }: { onNavigate?: (page: string) => 
       </div>
 
       {/* Bottom bar – copyright + social */}
-      <div className="border-t border-white/10">
+      <div className="border-t border-black/[0.06]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row justify-between items-center gap-3">
-          <p className="text-sm text-gray-500 text-center sm:text-left">
+          <p className="text-sm text-ink-faint text-center sm:text-left">
             © 2026 Traverion – Original from Finland
           </p>
           <div className="flex items-center gap-4">
@@ -96,7 +96,7 @@ export default function Footer({ onNavigate }: { onNavigate?: (page: string) => 
               href="https://instagram.com/traverionco"
               target="_blank"
               rel="noopener noreferrer"
-              className="lux-tap-target p-2 text-gray-400 hover:text-white transition-colors duration-300 ease-lux rounded-lg hover:bg-white/10"
+              className="lux-tap-target p-2 text-ink-muted hover:text-ink transition-colors rounded-lg"
               aria-label="Instagram"
             >
               <Instagram className="w-5 h-5" />
@@ -105,7 +105,7 @@ export default function Footer({ onNavigate }: { onNavigate?: (page: string) => 
               href="https://tiktok.com/@traverion.com"
               target="_blank"
               rel="noopener noreferrer"
-              className="lux-tap-target p-2 text-gray-400 hover:text-white transition-colors duration-300 ease-lux rounded-lg hover:bg-white/10"
+              className="lux-tap-target p-2 text-ink-muted hover:text-ink transition-colors rounded-lg"
               aria-label="TikTok"
             >
               <TikTokIcon className="w-5 h-5" />

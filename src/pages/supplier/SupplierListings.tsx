@@ -77,6 +77,22 @@ export default function SupplierListings() {
   const [payoutVerificationStatus, setPayoutVerificationStatus] = useState<string | null>(null);
   const [payoutOnFile, setPayoutOnFile] = useState(false);
   const [publishGate, setPublishGate] = useState<{ listingId: string; title: string; blockers: string[] } | null>(null);
+  const [showCreateChooser, setShowCreateChooser] = useState(false);
+
+  const startNewTour = useCallback(() => {
+    if (!canEditListings || !canPostNewListing) return;
+    setShowCreateChooser(false);
+    setEditingId(null);
+    setShowForm(true);
+    setFormFocusSection(null);
+    window.history.pushState({}, '', `${PARTNER_APP_BASE}/listings`);
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  }, [canEditListings, canPostNewListing]);
+
+  const openCreateChooser = useCallback(() => {
+    if (!canEditListings || !canPostNewListing) return;
+    setShowCreateChooser(true);
+  }, [canEditListings, canPostNewListing]);
 
   const showFormRef = useRef(false);
   const editorHistoryPushedRef = useRef(false);
@@ -160,6 +176,16 @@ export default function SupplierListings() {
     const params = new URLSearchParams(window.location.search);
     const edit = params.get('edit');
     const focus = params.get('focus');
+    const wantsNew = params.get('new') === '1';
+    if (wantsNew && !edit) {
+      setShowCreateChooser(true);
+      if (typeof window !== 'undefined') {
+        const u = new URL(window.location.href);
+        u.searchParams.delete('new');
+        const q = u.searchParams.toString();
+        window.history.replaceState(window.history.state, '', q ? `${u.pathname}?${q}` : u.pathname);
+      }
+    }
     if (edit) {
       setEditingId(edit);
       setShowForm(true);
@@ -200,7 +226,7 @@ export default function SupplierListings() {
     setFormFocusSection(null);
     const params = new URLSearchParams(window.location.search);
     if (params.get('edit')) {
-      window.history.replaceState({}, '', `${PARTNER_APP_BASE}/tours`);
+      window.history.replaceState({}, '', `${PARTNER_APP_BASE}/listings`);
     }
   }, [canEditListings]);
 
@@ -235,7 +261,7 @@ export default function SupplierListings() {
       setShowForm(false);
       setEditingId(null);
       setFormFocusSection(null);
-      window.history.replaceState({}, '', `${PARTNER_APP_BASE}/tours`);
+      window.history.replaceState({}, '', `${PARTNER_APP_BASE}/listings`);
     }, 200);
 
     return () => {
@@ -540,31 +566,24 @@ export default function SupplierListings() {
   return (
     <div className={SUPPLIER_PAGE_CLASS}>
       <SupplierPageHero
-        title="Tours"
-        description="Your inventory, as travelers will see it."
+        title="Listings"
+        description="Tours you operate. Stays join this workspace when they are ready."
         actions={
           <button
             type="button"
-            onClick={() => {
-              if (!canEditListings || !canPostNewListing) return;
-              setEditingId(null);
-              setShowForm(true);
-              setFormFocusSection(null);
-              window.history.pushState({}, '', `${PARTNER_APP_BASE}/tours`);
-              window.dispatchEvent(new PopStateEvent('popstate'));
-            }}
+            onClick={openCreateChooser}
             disabled={!canEditListings || !canPostNewListing}
             title={
               !canEditListings
                 ? 'Your role can view listings but cannot add new ones.'
                 : !canPostNewListing
-                  ? 'Traverion must approve your business and your payout (IBAN + BIC) before you can add a tour.'
+                  ? 'Traverion must approve your business and your payout (IBAN + BIC) before you can add a listing.'
                   : undefined
             }
-            className="inline-flex w-full shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-finland px-5 py-3 text-[15px] font-semibold text-white shadow-sm transition-colors hover:bg-finland-dark active:scale-[0.99] disabled:opacity-50 touch-manipulation min-h-[48px] md:w-auto"
+            className="tv-btn-primary w-full md:w-auto"
           >
             <Plus className="h-5 w-5 shrink-0" aria-hidden />
-            <span>Create tour</span>
+            <span>New listing</span>
           </button>
         }
       />
@@ -698,6 +717,29 @@ export default function SupplierListings() {
         </div>
       )}
 
+      {showCreateChooser && (
+        <div className="tv-sheet-overlay z-[85]">
+          <button type="button" className="absolute inset-0" aria-label="Close" onClick={() => setShowCreateChooser(false)} />
+          <aside role="dialog" aria-modal="true" aria-labelledby="create-listing-title" className="tv-sheet-panel relative motion-safe:animate-slide-up">
+            <h2 id="create-listing-title" className="font-display text-2xl text-ink">What would you like to list?</h2>
+            <p className="mt-2 text-sm text-ink-muted">Only live inventory is offered. Nothing unfinished is published to travelers.</p>
+            <div className="mt-6 space-y-2">
+              <button type="button" onClick={startNewTour} className="lux-flat w-full rounded-2xl bg-paper px-4 py-4 text-left hover:bg-black/[0.04]">
+                <p className="font-semibold text-ink">Tour</p>
+                <p className="mt-1 text-sm text-ink-muted">A guided day, activity, or departure with a price and meeting point.</p>
+              </button>
+              <div className="w-full rounded-2xl px-4 py-4 text-left opacity-70">
+                <p className="font-semibold text-ink">Stay</p>
+                <p className="mt-1 text-sm text-ink-muted">Apartments and rooms are coming. Not available to create yet.</p>
+              </div>
+            </div>
+            <button type="button" onClick={() => setShowCreateChooser(false)} className="tv-btn-ghost mt-4">
+              Cancel
+            </button>
+          </aside>
+        </div>
+      )}
+
       {showForm && (
         <SupplierListingForm
           key={editingId ?? 'create'}
@@ -723,7 +765,7 @@ export default function SupplierListings() {
             setShowForm(false);
             setEditingId(null);
             setFormFocusSection(null);
-            window.history.pushState({}, '', `${PARTNER_APP_BASE}/tours`);
+            window.history.pushState({}, '', `${PARTNER_APP_BASE}/listings`);
             window.dispatchEvent(new PopStateEvent('popstate'));
           }}
           focusSection={formFocusSection}
@@ -739,27 +781,24 @@ export default function SupplierListings() {
         </div>
       ) : listings.length === 0 && !showForm ? (
         <SupplierEmptyState
-          title="No tours yet"
-          body="Create your first tour. Photos, price, and meeting point — then publish when you’re ready."
+          title="No listings yet"
+          body="Start with a tour. Photos, price, and meeting point — then publish when you’re ready. Stays will be available here later."
           action={
             <button
               type="button"
-              onClick={() => {
-                if (!canEditListings || !canPostNewListing) return;
-                setShowForm(true);
-              }}
+              onClick={openCreateChooser}
               disabled={!canEditListings || !canPostNewListing}
               title={
                 !canEditListings
-                  ? 'Your role cannot add tours.'
+                  ? 'Your role cannot add listings.'
                   : !canPostNewListing
                     ? 'Business verification and payout verification (IBAN + BIC) required.'
                     : undefined
               }
-              className="inline-flex items-center gap-2 h-12 px-6 rounded-full bg-finland text-white font-semibold hover:bg-finland-dark disabled:opacity-50"
+              className="tv-btn-primary"
             >
               <Plus className="w-5 h-5" />
-              Create a tour
+              New listing
             </button>
           }
         />
@@ -797,7 +836,7 @@ export default function SupplierListings() {
                           isLive ? 'bg-paper-raised text-ink' : 'bg-ink/70 text-paper-raised'
                         }`}
                       >
-                        {isLive ? 'Published' : 'Draft'}
+                        {isLive ? 'Live tour' : 'Draft tour'}
                       </span>
                     </div>
                     <div className="pt-3">

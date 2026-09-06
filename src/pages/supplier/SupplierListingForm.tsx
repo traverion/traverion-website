@@ -1403,7 +1403,7 @@ export default function SupplierListingForm({
           </div>
           <div className="mb-5 min-w-0">
             <h2 id="supplier-listing-editor-title" className="font-display text-2xl sm:text-3xl text-ink">
-              {editingId ? form.title.trim() || 'Tour' : 'Create your tour'}
+              {editingId ? form.title.trim() || 'Tour' : 'Create tour'}
             </h2>
             <p className="text-sm text-ink-muted mt-1 max-w-xl">
               {editingId

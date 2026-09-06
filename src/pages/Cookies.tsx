@@ -1,8 +1,5 @@
-import { ArrowLeft, Cookie, Settings, Shield, Mail, Phone } from 'lucide-react';
-import LuxuryButton from '../components/ui/LuxuryButton';
-import PageHero from '../components/PageHero';
-import { HERO_IMG } from '../lib/heroImages';
-import { navigateBackOrFallback } from '../lib/appRouting';
+import { Cookie, Settings, Shield, Mail } from 'lucide-react';
+import LegalPageShell from '../components/LegalPageShell';
 
 type CookiesProps = {
   onNavigate?: (page: string) => void;
@@ -10,33 +7,12 @@ type CookiesProps = {
 
 export default function Cookies({ onNavigate }: CookiesProps) {
   return (
-    <div className="min-h-screen bg-gray-50 pt-20">
-      <PageHero
-        imageSrc={HERO_IMG.laos}
-        eyebrow="Transparency"
-        title="Cookies & marketing preferences"
-        subtitle="What cookies we use, why they matter, and how you can control analytics and marketing signals when you browse Traverion."
-        overlay="finland"
-      />
-
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <LuxuryButton
-          variant="outline"
-          onClick={() =>
-            navigateBackOrFallback(() => {
-              onNavigate?.('home');
-            })
-          }
-          className="mb-8"
-        >
-          <ArrowLeft className="mr-2 w-4 h-4" />
-          Back
-        </LuxuryButton>
-
-        <p className="text-gray-600 text-sm mb-6">Last updated: {new Date().toLocaleDateString()}</p>
-
-        {/* Content */}
-        <div className="bg-white rounded-xl shadow-lg p-6 sm:p-8 space-y-8 border border-gray-100">
+    <LegalPageShell
+      title="Cookies & marketing preferences"
+      subtitle="What cookies we use, why they matter, and how you can control analytics and marketing signals when you browse Traverion."
+      onNavigate={onNavigate}
+    >
+        <p className="text-sm text-ink-faint">Last updated: {new Date().toLocaleDateString()}</p>
           <section>
             <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
               <Cookie className="w-6 h-6 text-sky-600" />
@@ -119,9 +95,7 @@ export default function Cookies({ onNavigate }: CookiesProps) {
               </div>
             </div>
           </section>
-        </div>
-      </div>
-    </div>
+    </LegalPageShell>
   );
 }
 

@@ -1,9 +1,6 @@
 import type { MouseEvent } from 'react';
-import { ArrowLeft, FileText, Scale, AlertTriangle, Mail, Shield, Globe } from 'lucide-react';
-import LuxuryButton from '../components/ui/LuxuryButton';
-import PageHero from '../components/PageHero';
-import { HERO_IMG } from '../lib/heroImages';
-import { navigateBackOrFallback } from '../lib/appRouting';
+import { FileText, Scale, AlertTriangle, Mail, Shield, Globe } from 'lucide-react';
+import LegalPageShell from '../components/LegalPageShell';
 
 type TermsProps = {
   onNavigate?: (page: string) => void;
@@ -27,30 +24,11 @@ export default function Terms({ onNavigate }: TermsProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-20">
-      <PageHero
-        imageSrc={HERO_IMG.banner}
-        overlay="slate"
-        eyebrow="Legal"
-        title="General Terms and Conditions"
-        subtitle="Terms of Service for using Traverion — bookings, accounts, liability, and your relationship with us and our suppliers."
-      />
-
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <LuxuryButton
-          variant="outline"
-          onClick={() =>
-            navigateBackOrFallback(() => {
-              onNavigate?.('home');
-            })
-          }
-          className="mb-8"
-        >
-          <ArrowLeft className="mr-2 w-4 h-4" />
-          Back
-        </LuxuryButton>
-
-        <div>
+    <LegalPageShell
+      title="General Terms and Conditions"
+      subtitle="Terms of Service for using Traverion — bookings, accounts, liability, and your relationship with us and our suppliers."
+      onNavigate={onNavigate}
+    >
           <header className="mb-8">
             <p className="text-gray-600 text-sm">
               Last updated: {LAST_UPDATED}
@@ -68,8 +46,6 @@ export default function Terms({ onNavigate }: TermsProps) {
             </p>
           </header>
 
-          {/* Content */}
-          <div className="bg-white rounded-xl shadow-lg p-6 sm:p-8 space-y-8 border border-gray-100">
           <section>
             <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
               <Scale className="w-6 h-6 text-sky-600 shrink-0" />
@@ -276,7 +252,7 @@ export default function Terms({ onNavigate }: TermsProps) {
             </h2>
             <div className="space-y-4 text-gray-700">
               <p>For questions about these Terms of Service, please contact us:</p>
-              <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+          <div className="rounded-xl bg-paper p-4 space-y-2">
                 <p>
                   <strong>Email:</strong>{' '}
                   <a href="mailto:info@traverion.com" className="text-sky-700 hover:underline">
@@ -287,9 +263,6 @@ export default function Terms({ onNavigate }: TermsProps) {
               </div>
             </div>
           </section>
-          </div>
-        </div>
-      </div>
-    </div>
+    </LegalPageShell>
   );
 }

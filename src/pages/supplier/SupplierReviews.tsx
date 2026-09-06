@@ -172,12 +172,7 @@ export default function SupplierReviews() {
         />
       ) : (
         <div className="space-y-4 sm:space-y-5">
-          <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint mb-3">
-              Filters
-            </p>
-            <div className="flex flex-col gap-3 px-3 py-3 sm:px-4 sm:py-4">
-              <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
+                <div className="flex flex-wrap items-end gap-x-4 gap-y-3 mb-6">
                 <div className="flex flex-col gap-1 min-w-[min(100%,12rem)] flex-1 sm:flex-none sm:min-w-[11rem]">
                   <label className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Tour</label>
                   <select
@@ -224,7 +219,7 @@ export default function SupplierReviews() {
                   </select>
                 </div>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 mb-8">
                 {hasActiveFilters ? (
                   <>
                     <button
@@ -242,17 +237,15 @@ export default function SupplierReviews() {
                   <span className="text-sm text-gray-500">Filter by product, stars, or reply status.</span>
                 )}
               </div>
-            </div>
-          </div>
 
           {filteredReviews.length === 0 ? (
-            <div className="bg-white border border-gray-200 rounded-xl p-10 text-center">
-              <p className="text-gray-800 font-medium">No reviews match these filters</p>
-              <p className="text-sm text-gray-500 mt-1">Try another product, rating, or reply status.</p>
+            <div className="max-w-md py-8">
+              <p className="font-display text-2xl text-ink">No reviews match</p>
+              <p className="text-sm text-ink-muted mt-2">Try another listing, rating, or reply status.</p>
               <button
                 type="button"
                 onClick={clearFilters}
-                className="mt-4 px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50"
+                className="tv-btn-ghost mt-4"
               >
                 Clear filters
               </button>

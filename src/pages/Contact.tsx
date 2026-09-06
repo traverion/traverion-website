@@ -1,10 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Mail, Send, CheckCircle } from 'lucide-react';
+import { Send, CheckCircle } from 'lucide-react';
 import LuxuryButton from '../components/ui/LuxuryButton';
-import LuxuryCard from '../components/ui/LuxuryCard';
 import LuxuryInput from '../components/ui/LuxuryInput';
-import PageHero from '../components/PageHero';
-import { HERO_IMG } from '../lib/heroImages';
+import LegalPageShell from '../components/LegalPageShell';
 import { submitContactInquiry, ContactInquiry } from '../data/supabase-contact';
 import { required, validateEmail, maxLength } from '../lib/validation';
 import { CONTACT_PREFILL_KEY } from '../lib/contactPrefill';
@@ -108,13 +106,6 @@ export default function Contact({ onNavigate }: ContactProps) {
     }
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
-  };
-
   const goPackages = (e: React.MouseEvent<HTMLAnchorElement>) => {
     if (onNavigate) {
       e.preventDefault();
@@ -123,74 +114,55 @@ export default function Contact({ onNavigate }: ContactProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-20">
-      <PageHero
-        imageSrc={HERO_IMG.beach}
-        overlay="slateSoft"
-        eyebrow="Support"
-        title="Contact us"
-        subtitle="Bookings, trips, and general questions only. Affiliate and creator applications each have their own page in the footer."
-      />
+    <LegalPageShell
+      title="Contact us"
+      subtitle="Bookings, trips, and general questions. Affiliate and creator applications each have their own page in the footer."
+      onNavigate={onNavigate}
+    >
+      <p>
+        Browse{' '}
+        <a href="/packages" onClick={goPackages} className="text-finland font-medium hover:underline">
+          tours &amp; activities
+        </a>{' '}
+        anytime. Email{' '}
+        <a href="mailto:info@traverion.com" className="text-finland font-medium hover:underline">
+          info@traverion.com
+        </a>
+        .
+      </p>
 
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12 pt-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-start">
-          <div className="pt-2">
-            <div className="inline-block px-3 py-1.5 bg-finland/10 text-finland rounded-full text-sm font-semibold mb-4">
-              Get in touch
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4">We are here to help</h2>
-            <p className="text-lg text-gray-600 leading-relaxed max-w-xl mb-4">
-              Tell us what you need — tours, packages, or account help — and we will follow up. Supplier
-              access: supplier portal. Partnerships: <strong className="text-gray-800">Become an affiliate</strong>.
-              Media / creators: <strong className="text-gray-800">Become a content creator</strong>.
-            </p>
-            <p className="text-gray-600 leading-relaxed max-w-xl">
-              Browse{' '}
-              <a href="/packages" onClick={goPackages} className="text-finland font-medium hover:underline">
-                tours &amp; activities
-              </a>{' '}
-              anytime.
-            </p>
-          </div>
-
-          <LuxuryCard variant="elevated" className="p-6 sm:p-8">
-            {isSubmitted ? (
-              <div className="text-center py-6">
-                <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <CheckCircle className="w-7 h-7 text-green-500" />
-                </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Message Sent!</h3>
-                <p className="text-gray-600">Thank you. We will get back to you soon.</p>
-              </div>
-            ) : (
-              <form onSubmit={handleSubmit} className="space-y-4">
+      {isSubmitted ? (
+        <div>
+          <CheckCircle className="w-8 h-8 text-finland mb-3" />
+          <h2>Message sent</h2>
+          <p>Thank you. We will get back to you soon.</p>
+        </div>
+      ) : (
+              <form onSubmit={handleSubmit} className="space-y-4 max-w-lg">
                 <LuxuryInput
                   type="text"
                   placeholder="Your Name"
                   value={formData.name}
-                  onChange={handleInputChange}
-                  name="name"
+                  onChange={(e) => setFormData((p) => ({ ...p, name: e.target.value }))}
                   required
                 />
                 <LuxuryInput
                   type="email"
                   placeholder="Email Address"
                   value={formData.email}
-                  onChange={handleInputChange}
-                  name="email"
+                  onChange={(e) => setFormData((p) => ({ ...p, email: e.target.value }))}
                   required
                 />
                 <LuxuryInput
                   type="tel"
                   placeholder="Phone number (optional)"
                   value={formData.phone}
-                  onChange={handleInputChange}
-                  name="phone"
+                  onChange={(e) => setFormData((p) => ({ ...p, phone: e.target.value }))}
                 />
                 <textarea
                   name="message"
                   value={formData.message}
-                  onChange={handleInputChange}
+                  onChange={(e) => setFormData((p) => ({ ...p, message: e.target.value }))}
                   placeholder="Your message..."
                   rows={8}
                   className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-finland focus:border-transparent transition-all resize-none"
@@ -217,23 +189,6 @@ export default function Contact({ onNavigate }: ContactProps) {
                 </LuxuryButton>
               </form>
             )}
-          </LuxuryCard>
-        </div>
-
-        <div className="mt-10 grid grid-cols-1 sm:max-w-md gap-4">
-          <div className="bg-white border border-gray-200 rounded-xl p-5 flex items-center gap-3">
-            <span className="w-10 h-10 rounded-full bg-finland/10 text-finland flex items-center justify-center">
-              <Mail className="w-5 h-5" />
-            </span>
-            <div>
-              <p className="text-xs uppercase tracking-wide text-gray-500">Email</p>
-              <a href="mailto:info@traverion.com" className="text-gray-900 font-medium hover:text-finland">
-                info@traverion.com
-              </a>
-            </div>
-          </div>
-        </div>
-      </section>
-    </div>
+    </LegalPageShell>
   );
 }

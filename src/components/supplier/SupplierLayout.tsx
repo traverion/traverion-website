@@ -84,7 +84,7 @@ type BusinessProfileTab = 'company' | 'legal';
 const PRIMARY_NAV: { id: SupplierSection; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'dashboard', label: 'Today', icon: LayoutDashboard },
   { id: 'availability', label: 'Calendar', icon: CalendarDays },
-  { id: 'listings', label: 'Tours', icon: MapPin },
+  { id: 'listings', label: 'Listings', icon: MapPin },
   { id: 'bookings', label: 'Bookings', icon: Calendar },
 ];
 
@@ -109,7 +109,7 @@ const PATH_ALIASES: Record<string, SupplierSection> = {
 
 function pathForSection(s: SupplierSection): string {
   if (s === 'dashboard') return PARTNER_APP_BASE;
-  if (s === 'listings') return `${PARTNER_APP_BASE}/tours`;
+  if (s === 'listings') return `${PARTNER_APP_BASE}/listings`;
   if (s === 'availability') return `${PARTNER_APP_BASE}/calendar`;
   if (s === 'earnings') return `${PARTNER_APP_BASE}/money`;
   return `${PARTNER_APP_BASE}/${s}`;

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Tag, Plus, MapPin, Pencil, Trash2, Percent } from 'lucide-react';
+import { Tag, MapPin, Pencil, Trash2 } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { fetchMyListings } from '../../data/supabase-listings';
 import { TourPackage } from '../../types/tour';
@@ -19,6 +19,7 @@ import {
   SUPPLIER_SECTION_HEADER_CLASS,
   SupplierListSkeleton,
   SupplierPageHero,
+  SupplierEmptyState,
 } from '../../components/supplier/supplierUi';
 
 function optionLabelForDiscount(tour: TourPackage, d: ListingDiscount): string {
@@ -125,8 +126,8 @@ export default function SupplierDiscountsOffers() {
     <div className={SUPPLIER_PAGE_CLASS}>
       <SupplierPageHero
         icon={Tag}
-        title="Discounts & offers"
-        description="Time-limited percentage promotions on a booking option (up to 30 days)."
+        title="Offers"
+        description="Time-limited percentage promotions on a listing option."
         actions={
           canEdit ? (
             <button
@@ -134,10 +135,9 @@ export default function SupplierDiscountsOffers() {
               onClick={openNew}
               disabled={listings.length === 0}
               title={listings.length === 0 ? 'Add a listing first' : undefined}
-              className="inline-flex items-center justify-center gap-2 px-4 py-3 sm:py-2.5 rounded-xl bg-finland text-white font-semibold hover:bg-finland-dark min-h-[48px] touch-manipulation shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="tv-btn-primary"
             >
-              <Plus className="w-5 h-5 shrink-0" />
-              New discount offer
+              {publishedCount > 0 ? 'New offer' : 'New discount offer'}
             </button>
           ) : undefined
         }
@@ -158,19 +158,15 @@ export default function SupplierDiscountsOffers() {
       {loading ? (
         <SupplierListSkeleton rows={3} />
       ) : listings.length === 0 ? (
-        <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center shadow-sm animate-scale-in">
-          <p className="text-gray-700 font-medium">No tours yet</p>
-          <p className="text-sm text-gray-500 mt-2 max-w-md mx-auto">
-            Add and publish a listing with at least one bookable option, then you can attach timed discounts here.
-          </p>
-          <button
-            type="button"
-            onClick={goToListings}
-            className="mt-5 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-finland text-white font-semibold hover:bg-finland-dark"
-          >
-            Go to My listings
-          </button>
-        </div>
+        <SupplierEmptyState
+          title="No listings yet"
+          body="Add and publish a listing with at least one bookable option, then you can attach timed discounts here."
+          action={
+            <button type="button" onClick={goToListings} className="tv-btn-primary">
+              Open listings
+            </button>
+          }
+        />
       ) : (
         <>
           {publishedCount === 0 && canEdit && (
@@ -188,23 +184,14 @@ export default function SupplierDiscountsOffers() {
             </div>
 
             {rows.length === 0 ? (
-              <div className="p-8 sm:p-10 text-center">
-                <div className="inline-flex w-12 h-12 rounded-2xl bg-finland/10 text-finland items-center justify-center mb-4">
-                  <Percent className="w-6 h-6" aria-hidden />
-                </div>
-                <p className="text-gray-800 font-medium">No offers yet</p>
-                <p className="text-sm text-gray-500 mt-2 max-w-md mx-auto">
-                  Create a promotion for one of your bookable options. It will show on tour cards and the booking panel when the
-                  dates are in range.
+              <div className="py-10 px-4 max-w-md">
+                <p className="font-display text-2xl text-ink">No offers yet</p>
+                <p className="text-sm text-ink-muted mt-2">
+                  Create a timed discount on a published listing. It will appear on the public tour page.
                 </p>
                 {canEdit && (
-                  <button
-                    type="button"
-                    onClick={openNew}
-                    className="mt-5 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-finland text-white font-semibold hover:bg-finland-dark"
-                  >
-                    <Plus className="w-5 h-5" />
-                    New discount offer
+                  <button type="button" onClick={openNew} className="tv-btn-primary mt-5">
+                    New offer
                   </button>
                 )}
               </div>
