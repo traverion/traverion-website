@@ -1466,6 +1466,7 @@ export default function SupplierListingForm({
           ref={stepContainerRef}
           className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6 sm:py-5"
         >
+          <div key={stepIdx} className="motion-safe:animate-fade-in">
           {stepIdx === 0 && (
             <div className="space-y-5 transition-all duration-300 ease-out opacity-100 translate-y-0">
               <div id="supplier-listing-field-language">
@@ -2076,6 +2077,7 @@ export default function SupplierListingForm({
               </div>
             </div>
           )}
+          </div>
         </div>
 
         <div className="px-4 sm:px-6 py-3 sm:py-4 border-t border-gray-200 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 shrink-0">
@@ -2083,7 +2085,7 @@ export default function SupplierListingForm({
             type="button"
             onClick={() => setStepIdxPersisted((s) => Math.max(0, s - 1))}
             disabled={stepIdx === 0 || draftCloseBusy || submitting}
-            className="touch-manipulation w-full sm:w-auto px-4 py-3 sm:py-2.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 min-h-[44px]"
+            className="touch-manipulation tv-btn-ghost w-full sm:w-auto disabled:opacity-50"
           >
             Back
           </button>
@@ -2093,7 +2095,7 @@ export default function SupplierListingForm({
                 type="button"
                 onClick={() => setStepIdxPersisted((s) => Math.min(steps.length - 1, s + 1))}
                 disabled={!canContinueStep() || draftCloseBusy || submitting}
-                className="touch-manipulation flex-1 sm:flex-none px-4 py-3 sm:py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark disabled:opacity-50 min-h-[44px]"
+                className="touch-manipulation tv-btn-primary flex-1 sm:flex-none disabled:opacity-50"
               >
                 Continue
               </button>
@@ -2113,7 +2115,7 @@ export default function SupplierListingForm({
                     title={
                       publishBlockersPreview.length > 0 ? publishBlockersPreview[0] : 'Save updates to your live listing'
                     }
-                    className="touch-manipulation flex-1 sm:flex-none px-4 py-3 sm:py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark disabled:opacity-50 min-h-[44px]"
+                    className="touch-manipulation tv-btn-primary flex-1 sm:flex-none disabled:opacity-50"
                   >
                     {submitting ? 'Saving…' : 'Save changes'}
                   </button>
@@ -2125,7 +2127,7 @@ export default function SupplierListingForm({
                       disabled={
                         submitting || draftCloseBusy || !isStepSatisfied(3, form) || !lastStepSubmitArmed
                       }
-                      className="touch-manipulation flex-1 sm:flex-none px-4 py-3 sm:py-2.5 rounded-lg border border-gray-300 text-gray-800 font-medium hover:bg-gray-50 disabled:opacity-50 min-h-[44px]"
+                      className="touch-manipulation tv-btn-secondary flex-1 sm:flex-none disabled:opacity-50"
                     >
                       {submitting ? 'Saving…' : 'Save as draft'}
                     </button>
@@ -2140,7 +2142,7 @@ export default function SupplierListingForm({
                         publishBlockersPreview.length > 0
                       }
                       title={publishButtonTitle}
-                      className="touch-manipulation flex-1 sm:flex-none px-4 py-3 sm:py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark disabled:opacity-50 min-h-[44px]"
+                      className="touch-manipulation tv-btn-primary flex-1 sm:flex-none disabled:opacity-50"
                     >
                       {submitting ? 'Saving…' : 'Publish'}
                     </button>
@@ -2152,7 +2154,7 @@ export default function SupplierListingForm({
               type="button"
               disabled={draftCloseBusy || submitting}
               onClick={() => void handleCloseIntent()}
-              className="touch-manipulation flex-1 sm:flex-none px-4 py-3 sm:py-2.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 min-h-[44px] disabled:opacity-50"
+              className="touch-manipulation tv-btn-ghost flex-1 sm:flex-none disabled:opacity-50"
             >
               {draftCloseBusy ? 'Saving draft…' : 'Cancel'}
             </button>

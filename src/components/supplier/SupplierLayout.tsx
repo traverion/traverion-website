@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from 'react';
 import {
   LayoutDashboard,
   MapPin,
@@ -13,13 +13,8 @@ import { supabase } from '../../lib/supabase';
 import SupplierDashboard from '../../pages/supplier/SupplierDashboard';
 import SupplierListings from '../../pages/supplier/SupplierListings';
 import SupplierBookings from '../../pages/supplier/SupplierBookings';
-import SupplierEarnings from '../../pages/supplier/SupplierEarnings';
-import SupplierReviews from '../../pages/supplier/SupplierReviews';
-import SupplierPickupPlanner from '../../pages/supplier/SupplierPickupPlanner';
 import SupplierAvailability from '../../pages/supplier/SupplierAvailability';
-import SupplierDiscountsOffers from '../../pages/supplier/SupplierDiscountsOffers';
-import SupplierChangePassword from '../../pages/supplier/SupplierChangePassword';
-import PartnerOnboarding from '../../pages/supplier/PartnerOnboarding';
+import SupplierLoginPage from './SupplierLoginPage';
 import {
   authUserHasPartnerSignupMetadata,
   ensureSupplierProfile,
@@ -36,8 +31,6 @@ import {
 } from '../../lib/supplierLegalTemplates';
 import { formatSupplierBusinessAddressFromParts } from '../../lib/supplierAddress';
 import { fetchMyListings } from '../../data/supabase-listings';
-import SupplierLoginPage from './SupplierLoginPage';
-import SupplierSettingsPages from './SupplierSettingsPages';
 import { BRAND_LOGO_SRC } from '../../lib/brandAssets';
 import { isSupplierBusinessProfileComplete, isSupplierPayoutConfigured } from '../../lib/supplierOnboarding';
 import { supplierOwnsAnyListing, userHasSupplierProfile } from '../../lib/supplierPortalAccess';
@@ -56,6 +49,23 @@ import { fetchConsumerProfile } from '../../data/supabase-consumer-profile';
 import { partnerSignInTravelerOnlyEmailError } from '../../lib/customerSupplierAuthMessages';
 import { setPartnerAuthFlash } from '../../lib/partnerAuthFlash';
 import { publicSiteBaseUrl } from '../../lib/publicSiteUrl';
+
+const SupplierEarnings = lazy(() => import('../../pages/supplier/SupplierEarnings'));
+const SupplierReviews = lazy(() => import('../../pages/supplier/SupplierReviews'));
+const SupplierPickupPlanner = lazy(() => import('../../pages/supplier/SupplierPickupPlanner'));
+const SupplierDiscountsOffers = lazy(() => import('../../pages/supplier/SupplierDiscountsOffers'));
+const SupplierChangePassword = lazy(() => import('../../pages/supplier/SupplierChangePassword'));
+const PartnerOnboarding = lazy(() => import('../../pages/supplier/PartnerOnboarding'));
+const SupplierSettingsPages = lazy(() => import('./SupplierSettingsPages'));
+
+function PartnerSectionFallback() {
+  return (
+    <div className="py-10" aria-busy="true" aria-label="Loading">
+      <div className="h-10 w-40 rounded-lg bg-black/[0.06] animate-pulse" />
+      <div className="mt-4 h-4 w-full max-w-md rounded bg-black/[0.04] animate-pulse" />
+    </div>
+  );
+}
 
 type PartnerProfileGate =
   | { kind: 'pending'; forUserId: string }
@@ -774,6 +784,7 @@ export default function SupplierLayout() {
 
       <main className={`mx-auto w-full max-w-6xl min-w-0 px-4 sm:px-6 pt-4 pb-[max(1.5rem,calc(5.25rem+env(safe-area-inset-bottom)))] lg:pb-16 ${section === 'availability' ? 'max-w-none lg:px-10' : ''}`}>
         <div className="lux-page-enter w-full min-w-0">
+          <Suspense fallback={<PartnerSectionFallback />}>
           {section === 'onboarding' && (
             <PartnerOnboarding
               onSkip={() => handleNavigate('dashboard')}
@@ -905,6 +916,7 @@ export default function SupplierLayout() {
               }}
             />
           )}
+          </Suspense>
         </div>
       </main>
 

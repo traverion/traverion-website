@@ -189,6 +189,7 @@ export default function SupplierBookings() {
   const [filterDateFrom, setFilterDateFrom] = useState('');
   const [filterDateTo, setFilterDateTo] = useState('');
   const [filterQuery, setFilterQuery] = useState('');
+  const [showSearch, setShowSearch] = useState(false);
 
   const [bookingsListPage, setBookingsListPage] = useState(1);
   const [highlightBookingId, setHighlightBookingId] = useState<string | null>(null);
@@ -435,16 +436,25 @@ export default function SupplierBookings() {
       </SupplierPageHero>
 
       {bookings.length > 0 && (
-      <div className="mb-6">
+      <div className="mb-8">
+        <button
+          type="button"
+          onClick={() => setShowSearch((v) => !v)}
+          className="tv-btn-ghost -ml-2"
+        >
+          Search{filterQuery || filterListingId || filterDateFrom || filterDateTo ? ' · on' : ''}
+        </button>
+        {showSearch && (
+        <div className="mt-4 space-y-4 motion-safe:animate-fade-in">
         <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
             <div className="flex min-w-[min(100%,12rem)] flex-1 flex-col gap-1 sm:flex-none sm:min-w-[11rem]">
-              <label className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Tour</label>
+              <label className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Listing</label>
               <select
                 value={filterListingId}
                 onChange={(e) => setFilterListingId(e.target.value)}
-                className="w-full rounded-xl border-0 bg-paper-raised px-3 py-2 text-sm ring-1 ring-black/[0.06] focus:ring-2 focus:ring-finland"
+                className="tv-input"
               >
-                <option value="">All tours</option>
+                <option value="">All listings</option>
                 {listingOptions.map((option) => (
                   <option key={option.id} value={option.id}>
                     {option.title}
@@ -453,21 +463,21 @@ export default function SupplierBookings() {
               </select>
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[11px] font-medium uppercase tracking-wide text-gray-500">Activity date</label>
+              <label className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Dates</label>
               <div className="flex flex-wrap items-center gap-1.5">
                 <input
                   type="date"
                   value={filterDateFrom}
                   onChange={(e) => setFilterDateFrom(e.target.value)}
-                  className="w-[9.25rem] min-w-0 rounded-lg border border-gray-300 px-2 py-2 text-sm focus:ring-2 focus:ring-finland"
+                  className="tv-input w-[9.25rem]"
                   aria-label="Activity date from"
                 />
-                <span className="shrink-0 text-sm text-gray-400">-</span>
+                <span className="shrink-0 text-sm text-ink-faint">–</span>
                 <input
                   type="date"
                   value={filterDateTo}
                   onChange={(e) => setFilterDateTo(e.target.value)}
-                  className="w-[9.25rem] min-w-0 rounded-lg border border-gray-300 px-2 py-2 text-sm focus:ring-2 focus:ring-finland"
+                  className="tv-input w-[9.25rem]"
                   aria-label="Activity date to"
                 />
               </div>
@@ -475,13 +485,13 @@ export default function SupplierBookings() {
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end sm:gap-3">
             <div className="flex min-w-[min(100%,14rem)] flex-1 flex-col gap-1">
-              <label className="text-[11px] font-medium uppercase tracking-wide text-gray-500">Search</label>
+              <label className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Guest</label>
               <input
                 type="search"
                 value={filterQuery}
                 onChange={(e) => setFilterQuery(e.target.value)}
-                placeholder="Guest, email, booking ID, product name..."
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-finland"
+                placeholder="Name or email"
+                className="tv-input"
               />
             </div>
             <div className="flex items-center gap-2">
@@ -495,17 +505,19 @@ export default function SupplierBookings() {
                   setFilterQuery('');
                   setBookingsListPage(1);
                 }}
-                className="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50"
+                className="tv-btn-ghost"
               >
-                Clear filters
+                Clear
               </button>
               {!loading && (
-                <span className="text-sm text-gray-500">
+                <span className="text-sm text-ink-muted">
                   {filteredBookings.length} of {bookings.length}
                 </span>
               )}
             </div>
           </div>
+        </div>
+        )}
       </div>
       )}
 
@@ -544,10 +556,9 @@ export default function SupplierBookings() {
         />
       ) : (
         <div className="space-y-4">
-          <div className="space-y-4">
+          <div className="divide-y divide-black/[0.06]">
             {paginatedBookings.map((booking) => {
               const startHm = booking.start_time ? pgTimeToHm(booking.start_time) ?? null : null;
-              const pickupHm = booking.pickup_time ? pgTimeToHm(booking.pickup_time) ?? null : null;
               const meta = listingMeta[booking.listing_id];
               const listingTitle = meta?.title ?? 'Tour';
               const paidLabel = formatBookingMoney(booking.amount_paid, booking.currency);
@@ -560,34 +571,29 @@ export default function SupplierBookings() {
                   <button
                     type="button"
                     onClick={() => setSelectedBookingId(booking.id)}
-                    className={`lux-flat flex w-full min-w-0 items-stretch overflow-hidden rounded-2xl bg-paper-raised text-left transition-shadow ${
-                      highlightBookingId === booking.id ? 'ring-2 ring-finland/35' : ''
+                    className={`lux-flat flex w-full min-w-0 items-center gap-4 py-4 text-left ${
+                      highlightBookingId === booking.id ? 'bg-paper-raised -mx-2 px-2 rounded-xl' : ''
                     }`}
                   >
                     <img
                       src={meta?.imageUrl ?? LISTING_PLACEHOLDER_IMAGE}
                       alt=""
-                      className="w-20 sm:w-28 object-cover shrink-0"
+                      className="h-14 w-14 sm:h-16 sm:w-16 rounded-xl object-cover shrink-0"
                     />
-                    <div className="min-w-0 flex-1 p-3.5 sm:p-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="font-semibold text-ink truncate">{booking.guest_name || 'Guest'}</p>
-                          <p className="mt-0.5 text-sm text-ink-muted truncate">{listingTitle}</p>
-                        </div>
-                        <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize ring-1 ${bookingStatusClass(booking.status)}`}>
-                          {booking.status}
-                        </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-baseline justify-between gap-3">
+                        <p className="font-semibold text-ink truncate">{booking.guest_name || 'Guest'}</p>
+                        <span className="text-xs font-medium capitalize text-ink-muted shrink-0">{booking.status}</span>
                       </div>
-                      <p className="mt-2 text-sm text-ink-muted">
+                      <p className="mt-0.5 text-sm text-ink-muted truncate">{listingTitle}</p>
+                      <p className="mt-1 text-sm text-ink-muted">
                         {formatActivityDateLong(booking.booking_date, startHm)}
                         {' · '}
                         {booking.guests} guest{booking.guests === 1 ? '' : 's'}
                         {paidLabel ? ` · ${paidLabel}` : ''}
-                        {pickupHm ? ` · Pickup ${pickupHm}` : ''}
                       </p>
                       {needsAck ? (
-                        <p className="mt-1 text-xs font-medium text-sky-800">Needs acknowledgment</p>
+                        <p className="mt-1 text-xs font-medium text-finland">Needs a look</p>
                       ) : null}
                     </div>
                   </button>

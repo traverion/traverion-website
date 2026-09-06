@@ -9,7 +9,6 @@ import {
   Share2,
   CheckCircle,
   XCircle,
-  Info,
   ChevronDown,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -392,6 +391,15 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                 type="button"
                 className="lux-flat p-2 rounded-full bg-black/35 text-white backdrop-blur-sm hover:bg-black/50"
                 aria-label="Share"
+                onClick={() => {
+                  const url = window.location.href;
+                  const title = tour.title;
+                  if (navigator.share) {
+                    void navigator.share({ title, url }).catch(() => {});
+                  } else if (navigator.clipboard?.writeText) {
+                    void navigator.clipboard.writeText(url);
+                  }
+                }}
               >
                 <Share2 size={18} />
               </button>
@@ -521,12 +529,9 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                     Boolean(x?.typicalTimelineNotes?.trim());
                   if (!hasGoodToKnow) return null;
                   return (
-                    <div className="mt-8 rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition-all duration-200 ease-smooth hover:shadow-md">
-                      <h2 className="text-lg font-heading font-bold text-gray-900 mb-3 flex items-center gap-2">
-                        <Info className="w-5 h-5 text-finland flex-shrink-0" aria-hidden />
-                        Good to know
-                      </h2>
-                      <ul className="space-y-2 text-sm text-gray-700">
+                    <div className="mt-8">
+                      <h2 className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-3">Good to know</h2>
+                      <ul className="space-y-2 text-sm text-ink-muted">
                         {scheduleLabel && (
                           <li>
                             <span className="font-medium text-gray-900">Timing: </span>
@@ -569,7 +574,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                 })()}
 
                 {supplierLegal && (
-                  <div className="mt-6 flex items-center gap-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-all duration-200 ease-smooth hover:shadow-md">
+                  <div className="mt-8 flex items-center gap-4">
                     {supplierLegal.business_logo_url ? (
                       <img
                         src={supplierLegal.business_logo_url}
@@ -591,7 +596,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
 
               {supplierLegal &&
                 (supplierLegal.privacy_policy_text?.trim() || supplierLegal.terms_conditions_text?.trim()) && (
-                  <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition-all duration-200 ease-smooth hover:shadow-md">
+                  <div className="mt-8 pt-8 border-t border-black/[0.06]">
                     <div className="flex items-start gap-3 mb-1">
                       {supplierLegal.business_logo_url ? (
                         <img
@@ -613,7 +618,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                         <button
                           type="button"
                           onClick={() => setLegalModal('privacy')}
-                          className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm font-medium text-gray-800 hover:bg-gray-100"
+                          className="tv-btn-ghost"
                         >
                           Privacy policy
                         </button>
@@ -622,7 +627,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                         <button
                           type="button"
                           onClick={() => setLegalModal('terms')}
-                          className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm font-medium text-gray-800 hover:bg-gray-100"
+                          className="tv-btn-ghost"
                         >
                           Terms & conditions
                         </button>
@@ -696,7 +701,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                     aria-controls="tour-booking-variants-list"
                     onClick={handleCheckAvailabilityToggle}
                     disabled={variantChecking || bookingModalOpen}
-                    className="flex w-full items-center justify-center gap-2 bg-finland text-white py-3 px-4 rounded-lg font-semibold hover:bg-finland-dark transition-all disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2"
+                    className="tv-btn-primary w-full disabled:opacity-60"
                   >
                     {variantChecking ? 'Checking…' : 'Check availability'}
                     <ChevronDown

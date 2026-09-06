@@ -3,7 +3,7 @@
  * RLS ensures only rows where guest_email = auth user email are returned.
  */
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Calendar, Users, LogIn, RefreshCw, XCircle, ArrowLeft, Clock, CheckCircle, Home } from 'lucide-react';
+import { LogIn, RefreshCw, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import {
@@ -57,6 +57,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   const [staySavingId, setStaySavingId] = useState<string | null>(null);
   const [paymentBanner, setPaymentBanner] = useState<'success' | 'cancelled' | null>(null);
   const [tripView, setTripView] = useState<'upcoming' | 'past' | 'cancelled'>('upcoming');
+  const [openTripId, setOpenTripId] = useState<string | null>(null);
 
   /** Tour start is within 24 hours from now → no refund. Otherwise full refund. */
   const getRefundChoiceForCancel = useCallback((bookingDate: string | null): 'full_refund' | 'no_refund' => {
@@ -270,71 +271,34 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
           </div>
         )}
         {paymentBanner === 'success' && (
-          <div className="mb-6 rounded-2xl border border-green-200 bg-white shadow-sm px-4 py-5 sm:px-6">
-            <div className="flex flex-col sm:flex-row sm:items-start gap-4">
-              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-green-100 text-green-600">
-                <CheckCircle className="h-7 w-7" aria-hidden />
-              </span>
-              <div className="flex-1 min-w-0">
-                <h2 className="text-lg font-semibold text-gray-900">Payment successful</h2>
-                <p className="mt-1 text-sm text-gray-600">
-                  Your booking is confirmed for payment. You will receive a confirmation email shortly; the operator may also
-                  contact you about pickup details.
-                </p>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => onNavigate('home')}
-                    className="inline-flex items-center gap-2 rounded-lg bg-finland px-4 py-2.5 text-sm font-medium text-white hover:bg-finland-dark"
-                  >
-                    <Home className="h-4 w-4" />
-                    Back to home
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPaymentBanner(null)}
-                    className="rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                  >
-                    Dismiss
-                  </button>
-                </div>
-              </div>
+          <div className="mb-8 max-w-lg">
+            <h2 className="font-display text-2xl text-ink">Payment received</h2>
+            <p className="mt-2 text-sm text-ink-muted">
+              Your booking is confirmed. Check email for the confirmation; the operator may follow up about pickup.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button type="button" onClick={() => onNavigate('home')} className="tv-btn-primary">
+                Home
+              </button>
+              <button type="button" onClick={() => setPaymentBanner(null)} className="tv-btn-ghost">
+                Dismiss
+              </button>
             </div>
           </div>
         )}
         {paymentBanner === 'cancelled' && (
-          <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-5 sm:px-6">
-            <div className="flex flex-col sm:flex-row sm:items-start gap-4">
-              <div className="flex-1 min-w-0">
-                <h2 className="text-lg font-semibold text-amber-900">Payment not completed</h2>
-                <p className="mt-1 text-sm text-amber-900/90">
-                  Checkout was cancelled or could not be finished. Your booking was not charged. Open the tour again and use
-                  Continue to payment when you are ready.
-                </p>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => onNavigate('packages')}
-                    className="rounded-lg bg-finland px-4 py-2.5 text-sm font-medium text-white hover:bg-finland-dark"
-                  >
-                    Browse tours
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onNavigate('home')}
-                    className="rounded-lg border border-amber-300 bg-white px-4 py-2.5 text-sm font-medium text-amber-900 hover:bg-amber-100/80"
-                  >
-                    Home
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPaymentBanner(null)}
-                    className="rounded-lg px-4 py-2.5 text-sm font-medium text-amber-900 hover:underline"
-                  >
-                    Dismiss
-                  </button>
-                </div>
-              </div>
+          <div className="mb-8 max-w-lg">
+            <h2 className="font-display text-2xl text-ink">Payment not completed</h2>
+            <p className="mt-2 text-sm text-ink-muted">
+              Checkout was cancelled. You were not charged. Open the tour again when you are ready.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button type="button" onClick={() => onNavigate('packages')} className="tv-btn-primary">
+                Browse tours
+              </button>
+              <button type="button" onClick={() => setPaymentBanner(null)} className="tv-btn-ghost">
+                Dismiss
+              </button>
             </div>
           </div>
         )}
@@ -389,45 +353,43 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                 </p>
               </div>
             ) : (
-          <div className="space-y-4">
-            {visibleBookings.map((b) => (
-              <div
-                key={b.id}
-                className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-4"
-              >
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-gray-900 truncate">
-                    {titles[b.listing_id] ?? 'Tour'}
-                  </h3>
-                  {typeof b.booking_number === 'number' && b.booking_number > 0 ? (
-                    <p className="text-xs font-mono text-gray-500 mt-0.5 tracking-wide">
-                      Booking #{b.booking_number}
-                    </p>
-                  ) : null}
-                  <div className="flex flex-wrap items-center gap-3 mt-1 text-sm text-gray-600">
-                    <span className="flex items-center gap-1">
-                      <Calendar className="w-4 h-4" />
-                      {b.booking_date ? new Date(b.booking_date).toLocaleDateString() : 'Date TBC'}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Users className="w-4 h-4" />
-                      {b.guests} {b.guests === 1 ? 'guest' : 'guests'}
-                    </span>
-                    {(b.start_time || b.pickup_time) && (
-                      <span className="flex items-center gap-1 text-gray-700">
-                        <Clock className="w-4 h-4 shrink-0" />
-                        {b.start_time ? `Start ${pgTimeToHm(b.start_time) ?? ''}` : null}
-                        {b.start_time && b.pickup_time ? ' · ' : null}
-                        {b.pickup_time ? `Pickup ${pgTimeToHm(b.pickup_time) ?? ''}` : null}
-                      </span>
-                    )}
+          <div className="divide-y divide-black/[0.06]">
+            {visibleBookings.map((b) => {
+              const open = openTripId === b.id;
+              return (
+              <article key={b.id} className="py-5">
+                <button
+                  type="button"
+                  onClick={() => setOpenTripId(open ? null : b.id)}
+                  className="lux-flat w-full text-left"
+                >
+                  <div className="flex items-baseline justify-between gap-3">
+                    <h3 className="font-semibold text-ink truncate">
+                      {titles[b.listing_id] ?? 'Tour'}
+                    </h3>
+                    <span className="text-xs font-medium capitalize text-ink-muted shrink-0">{b.status}</span>
                   </div>
+                  <p className="mt-1 text-sm text-ink-muted">
+                    {b.booking_date ? new Date(b.booking_date).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }) : 'Date TBC'}
+                    {' · '}
+                    {b.guests} {b.guests === 1 ? 'guest' : 'guests'}
+                    {b.start_time ? ` · ${pgTimeToHm(b.start_time) ?? ''}` : ''}
+                  </p>
+                </button>
+                {open ? (
+                <div className="mt-4 space-y-3 motion-safe:animate-fade-in">
+                  {typeof b.booking_number === 'number' && b.booking_number > 0 ? (
+                    <p className="text-sm text-ink-muted">Reference #{b.booking_number}</p>
+                  ) : null}
+                  {b.pickup_time ? (
+                    <p className="text-sm text-ink-muted">Pickup {pgTimeToHm(b.pickup_time)}</p>
+                  ) : null}
                   {b.status === 'cancelled' && b.special_requests && (
-                    <p className="mt-2 text-sm text-gray-500 line-clamp-3">{b.special_requests}</p>
+                    <p className="text-sm text-ink-muted">{b.special_requests}</p>
                   )}
                   {(b.status === 'pending' || b.status === 'confirmed') && (
-                    <div className="mt-3 w-full max-w-lg">
-                      <label htmlFor={`stay-${b.id}`} className="block text-xs font-medium text-gray-700 mb-1">
+                    <div className="max-w-lg">
+                      <label htmlFor={`stay-${b.id}`} className="block text-xs font-medium text-ink-muted mb-1">
                         Place of stay
                       </label>
                       <input
@@ -441,47 +403,24 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                           }))
                         }
                         placeholder="Hotel name or address"
-                        className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 text-gray-800 placeholder:text-gray-400 focus:ring-2 focus:ring-finland/40 focus:border-finland"
+                        className="tv-input"
                       />
                       <button
                         type="button"
                         onClick={() => handleSaveStay(b)}
                         disabled={staySavingId === b.id}
-                        className="mt-2 text-sm px-3 py-1.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark disabled:opacity-50"
+                        className="tv-btn-secondary mt-2"
                       >
                         {staySavingId === b.id ? 'Saving…' : 'Save place of stay'}
                       </button>
-                      <p className="mt-1 text-xs text-gray-500">
-                        The supplier receives an email when you update this.
-                      </p>
                     </div>
                   )}
-                </div>
-                <div className="flex flex-col items-start sm:items-center gap-1 sm:flex-row sm:gap-3 sm:flex-shrink-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span
-                      className={`inline-flex px-3 py-1 rounded-full text-sm font-medium ${
-                        b.status === 'confirmed'
-                          ? 'bg-green-100 text-green-800'
-                          : b.status === 'cancelled'
-                          ? 'bg-gray-100 text-gray-600'
-                          : 'bg-amber-100 text-amber-800'
-                      }`}
-                    >
-                      {b.status}
-                    </span>
-                    {b.status === 'cancelled' && b.refund_choice && (
-                      <span className="text-sm text-gray-600">
-                        Refund: {b.refund_choice === 'full_refund' ? 'Full refund' : b.refund_choice === 'no_refund' ? 'No refund' : 'Reschedule'}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex flex-wrap gap-2">
                     {onTourSelect && (
                       <button
                         type="button"
                         onClick={() => onTourSelect({ id: b.listing_id })}
-                        className="text-sm text-finland hover:underline"
+                        className="tv-btn-ghost"
                       >
                         View tour
                       </button>
@@ -491,7 +430,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         type="button"
                         onClick={() => void handlePayNow(b)}
                         disabled={payingId === b.id}
-                        className="text-sm text-finland hover:underline disabled:opacity-50"
+                        className="tv-btn-primary"
                       >
                         {payingId === b.id ? 'Opening checkout…' : 'Pay now'}
                       </button>
@@ -501,38 +440,40 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         type="button"
                         onClick={() => setCancelConfirm(b)}
                         disabled={cancellingId !== null}
-                        className="text-sm text-red-600 hover:text-red-800 inline-flex items-center gap-1 disabled:opacity-50"
+                        className="tv-btn-ghost text-red-700"
                       >
-                        <XCircle className="w-4 h-4" />
                         Cancel booking
                       </button>
                     )}
                   </div>
                 </div>
-              </div>
-            ))}
+                ) : null}
+              </article>
+            );
+            })}
           </div>
             )}
           </div>
         )}
 
         {cancelConfirm && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-            <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Cancel this booking?</h3>
-              <p className="text-sm text-gray-600 mb-2">
+          <div className="tv-sheet-overlay z-50">
+            <button type="button" className="absolute inset-0" aria-label="Close" onClick={() => setCancelConfirm(null)} />
+            <div className="tv-sheet-panel relative motion-safe:animate-slide-up">
+              <h3 className="font-display text-2xl text-ink">Cancel this booking?</h3>
+              <p className="mt-2 text-sm text-ink-muted">
                 {titles[cancelConfirm.listing_id] ?? 'Tour'} · {cancelConfirm.booking_date ? new Date(cancelConfirm.booking_date).toLocaleDateString() : 'Date TBC'}
               </p>
-              <p className="text-sm text-gray-600 mb-4">
+              <p className="mt-3 text-sm text-ink-muted">
                 {getRefundChoiceForCancel(cancelConfirm.booking_date) === 'full_refund'
                   ? 'Your tour start is more than 24 hours away. You will receive a full refund.'
                   : 'Your tour starts within 24 hours. No refund applies.'}
               </p>
-              <div className="flex justify-end gap-2">
+              <div className="mt-6 flex flex-wrap gap-2">
                 <button
                   type="button"
                   onClick={() => setCancelConfirm(null)}
-                  className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
+                  className="tv-btn-secondary"
                 >
                   Keep booking
                 </button>
@@ -540,7 +481,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                   type="button"
                   onClick={() => handleCancelBooking(cancelConfirm)}
                   disabled={cancellingId !== null}
-                  className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+                  className="tv-btn-primary bg-red-700 hover:bg-red-800"
                 >
                   {cancellingId === cancelConfirm.id ? 'Cancelling…' : 'Yes, cancel'}
                 </button>

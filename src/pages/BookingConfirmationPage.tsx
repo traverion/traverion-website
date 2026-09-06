@@ -132,7 +132,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
 
   if (!isSupabaseConfigured()) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-6 py-16 bg-slate-50 text-center">
+      <div className="min-h-screen flex flex-col items-center justify-center px-6 py-16 bg-paper text-center">
         <p className="text-gray-700 mb-6">Bookings are not available here.</p>
         <button
           type="button"
@@ -147,7 +147,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
 
   if (!sessionId) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-6 py-16 bg-slate-50">
+      <div className="min-h-screen flex flex-col items-center justify-center px-6 py-16 bg-paper">
         <p className="text-gray-700 text-center max-w-md mb-6">{error ?? 'No checkout session in this link.'}</p>
         <button
           type="button"
@@ -162,7 +162,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
 
   if (!user?.email) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-6 py-16 bg-slate-50">
+      <div className="min-h-screen flex flex-col items-center justify-center px-6 py-16 bg-paper">
         <img src={BRAND_LOGO_SRC} alt="Traverion" className="h-9 w-auto mb-8 opacity-90" />
         <p className="text-gray-800 text-center max-w-md mb-2 font-medium">Sign in to see your confirmation</p>
         <p className="text-gray-600 text-center max-w-sm text-sm mb-8">
@@ -188,7 +188,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
   }, [paid, user?.id]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white flex flex-col items-center px-4 py-12 sm:py-16">
+    <div className="min-h-screen bg-paper flex flex-col items-center px-4 py-12 sm:py-16">
       <header className="mb-10 flex flex-col items-center gap-3">
         <img src={BRAND_LOGO_SRC} alt="Traverion" className="h-10 w-auto" />
       </header>
@@ -208,8 +208,8 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
         )}
 
         {booking && (
-          <div className="rounded-2xl border border-gray-200/80 bg-white shadow-lg shadow-slate-200/60 overflow-hidden">
-            <div className="bg-finland/10 border-b border-finland/15 px-6 py-5 text-center">
+          <div className="overflow-hidden">
+            <div className="pb-5 text-center">
               {paid ? (
                 <>
                   <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-green-100 text-green-600">

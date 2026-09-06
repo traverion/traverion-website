@@ -1,32 +1,13 @@
-import { useState, useEffect, useLayoutEffect, useCallback } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback, lazy, Suspense } from 'react';
 import UnifiedHeader from './components/UnifiedHeader';
 import StickyBookingButton from './components/StickyBookingButton';
 import Footer from './components/Footer';
 import SupplierLayout from './components/supplier/SupplierLayout';
 import Home from './pages/Home';
 import Packages from './pages/Packages';
-import Blog from './pages/Blog';
 import TourDetails from './pages/TourDetails';
 import MyBookings from './pages/MyBookings';
-import BookingConfirmationPage from './pages/BookingConfirmationPage';
-import CartPage from './pages/CartPage';
-import AccountPage from './pages/AccountPage';
-import WishlistPage from './pages/WishlistPage';
-import Contact from './pages/Contact';
 import AuthPage from './pages/AuthPage';
-import ResetPasswordPage from './pages/ResetPasswordPage';
-import EmailConfirmedSuccess from './pages/EmailConfirmedSuccess';
-import DestinationPage from './pages/DestinationPage';
-import AdminGate from './components/AdminGate';
-import AdminStaffLogin from './components/admin/AdminStaffLogin';
-import Privacy from './pages/Privacy';
-import Terms from './pages/Terms';
-import Cookies from './pages/Cookies';
-import About from './pages/About';
-import Sitemap from './pages/Sitemap';
-import LegalNotice from './pages/LegalNotice';
-import AffiliatePage from './pages/AffiliatePage';
-import ContentCreatorPage from './pages/ContentCreatorPage';
 import { TranslationProvider } from './contexts/TranslationContext';
 import { SupplierAuthProvider } from './contexts/SupplierAuthContext';
 import { AuthProvider } from './contexts/AuthContext';
@@ -56,6 +37,37 @@ import { getListingByIdAsync } from './data/listings';
 import { isPartnerMarketingPathForCurrentHost, isPartnerPortalPathForCurrentHost } from './lib/partnerHost';
 import { rememberProductReturn, isStaticConsumerPage } from './lib/navReturn';
 import type { TourPackage as TourPackageType } from './types/tour';
+
+const Blog = lazy(() => import('./pages/Blog'));
+const BookingConfirmationPage = lazy(() => import('./pages/BookingConfirmationPage'));
+const CartPage = lazy(() => import('./pages/CartPage'));
+const AccountPage = lazy(() => import('./pages/AccountPage'));
+const WishlistPage = lazy(() => import('./pages/WishlistPage'));
+const Contact = lazy(() => import('./pages/Contact'));
+const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
+const EmailConfirmedSuccess = lazy(() => import('./pages/EmailConfirmedSuccess'));
+const DestinationPage = lazy(() => import('./pages/DestinationPage'));
+const AdminGate = lazy(() => import('./components/AdminGate'));
+const AdminStaffLogin = lazy(() => import('./components/admin/AdminStaffLogin'));
+const Privacy = lazy(() => import('./pages/Privacy'));
+const Terms = lazy(() => import('./pages/Terms'));
+const Cookies = lazy(() => import('./pages/Cookies'));
+const About = lazy(() => import('./pages/About'));
+const Sitemap = lazy(() => import('./pages/Sitemap'));
+const LegalNotice = lazy(() => import('./pages/LegalNotice'));
+const AffiliatePage = lazy(() => import('./pages/AffiliatePage'));
+const ContentCreatorPage = lazy(() => import('./pages/ContentCreatorPage'));
+
+function RouteFallback() {
+  return (
+    <div className="min-h-[40vh] bg-paper" aria-busy="true" aria-label="Loading">
+      <div className="max-w-3xl mx-auto px-4 py-16">
+        <div className="h-10 w-48 rounded-lg bg-black/[0.06] animate-pulse" />
+        <div className="mt-4 h-4 w-full max-w-md rounded bg-black/[0.04] animate-pulse" />
+      </div>
+    </div>
+  );
+}
 
 function readInitialRoute(): { page: string; destinationSlug: string | null } {
   if (typeof window === 'undefined') return { page: 'home', destinationSlug: null };
@@ -449,12 +461,12 @@ function App() {
       <AuthProvider>
         {staffShell ? (
           <>
-            {renderPage()}
+            <Suspense fallback={<RouteFallback />}>{renderPage()}</Suspense>
             <AuthModal />
           </>
         ) : minimalTravelerChrome ? (
           <div className="min-h-screen bg-paper">
-            {renderPage()}
+            <Suspense fallback={<RouteFallback />}>{renderPage()}</Suspense>
             <AuthModal />
           </div>
         ) : (
@@ -462,7 +474,7 @@ function App() {
             <UnifiedHeader currentPage={currentPage} onNavigate={handleNavigate} />
             <main className="flex-grow overflow-x-hidden">
               <div className="lux-page-enter min-h-[min(50vh,480px)]">
-                {renderPage()}
+                <Suspense fallback={<RouteFallback />}>{renderPage()}</Suspense>
               </div>
             </main>
             <Footer onNavigate={handleNavigate} />

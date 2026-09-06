@@ -12,10 +12,8 @@ import {
   User,
   Mail,
   MessageSquare,
-  CheckCircle,
   MapPin,
   Shield,
-  Inbox,
   ClipboardList,
   X,
   Phone,
@@ -556,13 +554,13 @@ export default function BookingPage({
   const flowInner = (
     <>
         {step === 'review' && presentation === 'modal' && selectedVariant && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sm:p-8">
+          <div className="bg-paper-raised rounded-2xl p-6 sm:p-8 ring-1 ring-black/[0.06]">
             <BookingProgress step={step} flow={flowMode} />
             <h2 className="text-xl font-semibold text-gray-900 mb-2">Your trip</h2>
             <p className="text-sm text-gray-600 mb-6">
               Check the date, party size, and option below. Continue to enter your contact details for checkout.
             </p>
-            <div className="space-y-3 text-sm text-gray-700 mb-6 rounded-xl border border-gray-200 bg-slate-50 p-4 sm:p-5">
+            <div className="space-y-3 text-sm text-ink-muted mb-6">
               <p>
                 <span className="font-medium text-gray-900">Tour</span> — {tour.title}
               </p>
@@ -577,8 +575,8 @@ export default function BookingPage({
                 <span className="font-medium text-gray-900">Guests</span> — {guests}
               </p>
             </div>
-            <div className="rounded-xl border border-gray-200 bg-white p-4 mb-6">
-              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Estimated total</p>
+            <div className="mb-6">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint mb-2">Estimated total</p>
               <div className="flex justify-between text-sm text-gray-700">
                 <span>
                   {currency} {pricePerPerson} × {guests} guests
@@ -591,8 +589,8 @@ export default function BookingPage({
                 </span>
               </div>
             </div>
-            <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 mb-6">
-              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1.5">Cancellation</p>
+            <div className="mb-6">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint mb-1.5">Cancellation</p>
               <p className="text-sm text-gray-700 leading-relaxed">{cancellationText}</p>
             </div>
             <div className="flex justify-end">
@@ -619,7 +617,7 @@ export default function BookingPage({
         )}
 
         {step === 'date-guests' && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sm:p-8">
+          <div className="bg-paper-raised rounded-2xl p-6 sm:p-8 ring-1 ring-black/[0.06]">
             <BookingProgress step={step} flow={flowMode} />
             <h2 className="text-xl font-semibold text-gray-900 mb-6">Select date and guests</h2>
             <div className="space-y-4">
@@ -673,7 +671,7 @@ export default function BookingPage({
         )}
 
         {step === 'contact' && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sm:p-8">
+          <div className="bg-paper-raised rounded-2xl p-6 sm:p-8 ring-1 ring-black/[0.06]">
             <BookingProgress step={step} flow={flowMode} />
             <h2 className="text-xl font-semibold text-gray-900 mb-2">Checkout</h2>
             <p className="text-sm text-gray-500 mb-6 flex items-start gap-2">
@@ -826,7 +824,7 @@ export default function BookingPage({
         )}
 
         {step === 'confirm' && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sm:p-8">
+          <div className="bg-paper-raised rounded-2xl p-6 sm:p-8 ring-1 ring-black/[0.06]">
             <BookingProgress step={step} flow={flowMode} />
             <h2 className="text-xl font-semibold text-gray-900 mb-2">Confirm booking</h2>
             <p className="text-sm text-gray-600 mb-6 flex items-start gap-2 rounded-xl bg-finland/5 border border-finland/15 px-3 py-2.5">
@@ -838,7 +836,7 @@ export default function BookingPage({
               </span>
             </p>
 
-            <div className="space-y-3 text-sm text-gray-700 mb-6 rounded-xl border border-gray-200 bg-slate-50 p-4 sm:p-5">
+            <div className="space-y-3 text-sm text-ink-muted mb-6">
               <p>
                 <span className="font-medium text-gray-900">Tour</span> — {tour.title}
               </p>
@@ -894,8 +892,8 @@ export default function BookingPage({
               <p className="text-xs text-gray-500 mt-2">This is the amount you pay at checkout.</p>
             </div>
 
-            <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 mb-6">
-              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1.5">Cancellation</p>
+            <div className="mb-6">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint mb-1.5">Cancellation</p>
               <p className="text-sm text-gray-700 leading-relaxed">{cancellationText}</p>
             </div>
 
@@ -927,81 +925,11 @@ export default function BookingPage({
                   type="button"
                   onClick={handleConfirmBooking}
                   disabled={submitting}
-                  className="px-6 py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark disabled:opacity-60 transition-all duration-200 ease-smooth active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2"
+                  className="tv-btn-primary"
                 >
                   {submitting ? 'Redirecting to payment…' : 'Continue to payment'}
                 </button>
               </div>
-            </div>
-          </div>
-        )}
-
-        {step === 'done' && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 sm:p-10 text-center animate-fade-in-up">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 text-green-600 mb-6">
-              <CheckCircle className="w-9 h-9" />
-            </div>
-            <h2 className="text-2xl font-semibold text-gray-900 mb-1">Booking requested</h2>
-            <p className="text-gray-600 text-sm mb-4">
-              The provider will confirm and contact you at <strong className="text-gray-900">{email}</strong>.
-            </p>
-            <p className="text-sm text-gray-600 mb-6 inline-flex items-start gap-2 max-w-md mx-auto text-left">
-              <Inbox className="w-4 h-4 text-finland shrink-0 mt-0.5" aria-hidden />
-              <span>
-                If you do not see an email within a few minutes, check your spam or promotions folder. Messages sometimes
-                land there depending on your provider.
-              </span>
-            </p>
-            <div className="bg-gray-50 rounded-xl p-5 text-left mb-6">
-              <p className="font-medium text-gray-900 mb-3">{tour.title}</p>
-              <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-gray-600">
-                <span className="flex items-center gap-1.5">
-                  <Calendar className="w-4 h-4 shrink-0" /> {dateDisplay || date}
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <Users className="w-4 h-4 shrink-0" /> {guests} {guests === 1 ? 'guest' : 'guests'}
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <strong className="text-gray-900">
-                    {currency} {total}
-                  </strong>{' '}
-                  estimated total
-                </span>
-              </div>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-3 justify-center flex-wrap">
-              {onNavigate && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onNavigate('bookings');
-                      onComplete();
-                    }}
-                    className="px-6 py-2.5 rounded-lg border border-gray-300 text-gray-800 font-medium hover:bg-gray-50 transition-all duration-200 ease-smooth active:scale-[0.98] inline-flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2"
-                  >
-                    My bookings
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onNavigate('account');
-                      onComplete();
-                    }}
-                    className="px-6 py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark transition-all duration-200 ease-smooth active:scale-[0.98] inline-flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2"
-                  >
-                    <MapPin className="w-4 h-4" />
-                    Open my account
-                  </button>
-                </>
-              )}
-              <button
-                type="button"
-                onClick={onComplete}
-                className="px-6 py-2.5 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-all duration-200 ease-smooth active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2"
-              >
-                {presentation === 'modal' ? 'Close' : 'Browse more tours'}
-              </button>
             </div>
           </div>
         )}
@@ -1023,13 +951,13 @@ export default function BookingPage({
           aria-label="Modal backdrop"
           aria-hidden="true"
         />
-        <div className="animate-fade-in-up relative z-10 flex w-full max-w-6xl max-h-[min(95dvh,1040px)] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl">
+        <div className="animate-fade-in-up relative z-10 flex w-full max-w-6xl max-h-[min(95dvh,1040px)] flex-col overflow-hidden rounded-2xl bg-paper shadow-2xl ring-1 ring-black/[0.08]">
           <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-4 py-3 sm:px-5">
             <h2
               id="booking-flow-modal-title"
               className="truncate pr-2 text-base font-semibold text-gray-900 sm:text-lg"
             >
-              {step === 'done' ? 'Booking' : 'Book this tour'}
+              Book this tour
             </h2>
             <button
               type="button"
@@ -1040,8 +968,7 @@ export default function BookingPage({
               <X className="h-5 w-5" />
             </button>
           </div>
-          {step !== 'done' ? (
-            <div className="relative mx-4 mt-3 h-24 shrink-0 overflow-hidden rounded-xl border border-gray-100 sm:mx-5 sm:mt-4 sm:h-28">
+          <div className="relative mx-4 mt-3 h-24 shrink-0 overflow-hidden rounded-xl sm:mx-5 sm:mt-4 sm:h-28">
               <img src={tour.image} alt="" className="h-full w-full object-cover" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/55 to-transparent" />
               <div className="absolute bottom-2 left-3 right-3 text-white">
@@ -1051,8 +978,7 @@ export default function BookingPage({
                 </p>
               </div>
             </div>
-          ) : null}
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-gray-50/70 px-4 pb-6 pt-2 sm:px-6 sm:pb-8 sm:pt-4 [scrollbar-gutter:stable]">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-paper px-4 pb-6 pt-2 sm:px-6 sm:pb-8 sm:pt-4 [scrollbar-gutter:stable]">
             {flowInner}
           </div>
         </div>
@@ -1063,19 +989,19 @@ export default function BookingPage({
     <>
       {presentation === 'modal' ? createPortal(modalShell, document.body) : null}
       {presentation !== 'modal' ? (
-        <div className="min-h-screen bg-gray-50 pt-20 pb-12">
+        <div className="min-h-screen bg-paper pt-20 pb-12">
           <div className="max-w-2xl mx-auto px-4 sm:px-6">
             <button
               type="button"
               onClick={handleLeaveBooking}
-              className="flex items-center gap-2 text-gray-600 hover:text-finland mb-8 transition-colors duration-200 ease-smooth active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2 rounded-lg"
+              className="lux-flat flex items-center gap-2 text-ink-muted hover:text-ink mb-8"
             >
               <ArrowLeft className="w-4 h-4" />
               Back to tour
             </button>
 
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-6">
-              <div className="h-32 sm:h-40 bg-gray-200 relative">
+            <div className="overflow-hidden rounded-2xl mb-6">
+              <div className="h-32 sm:h-40 bg-black/10 relative">
                 <img src={tour.image} alt="" className="w-full h-full object-cover" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
                 <div className="absolute bottom-3 left-3 right-3 text-white">
