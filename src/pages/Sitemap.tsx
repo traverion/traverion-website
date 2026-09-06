@@ -1,10 +1,9 @@
-import { FileText } from 'lucide-react';
 import LegalPageShell from '../components/LegalPageShell';
 import { supplierPortalHref } from '../lib/partnerHost';
 
 const partnerPortalLoginHref = supplierPortalHref('/login');
 
-type SitemapLink = { label: string; page?: string; href?: string; external?: boolean };
+type SitemapLink = { label: string; page?: string; href?: string };
 
 type SitemapSection = { title: string; items: SitemapLink[] };
 
@@ -38,9 +37,7 @@ const SECTIONS: SitemapSection[] = [
   },
   {
     title: 'Company',
-    items: [
-      { label: 'About Us', page: 'about' },
-    ],
+    items: [{ label: 'About Us', page: 'about' }],
   },
   {
     title: 'Work with us',
@@ -68,47 +65,33 @@ export default function Sitemap({ onNavigate }: SitemapProps) {
       subtitle="Every main page on Traverion — support, legal, company, and partner programs — in one place."
       onNavigate={onNavigate}
     >
+      <p>
+        Use the links below to jump to any section of the site. Supplier login opens the partner portal in the same
+        window.
+      </p>
 
-        <p className="text-gray-600 mb-8 max-w-2xl">
-          Use the links below to jump to any section of the site. Supplier login opens the partner portal in
-          the same window.
-        </p>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 lg:gap-8">
-          {SECTIONS.map(({ title, items }) => (
-            <div
-              key={title}
-              className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:border-finland/20 transition-colors"
-            >
-              <h2 className="font-semibold text-gray-900 mb-4 flex items-center gap-2 text-sm uppercase tracking-wide">
-                <FileText className="w-4 h-4 text-finland" />
-                {title}
-              </h2>
-              <ul className="space-y-2">
-                {items.map((item) => (
-                  <li key={item.label}>
-                    {item.page ? (
-                      <button
-                        type="button"
-                        onClick={() => go(item.page!)}
-                        className="text-left text-finland hover:underline text-sm font-medium w-full py-1"
-                      >
-                        {item.label}
-                      </button>
-                    ) : (
-                      <a
-                        href={item.href}
-                        className="text-finland hover:underline text-sm font-medium inline-block py-1"
-                      >
-                        {item.label}
-                      </a>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
+      {SECTIONS.map(({ title, items }) => (
+        <section key={title}>
+          <h2>{title}</h2>
+          <div className="space-y-2">
+            {items.map((item) => (
+              <p key={item.label} className="m-0">
+                {item.page ? (
+                  <button
+                    type="button"
+                    onClick={() => go(item.page!)}
+                    className="lux-flat text-left text-ink underline underline-offset-2 decoration-black/25 hover:decoration-ink"
+                  >
+                    {item.label}
+                  </button>
+                ) : (
+                  <a href={item.href}>{item.label}</a>
+                )}
+              </p>
+            ))}
+          </div>
+        </section>
+      ))}
     </LegalPageShell>
   );
 }

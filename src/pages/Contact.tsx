@@ -1,7 +1,4 @@
 import { useState, useEffect } from 'react';
-import { Send, CheckCircle } from 'lucide-react';
-import LuxuryButton from '../components/ui/LuxuryButton';
-import LuxuryInput from '../components/ui/LuxuryInput';
 import LegalPageShell from '../components/LegalPageShell';
 import { submitContactInquiry, ContactInquiry } from '../data/supabase-contact';
 import { required, validateEmail, maxLength } from '../lib/validation';
@@ -12,13 +9,16 @@ type ContactProps = {
   onNavigate?: (page: string) => void;
 };
 
+type FieldKey = 'name' | 'email' | 'message' | 'form';
+
 export default function Contact({ onNavigate }: ContactProps) {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     phone: '',
-    message: ''
+    message: '',
   });
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<FieldKey, string>>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
@@ -49,58 +49,51 @@ export default function Contact({ onNavigate }: ContactProps) {
     }
   }, [onNavigate]);
 
+  const clearField = (key: FieldKey) => {
+    setFieldErrors((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      delete next.form;
+      return next;
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!required(formData.name).valid) {
-      alert('Please enter your name.');
-      return;
-    }
+    const next: Partial<Record<FieldKey, string>> = {};
+    if (!required(formData.name).valid) next.name = 'Enter your name.';
     const emailCheck = validateEmail(formData.email);
-    if (!emailCheck.valid) {
-      alert(emailCheck.message ?? 'Please enter a valid email.');
+    if (!emailCheck.valid) next.email = emailCheck.message ?? 'Enter a valid email.';
+    if (!required(formData.message).valid) next.message = 'Enter your message.';
+    else if (!maxLength(formData.message, 5000).valid) next.message = 'Message is too long (max 5000 characters).';
+    if (Object.keys(next).length > 0) {
+      setFieldErrors(next);
       return;
     }
-    if (!required(formData.message).valid) {
-      alert('Please enter your message.');
-      return;
-    }
-    if (!maxLength(formData.message, 5000).valid) {
-      alert('Message is too long (max 5000 characters).');
-      return;
-    }
-    setIsSubmitting(true);
-    try {
-      const emailSubject = buildInquiryEmailSubject('general', '');
 
+    setIsSubmitting(true);
+    setFieldErrors({});
+    try {
       const inquiryData: Omit<ContactInquiry, 'id' | 'created_at' | 'updated_at'> = {
         name: formData.name,
         email: formData.email,
         phone: formData.phone || undefined,
-        subject: emailSubject,
+        subject: buildInquiryEmailSubject('general', ''),
         message: formData.message,
         inquiry_type: 'general',
-        status: 'new'
+        status: 'new',
       };
 
       const result = await submitContactInquiry(inquiryData);
 
       if (result.success) {
         setIsSubmitted(true);
-        setTimeout(() => {
-          setIsSubmitted(false);
-          setFormData({
-            name: '',
-            email: '',
-            phone: '',
-            message: ''
-          });
-        }, 3000);
+        setFormData({ name: '', email: '', phone: '', message: '' });
       } else {
-        throw new Error(result.error || 'Failed to submit inquiry');
+        setFieldErrors({ form: 'Could not send your message. Try again, or email us directly.' });
       }
-    } catch (error) {
-      console.error('Contact form submission error:', error);
-      alert('Failed to submit inquiry. Please try again or contact us directly.');
+    } catch {
+      setFieldErrors({ form: 'Could not send your message. Try again, or email us directly.' });
     } finally {
       setIsSubmitting(false);
     }
@@ -121,74 +114,108 @@ export default function Contact({ onNavigate }: ContactProps) {
     >
       <p>
         Browse{' '}
-        <a href="/packages" onClick={goPackages} className="text-finland font-medium hover:underline">
+        <a href="/packages" onClick={goPackages}>
           tours &amp; activities
         </a>{' '}
-        anytime. Email{' '}
-        <a href="mailto:info@traverion.com" className="text-finland font-medium hover:underline">
-          info@traverion.com
-        </a>
-        .
+        anytime. Email <a href="mailto:info@traverion.com">info@traverion.com</a>.
       </p>
 
       {isSubmitted ? (
         <div>
-          <CheckCircle className="w-8 h-8 text-finland mb-3" />
           <h2>Message sent</h2>
           <p>Thank you. We will get back to you soon.</p>
         </div>
       ) : (
-              <form onSubmit={handleSubmit} className="space-y-4 max-w-lg">
-                <LuxuryInput
-                  type="text"
-                  placeholder="Your Name"
-                  value={formData.name}
-                  onChange={(e) => setFormData((p) => ({ ...p, name: e.target.value }))}
-                  required
-                />
-                <LuxuryInput
-                  type="email"
-                  placeholder="Email Address"
-                  value={formData.email}
-                  onChange={(e) => setFormData((p) => ({ ...p, email: e.target.value }))}
-                  required
-                />
-                <LuxuryInput
-                  type="tel"
-                  placeholder="Phone number (optional)"
-                  value={formData.phone}
-                  onChange={(e) => setFormData((p) => ({ ...p, phone: e.target.value }))}
-                />
-                <textarea
-                  name="message"
-                  value={formData.message}
-                  onChange={(e) => setFormData((p) => ({ ...p, message: e.target.value }))}
-                  placeholder="Your message..."
-                  rows={8}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-finland focus:border-transparent transition-all resize-none"
-                  required
-                />
-                <LuxuryButton
-                  type="submit"
-                  variant="gradient"
-                  size="lg"
-                  className="w-full"
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? (
-                    <>
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                      Sending...
-                    </>
-                  ) : (
-                    <>
-                      <Send className="mr-2 w-5 h-5" />
-                      Send Message
-                    </>
-                  )}
-                </LuxuryButton>
-              </form>
+        <form noValidate onSubmit={(e) => void handleSubmit(e)} className="space-y-4 max-w-lg">
+          {fieldErrors.form && (
+            <p className="text-sm text-red-800" role="alert">
+              {fieldErrors.form}
+            </p>
+          )}
+          <div>
+            <label htmlFor="contact-name" className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">
+              Name
+            </label>
+            <input
+              id="contact-name"
+              type="text"
+              value={formData.name}
+              onChange={(e) => {
+                setFormData((p) => ({ ...p, name: e.target.value }));
+                clearField('name');
+              }}
+              className="tv-input"
+              autoComplete="name"
+              aria-invalid={fieldErrors.name ? true : undefined}
+            />
+            {fieldErrors.name && (
+              <p className="mt-1.5 text-sm text-red-800" role="alert">
+                {fieldErrors.name}
+              </p>
             )}
+          </div>
+          <div>
+            <label htmlFor="contact-email" className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">
+              Email
+            </label>
+            <input
+              id="contact-email"
+              type="email"
+              value={formData.email}
+              onChange={(e) => {
+                setFormData((p) => ({ ...p, email: e.target.value }));
+                clearField('email');
+              }}
+              className="tv-input"
+              autoComplete="email"
+              aria-invalid={fieldErrors.email ? true : undefined}
+            />
+            {fieldErrors.email && (
+              <p className="mt-1.5 text-sm text-red-800" role="alert">
+                {fieldErrors.email}
+              </p>
+            )}
+          </div>
+          <div>
+            <label htmlFor="contact-phone" className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">
+              Phone <span className="normal-case tracking-normal">(optional)</span>
+            </label>
+            <input
+              id="contact-phone"
+              type="tel"
+              value={formData.phone}
+              onChange={(e) => setFormData((p) => ({ ...p, phone: e.target.value }))}
+              className="tv-input"
+              autoComplete="tel"
+            />
+          </div>
+          <div>
+            <label htmlFor="contact-message" className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">
+              Message
+            </label>
+            <textarea
+              id="contact-message"
+              name="message"
+              value={formData.message}
+              onChange={(e) => {
+                setFormData((p) => ({ ...p, message: e.target.value }));
+                clearField('message');
+              }}
+              rows={8}
+              className="tv-input min-h-[10rem] resize-y py-3"
+              aria-invalid={fieldErrors.message ? true : undefined}
+            />
+            {fieldErrors.message && (
+              <p className="mt-1.5 text-sm text-red-800" role="alert">
+                {fieldErrors.message}
+              </p>
+            )}
+          </div>
+          <button type="submit" disabled={isSubmitting} className="tv-btn-primary disabled:opacity-50">
+            {isSubmitting ? 'Sending…' : 'Send message'}
+          </button>
+        </form>
+      )}
     </LegalPageShell>
   );
 }

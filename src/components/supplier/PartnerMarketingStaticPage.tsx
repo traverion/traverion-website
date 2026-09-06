@@ -1,5 +1,5 @@
 import { useLayoutEffect } from 'react';
-import { ArrowLeft, Mail } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import PartnerPortalFooter from './PartnerPortalFooter';
 import { BRAND_LOGO_SRC } from '../../lib/brandAssets';
 import { publicSiteBaseUrl } from '../../lib/publicSiteUrl';
@@ -11,28 +11,25 @@ import {
   PARTNER_LOGIN_PATH,
 } from '../../lib/partnerPortalPaths';
 
-const LAST_UPDATED = '2026-04-06';
+const LAST_UPDATED = '6 April 2026';
 const SUPPORT_EMAIL = 'info@traverion.com';
 
-const navLink = 'text-finland font-medium hover:underline';
+const navLink = 'underline underline-offset-2 decoration-black/25 hover:decoration-ink text-ink';
 
 function PartnerStaticHeader() {
   const mainSite = publicSiteBaseUrl();
   return (
-    <header className="bg-white/95 backdrop-blur-md border-b border-gray-200 sticky top-0 z-40 supports-[backdrop-filter]:bg-white/90">
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between gap-4">
-        <a href={PARTNER_LOGIN_PATH} className="flex items-center gap-2 text-gray-900 min-w-0">
-          <img src={BRAND_LOGO_SRC} alt="" className="h-10 w-10 sm:h-11 sm:w-11 object-contain flex-shrink-0" />
-          <span className="font-semibold text-finland tracking-tight text-sm sm:text-base">Partner portal</span>
+    <header className="bg-paper/90 backdrop-blur-md sticky top-0 z-40">
+      <div className="max-w-2xl mx-auto px-5 sm:px-6 h-14 flex items-center justify-between gap-4">
+        <a href={PARTNER_LOGIN_PATH} className="flex items-center gap-2.5 text-ink min-w-0">
+          <img src={BRAND_LOGO_SRC} alt="" className="h-10 w-10 object-contain flex-shrink-0" />
+          <span className="font-sans text-sm font-semibold tracking-[0.18em]">TRAVERION</span>
         </a>
-        <div className="flex items-center gap-3 sm:gap-4 shrink-0">
-          <a href={mainSite} className="text-sm text-gray-600 hover:text-finland transition-colors whitespace-nowrap">
-            Main site
+        <div className="flex items-center gap-4 shrink-0">
+          <a href={mainSite} className="lux-flat text-sm text-ink-muted hover:text-ink">
+            Browse tours
           </a>
-          <a
-            href={PARTNER_LOGIN_PATH}
-            className="text-sm text-gray-600 hover:text-finland transition-colors whitespace-nowrap hidden xs:inline"
-          >
+          <a href={PARTNER_LOGIN_PATH} className="lux-flat text-sm text-ink-muted hover:text-ink">
             Log in
           </a>
         </div>
@@ -51,23 +48,24 @@ function DocShell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-[100dvh] bg-paper text-ink flex flex-col">
       <PartnerStaticHeader />
-      <main className="flex-1 w-full max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
-        <a
-          href={PARTNER_LOGIN_PATH}
-          className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-finland mb-6 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to partner login
+      <main className="flex-1 w-full max-w-2xl mx-auto px-5 sm:px-6 py-12 sm:py-16 motion-safe:animate-fade-in">
+        <a href={PARTNER_LOGIN_PATH} className="tv-btn-ghost mb-8 -ml-2 inline-flex">
+          <ArrowLeft className="w-4 h-4" aria-hidden />
+          Back
         </a>
-        <article className="bg-white rounded-2xl border border-gray-200 shadow-soft-lg p-6 sm:p-8 space-y-8">
-          <header className="space-y-2 pb-2 border-b border-gray-100">
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">{title}</h1>
-            {intro && <p className="text-gray-600 text-sm sm:text-base leading-relaxed">{intro}</p>}
-            <p className="text-xs text-gray-500">Last updated: {LAST_UPDATED}</p>
-          </header>
-          <div className="space-y-8 text-gray-700 text-sm sm:text-[15px] leading-relaxed">{children}</div>
+        <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint">Traverion Partner</p>
+        <h1 className="mt-2 font-display text-3xl sm:text-5xl text-ink tracking-tight">{title}</h1>
+        {intro ? <p className="mt-3 text-base text-ink-muted leading-relaxed max-w-xl">{intro}</p> : null}
+        <p className="mt-4 text-[11px] uppercase tracking-[0.16em] text-ink-faint">Last updated {LAST_UPDATED}</p>
+        <article
+          className="mt-10 space-y-8 text-[15px] sm:text-base leading-relaxed
+            [&_p]:text-ink-muted [&_li]:text-ink-muted
+            [&_strong]:text-ink [&_strong]:font-semibold
+            [&_a]:text-ink [&_a]:underline [&_a]:underline-offset-2 [&_a]:decoration-black/25 hover:[&_a]:decoration-ink"
+        >
+          {children}
         </article>
       </main>
       <PartnerPortalFooter />
@@ -78,7 +76,7 @@ function DocShell({
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="space-y-3">
-      <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+      <h2 className="font-display text-2xl text-ink tracking-tight">{title}</h2>
       <div className="space-y-3">{children}</div>
     </section>
   );
@@ -298,24 +296,19 @@ function PartnerLegalNoticeContent() {
         </p>
       </Section>
       <Section title="Contact">
-        <div className="rounded-xl bg-gray-50 border border-gray-100 p-5 space-y-3">
-          <p className="flex items-start gap-3">
-            <Mail className="w-5 h-5 text-finland shrink-0 mt-0.5" />
-            <span>
-              <strong className="text-gray-900">Email:</strong>{' '}
-              <a href={`mailto:${SUPPORT_EMAIL}`} className={navLink}>
-                {SUPPORT_EMAIL}
-              </a>
-            </span>
-          </p>
-          <p>
-            <strong className="text-gray-900">Postal / mailing address:</strong> available on request via{' '}
-            <a href={`mailto:${SUPPORT_EMAIL}`} className={navLink}>
-              {SUPPORT_EMAIL}
-            </a>
-            .
-          </p>
-        </div>
+        <p>
+          <strong>Email:</strong>{' '}
+          <a href={`mailto:${SUPPORT_EMAIL}`} className={navLink}>
+            {SUPPORT_EMAIL}
+          </a>
+        </p>
+        <p>
+          <strong>Postal / mailing address:</strong> available on request via{' '}
+          <a href={`mailto:${SUPPORT_EMAIL}`} className={navLink}>
+            {SUPPORT_EMAIL}
+          </a>
+          .
+        </p>
       </Section>
       <Section title="Related documents">
         <ul className="list-disc pl-5 space-y-2">
@@ -360,11 +353,8 @@ function PartnerContactContent() {
         </p>
       </Section>
       <Section title="Email">
-        <p className="flex items-start gap-3">
-          <Mail className="w-5 h-5 text-finland shrink-0 mt-0.5" />
-          <a href={`mailto:${SUPPORT_EMAIL}`} className={`${navLink} text-base`}>
-            {SUPPORT_EMAIL}
-          </a>
+        <p>
+          <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>
         </p>
       </Section>
       <Section title="Postal address">

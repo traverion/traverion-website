@@ -1,7 +1,4 @@
 import { useState, useEffect } from 'react';
-import { Send, CheckCircle } from 'lucide-react';
-import LuxuryButton from '../components/ui/LuxuryButton';
-import LuxuryInput from '../components/ui/LuxuryInput';
 import LegalPageShell from '../components/LegalPageShell';
 import { submitContactInquiry, type ContactInquiry } from '../data/supabase-contact';
 import { buildInquiryEmailSubject } from '../lib/contactEmailSubject';
@@ -12,6 +9,8 @@ type AffiliatePageProps = {
   onNavigate?: (page: string) => void;
 };
 
+type FieldKey = 'name' | 'email' | 'subject' | 'message' | 'form';
+
 export default function AffiliatePage({ onNavigate }: AffiliatePageProps) {
   const [formData, setFormData] = useState({
     name: '',
@@ -20,6 +19,7 @@ export default function AffiliatePage({ onNavigate }: AffiliatePageProps) {
     subject: '',
     message: CONTACT_PRESETS.affiliate.message,
   });
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<FieldKey, string>>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
@@ -33,31 +33,31 @@ export default function AffiliatePage({ onNavigate }: AffiliatePageProps) {
     }));
   }, []);
 
+  const clearField = (key: FieldKey) => {
+    setFieldErrors((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      delete next.form;
+      return next;
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!required(formData.name).valid) {
-      alert('Please enter your name.');
-      return;
-    }
+    const next: Partial<Record<FieldKey, string>> = {};
+    if (!required(formData.name).valid) next.name = 'Enter your name.';
     const emailCheck = validateEmail(formData.email);
-    if (!emailCheck.valid) {
-      alert(emailCheck.message ?? 'Please enter a valid email.');
-      return;
-    }
-    if (!required(formData.subject).valid) {
-      alert('Please enter a short subject (e.g. your site or channel name).');
-      return;
-    }
-    if (!required(formData.message).valid) {
-      alert('Please tell us about your audience and how you would promote Traverion.');
-      return;
-    }
-    if (!maxLength(formData.message, 5000).valid) {
-      alert('Message is too long (max 5000 characters).');
+    if (!emailCheck.valid) next.email = emailCheck.message ?? 'Enter a valid email.';
+    if (!required(formData.subject).valid) next.subject = 'Enter a short subject (e.g. your site or channel name).';
+    if (!required(formData.message).valid) next.message = 'Tell us about your audience and how you would promote Traverion.';
+    else if (!maxLength(formData.message, 5000).valid) next.message = 'Message is too long (max 5000 characters).';
+    if (Object.keys(next).length > 0) {
+      setFieldErrors(next);
       return;
     }
 
     setIsSubmitting(true);
+    setFieldErrors({});
     try {
       const inquiryData: Omit<ContactInquiry, 'id' | 'created_at' | 'updated_at'> = {
         name: formData.name,
@@ -80,11 +80,10 @@ export default function AffiliatePage({ onNavigate }: AffiliatePageProps) {
           message: CONTACT_PRESETS.affiliate.message,
         });
       } else {
-        throw new Error(result.error || 'Failed to submit');
+        setFieldErrors({ form: 'Could not send your application. Try again in a moment.' });
       }
-    } catch (err) {
-      console.error(err);
-      alert('Something went wrong. Please try again in a moment.');
+    } catch {
+      setFieldErrors({ form: 'Could not send your application. Try again in a moment.' });
     } finally {
       setIsSubmitting(false);
     }
@@ -98,69 +97,124 @@ export default function AffiliatePage({ onNavigate }: AffiliatePageProps) {
     >
       {isSubmitted ? (
         <div>
-          <CheckCircle className="w-8 h-8 text-finland mb-3" />
           <h2>Application received</h2>
           <p>Thank you. We will review your details and get back to you by email.</p>
         </div>
       ) : (
         <>
-          <p>
-            This form is only for partnership requests. It is kept separate from general customer
-            enquiries.
-          </p>
-          <form onSubmit={handleSubmit} className="space-y-4 max-w-lg">
-                <LuxuryInput
-                  type="text"
-                  placeholder="Your name"
-                  value={formData.name}
-                  onChange={(e) => setFormData((p) => ({ ...p, name: e.target.value }))}
-                  required
-                />
-                <LuxuryInput
-                  type="email"
-                  placeholder="Email"
-                  value={formData.email}
-                  onChange={(e) => setFormData((p) => ({ ...p, email: e.target.value }))}
-                  required
-                />
-                <LuxuryInput
-                  type="tel"
-                  placeholder="Phone (optional)"
-                  value={formData.phone}
-                  onChange={(e) => setFormData((p) => ({ ...p, phone: e.target.value }))}
-                />
-                <LuxuryInput
-                  type="text"
-                  placeholder="Website, channel, or business name"
-                  value={formData.subject}
-                  onChange={(e) => setFormData((p) => ({ ...p, subject: e.target.value }))}
-                  required
-                />
-                <textarea
-                  name="message"
-                  value={formData.message}
-                  onChange={(e) => setFormData((p) => ({ ...p, message: e.target.value }))}
-                  placeholder="Describe your audience, traffic, and how you would promote Traverion..."
-                  rows={8}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-finland focus:border-transparent transition-all resize-y text-sm"
-                  required
-                />
-                <LuxuryButton type="submit" variant="gradient" size="lg" className="w-full" disabled={isSubmitting}>
-                  {isSubmitting ? (
-                    <>
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                      Sending…
-                    </>
-                  ) : (
-                    <>
-                      <Send className="mr-2 w-5 h-5" />
-                      Submit application
-                    </>
-                  )}
-                </LuxuryButton>
-              </form>
-            </>
-          )}
+          <p>This form is only for partnership requests. It is kept separate from general customer enquiries.</p>
+          <form noValidate onSubmit={(e) => void handleSubmit(e)} className="space-y-4 max-w-lg">
+            {fieldErrors.form && (
+              <p className="text-sm text-red-800" role="alert">
+                {fieldErrors.form}
+              </p>
+            )}
+            <div>
+              <label htmlFor="aff-name" className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">
+                Name
+              </label>
+              <input
+                id="aff-name"
+                type="text"
+                value={formData.name}
+                onChange={(e) => {
+                  setFormData((p) => ({ ...p, name: e.target.value }));
+                  clearField('name');
+                }}
+                className="tv-input"
+                autoComplete="name"
+                aria-invalid={fieldErrors.name ? true : undefined}
+              />
+              {fieldErrors.name && (
+                <p className="mt-1.5 text-sm text-red-800" role="alert">
+                  {fieldErrors.name}
+                </p>
+              )}
+            </div>
+            <div>
+              <label htmlFor="aff-email" className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">
+                Email
+              </label>
+              <input
+                id="aff-email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => {
+                  setFormData((p) => ({ ...p, email: e.target.value }));
+                  clearField('email');
+                }}
+                className="tv-input"
+                autoComplete="email"
+                aria-invalid={fieldErrors.email ? true : undefined}
+              />
+              {fieldErrors.email && (
+                <p className="mt-1.5 text-sm text-red-800" role="alert">
+                  {fieldErrors.email}
+                </p>
+              )}
+            </div>
+            <div>
+              <label htmlFor="aff-phone" className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">
+                Phone <span className="normal-case tracking-normal">(optional)</span>
+              </label>
+              <input
+                id="aff-phone"
+                type="tel"
+                value={formData.phone}
+                onChange={(e) => setFormData((p) => ({ ...p, phone: e.target.value }))}
+                className="tv-input"
+                autoComplete="tel"
+              />
+            </div>
+            <div>
+              <label htmlFor="aff-subject" className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">
+                Website, channel, or business
+              </label>
+              <input
+                id="aff-subject"
+                type="text"
+                value={formData.subject}
+                onChange={(e) => {
+                  setFormData((p) => ({ ...p, subject: e.target.value }));
+                  clearField('subject');
+                }}
+                className="tv-input"
+                aria-invalid={fieldErrors.subject ? true : undefined}
+              />
+              {fieldErrors.subject && (
+                <p className="mt-1.5 text-sm text-red-800" role="alert">
+                  {fieldErrors.subject}
+                </p>
+              )}
+            </div>
+            <div>
+              <label htmlFor="aff-message" className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">
+                About your audience
+              </label>
+              <textarea
+                id="aff-message"
+                name="message"
+                value={formData.message}
+                onChange={(e) => {
+                  setFormData((p) => ({ ...p, message: e.target.value }));
+                  clearField('message');
+                }}
+                rows={8}
+                className="tv-input min-h-[10rem] resize-y py-3"
+                aria-invalid={fieldErrors.message ? true : undefined}
+              />
+              {fieldErrors.message && (
+                <p className="mt-1.5 text-sm text-red-800" role="alert">
+                  {fieldErrors.message}
+                </p>
+              )}
+            </div>
+            <button type="submit" disabled={isSubmitting} className="tv-btn-primary disabled:opacity-50">
+              {isSubmitting ? 'Sending…' : 'Submit application'}
+            </button>
+          </form>
+        </>
+      )}
     </LegalPageShell>
   );
 }

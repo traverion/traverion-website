@@ -1,7 +1,4 @@
 import { useState, useEffect } from 'react';
-import { Send, CheckCircle } from 'lucide-react';
-import LuxuryButton from '../components/ui/LuxuryButton';
-import LuxuryInput from '../components/ui/LuxuryInput';
 import LegalPageShell from '../components/LegalPageShell';
 import { submitContactInquiry, type ContactInquiry } from '../data/supabase-contact';
 import { buildInquiryEmailSubject } from '../lib/contactEmailSubject';
@@ -12,6 +9,8 @@ type ContentCreatorPageProps = {
   onNavigate?: (page: string) => void;
 };
 
+type FieldKey = 'name' | 'email' | 'subject' | 'message' | 'form';
+
 export default function ContentCreatorPage({ onNavigate }: ContentCreatorPageProps) {
   const [formData, setFormData] = useState({
     name: '',
@@ -20,6 +19,7 @@ export default function ContentCreatorPage({ onNavigate }: ContentCreatorPagePro
     subject: '',
     message: CONTACT_PRESETS.creator.message,
   });
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<FieldKey, string>>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
@@ -33,31 +33,33 @@ export default function ContentCreatorPage({ onNavigate }: ContentCreatorPagePro
     }));
   }, []);
 
+  const clearField = (key: FieldKey) => {
+    setFieldErrors((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      delete next.form;
+      return next;
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!required(formData.name).valid) {
-      alert('Please enter your name.');
-      return;
-    }
+    const next: Partial<Record<FieldKey, string>> = {};
+    if (!required(formData.name).valid) next.name = 'Enter your name.';
     const emailCheck = validateEmail(formData.email);
-    if (!emailCheck.valid) {
-      alert(emailCheck.message ?? 'Please enter a valid email.');
-      return;
-    }
+    if (!emailCheck.valid) next.email = emailCheck.message ?? 'Enter a valid email.';
     if (!required(formData.subject).valid) {
-      alert('Please add a short label for your channels or handle (shown in the email subject line).');
-      return;
+      next.subject = 'Add a short label for your channels or handle.';
     }
-    if (!required(formData.message).valid) {
-      alert('Please tell us about your content and collaboration ideas.');
-      return;
-    }
-    if (!maxLength(formData.message, 5000).valid) {
-      alert('Message is too long (max 5000 characters).');
+    if (!required(formData.message).valid) next.message = 'Tell us about your content and collaboration ideas.';
+    else if (!maxLength(formData.message, 5000).valid) next.message = 'Message is too long (max 5000 characters).';
+    if (Object.keys(next).length > 0) {
+      setFieldErrors(next);
       return;
     }
 
     setIsSubmitting(true);
+    setFieldErrors({});
     try {
       const inquiryData: Omit<ContactInquiry, 'id' | 'created_at' | 'updated_at'> = {
         name: formData.name,
@@ -80,11 +82,10 @@ export default function ContentCreatorPage({ onNavigate }: ContentCreatorPagePro
           message: CONTACT_PRESETS.creator.message,
         });
       } else {
-        throw new Error(result.error || 'Failed to submit');
+        setFieldErrors({ form: 'Could not send your application. Try again in a moment.' });
       }
-    } catch (err) {
-      console.error(err);
-      alert('Something went wrong. Please try again in a moment.');
+    } catch {
+      setFieldErrors({ form: 'Could not send your application. Try again in a moment.' });
     } finally {
       setIsSubmitting(false);
     }
@@ -98,68 +99,124 @@ export default function ContentCreatorPage({ onNavigate }: ContentCreatorPagePro
     >
       {isSubmitted ? (
         <div>
-          <CheckCircle className="w-8 h-8 text-finland mb-3" />
           <h2>Application received</h2>
           <p>Thank you. We will review your details and reply by email.</p>
         </div>
       ) : (
         <>
-          <p>
-            For bookings and trip questions, use Contact in the footer — not this form.
-          </p>
-          <form onSubmit={handleSubmit} className="space-y-4 max-w-lg">
-                <LuxuryInput
-                  type="text"
-                  placeholder="Your name"
-                  value={formData.name}
-                  onChange={(e) => setFormData((p) => ({ ...p, name: e.target.value }))}
-                  required
-                />
-                <LuxuryInput
-                  type="email"
-                  placeholder="Email"
-                  value={formData.email}
-                  onChange={(e) => setFormData((p) => ({ ...p, email: e.target.value }))}
-                  required
-                />
-                <LuxuryInput
-                  type="tel"
-                  placeholder="Phone (optional)"
-                  value={formData.phone}
-                  onChange={(e) => setFormData((p) => ({ ...p, phone: e.target.value }))}
-                />
-                <LuxuryInput
-                  type="text"
-                  placeholder="Your main channel, @handle, or portfolio name"
-                  value={formData.subject}
-                  onChange={(e) => setFormData((p) => ({ ...p, subject: e.target.value }))}
-                  required
-                />
-                <textarea
-                  name="message"
-                  value={formData.message}
-                  onChange={(e) => setFormData((p) => ({ ...p, message: e.target.value }))}
-                  placeholder="Links, audience size, content style, and what you would like to do with Traverion..."
-                  rows={8}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-finland focus:border-transparent transition-all resize-y text-sm bg-white/80"
-                  required
-                />
-                <LuxuryButton type="submit" variant="gradient" size="lg" className="w-full" disabled={isSubmitting}>
-                  {isSubmitting ? (
-                    <>
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                      Sending…
-                    </>
-                  ) : (
-                    <>
-                      <Send className="mr-2 w-5 h-5" />
-                      Submit application
-                    </>
-                  )}
-                </LuxuryButton>
-              </form>
-            </>
-          )}
+          <p>For bookings and trip questions, use Contact in the footer — not this form.</p>
+          <form noValidate onSubmit={(e) => void handleSubmit(e)} className="space-y-4 max-w-lg">
+            {fieldErrors.form && (
+              <p className="text-sm text-red-800" role="alert">
+                {fieldErrors.form}
+              </p>
+            )}
+            <div>
+              <label htmlFor="cc-name" className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">
+                Name
+              </label>
+              <input
+                id="cc-name"
+                type="text"
+                value={formData.name}
+                onChange={(e) => {
+                  setFormData((p) => ({ ...p, name: e.target.value }));
+                  clearField('name');
+                }}
+                className="tv-input"
+                autoComplete="name"
+                aria-invalid={fieldErrors.name ? true : undefined}
+              />
+              {fieldErrors.name && (
+                <p className="mt-1.5 text-sm text-red-800" role="alert">
+                  {fieldErrors.name}
+                </p>
+              )}
+            </div>
+            <div>
+              <label htmlFor="cc-email" className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">
+                Email
+              </label>
+              <input
+                id="cc-email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => {
+                  setFormData((p) => ({ ...p, email: e.target.value }));
+                  clearField('email');
+                }}
+                className="tv-input"
+                autoComplete="email"
+                aria-invalid={fieldErrors.email ? true : undefined}
+              />
+              {fieldErrors.email && (
+                <p className="mt-1.5 text-sm text-red-800" role="alert">
+                  {fieldErrors.email}
+                </p>
+              )}
+            </div>
+            <div>
+              <label htmlFor="cc-phone" className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">
+                Phone <span className="normal-case tracking-normal">(optional)</span>
+              </label>
+              <input
+                id="cc-phone"
+                type="tel"
+                value={formData.phone}
+                onChange={(e) => setFormData((p) => ({ ...p, phone: e.target.value }))}
+                className="tv-input"
+                autoComplete="tel"
+              />
+            </div>
+            <div>
+              <label htmlFor="cc-subject" className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">
+                Channel or handle
+              </label>
+              <input
+                id="cc-subject"
+                type="text"
+                value={formData.subject}
+                onChange={(e) => {
+                  setFormData((p) => ({ ...p, subject: e.target.value }));
+                  clearField('subject');
+                }}
+                className="tv-input"
+                aria-invalid={fieldErrors.subject ? true : undefined}
+              />
+              {fieldErrors.subject && (
+                <p className="mt-1.5 text-sm text-red-800" role="alert">
+                  {fieldErrors.subject}
+                </p>
+              )}
+            </div>
+            <div>
+              <label htmlFor="cc-message" className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">
+                Collaboration idea
+              </label>
+              <textarea
+                id="cc-message"
+                name="message"
+                value={formData.message}
+                onChange={(e) => {
+                  setFormData((p) => ({ ...p, message: e.target.value }));
+                  clearField('message');
+                }}
+                rows={8}
+                className="tv-input min-h-[10rem] resize-y py-3"
+                aria-invalid={fieldErrors.message ? true : undefined}
+              />
+              {fieldErrors.message && (
+                <p className="mt-1.5 text-sm text-red-800" role="alert">
+                  {fieldErrors.message}
+                </p>
+              )}
+            </div>
+            <button type="submit" disabled={isSubmitting} className="tv-btn-primary disabled:opacity-50">
+              {isSubmitting ? 'Sending…' : 'Submit application'}
+            </button>
+          </form>
+        </>
+      )}
     </LegalPageShell>
   );
 }

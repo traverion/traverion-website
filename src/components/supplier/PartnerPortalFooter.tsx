@@ -7,7 +7,7 @@ import {
 } from '../../lib/partnerPortalPaths';
 
 const linkClass =
-  'text-sm text-gray-400 hover:text-white transition-colors duration-300 ease-lux underline-offset-2 hover:underline decoration-gray-500';
+  'lux-flat text-sm text-ink-muted hover:text-ink underline decoration-transparent underline-offset-2 hover:decoration-ink';
 
 /**
  * Compact footer for partner.traverion.com: partner-specific legal pages + link to traveler site.
@@ -16,28 +16,22 @@ export default function PartnerPortalFooter() {
   const origin = publicSiteBaseUrl();
 
   return (
-    <footer className="mt-auto border-t border-white/10 bg-[#0f172a] text-white">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+    <footer className="mt-auto border-t border-black/[0.06] bg-paper text-ink">
+      <div className="max-w-3xl mx-auto px-5 sm:px-6 py-10">
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-sm font-medium text-white">Traverion partner portal</p>
-            <p className="text-sm text-gray-400 mt-1 max-w-md">
+            <p className="font-sans text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint">
+              Traverion Partner
+            </p>
+            <p className="text-sm text-ink-muted mt-2 max-w-md leading-relaxed">
               Listings and bookings for suppliers. Travelers book on the main site.
             </p>
           </div>
-          <a
-            href={origin}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center justify-center rounded-xl bg-white/10 px-4 py-2.5 text-sm font-medium text-white hover:bg-white/15 transition-colors duration-300 border border-white/10"
-          >
-            Browse traverion.com
+          <a href={origin} className="tv-btn-secondary inline-flex justify-center shrink-0">
+            Browse tours
           </a>
         </div>
-        <nav
-          className="mt-8 pt-6 border-t border-white/10 flex flex-wrap gap-x-5 gap-y-2"
-          aria-label="Partner legal pages"
-        >
+        <nav className="mt-8 flex flex-wrap gap-x-5 gap-y-2" aria-label="Partner legal pages">
           <a href="/contact" className={linkClass}>
             Contact
           </a>
@@ -55,8 +49,8 @@ export default function PartnerPortalFooter() {
           </a>
         </nav>
       </div>
-      <div className="border-t border-white/10 py-4 px-4 sm:px-6 lg:px-8">
-        <p className="text-center text-xs text-gray-500">© 2026 Traverion</p>
+      <div className="border-t border-black/[0.06] py-4 px-5 sm:px-6">
+        <p className="text-center text-xs text-ink-faint">© 2026 Traverion – Original from Finland</p>
       </div>
     </footer>
   );

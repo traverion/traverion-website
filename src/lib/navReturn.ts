@@ -18,6 +18,10 @@ export function isStaticConsumerPage(page: string): boolean {
   return STATIC_CONSUMER_PAGES.has(page);
 }
 
+function isSafeInternalHref(href: string): boolean {
+  return href.startsWith('/') && !href.startsWith('//') && !href.includes('\\');
+}
+
 export function rememberProductReturn(page: string, href: string): void {
   if (isStaticConsumerPage(page)) return;
   try {
@@ -43,7 +47,7 @@ export function consumeProductReturn(): { page: string; href: string } | null {
 export function goProductReturn(onNavigate?: (page: string) => void): void {
   const ret = consumeProductReturn();
   if (ret?.page && onNavigate) {
-    if (ret.href && ret.href.startsWith('/') && (ret.page === 'packages' || ret.page === 'home' || ret.page === 'bookings' || ret.page === 'account')) {
+    if (ret.href && isSafeInternalHref(ret.href)) {
       window.history.replaceState({}, '', ret.href);
     }
     onNavigate(ret.page);
