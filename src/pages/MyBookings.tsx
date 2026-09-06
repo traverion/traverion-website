@@ -59,6 +59,15 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   const [tripView, setTripView] = useState<'upcoming' | 'past' | 'cancelled'>('upcoming');
   const [openTripId, setOpenTripId] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!cancelConfirm) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setCancelConfirm(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [cancelConfirm]);
+
   /** Tour start is within 24 hours from now → no refund. Otherwise full refund. */
   const getRefundChoiceForCancel = useCallback((bookingDate: string | null): 'full_refund' | 'no_refund' => {
     if (!bookingDate) return 'no_refund';
@@ -459,8 +468,8 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
         {cancelConfirm && (
           <div className="tv-sheet-overlay z-50">
             <button type="button" className="absolute inset-0" aria-label="Close" onClick={() => setCancelConfirm(null)} />
-            <div className="tv-sheet-panel relative motion-safe:animate-slide-up">
-              <h3 className="font-display text-2xl text-ink">Cancel this booking?</h3>
+            <div className="tv-sheet-panel relative motion-safe:animate-slide-up" role="dialog" aria-modal="true" aria-labelledby="cancel-trip-title">
+              <h3 id="cancel-trip-title" className="font-display text-2xl text-ink">Cancel this booking?</h3>
               <p className="mt-2 text-sm text-ink-muted">
                 {titles[cancelConfirm.listing_id] ?? 'Tour'} · {cancelConfirm.booking_date ? new Date(cancelConfirm.booking_date).toLocaleDateString() : 'Date TBC'}
               </p>

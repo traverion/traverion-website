@@ -1080,7 +1080,7 @@ export default function SupplierListingForm({
                   type="text"
                   value={optionDraft.name}
                   onChange={(e) => patchOptionDraft({ name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                  className="tv-input"
                   placeholder="e.g. Small group tour · max 8"
                 />
               </div>
@@ -1094,7 +1094,7 @@ export default function SupplierListingForm({
                   onChange={(e) =>
                     patchOptionDraft({ priceUsd: Math.max(0, Number(e.target.value) || 0) })
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                  className="tv-input"
                 />
               </div>
               <div id="supplier-listing-field-pickup_timing">
@@ -1131,7 +1131,7 @@ export default function SupplierListingForm({
                                 duration: formatBookingOptionDuration(next, durParts.unit),
                               });
                             }}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                            className="tv-input"
                             placeholder="e.g. 3"
                           />
                         </div>
@@ -1148,7 +1148,7 @@ export default function SupplierListingForm({
                                 duration: formatBookingOptionDuration(durParts.amount, u),
                               });
                             }}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                            className="tv-input"
                           >
                             <option value="minutes">Minutes</option>
                             <option value="hours">Hours</option>
@@ -1182,7 +1182,7 @@ export default function SupplierListingForm({
                   value={optionDraft.pickupPlace}
                   onChange={(e) => patchOptionDraft({ pickupPlace: e.target.value })}
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                  className="tv-input"
                   placeholder="Address, hotel zone, landmark, or how pickup is arranged for this option"
                 />
               </div>
@@ -1200,7 +1200,7 @@ export default function SupplierListingForm({
                         maxPersons: Math.max(nextMin, optionDraft.maxPersons),
                       });
                     }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                    className="tv-input"
                   />
                 </div>
                 <div>
@@ -1217,7 +1217,7 @@ export default function SupplierListingForm({
                         ),
                       })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                    className="tv-input"
                   />
                 </div>
               </div>
@@ -1242,7 +1242,7 @@ export default function SupplierListingForm({
                   value={optionDraft.optionInfo}
                   onChange={(e) => patchOptionDraft({ optionInfo: e.target.value })}
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                  className="tv-input"
                   placeholder="e.g. Private vehicle · English-speaking guide · shared bus · family-friendly"
                 />
               </div>
@@ -1475,7 +1475,7 @@ export default function SupplierListingForm({
                 <select
                   value={form.experienceLanguage}
                   onChange={(e) => setForm((f) => ({ ...f, experienceLanguage: e.target.value }))}
-                  className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                  className="tv-input max-w-md"
                 >
                   <option value="">Select language…</option>
                   {LANGUAGE_OPTIONS.map((o) => (
@@ -1492,7 +1492,7 @@ export default function SupplierListingForm({
                   type="text"
                   value={form.title}
                   onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+                  className="tv-input"
                   placeholder="e.g. Old town walking tour · small groups"
                   required
                 />
@@ -1541,7 +1541,7 @@ export default function SupplierListingForm({
                   value={form.subtitle}
                   maxLength={MAX_SUBTITLE_LENGTH}
                   onChange={(e) => setForm((f) => ({ ...f, subtitle: e.target.value.slice(0, MAX_SUBTITLE_LENGTH) }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+                  className="tv-input"
                   placeholder="e.g. Small-group food walk with local hosts"
                 />
                 <p className="text-xs text-gray-500 mt-1 tabular-nums">
@@ -1607,7 +1607,7 @@ export default function SupplierListingForm({
                           highlights: f.highlights.map((h, i) => (i === index ? e.target.value : h)),
                         }))
                       }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+                      className="tv-input"
                       placeholder={index === 0 ? 'e.g. Skip-the-line entry' : `Optional highlight ${index + 1}`}
                     />
                   </div>
@@ -1633,7 +1633,7 @@ export default function SupplierListingForm({
                           includes: f.includes.map((s, i) => (i === index ? e.target.value : s)),
                         }))
                       }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+                      className="tv-input"
                       placeholder={`Included item ${index + 1}`}
                     />
                   ))}
@@ -1654,7 +1654,7 @@ export default function SupplierListingForm({
                           excludes: f.excludes.map((s, i) => (i === index ? e.target.value : s)),
                         }))
                       }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+                      className="tv-input"
                       placeholder={`Not included ${index + 1}`}
                     />
                   ))}
@@ -1662,7 +1662,7 @@ export default function SupplierListingForm({
               </div>
               <details
                 id="supplier-listing-field-accessibility"
-                className="rounded-xl border border-gray-100 bg-gray-50/80 p-4 group"
+                className="group py-2"
               >
                 <summary className="cursor-pointer list-none flex items-start justify-between gap-3">
                   <span>
@@ -1691,7 +1691,7 @@ export default function SupplierListingForm({
                       }))
                     }
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                    className="tv-input"
                     placeholder="Steps, uneven ground, wheelchair access, hearing loops, etc."
                   />
                   <p className="text-xs text-gray-500 mt-1 tabular-nums">
@@ -1705,7 +1705,7 @@ export default function SupplierListingForm({
                       type="text"
                       value={form.minGuestAge}
                       onChange={(e) => setForm((f) => ({ ...f, minGuestAge: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                      className="tv-input"
                       placeholder="e.g. 8+ or none"
                     />
                   </div>
@@ -1716,7 +1716,7 @@ export default function SupplierListingForm({
                       onChange={(e) =>
                         setForm((f) => ({ ...f, venueSetting: e.target.value as VenueSetting }))
                       }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                      className="tv-input"
                     >
                       {VENUE_SETTING_OPTIONS.map((o) => (
                         <option key={o.value} value={o.value}>
@@ -1771,7 +1771,7 @@ export default function SupplierListingForm({
                     type="text"
                     value={form.city}
                     onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+                    className="tv-input"
                     placeholder="e.g. Lisbon — main base or starting point"
                     required
                   />
@@ -1782,19 +1782,19 @@ export default function SupplierListingForm({
                     type="text"
                     value={form.country}
                     onChange={(e) => setForm((f) => ({ ...f, country: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+                    className="tv-input"
                     placeholder="Primary country for this experience"
                     required
                   />
                 </div>
               </div>
-              <div id="supplier-listing-field-destination" className="rounded-xl border border-gray-100 bg-gray-50/80 p-4 space-y-2">
+              <div id="supplier-listing-field-destination" className="space-y-2">
                 <label className="block text-sm font-medium text-gray-700">How it shows as a place (optional)</label>
                 <input
                   type="text"
                   value={form.destination}
                   onChange={(e) => setForm((f) => ({ ...f, destination: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                  className="tv-input"
                   placeholder="e.g. coastal route · several towns — or leave blank"
                 />
                 <p className="text-xs text-gray-500">
@@ -1811,7 +1811,7 @@ export default function SupplierListingForm({
                   type="text"
                   value={form.duration}
                   onChange={(e) => setForm((f) => ({ ...f, duration: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+                  className="tv-input"
                   placeholder="e.g. 3 hours or 1 day"
                   required
                 />
@@ -1826,7 +1826,7 @@ export default function SupplierListingForm({
                       experienceStartStyle: e.target.value as ListingFormState['experienceStartStyle'],
                     }))
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                  className="tv-input"
                 >
                   {EXPERIENCE_START_OPTIONS.map((o) => (
                     <option key={o.value} value={o.value}>
@@ -1840,7 +1840,7 @@ export default function SupplierListingForm({
               </div>
               <details
                 id="supplier-listing-field-schedule"
-                className="rounded-xl border border-gray-100 bg-gray-50/80 p-4 group"
+                className="group py-2"
               >
                 <summary className="cursor-pointer list-none flex items-start justify-between gap-3">
                   <span>
@@ -1894,7 +1894,7 @@ export default function SupplierListingForm({
                       }))
                     }
                     rows={4}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                    className="tv-input"
                     placeholder="e.g. 09:00 meet at the square · 09:15 start walking · short break at 10:30 · end around 12:00"
                   />
                   <p className="text-xs text-gray-500 mt-1 tabular-nums">
@@ -1908,18 +1908,18 @@ export default function SupplierListingForm({
 
           {stepIdx === 2 && (
             <div className="space-y-4 transition-all duration-300 ease-out opacity-100 translate-y-0">
-              <div className="rounded-xl border border-finland/20 bg-finland/5 p-4 sm:p-5">
-                <h3 className="text-sm font-semibold text-gray-900">Cost &amp; bookable options</h3>
-                <p className="mt-1 text-xs text-gray-600 leading-relaxed">
+              <div>
+                <h3 className="font-display text-xl text-ink">Cost &amp; bookable options</h3>
+                <p className="mt-1 text-sm text-ink-muted leading-relaxed">
                   Add each price and schedule as its own option. Meeting, pickup, and capacity are filled in when you create or
                   edit an option.
                 </p>
               </div>
-              <div className="space-y-2">
+              <div className="divide-y divide-black/[0.06]">
                 {materializedBookingOptions(form.bookingOptions).map((opt) => (
                   <div
                     key={opt.id}
-                    className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm"
+                    className="flex flex-wrap items-center justify-between gap-3 py-4"
                   >
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-gray-900 truncate">
@@ -1933,7 +1933,7 @@ export default function SupplierListingForm({
                       <button
                         type="button"
                         onClick={() => openOptionModalEdit(opt.id)}
-                        className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-800 hover:bg-gray-50 min-h-[44px]"
+                        className="tv-btn-ghost"
                       >
                         <Pencil className="w-3.5 h-3.5" aria-hidden />
                         Edit
@@ -1952,7 +1952,7 @@ export default function SupplierListingForm({
               </div>
               <div
                 {...(!optionModalOpen ? { id: 'supplier-listing-field-price' } : {})}
-                className="rounded-xl border border-dashed border-finland/40 bg-finland/5 p-1"
+                className="pt-2"
               >
                 <button
                   type="button"
@@ -1979,7 +1979,7 @@ export default function SupplierListingForm({
                         difficulty: e.target.value as 'Easy' | 'Moderate' | 'Challenging',
                       }))
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                    className="tv-input"
                   >
                     <option value="Easy">Easy</option>
                     <option value="Moderate">Moderate</option>
@@ -1991,7 +1991,7 @@ export default function SupplierListingForm({
                 id="supplier-listing-field-tags"
                 className="group"
               >
-                <summary className="cursor-pointer list-none flex items-start justify-between gap-3 rounded-xl border border-gray-100 bg-gray-50/80 px-4 py-3">
+                <summary className="cursor-pointer list-none flex items-start justify-between gap-3">
                   <span>
                     <span className="block text-sm font-semibold text-gray-900">Optional: tags</span>
                     <span className="block text-xs text-gray-500 mt-0.5">Help travelers filter (pickup, small group, etc.)</span>
@@ -2021,13 +2021,12 @@ export default function SupplierListingForm({
           )}
 
           {stepIdx === 3 && (
-            <div className="space-y-4">
-              <div className="rounded-xl border border-gray-200 bg-white p-4 sm:p-5 space-y-4 shadow-sm">
+            <div className="space-y-6">
                 <div>
-                  <h3 className="text-sm font-semibold text-gray-900">
+                  <h3 className="font-display text-xl text-ink">
                     Tour photos ({LISTING_PHOTO_MIN}–{LISTING_PHOTO_MAX} required to publish)
                   </h3>
-                  <p className="mt-1 text-xs text-gray-600">
+                  <p className="mt-1 text-sm text-ink-muted">
                     Add photos in traveler order. The first photo is the main image. Use + Add photo or Replace to upload from
                     your device; pasted links stay as URLs. Reorder with the arrows after selecting a thumbnail.
                   </p>
@@ -2041,11 +2040,10 @@ export default function SupplierListingForm({
                   userId={user?.id}
                   uploadsEnabled={isSupabaseConfigured() && !!user?.id}
                 />
-              </div>
               {form.status === 'published' && editingId && !publishChecklistDismissed && publishChecklistKey && (
-                <div className="rounded-xl border border-finland/30 bg-finland/5 p-4 text-sm text-gray-800">
+                <div>
                   <div className="flex items-start justify-between gap-2">
-                    <p className="font-semibold text-gray-900">After publishing — quick checks</p>
+                    <p className="font-semibold text-ink">After publishing — quick checks</p>
                     <button
                       type="button"
                       className="shrink-0 text-xs font-medium text-finland hover:underline"
@@ -2057,21 +2055,21 @@ export default function SupplierListingForm({
                       Dismiss
                     </button>
                   </div>
-                  <ul className="mt-2 list-disc list-inside space-y-1 text-gray-700">
+                  <ul className="mt-2 list-disc list-inside space-y-1 text-sm text-ink-muted">
                     <li>Open this listing on your phone and scroll the photos and description.</li>
                     <li>Confirm meeting or pickup details match what you tell guests in messages.</li>
                     <li>If you use per-date capacity, keep future dates updated so bookings stay accurate.</li>
                   </ul>
                 </div>
               )}
-              <div className="rounded-xl border border-gray-100 bg-gray-50/80 p-4 sm:p-5 text-sm text-gray-700">
-                <p className="font-medium text-gray-900">
+              <div>
+                <p className="font-medium text-ink">
                   {form.status === 'published' ? 'Update your live listing' : 'Go live or keep a draft'}
                 </p>
-                <p className="mt-2 text-xs text-gray-600 leading-relaxed">
-                  <span className="font-medium text-gray-800">Publish</span> runs a final check and lists your tour on Traverion for
-                  travelers. <span className="font-medium text-gray-800">Save as draft</span> stores progress without going live.
-                  Promotional discounts are under <span className="font-medium text-gray-800">Discounts &amp; offers</span> in the
+                <p className="mt-2 text-sm text-ink-muted leading-relaxed">
+                  <span className="font-medium text-ink">Publish</span> runs a final check and lists your tour on Traverion for
+                  travelers. <span className="font-medium text-ink">Save as draft</span> stores progress without going live.
+                  Promotional discounts are under <span className="font-medium text-ink">Discounts &amp; offers</span> in the
                   sidebar.
                 </p>
               </div>

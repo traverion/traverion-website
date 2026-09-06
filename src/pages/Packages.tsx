@@ -317,6 +317,15 @@ export default function Packages({ onTourSelect }: PackagesProps) {
     if (onTourSelect) onTourSelect(tour);
   };
 
+  useEffect(() => {
+    if (!mobileFiltersOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMobileFiltersOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [mobileFiltersOpen]);
+
   const extraFilterCount =
     (selectedDestination !== 'all' ? 1 : 0) +
     selectedTags.length +

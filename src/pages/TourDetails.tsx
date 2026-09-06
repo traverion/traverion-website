@@ -735,17 +735,15 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
             id="tour-booking-variants-list"
             role="listbox"
             aria-label="Tour options"
-            className={`mt-4 lg:mt-6 rounded-xl border bg-white transition-all duration-300 ease-out motion-reduce:transition-none ${
+            className={`mt-4 lg:mt-6 overflow-hidden transition-all duration-300 ease-out motion-reduce:transition-none ${
               bookingVariantsOpen
-                ? `max-h-[28rem] opacity-100 translate-y-0 border-2 border-finland/45 shadow-[0_12px_48px_-12px_rgba(0,53,128,0.28),0_4px_18px_-6px_rgba(0,53,128,0.16)] ring-2 ring-finland/35 ring-offset-2 ring-offset-paper motion-reduce:ring-0 motion-reduce:ring-offset-0 motion-reduce:shadow-md motion-reduce:border-finland/30 ${
-                    optionsAttentionPulse
-                      ? 'ring-finland/55 shadow-[0_16px_56px_-10px_rgba(0,53,128,0.38),0_6px_22px_-6px_rgba(0,53,128,0.22)]'
-                      : ''
+                ? `max-h-[28rem] opacity-100 translate-y-0 ${
+                    optionsAttentionPulse ? 'ring-1 ring-finland/25 rounded-2xl' : ''
                   }`
-                : 'max-h-0 opacity-0 -translate-y-2 pointer-events-none overflow-hidden border-transparent shadow-none ring-0'
+                : 'max-h-0 opacity-0 -translate-y-2 pointer-events-none'
             }`}
           >
-            <div className="px-4 pt-3 pb-1 text-sm font-semibold text-gray-900">Choose your option</div>
+            <div className="px-1 pt-2 pb-1 text-[11px] uppercase tracking-[0.16em] text-ink-faint">Choose your option</div>
             <ul className="max-h-[24rem] overflow-y-auto overscroll-contain py-1 [scrollbar-gutter:stable]">
               {tourVariants.map((v) => {
                 const dayErr =
@@ -786,56 +784,56 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
 
       {/* Tour Highlights */}
       {tour.highlights.filter((h) => String(h).trim()).length > 0 && (
-        <section className="py-16 bg-white">
+        <section className="py-12 bg-paper">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-3xl font-heading font-bold text-gray-900 mb-8">Highlights</h2>
-            <div className="flex flex-col gap-4">
+            <h2 className="font-display text-2xl sm:text-3xl text-ink mb-6">Highlights</h2>
+            <ul className="space-y-3">
               {tour.highlights
                 .map((h) => String(h).trim())
                 .filter(Boolean)
                 .map((highlight, index) => (
-                  <div key={index} className="flex items-start">
-                    <CheckCircle size={20} className="mr-3 text-finland flex-shrink-0 mt-0.5" />
-                    <span className="text-gray-700">{highlight}</span>
-                  </div>
+                  <li key={index} className="flex items-start gap-3 text-ink-muted">
+                    <CheckCircle size={18} className="text-finland flex-shrink-0 mt-0.5" />
+                    <span>{highlight}</span>
+                  </li>
                 ))}
-            </div>
+            </ul>
           </div>
         </section>
       )}
 
       {/* What's Included / Excluded */}
       {(tour.includes.some((s) => String(s).trim()) || tour.excludes.some((s) => String(s).trim())) && (
-        <section className="py-16 bg-paper">
+        <section className="py-12 bg-paper">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
               <div>
-                <h3 className="text-2xl font-heading font-bold text-gray-900 mb-6">What&apos;s included</h3>
-                <div className="space-y-4">
+                <h3 className="font-display text-2xl text-ink mb-4">What&apos;s included</h3>
+                <ul className="space-y-3">
                   {tour.includes
                     .map((item) => String(item).trim())
                     .filter(Boolean)
                     .map((item, index) => (
-                      <div key={index} className="flex items-center">
-                        <CheckCircle size={20} className="mr-3 text-finland flex-shrink-0" />
-                        <span className="text-gray-700">{item}</span>
-                      </div>
+                      <li key={index} className="flex items-start gap-3 text-ink-muted">
+                        <CheckCircle size={18} className="text-finland flex-shrink-0 mt-0.5" />
+                        <span>{item}</span>
+                      </li>
                     ))}
-                </div>
+                </ul>
               </div>
               <div>
-                <h3 className="text-2xl font-heading font-bold text-gray-900 mb-6">What&apos;s not included</h3>
-                <div className="space-y-4">
+                <h3 className="font-display text-2xl text-ink mb-4">What&apos;s not included</h3>
+                <ul className="space-y-3">
                   {tour.excludes
                     .map((item) => String(item).trim())
                     .filter(Boolean)
                     .map((item, index) => (
-                      <div key={index} className="flex items-center">
-                        <XCircle size={20} className="mr-3 text-red-500 flex-shrink-0" />
-                        <span className="text-gray-700">{item}</span>
-                      </div>
+                      <li key={index} className="flex items-start gap-3 text-ink-muted">
+                        <XCircle size={18} className="text-ink-faint flex-shrink-0 mt-0.5" />
+                        <span>{item}</span>
+                      </li>
                     ))}
-                </div>
+                </ul>
               </div>
             </div>
           </div>
@@ -843,11 +841,11 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       )}
 
       {/* Reviews */}
-      <section className="py-16 bg-white border-t border-gray-100">
+      <section className="py-12 bg-paper border-t border-black/[0.06]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-heading font-bold text-gray-900 mb-6">Reviews</h2>
+          <h2 className="font-display text-2xl sm:text-3xl text-ink mb-6">Reviews</h2>
           {reviews.length === 0 && !showReviewForm && (
-            <p className="text-gray-600 mb-6">No reviews yet. Be the first to leave one after your tour.</p>
+            <p className="text-ink-muted mb-6">No reviews yet. Be the first to leave one after your tour.</p>
           )}
           <div className="space-y-6 mb-8">
             {reviews.map((r) => (
@@ -878,15 +876,15 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
             <button
               type="button"
               onClick={() => setShowReviewForm(true)}
-              className="px-4 py-2 rounded-lg border border-finland text-finland font-medium hover:bg-finland/5"
+              className="tv-btn-secondary"
             >
               Leave a review
             </button>
           )}
 
           {showReviewForm && user && (
-            <div className="bg-paper-raised rounded-xl p-6 max-w-xl ring-1 ring-black/[0.06]">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Write a review</h3>
+            <div className="max-w-xl">
+              <h3 className="font-display text-xl text-ink mb-4">Write a review</h3>
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Rating</label>
@@ -912,7 +910,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                     type="text"
                     value={reviewTitle}
                     onChange={(e) => setReviewTitle(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+                    className="tv-input"
                     placeholder="Sum up your tour"
                   />
                 </div>
@@ -922,7 +920,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                     value={reviewComment}
                     onChange={(e) => setReviewComment(e.target.value)}
                     rows={4}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland"
+                    className="tv-input"
                     placeholder="Tell others what you liked..."
                     required
                   />

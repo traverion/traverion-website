@@ -5,7 +5,6 @@ import Footer from './components/Footer';
 import SupplierLayout from './components/supplier/SupplierLayout';
 import Home from './pages/Home';
 import Packages from './pages/Packages';
-import TourDetails from './pages/TourDetails';
 import MyBookings from './pages/MyBookings';
 import AuthPage from './pages/AuthPage';
 import { TranslationProvider } from './contexts/TranslationContext';
@@ -57,6 +56,7 @@ const Sitemap = lazy(() => import('./pages/Sitemap'));
 const LegalNotice = lazy(() => import('./pages/LegalNotice'));
 const AffiliatePage = lazy(() => import('./pages/AffiliatePage'));
 const ContentCreatorPage = lazy(() => import('./pages/ContentCreatorPage'));
+const TourDetails = lazy(() => import('./pages/TourDetails'));
 
 function RouteFallback() {
   return (

@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { X } from 'lucide-react';
 
@@ -25,7 +25,7 @@ export const SUPPLIER_MODAL_OVERLAY_CLASS =
   'fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/35 backdrop-blur-md p-0 sm:p-4 sm:pt-[max(1rem,env(safe-area-inset-top))]';
 
 export const SUPPLIER_MODAL_PANEL_CLASS =
-  'relative z-10 bg-white rounded-t-2xl sm:rounded-2xl shadow-xl border border-gray-200/80 w-full overflow-hidden motion-safe:animate-slide-up sm:motion-safe:animate-none';
+  'relative z-10 bg-paper-raised rounded-t-2xl sm:rounded-2xl shadow-xl ring-1 ring-black/[0.08] w-full overflow-hidden motion-safe:animate-slide-up sm:motion-safe:animate-none';
 
 export const SUPPLIER_MODAL_PANEL_SCROLL_CLASS = `${SUPPLIER_MODAL_PANEL_CLASS} max-h-[min(calc(100dvh-env(safe-area-inset-bottom)-0.75rem),92dvh)] overflow-y-auto pb-[max(1rem,env(safe-area-inset-bottom))]`;
 
@@ -146,6 +146,15 @@ type SupplierModalShellProps = {
 export function SupplierModalShell({ children, onClose, maxWidth = 'md', scrollable = true }: SupplierModalShellProps) {
   const widthClass = maxWidth === 'xl' ? 'max-w-xl' : maxWidth === 'lg' ? 'max-w-lg' : 'max-w-md';
   const panelClass = scrollable ? SUPPLIER_MODAL_PANEL_SCROLL_CLASS : SUPPLIER_MODAL_PANEL_CLASS;
+
+  useEffect(() => {
+    if (!onClose) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
 
   return (
     <div className={SUPPLIER_MODAL_OVERLAY_CLASS}>

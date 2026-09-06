@@ -3,7 +3,6 @@ import { ArrowLeft, LogIn, UserPlus, Mail } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { normalizeConsumerPhone } from '../data/supabase-consumer-profile';
-import { HERO_IMG } from '../lib/heroImages';
 import { publicSiteBaseUrl } from '../lib/publicSiteUrl';
 import { BRAND_LOGO_SRC } from '../lib/brandAssets';
 import { subscribePasswordRecovery } from '../lib/passwordRecoveryFlow';
@@ -297,39 +296,29 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
   };
 
   return (
-    <div className="relative min-h-screen pt-20">
-      <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-        <div
-          className="absolute inset-0 bg-cover bg-center scale-110"
-          style={{
-            backgroundImage: `url(${HERO_IMG.vacation})`,
-            filter: 'blur(12px)',
-          }}
-        />
-        <div className="absolute inset-0 bg-white/55" />
-      </div>
-      <div className="max-w-md mx-auto px-4 py-8 pb-12">
+    <div className="min-h-screen bg-paper pt-20">
+      <div className="max-w-md mx-auto px-4 py-12 pb-16">
         <button
           type="button"
           onClick={() => onNavigate('home')}
-          className="mb-5 inline-flex items-center gap-2 text-gray-600 hover:text-finland"
+          className="lux-flat mb-8 inline-flex items-center gap-2 text-ink-muted hover:text-ink"
         >
           <ArrowLeft className="w-4 h-4" />
           Back
         </button>
 
-        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-lg">
-          <div className="px-6 pt-6 pb-4 border-b border-gray-100">
+        <div>
+          <div className="mb-8">
             <div className="flex items-center gap-3 mb-3">
               <img src={BRAND_LOGO_SRC} alt="" className="h-12 w-12 sm:h-14 sm:w-14 object-contain flex-shrink-0" />
               <div className="min-w-0">
-                <h1 className="text-2xl font-semibold text-gray-900">
-                  {tab === 'signin' ? 'Sign in' : 'Sign up'}
+                <h1 className="font-display text-3xl text-ink tracking-tight">
+                  {tab === 'signin' ? 'Log in' : 'Create account'}
                 </h1>
-                <p className="text-sm text-gray-600 mt-0.5">
-                  Book trips and manage your bookings — not the partner dashboard.
+                <p className="text-sm text-ink-muted mt-1">
+                  Book tours and manage your trips.
                 </p>
-                <p className="text-xs text-gray-500 mt-2">
+                <p className="text-xs text-ink-faint mt-2">
                   Want to be a supplier?{' '}
                   <a href={supplierPortalHref('/login')} className="text-finland font-medium hover:underline">
                     Join here
@@ -340,7 +329,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
           </div>
 
           <>
-          <div className="flex border-b border-gray-100">
+          <div className="flex gap-1 rounded-full bg-black/[0.04] p-1 mb-6 w-fit">
             <button
               type="button"
               onClick={() => {
@@ -349,11 +338,11 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
                 setSuccessMessage(null);
                 exitTravelerPasswordReset();
               }}
-              className={`flex-1 py-3 text-sm font-medium transition-colors ${
-                tab === 'signin' ? 'text-gray-900 border-b-2 border-gray-900' : 'text-gray-500 hover:text-gray-700'
+              className={`lux-flat rounded-full px-3.5 py-1.5 text-sm font-medium ${
+                tab === 'signin' ? 'bg-paper-raised text-ink shadow-sm' : 'text-ink-muted'
               }`}
             >
-              Sign in
+              Log in
             </button>
             <button
               type="button"
@@ -363,8 +352,8 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
                 setSuccessMessage(null);
                 exitTravelerPasswordReset();
               }}
-              className={`flex-1 py-3 text-sm font-medium transition-colors ${
-                tab === 'signup' ? 'text-gray-900 border-b-2 border-gray-900' : 'text-gray-500 hover:text-gray-700'
+              className={`lux-flat rounded-full px-3.5 py-1.5 text-sm font-medium ${
+                tab === 'signup' ? 'bg-paper-raised text-ink shadow-sm' : 'text-ink-muted'
               }`}
             >
               Sign up
@@ -385,10 +374,10 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
               onSubmit={(e) => void handleTravelerPasswordResetSubmit(e)}
               onBack={exitTravelerPasswordReset}
               emailInputId="auth-page-forgot-reset-email"
-              className="p-6 space-y-4"
+              className="space-y-4"
             />
           ) : (
-          <form noValidate onSubmit={handleSubmit} className="p-6 space-y-4">
+          <form noValidate onSubmit={handleSubmit} className="space-y-4">
             {fieldErrors.form && (
               <p className="text-sm text-red-700 bg-red-50 px-3 py-2 rounded-lg border border-red-100" role="alert">
                 {fieldErrors.form}
@@ -645,7 +634,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
             <button
               type="submit"
               disabled={submitting}
-              className="w-full py-3 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+              className="tv-btn-primary w-full"
             >
               {tab === 'signin' ? (
                 <>

@@ -879,17 +879,17 @@ export default function BookingPage({
               )}
             </div>
 
-            <div className="rounded-xl border border-gray-200 bg-white p-4 mb-5">
-              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Price breakdown</p>
-              <div className="flex justify-between text-sm text-gray-700">
+            <div className="mb-6">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint mb-2">Price breakdown</p>
+              <div className="flex justify-between text-sm text-ink">
                 <span>
                   {currency} {pricePerPerson} × {guests} guests
                 </span>
-                <span className="font-medium text-gray-900">
+                <span className="font-medium">
                   {currency} {total}
                 </span>
               </div>
-              <p className="text-xs text-gray-500 mt-2">This is the amount you pay at checkout.</p>
+              <p className="text-xs text-ink-muted mt-2">This is the amount you pay at checkout.</p>
             </div>
 
             <div className="mb-6">
