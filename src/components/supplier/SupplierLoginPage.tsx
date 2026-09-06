@@ -2,7 +2,7 @@
  * Partner landing at /login. Visual atmosphere + account action.
  * Auth opens as a focused panel — not an admin form dump.
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import SupplierAuth from '../../pages/supplier/SupplierAuth';
 import { BRAND_LOGO_SRC } from '../../lib/brandAssets';
@@ -17,6 +17,15 @@ interface SupplierLoginPageProps {
 export default function SupplierLoginPage({ onAuthenticated, isSupabase }: SupplierLoginPageProps) {
   const mainSiteUrl = publicSiteBaseUrl();
   const [auth, setAuth] = useState<'signup' | 'signin' | null>(null);
+
+  useEffect(() => {
+    if (!auth) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setAuth(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [auth]);
 
   return (
     <div className="relative isolate min-h-[100dvh] w-full text-white bg-ink">

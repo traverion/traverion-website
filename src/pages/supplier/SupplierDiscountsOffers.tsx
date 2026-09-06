@@ -16,7 +16,6 @@ import { parseListingExtras, materializedBookingOptions } from '../../types/list
 import DiscountOfferWizardModal from '../../components/supplier/DiscountOfferWizardModal';
 import {
   SUPPLIER_PAGE_CLASS,
-  SUPPLIER_SECTION_HEADER_CLASS,
   SupplierListSkeleton,
   SupplierPageHero,
   SupplierEmptyState,
@@ -175,75 +174,69 @@ export default function SupplierDiscountsOffers() {
             </div>
           )}
 
-          <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-            <div className={`${SUPPLIER_SECTION_HEADER_CLASS} flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2`}>
-              <h2 className="text-base font-semibold text-gray-900">Your offers</h2>
-              <p className="text-xs text-gray-500">
+          <div>
+            <div className="mb-6 flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1">
+              <h2 className="font-display text-2xl text-ink tracking-tight">Your offers</h2>
+              <p className="text-sm text-ink-muted">
                 {rows.length} total · {rows.filter((r) => offerStatus(r.discount) === 'active').length} active now
               </p>
             </div>
 
             {rows.length === 0 ? (
-              <div className="py-10 px-4 max-w-md">
-                <p className="font-display text-2xl text-ink">No offers yet</p>
-                <p className="text-sm text-ink-muted mt-2">
-                  Create a timed discount on a published listing. It will appear on the public tour page.
-                </p>
-                {canEdit && (
-                  <button type="button" onClick={openNew} className="tv-btn-primary mt-5">
-                    New offer
-                  </button>
-                )}
-              </div>
+              <SupplierEmptyState
+                title="No offers yet"
+                body="Create a timed discount on a published listing. It will appear on the public tour page."
+                action={
+                  canEdit ? (
+                    <button type="button" onClick={openNew} className="tv-btn-primary">
+                      New offer
+                    </button>
+                  ) : undefined
+                }
+              />
             ) : (
-              <div className="divide-y divide-gray-100">
+              <div className="divide-y divide-black/[0.06]">
                 {rows.map(({ discount: d, listing }) => {
                   const st = offerStatus(d);
-                  const tone =
-                    st === 'active'
-                      ? 'bg-green-100 text-green-800'
-                      : st === 'upcoming'
-                        ? 'bg-sky-100 text-sky-800'
-                        : 'bg-gray-100 text-gray-600';
                   const pct = d.type === 'percent' ? `${Math.round(Number(d.value))}%` : `$${d.value}`;
                   return (
-                    <article key={d.id} className="p-4 sm:px-5 sm:py-4 w-full min-w-0 max-w-full space-y-3 transition-colors duration-200 hover:bg-slate-50/60">
+                    <article key={d.id} className="py-4 w-full min-w-0 max-w-full space-y-3">
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between min-w-0">
                         <div className="flex gap-3 min-w-0 flex-1">
                           {listing.image?.trim() ? (
                             <img
                               src={listing.image}
                               alt=""
-                              className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg object-cover shrink-0 border border-gray-100 bg-gray-100"
+                              className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl object-cover shrink-0"
                             />
                           ) : (
                             <div
-                              className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg shrink-0 border border-gray-100 bg-gray-100 flex items-center justify-center text-gray-400"
+                              className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl shrink-0 bg-black/[0.04] flex items-center justify-center text-ink-faint"
                               aria-hidden
                             >
                               <MapPin className="w-6 h-6 sm:w-7 sm:h-7" />
                             </div>
                           )}
                           <div className="min-w-0">
-                            <p className="font-medium text-gray-900 break-words">{listing.title}</p>
-                            <p className="text-sm text-gray-600 mt-1 break-words">{optionLabelForDiscount(listing, d)}</p>
+                            <p className="font-semibold text-ink break-words">{listing.title}</p>
+                            <p className="text-sm text-ink-muted mt-1 break-words">{optionLabelForDiscount(listing, d)}</p>
                           </div>
                         </div>
-                        <span className={`inline-flex shrink-0 self-start px-2 py-0.5 rounded-full text-xs font-semibold ${tone}`}>
+                        <span className="text-xs font-medium text-ink-muted shrink-0 self-start capitalize">
                           {st === 'active' ? 'Active' : st === 'upcoming' ? 'Upcoming' : 'Ended'}
                         </span>
                       </div>
-                      <div className="flex flex-col gap-1 text-sm text-gray-700">
+                      <div className="flex flex-col gap-1 text-sm text-ink-muted">
                         <p>
-                          <span className="text-gray-500">Runs </span>
-                          <span className="tabular-nums font-medium text-gray-900">
+                          Runs{' '}
+                          <span className="tabular-nums font-medium text-ink">
                             {formatDate(d.valid_from)} – {formatDate(d.valid_until)}
                           </span>
                         </p>
                         <p>
-                          <span className="text-gray-500">Discount </span>
+                          Discount{' '}
                           <span className="font-semibold text-finland tabular-nums">{pct}</span>
-                          {d.type === 'percent' ? <span className="text-gray-500"> off</span> : null}
+                          {d.type === 'percent' ? ' off' : null}
                         </p>
                       </div>
                       <div className="flex items-center justify-end gap-1 pt-1">
@@ -251,7 +244,7 @@ export default function SupplierDiscountsOffers() {
                           type="button"
                           onClick={() => openEdit(d)}
                           disabled={!canEdit}
-                          className="p-2 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-finland disabled:opacity-40"
+                          className="lux-flat p-2 rounded-full text-ink-muted hover:text-ink disabled:opacity-40"
                           title="Edit"
                         >
                           <Pencil className="w-4 h-4" />
@@ -260,7 +253,7 @@ export default function SupplierDiscountsOffers() {
                           type="button"
                           onClick={() => void handleDelete(d)}
                           disabled={!canEdit}
-                          className="p-2 rounded-lg text-gray-600 hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
+                          className="lux-flat p-2 rounded-full text-ink-muted hover:text-red-700 disabled:opacity-40"
                           title="Delete"
                         >
                           <Trash2 className="w-4 h-4" />

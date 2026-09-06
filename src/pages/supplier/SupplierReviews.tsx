@@ -178,7 +178,7 @@ export default function SupplierReviews() {
                   <select
                     value={filterListingId}
                     onChange={(e) => setFilterListingId(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white text-sm w-full"
+                    className="tv-input w-full"
                   >
                     <option value="">All tours</option>
                     {listingOptions.map(([id, title]) => (
@@ -189,14 +189,14 @@ export default function SupplierReviews() {
                   </select>
                 </div>
                 <div className="flex flex-col gap-1 min-w-[8.5rem]">
-                  <label className="text-[11px] font-medium uppercase tracking-wide text-gray-500">Star rating</label>
+                  <label className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Star rating</label>
                   <select
                     value={filterRating === '' ? '' : String(filterRating)}
                     onChange={(e) => {
                       const v = e.target.value;
                       setFilterRating(v === '' ? '' : Number(v));
                     }}
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white text-sm w-full"
+                    className="tv-input w-full"
                   >
                     <option value="">All ratings</option>
                     {[5, 4, 3, 2, 1].map((n) => (
@@ -207,11 +207,11 @@ export default function SupplierReviews() {
                   </select>
                 </div>
                 <div className="flex flex-col gap-1 min-w-[10rem]">
-                  <label className="text-[11px] font-medium uppercase tracking-wide text-gray-500">Reply status</label>
+                  <label className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Reply status</label>
                   <select
                     value={filterReply}
                     onChange={(e) => setFilterReply(e.target.value as typeof filterReply)}
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white text-sm w-full"
+                    className="tv-input w-full"
                   >
                     <option value="all">All reviews</option>
                     <option value="unreplied">Needs reply</option>
@@ -225,16 +225,16 @@ export default function SupplierReviews() {
                     <button
                       type="button"
                       onClick={clearFilters}
-                      className="px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50"
+                      className="tv-btn-ghost"
                     >
                       Clear filters
                     </button>
-                    <span className="text-sm text-gray-500">
+                    <span className="text-sm text-ink-muted">
                       Showing {filteredReviews.length} of {reviews.length}
                     </span>
                   </>
                 ) : (
-                  <span className="text-sm text-gray-500">Filter by product, stars, or reply status.</span>
+                  <span className="text-sm text-ink-muted">Filter by product, stars, or reply status.</span>
                 )}
               </div>
 
@@ -250,66 +250,65 @@ export default function SupplierReviews() {
                 Clear filters
               </button>
             </div>
-          ) : null}
-
+          ) : (
+          <div className="divide-y divide-black/[0.06]">
           {filteredReviews.map((r) => (
-            <div
+            <article
               key={r.id}
               id={`supplier-review-card-${r.id}`}
-              className={`bg-white border rounded-2xl p-4 sm:p-6 transition-all duration-200 hover:shadow-md ${
-                highlightReviewId === r.id
-                  ? 'border-finland ring-2 ring-finland/25 shadow-md'
-                  : reviewHasWrittenFeedback(r) && !replies[r.id]
-                    ? 'border-amber-200 bg-amber-50/20'
-                    : 'border-gray-200'
+              className={`py-5 ${
+                highlightReviewId === r.id ? 'bg-paper-raised -mx-2 px-2 rounded-xl' : ''
               }`}
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm text-gray-500 mb-1">
+                  <p className="text-sm text-ink-muted mb-1">
                     {r.listing_title ?? 'Listing'} · {new Date(r.created_at).toLocaleDateString()}
                   </p>
                   <div className="flex items-center gap-2 mb-2">
-                    <span className="font-medium text-gray-900">{r.guest_name}</span>
+                    <span className="font-semibold text-ink">{r.guest_name}</span>
                     {r.verified && (
-                      <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">Verified</span>
+                      <span className="text-xs text-finland font-medium">Verified</span>
                     )}
+                    {reviewHasWrittenFeedback(r) && !replies[r.id] ? (
+                      <span className="text-xs font-medium text-amber-800">Needs reply</span>
+                    ) : null}
                   </div>
                   <div className="flex gap-1 mb-2">
                     {[1, 2, 3, 4, 5].map((i) => (
                       <Star
                         key={i}
                         size={16}
-                        className={i <= r.rating ? 'text-amber-500 fill-amber-500' : 'text-gray-300'}
+                        className={i <= r.rating ? 'text-amber-500 fill-amber-500' : 'text-ink-faint'}
                       />
                     ))}
                   </div>
-                  {r.title && <p className="font-medium text-gray-900 mb-1">{r.title}</p>}
+                  {r.title && <p className="font-medium text-ink mb-1">{r.title}</p>}
                   {reviewHasWrittenFeedback(r) ? (
                     (r.comment ?? '').trim() ? (
-                      <p className="text-gray-700 whitespace-pre-wrap">{r.comment}</p>
+                      <p className="text-ink-muted whitespace-pre-wrap">{r.comment}</p>
                     ) : null
                   ) : (
-                    <p className="text-sm text-gray-500 italic">No written review — rating only.</p>
+                    <p className="text-sm text-ink-muted italic">No written review — rating only.</p>
                   )}
                 </div>
               </div>
 
               {replies[r.id] ? (
                 <div className="mt-4 pl-4 border-l-2 border-finland/30">
-                  <p className="text-sm font-medium text-gray-700 mb-1">Your reply</p>
-                  <p className="text-gray-600">{replies[r.id].reply_text}</p>
-                  <p className="text-xs text-gray-400 mt-1">
+                  <p className="text-sm font-medium text-ink mb-1">Your reply</p>
+                  <p className="text-ink-muted">{replies[r.id].reply_text}</p>
+                  <p className="text-xs text-ink-faint mt-1">
                     {new Date(replies[r.id].created_at).toLocaleDateString()}
                   </p>
                 </div>
               ) : !reviewHasWrittenFeedback(r) ? (
-                <p className="mt-4 text-sm text-gray-500">
+                <p className="mt-4 text-sm text-ink-muted">
                   Replies are available when the guest leaves a title or written comment with their rating.
                 </p>
               ) : (
                 <div className="mt-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-ink mb-1">
                     <MessageSquare className="w-4 h-4 inline mr-1" />
                     Reply
                   </label>
@@ -318,21 +317,23 @@ export default function SupplierReviews() {
                     onChange={(e) => setReplyText((prev) => ({ ...prev, [r.id]: e.target.value }))}
                     placeholder="Thank the customer or answer a question..."
                     rows={2}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland text-sm"
+                    className="tv-input"
                   />
                   <button
                     type="button"
                     disabled={replyingId === r.id || !(replyText[r.id] ?? '').trim()}
                     onClick={() => handleSubmitReply(r.id)}
-                    className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-finland text-white text-sm font-medium hover:bg-finland-dark disabled:opacity-50"
+                    className="tv-btn-primary mt-2 inline-flex items-center gap-1.5 disabled:opacity-50"
                   >
                     <Send className="w-3.5 h-3.5" />
                     {replyingId === r.id ? 'Sending…' : 'Send reply'}
                   </button>
                 </div>
               )}
-            </div>
+            </article>
           ))}
+          </div>
+          )}
         </div>
       )}
     </div>

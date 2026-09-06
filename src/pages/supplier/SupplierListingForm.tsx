@@ -1056,16 +1056,16 @@ export default function SupplierListingForm({
       aria-modal="true"
       aria-labelledby="supplier-option-modal-title"
     >
-      <div className="absolute inset-0 bg-slate-900/40 motion-safe:animate-fade-in" aria-hidden />
-      <div className="relative z-10 flex max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)))] w-full max-w-6xl flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl motion-safe:animate-slide-up sm:rounded-2xl sm:motion-safe:animate-none lg:max-w-7xl">
-        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-gray-200 px-4 py-3 sm:px-5">
-          <h2 id="supplier-option-modal-title" className="text-base font-semibold text-gray-900 pr-8">
+      <button type="button" className="absolute inset-0 bg-ink/40 motion-safe:animate-fade-in" aria-label="Close option" onClick={closeOptionModal} />
+      <div className="relative z-10 flex max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)))] w-full max-w-6xl flex-col overflow-hidden rounded-t-2xl bg-paper-raised shadow-xl ring-1 ring-black/[0.08] motion-safe:animate-slide-up sm:rounded-2xl sm:motion-safe:animate-none lg:max-w-7xl">
+        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-black/[0.06] px-4 py-3 sm:px-5">
+          <h2 id="supplier-option-modal-title" className="font-display text-2xl text-ink tracking-tight pr-8">
             {optionModalEditingId ? 'Edit option' : 'New option'}
           </h2>
           <button
             type="button"
             onClick={closeOptionModal}
-            className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 min-h-[44px] min-w-[44px] inline-flex items-center justify-center shrink-0"
+            className="lux-flat rounded-full p-2 text-ink-muted hover:text-ink min-h-[44px] min-w-[44px] inline-flex items-center justify-center shrink-0"
             aria-label="Close"
           >
             <X className="w-5 h-5" aria-hidden />
@@ -1103,7 +1103,7 @@ export default function SupplierListingForm({
                   type="time"
                   value={optionDraft.startTime}
                   onChange={(e) => patchOptionDraft({ startTime: e.target.value })}
-                  className="w-full max-w-[12rem] px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                  className="tv-input w-full max-w-[12rem]"
                 />
                 <p className="text-xs text-gray-500 mt-1">Shown to guests; you can adjust on the booking.</p>
               </div>
@@ -1232,9 +1232,9 @@ export default function SupplierListingForm({
                       maxSpotsPerSlot: Math.max(1, Math.floor(Number(e.target.value) || 1)),
                     })
                   }
-                  className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                  className="tv-input w-full max-w-xs"
                 />
-                <p className="text-xs text-gray-500 mt-1">Capacity for one departure or time slot.</p>
+                <p className="text-xs text-ink-muted mt-1">Capacity for one departure or time slot.</p>
               </div>
               <div className="sm:col-span-2" id="supplier-listing-field-pickup">
                 <label className="block text-sm font-medium text-gray-700 mb-1">About this option *</label>
@@ -1258,10 +1258,10 @@ export default function SupplierListingForm({
                         next[di] = !next[di];
                         patchOptionDraft({ weekdays: next });
                       }}
-                      className={`min-h-[40px] min-w-[2.75rem] rounded-lg border px-2.5 text-xs font-semibold transition-colors ${
+                      className={`lux-flat min-h-[40px] min-w-[2.75rem] rounded-full px-2.5 text-xs font-semibold ${
                         optionDraft.weekdays[di]
-                          ? 'border-finland bg-finland text-white'
-                          : 'border-gray-200 bg-gray-50 text-gray-500 hover:border-gray-300'
+                          ? 'bg-ink text-paper'
+                          : 'bg-black/[0.04] text-ink-muted hover:bg-black/[0.07]'
                       }`}
                     >
                       {label}
@@ -1269,22 +1269,22 @@ export default function SupplierListingForm({
                   ))}
                 </div>
               </div>
-              <div className="space-y-4 rounded-xl border border-gray-100 bg-gray-50/60 p-4 sm:p-5">
+              <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Starting date of the activity <span className="font-normal text-gray-500">(optional)</span>
+                  <label className="block text-sm font-medium text-ink mb-1">
+                    Starting date of the activity <span className="font-normal text-ink-muted">(optional)</span>
                   </label>
                   <input
                     type="date"
                     value={optionDraft.availabilityDateFrom}
                     onChange={(e) => patchOptionDraft({ availabilityDateFrom: e.target.value })}
-                    className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                    className="tv-input w-full max-w-xs"
                   />
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-ink-muted mt-1">
                     When this option first becomes bookable. Leave empty if there is no fixed start.
                   </p>
                 </div>
-                <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-200 bg-white p-3 touch-manipulation">
+                <label className="flex cursor-pointer items-start gap-3 py-1 touch-manipulation">
                   <input
                     type="checkbox"
                     checked={optionModalHasEndingDate}
@@ -1293,11 +1293,11 @@ export default function SupplierListingForm({
                       setOptionModalHasEndingDate(on);
                       if (!on) patchOptionDraft({ availabilityDateTo: '' });
                     }}
-                    className="mt-0.5 h-5 w-5 rounded border-gray-300 text-finland focus:ring-finland shrink-0"
+                    className="mt-0.5 h-5 w-5 rounded border-black/20 text-finland focus:ring-finland shrink-0"
                   />
                   <span>
-                    <span className="block text-sm font-medium text-gray-900">This activity has an ending date</span>
-                    <span className="block text-xs text-gray-500 mt-0.5">
+                    <span className="block text-sm font-medium text-ink">This activity has an ending date</span>
+                    <span className="block text-xs text-ink-muted mt-0.5">
                       Use this for a fixed season or last day the option runs. Leave it off if the activity continues with no end
                       date.
                     </span>
@@ -1305,20 +1305,20 @@ export default function SupplierListingForm({
                 </label>
                 {optionModalHasEndingDate && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Ending date *</label>
+                    <label className="block text-sm font-medium text-ink mb-1">Ending date *</label>
                     <input
                       type="date"
                       value={optionDraft.availabilityDateTo}
                       onChange={(e) => patchOptionDraft({ availabilityDateTo: e.target.value })}
-                      className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-finland bg-white"
+                      className="tv-input w-full max-w-xs"
                     />
-                    <p className="text-xs text-gray-500 mt-1">Last day this option is offered (inclusive).</p>
+                    <p className="text-xs text-ink-muted mt-1">Last day this option is offered (inclusive).</p>
                   </div>
                 )}
               </div>
             </div>
-            <div className="space-y-3 rounded-xl border border-gray-100 bg-gray-50/90 p-4 text-xs text-gray-600 leading-relaxed lg:sticky lg:top-4 lg:self-start">
-              <p className="text-sm font-semibold text-gray-900">Tips</p>
+            <div className="space-y-3 text-xs text-ink-muted leading-relaxed lg:sticky lg:top-4 lg:self-start">
+              <p className="text-sm font-medium text-ink">Tips</p>
               <ul className="list-disc space-y-2 pl-4">
                 <li>The lowest option price is shown as the &quot;from&quot; price on cards.</li>
                 <li>Meeting or pickup should be specific enough that guests know where to go.</li>
@@ -1339,18 +1339,18 @@ export default function SupplierListingForm({
             </ul>
           </div>
         )}
-        <div className="flex shrink-0 flex-wrap gap-2 border-t border-gray-200 px-4 py-3 sm:px-5 sm:justify-end">
+        <div className="flex shrink-0 flex-wrap gap-2 border-t border-black/[0.06] px-4 py-3 sm:px-5 sm:justify-end">
           <button
             type="button"
             onClick={closeOptionModal}
-            className="min-h-[44px] flex-1 sm:flex-none rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            className="tv-btn-ghost min-h-[44px] flex-1 sm:flex-none"
           >
             Cancel
           </button>
           <button
             type="button"
             onClick={saveOptionModal}
-            className="min-h-[44px] flex-1 sm:flex-none rounded-lg bg-finland px-4 py-2.5 text-sm font-medium text-white hover:bg-finland-dark"
+            className="tv-btn-primary min-h-[44px] flex-1 sm:flex-none"
           >
             Save option
           </button>
