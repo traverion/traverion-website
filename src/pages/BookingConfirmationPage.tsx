@@ -103,7 +103,9 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
     return () => window.clearTimeout(t);
   }, [canQuery, booking, load, pollCount]);
 
-  const stayCheckOut = booking ? parseStayCheckOutFromNotes(booking.special_requests) : null;
+  const stayCheckOut =
+    (booking?.check_out && /^\d{4}-\d{2}-\d{2}$/.test(booking.check_out) ? booking.check_out : null) ??
+    (booking ? parseStayCheckOutFromNotes(booking.special_requests) : null);
   const stayRange = stayCheckOut && booking ? stayRangeFromBooking(booking) : null;
   const stayNights = stayRange ? nightsOccupiedByStay(stayRange.checkIn, stayRange.checkOut).length : null;
 

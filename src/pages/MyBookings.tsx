@@ -20,6 +20,7 @@ import {
   type BookingRow,
 } from '../data/supabase-bookings';
 import { fetchListingTitlesByIds, pgTimeToHm } from '../data/supabase-listings';
+import { parseStayCheckOutFromNotes } from '../lib/stayOccupancy';
 import { decrementAvailabilityBooked } from '../data/supabase-availability';
 import { clearBookingsUnread } from '../lib/customerBookingNotifications';
 
@@ -410,10 +411,22 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                     <span className="text-xs font-medium capitalize text-ink-muted shrink-0">{b.status}</span>
                   </div>
                   <p className="mt-1 text-sm text-ink-muted">
-                    {b.booking_date ? new Date(b.booking_date).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }) : 'Date TBC'}
+                    {(() => {
+                      const out =
+                        b.check_out && /^\d{4}-\d{2}-\d{2}$/.test(b.check_out)
+                          ? b.check_out
+                          : parseStayCheckOutFromNotes(b.special_requests);
+                      if (out && b.booking_date) {
+                        return `${new Date(`${b.booking_date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })} → ${new Date(`${out}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}`;
+                      }
+                      return b.booking_date
+                        ? new Date(`${b.booking_date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })
+                        : 'Date TBC';
+                    })()}
                     {' · '}
                     {b.guests} {b.guests === 1 ? 'guest' : 'guests'}
-                    {b.start_time ? ` · ${pgTimeToHm(b.start_time) ?? ''}` : ''}
+                    {b.start_time && !b.check_out ? ` · ${pgTimeToHm(b.start_time) ?? ''}` : ''}
+                    {b.nights ? ` · ${b.nights} night${b.nights === 1 ? '' : 's'}` : ''}
                   </p>
                 </button>
                 {open ? (

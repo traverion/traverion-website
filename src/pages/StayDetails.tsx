@@ -8,6 +8,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { rememberTravelerReturnStay, travelerLoginHref } from '../lib/travelerAuthLinks';
 import { quoteStayNights } from '../lib/booking-quote';
 import { createBookingCheckoutSession } from '../data/supabase-bookings';
+import { fetchSupplierPublicLegal } from '../data/supabase-supplier-profile';
 import type { TourPackage } from '../types/tour';
 import ErrorState from '../components/ErrorState';
 import { Skeleton } from '../components/ui/Skeleton';
@@ -39,6 +40,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
   const [guests, setGuests] = useState(() => readStayPrefill().guests);
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
+  const [hostName, setHostName] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -57,6 +59,17 @@ export default function StayDetails({ stayId, onBack }: Props) {
       cancelled = true;
     };
   }, [stayId]);
+
+  useEffect(() => {
+    if (!stay?.supplierId) {
+      setHostName(null);
+      return;
+    }
+    void fetchSupplierPublicLegal(stay.supplierId).then((row) => {
+      const name = row?.company_legal_name?.trim() || row?.display_name?.trim() || null;
+      setHostName(name);
+    });
+  }, [stay?.supplierId]);
 
   const extras = stay ? parseListingExtras(stay.listingExtras) : {};
   const s = extras.stay;
@@ -202,6 +215,12 @@ export default function StayDetails({ stayId, onBack }: Props) {
                 You may cancel free of charge up to 24 hours before check-in. After that, guest-initiated cancellations are not available. If the operator cancels, that is handled from your booking details.
               </p>
             </div>
+            {hostName ? (
+              <div>
+                <h2 className="font-display text-2xl mb-2">Host</h2>
+                <p className="text-ink-muted">{hostName}</p>
+              </div>
+            ) : null}
           </div>
 
           <aside className="lg:sticky lg:top-24 h-fit rounded-2xl bg-paper-raised p-5 shadow-soft-lg">

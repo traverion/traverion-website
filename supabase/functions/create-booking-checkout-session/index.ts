@@ -210,18 +210,43 @@ serve(async (req) => {
     if (extrasFamily === 'stay' && checkoutDate) {
       const { data: existingStayBookings, error: stayBusyErr } = await admin
         .from('bookings')
-        .select('id, booking_date, special_requests, status')
+        .select('id, booking_date, check_out, special_requests, status')
         .eq('listing_id', listingId)
         .neq('status', 'cancelled');
-      if (stayBusyErr) return json({ success: false, error: stayBusyErr.message }, 500);
-      for (const row of existingStayBookings ?? []) {
+      const stayRows = stayBusyErr && /check_out/i.test(stayBusyErr.message)
+        ? (
+            await admin
+              .from('bookings')
+              .select('id, booking_date, special_requests, status')
+              .eq('listing_id', listingId)
+              .neq('status', 'cancelled')
+          ).data
+        : existingStayBookings;
+      if (stayBusyErr && !/check_out/i.test(stayBusyErr.message)) {
+        return json({ success: false, error: stayBusyErr.message }, 500);
+      }
+      for (const row of stayRows ?? []) {
         if (targetBookingId && String(row.id) === targetBookingId) continue;
         const range = stayRangeFromBooking({
           booking_date: typeof row.booking_date === 'string' ? row.booking_date : null,
+          check_out: typeof (row as { check_out?: unknown }).check_out === 'string' ? (row as { check_out: string }).check_out : null,
           special_requests: typeof row.special_requests === 'string' ? row.special_requests : null,
         });
         if (range && stayDateRangesOverlap(bookingDate, checkoutDate, range.checkIn, range.checkOut)) {
           return json({ success: false, error: 'Those nights are already booked.' }, 409);
+        }
+      }
+
+      const { data: blockedRows } = await admin
+        .from('listing_availability')
+        .select('available_date, capacity, booked')
+        .eq('listing_id', listingId)
+        .gte('available_date', bookingDate)
+        .lt('available_date', checkoutDate);
+      for (const row of blockedRows ?? []) {
+        const remaining = Number(row.capacity ?? 0) - Number(row.booked ?? 0);
+        if (remaining <= 0) {
+          return json({ success: false, error: 'One or more of those nights is blocked or already occupied.' }, 409);
         }
       }
     }
@@ -251,6 +276,18 @@ serve(async (req) => {
         payment_provider: 'stripe',
         booking_option_id: quote.optionId,
       };
+      if (extrasFamily === 'stay' && checkoutDate) {
+        const nights =
+          Math.round(
+            (Date.parse(`${checkoutDate}T12:00:00Z`) - Date.parse(`${bookingDate}T12:00:00Z`)) / 86400000
+          );
+        insertBase.check_out = checkoutDate;
+        if (nights >= 1) {
+          insertBase.nights = nights;
+          insertBase.nightly_amount = quote.unitPrice;
+          insertBase.cleaning_fee = Math.round((quote.totalAmount - quote.unitPrice * nights) * 100) / 100;
+        }
+      }
       let inserted: { id: string } | null = null;
       let insertError: { message: string } | null = null;
       {
@@ -260,6 +297,15 @@ serve(async (req) => {
       }
       if (insertError && /booking_option_id/i.test(insertError.message)) {
         delete insertBase.booking_option_id;
+        const res = await admin.from('bookings').insert(insertBase).select('id').single();
+        inserted = res.data;
+        insertError = res.error;
+      }
+      if (insertError && /check_out|nights|nightly_amount|cleaning_fee/i.test(insertError.message)) {
+        delete insertBase.check_out;
+        delete insertBase.nights;
+        delete insertBase.nightly_amount;
+        delete insertBase.cleaning_fee;
         const res = await admin.from('bookings').insert(insertBase).select('id').single();
         inserted = res.data;
         insertError = res.error;

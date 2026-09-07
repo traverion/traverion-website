@@ -572,7 +572,10 @@ export default function SupplierBookings() {
               const startHm = booking.start_time ? pgTimeToHm(booking.start_time) ?? null : null;
               const meta = listingMeta[booking.listing_id];
               const listingTitle = meta?.title ?? (meta?.family === 'stay' ? 'Stay' : 'Tour');
-              const stayOut = parseStayCheckOutFromNotes(booking.special_requests);
+              const stayOut =
+                booking.check_out && /^\d{4}-\d{2}-\d{2}$/.test(booking.check_out)
+                  ? booking.check_out
+                  : parseStayCheckOutFromNotes(booking.special_requests);
               const dateLine = stayOut
                 ? `${booking.booking_date ?? ''} → ${stayOut}`
                 : formatActivityDateLong(booking.booking_date, startHm);

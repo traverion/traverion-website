@@ -133,7 +133,9 @@ export default function BookingPage({
 }: BookingPageProps) {
   const { user, requestAuth } = useAuth();
   const flowMode = presentation === 'modal' ? 'modal' : 'page';
-  const [step, setStep] = useState<Step>(presentation === 'modal' ? 'review' : 'date-guests');
+  const [step, setStep] = useState<Step>(
+    presentation === 'modal' || selectedVariant ? 'review' : 'date-guests'
+  );
   const [date, setDate] = useState('');
   const [guests, setGuests] = useState(1);
   const [firstName, setFirstName] = useState('');
@@ -899,7 +901,7 @@ export default function BookingPage({
             <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between sm:items-center">
               <button
                 type="button"
-                onClick={() => setStep(flowMode === 'modal' ? 'review' : 'date-guests')}
+                onClick={() => setStep(flowMode === 'modal' || selectedVariant ? 'review' : 'date-guests')}
                 className="tv-btn-ghost"
               >
                 Edit trip details

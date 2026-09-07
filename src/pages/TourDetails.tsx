@@ -370,16 +370,16 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
         );
         return;
       }
-      const openModal = () => {
+      const openBooking = () => {
         analytics.bookStart(tour.id);
         setSelectedBookingVariant(variant);
         setBookingModalOpen(true);
       };
       if (isSupabaseConfigured() && !user) {
-        requestAuth({ onSuccess: openModal });
+        requestAuth({ onSuccess: openBooking });
         return;
       }
-      openModal();
+      openBooking();
     } catch {
       setBookingCardError('Could not verify availability. Check your connection and try again.');
     } finally {
@@ -454,6 +454,22 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   const images = uniqueGallery;
   const hasGallery = images.length > 0;
   const review = publicReviewLabel(reviewAggregate);
+
+  if (bookingModalOpen && selectedBookingVariant && canBook) {
+    return (
+      <BookingPage
+        tour={tour}
+        presentation="page"
+        selectedVariant={selectedBookingVariant}
+        discountsByListing={discountsByListing}
+        initialDate={bookingDate.trim()}
+        initialGuests={guests}
+        onBack={closeBookingModal}
+        onComplete={closeBookingModal}
+        onModalClose={closeBookingModal}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-paper tv-page pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-0">
@@ -576,11 +592,11 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                     {tour.groupSize}
                   </span>
                   <span className="flex items-baseline gap-1.5 flex-wrap">
-                    <strong className="text-gray-900">Difficulty</strong>
+                    <strong className="text-ink">Difficulty</strong>
                     <span>{tour.difficulty}</span>
                   </span>
                 </div>
-                <div className="mb-6 flex flex-col sm:flex-row sm:flex-wrap gap-x-6 gap-y-2 text-sm text-gray-600">
+                <div className="mb-6 flex flex-col sm:flex-row sm:flex-wrap gap-x-6 gap-y-2 text-sm text-ink-muted">
                   <span className="inline-flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-green-600 shrink-0" aria-hidden />
                     {tour.cancellationPolicy?.trim() || TRAVERION_STANDARD_CANCELLATION_POLICY.split('.')[0]}.
@@ -590,7 +606,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                     Pay securely to confirm — you are not charged until checkout
                   </span>
                 </div>
-                <p className="text-gray-700 leading-relaxed">{tour.description}</p>
+                <p className="text-ink leading-relaxed">{tour.description}</p>
 
                 {(() => {
                   const x = tour.listingExtras;
@@ -644,37 +660,37 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                       <ul className="space-y-2 text-sm text-ink-muted">
                         {scheduleLabel && (
                           <li>
-                            <span className="font-medium text-gray-900">Timing: </span>
+                            <span className="font-medium text-ink">Timing: </span>
                             {scheduleLabel}
                           </li>
                         )}
                         {x?.typicalTimelineNotes?.trim() && (
                           <li>
-                            <span className="font-medium text-gray-900">Typical flow: </span>
+                            <span className="font-medium text-ink">Typical flow: </span>
                             {x.typicalTimelineNotes.trim()}
                           </li>
                         )}
                         {venueLabel && (
                           <li>
-                            <span className="font-medium text-gray-900">Setting: </span>
+                            <span className="font-medium text-ink">Setting: </span>
                             {venueLabel}
                           </li>
                         )}
                         {x?.minGuestAge?.trim() && (
                           <li>
-                            <span className="font-medium text-gray-900">Minimum age: </span>
+                            <span className="font-medium text-ink">Minimum age: </span>
                             {x.minGuestAge.trim()}
                           </li>
                         )}
                         {langExtra.length > 0 && (
                           <li>
-                            <span className="font-medium text-gray-900">Also offered in: </span>
+                            <span className="font-medium text-ink">Also offered in: </span>
                             {langExtra.join(', ')}
                           </li>
                         )}
                         {x?.accessibilitySummary?.trim() && (
                           <li>
-                            <span className="font-medium text-gray-900">Accessibility &amp; mobility: </span>
+                            <span className="font-medium text-ink">Accessibility &amp; mobility: </span>
                             {x.accessibilitySummary.trim()}
                           </li>
                         )}
@@ -689,7 +705,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                       <img
                         src={supplierLegal.business_logo_url}
                         alt={`${supplierLegal.operatorName} logo`}
-                        className="w-16 h-16 sm:w-[4.5rem] sm:h-[4.5rem] rounded-xl object-cover border border-gray-100 flex-shrink-0 shadow-sm"
+                        className="w-16 h-16 sm:w-[4.5rem] sm:h-[4.5rem] rounded-xl object-cover border border-black/[0.06] flex-shrink-0 shadow-sm"
                       />
                     ) : (
                       <div className="w-16 h-16 sm:w-[4.5rem] sm:h-[4.5rem] rounded-xl bg-finland/10 flex items-center justify-center flex-shrink-0 border border-finland/15">
@@ -697,8 +713,8 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                       </div>
                     )}
                     <div className="min-w-0">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Run by</p>
-                      <p className="text-lg font-semibold text-gray-900 truncate">{supplierLegal.operatorName}</p>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-ink-muted">Run by</p>
+                      <p className="text-lg font-semibold text-ink truncate">{supplierLegal.operatorName}</p>
                     </div>
                   </div>
                 )}
@@ -712,15 +728,15 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                         <img
                           src={supplierLegal.business_logo_url}
                           alt=""
-                          className="w-10 h-10 rounded-lg object-cover border border-gray-100 flex-shrink-0 hidden sm:block"
+                          className="w-10 h-10 rounded-lg object-cover border border-black/[0.06] flex-shrink-0 hidden sm:block"
                           aria-hidden
                         />
                       ) : null}
-                      <h2 className="text-xs font-bold uppercase tracking-[0.12em] text-gray-900">
+                      <h2 className="text-xs font-bold uppercase tracking-[0.12em] text-ink">
                         Policies from {supplierLegal.operatorName}
                       </h2>
                     </div>
-                    <p className="text-sm text-gray-600 mt-1.5 mb-4">
+                    <p className="text-sm text-ink-muted mt-1.5 mb-4">
                       Privacy and booking terms for this tour operator.
                     </p>
                     <div className="flex flex-wrap gap-2">
@@ -870,16 +886,16 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                     }`}
                     onClick={() => void handlePickTourVariant(v)}
                   >
-                    <span className="font-medium text-gray-900">{v.label}</span>
+                    <span className="font-medium text-ink">{v.label}</span>
                     {v.listingOption ? (
-                      <span className="mt-0.5 block text-xs text-gray-500">
+                      <span className="mt-0.5 block text-xs text-ink-muted">
                         {formatOptionWeekdays(v.listingOption.weekdays)}
                       </span>
                     ) : null}
-                    <span className="mt-0.5 block text-xs leading-snug text-gray-600">{v.subtitle}</span>
+                    <span className="mt-0.5 block text-xs leading-snug text-ink-muted">{v.subtitle}</span>
                     <span className="mt-1.5 block text-sm font-semibold text-finland">
                       From {tour.price?.currency ?? 'USD'} {v.pricePerPerson}{' '}
-                      <span className="font-normal text-gray-500">/ person</span>
+                      <span className="font-normal text-ink-muted">/ person</span>
                     </span>
                     {dayErr ? <span className="mt-1 block text-xs text-red-600">{dayErr}</span> : null}
                   </button>
@@ -964,13 +980,13 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
           )}
           <div className="space-y-6 mb-8">
             {reviews.map((r) => (
-              <div key={r.id} className="border-b border-gray-100 pb-6 last:border-0">
+              <div key={r.id} className="border-b border-black/[0.06] pb-6 last:border-0">
                 <div className="flex items-center gap-3 mb-2">
-                  <span className="font-medium text-gray-900">{r.guest_name}</span>
+                  <span className="font-medium text-ink">{r.guest_name}</span>
                   {r.verified && (
                     <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">Verified</span>
                   )}
-                  <span className="text-sm text-gray-500">{new Date(r.created_at).toLocaleDateString()}</span>
+                  <span className="text-sm text-ink-muted">{new Date(r.created_at).toLocaleDateString()}</span>
                 </div>
                 <div className="flex gap-1 mb-1">
                   {[1, 2, 3, 4, 5].map((i) => (
@@ -981,8 +997,8 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                     />
                   ))}
                 </div>
-                {r.title && <p className="font-medium text-gray-900 mb-1">{r.title}</p>}
-                <p className="text-gray-700">{r.comment}</p>
+                {r.title && <p className="font-medium text-ink mb-1">{r.title}</p>}
+                <p className="text-ink">{r.comment}</p>
               </div>
             ))}
           </div>
@@ -1002,7 +1018,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
               <h3 className="font-display text-xl text-ink mb-4">Write a review</h3>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Rating</label>
+                  <label className="block text-sm font-medium text-ink mb-1">Rating</label>
                   <div className="flex gap-1">
                     {[1, 2, 3, 4, 5].map((i) => (
                       <button
@@ -1020,7 +1036,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Title (optional)</label>
+                  <label className="block text-sm font-medium text-ink mb-1">Title (optional)</label>
                   <input
                     type="text"
                     value={reviewTitle}
@@ -1030,7 +1046,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Your review *</label>
+                  <label className="block text-sm font-medium text-ink mb-1">Your review *</label>
                   <textarea
                     value={reviewComment}
                     onChange={(e) => setReviewComment(e.target.value)}
@@ -1075,7 +1091,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                   <button
                     type="button"
                     onClick={() => { setShowReviewForm(false); setReviewError(null); }}
-                    className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
+                    className="px-4 py-2 rounded-lg border border-gray-300 text-ink hover:bg-gray-50"
                   >
                     Cancel
                   </button>
@@ -1159,20 +1175,6 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
             </div>
           </div>
         </div>
-      )}
-
-      {bookingModalOpen && tour && selectedBookingVariant && canBook && (
-        <BookingPage
-          tour={tour}
-          presentation="modal"
-          selectedVariant={selectedBookingVariant}
-          discountsByListing={discountsByListing}
-          initialDate={bookingDate.trim()}
-          initialGuests={guests}
-          onBack={closeBookingModal}
-          onComplete={closeBookingModal}
-          onModalClose={closeBookingModal}
-        />
       )}
     </div>
   );

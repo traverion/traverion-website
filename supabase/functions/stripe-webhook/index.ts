@@ -22,22 +22,37 @@ async function incrementAvailabilityBookedAdmin(
   admin: SupabaseClient,
   listingId: string,
   bookingDate: string | null,
-  guests: number
+  guests: number,
+  checkOut?: string | null
 ) {
-  if (!bookingDate) return;
-  const { data: row } = await admin
-    .from('listing_availability')
-    .select('booked')
-    .eq('listing_id', listingId)
-    .eq('available_date', bookingDate)
-    .maybeSingle();
-  if (!row) return;
+  const nights: string[] = [];
+  if (bookingDate && checkOut && checkOut > bookingDate) {
+    let cur = bookingDate;
+    while (cur < checkOut) {
+      nights.push(cur);
+      const [y, m, d] = cur.split('-').map(Number);
+      const dt = new Date(Date.UTC(y, m - 1, d + 1));
+      cur = dt.toISOString().slice(0, 10);
+      if (nights.length > 400) break;
+    }
+  } else if (bookingDate) {
+    nights.push(bookingDate);
+  }
   const party = Number.isFinite(guests) ? Math.max(1, Math.floor(guests)) : 1;
-  await admin
-    .from('listing_availability')
-    .update({ booked: (row.booked ?? 0) + party })
-    .eq('listing_id', listingId)
-    .eq('available_date', bookingDate);
+  for (const day of nights) {
+    const { data: row } = await admin
+      .from('listing_availability')
+      .select('booked')
+      .eq('listing_id', listingId)
+      .eq('available_date', day)
+      .maybeSingle();
+    if (!row) continue;
+    await admin
+      .from('listing_availability')
+      .update({ booked: (row.booked ?? 0) + party })
+      .eq('listing_id', listingId)
+      .eq('available_date', day);
+  }
 }
 
 /** Supplier + traveler emails after paid checkout (same as legacy submitBooking flow). */
@@ -53,16 +68,29 @@ async function notifyPaidBookingSideEffects(params: {
   const anon = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
   const portalBase = (Deno.env.get('PUBLIC_SITE_URL') ?? 'https://www.traverion.com').replace(/\/$/, '');
 
-  const { data: booking } = await admin
+  const withStay = await admin
     .from('bookings')
     .select(
-      'listing_id, booking_date, guests, guest_name, guest_email, guest_user_id, booking_number, paid_at, payment_intent_id',
+      'listing_id, booking_date, check_out, guests, guest_name, guest_email, guest_user_id, booking_number, paid_at, payment_intent_id',
     )
     .eq('id', bookingId)
     .maybeSingle();
+  let booking = withStay.data as Record<string, unknown> | null;
+  if (withStay.error && /check_out/i.test(withStay.error.message)) {
+    const fallback = await admin
+      .from('bookings')
+      .select(
+        'listing_id, booking_date, guests, guest_name, guest_email, guest_user_id, booking_number, paid_at, payment_intent_id',
+      )
+      .eq('id', bookingId)
+      .maybeSingle();
+    booking = fallback.data as Record<string, unknown> | null;
+  } else if (withStay.error || !booking) {
+    return;
+  }
   if (!booking?.listing_id) return;
 
-  let guestEmailResolved = (booking.guest_email ?? '').trim().toLowerCase();
+  let guestEmailResolved = String(booking.guest_email ?? '').trim().toLowerCase();
   if (!guestEmailResolved && booking.guest_user_id) {
     try {
       const { data: authUser } = await admin.auth.admin.getUserById(String(booking.guest_user_id));
@@ -78,9 +106,10 @@ async function notifyPaidBookingSideEffects(params: {
 
   await incrementAvailabilityBookedAdmin(
     admin,
-    booking.listing_id,
-    booking.booking_date ?? null,
-    Number(booking.guests ?? 1)
+    booking.listing_id as string,
+    typeof booking.booking_date === 'string' ? booking.booking_date : null,
+    Number(booking.guests ?? 1),
+    typeof booking.check_out === 'string' ? booking.check_out : null
   );
 
   const { data: listing } = await admin

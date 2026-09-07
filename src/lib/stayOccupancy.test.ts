@@ -25,6 +25,16 @@ describe('stay occupancy', () => {
     expect(stayDateRangesOverlap('2026-09-10', '2026-09-13', '2026-09-13', '2026-09-15')).toBe(false);
   });
 
+  it('prefers a first-class check_out column over notes', () => {
+    expect(
+      stayRangeFromBooking({
+        booking_date: '2026-09-10',
+        check_out: '2026-09-14',
+        special_requests: 'check_out: 2026-09-12',
+      })
+    ).toEqual({ checkIn: '2026-09-10', checkOut: '2026-09-14' });
+  });
+
   it('treats a stay booking without check_out as one night', () => {
     expect(stayRangeFromBooking({ booking_date: '2026-09-10', special_requests: null })).toEqual({
       checkIn: '2026-09-10',

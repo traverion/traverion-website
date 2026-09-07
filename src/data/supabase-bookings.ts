@@ -52,13 +52,18 @@ export type BookingRow = {
   checkout_session_id?: string | null;
   amount_paid?: number | null;
   currency?: string | null;
+  /** Stay check-out (exclusive). Null for tours. */
+  check_out?: string | null;
+  nights?: number | null;
+  nightly_amount?: number | null;
+  cleaning_fee?: number | null;
 };
 
 /** Consumer booking row including Stripe payment fields (RLS same as BookingRow). */
 export type BookingWithPaymentRow = BookingRow;
 
 const BOOKING_LIST_COLUMNS =
-  'id, listing_id, guest_email, guest_name, guests, booking_date, status, special_requests, cancellation_reason, refund_choice, cancelled_at, acknowledged_at, created_at, start_time, pickup_time, booking_number';
+  'id, listing_id, guest_email, guest_name, guests, booking_date, check_out, nights, nightly_amount, cleaning_fee, status, special_requests, cancellation_reason, refund_choice, cancelled_at, acknowledged_at, created_at, start_time, pickup_time, booking_number';
 
 const BOOKING_PAYMENT_COLUMNS = `${BOOKING_LIST_COLUMNS}, payment_status, checkout_session_id, amount_paid, currency`;
 
@@ -688,12 +693,22 @@ export async function cancelBookingAsCustomer(
 /** Fetch current consumer's bookings (RLS: select where guest_email = auth user email). Must be logged in. Throws on Supabase error. */
 export async function fetchMyBookings(): Promise<BookingRow[]> {
   if (!supabase) return [];
-  const { data, error } = await supabase
-    .from('bookings')
-    .select(BOOKING_LIST_COLUMNS)
-    .order('created_at', { ascending: false });
-  if (error) throw new Error(error.message);
-  return (data ?? []) as BookingRow[];
+  const columnTiers = [
+    BOOKING_LIST_COLUMNS,
+    BOOKING_LIST_COLUMNS_LEGACY,
+    BOOKING_CORE_COLUMNS,
+  ];
+  let lastError: string | null = null;
+  for (const columns of columnTiers) {
+    const { data, error } = await supabase
+      .from('bookings')
+      .select(columns)
+      .order('created_at', { ascending: false });
+    if (!error) return (data ?? []) as unknown as BookingRow[];
+    lastError = error.message;
+    if (!isLikelyMissingColumnError(error.message)) break;
+  }
+  throw new Error(lastError ?? 'Could not load bookings');
 }
 
 /**
@@ -706,11 +721,20 @@ export async function fetchMyBookingByCheckoutSessionId(
   if (!supabase) return null;
   const id = checkoutSessionId.trim();
   if (!id) return null;
-  const { data, error } = await supabase
-    .from('bookings')
-    .select(BOOKING_PAYMENT_COLUMNS)
-    .eq('checkout_session_id', id)
-    .maybeSingle();
-  if (error) throw new Error(error.message);
-  return (data ?? null) as BookingWithPaymentRow | null;
+  const columnTiers = [
+    BOOKING_PAYMENT_COLUMNS,
+    BOOKING_PAYMENT_COLUMNS_LEGACY,
+  ];
+  let lastError: string | null = null;
+  for (const columns of columnTiers) {
+    const { data, error } = await supabase
+      .from('bookings')
+      .select(columns)
+      .eq('checkout_session_id', id)
+      .maybeSingle();
+    if (!error) return (data ?? null) as BookingWithPaymentRow | null;
+    lastError = error.message;
+    if (!isLikelyMissingColumnError(error.message)) break;
+  }
+  throw new Error(lastError ?? 'Could not load booking');
 }
