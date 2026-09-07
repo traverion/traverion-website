@@ -168,7 +168,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                 >
                   {!isSupabaseConfigured() ? (
                     <div className="px-3 py-2 space-y-2">
-                      <p className="text-xs text-gray-600 leading-snug">
+                      <p className="text-xs text-ink-muted leading-snug">
                         Online accounts are not available in this environment yet. You can still browse tours and contact us for help.
                       </p>
                       <button
@@ -187,20 +187,20 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                           setIsUserMenuOpen(false);
                           onNavigate('packages');
                         }}
-                        className="lux-flat w-full text-left px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-50 rounded-lg"
+                        className="lux-flat w-full text-left px-2 py-1.5 text-sm text-ink hover:bg-black/[0.04] rounded-lg"
                       >
                         Browse tours
                       </button>
                     </div>
                   ) : user ? (
                     <>
-                      <div className="px-3 py-2 border-b border-gray-100">
-                        <p className="text-sm font-medium text-gray-900 truncate">{user.email}</p>
+                      <div className="px-3 py-2 border-b border-black/[0.06]">
+                        <p className="text-sm font-medium text-ink truncate">{user.email}</p>
                       </div>
                       <button
                         type="button"
                         onClick={() => { setIsUserMenuOpen(false); onNavigate('account'); }}
-                        className="lux-flat w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 text-left rounded-lg"
+                        className="lux-flat w-full flex items-center gap-2 px-3 py-2 text-sm text-ink hover:bg-black/[0.04] text-left rounded-lg"
                       >
                         <LayoutDashboard className="w-4 h-4" />
                         My account
@@ -208,7 +208,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                       <button
                         type="button"
                         onClick={openBookings}
-                        className="lux-flat w-full flex items-center justify-between gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 text-left rounded-lg"
+                        className="lux-flat w-full flex items-center justify-between gap-2 px-3 py-2 text-sm text-ink hover:bg-black/[0.04] text-left rounded-lg"
                       >
                         <span className="inline-flex items-center gap-2">
                           <Calendar className="w-4 h-4" />
@@ -219,7 +219,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                       <button
                         type="button"
                         onClick={() => { setIsUserMenuOpen(false); signOut(); }}
-                        className="lux-flat w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 text-left rounded-lg"
+                        className="lux-flat w-full flex items-center gap-2 px-3 py-2 text-sm text-ink hover:bg-black/[0.04] text-left rounded-lg"
                       >
                         <LogOut className="w-4 h-4" />
                         Log out
@@ -233,7 +233,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                         window.history.pushState({}, '', '/log-in?next=home');
                         onNavigate('auth');
                       }}
-                      className="lux-flat w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 text-left rounded-lg"
+                      className="lux-flat w-full flex items-center gap-2 px-3 py-2 text-sm text-ink hover:bg-black/[0.04] text-left rounded-lg"
                     >
                       <User className="w-4 h-4" />
                       Log in / Sign up
@@ -260,7 +260,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                 prefetchAuthPage();
                 prefetchMyBookingsPage();
               }}
-              className="no-lux-interaction lux-tap-target lg:hidden inline-flex h-11 w-11 items-center justify-center text-gray-600 hover:text-finland rounded-lg"
+              className="no-lux-interaction lux-tap-target lg:hidden inline-flex h-11 w-11 items-center justify-center text-ink-muted hover:text-finland rounded-lg"
               aria-label={isMobileMenuOpen ? 'Close menu' : 'Menu'}
               aria-expanded={isMobileMenuOpen}
               aria-controls="site-mobile-menu"
@@ -288,7 +288,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                   setIsMobileMenuOpen(false);
                 }}
                 className={`lux-flat text-left px-4 py-3 rounded-lg transition-colors duration-300 ease-lux font-medium ${
-                  currentPage === 'home' ? 'bg-finland/10 text-finland' : 'text-gray-700 hover:bg-gray-50'
+                  currentPage === 'home' ? 'bg-finland/10 text-finland' : 'text-ink hover:bg-black/[0.04]'
                 }`}
               >
                 Explore
@@ -302,13 +302,13 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                 className={`lux-flat text-left px-4 py-3 rounded-lg transition-colors duration-300 ease-lux font-medium ${
                   currentPage === 'packages' || currentPage === 'tour-details'
                     ? 'bg-finland/10 text-finland'
-                    : 'text-gray-700 hover:bg-gray-50'
+                    : 'text-ink hover:bg-black/[0.04]'
                 }`}
               >
                 Tours
               </button>
               {!isSupabaseConfigured() && (
-                <div className="px-4 py-3 rounded-lg bg-gray-50 border border-gray-100 text-sm text-gray-600">
+                <div className="px-4 py-3 rounded-lg bg-black/[0.03] ring-1 ring-black/[0.06] text-sm text-ink-muted">
                   <p className="mb-2">Accounts and saved cart need the live site configuration.</p>
                   <button
                     type="button"
@@ -323,9 +323,9 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                 </div>
               )}
               {/* Mobile Action Buttons */}
-              <div className="border-t border-gray-200 pt-4 space-y-2">
+              <div className="border-t border-black/[0.06] pt-4 space-y-2">
                 {isSupabaseConfigured() && user ? (
-                  <div className="px-2 py-2 flex items-center gap-2 text-sm text-gray-600">
+                  <div className="px-2 py-2 flex items-center gap-2 text-sm text-ink-muted">
                     <span className="w-8 h-8 rounded-full bg-finland/20 text-finland flex items-center justify-center text-sm font-medium flex-shrink-0">
                       {(user.email ?? user.id).slice(0, 1).toUpperCase()}
                     </span>
@@ -339,7 +339,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                       onNavigate('auth');
                       setIsMobileMenuOpen(false);
                     }}
-                    className="lux-flat w-full text-left px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors duration-300 ease-lux flex items-center gap-2"
+                    className="lux-flat w-full text-left px-4 py-3 rounded-lg text-ink hover:bg-black/[0.04] transition-colors duration-300 ease-lux flex items-center gap-2"
                   >
                     <User className="w-5 h-5" />
                     Log in / Sign up
@@ -352,14 +352,14 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                         onNavigate('account');
                         setIsMobileMenuOpen(false);
                       }}
-                      className="lux-flat w-full text-left px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors duration-300 ease-lux flex items-center gap-2"
+                      className="lux-flat w-full text-left px-4 py-3 rounded-lg text-ink hover:bg-black/[0.04] transition-colors duration-300 ease-lux flex items-center gap-2"
                     >
                       <LayoutDashboard className="w-5 h-5" />
                       My account
                     </button>
                     <button
                       onClick={openBookings}
-                      className="lux-flat w-full text-left px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors duration-300 ease-lux flex items-center justify-between gap-2"
+                      className="lux-flat w-full text-left px-4 py-3 rounded-lg text-ink hover:bg-black/[0.04] transition-colors duration-300 ease-lux flex items-center justify-between gap-2"
                     >
                       <span className="inline-flex items-center gap-2">
                         <Calendar className="w-5 h-5" />
@@ -372,7 +372,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                         signOut();
                         setIsMobileMenuOpen(false);
                       }}
-                      className="lux-flat w-full text-left px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors duration-300 ease-lux flex items-center gap-2"
+                      className="lux-flat w-full text-left px-4 py-3 rounded-lg text-ink hover:bg-black/[0.04] transition-colors duration-300 ease-lux flex items-center gap-2"
                     >
                       <LogOut className="w-5 h-5" />
                       Log out
@@ -384,7 +384,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                     onNavigate('packages');
                     setIsMobileMenuOpen(false);
                   }}
-                  className="btn-luxury w-full bg-finland text-white px-4 py-3 rounded-lg font-medium hover:bg-finland-dark transition-all duration-300 ease-lux shadow-lg text-center"
+                  className="tv-btn-primary w-full justify-center"
                 >
                   Find tours
                 </button>

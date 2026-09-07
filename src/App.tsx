@@ -389,10 +389,7 @@ function App() {
           <DestinationPage
             slug={destinationSlug}
             onTourSelect={handleTourSelect}
-            onBack={() => {
-              window.history.replaceState({}, '', '/packages');
-              setCurrentPage('packages');
-            }}
+            onBack={handleBackToTours}
             onNavigate={handleNavigate}
           />
         );

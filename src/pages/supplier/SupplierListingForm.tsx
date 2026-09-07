@@ -1790,7 +1790,7 @@ export default function SupplierListingForm({
                     value={form.country}
                     onChange={(e) => setForm((f) => ({ ...f, country: e.target.value }))}
                     className="tv-input"
-                    placeholder="Primary country for this experience"
+                    placeholder="Primary country for this tour"
                     required
                   />
                 </div>
