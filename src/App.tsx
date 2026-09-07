@@ -260,7 +260,12 @@ function App() {
       }
       return;
     }
-    if (currentPage === 'auth' || currentPage === 'email-confirmed' || currentPage === 'not-found') {
+    if (
+      currentPage === 'auth' ||
+      currentPage === 'email-confirmed' ||
+      currentPage === 'not-found' ||
+      currentPage === 'reset-password'
+    ) {
       return;
     }
     const urlMapping: { [key: string]: string } = {
