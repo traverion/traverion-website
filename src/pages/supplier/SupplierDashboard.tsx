@@ -253,21 +253,21 @@ export default function SupplierDashboard({ onNavigateToBookings }: SupplierDash
         <ul className="space-y-2 text-sm">
             {pendingBookings.length > 0 && (
               <li>
-                <button type="button" onClick={() => onNavigateToBookings?.()} className="lux-flat text-finland font-medium">
+                <button type="button" onClick={() => onNavigateToBookings?.()} className="lux-flat min-h-11 w-full text-left py-2 text-finland font-medium">
                   {pendingBookings.length} booking{pendingBookings.length === 1 ? '' : 's'} to confirm
                 </button>
               </li>
             )}
             {draftListingsCount > 0 && (
               <li>
-                <button type="button" onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/listings`)} className="lux-flat text-finland font-medium">
+                <button type="button" onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/listings`)} className="lux-flat min-h-11 w-full text-left py-2 text-finland font-medium">
                   {draftListingsCount} draft listing{draftListingsCount === 1 ? '' : 's'}
                 </button>
               </li>
             )}
             {verificationNeedsAction && (
               <li>
-                <button type="button" onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/onboarding`)} className="lux-flat text-finland font-medium">
+                <button type="button" onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/onboarding`)} className="lux-flat min-h-11 w-full text-left py-2 text-finland font-medium">
                   Finish setup
                 </button>
               </li>

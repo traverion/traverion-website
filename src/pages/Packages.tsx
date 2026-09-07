@@ -327,16 +327,23 @@ export default function Packages({ onTourSelect }: PackagesProps) {
       if (e.key === 'Escape') setMobileFiltersOpen(false);
     };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prev;
+    };
   }, [mobileFiltersOpen]);
 
   const extraFilterCount =
     (selectedDestination !== 'all' ? 1 : 0) +
     selectedTags.length +
-    (priceRange !== 'all' ? 1 : 0);
+    (priceRange !== 'all' ? 1 : 0) +
+    (filterDate ? 1 : 0) +
+    (filterGuests ? 1 : 0);
 
   return (
-    <div className="min-h-screen bg-paper pt-20">
+    <div className="min-h-screen bg-paper tv-page">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-12 pb-16 motion-safe:animate-fade-in">
         <h1 className="font-display text-4xl sm:text-5xl text-ink tracking-tight">Tours</h1>
         <p className="mt-2 text-ink-muted">
@@ -365,22 +372,34 @@ export default function Packages({ onTourSelect }: PackagesProps) {
         )}
 
         <div className="mt-8 flex flex-col lg:flex-row gap-3 lg:items-center">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-faint" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Where or what"
-              className="tv-input pl-10"
-            />
+          <div className="flex gap-2 min-w-0 flex-1">
+            <div className="relative flex-1 min-w-0">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-faint" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Where or what"
+                className="tv-input pl-10"
+              />
+            </div>
+            <div className="lg:hidden shrink-0">
+              <button
+                type="button"
+                className="tv-btn-secondary"
+                onClick={() => setMobileFiltersOpen(true)}
+              >
+                <Filter className="w-4 h-4" />
+                Filters{extraFilterCount > 0 ? ` · ${extraFilterCount}` : ''}
+              </button>
+            </div>
           </div>
           <input
             type="date"
             value={filterDate}
             onChange={(e) => setFilterDate(e.target.value)}
             aria-label="Date"
-            className="tv-input lg:w-40"
+            className="tv-input hidden lg:block lg:w-40"
           />
           <input
             type="number"
@@ -391,12 +410,12 @@ export default function Packages({ onTourSelect }: PackagesProps) {
             onChange={(e) => setFilterGuests(e.target.value)}
             placeholder="Guests"
             aria-label="Guests"
-            className="tv-input lg:w-28"
+            className="tv-input hidden lg:block lg:w-28"
           />
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as SortOption)}
-            className="tv-input lg:w-48"
+            className="tv-input hidden lg:block lg:w-48"
             aria-label="Sort"
           >
             <option value="recommended">Recommended</option>
@@ -405,14 +424,16 @@ export default function Packages({ onTourSelect }: PackagesProps) {
             <option value="rating">Top rated</option>
             <option value="duration">Duration</option>
           </select>
-          <button
-            type="button"
-            className="tv-btn-secondary shrink-0"
-            onClick={() => setMobileFiltersOpen(true)}
-          >
-            <Filter className="w-4 h-4" />
-            Filters{extraFilterCount > 0 ? ` · ${extraFilterCount}` : ''}
-          </button>
+          <div className="hidden lg:block shrink-0">
+            <button
+              type="button"
+              className="tv-btn-secondary"
+              onClick={() => setMobileFiltersOpen(true)}
+            >
+              <Filter className="w-4 h-4" />
+              Filters{extraFilterCount > 0 ? ` · ${extraFilterCount}` : ''}
+            </button>
+          </div>
         </div>
 
         {hasActiveFilters && (
@@ -456,14 +477,55 @@ export default function Packages({ onTourSelect }: PackagesProps) {
         {mobileFiltersOpen && (
           <div className="tv-sheet-overlay">
             <button type="button" className="absolute inset-0" aria-label="Close filters" onClick={() => setMobileFiltersOpen(false)} />
-            <aside role="dialog" aria-modal="true" aria-labelledby="filters-drawer-title" className="tv-sheet-panel relative motion-safe:animate-slide-up">
+            <aside role="dialog" aria-modal="true" aria-labelledby="filters-drawer-title" className="tv-sheet-panel relative flex flex-col overflow-hidden motion-safe:animate-slide-up">
               <div className="flex items-center justify-between mb-6">
                 <h3 id="filters-drawer-title" className="font-display text-2xl">Filters</h3>
                 <button type="button" onClick={() => setMobileFiltersOpen(false)} className="lux-tap-target p-2" aria-label="Close">
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              <div className="space-y-6">
+              <div className="space-y-6 min-h-0 flex-1 overflow-y-auto">
+                <div className="grid grid-cols-2 gap-3 lg:hidden">
+                  <div className="col-span-2">
+                    <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">When</p>
+                    <input
+                      type="date"
+                      value={filterDate}
+                      onChange={(e) => setFilterDate(e.target.value)}
+                      aria-label="Date"
+                      className="tv-input"
+                    />
+                  </div>
+                  <div>
+                    <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">Guests</p>
+                    <input
+                      type="number"
+                      min={1}
+                      max={99}
+                      inputMode="numeric"
+                      value={filterGuests}
+                      onChange={(e) => setFilterGuests(e.target.value)}
+                      placeholder="Guests"
+                      aria-label="Guests"
+                      className="tv-input"
+                    />
+                  </div>
+                  <div>
+                    <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">Sort</p>
+                    <select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value as SortOption)}
+                      className="tv-input"
+                      aria-label="Sort"
+                    >
+                      <option value="recommended">Recommended</option>
+                      <option value="price-asc">Price: low to high</option>
+                      <option value="price-desc">Price: high to low</option>
+                      <option value="rating">Top rated</option>
+                      <option value="duration">Duration</option>
+                    </select>
+                  </div>
+                </div>
                 <div>
                   <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">Destination</p>
                   <div className="flex flex-wrap gap-2">
@@ -472,7 +534,7 @@ export default function Packages({ onTourSelect }: PackagesProps) {
                         key={chip.id}
                         type="button"
                         onClick={() => setSelectedDestination(chip.id)}
-                        className={`px-3 py-1.5 rounded-full text-sm transition-colors duration-150 ${
+                        className={`tv-chip transition-colors duration-150 ${
                           selectedDestination === chip.id ? 'bg-ink text-paper-raised' : 'bg-paper text-ink'
                         }`}
                       >
@@ -489,7 +551,7 @@ export default function Packages({ onTourSelect }: PackagesProps) {
                         key={chip.id}
                         type="button"
                         onClick={() => setPriceRange(chip.id)}
-                        className={`px-3 py-1.5 rounded-full text-sm transition-colors duration-150 ${
+                        className={`tv-chip transition-colors duration-150 ${
                           priceRange === chip.id ? 'bg-ink text-paper-raised' : 'bg-paper text-ink'
                         }`}
                       >
@@ -506,7 +568,7 @@ export default function Packages({ onTourSelect }: PackagesProps) {
                         key={tag.id}
                         type="button"
                         onClick={() => toggleTag(tag.id)}
-                        className={`px-3 py-1.5 rounded-full text-sm transition-colors duration-150 ${
+                        className={`tv-chip transition-colors duration-150 ${
                           selectedTags.includes(tag.id) ? 'bg-ink text-paper-raised' : 'bg-paper text-ink'
                         }`}
                       >
@@ -516,7 +578,7 @@ export default function Packages({ onTourSelect }: PackagesProps) {
                   </div>
                 </div>
               </div>
-              <div className="mt-8 flex gap-2">
+              <div className="mt-6 flex gap-2 shrink-0">
                 {extraFilterCount > 0 ? (
                   <button type="button" onClick={() => { clearAllFilters(); setMobileFiltersOpen(false); }} className="tv-btn-secondary flex-1">
                     Clear

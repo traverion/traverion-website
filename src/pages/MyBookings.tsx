@@ -196,7 +196,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
 
   if (!isSupabaseConfigured()) {
     return (
-      <div className="min-h-screen bg-paper pt-20">
+      <div className="min-h-screen bg-paper tv-page">
         <div className="max-w-2xl mx-auto px-4 py-12 pb-16">
           <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Trips</h1>
           <p className="mt-2 text-ink-muted">Upcoming and past tours you booked.</p>
@@ -232,7 +232,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
       return <SkeletonConsumerPage titleWidth="w-28" />;
     }
     return (
-      <div className="min-h-screen bg-paper pt-20">
+      <div className="min-h-screen bg-paper tv-page">
         <div className="max-w-xl mx-auto px-4 py-12 pb-16">
           <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Trips</h1>
           <EmptyState
@@ -259,7 +259,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   }
 
   return (
-    <div className="min-h-screen bg-paper pt-20">
+    <div className="min-h-screen bg-paper tv-page">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-12 pb-16">
         <div className="flex flex-wrap items-end justify-between gap-4 mb-8">
           <div>

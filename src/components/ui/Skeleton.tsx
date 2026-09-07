@@ -105,7 +105,7 @@ export function SkeletonConsumerPage({
   form?: boolean;
 }) {
   return (
-    <div className="min-h-screen bg-paper pt-20">
+    <div className="min-h-screen bg-paper tv-page">
       <div className="max-w-2xl mx-auto px-4 sm:px-6 py-12" aria-busy="true" aria-label="Loading">
         <Skeleton className={`h-10 ${titleWidth}`} />
         <Skeleton className="mt-3 h-4 w-64 max-w-full" />

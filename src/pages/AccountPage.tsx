@@ -93,7 +93,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
 
   if (!isSupabaseConfigured()) {
     return (
-      <div className="min-h-screen bg-paper pt-20">
+      <div className="min-h-screen bg-paper tv-page">
         <div className="max-w-xl mx-auto px-4 py-12">
           <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Account</h1>
           <p className="mt-2 text-ink-muted">
@@ -117,7 +117,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
       return <SkeletonConsumerPage titleWidth="w-40" form />;
     }
     return (
-      <div className="min-h-screen bg-paper pt-20">
+      <div className="min-h-screen bg-paper tv-page">
         <div className="max-w-xl mx-auto px-4 py-12">
           <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Account</h1>
           <p className="mt-2 text-ink-muted">Log in to see trips you’ve booked and tours you’ve saved.</p>
@@ -184,7 +184,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
   ];
 
   return (
-    <div className="min-h-screen bg-paper pt-20">
+    <div className="min-h-screen bg-paper tv-page">
       <div className="max-w-2xl mx-auto px-4 sm:px-6 py-12 pb-16">
         <div className="mb-10">
           <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Account</h1>
@@ -294,7 +294,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
                   type="button"
                   disabled={!interactive}
                   onClick={tile.onClick}
-                  className={`lux-flat w-full text-left py-4 flex items-center gap-4 ${
+                  className={`lux-flat w-full text-left min-h-[3.5rem] py-4 flex items-center gap-4 ${
                     interactive ? '' : 'opacity-60 cursor-default'
                   }`}
                 >

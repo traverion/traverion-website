@@ -360,7 +360,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     const isLoading = isSupabaseConfigured() && !tourLoadError;
     if (isLoading) {
       return (
-        <div className="min-h-screen bg-paper pt-20 animate-fade-in">
+        <div className="min-h-screen bg-paper tv-page animate-fade-in">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <Skeleton className="h-10 w-48 mb-8" />
             <Skeleton className="h-80 w-full rounded-3xl mb-8" />
@@ -381,7 +381,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       );
     }
     return (
-      <div className="min-h-screen bg-paper pt-20">
+      <div className="min-h-screen bg-paper tv-page">
         <div className="max-w-lg mx-auto px-4 py-16">
           <ErrorState
             title={tourLoadError ? 'Tour unavailable' : 'Tour not found'}
@@ -429,7 +429,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     uniqueGallery.length > 0 ? uniqueGallery : stockFallback;
 
   return (
-    <div className="min-h-screen bg-paper pt-20 pb-24 lg:pb-0">
+    <div className="min-h-screen bg-paper tv-page pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-0">
       <section className="relative">
         <div className="relative h-[28rem] lg:h-[70vh]">
             <div
@@ -441,7 +441,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
               <button
                 type="button"
                 onClick={onBack}
-                className="lux-flat inline-flex items-center gap-2 rounded-full bg-black/35 px-3.5 py-2 text-sm font-medium text-white backdrop-blur-sm hover:bg-black/50"
+                    className="lux-flat inline-flex h-11 min-w-[2.75rem] items-center justify-center gap-2 rounded-full bg-black/35 px-3.5 text-sm font-medium text-white backdrop-blur-sm hover:bg-black/50"
               >
                 <ArrowLeft className="w-4 h-4" />
                 Tours
@@ -450,7 +450,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                 {isSupabaseListingId(tour.id) && isSupabaseConfigured() ? (
                   <button
                     type="button"
-                    className="lux-flat p-2 rounded-full bg-black/35 text-white backdrop-blur-sm hover:bg-black/50 disabled:opacity-60"
+                    className="lux-flat inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur-sm hover:bg-black/50 disabled:opacity-60"
                     aria-label={savedToWishlist ? 'Remove from saved tours' : 'Save this tour'}
                     aria-pressed={savedToWishlist}
                     disabled={wishlistBusy}
@@ -464,7 +464,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                 ) : null}
                 <button
                   type="button"
-                  className="lux-flat p-2 rounded-full bg-black/35 text-white backdrop-blur-sm hover:bg-black/50"
+                  className="lux-flat inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur-sm hover:bg-black/50"
                   aria-label={shareCopied ? 'Link copied' : 'Share'}
                   onClick={() => {
                     const url = window.location.href;
@@ -719,7 +719,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
 
             {/* Right: Sticky booking card */}
             <div className="lg:col-span-1">
-              <div id="tour-booking-panel" className="lg:sticky lg:top-24 bg-paper-raised rounded-2xl p-6 ring-1 ring-black/[0.06]">
+              <div id="tour-booking-panel" className="lg:sticky lg:top-24 bg-transparent p-0 lg:bg-paper-raised lg:rounded-2xl lg:p-6 lg:ring-1 lg:ring-black/[0.06]">
                 {!canBook ? (
                   <div>
                     <p className="text-lg font-semibold text-gray-900">Not bookable yet</p>
@@ -1056,7 +1056,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
         </div>
       </section>
 
-      {canBook ? (
+      {canBook && !bookingModalOpen ? (
         <div className="lg:hidden fixed inset-x-0 bottom-0 z-40 border-t border-black/[0.06] bg-paper-raised/95 backdrop-blur-md px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           <div className="flex items-center justify-between gap-3">
             {(() => {
@@ -1078,7 +1078,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
               onClick={() => {
                 document.getElementById('tour-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
               }}
-              className="shrink-0 rounded-full bg-finland px-5 py-2.5 text-sm font-semibold text-white hover:bg-finland-dark"
+              className="tv-btn-primary shrink-0"
             >
               Check dates
             </button>
@@ -1087,27 +1087,27 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       ) : null}
 
       {legalModal && supplierLegal && (
-        <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div className="tv-sheet-overlay z-[70]">
           <button
             type="button"
-            className="absolute inset-0 bg-black/40"
+            className="absolute inset-0"
             aria-label="Close"
             onClick={() => setLegalModal(null)}
           />
-          <div className="relative bg-white rounded-t-xl sm:rounded-xl shadow-xl border border-gray-200 w-full max-w-2xl max-h-[85vh] flex flex-col z-[71]">
-            <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900">
+          <div className="tv-sheet-panel relative z-[71] max-w-2xl flex flex-col motion-safe:animate-slide-up">
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <h3 className="font-display text-2xl text-ink">
                 {legalModal === 'privacy' ? 'Privacy policy' : 'Terms & conditions'}
               </h3>
               <button
                 type="button"
                 onClick={() => setLegalModal(null)}
-                className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 text-sm font-medium"
+                className="tv-btn-ghost shrink-0"
               >
                 Close
               </button>
             </div>
-            <div className="p-5 overflow-y-auto text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
+            <div className="overflow-y-auto text-sm text-ink leading-relaxed whitespace-pre-wrap">
               {legalModal === 'privacy'
                 ? supplierLegal.privacy_policy_text
                 : supplierLegal.terms_conditions_text}

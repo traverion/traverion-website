@@ -183,7 +183,7 @@ export default function SupplierEarnings() {
                     key={s}
                     type="button"
                     onClick={() => setStatusFilter(s)}
-                    className={`lux-flat rounded-full px-3 py-1.5 text-sm font-medium ${
+                    className={`lux-flat rounded-full px-3 py-2 min-h-11 text-sm font-medium ${
                       statusFilter === s ? 'bg-ink text-paper-raised' : 'text-ink-muted hover:text-ink'
                     }`}
                   >

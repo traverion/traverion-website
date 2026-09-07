@@ -18,7 +18,7 @@ export default function LegalPageShell({
   children,
 }: LegalPageShellProps) {
   return (
-    <div className="min-h-screen bg-paper pt-20">
+    <div className="min-h-screen bg-paper tv-page">
       <div className="max-w-2xl mx-auto px-5 sm:px-6 py-12 sm:py-16 motion-safe:animate-fade-in">
         <button
           type="button"

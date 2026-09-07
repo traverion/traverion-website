@@ -200,7 +200,7 @@ export default function AuthModal() {
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-[2px] animate-fade-in"
+      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-[2px] animate-fade-in"
       style={{ animationDuration: '0.2s' }}
       role="dialog"
       aria-modal="true"
@@ -208,7 +208,7 @@ export default function AuthModal() {
       onClick={closeAuthModal}
     >
       <div
-        className="bg-white rounded-2xl shadow-soft-xl w-full max-w-md overflow-hidden animate-slide-up"
+        className="bg-paper-raised rounded-t-2xl sm:rounded-2xl shadow-soft-xl w-full max-w-md overflow-y-auto max-h-[min(92dvh,40rem)] animate-slide-up pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]"
         style={{ animationDelay: '40ms' }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -222,7 +222,7 @@ export default function AuthModal() {
           <button
             type="button"
             onClick={closeAuthModal}
-            className="p-2 rounded-full hover:bg-gray-100 text-gray-500 transition-colors duration-200 ease-smooth active:scale-95"
+            className="lux-tap-target inline-flex h-11 w-11 items-center justify-center rounded-full hover:bg-gray-100 text-gray-500"
             aria-label="Close"
           >
             <X className="w-5 h-5" />

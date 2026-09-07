@@ -68,8 +68,18 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
     return () => window.removeEventListener('keydown', onKey);
   }, [isUserMenuOpen, isMobileMenuOpen]);
 
+  useEffect(() => {
+    if (!isMobileMenuOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [isMobileMenuOpen]);
+
   return (
-    <header className="fixed top-0 left-0 right-0 z-[9999] bg-paper/90 backdrop-blur-md">
+    <>
+    <header className="fixed top-0 left-0 right-0 z-[9999] bg-paper/90 backdrop-blur-md pt-[env(safe-area-inset-top,0px)]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
           <button type="button" onClick={() => onNavigate('home')} className="lux-flat flex items-center gap-2 min-w-0">
             <img 
@@ -208,27 +218,31 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                 </div>
               )}
             </div>
-            <button
-              type="button"
-              onClick={() => onNavigate('packages')}
-              className="tv-btn-primary hidden lg:inline-flex h-10 px-5 text-sm"
-            >
-              Find tours
-            </button>
+            <div className="hidden lg:block">
+              <button
+                type="button"
+                onClick={() => onNavigate('packages')}
+                className="tv-btn-primary h-10 px-5 text-sm"
+              >
+                Find tours
+              </button>
+            </div>
             <button
               type="button"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="no-lux-interaction lux-tap-target lg:hidden p-2 text-gray-600 hover:text-finland rounded-lg"
-              aria-label="Menu"
+              className="no-lux-interaction lux-tap-target lg:hidden inline-flex h-11 w-11 items-center justify-center text-gray-600 hover:text-finland rounded-lg"
+              aria-label={isMobileMenuOpen ? 'Close menu' : 'Menu'}
+              aria-expanded={isMobileMenuOpen}
             >
               {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
           </div>
         </div>
+    </header>
 
-        {/* Mobile Menu */}
+        {/* Mobile Menu — sibling of header so backdrop-filter does not trap position:fixed */}
         {isMobileMenuOpen && (
-          <div className="lg:hidden border-t border-black/[0.06] bg-paper max-h-screen overflow-y-auto motion-safe:animate-fade-in-down">
+          <div className="lg:hidden fixed inset-x-0 bottom-0 top-[calc(4rem+env(safe-area-inset-top,0px))] z-[9998] border-t border-black/[0.06] bg-paper overflow-y-auto overscroll-contain pb-[max(1rem,env(safe-area-inset-bottom,0px))] motion-safe:animate-fade-in-down">
             <nav className="flex flex-col p-4 space-y-2">
               <button
                 onClick={() => {
@@ -339,6 +353,6 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
             </nav>
           </div>
         )}
-    </header>
+    </>
   );
 }

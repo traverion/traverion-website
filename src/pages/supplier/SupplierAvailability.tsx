@@ -288,7 +288,7 @@ export default function SupplierAvailability() {
               <div key={d}>{d}</div>
             ))}
           </div>
-          <div key={`${year}-${monthIndex0}`} className="grid grid-cols-7 gap-1 sm:gap-2 motion-safe:animate-fade-in">
+          <div key={`${year}-${monthIndex0}`} className="grid grid-cols-7 gap-1 sm:gap-2 motion-safe:animate-fade-in min-w-0">
             {cells.map((cell) => {
               const open = cell.inMonth && weekdayOpen(cell.iso);
               const cap = rowByDate.get(cell.iso);

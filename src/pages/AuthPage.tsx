@@ -296,7 +296,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
   };
 
   return (
-    <div className="min-h-screen bg-paper pt-20">
+    <div className="min-h-screen bg-paper tv-page">
       <div className="max-w-md mx-auto px-4 py-12 pb-16">
         <button
           type="button"

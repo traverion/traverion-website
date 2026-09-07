@@ -61,7 +61,7 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
 
   if (!isSupabaseConfigured()) {
     return (
-      <div className="min-h-screen bg-paper pt-20">
+      <div className="min-h-screen bg-paper tv-page">
         <div className="max-w-xl mx-auto px-4 py-12">
           <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Wishlist</h1>
           <EmptyState
@@ -85,7 +85,7 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
       return <SkeletonConsumerPage titleWidth="w-36" rows={4} />;
     }
     return (
-      <div className="min-h-screen bg-paper pt-20">
+      <div className="min-h-screen bg-paper tv-page">
         <div className="max-w-xl mx-auto px-4 py-12">
           <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Wishlist</h1>
           <EmptyState
@@ -112,7 +112,7 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
   }
 
   return (
-    <div className="min-h-screen bg-paper pt-20">
+    <div className="min-h-screen bg-paper tv-page">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-12 pb-16">
         <div className="flex flex-wrap items-end justify-between gap-4 mb-8">
           <div>

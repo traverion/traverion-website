@@ -13,6 +13,8 @@
     font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
     font-weight: 400;
     background-color: #f6f3ee;
+    overflow-x: hidden;
+    -webkit-tap-highlight-color: transparent;
   }
 
   body {
@@ -20,8 +22,18 @@
     font-weight: 400;
     color: #1c1917;
     background-color: #f6f3ee;
+    overflow-x: hidden;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+
+  button,
+  a,
+  [role='button'],
+  input,
+  select,
+  textarea {
+    touch-action: manipulation;
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -810,6 +822,19 @@ a:focus-visible,
 .tv-btn-ghost:active {
   transform: scale(0.98);
 }
+.tv-page {
+  padding-top: calc(5rem + env(safe-area-inset-top, 0px));
+}
+.tv-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  padding: 0.5rem 0.9rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
 .tv-input {
   width: 100%;
   min-height: 2.75rem;
@@ -818,6 +843,7 @@ a:focus-visible,
   background: #fffcf8;
   padding: 0.55rem 0.9rem;
   color: #1c1917;
+  font-size: 1rem;
   box-shadow: 0 0 0 1px rgba(28, 25, 23, 0.08);
   transition: box-shadow 0.15s ease;
 }
@@ -868,10 +894,11 @@ a:focus-visible,
   max-width: 28rem;
   max-height: min(92dvh, 40rem);
   overflow-y: auto;
+  overscroll-behavior: contain;
   border-radius: 1.5rem 1.5rem 0 0;
   background: #fffcf8;
   color: #1c1917;
-  padding: 1.25rem 1.25rem 1.5rem;
+  padding: 1.25rem 1.25rem max(1.5rem, env(safe-area-inset-bottom, 0px));
 }
 @media (min-width: 640px) {
   .tv-sheet-panel {

@@ -940,7 +940,7 @@ export default function BookingPage({
   const modalShell =
     presentation === 'modal' ? (
       <div
-        className="fixed inset-0 z-[20000] flex items-center justify-center p-3 sm:p-4 motion-safe:animate-fade-in"
+        className="fixed inset-0 z-[20000] flex items-end sm:items-center justify-center p-0 sm:p-4 motion-safe:animate-fade-in"
         role="dialog"
         aria-modal="true"
         aria-labelledby="booking-flow-modal-title"
@@ -952,7 +952,7 @@ export default function BookingPage({
           aria-label="Modal backdrop"
           aria-hidden="true"
         />
-        <div className="animate-fade-in-up relative z-10 flex w-full max-w-6xl max-h-[min(95dvh,1040px)] flex-col overflow-hidden rounded-2xl bg-paper shadow-2xl ring-1 ring-black/[0.08]">
+        <div className="relative z-10 flex h-[100dvh] w-full max-w-6xl flex-col overflow-hidden rounded-none bg-paper sm:h-auto sm:max-h-[min(95dvh,1040px)] sm:rounded-2xl sm:shadow-2xl sm:ring-1 sm:ring-black/[0.08] pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]">
           <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-4 py-3 sm:px-5">
             <h2
               id="booking-flow-modal-title"
@@ -963,7 +963,7 @@ export default function BookingPage({
             <button
               type="button"
               onClick={handleLeaveBooking}
-              className="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland"
+              className="lux-tap-target inline-flex h-11 w-11 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland"
               aria-label="Close booking"
             >
               <X className="h-5 w-5" />
@@ -990,7 +990,7 @@ export default function BookingPage({
     <>
       {presentation === 'modal' ? createPortal(modalShell, document.body) : null}
       {presentation !== 'modal' ? (
-        <div className="min-h-screen bg-paper pt-20 pb-12">
+        <div className="min-h-screen bg-paper tv-page pb-12">
           <div className="max-w-2xl mx-auto px-4 sm:px-6">
             <button
               type="button"

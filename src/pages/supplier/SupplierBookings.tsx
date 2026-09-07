@@ -417,7 +417,7 @@ export default function SupplierBookings() {
         }
       >
         {bookings.length > 0 && (
-          <div className="mt-6 flex gap-1 rounded-full bg-black/[0.04] p-1 w-fit">
+          <div className="mt-6 flex gap-1 rounded-full bg-black/[0.04] p-1 w-fit max-w-full overflow-x-auto">
             {([
               ['today', 'Today'],
               ['upcoming', 'Upcoming'],
@@ -428,7 +428,7 @@ export default function SupplierBookings() {
                 key={id}
                 type="button"
                 onClick={() => setView(id)}
-                className={`lux-flat rounded-full px-3.5 py-1.5 text-sm font-medium ${
+                className={`lux-flat rounded-full px-3.5 py-2 min-h-11 text-sm font-medium shrink-0 ${
                   view === id ? 'bg-paper-raised text-ink shadow-sm' : 'text-ink-muted'
                 }`}
               >
