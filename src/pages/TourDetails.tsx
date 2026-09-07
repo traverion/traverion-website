@@ -51,6 +51,7 @@ import {
   type TourBookingVariant,
 } from '../lib/booking-flow';
 import BookingDateField from '../components/booking/BookingDateField';
+import { useDialogFocus } from '../hooks/useDialogFocus';
 
 function readSearchPrefill(): { date: string; guests: number } {
   if (typeof window === 'undefined') return { date: '', guests: 1 };
@@ -96,6 +97,9 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     terms_conditions_text: string | null;
   } | null>(null);
   const [legalModal, setLegalModal] = useState<'privacy' | 'terms' | null>(null);
+  const legalSheetRef = useRef<HTMLDivElement>(null);
+  const closeLegalModal = useCallback(() => setLegalModal(null), []);
+  useDialogFocus(legalModal !== null, legalSheetRef, closeLegalModal);
   const [bookingCardError, setBookingCardError] = useState<string | null>(null);
   const [bookingVariantsOpen, setBookingVariantsOpen] = useState(false);
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
@@ -1094,21 +1098,28 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       ) : null}
 
       {legalModal && supplierLegal && (
-        <div className="tv-sheet-overlay z-[70]">
+        <div
+          ref={legalSheetRef}
+          className="tv-sheet-overlay z-[70]"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="tour-legal-title"
+        >
           <button
             type="button"
             className="absolute inset-0"
             aria-label="Close"
-            onClick={() => setLegalModal(null)}
+            tabIndex={-1}
+            onClick={closeLegalModal}
           />
           <div className="tv-sheet-panel relative z-[71] max-w-2xl flex flex-col motion-safe:animate-slide-up">
             <div className="flex items-center justify-between gap-3 mb-4">
-              <h3 className="font-display text-2xl text-ink">
+              <h3 id="tour-legal-title" className="font-display text-2xl text-ink">
                 {legalModal === 'privacy' ? 'Privacy policy' : 'Terms & conditions'}
               </h3>
               <button
                 type="button"
-                onClick={() => setLegalModal(null)}
+                onClick={closeLegalModal}
                 className="tv-btn-ghost shrink-0"
               >
                 Close

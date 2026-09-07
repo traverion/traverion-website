@@ -2,9 +2,11 @@
  * Partner landing at /login. Visual atmosphere + account action.
  * Auth opens as a focused panel — not an admin form dump.
  */
-import { useEffect, useState } from 'react';
+import { useState, useRef } from 'react';
 import { X } from 'lucide-react';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
 import SupplierAuth from '../../pages/supplier/SupplierAuth';
+import SkipLink from '../SkipLink';
 import { BRAND_LOGO_SRC } from '../../lib/brandAssets';
 import { publicSiteBaseUrl } from '../../lib/publicSiteUrl';
 import { HERO_IMG } from '../../lib/heroImages';
@@ -17,18 +19,13 @@ interface SupplierLoginPageProps {
 export default function SupplierLoginPage({ onAuthenticated, isSupabase }: SupplierLoginPageProps) {
   const mainSiteUrl = publicSiteBaseUrl();
   const [auth, setAuth] = useState<'signup' | 'signin' | null>(null);
-
-  useEffect(() => {
-    if (!auth) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setAuth(null);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [auth]);
+  const authSheetRef = useRef<HTMLDivElement>(null);
+  const closeAuth = () => setAuth(null);
+  useDialogFocus(auth !== null, authSheetRef, closeAuth);
 
   return (
     <div className="relative isolate min-h-[100dvh] w-full text-white bg-ink">
+      <SkipLink />
       <div className="pointer-events-none fixed inset-0 -z-10">
         <img
           src={HERO_IMG.vacation}
@@ -39,7 +36,7 @@ export default function SupplierLoginPage({ onAuthenticated, isSupabase }: Suppl
       </div>
 
       <header className="relative z-10 flex items-center justify-between px-5 sm:px-8 py-5">
-        <a href={mainSiteUrl} className="flex items-center gap-2.5 text-white no-lux-interaction">
+        <a href={mainSiteUrl} className="flex items-center gap-2.5 text-white no-lux-interaction" aria-label="Traverion home">
           <img src={BRAND_LOGO_SRC} alt="" className="h-10 w-10 object-contain" />
           <span className="font-sans text-sm font-semibold tracking-[0.18em]">TRAVERION</span>
         </a>
@@ -51,7 +48,7 @@ export default function SupplierLoginPage({ onAuthenticated, isSupabase }: Suppl
         </a>
       </header>
 
-      <main className="relative z-10 flex min-h-[calc(100dvh-5.5rem)] flex-col justify-end sm:justify-center px-5 sm:px-10 lg:px-16 pb-10 sm:pb-16">
+      <main id="main-content" tabIndex={-1} className="relative z-10 flex min-h-[calc(100dvh-5.5rem)] flex-col justify-end sm:justify-center px-5 sm:px-10 lg:px-16 pb-10 sm:pb-16 outline-none">
         <div className="max-w-xl motion-safe:animate-fade-in-up">
           <p className="text-xs uppercase tracking-[0.22em] text-white/70 mb-4">Traverion Partner</p>
           <h1 className="font-display text-[2.35rem] sm:text-5xl lg:text-6xl leading-[1.05] text-white mb-5">
@@ -82,18 +79,28 @@ export default function SupplierLoginPage({ onAuthenticated, isSupabase }: Suppl
       </main>
 
       {auth && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+        <div
+          ref={authSheetRef}
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="partner-auth-title"
+        >
           <button
             type="button"
             aria-label="Close"
+            tabIndex={-1}
             className="absolute inset-0 bg-black/50 no-lux-interaction"
-            onClick={() => setAuth(null)}
+            onClick={closeAuth}
           />
           <div className="relative w-full sm:max-w-md bg-paper-raised text-ink rounded-t-3xl sm:rounded-3xl p-6 sm:p-8 max-h-[92dvh] overflow-y-auto shadow-soft-xl motion-safe:animate-slide-up">
-            <div className="flex items-start justify-end mb-4">
+            <div className="flex items-start justify-between mb-4">
+              <h2 id="partner-auth-title" className="font-display text-2xl text-ink">
+                {auth === 'signin' ? 'Log in' : 'Create account'}
+              </h2>
               <button
                 type="button"
-                onClick={() => setAuth(null)}
+                onClick={closeAuth}
                 className="lux-flat p-2 rounded-full text-ink-muted hover:text-ink"
                 aria-label="Close"
               >

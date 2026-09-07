@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useDialogFocus } from '../hooks/useDialogFocus';
 import { Menu, X, User, LogOut, LayoutDashboard, Calendar } from 'lucide-react';
 import { prefetchAuthPage, prefetchMyBookingsPage, prefetchPackagesPage } from '../lib/routePrefetch';
 import { useAuth } from '../contexts/AuthContext';
@@ -21,6 +22,9 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [hasUnreadBookings, setHasUnreadBookings] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
+
+  useDialogFocus(isMobileMenuOpen, mobileMenuRef, () => setIsMobileMenuOpen(false));
 
   useEffect(() => {
     if (!isSupabaseConfigured() || !user?.id) {
@@ -82,7 +86,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
     <>
     <header className="fixed top-0 left-0 right-0 z-[9999] bg-paper/90 backdrop-blur-md pt-[env(safe-area-inset-top,0px)]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
-          <button type="button" onClick={() => onNavigate('home')} className="lux-flat flex items-center gap-2 min-w-0">
+          <button type="button" onClick={() => onNavigate('home')} className="lux-flat flex items-center gap-2 min-w-0" aria-label="Traverion home">
             <img 
               src={BRAND_LOGO_SRC} 
               alt="TRAVERION" 
@@ -95,10 +99,11 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
           </button>
 
           {/* Navigation */}
-          <nav className="hidden lg:flex items-center gap-6 flex-1 justify-center">
+          <nav className="hidden lg:flex items-center gap-6 flex-1 justify-center" aria-label="Primary">
             <button
               type="button"
               onClick={() => onNavigate('home')}
+              aria-current={currentPage === 'home' ? 'page' : undefined}
               className={`lux-flat text-sm font-medium ${
                 currentPage === 'home' ? 'text-ink' : 'text-ink-muted hover:text-ink'
               }`}
@@ -109,6 +114,11 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
               type="button"
               onClick={() => onNavigate('packages')}
               onPointerEnter={prefetchPackagesPage}
+              aria-current={
+                currentPage === 'packages' || currentPage === 'tour-details' || currentPage === 'destination'
+                  ? 'page'
+                  : undefined
+              }
               className={`lux-flat text-sm font-medium ${
                 currentPage === 'packages' || currentPage === 'tour-details' || currentPage === 'destination'
                   ? 'text-ink'
@@ -127,6 +137,9 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                 onClick={() => setIsUserMenuOpen((o) => !o)}
                 className="lux-tap-target flex flex-col items-center gap-0.5 p-1.5 text-gray-600 hover:text-finland rounded-lg"
                 aria-label="Profile"
+                aria-expanded={isUserMenuOpen}
+                aria-haspopup="menu"
+                aria-controls="profile-menu"
                 onPointerEnter={() => {
                   prefetchAuthPage();
                   prefetchMyBookingsPage();
@@ -147,7 +160,12 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                 <span className="text-[10px] font-medium uppercase tracking-wide">Profile</span>
               </button>
               {isUserMenuOpen && (
-                <div className="absolute right-0 top-full mt-1 py-1 w-48 origin-top-right bg-paper-raised rounded-xl shadow-soft-lg ring-1 ring-black/[0.08] motion-safe:animate-slide-down">
+                <div
+                  id="profile-menu"
+                  role="menu"
+                  aria-label="Profile"
+                  className="absolute right-0 top-full mt-1 py-1 w-48 origin-top-right bg-paper-raised rounded-xl shadow-soft-lg ring-1 ring-black/[0.08] motion-safe:animate-slide-down"
+                >
                   {!isSupabaseConfigured() ? (
                     <div className="px-3 py-2 space-y-2">
                       <p className="text-xs text-gray-600 leading-snug">
@@ -245,6 +263,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
               className="no-lux-interaction lux-tap-target lg:hidden inline-flex h-11 w-11 items-center justify-center text-gray-600 hover:text-finland rounded-lg"
               aria-label={isMobileMenuOpen ? 'Close menu' : 'Menu'}
               aria-expanded={isMobileMenuOpen}
+              aria-controls="site-mobile-menu"
             >
               {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
@@ -254,8 +273,15 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
 
         {/* Mobile Menu — sibling of header so backdrop-filter does not trap position:fixed */}
         {isMobileMenuOpen && (
-          <div className="lg:hidden fixed inset-x-0 bottom-0 top-[calc(4rem+env(safe-area-inset-top,0px))] z-[9998] border-t border-black/[0.06] bg-paper overflow-y-auto overscroll-contain pb-[max(1rem,env(safe-area-inset-bottom,0px))] motion-safe:animate-fade-in-down">
-            <nav className="flex flex-col p-4 space-y-2">
+          <div
+            ref={mobileMenuRef}
+            id="site-mobile-menu"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Menu"
+            className="lg:hidden fixed inset-x-0 bottom-0 top-[calc(4rem+env(safe-area-inset-top,0px))] z-[9998] border-t border-black/[0.06] bg-paper overflow-y-auto overscroll-contain pb-[max(1rem,env(safe-area-inset-bottom,0px))] motion-safe:animate-fade-in-down"
+          >
+            <nav className="flex flex-col p-4 space-y-2" aria-label="Mobile">
               <button
                 onClick={() => {
                   onNavigate('home');

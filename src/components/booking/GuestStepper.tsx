@@ -1,4 +1,5 @@
 import { Minus, Plus } from 'lucide-react';
+import { useId } from 'react';
 import { formatPartySizeHint, guestCountBoundaryMessage } from '../../lib/booking-flow';
 
 export type GuestStepperProps = {
@@ -22,6 +23,8 @@ export default function GuestStepper({
   id,
   className = '',
 }: GuestStepperProps) {
+  const generatedId = useId();
+  const labelId = id ?? generatedId;
   const atMin = value <= min;
   const atMax = value >= max;
 
@@ -43,13 +46,13 @@ export default function GuestStepper({
 
   return (
     <div className={className}>
-      <span id={id} className="mb-1.5 block text-sm font-medium tracking-tight text-gray-700">
+      <span id={labelId} className="mb-1.5 block text-sm font-medium tracking-tight text-gray-700">
         {label}
       </span>
       <div
         className="flex overflow-hidden rounded-xl bg-paper-raised shadow-[0_0_0_1px_rgba(28,25,23,0.08)] transition-[box-shadow] duration-150 focus-within:shadow-[0_0_0_2px_rgba(0,53,128,0.35)]"
         role="group"
-        aria-labelledby={id}
+        aria-labelledby={labelId}
       >
         <button
           type="button"

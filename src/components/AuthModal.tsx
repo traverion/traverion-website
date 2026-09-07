@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useDialogFocus } from '../hooks/useDialogFocus';
 import { X, LogIn, UserPlus } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -33,6 +34,9 @@ export default function AuthModal() {
   const [resetPasswordEmail, setResetPasswordEmail] = useState('');
   const [resetPasswordFieldError, setResetPasswordFieldError] = useState<string | null>(null);
   const [resetPasswordSuccess, setResetPasswordSuccess] = useState<string | null>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  useDialogFocus(authModalOpen, dialogRef, closeAuthModal);
 
   useEffect(() => {
     if (!authModalOpen) {
@@ -200,11 +204,12 @@ export default function AuthModal() {
 
   return (
     <div
+      ref={dialogRef}
       className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-[2px] animate-fade-in"
       style={{ animationDuration: '0.2s' }}
       role="dialog"
       aria-modal="true"
-      aria-label="Log in or sign up"
+      aria-labelledby="auth-modal-title"
       onClick={closeAuthModal}
     >
       <div
@@ -215,7 +220,7 @@ export default function AuthModal() {
         <div className="flex items-center justify-between gap-3 px-6 pt-6 pb-4 border-b border-gray-100">
           <div className="flex items-center gap-3 min-w-0">
             <img src={BRAND_LOGO_SRC} alt="" className="h-10 w-10 object-contain flex-shrink-0" />
-            <h2 className="text-xl font-semibold text-gray-900 truncate">
+            <h2 id="auth-modal-title" className="text-xl font-semibold text-gray-900 truncate">
               {tab === 'signin' && passwordResetPanel ? 'Reset your password' : tab === 'signin' ? 'Log in' : 'Sign up'}
             </h2>
           </div>

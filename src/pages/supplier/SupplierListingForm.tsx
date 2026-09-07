@@ -29,6 +29,7 @@ import {
 import { getListingPublishBlockers } from '../../lib/listingPublishGate';
 import { isSupabaseConfigured } from '../../lib/supabase';
 import { userFacingError } from '../../lib/userFacingError';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
 import { MIN_LISTING_DESCRIPTION_LENGTH } from '../../lib/listingQualityScore';
 
 const TAG_OPTIONS = [
@@ -595,6 +596,7 @@ export default function SupplierListingForm({
   const [optionModalErrors, setOptionModalErrors] = useState<string[]>([]);
   const [optionModalHasEndingDate, setOptionModalHasEndingDate] = useState(false);
   const optionModalOpenRef = useRef(false);
+  const optionModalRef = useRef<HTMLDivElement>(null);
 
   const steps = useMemo(
     () => [
@@ -972,6 +974,7 @@ export default function SupplierListingForm({
     setOptionModalErrors([]);
     setOptionModalHasEndingDate(false);
   }, []);
+  useDialogFocus(optionModalOpen, optionModalRef, closeOptionModal);
 
   const openOptionModalCreate = useCallback(() => {
     setOptionModalEditingId(null);
@@ -1052,12 +1055,13 @@ export default function SupplierListingForm({
 
   const optionModalLayer = optionDraft ? (
     <div
+      ref={optionModalRef}
       className="fixed inset-0 z-[90] flex items-end justify-center sm:items-center sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="supplier-option-modal-title"
     >
-      <button type="button" className="absolute inset-0 bg-ink/40 motion-safe:animate-fade-in" aria-label="Close option" onClick={closeOptionModal} />
+      <button type="button" tabIndex={-1} className="absolute inset-0 bg-ink/40 motion-safe:animate-fade-in" aria-label="Close option" onClick={closeOptionModal} />
       <div className="relative z-10 flex max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)))] w-full max-w-6xl flex-col overflow-hidden rounded-t-2xl bg-paper-raised shadow-xl ring-1 ring-black/[0.08] motion-safe:animate-slide-up sm:rounded-2xl sm:motion-safe:animate-none lg:max-w-7xl">
         <div className="flex shrink-0 items-start justify-between gap-3 border-b border-black/[0.06] px-4 py-3 sm:px-5">
           <h2 id="supplier-option-modal-title" className="font-display text-2xl text-ink tracking-tight pr-8">

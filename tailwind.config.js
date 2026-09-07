@@ -12,7 +12,7 @@ export default {
         ink: {
           DEFAULT: '#1c1917',
           muted: '#57534e',
-          faint: '#a8a29e',
+          faint: '#6b6560',
         },
         paper: {
           DEFAULT: '#f6f3ee',

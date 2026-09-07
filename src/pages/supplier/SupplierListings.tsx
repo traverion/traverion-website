@@ -21,6 +21,7 @@ import {
 import { fetchSupplierProfile } from '../../data/supabase-supplier-profile';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import SupplierListingForm, { type ListingEditorSaveResult } from './SupplierListingForm';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { navigateSupplierUrl, openSupplierListingEditor } from '../../lib/supplierPortalNavigation';
 import {
@@ -80,6 +81,9 @@ export default function SupplierListings() {
   const [publishGate, setPublishGate] = useState<{ listingId: string; title: string; blockers: string[] } | null>(null);
   const [justPublishedId, setJustPublishedId] = useState<string | null>(null);
   const [showCreateChooser, setShowCreateChooser] = useState(false);
+  const createChooserRef = useRef<HTMLDivElement>(null);
+  const closeCreateChooser = useCallback(() => setShowCreateChooser(false), []);
+  useDialogFocus(showCreateChooser, createChooserRef, closeCreateChooser);
 
   const startNewTour = useCallback(() => {
     if (!canEditListings || !canPostNewListing) return;
@@ -725,8 +729,8 @@ export default function SupplierListings() {
       )}
 
       {showCreateChooser && (
-        <div className="tv-sheet-overlay z-[85]">
-          <button type="button" className="absolute inset-0" aria-label="Close" onClick={() => setShowCreateChooser(false)} />
+        <div ref={createChooserRef} className="tv-sheet-overlay z-[85]">
+          <button type="button" tabIndex={-1} className="absolute inset-0" aria-label="Close" onClick={closeCreateChooser} />
           <aside role="dialog" aria-modal="true" aria-labelledby="create-listing-title" className="tv-sheet-panel relative motion-safe:animate-slide-up">
             <h2 id="create-listing-title" className="font-display text-2xl text-ink">What would you like to list?</h2>
             <p className="mt-2 text-sm text-ink-muted">Only live inventory is offered. Nothing unfinished is published to travelers.</p>
@@ -740,7 +744,7 @@ export default function SupplierListings() {
                 <p className="mt-1 text-sm text-ink-muted">Apartments and rooms are coming. Not available to create yet.</p>
               </div>
             </div>
-            <button type="button" onClick={() => setShowCreateChooser(false)} className="tv-btn-ghost mt-4">
+            <button type="button" onClick={closeCreateChooser} className="tv-btn-ghost mt-4">
               Cancel
             </button>
           </aside>

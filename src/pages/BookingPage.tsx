@@ -34,6 +34,7 @@ import {
 import AvailabilityOptionsModal from '../components/booking/AvailabilityOptionsModal';
 import BookingDateField from '../components/booking/BookingDateField';
 import GuestStepper from '../components/booking/GuestStepper';
+import { useDialogFocus } from '../hooks/useDialogFocus';
 import { analytics } from '../lib/analytics';
 import { setPageMetaWithOg } from '../lib/seo';
 import { dateNotInPast, validateEmail, required, maxLength } from '../lib/validation';
@@ -156,6 +157,7 @@ export default function BookingPage({
 
   const hydratedRef = useRef(false);
   const profileHydratedRef = useRef(false);
+  const bookingModalRef = useRef<HTMLDivElement>(null);
   const currency = tour.price?.currency ?? 'USD';
   const fallbackBasePrice = tour.price?.startingFrom ?? 0;
   const priceInfo = useMemo(() => {
@@ -334,18 +336,10 @@ export default function BookingPage({
     const prevHtmlOverflow = html.style.overflow;
     const prevBodyOverflow = body.style.overflow;
     const prevBodyTouchAction = body.style.touchAction;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        e.stopPropagation();
-      }
-    };
     html.style.overflow = 'hidden';
     body.style.overflow = 'hidden';
     body.style.touchAction = 'none';
-    document.addEventListener('keydown', onKeyDown, true);
     return () => {
-      document.removeEventListener('keydown', onKeyDown, true);
       html.style.overflow = prevHtmlOverflow;
       body.style.overflow = prevBodyOverflow;
       body.style.touchAction = prevBodyTouchAction;
@@ -360,6 +354,8 @@ export default function BookingPage({
     clearBookingDraft(tour.id);
     onBack();
   };
+
+  useDialogFocus(presentation === 'modal', bookingModalRef, handleLeaveBooking);
 
   const mergedSpecialRequests = useCallback(() => {
     const phoneLine = phone.trim() ? `Guest phone: ${phone.trim()}` : '';
@@ -940,6 +936,7 @@ export default function BookingPage({
   const modalShell =
     presentation === 'modal' ? (
       <div
+        ref={bookingModalRef}
         className="fixed inset-0 z-[20000] flex items-end sm:items-center justify-center p-0 sm:p-4 motion-safe:animate-fade-in"
         role="dialog"
         aria-modal="true"
@@ -949,8 +946,8 @@ export default function BookingPage({
           type="button"
           tabIndex={-1}
           className="absolute inset-0 z-0 bg-slate-900/50 backdrop-blur-md transition-opacity duration-200 supports-[backdrop-filter]:bg-slate-900/40"
-          aria-label="Modal backdrop"
-          aria-hidden="true"
+          aria-label="Close booking"
+          onClick={handleLeaveBooking}
         />
         <div className="relative z-10 flex h-[100dvh] w-full max-w-6xl flex-col overflow-hidden rounded-none bg-paper sm:h-auto sm:max-h-[min(95dvh,1040px)] sm:rounded-2xl sm:shadow-2xl sm:ring-1 sm:ring-black/[0.08] pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]">
           <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-4 py-3 sm:px-5">

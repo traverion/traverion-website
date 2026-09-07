@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
 import type { AvailabilityCheckOption } from '../../data/supabase-availability';
 
 type Props = {
@@ -22,51 +23,7 @@ export default function AvailabilityOptionsModal({
   onSelectOption,
 }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
-  const preOpenFocusRef = useRef<HTMLElement | null>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    preOpenFocusRef.current = document.activeElement as HTMLElement | null;
-    const panel = panelRef.current;
-
-    const getFocusable = () => {
-      if (!panel) return [] as HTMLElement[];
-      return Array.from(
-        panel.querySelectorAll<HTMLElement>(
-          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-        )
-      );
-    };
-
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        onClose();
-        return;
-      }
-      if (e.key !== 'Tab' || !panel) return;
-      const list = getFocusable();
-      if (list.length < 2) return;
-      const first = list[0];
-      const last = list[list.length - 1];
-      const active = document.activeElement as HTMLElement | null;
-      if (e.shiftKey) {
-        if (active === first || !panel.contains(active)) {
-          e.preventDefault();
-          last.focus();
-        }
-      } else if (active === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    };
-
-    document.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.removeEventListener('keydown', onKeyDown);
-      preOpenFocusRef.current?.focus?.();
-    };
-  }, [open, onClose]);
+  useDialogFocus(open, panelRef, onClose);
 
   useEffect(() => {
     if (!open || checking) return;
@@ -84,6 +41,7 @@ export default function AvailabilityOptionsModal({
 
   return (
     <div
+      ref={panelRef}
       className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4"
       role="dialog"
       aria-modal="true"
@@ -97,7 +55,6 @@ export default function AvailabilityOptionsModal({
         onClick={onClose}
       />
       <div
-        ref={panelRef}
         className="relative w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl shadow-xl border border-gray-100 max-h-[85vh] overflow-hidden flex flex-col animate-fade-in-up outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2 z-[1]"
         tabIndex={-1}
       >

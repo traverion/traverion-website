@@ -35,7 +35,7 @@ export default function Footer({ onNavigate }: { onNavigate?: (page: string) => 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 lg:gap-12">
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
-            <a href="/" className="inline-flex items-center gap-2 mb-4">
+            <a href="/" className="inline-flex items-center gap-2 mb-4" aria-label="Traverion home">
               <img src={BRAND_LOGO_SRC} alt="" className="h-11 w-auto object-contain" />
               <span className="font-sans text-sm font-semibold tracking-[0.18em] text-ink">TRAVERION</span>
             </a>

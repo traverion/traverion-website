@@ -137,6 +137,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
             onSubmit={submitSearch}
             onPointerEnter={prefetchPackagesPage}
             className="bg-paper-raised text-ink rounded-2xl p-2 sm:p-2.5 grid grid-cols-2 sm:grid-cols-[1fr_auto_auto_auto] gap-2 max-w-3xl shadow-soft-xl"
+            aria-label="Search tours"
           >
             <label className="sr-only" htmlFor="home-search">Where</label>
             <div className="relative min-w-0 col-span-2 sm:col-span-1">
@@ -147,7 +148,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Where"
-                className="w-full h-12 sm:h-14 pl-11 pr-4 rounded-xl border-0 text-ink placeholder:text-ink-faint focus:ring-2 focus:ring-finland/30 text-base bg-transparent"
+            className="w-full h-12 sm:h-14 pl-11 pr-4 rounded-xl border-0 text-ink placeholder:text-ink-muted focus:ring-2 focus:ring-finland/30 text-base bg-transparent"
               />
             </div>
             <label className="sr-only" htmlFor="home-when">When</label>
@@ -168,7 +169,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
               value={who}
               onChange={(e) => setWho(e.target.value)}
               placeholder="Guests"
-              className="w-full sm:w-[7.5rem] h-12 sm:h-14 px-3 rounded-xl border-0 text-ink placeholder:text-ink-faint focus:ring-2 focus:ring-finland/30 text-base bg-transparent"
+              className="w-full sm:w-[7.5rem] h-12 sm:h-14 px-3 rounded-xl border-0 text-ink placeholder:text-ink-muted focus:ring-2 focus:ring-finland/30 text-base bg-transparent"
             />
             <button type="submit" className="col-span-2 sm:col-span-1 h-12 sm:h-14 px-8 rounded-xl bg-finland text-white font-semibold hover:bg-finland-dark">
               Search

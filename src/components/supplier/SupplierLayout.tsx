@@ -50,6 +50,8 @@ import { partnerSignInTravelerOnlyEmailError } from '../../lib/customerSupplierA
 import { setPartnerAuthFlash } from '../../lib/partnerAuthFlash';
 import { publicSiteBaseUrl } from '../../lib/publicSiteUrl';
 import ErrorState from '../ErrorState';
+import SkipLink from '../SkipLink';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
 
 const SupplierEarnings = lazy(() => import('../../pages/supplier/SupplierEarnings'));
 const SupplierReviews = lazy(() => import('../../pages/supplier/SupplierReviews'));
@@ -225,6 +227,8 @@ export default function SupplierLayout() {
   const [onboardingHasCompany, setOnboardingHasCompany] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [mobileAccountOpen, setMobileAccountOpen] = useState(false);
+  const mobileAccountRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(mobileAccountOpen, mobileAccountRef, () => setMobileAccountOpen(false));
   const [settingsFocus, setSettingsFocus] = useState<AccountShortcutTarget | null>(null);
   const [profileDisplayName, setProfileDisplayName] = useState('');
   const [businessProfileTab, setBusinessProfileTab] = useState<BusinessProfileTab>('company');
@@ -245,6 +249,15 @@ export default function SupplierLayout() {
   /** Supabase may emit new `user` object references (e.g. auth refresh); gate only on stable id + retry. */
   const partnerGateUserRef = useRef(user);
   partnerGateUserRef.current = user;
+
+  useEffect(() => {
+    if (!accountMenuOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setAccountMenuOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [accountMenuOpen]);
 
   useEffect(() => {
     const client = supabase;
@@ -691,9 +704,10 @@ export default function SupplierLayout() {
 
   return (
     <div className="partner-app-shell min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden bg-paper text-ink">
+      <SkipLink />
       <header className="sticky top-0 z-30 bg-paper/90 backdrop-blur-md pt-[env(safe-area-inset-top)]">
         <div className="mx-auto flex h-14 max-w-6xl items-center gap-6 px-4 sm:px-6">
-          <button type="button" onClick={() => handleNavigate('dashboard')} className="lux-flat flex items-center gap-2 shrink-0">
+          <button type="button" onClick={() => handleNavigate('dashboard')} className="lux-flat flex items-center gap-2 shrink-0" aria-label="Partner home">
             <img src={BRAND_LOGO_SRC} alt="" className="h-8 w-8 object-contain" />
             <span className="hidden sm:inline font-sans text-[11px] font-semibold tracking-[0.2em]">TRAVERION</span>
           </button>
@@ -705,6 +719,7 @@ export default function SupplierLayout() {
                   key={item.id}
                   type="button"
                   onClick={() => handleNavigate(item.id)}
+                  aria-current={active ? 'page' : undefined}
                   className={`lux-flat px-3 py-1.5 rounded-full text-sm font-medium transition-colors duration-150 ${
                     active ? 'bg-ink text-paper-raised' : 'text-ink-muted hover:text-ink'
                   }`}
@@ -720,11 +735,19 @@ export default function SupplierLayout() {
               onClick={() => setAccountMenuOpen((v) => !v)}
               className="lux-flat hidden md:inline-flex h-9 w-9 items-center justify-center rounded-full bg-ink text-paper-raised text-xs font-semibold"
               aria-label="Account"
+              aria-expanded={accountMenuOpen}
+              aria-haspopup="menu"
+              aria-controls="partner-account-menu"
             >
               {(user?.email ?? user?.id ?? 'S').slice(0, 1).toUpperCase()}
             </button>
             {accountMenuOpen && (
-              <div className="absolute right-0 top-11 w-64 rounded-2xl bg-paper-raised shadow-soft-xl p-2 z-50 origin-top-right motion-safe:animate-slide-down">
+              <div
+                id="partner-account-menu"
+                role="menu"
+                aria-label="Account"
+                className="absolute right-0 top-11 w-64 rounded-2xl bg-paper-raised shadow-soft-xl p-2 z-50 origin-top-right motion-safe:animate-slide-down"
+              >
                 <p className="px-3 pt-2 pb-1 text-[10px] uppercase tracking-[0.16em] text-ink-faint">Business</p>
                 <button type="button" onClick={() => handleNavigate('earnings')} className="lux-flat w-full text-left px-3 py-2 rounded-xl text-sm hover:bg-paper">Money</button>
                 <button type="button" onClick={() => handleNavigate('reviews')} className="lux-flat w-full text-left px-3 py-2 rounded-xl text-sm hover:bg-paper">Reviews</button>
@@ -744,9 +767,15 @@ export default function SupplierLayout() {
       </header>
 
       {mobileAccountOpen && (
-        <div className="md:hidden fixed inset-0 z-50 bg-paper pt-[env(safe-area-inset-top)] motion-safe:animate-fade-in">
+        <div
+          ref={mobileAccountRef}
+          className="md:hidden fixed inset-0 z-50 bg-paper pt-[env(safe-area-inset-top)] motion-safe:animate-fade-in"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="partner-more-title"
+        >
           <div className="flex items-center justify-between px-4 py-3">
-            <h2 className="font-display text-2xl">Account</h2>
+            <h2 id="partner-more-title" className="font-display text-2xl">Account</h2>
             <button type="button" onClick={() => setMobileAccountOpen(false)} className="lux-tap-target p-2" aria-label="Close">
               <X className="w-5 h-5" />
             </button>
@@ -766,7 +795,11 @@ export default function SupplierLayout() {
         </div>
       )}
 
-      <main className={`mx-auto w-full max-w-6xl min-w-0 px-4 sm:px-6 pt-4 pb-[max(1.5rem,calc(5.25rem+env(safe-area-inset-bottom)))] lg:pb-16 ${section === 'availability' ? 'max-w-none lg:px-10' : ''}`}>
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className={`mx-auto w-full max-w-6xl min-w-0 px-4 sm:px-6 pt-4 pb-[max(1.5rem,calc(5.25rem+env(safe-area-inset-bottom)))] lg:pb-16 outline-none ${section === 'availability' ? 'max-w-none lg:px-10' : ''}`}
+      >
         <div className="lux-page-enter w-full min-w-0">
           <Suspense fallback={<PartnerSectionFallback />}>
           {section === 'onboarding' && (
@@ -916,6 +949,7 @@ export default function SupplierLayout() {
                 key={tab.id}
                 type="button"
                 onClick={() => handleNavigate(tab.id)}
+                aria-current={active ? 'page' : undefined}
                 className={`lux-flat flex flex-1 flex-col items-center justify-center gap-0.5 py-2 min-h-[52px] ${
                   active ? 'text-ink' : 'text-ink-faint'
                 }`}
@@ -928,6 +962,8 @@ export default function SupplierLayout() {
           <button
             type="button"
             onClick={() => setMobileAccountOpen(true)}
+            aria-expanded={mobileAccountOpen}
+            aria-haspopup="dialog"
             className={`lux-flat flex flex-1 flex-col items-center justify-center gap-0.5 py-2 min-h-[52px] ${
               mobileAccountOpen ? 'text-ink' : 'text-ink-faint'
             }`}

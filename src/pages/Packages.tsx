@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useDeferredValue, useRef } from 'react';
+import { useDialogFocus } from '../hooks/useDialogFocus';
 import { Search, Filter, X, Compass } from 'lucide-react';
 import { getAllListings, SHOW_SEED_LISTINGS, durationToMinutes } from '../data/listings';
 import { isSupabaseConfigured } from '../lib/supabase';
@@ -114,6 +115,9 @@ export default function Packages({ onTourSelect }: PackagesProps) {
   const [filterGuests, setFilterGuests] = useState(initialFilters.guests);
   const [showHolidayPackages] = useState(false);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const filterSheetRef = useRef<HTMLDivElement>(null);
+  const closeMobileFilters = useCallback(() => setMobileFiltersOpen(false), []);
+  useDialogFocus(mobileFiltersOpen, filterSheetRef, closeMobileFilters);
   const { listings: supplierListings, error: listingsLoadError, reload: reloadSupplierListings } =
     usePublishedSupplierListings();
   const catalogLoading = isSupabaseConfigured() && supplierListings === null;
@@ -323,14 +327,9 @@ export default function Packages({ onTourSelect }: PackagesProps) {
 
   useEffect(() => {
     if (!mobileFiltersOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setMobileFiltersOpen(false);
-    };
-    window.addEventListener('keydown', onKey);
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
-      window.removeEventListener('keydown', onKey);
       document.body.style.overflow = prev;
     };
   }, [mobileFiltersOpen]);
@@ -380,6 +379,7 @@ export default function Packages({ onTourSelect }: PackagesProps) {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Where or what"
+                aria-label="Search tours"
                 className="tv-input pl-10"
               />
             </div>
@@ -388,6 +388,8 @@ export default function Packages({ onTourSelect }: PackagesProps) {
                 type="button"
                 className="tv-btn-secondary"
                 onClick={() => setMobileFiltersOpen(true)}
+                aria-expanded={mobileFiltersOpen}
+                aria-controls="tours-filters"
               >
                 <Filter className="w-4 h-4" />
                 Filters{extraFilterCount > 0 ? ` · ${extraFilterCount}` : ''}
@@ -475,9 +477,15 @@ export default function Packages({ onTourSelect }: PackagesProps) {
         )}
 
         {mobileFiltersOpen && (
-          <div className="tv-sheet-overlay">
-            <button type="button" className="absolute inset-0" aria-label="Close filters" onClick={() => setMobileFiltersOpen(false)} />
-            <aside role="dialog" aria-modal="true" aria-labelledby="filters-drawer-title" className="tv-sheet-panel relative flex flex-col overflow-hidden motion-safe:animate-slide-up">
+          <div ref={filterSheetRef} className="tv-sheet-overlay">
+            <button type="button" tabIndex={-1} className="absolute inset-0" aria-label="Close filters" onClick={closeMobileFilters} />
+            <aside
+              id="tours-filters"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="filters-drawer-title"
+              className="tv-sheet-panel relative flex flex-col overflow-hidden motion-safe:animate-slide-up"
+            >
               <div className="flex items-center justify-between mb-6">
                 <h3 id="filters-drawer-title" className="font-display text-2xl">Filters</h3>
                 <button type="button" onClick={() => setMobileFiltersOpen(false)} className="lux-tap-target p-2" aria-label="Close">

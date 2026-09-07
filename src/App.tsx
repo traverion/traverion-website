@@ -1,6 +1,7 @@
 import { useState, useEffect, useLayoutEffect, useCallback, lazy, Suspense } from 'react';
 import UnifiedHeader from './components/UnifiedHeader';
 import Footer from './components/Footer';
+import SkipLink from './components/SkipLink';
 import Home from './pages/Home';
 import { TranslationProvider } from './contexts/TranslationContext';
 import { SupplierAuthProvider } from './contexts/SupplierAuthContext';
@@ -488,8 +489,9 @@ function App() {
           </div>
         ) : (
           <div className="min-h-screen bg-paper relative flex flex-col">
+            <SkipLink />
             <UnifiedHeader currentPage={currentPage} onNavigate={handleNavigate} />
-            <main className="flex-grow overflow-x-hidden">
+            <main id="main-content" tabIndex={-1} className="flex-grow overflow-x-hidden outline-none">
               <div className="lux-page-enter min-h-[min(50vh,480px)]">
                 <Suspense fallback={<RouteFallback />}>{renderPage()}</Suspense>
               </div>

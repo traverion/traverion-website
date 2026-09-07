@@ -61,6 +61,7 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
       onPointerEnter={prefetchTourDetailsPage}
       className="group relative bg-paper-raised rounded-2xl overflow-hidden cursor-pointer shadow-none hover:shadow-soft-lg hover:-translate-y-0.5 transition-all duration-300 ease-[cubic-bezier(0.33,1,0.68,1)] motion-safe:animate-fade-in-up focus:outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2"
       style={{ animationDelay: `${Math.min(index * 45, 320)}ms` }}
+      aria-label={`View ${tour.title}`}
     >
       <div className={`relative ${imgClass} overflow-hidden bg-gray-100`}>
         <img

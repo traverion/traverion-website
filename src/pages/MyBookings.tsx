@@ -2,11 +2,12 @@
  * Consumer: list of the logged-in user's bookings with status.
  * RLS ensures only rows where guest_email = auth user email are returned.
  */
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { LogIn, RefreshCw, ArrowLeft, CalendarDays } from 'lucide-react';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
+import { useDialogFocus } from '../hooks/useDialogFocus';
 import { SkeletonListItem, SkeletonConsumerPage } from '../components/ui/Skeleton';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
@@ -57,20 +58,14 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [payingId, setPayingId] = useState<string | null>(null);
   const [cancelConfirm, setCancelConfirm] = useState<BookingRow | null>(null);
+  const cancelSheetRef = useRef<HTMLDivElement>(null);
+  const closeCancelConfirm = useCallback(() => setCancelConfirm(null), []);
+  useDialogFocus(cancelConfirm !== null, cancelSheetRef, closeCancelConfirm);
   const [stayDrafts, setStayDrafts] = useState<Record<string, string>>({});
   const [staySavingId, setStaySavingId] = useState<string | null>(null);
   const [paymentBanner, setPaymentBanner] = useState<'success' | 'cancelled' | null>(null);
   const [tripView, setTripView] = useState<'upcoming' | 'past' | 'cancelled'>('upcoming');
   const [openTripId, setOpenTripId] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!cancelConfirm) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setCancelConfirm(null);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [cancelConfirm]);
 
   /** Tour start is within 24 hours from now → no refund. Otherwise full refund. */
   const getRefundChoiceForCancel = useCallback((bookingDate: string | null): 'full_refund' | 'no_refund' => {
@@ -501,8 +496,8 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
         )}
 
         {cancelConfirm && (
-          <div className="tv-sheet-overlay z-50">
-            <button type="button" className="absolute inset-0" aria-label="Close" onClick={() => setCancelConfirm(null)} />
+          <div ref={cancelSheetRef} className="tv-sheet-overlay z-50">
+            <button type="button" tabIndex={-1} className="absolute inset-0" aria-label="Close" onClick={closeCancelConfirm} />
             <div className="tv-sheet-panel relative motion-safe:animate-slide-up" role="dialog" aria-modal="true" aria-labelledby="cancel-trip-title">
               <h3 id="cancel-trip-title" className="font-display text-2xl text-ink">Cancel this booking?</h3>
               <p className="mt-2 text-sm text-ink-muted">
@@ -516,7 +511,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
               <div className="mt-6 flex flex-wrap gap-2">
                 <button
                   type="button"
-                  onClick={() => setCancelConfirm(null)}
+                  onClick={closeCancelConfirm}
                   className="tv-btn-secondary"
                 >
                   Keep booking

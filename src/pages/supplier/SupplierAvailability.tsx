@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { fetchMyListings } from '../../data/supabase-listings';
 import { fetchBookingsForSupplier, type BookingRow } from '../../data/supabase-bookings';
@@ -44,6 +45,9 @@ export default function SupplierAvailability() {
   const [savingIso, setSavingIso] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<{ iso: string; capacity: string } | null>(null);
+  const daySheetRef = useRef<HTMLDivElement>(null);
+  const closeDaySheet = useCallback(() => setEditing(null), []);
+  useDialogFocus(editing !== null, daySheetRef, closeDaySheet);
 
   const listing = listings.find((l) => l.id === listingId) ?? null;
   const viewingAll = listingId === '';
@@ -114,15 +118,6 @@ export default function SupplierAvailability() {
   useEffect(() => {
     if (listingId) void loadCaps(listingId);
   }, [listingId, loadCaps]);
-
-  useEffect(() => {
-    if (!editing) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setEditing(null);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [editing]);
 
   const shiftMonth = (delta: number) => {
     const d = new Date(Date.UTC(year, monthIndex0 + delta, 1));
@@ -283,7 +278,7 @@ export default function SupplierAvailability() {
             />
           ) : null}
 
-          <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-medium uppercase tracking-[0.14em] text-ink-faint mb-2">
+          <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-medium uppercase tracking-[0.14em] text-ink-faint mb-2" aria-hidden>
             {WEEKDAYS.map((d) => (
               <div key={d}>{d}</div>
             ))}
@@ -297,11 +292,28 @@ export default function SupplierAvailability() {
               const isToday = cell.iso === localTodayIso;
               const isEditing = editing?.iso === cell.iso;
               const busy = savingIso === cell.iso;
+              const dateLabel = new Date(`${cell.iso}T12:00:00`).toLocaleDateString('en-GB', {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+              });
+              const statusLabel = !cell.inMonth
+                ? undefined
+                : booked
+                  ? `${dateLabel}, ${booked.guests} guest${booked.guests === 1 ? '' : 's'}`
+                  : cap
+                    ? `${dateLabel}, ${remaining} of ${cap.capacity} spots left`
+                    : open
+                      ? `${dateLabel}, open`
+                      : dateLabel;
               return (
                 <button
                   key={cell.iso}
                   type="button"
                   disabled={!cell.inMonth || busy}
+                  aria-label={statusLabel}
+                  aria-current={isToday ? 'date' : undefined}
+                  aria-pressed={isEditing}
                   onClick={() => {
                     if (!open && !cap && !booked) return;
                     setEditing({
@@ -345,8 +357,8 @@ export default function SupplierAvailability() {
           </div>
 
           {editing ? (
-            <div className="tv-sheet-overlay z-[70]">
-              <button type="button" className="absolute inset-0" aria-label="Close day" onClick={() => setEditing(null)} />
+            <div ref={daySheetRef} className="tv-sheet-overlay z-[70]">
+              <button type="button" tabIndex={-1} className="absolute inset-0" aria-label="Close day" onClick={closeDaySheet} />
               <aside
                 role="dialog"
                 aria-modal="true"

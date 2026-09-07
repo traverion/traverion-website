@@ -145,6 +145,7 @@ export default function ListingImageFields({
         ref={fileRef}
         type="file"
         accept="image/jpeg,image/png,image/webp,image/gif"
+        aria-label="Upload listing photo"
         className="hidden"
         onChange={(ev) => void handleFile(ev)}
       />
@@ -202,6 +203,8 @@ export default function ListingImageFields({
                 <button
                   type="button"
                   onClick={() => setSelectedIndex(selected ? null : index)}
+                  aria-pressed={selected}
+                  aria-label={`${selected ? 'Selected: ' : ''}${caption}. Photo ${index + 1} of ${filledCount}`}
                   className={[
                     'relative w-full overflow-hidden rounded-xl border-2 bg-gray-50 transition-[box-shadow,transform,border-color] duration-150 touch-manipulation',
                     'aspect-square max-h-[88px] sm:max-h-[96px]',
