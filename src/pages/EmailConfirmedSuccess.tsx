@@ -88,14 +88,14 @@ export default function EmailConfirmedSuccess() {
       setSecondsLeft((s) => Math.max(0, s - 1));
     }, 1000);
 
-    const go = window.setTimeout(async () => {
+    window.setTimeout(async () => {
       await signOut();
       window.location.replace(`/log-in?next=${encodeURIComponent(next)}`);
     }, REDIRECT_MS);
 
     return () => {
       window.clearInterval(tick);
-      // Do not clear `go`: React StrictMode’s dev remount would cancel the redirect before it runs.
+      // Do not clear the redirect timeout: React StrictMode’s dev remount would cancel it before it runs.
     };
   }, [phase, next, signOut]);
 

@@ -88,7 +88,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error: ensured.error ?? 'Could not load your account profile.' };
       }
     }
-    return { error: error?.message };
+    return {};
   }, []);
 
   const signUp = useCallback(async (email: string, password: string, options?: { redirectTo?: string; phoneNumber?: string; firstName?: string; lastName?: string; afterConfirmNext?: string }) => {

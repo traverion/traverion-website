@@ -13,6 +13,9 @@ interface LuxuryInputProps {
   icon?: React.ReactNode;
   className?: string;
   size?: 'sm' | 'md' | 'lg';
+  autoComplete?: string;
+  required?: boolean;
+  name?: string;
 }
 
 const LuxuryInput = forwardRef<HTMLInputElement, LuxuryInputProps>(({
@@ -27,6 +30,9 @@ const LuxuryInput = forwardRef<HTMLInputElement, LuxuryInputProps>(({
   icon,
   className = '',
   size = 'md',
+  autoComplete,
+  required,
+  name,
 }, ref) => {
   const [showPassword, setShowPassword] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
@@ -69,6 +75,9 @@ const LuxuryInput = forwardRef<HTMLInputElement, LuxuryInputProps>(({
           value={value}
           onChange={onChange}
           disabled={disabled}
+          autoComplete={autoComplete}
+          required={required}
+          name={name}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           className={`

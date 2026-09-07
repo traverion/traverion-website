@@ -429,7 +429,7 @@ export async function fetchBookingsForSupplier(supplierId: string): Promise<Book
       .select(columns)
       .in('listing_id', ids)
       .order('created_at', { ascending: false });
-    if (!error) return (data ?? []) as BookingRow[];
+    if (!error) return (data ?? []) as unknown as BookingRow[];
     lastError = error.message;
     if (!isLikelyMissingColumnError(error.message)) break;
   }

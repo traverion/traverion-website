@@ -21,17 +21,6 @@ export type OgMeta = {
   type?: 'website' | 'article';
 };
 
-const OG_KEYS: { key: string; attr: string }[] = [
-  { key: 'og:title', attr: 'property' },
-  { key: 'og:description', attr: 'property' },
-  { key: 'og:image', attr: 'property' },
-  { key: 'og:url', attr: 'property' },
-  { key: 'og:type', attr: 'property' },
-  { key: 'twitter:title', attr: 'name' },
-  { key: 'twitter:description', attr: 'name' },
-  { key: 'twitter:image', attr: 'name' },
-];
-
 function ensureMeta(name: string, attr: 'name' | 'property'): HTMLMetaElement {
   const sel = attr === 'name' ? `meta[name="${name}"]` : `meta[property="${name}"]`;
   let el = document.querySelector<HTMLMetaElement>(sel);

@@ -7,8 +7,6 @@ import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } fr
 import { createPortal } from 'react-dom';
 import {
   ArrowLeft,
-  Calendar,
-  Users,
   User,
   Mail,
   MessageSquare,
@@ -126,8 +124,6 @@ function BookingProgress({ step, flow }: { step: Step; flow: 'page' | 'modal' })
 export default function BookingPage({
   tour,
   onBack,
-  onComplete,
-  onNavigate,
   initialDate,
   initialGuests,
   presentation = 'page',

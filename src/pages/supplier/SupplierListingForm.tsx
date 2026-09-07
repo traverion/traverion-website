@@ -490,14 +490,6 @@ function isStepSatisfied(idx: number, form: ListingFormState): boolean {
   return true;
 }
 
-/** Step i shows a checkmark only when this step and every earlier step are satisfied (linear flow). */
-function stepsThroughIndexComplete(upToIdx: number, form: ListingFormState): boolean {
-  for (let i = 0; i <= upToIdx; i++) {
-    if (!isStepSatisfied(i, form)) return false;
-  }
-  return true;
-}
-
 const emptyForm: ListingFormState = {
   experienceLanguage: '',
   experienceKind: '',
