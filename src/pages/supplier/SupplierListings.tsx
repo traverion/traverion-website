@@ -943,7 +943,7 @@ export default function SupplierListings() {
                 <button
                   type="button"
                   role="menuitem"
-                  className="flex w-full px-3 py-2.5 text-left text-sm text-gray-800 hover:bg-gray-50"
+                  className="flex w-full px-3 py-2.5 text-left text-sm text-ink hover:bg-paper"
                   onClick={() => {
                     closeListingActionsMenu();
                     openSupplierListingEditor(menuListing.id);
@@ -955,7 +955,7 @@ export default function SupplierListings() {
                   <button
                     type="button"
                     role="menuitem"
-                    className="flex w-full px-3 py-2.5 text-left text-sm text-gray-800 hover:bg-gray-50"
+                    className="flex w-full px-3 py-2.5 text-left text-sm text-ink hover:bg-paper"
                     onClick={() => {
                       closeListingActionsMenu();
                       setListingPendingDeactivate(menuListing);
@@ -964,7 +964,7 @@ export default function SupplierListings() {
                     Deactivate
                   </button>
                 ) : null}
-                <div className="my-1 border-t border-gray-100" role="separator" />
+                <div className="my-1 border-t border-black/[0.06]" role="separator" />
                 <button
                   type="button"
                   role="menuitem"

@@ -5,8 +5,7 @@ import { getAllListings, SHOW_SEED_LISTINGS, durationToMinutes } from '../data/l
 import { isSupabaseConfigured } from '../lib/supabase';
 import { usePublishedSupplierListings } from '../hooks/usePublishedSupplierListings';
 import { analytics } from '../lib/analytics';
-import { tourPackages } from '../data/tours';
-import { activities, TAG_OPTIONS, getDestinationsFromListings, SEED_DESTINATION_OPTIONS } from '../data/activities';
+import { TAG_OPTIONS, getDestinationsFromListings, SEED_DESTINATION_OPTIONS } from '../data/catalogMeta';
 import { TourPackage } from '../types/tour';
 import { fetchDiscountsByListingIds } from '../data/supabase-discounts';
 import { getReviewAggregatesForListingIds } from '../data/supabase-reviews';
@@ -113,7 +112,6 @@ export default function Packages({ onTourSelect }: PackagesProps) {
   const [priceRange, setPriceRange] = useState(initialFilters.price);
   const [filterDate, setFilterDate] = useState(initialFilters.date);
   const [filterGuests, setFilterGuests] = useState(initialFilters.guests);
-  const [showHolidayPackages] = useState(false);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const filterSheetRef = useRef<HTMLDivElement>(null);
   const closeMobileFilters = useCallback(() => setMobileFiltersOpen(false), []);
@@ -194,10 +192,8 @@ export default function Packages({ onTourSelect }: PackagesProps) {
       isSupabaseConfigured() && supplierListings !== null
         ? [...supplierListings]
         : [...getAllListings({ includeSeed: false, includeHolidayPackages: false })];
-    if (SHOW_SEED_LISTINGS) base.push(...activities);
-    if (showHolidayPackages) base.push(...tourPackages);
     return base;
-  }, [supplierListings, showHolidayPackages]);
+  }, [supplierListings]);
 
   const supabaseListingIds = useMemo(
     () => allListings.map((t) => t.id).filter(isSupabaseListingId),

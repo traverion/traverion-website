@@ -4,11 +4,10 @@ import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
 import { SkeletonCardGrid, Skeleton } from '../components/ui/Skeleton';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
-import { getAllListings, SHOW_SEED_LISTINGS } from '../data/listings';
+import { getAllListings } from '../data/listings';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { usePublishedSupplierListings } from '../hooks/usePublishedSupplierListings';
 import { setPageMetaWithOg } from '../lib/seo';
-import { activities } from '../data/activities';
 import { TourPackage } from '../types/tour';
 import { getReviewAggregatesForListingIds } from '../data/supabase-reviews';
 import { fetchDiscountsByListingIds } from '../data/supabase-discounts';
@@ -53,7 +52,6 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
       isSupabaseConfigured() && supplierListings !== null
         ? [...supplierListings]
         : getAllListings({ includeSeed: false, includeHolidayPackages: false });
-    if (SHOW_SEED_LISTINGS) return [...base, ...activities];
     return base;
   }, [supplierListings]);
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { getAllListingsAsync, peekPublishedListingsCache } from '../data/listings';
+import { getAllListingsAsync, peekPublishedListingsCache, SHOW_SEED_LISTINGS } from '../data/listings';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 import type { TourPackage } from '../types/tour';
@@ -27,10 +27,12 @@ export function usePublishedSupplierListings(options?: Options): {
   const [error, setError] = useState<string | null>(null);
   const lastReloadAt = useRef(0);
 
+  const canLoadCatalog = isSupabaseConfigured() || SHOW_SEED_LISTINGS;
+
   const reload = useCallback(() => {
-    if (!isSupabaseConfigured()) return;
+    if (!canLoadCatalog) return;
     lastReloadAt.current = Date.now();
-    getAllListingsAsync({ includeSeed: false, includeHolidayPackages: false })
+    getAllListingsAsync({ includeSeed: SHOW_SEED_LISTINGS, includeHolidayPackages: false })
       .then((data) => {
         setListings(data);
         setError(null);
@@ -41,11 +43,12 @@ export function usePublishedSupplierListings(options?: Options): {
           setListings((prev) => (prev === null ? [] : prev));
         }
       });
-  }, [emptyOnFirstError]);
+  }, [emptyOnFirstError, canLoadCatalog]);
 
   useEffect(() => {
-    if (!isSupabaseConfigured()) return;
+    if (!canLoadCatalog) return;
     reload();
+    if (!isSupabaseConfigured()) return;
     const onVis = () => {
       if (document.visibilityState !== 'visible') return;
       if (Date.now() - lastReloadAt.current < 45_000) return;
@@ -58,7 +61,7 @@ export function usePublishedSupplierListings(options?: Options): {
       document.removeEventListener('visibilitychange', onVis);
       window.removeEventListener('traverion:published-listings-changed', onPublishedChanged);
     };
-  }, [reload]);
+  }, [reload, canLoadCatalog]);
 
   return { listings, error, reload };
 }

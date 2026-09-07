@@ -1,6 +1,4 @@
 import { TourPackage } from '../types/tour';
-import { activities } from './activities';
-import { tourPackages, getTourById } from './tours';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { fetchAllListings, fetchListingById } from './supabase-listings';
 import { filterTravelerCatalog } from '../lib/inventory';
@@ -25,15 +23,13 @@ export function setSupplierListings(list: TourPackage[]): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
 }
 
-/** All listings to show: supplier-created + optionally seed activities + optionally holiday packages. Sync (localStorage only). */
+/** All listings to show: supplier-created. Seed/brochure catalogs load only via getAllListingsAsync. */
 export function getAllListings(options: {
   includeSeed?: boolean;
   includeHolidayPackages?: boolean;
 }): TourPackage[] {
   const { includeSeed = SHOW_SEED_LISTINGS, includeHolidayPackages = false } = options;
   const base = [...getSupplierListings()];
-  if (includeSeed) base.push(...activities);
-  if (includeHolidayPackages) base.push(...tourPackages);
   return includeSeed || includeHolidayPackages ? base : filterTravelerCatalog(base);
 }
 
@@ -86,27 +82,36 @@ export async function getAllListingsAsync(options: {
   } else {
     base = [...getSupplierListings()];
   }
-  if (includeSeed) base = [...base, ...activities];
-  if (includeHolidayPackages) base = [...base, ...tourPackages];
+  if (includeSeed) {
+    const { activities } = await import('./activities');
+    base = [...base, ...activities];
+  }
+  if (includeHolidayPackages) {
+    const { tourPackages } = await import('./tours');
+    base = [...base, ...tourPackages];
+  }
   return includeSeed || includeHolidayPackages ? base : filterTravelerCatalog(base);
 }
 
-/** Resolve a listing by id: supplier/Supabase first, then seed activities, then holiday packages. Sync (localStorage + seed/tours). */
+/** Resolve a listing by id from local supplier storage (not seed/brochure). */
 export function getListingById(id: string): TourPackage | undefined {
-  const supplier = getSupplierListings().find(t => t.id === id);
-  if (supplier) return supplier;
-  const activity = activities.find(t => t.id === id);
-  if (activity) return activity;
-  return getTourById(id);
+  return getSupplierListings().find((t) => t.id === id);
 }
 
-/** Async: resolve listing by id (checks Supabase when configured, then seed/tours). */
+/** Async: resolve listing by id (Supabase when configured, then local, then seed only if enabled). */
 export async function getListingByIdAsync(id: string): Promise<TourPackage | undefined> {
   if (isSupabaseConfigured()) {
     const fromDb = await fetchListingById(id);
     if (fromDb) return fromDb;
   }
-  return getListingById(id);
+  const local = getListingById(id);
+  if (local) return local;
+  if (!SHOW_SEED_LISTINGS) return undefined;
+  const { activities } = await import('./activities');
+  const activity = activities.find((t) => t.id === id);
+  if (activity) return activity;
+  const { getTourById } = await import('./tours');
+  return getTourById(id);
 }
 
 /** Parse duration string to sortable minutes: "3 hours" -> 180, "9 Days - 8 Nights" -> 9*24*60. */

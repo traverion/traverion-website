@@ -116,6 +116,13 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
     }
   }, [booking?.booking_date]);
 
+  const paid = Boolean(booking && (booking.payment_status ?? '') === 'paid');
+  const confirming = Boolean(booking && (booking.payment_status ?? 'pending') !== 'paid');
+
+  useEffect(() => {
+    if (paid && user?.id) clearBookingsUnread(user.id);
+  }, [paid, user?.id]);
+
   const startHm = booking?.start_time ? pgTimeToHm(booking.start_time) : '';
 
   const goToBookings = () => {
@@ -180,13 +187,6 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
       </div>
     );
   }
-
-  const confirming = Boolean(booking && (booking.payment_status ?? 'pending') !== 'paid');
-  const paid = Boolean(booking && (booking.payment_status ?? '') === 'paid');
-
-  useEffect(() => {
-    if (paid && user?.id) clearBookingsUnread(user.id);
-  }, [paid, user?.id]);
 
   return (
     <div className="min-h-screen bg-paper flex flex-col items-center px-4 py-12 sm:py-16">

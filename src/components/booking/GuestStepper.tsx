@@ -82,7 +82,7 @@ export default function GuestStepper({
           <Plus className="h-4 w-4 stroke-[2.5]" aria-hidden />
         </button>
       </div>
-      <p className="mt-1.5 text-xs text-gray-500">{formatPartySizeHint({ min, max })}</p>
+      <p className="mt-1.5 text-xs text-ink-faint">{formatPartySizeHint({ min, max })}</p>
     </div>
   );
 }

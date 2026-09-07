@@ -1,10 +1,9 @@
 import { ArrowRight, Search, ShieldCheck, Compass } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
-import { getAllListings, SHOW_SEED_LISTINGS } from '../data/listings';
-import { getDestinationsFromListings } from '../data/activities';
+import { getAllListings } from '../data/listings';
+import { getDestinationsFromListings } from '../data/catalogMeta';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { usePublishedSupplierListings } from '../hooks/usePublishedSupplierListings';
-import { activities } from '../data/activities';
 import { TourPackage } from '../types/tour';
 import { fetchDiscountsByListingIds } from '../data/supabase-discounts';
 import { getReviewAggregatesForListingIds } from '../data/supabase-reviews';
@@ -53,7 +52,6 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
       isSupabaseConfigured() && supplierListings !== null
         ? [...supplierListings]
         : getAllListings({ includeSeed: false, includeHolidayPackages: false });
-    if (SHOW_SEED_LISTINGS) return [...base, ...activities];
     return base;
   }, [supplierListings]);
 

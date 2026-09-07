@@ -64,7 +64,7 @@ export default function BookingDateField({
         />
         {!value.trim() && (
           <span
-            className="pointer-events-none absolute left-4 top-1/2 z-[1] -translate-y-1/2 text-sm text-gray-400 select-none"
+            className="pointer-events-none absolute left-4 top-1/2 z-[1] -translate-y-1/2 text-sm text-ink-faint select-none"
             aria-hidden
           >
             Select a date
@@ -81,7 +81,7 @@ export default function BookingDateField({
             e.stopPropagation();
             openNativeDatePicker(e.currentTarget);
           }}
-          className={`relative z-[0] w-full cursor-pointer rounded-xl border-0 bg-transparent py-3 pl-4 pr-12 text-sm font-medium text-gray-900 transition-opacity duration-150 focus:outline-none focus:ring-0 ${
+          className={`relative z-[0] w-full cursor-pointer rounded-xl border-0 bg-transparent py-3 pl-4 pr-12 text-sm font-medium text-ink transition-opacity duration-150 focus:outline-none focus:ring-0 ${
             value.trim() ? 'opacity-100' : 'opacity-0'
           }`}
           aria-label={label}
@@ -92,7 +92,7 @@ export default function BookingDateField({
           {displayLabel}
         </p>
       ) : null}
-      {hint ? <p className="mt-1 text-xs text-gray-500">{hint}</p> : null}
+      {hint ? <p className="mt-1 text-xs text-ink-faint">{hint}</p> : null}
     </div>
   );
 }

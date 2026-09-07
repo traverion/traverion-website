@@ -900,7 +900,7 @@ export default function BookingPage({
               <button
                 type="button"
                 onClick={() => setStep(flowMode === 'modal' ? 'review' : 'date-guests')}
-                className="px-4 py-2.5 text-gray-600 hover:text-finland focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2 rounded-lg"
+                className="tv-btn-ghost"
               >
                 Edit trip details
               </button>
@@ -908,7 +908,7 @@ export default function BookingPage({
                 <button
                   type="button"
                   onClick={() => setStep('contact')}
-                  className="px-4 py-2.5 text-gray-600 hover:text-finland focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2 rounded-lg"
+                  className="tv-btn-ghost"
                 >
                   Back
                 </button>
@@ -948,17 +948,17 @@ export default function BookingPage({
           onClick={handleLeaveBooking}
         />
         <div className="relative z-10 flex h-[100dvh] w-full max-w-6xl flex-col overflow-hidden rounded-none bg-paper sm:h-auto sm:max-h-[min(95dvh,1040px)] sm:rounded-2xl sm:shadow-2xl sm:ring-1 sm:ring-black/[0.08] pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]">
-          <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-4 py-3 sm:px-5">
+          <div className="flex shrink-0 items-center justify-between border-b border-black/[0.06] px-4 py-3 sm:px-5">
             <h2
               id="booking-flow-modal-title"
-              className="truncate pr-2 text-base font-semibold text-gray-900 sm:text-lg"
+              className="truncate pr-2 text-base font-semibold text-ink sm:text-lg"
             >
               Book this tour
             </h2>
             <button
               type="button"
               onClick={handleLeaveBooking}
-              className="lux-tap-target inline-flex h-11 w-11 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland"
+              className="lux-tap-target inline-flex h-11 w-11 items-center justify-center rounded-lg text-ink-muted hover:bg-paper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland"
               aria-label="Close booking"
             >
               <X className="h-5 w-5" />
