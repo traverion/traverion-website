@@ -3,7 +3,7 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { LogIn, ArrowLeft, Trash2, RefreshCw, ShoppingBag } from 'lucide-react';
-import { SkeletonListItem } from '../components/ui/Skeleton';
+import { SkeletonListItem, SkeletonConsumerPage } from '../components/ui/Skeleton';
 import EmptyState from '../components/EmptyState';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
@@ -15,7 +15,7 @@ interface CartPageProps {
 }
 
 export default function CartPage({ onNavigate, onBookTour }: CartPageProps) {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [items, setItems] = useState<CartItemWithListing[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -79,6 +79,9 @@ export default function CartPage({ onNavigate, onBookTour }: CartPageProps) {
   }
 
   if (!user) {
+    if (authLoading) {
+      return <SkeletonConsumerPage titleWidth="w-24" />;
+    }
     return (
       <div className="min-h-screen bg-paper pt-20">
         <div className="max-w-xl mx-auto px-4 py-12">

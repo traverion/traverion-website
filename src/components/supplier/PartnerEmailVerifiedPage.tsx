@@ -111,10 +111,14 @@ export default function PartnerEmailVerifiedPage() {
       <main className="flex-1 flex items-center justify-center px-5 pb-16">
         <div className="max-w-md w-full text-center">
           {phase === 'checking' && (
-            <>
+            <div aria-busy="true" aria-label="Confirming your email">
               <h1 className="font-display text-3xl text-ink tracking-tight">Confirming your email</h1>
               <p className="mt-3 text-sm text-ink-muted">Please wait a moment.</p>
-            </>
+              <div className="mt-8 space-y-3" aria-hidden>
+                <div className="h-3 w-full rounded bg-black/[0.06] animate-pulse" />
+                <div className="h-3 w-5/6 mx-auto rounded bg-black/[0.04] animate-pulse" />
+              </div>
+            </div>
           )}
           {phase === 'verified' && (
             <>

@@ -10,6 +10,7 @@ import {
   ChevronRight,
   LogIn,
 } from 'lucide-react';
+import { SkeletonFormFields, SkeletonConsumerPage } from '../components/ui/Skeleton';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { fetchMyBookings } from '../data/supabase-bookings';
@@ -27,7 +28,7 @@ interface AccountPageProps {
 type HubStats = { bookings: number; wishlist: number; cart: number };
 
 export default function AccountPage({ onNavigate }: AccountPageProps) {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [stats, setStats] = useState<HubStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
   const [displayName, setDisplayName] = useState('');
@@ -111,6 +112,9 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
   }
 
   if (!user) {
+    if (authLoading) {
+      return <SkeletonConsumerPage titleWidth="w-40" form />;
+    }
     return (
       <div className="min-h-screen bg-paper pt-20">
         <div className="max-w-xl mx-auto px-4 py-12">
@@ -191,7 +195,9 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
         <section className="mb-12">
           <h2 className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-4">Profile</h2>
           {profileLoading ? (
-            <p className="text-sm text-ink-muted">Loading profile…</p>
+            <div aria-busy="true" aria-label="Loading profile">
+              <SkeletonFormFields count={3} />
+            </div>
           ) : (
             <form
               className="space-y-4 max-w-lg"

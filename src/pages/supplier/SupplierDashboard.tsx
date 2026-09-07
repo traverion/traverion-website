@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { SUPPLIER_PAGE_CLASS, SupplierEmptyState } from '../../components/supplier/supplierUi';
+import { SUPPLIER_PAGE_CLASS, SupplierEmptyState, SupplierListSkeleton } from '../../components/supplier/supplierUi';
 import { CalendarDays } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { fetchMyListings } from '../../data/supabase-listings';
@@ -192,7 +192,7 @@ export default function SupplierDashboard({ onNavigateToBookings }: SupplierDash
       <section className="mb-12">
         <h2 className="text-[11px] uppercase tracking-[0.18em] text-ink-faint mb-4">Today</h2>
         {dashboardLoading && publishedListingsCount === null ? (
-          <p className="text-ink-muted text-sm">Loading…</p>
+          <SupplierListSkeleton rows={3} />
         ) : todayScheduleRows.length === 0 ? (
           <SupplierEmptyState
             icon={CalendarDays}

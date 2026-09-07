@@ -5,6 +5,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { LogIn, RefreshCw, ArrowLeft, CalendarDays } from 'lucide-react';
 import EmptyState from '../components/EmptyState';
+import { SkeletonListItem, SkeletonConsumerPage } from '../components/ui/Skeleton';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import {
@@ -46,7 +47,7 @@ function mergePlaceOfStayIntoNotes(notes: string | null | undefined, place: stri
 }
 
 export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps) {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [bookings, setBookings] = useState<BookingRow[]>([]);
   const [titles, setTitles] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -225,6 +226,9 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   }
 
   if (!user) {
+    if (authLoading) {
+      return <SkeletonConsumerPage titleWidth="w-28" />;
+    }
     return (
       <div className="min-h-screen bg-paper pt-20">
         <div className="max-w-xl mx-auto px-4 py-12 pb-16">
@@ -320,7 +324,11 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
         )}
 
         {loading ? (
-          <p className="text-ink-muted">Loading your trips…</p>
+          <div className="space-y-2 divide-y divide-black/[0.04]" aria-busy="true" aria-label="Loading your trips">
+            <SkeletonListItem />
+            <SkeletonListItem />
+            <SkeletonListItem />
+          </div>
         ) : bookings.length === 0 ? (
           <EmptyState
             icon={CalendarDays}

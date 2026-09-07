@@ -114,6 +114,7 @@ export default function Packages({ onTourSelect }: PackagesProps) {
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const { listings: supplierListings, error: listingsLoadError, reload: reloadSupplierListings } =
     usePublishedSupplierListings();
+  const catalogLoading = isSupabaseConfigured() && supplierListings === null;
   const [discountsByListing, setDiscountsByListing] = useState<Map<string, import('../data/supabase-discounts').ListingDiscount[]>>(new Map());
   const [reviewAggregates, setReviewAggregates] = useState<Map<string, { rating: number; count: number }>>(
     () => new Map()
@@ -337,8 +338,14 @@ export default function Packages({ onTourSelect }: PackagesProps) {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-12 pb-16 motion-safe:animate-fade-in">
         <h1 className="font-display text-4xl sm:text-5xl text-ink tracking-tight">Tours</h1>
         <p className="mt-2 text-ink-muted">
-          {filteredPackages.length} {filteredPackages.length === 1 ? 'tour' : 'tours'}
-          {searchTerm.trim() !== '' && searchTerm !== deferredSearch ? ' · Updating…' : ''}
+          {catalogLoading ? (
+            <span className="inline-block h-4 w-24 rounded bg-black/[0.06] animate-pulse align-middle" aria-hidden />
+          ) : (
+            <>
+              {filteredPackages.length} {filteredPackages.length === 1 ? 'tour' : 'tours'}
+              {searchTerm.trim() !== '' && searchTerm !== deferredSearch ? ' · Updating…' : ''}
+            </>
+          )}
         </p>
 
         {listingsLoadError && isSupabaseConfigured() && (
@@ -546,7 +553,7 @@ export default function Packages({ onTourSelect }: PackagesProps) {
               />
         ) : null}
 
-        {isSupabaseConfigured() && supplierListings === null ? (
+        {catalogLoading ? (
           <div className="py-8">
             <SkeletonCardGrid count={6} />
           </div>

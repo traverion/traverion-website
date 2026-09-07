@@ -36,6 +36,7 @@ import { getListingByIdAsync } from './data/listings';
 import { isPartnerMarketingPathForCurrentHost, isPartnerPortalPathForCurrentHost } from './lib/partnerHost';
 import { rememberProductReturn, isStaticConsumerPage } from './lib/navReturn';
 import type { TourPackage as TourPackageType } from './types/tour';
+import { SkeletonCardGrid, SkeletonPageHero } from './components/ui/Skeleton';
 
 const Blog = lazy(() => import('./pages/Blog'));
 const BookingConfirmationPage = lazy(() => import('./pages/BookingConfirmationPage'));
@@ -60,10 +61,12 @@ const TourDetails = lazy(() => import('./pages/TourDetails'));
 
 function RouteFallback() {
   return (
-    <div className="min-h-[40vh] bg-paper" aria-busy="true" aria-label="Loading">
-      <div className="max-w-3xl mx-auto px-4 py-16">
-        <div className="h-10 w-48 rounded-lg bg-black/[0.06] animate-pulse" />
-        <div className="mt-4 h-4 w-full max-w-md rounded bg-black/[0.04] animate-pulse" />
+    <div className="min-h-[50vh] bg-paper" aria-busy="true" aria-label="Loading">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16">
+        <SkeletonPageHero />
+        <div className="mt-10">
+          <SkeletonCardGrid count={3} />
+        </div>
       </div>
     </div>
   );

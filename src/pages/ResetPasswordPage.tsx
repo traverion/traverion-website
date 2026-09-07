@@ -1,5 +1,5 @@
 import { useLayoutEffect, useState } from 'react';
-import { ArrowLeft, Lock, Loader2 } from 'lucide-react';
+import { ArrowLeft, Lock } from 'lucide-react';
 import { HERO_IMG } from '../lib/heroImages';
 import { BRAND_LOGO_SRC } from '../lib/brandAssets';
 import SetNewPasswordForm from '../components/auth/SetNewPasswordForm';
@@ -67,10 +67,14 @@ export default function ResetPasswordPage({ onNavigate }: ResetPasswordPageProps
 
   if (portal === 'verifying') {
     return (
-      <div className="relative min-h-screen flex items-center justify-center px-4">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 text-finland mx-auto mb-3 animate-spin" aria-hidden />
-          <p className="text-sm text-gray-600">Verifying your reset link…</p>
+      <div className="min-h-screen bg-paper flex items-center justify-center px-4">
+        <div className="w-full max-w-md text-center" aria-busy="true" aria-label="Verifying your reset link">
+          <p className="font-display text-2xl text-ink">Verifying your reset link</p>
+          <p className="mt-2 text-sm text-ink-muted">This usually takes a few seconds.</p>
+          <div className="mt-8 space-y-3" aria-hidden>
+            <div className="h-11 rounded-xl bg-black/[0.06] animate-pulse" />
+            <div className="h-11 rounded-xl bg-black/[0.06] animate-pulse" />
+          </div>
         </div>
       </div>
     );

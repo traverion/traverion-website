@@ -12,6 +12,7 @@ import { isSupabaseListingId } from '../lib/discount-display';
 import { PublicListingBrowseCard } from '../components/PublicListingBrowseCard';
 import { supplierPortalHref } from '../lib/partnerHost';
 import EmptyState from '../components/EmptyState';
+import { SkeletonCardGrid, SkeletonFeaturedHero, SkeletonPlaceGrid } from '../components/ui/Skeleton';
 import { TRAVERION_STANDARD_CANCELLATION_POLICY } from '../types/listingExtras';
 import { HERO_IMG } from '../lib/heroImages';
 
@@ -39,6 +40,8 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
   const [reviewAggregates, setReviewAggregates] = useState<Map<string, { rating: number; count: number }>>(
     () => new Map()
   );
+
+  const catalogLoading = isSupabaseConfigured() && supplierListings === null;
 
   const allListings = useMemo(() => {
     const base =
@@ -182,7 +185,9 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
       <section className="py-12 sm:py-16">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="font-display text-3xl sm:text-4xl text-ink tracking-tight mb-8">Places</h2>
-          {placeChips.length > 0 ? (
+          {catalogLoading ? (
+            <SkeletonPlaceGrid count={6} />
+          ) : placeChips.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               {placeChips.slice(0, 6).map((p, i) => {
                 const img = [HERO_IMG.vacation, HERO_IMG.beach, HERO_IMG.thailand, HERO_IMG.laos, HERO_IMG.beach2, HERO_IMG.banner][i % 6];
@@ -233,13 +238,18 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-end justify-between gap-3 mb-8">
             <h2 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Tours</h2>
-            {allListings.length > 0 ? (
+            {!catalogLoading && allListings.length > 0 ? (
               <button type="button" onClick={() => goToPackages()} className="lux-flat text-sm font-semibold text-finland">
                 All tours <ArrowRight className="w-4 h-4 inline" />
               </button>
             ) : null}
           </div>
-          {allListings.length === 0 ? (
+          {catalogLoading ? (
+            <div aria-busy="true" aria-label="Loading tours">
+              <SkeletonFeaturedHero />
+              <SkeletonCardGrid count={3} />
+            </div>
+          ) : allListings.length === 0 ? (
             <EmptyState
               icon={Compass}
               title="No tours yet"

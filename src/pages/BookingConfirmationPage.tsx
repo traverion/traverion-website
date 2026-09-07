@@ -4,6 +4,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CheckCircle, Calendar, Users, Loader2, LogIn } from 'lucide-react';
+import { Skeleton } from '../components/ui/Skeleton';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import {
@@ -201,9 +202,16 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
         )}
 
         {!booking && !error && (
-          <div className="flex flex-col items-center justify-center py-16 text-gray-600 gap-3">
-            <Loader2 className="w-10 h-10 animate-spin text-finland" aria-hidden />
-            <p className="text-sm">Loading your booking…</p>
+          <div className="space-y-4 py-6" aria-busy="true" aria-label="Loading your booking">
+            <Skeleton className="mx-auto h-14 w-14 rounded-full" />
+            <Skeleton className="mx-auto h-7 w-48" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="mx-auto h-4 w-5/6" />
+            <div className="mt-8 space-y-3">
+              <Skeleton className="h-6 w-3/4" />
+              <Skeleton className="h-4 w-1/2" />
+              <Skeleton className="h-4 w-2/5" />
+            </div>
           </div>
         )}
 

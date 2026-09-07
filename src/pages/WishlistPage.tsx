@@ -3,7 +3,7 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { LogIn, ArrowLeft, Trash2, RefreshCw, Heart } from 'lucide-react';
-import { SkeletonListItem } from '../components/ui/Skeleton';
+import { SkeletonListItem, SkeletonConsumerPage } from '../components/ui/Skeleton';
 import EmptyState from '../components/EmptyState';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
@@ -17,7 +17,7 @@ interface WishlistPageProps {
 }
 
 export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageProps) {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [listings, setListings] = useState<TourPackage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -79,6 +79,9 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
   }
 
   if (!user) {
+    if (authLoading) {
+      return <SkeletonConsumerPage titleWidth="w-36" rows={4} />;
+    }
     return (
       <div className="min-h-screen bg-paper pt-20">
         <div className="max-w-xl mx-auto px-4 py-12">

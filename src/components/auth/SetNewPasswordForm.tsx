@@ -99,9 +99,14 @@ export default function SetNewPasswordForm({
 
   if (phase === 'loading') {
     return (
-      <div className="py-10 text-center">
+      <div className="py-2" aria-busy="true" aria-label="Verifying your reset link">
         <p className="font-display text-2xl text-ink">Verifying your reset link</p>
         <p className="mt-2 text-sm text-ink-muted">This usually takes a few seconds.</p>
+        <div className="mt-6 space-y-3" aria-hidden>
+          <div className="h-11 rounded-xl bg-black/[0.06] animate-pulse" />
+          <div className="h-11 rounded-xl bg-black/[0.06] animate-pulse" />
+          <div className="h-11 rounded-xl bg-black/[0.04] animate-pulse" />
+        </div>
       </div>
     );
   }

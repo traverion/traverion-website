@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { ArrowLeft, MapPin } from 'lucide-react';
 import EmptyState from '../components/EmptyState';
+import { SkeletonCardGrid, Skeleton } from '../components/ui/Skeleton';
 import { getAllListings, SHOW_SEED_LISTINGS } from '../data/listings';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { usePublishedSupplierListings } from '../hooks/usePublishedSupplierListings';
@@ -35,6 +36,7 @@ interface DestinationPageProps {
 
 export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate }: DestinationPageProps) {
   const { listings: supplierListings } = usePublishedSupplierListings({ emptyOnFirstError: false });
+  const catalogLoading = isSupabaseConfigured() && supplierListings === null;
   const [reviewAggregates, setReviewAggregates] = useState<Map<string, { rating: number; count: number }>>(
     () => new Map()
   );
@@ -105,11 +107,19 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
           Back to all tours
         </button>
         <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight mb-2">Tours in {label}</h1>
-        <p className="text-ink-muted mb-8">
-          {listings.length} {listings.length === 1 ? 'tour' : 'tours'} in this destination
-        </p>
+        {catalogLoading ? (
+          <Skeleton className="h-4 w-40 mb-8" />
+        ) : (
+          <p className="text-ink-muted mb-8">
+            {listings.length} {listings.length === 1 ? 'tour' : 'tours'} in this destination
+          </p>
+        )}
 
-        {listings.length === 0 ? (
+        {catalogLoading ? (
+          <div aria-busy="true" aria-label="Loading tours">
+            <SkeletonCardGrid count={6} />
+          </div>
+        ) : listings.length === 0 ? (
           <EmptyState
             icon={MapPin}
             title="No tours here yet"

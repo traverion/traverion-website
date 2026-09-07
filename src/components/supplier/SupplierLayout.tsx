@@ -60,9 +60,32 @@ const SupplierSettingsPages = lazy(() => import('./SupplierSettingsPages'));
 
 function PartnerSectionFallback() {
   return (
-    <div className="py-10" aria-busy="true" aria-label="Loading">
-      <div className="h-10 w-40 rounded-lg bg-black/[0.06] animate-pulse" />
-      <div className="mt-4 h-4 w-full max-w-md rounded bg-black/[0.04] animate-pulse" />
+    <div className="py-2" aria-busy="true" aria-label="Loading">
+      <div className="h-10 w-48 rounded-lg bg-black/[0.06] animate-pulse" />
+      <div className="mt-3 h-4 w-full max-w-md rounded bg-black/[0.04] animate-pulse" />
+      <div className="mt-10 space-y-4">
+        <div className="h-20 rounded-2xl bg-black/[0.04] animate-pulse" />
+        <div className="h-20 rounded-2xl bg-black/[0.04] animate-pulse" />
+        <div className="h-20 rounded-2xl bg-black/[0.04] animate-pulse" />
+      </div>
+    </div>
+  );
+}
+
+function PartnerBusyScreen({ label }: { label: string }) {
+  return (
+    <div className="min-h-screen bg-paper" aria-busy="true" aria-label={label}>
+      <p className="sr-only">{label}</p>
+      <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 pt-10">
+        <div className="h-8 w-28 rounded-lg bg-black/[0.06] animate-pulse" />
+        <div className="mt-10 h-10 w-56 rounded-lg bg-black/[0.06] animate-pulse" />
+        <div className="mt-3 h-4 w-72 max-w-full rounded bg-black/[0.04] animate-pulse" />
+        <div className="mt-10 space-y-4">
+          <div className="h-20 rounded-2xl bg-black/[0.04] animate-pulse" />
+          <div className="h-20 rounded-2xl bg-black/[0.04] animate-pulse" />
+          <div className="h-20 rounded-2xl bg-black/[0.04] animate-pulse" />
+        </div>
+      </div>
     </div>
   );
 }
@@ -593,11 +616,7 @@ export default function SupplierLayout() {
   }
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-paper flex items-center justify-center">
-        <p className="text-ink-muted">Loading...</p>
-      </div>
-    );
+    return <PartnerBusyScreen label="Loading partner workspace" />;
   }
 
   if (partnerMarketingPage && isPartnerMarketingPathForCurrentHost(pathname)) {
@@ -606,21 +625,15 @@ export default function SupplierLayout() {
 
   if (onPortalPath && !user) {
     window.location.replace(SUPPLIER_LOGIN_PATH);
-    return (
-      <div className="min-h-screen bg-paper flex items-center justify-center">
-        <p className="text-ink-muted">Redirecting to login...</p>
-      </div>
-    );
+    return <PartnerBusyScreen label="Redirecting to login" />;
   }
 
   if (onLoginPath && user) {
     if (partnerGateView === 'checking' || partnerGateView === 'blocked') {
       return (
-        <div className="min-h-screen bg-paper flex items-center justify-center">
-          <p className="text-ink-muted">
-            {partnerGateView === 'blocked' ? 'Redirecting to sign in…' : 'Checking partner account…'}
-          </p>
-        </div>
+        <PartnerBusyScreen
+          label={partnerGateView === 'blocked' ? 'Redirecting to sign in' : 'Checking partner account'}
+        />
       );
     }
     if (partnerGateView === 'error') {
@@ -650,22 +663,14 @@ export default function SupplierLayout() {
     }
     if (partnerGateView === 'allowed') {
       window.location.replace(PARTNER_APP_BASE);
-      return (
-        <div className="min-h-screen bg-paper flex items-center justify-center">
-          <p className="text-ink-muted">Redirecting...</p>
-        </div>
-      );
+      return <PartnerBusyScreen label="Opening partner workspace" />;
     }
   }
 
   const needsPartnerProfileGate = Boolean(user && onPortalPath);
   if (needsPartnerProfileGate) {
     if (partnerGateView === 'checking') {
-      return (
-        <div className="min-h-screen bg-paper flex flex-col items-center justify-center gap-3 text-ink-muted">
-          <p className="text-sm">Checking partner account…</p>
-        </div>
-      );
+      return <PartnerBusyScreen label="Checking partner account" />;
     }
     if (partnerGateView === 'error') {
       return (
@@ -693,11 +698,7 @@ export default function SupplierLayout() {
       );
     }
     if (partnerGateView === 'blocked') {
-      return (
-        <div className="min-h-screen bg-paper flex items-center justify-center">
-          <p className="text-ink-muted">Redirecting to sign in…</p>
-        </div>
-      );
+      return <PartnerBusyScreen label="Redirecting to sign in" />;
     }
   }
 
