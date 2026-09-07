@@ -305,10 +305,27 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                 </div>
               </div>
               {paid && booking.amount_paid != null && (
-                <p className="text-xs text-ink-faint pt-1 border-t border-black/[0.06]">
-                  Amount paid: {(booking.currency ?? 'USD').toUpperCase()} {Number(booking.amount_paid).toFixed(2)}
-                </p>
+                <div className="pt-1 border-t border-black/[0.06] space-y-1">
+                  {stayCheckOut && booking.nights && booking.nightly_amount != null ? (
+                    <p>
+                      {booking.nights} night{booking.nights === 1 ? '' : 's'} × {(booking.currency ?? 'USD').toUpperCase()}{' '}
+                      {Number(booking.nightly_amount).toFixed(0)}
+                      {booking.cleaning_fee != null && Number(booking.cleaning_fee) > 0
+                        ? ` + ${(booking.currency ?? 'USD').toUpperCase()} ${Number(booking.cleaning_fee).toFixed(0)} cleaning`
+                        : ''}
+                    </p>
+                  ) : null}
+                  <p className="text-ink font-medium">
+                    Paid {(booking.currency ?? 'USD').toUpperCase()} {Number(booking.amount_paid).toFixed(2)}
+                  </p>
+                </div>
               )}
+              <p className="text-xs text-ink-faint leading-relaxed pt-2">
+                {stayCheckOut
+                  ? 'Next: the host may send arrival instructions. This stay is also in Trips.'
+                  : 'Next: the operator may follow up about meeting or pickup. This booking is also in Trips.'}{' '}
+                Free cancellation up to 24 hours before {stayCheckOut ? 'check-in' : 'start'}, unless the listing says otherwise.
+              </p>
             </div>
 
             <div className="pt-2 flex flex-col gap-3">

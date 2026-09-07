@@ -551,42 +551,42 @@ export default function BookingPage({
         {step === 'review' && presentation === 'modal' && selectedVariant && (
           <div className="bg-paper-raised rounded-2xl p-6 sm:p-8 ring-1 ring-black/[0.06]">
             <BookingProgress step={step} flow={flowMode} />
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Your trip</h2>
-            <p className="text-sm text-gray-600 mb-6">
+            <h2 className="text-xl font-semibold text-ink mb-2">Your trip</h2>
+            <p className="text-sm text-ink-muted mb-6">
               Check the date, party size, and option below. Continue to enter your contact details for checkout.
             </p>
             <div className="space-y-3 text-sm text-ink-muted mb-6">
               <p>
-                <span className="font-medium text-gray-900">Tour</span> — {tour.title}
+                <span className="font-medium text-ink">Tour</span> — {tour.title}
               </p>
               <p>
-                <span className="font-medium text-gray-900">Option</span> — {selectedVariant.label}
+                <span className="font-medium text-ink">Option</span> — {selectedVariant.label}
               </p>
-              <p className="text-gray-600">{selectedVariant.subtitle}</p>
+              <p className="text-ink-muted">{selectedVariant.subtitle}</p>
               <p>
-                <span className="font-medium text-gray-900">Date</span> — {dateDisplay || date}
+                <span className="font-medium text-ink">Date</span> — {dateDisplay || date}
               </p>
               <p>
-                <span className="font-medium text-gray-900">Guests</span> — {guests}
+                <span className="font-medium text-ink">Guests</span> — {guests}
               </p>
             </div>
             <div className="mb-6">
               <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint mb-2">Estimated total</p>
-              <div className="flex justify-between text-sm text-gray-700">
+              <div className="flex justify-between text-sm text-ink-muted">
                 <span>
                   {currency} {pricePerPerson} × {guests} guests
                   {priceInfo.label ? (
                     <span className="block text-xs text-green-600 mt-1">{priceInfo.label}</span>
                   ) : null}
                 </span>
-                <span className="font-medium text-gray-900">
+                <span className="font-medium text-ink">
                   {currency} {total}
                 </span>
               </div>
             </div>
             <div className="mb-6">
               <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint mb-1.5">Cancellation</p>
-              <p className="text-sm text-gray-700 leading-relaxed">{cancellationText}</p>
+              <p className="text-sm text-ink-muted leading-relaxed">{cancellationText}</p>
             </div>
             <div className="flex justify-end">
               <button
@@ -614,7 +614,7 @@ export default function BookingPage({
         {step === 'date-guests' && (
           <div className="bg-paper-raised rounded-2xl p-6 sm:p-8 ring-1 ring-black/[0.06]">
             <BookingProgress step={step} flow={flowMode} />
-            <h2 className="text-xl font-semibold text-gray-900 mb-6">Select date and guests</h2>
+            <h2 className="text-xl font-semibold text-ink mb-6">Select date and guests</h2>
             <div className="space-y-4">
               <BookingDateField
                 id="booking-flow-date-input"
@@ -642,14 +642,14 @@ export default function BookingPage({
               {!error && quoteBlockReason && <p className="text-sm text-red-600">{quoteBlockReason}</p>}
             </div>
             <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-between sm:items-center">
-              <div className="text-sm text-gray-600">
+              <div className="text-sm text-ink-muted">
                 <p>
-                  <span className="text-gray-500">Estimated total</span>{' '}
-                  <strong className="text-gray-900">
+                  <span className="text-ink-faint">Estimated total</span>{' '}
+                  <strong className="text-ink">
                     {currency} {quoteBlockReason ? '—' : total}
                   </strong>
                 </p>
-                <p className="text-xs text-gray-500 mt-0.5">
+                <p className="text-xs text-ink-faint mt-0.5">
                   {guests} × {currency} {pricePerPerson} — no payment taken on this step.
                 </p>
               </div>
@@ -831,43 +831,43 @@ export default function BookingPage({
 
             <div className="space-y-3 text-sm text-ink-muted mb-6">
               <p>
-                <span className="font-medium text-gray-900">Tour</span> — {tour.title}
+                <span className="font-medium text-ink">Tour</span> — {tour.title}
               </p>
               <p>
-                <span className="font-medium text-gray-900">Date</span> — {dateDisplay || date}
+                <span className="font-medium text-ink">Date</span> — {dateDisplay || date}
               </p>
               <p>
-                <span className="font-medium text-gray-900">Guests</span> — {guests}
+                <span className="font-medium text-ink">Guests</span> — {guests}
               </p>
               {selectedVariant ? (
                 <p>
-                  <span className="font-medium text-gray-900">Option</span> — {selectedVariant.label}
+                  <span className="font-medium text-ink">Option</span> — {selectedVariant.label}
                 </p>
               ) : null}
               <p>
-                <span className="font-medium text-gray-900">Lead guest</span> — {leadGuestName}
+                <span className="font-medium text-ink">Lead guest</span> — {leadGuestName}
               </p>
               {phone.trim() ? (
                 <p>
-                  <span className="font-medium text-gray-900">Phone</span> — {phone.trim()}
+                  <span className="font-medium text-ink">Phone</span> — {phone.trim()}
                 </p>
               ) : null}
               {placeOfStay.trim() ? (
                 <p>
-                  <span className="font-medium text-gray-900">Place of stay</span> — {placeOfStay.trim()}
+                  <span className="font-medium text-ink">Place of stay</span> — {placeOfStay.trim()}
                 </p>
               ) : null}
               <p>
-                <span className="font-medium text-gray-900">Email</span> — {email}
+                <span className="font-medium text-ink">Email</span> — {email}
               </p>
               {specialRequests.trim() && (
                 <p>
-                  <span className="font-medium text-gray-900">Special requests</span> — {specialRequests.trim()}
+                  <span className="font-medium text-ink">Special requests</span> — {specialRequests.trim()}
                 </p>
               )}
               {tour.meetingPoint?.trim() && (
                 <p>
-                  <span className="font-medium text-gray-900">Meeting / pickup</span> — {tour.meetingPoint.trim()}
+                  <span className="font-medium text-ink">Meeting / pickup</span> — {tour.meetingPoint.trim()}
                 </p>
               )}
             </div>
@@ -887,7 +887,7 @@ export default function BookingPage({
 
             <div className="mb-6">
               <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint mb-1.5">Cancellation</p>
-              <p className="text-sm text-gray-700 leading-relaxed">{cancellationText}</p>
+              <p className="text-sm text-ink-muted leading-relaxed">{cancellationText}</p>
             </div>
 
             <div

@@ -365,15 +365,15 @@ export default function Packages({ onTourSelect }: PackagesProps) {
           />
         )}
 
-        <div className="mt-8 bg-paper-raised rounded-2xl p-2 sm:p-2.5 grid grid-cols-2 lg:grid-cols-[1fr_auto_auto_auto_auto] gap-2 shadow-soft-lg">
+        <div className="mt-8 bg-paper-raised rounded-2xl p-2 sm:p-2.5 grid grid-cols-2 lg:grid-cols-[1fr_auto_auto_auto] gap-2 shadow-soft-lg">
           <div className="relative col-span-2 lg:col-span-1 min-w-0">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-faint pointer-events-none" />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Where or what"
-              aria-label="Search tours"
+              placeholder="Where"
+              aria-label="Where"
               className="w-full h-12 pl-10 pr-4 rounded-xl bg-transparent text-ink"
             />
           </div>
@@ -395,21 +395,9 @@ export default function Packages({ onTourSelect }: PackagesProps) {
             aria-label="Guests"
             className="h-12 px-3 rounded-xl bg-transparent text-ink"
           />
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as SortOption)}
-            className="h-12 px-3 rounded-xl bg-transparent text-ink col-span-1"
-            aria-label="Sort"
-          >
-            <option value="recommended">Recommended</option>
-            <option value="price-asc">Price: low to high</option>
-            <option value="price-desc">Price: high to low</option>
-            <option value="rating">Top rated</option>
-            <option value="duration">Duration</option>
-          </select>
           <button
             type="button"
-            className="tv-btn-secondary h-12 col-span-1"
+            className="tv-btn-secondary h-12 col-span-2 lg:col-span-1"
             onClick={() => setMobileFiltersOpen(true)}
             aria-expanded={mobileFiltersOpen}
             aria-controls="tours-filters"
@@ -417,6 +405,23 @@ export default function Packages({ onTourSelect }: PackagesProps) {
             <Filter className="w-4 h-4" />
             Filters{extraFilterCount > 0 ? ` · ${extraFilterCount}` : ''}
           </button>
+        </div>
+        <div className="mt-3 flex justify-end">
+          <label className="inline-flex items-center gap-2 text-sm text-ink-muted">
+            <span>Sort</span>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as SortOption)}
+              className="h-9 bg-transparent text-sm text-ink"
+              aria-label="Sort"
+            >
+              <option value="recommended">Recommended</option>
+              <option value="price-asc">Price: low to high</option>
+              <option value="price-desc">Price: high to low</option>
+              <option value="rating">Top rated</option>
+              <option value="duration">Duration</option>
+            </select>
+          </label>
         </div>
 
         {hasActiveFilters && (

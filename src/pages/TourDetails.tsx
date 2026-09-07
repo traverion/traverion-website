@@ -10,10 +10,8 @@ import {
   CheckCircle,
   XCircle,
   ChevronDown,
-  MessageCircle,
   Heart,
 } from 'lucide-react';
-import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
 import { useAuth } from '../contexts/AuthContext';
 import { getListingById, getListingByIdAsync } from '../data/listings';
@@ -560,53 +558,46 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
               <div>
                 <h1 className="font-display text-3xl lg:text-5xl text-ink tracking-tight mb-3">{tour.title}</h1>
                 {tour.subtitle?.trim() && (
-                  <p className="text-lg text-ink-muted mb-3 leading-snug">{tour.subtitle.trim()}</p>
+                  <p className="text-lg text-ink-muted mb-4 leading-snug">{tour.subtitle.trim()}</p>
                 )}
-                <div className="flex items-center text-ink-muted mb-4">
-                  <MapPin size={20} className="mr-2 text-finland" />
-                  <span>{tour.destination}</span>
-                </div>
-                <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-ink-muted mb-6">
-                  {listingShowsFreeCancellation(tour) && (
-                    <span>Free cancellation</span>
-                  )}
-                  <span className="flex items-center flex-wrap gap-x-2">
-                    {review.score ? (
-                      <>
-                        <Star size={18} className="text-finland fill-finland mr-1 flex-shrink-0" />
-                          <strong className="text-ink">{review.score}</strong>
-                        <span>
-                          ({review.count} {review.count === 1 ? 'review' : 'reviews'})
-                        </span>
-                      </>
-                    ) : (
-                      <span>No reviews yet</span>
-                    )}
+                <p className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-ink-muted mb-8">
+                  <span className="inline-flex items-center gap-1.5">
+                    <MapPin size={16} className="text-finland shrink-0" aria-hidden />
+                    {tour.destination}
                   </span>
-                  <span className="flex items-center">
-                    <Clock size={18} className="mr-1 flex-shrink-0" aria-hidden />
+                  {review.score ? (
+                    <span className="inline-flex items-center gap-1.5">
+                      <Star size={16} className="text-finland fill-finland shrink-0" aria-hidden />
+                      <strong className="text-ink">{review.score}</strong>
+                      <span>
+                        {review.count} {review.count === 1 ? 'review' : 'reviews'}
+                      </span>
+                    </span>
+                  ) : null}
+                  <span className="inline-flex items-center gap-1.5">
+                    <Clock size={16} className="shrink-0" aria-hidden />
                     {formatTourDurationDisplay(tour.duration)}
                   </span>
-                  <span className="flex items-center">
-                    <Users size={18} className="mr-1 flex-shrink-0" aria-hidden />
-                    {tour.groupSize}
-                  </span>
-                  <span className="flex items-baseline gap-1.5 flex-wrap">
-                    <strong className="text-ink">Difficulty</strong>
-                    <span>{tour.difficulty}</span>
-                  </span>
-                </div>
-                <div className="mb-6 flex flex-col sm:flex-row sm:flex-wrap gap-x-6 gap-y-2 text-sm text-ink-muted">
-                  <span className="inline-flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-green-600 shrink-0" aria-hidden />
-                    {tour.cancellationPolicy?.trim() || TRAVERION_STANDARD_CANCELLATION_POLICY.split('.')[0]}.
-                  </span>
-                  <span className="inline-flex items-center gap-2">
-                    <Shield className="w-4 h-4 text-finland shrink-0" aria-hidden />
-                    Pay securely to confirm — you are not charged until checkout
-                  </span>
-                </div>
-                <p className="text-ink leading-relaxed">{tour.description}</p>
+                  {tour.groupSize?.trim() ? (
+                    <span className="inline-flex items-center gap-1.5">
+                      <Users size={16} className="shrink-0" aria-hidden />
+                      {tour.groupSize}
+                    </span>
+                  ) : null}
+                  {(() => {
+                    const { price, originalPrice, label } = getDisplayPriceForTour(tour, discountsByListing);
+                    const hasDiscount = Boolean(label && price < originalPrice);
+                    const currency = tour.price?.currency ?? 'USD';
+                    const shown = hasDiscount ? price : tour.price.startingFrom;
+                    return (
+                      <span className="text-ink font-semibold tabular-nums">
+                        From {currency} {Number(shown).toFixed(0)}
+                      </span>
+                    );
+                  })()}
+                </p>
+                <h2 className="font-display text-2xl text-ink mb-3">What you’ll do</h2>
+                <p className="text-ink leading-relaxed text-[15px]">{tour.description}</p>
 
                 {(() => {
                   const x = tour.listingExtras;
@@ -699,13 +690,164 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                   );
                 })()}
 
+                {tour.highlights.filter((h) => String(h).trim()).length > 0 ? (
+                  <section className="mt-12 pt-12 border-t border-black/[0.06]">
+                    <h2 className="font-display text-2xl text-ink mb-5">Highlights</h2>
+                    <ul className="space-y-3">
+                      {tour.highlights
+                        .map((h) => String(h).trim())
+                        .filter(Boolean)
+                        .map((highlight, index) => (
+                          <li key={index} className="flex items-start gap-3 text-ink-muted">
+                            <CheckCircle size={18} className="text-finland flex-shrink-0 mt-0.5" aria-hidden />
+                            <span>{highlight}</span>
+                          </li>
+                        ))}
+                    </ul>
+                  </section>
+                ) : null}
+
+                {(tour.itinerary ?? []).some(
+                  (d) =>
+                    String(d.title ?? '').trim() ||
+                    String(d.description ?? '').trim() ||
+                    (d.activities ?? []).some((a) => String(a).trim())
+                ) ? (
+                  <section className="mt-12 pt-12 border-t border-black/[0.06]">
+                    <h2 className="font-display text-2xl text-ink mb-5">Itinerary</h2>
+                    <ol className="space-y-8">
+                      {(tour.itinerary ?? [])
+                        .filter(
+                          (d) =>
+                            String(d.title ?? '').trim() ||
+                            String(d.description ?? '').trim() ||
+                            (d.activities ?? []).some((a) => String(a).trim())
+                        )
+                        .map((day) => (
+                          <li key={day.day}>
+                            <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-1">
+                              Day {day.day}
+                              {day.location?.trim() ? ` · ${day.location.trim()}` : ''}
+                            </p>
+                            {day.title?.trim() ? (
+                              <h3 className="font-semibold text-ink mb-2">{day.title.trim()}</h3>
+                            ) : null}
+                            {day.description?.trim() ? (
+                              <p className="text-ink-muted leading-relaxed">{day.description.trim()}</p>
+                            ) : null}
+                            {(day.activities ?? []).filter((a) => String(a).trim()).length > 0 ? (
+                              <ul className="mt-3 space-y-1.5 text-sm text-ink-muted">
+                                {(day.activities ?? [])
+                                  .map((a) => String(a).trim())
+                                  .filter(Boolean)
+                                  .map((a) => (
+                                    <li key={a}>{a}</li>
+                                  ))}
+                              </ul>
+                            ) : null}
+                          </li>
+                        ))}
+                    </ol>
+                  </section>
+                ) : null}
+
+                {(tour.includes.some((s) => String(s).trim()) || tour.excludes.some((s) => String(s).trim())) ? (
+                  <section className="mt-12 pt-12 border-t border-black/[0.06]">
+                    {tour.includes.some((s) => String(s).trim()) ? (
+                      <div className={tour.excludes.some((s) => String(s).trim()) ? 'mb-10' : ''}>
+                        <h2 className="font-display text-2xl text-ink mb-4">What’s included</h2>
+                        <ul className="space-y-3">
+                          {tour.includes
+                            .map((item) => String(item).trim())
+                            .filter(Boolean)
+                            .map((item, index) => (
+                              <li key={index} className="flex items-start gap-3 text-ink-muted">
+                                <CheckCircle size={18} className="text-finland flex-shrink-0 mt-0.5" aria-hidden />
+                                <span>{item}</span>
+                              </li>
+                            ))}
+                        </ul>
+                      </div>
+                    ) : null}
+                    {tour.excludes.some((s) => String(s).trim()) ? (
+                      <div>
+                        <h2 className="font-display text-2xl text-ink mb-4">Not included</h2>
+                        <ul className="space-y-3">
+                          {tour.excludes
+                            .map((item) => String(item).trim())
+                            .filter(Boolean)
+                            .map((item, index) => (
+                              <li key={index} className="flex items-start gap-3 text-ink-muted">
+                                <XCircle size={18} className="text-ink-faint flex-shrink-0 mt-0.5" aria-hidden />
+                                <span>{item}</span>
+                              </li>
+                            ))}
+                        </ul>
+                      </div>
+                    ) : null}
+                  </section>
+                ) : null}
+
+                {(tour.meetingPoint?.trim() || tour.pickupInstructions?.trim() || tour.experienceStartStyle) ? (
+                  <section className="mt-12 pt-12 border-t border-black/[0.06]">
+                    <h2 className="font-display text-2xl text-ink mb-4">Pickup / meeting</h2>
+                    <div className="space-y-3 text-ink-muted leading-relaxed">
+                      {tour.experienceStartStyle === 'operator_pickup' ? (
+                        <p>The operator picks you up. Details arrive with your confirmation.</p>
+                      ) : tour.experienceStartStyle === 'fixed_meeting_place' ? (
+                        <p>Meet at the place given below. Arrive a few minutes early.</p>
+                      ) : tour.experienceStartStyle === 'either_available' ? (
+                        <p>Pickup or meeting point — the operator confirms which applies to your booking.</p>
+                      ) : null}
+                      {tour.meetingPoint?.trim() ? <p>{tour.meetingPoint.trim()}</p> : null}
+                      {tour.pickupInstructions?.trim() ? <p>{tour.pickupInstructions.trim()}</p> : null}
+                    </div>
+                  </section>
+                ) : null}
+
+                {weekdayHint ? (
+                  <section className="mt-12 pt-12 border-t border-black/[0.06]">
+                    <h2 className="font-display text-2xl text-ink mb-3">Availability</h2>
+                    <p className="text-ink-muted leading-relaxed">{weekdayHint}. Choose a date on the right to see live options.</p>
+                  </section>
+                ) : null}
+
+                <section className="mt-12 pt-12 border-t border-black/[0.06]">
+                  <h2 className="font-display text-2xl text-ink mb-3">Cancellation</h2>
+                  <p className="text-ink-muted leading-relaxed">
+                    {tour.cancellationPolicy?.trim() || TRAVERION_STANDARD_CANCELLATION_POLICY}
+                  </p>
+                </section>
+
+                {(tour.difficulty === 'Challenging' ||
+                  (tour.price?.importantNotes ?? []).some((n) => String(n).trim()) ||
+                  tour.listingExtras?.minGuestAge?.trim()) ? (
+                  <section className="mt-12 pt-12 border-t border-black/[0.06]">
+                    <h2 className="font-display text-2xl text-ink mb-4">Important information</h2>
+                    <ul className="space-y-2 text-ink-muted">
+                      {tour.difficulty === 'Challenging' ? <li>This tour is marked challenging.</li> : null}
+                      {tour.listingExtras?.minGuestAge?.trim() ? (
+                        <li>Minimum age: {tour.listingExtras.minGuestAge.trim()}</li>
+                      ) : null}
+                      {(tour.price?.importantNotes ?? [])
+                        .map((n) => String(n).trim())
+                        .filter(Boolean)
+                        .map((n) => (
+                          <li key={n}>{n}</li>
+                        ))}
+                    </ul>
+                  </section>
+                ) : null}
+
                 {supplierLegal && (
-                  <div className="mt-8 flex items-center gap-4">
+                  <section className="mt-12 pt-12 border-t border-black/[0.06]">
+                    <h2 className="font-display text-2xl text-ink mb-4">Operator</h2>
+                    <div className="flex items-center gap-4">
                     {supplierLegal.business_logo_url ? (
                       <img
                         src={supplierLegal.business_logo_url}
                         alt={`${supplierLegal.operatorName} logo`}
-                        className="w-16 h-16 sm:w-[4.5rem] sm:h-[4.5rem] rounded-xl object-cover border border-black/[0.06] flex-shrink-0 shadow-sm"
+                        className="w-16 h-16 sm:w-[4.5rem] sm:h-[4.5rem] rounded-xl object-cover border border-black/[0.06] flex-shrink-0"
                       />
                     ) : (
                       <div className="w-16 h-16 sm:w-[4.5rem] sm:h-[4.5rem] rounded-xl bg-finland/10 flex items-center justify-center flex-shrink-0 border border-finland/15">
@@ -713,10 +855,11 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                       </div>
                     )}
                     <div className="min-w-0">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-ink-muted">Run by</p>
                       <p className="text-lg font-semibold text-ink truncate">{supplierLegal.operatorName}</p>
+                      <p className="text-sm text-ink-muted">Runs this tour on Traverion</p>
                     </div>
-                  </div>
+                    </div>
+                  </section>
                 )}
               </div>
 
@@ -908,75 +1051,13 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
         </div>
       </section>
 
-      {/* Tour Highlights */}
-      {tour.highlights.filter((h) => String(h).trim()).length > 0 && (
-        <section className="py-12 bg-paper">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="font-display text-2xl sm:text-3xl text-ink mb-6">Highlights</h2>
-            <ul className="space-y-3">
-              {tour.highlights
-                .map((h) => String(h).trim())
-                .filter(Boolean)
-                .map((highlight, index) => (
-                  <li key={index} className="flex items-start gap-3 text-ink-muted">
-                    <CheckCircle size={18} className="text-finland flex-shrink-0 mt-0.5" />
-                    <span>{highlight}</span>
-                  </li>
-                ))}
-            </ul>
-          </div>
-        </section>
-      )}
-
-      {/* What's Included / Excluded */}
-      {(tour.includes.some((s) => String(s).trim()) || tour.excludes.some((s) => String(s).trim())) && (
-        <section className="py-12 bg-paper">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-              <div>
-                <h3 className="font-display text-2xl text-ink mb-4">What&apos;s included</h3>
-                <ul className="space-y-3">
-                  {tour.includes
-                    .map((item) => String(item).trim())
-                    .filter(Boolean)
-                    .map((item, index) => (
-                      <li key={index} className="flex items-start gap-3 text-ink-muted">
-                        <CheckCircle size={18} className="text-finland flex-shrink-0 mt-0.5" />
-                        <span>{item}</span>
-                      </li>
-                    ))}
-                </ul>
-              </div>
-              <div>
-                <h3 className="font-display text-2xl text-ink mb-4">What&apos;s not included</h3>
-                <ul className="space-y-3">
-                  {tour.excludes
-                    .map((item) => String(item).trim())
-                    .filter(Boolean)
-                    .map((item, index) => (
-                      <li key={index} className="flex items-start gap-3 text-ink-muted">
-                        <XCircle size={18} className="text-ink-faint flex-shrink-0 mt-0.5" />
-                        <span>{item}</span>
-                      </li>
-                    ))}
-                </ul>
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* Reviews */}
       <section className="py-12 bg-paper border-t border-black/[0.06]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="font-display text-2xl sm:text-3xl text-ink mb-6">Reviews</h2>
           {reviews.length === 0 && !showReviewForm && (
-            <EmptyState
-              icon={MessageCircle}
-              className="py-4"
-              title="No reviews yet"
-              body="Guests who have taken this tour have not left a review. That is normal for a new listing. You can write one after your trip."
-            />
+            <p className="text-ink-muted mb-6 max-w-xl leading-relaxed">
+              No reviews yet. Guests can write one after a completed booking.
+            </p>
           )}
           <div className="space-y-6 mb-8">
             {reviews.map((r) => (
@@ -993,7 +1074,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                     <Star
                       key={i}
                       size={16}
-                      className={i <= r.rating ? 'text-amber-500 fill-amber-500' : 'text-gray-300'}
+                      className={i <= r.rating ? 'text-finland fill-finland' : 'text-ink-faint'}
                     />
                   ))}
                 </div>
@@ -1029,7 +1110,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                       >
                         <Star
                           size={28}
-                          className={i <= reviewRating ? 'text-amber-500 fill-amber-500' : 'text-gray-300'}
+                          className={i <= reviewRating ? 'text-finland fill-finland' : 'text-ink-faint'}
                         />
                       </button>
                     ))}
@@ -1084,14 +1165,14 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                         setReviewError(userFacingError(res.error, USER_ERROR.review));
                       }
                     }}
-                    className="px-4 py-2 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark disabled:opacity-50"
+                    className="tv-btn-primary disabled:opacity-50"
                   >
                     {reviewSubmitting ? 'Submitting…' : 'Submit review'}
                   </button>
                   <button
                     type="button"
                     onClick={() => { setShowReviewForm(false); setReviewError(null); }}
-                    className="px-4 py-2 rounded-lg border border-gray-300 text-ink hover:bg-gray-50"
+                    className="tv-btn-ghost"
                   >
                     Cancel
                   </button>

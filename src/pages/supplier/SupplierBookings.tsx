@@ -38,7 +38,7 @@ import { canManageBookings } from '../../lib/supplierTeamRoles';
 import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { inventoryFamilyFromListing } from '../../lib/inventory';
-import { parseStayCheckOutFromNotes } from '../../lib/stayOccupancy';
+import { parseStayCheckOutFromNotes, nightsOccupiedByStay, stayRangeFromBooking } from '../../lib/stayOccupancy';
 
 const BOOKINGS_PAGE_SIZE = 10;
 
@@ -258,16 +258,31 @@ export default function SupplierBookings() {
   const filteredBookings = useMemo(() => {
     const q = filterQuery.trim().toLowerCase();
     return bookings.filter((b) => {
+      const meta = listingMeta[b.listing_id];
+      const isStay = meta?.family === 'stay' || Boolean(b.check_out);
+      const stayRange = isStay ? stayRangeFromBooking(b) : null;
       if (view === 'today') {
-        if (b.booking_date !== todayIso || b.status === 'cancelled') return false;
+        if (b.status === 'cancelled') return false;
+        if (stayRange) {
+          if (!nightsOccupiedByStay(stayRange.checkIn, stayRange.checkOut).includes(todayIso)) return false;
+        } else if (b.booking_date !== todayIso) {
+          return false;
+        }
       }
       if (view === 'upcoming') {
-        if (!b.booking_date) return false;
-        if (b.booking_date <= todayIso || b.status === 'cancelled') return false;
+        if (b.status === 'cancelled') return false;
+        if (stayRange) {
+          if (stayRange.checkIn <= todayIso) return false;
+        } else if (!b.booking_date || b.booking_date <= todayIso) {
+          return false;
+        }
       }
       if (view === 'past') {
-        if (!b.booking_date) return false;
-        if (b.booking_date >= todayIso) return false;
+        if (stayRange) {
+          if (stayRange.checkOut > todayIso && b.status !== 'cancelled') return false;
+        } else if (!b.booking_date || b.booking_date >= todayIso) {
+          return false;
+        }
       }
       if (filterListingId && b.listing_id !== filterListingId) return false;
       if (filterDateFrom && (!b.booking_date || b.booking_date < filterDateFrom)) return false;
@@ -643,14 +658,14 @@ export default function SupplierBookings() {
                   type="button"
                   onClick={() => setBookingsListPage((p) => Math.max(1, p - 1))}
                   disabled={safePage <= 1}
-                  className="inline-flex min-h-[40px] min-w-[40px] items-center justify-center rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="tv-btn-ghost min-h-[40px] min-w-[40px] p-0 disabled:opacity-40"
                   aria-label="Previous page"
                 >
                   <ChevronLeft className="h-5 w-5" />
                 </button>
                 {paginationItems.map((item, index) =>
                   item === 'ellipsis' ? (
-                    <span key={`ellipsis-${index}`} className="select-none px-1.5 text-sm text-gray-400" aria-hidden>
+                    <span key={`ellipsis-${index}`} className="select-none px-1.5 text-sm text-ink-faint" aria-hidden>
                       ...
                     </span>
                   ) : (
@@ -661,7 +676,7 @@ export default function SupplierBookings() {
                       className={`min-h-[40px] min-w-[40px] rounded-lg text-sm font-semibold tabular-nums ${
                         item === safePage
                           ? 'bg-finland text-white shadow-sm'
-                          : 'border border-gray-200 text-gray-800 hover:bg-gray-50'
+                          : 'border border-black/[0.08] text-ink hover:bg-paper'
                       }`}
                       aria-label={`Page ${item}`}
                       aria-current={item === safePage ? 'page' : undefined}
@@ -674,7 +689,7 @@ export default function SupplierBookings() {
                   type="button"
                   onClick={() => setBookingsListPage((p) => Math.min(totalPages, p + 1))}
                   disabled={safePage >= totalPages}
-                  className="inline-flex min-h-[40px] min-w-[40px] items-center justify-center rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="tv-btn-ghost min-h-[40px] min-w-[40px] p-0 disabled:opacity-40"
                   aria-label="Next page"
                 >
                   <ChevronRight className="h-5 w-5" />

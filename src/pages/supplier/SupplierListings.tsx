@@ -622,7 +622,7 @@ export default function SupplierListings() {
             { id: 'tour', label: 'Tours' },
             { id: 'stay', label: 'Stays' },
             { id: 'draft', label: 'Draft' },
-            { id: 'published', label: 'Published' },
+            { id: 'published', label: 'Live' },
           ] as const).map((tab) => (
             <button
               key={tab.id}

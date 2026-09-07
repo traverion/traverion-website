@@ -231,13 +231,19 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
 
       <section className="py-12 sm:py-16">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="font-display text-3xl sm:text-4xl text-ink tracking-tight mb-8">Places</h2>
+          <h2 className="font-display text-3xl sm:text-4xl text-ink tracking-tight mb-8">Explore</h2>
           {catalogLoading ? (
             <SkeletonPlaceGrid count={6} />
           ) : placeChips.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-              {placeChips.slice(0, 6).map((p, i) => {
-                const img = [HERO_IMG.vacation, HERO_IMG.beach, HERO_IMG.thailand, HERO_IMG.laos, HERO_IMG.beach2, HERO_IMG.banner][i % 6];
+              {placeChips.slice(0, 6).map((p) => {
+                const fromInventory =
+                  [...allListings, ...stayListings].find(
+                    (t) =>
+                      (t.city && t.city.toLowerCase() === p.label.toLowerCase()) ||
+                      (t.destination && t.destination.toLowerCase().includes(p.label.toLowerCase()))
+                  ) ?? null;
+                const img = listingHeroImageSrc(fromInventory?.image) ?? HERO_IMG.vacation;
                 return (
                   <button
                     key={p.id}
@@ -396,6 +402,29 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
               ))}
             </div>
           )}
+        </div>
+      </section>
+
+      <section className="pb-20 sm:pb-28">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 border-t border-black/[0.06] pt-16">
+          <h2 className="font-display text-3xl sm:text-4xl text-ink tracking-tight mb-10">Why Traverion</h2>
+          <div className="grid sm:grid-cols-3 gap-10 text-[15px] leading-relaxed text-ink-muted">
+            <div>
+              <p className="font-semibold text-ink mb-2">Real operators</p>
+              <p>You book the people who run the day — not a brochure catalog. Price is confirmed at checkout.</p>
+            </div>
+            <div>
+              <p className="font-semibold text-ink mb-2">Clear money</p>
+              <p>Pay with Stripe. If checkout cannot start, you see an error. We never pretend a payment succeeded.</p>
+            </div>
+            <div>
+              <p className="font-semibold text-ink mb-2">Tours and stays, separate</p>
+              <p>Departures are not nights. Apartments are not tours. Each product keeps its own calendar and rules.</p>
+            </div>
+          </div>
+          <a href={supplierPortalLandingHref()} className="tv-btn-ghost mt-10 -ml-2 inline-flex">
+            For operators
+          </a>
         </div>
       </section>
     </div>

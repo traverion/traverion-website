@@ -261,7 +261,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
         <div className="flex flex-wrap items-end justify-between gap-4 mb-8">
           <div>
             <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Trips</h1>
-            <p className="mt-2 text-ink-muted">Tours you’ve booked.</p>
+            <p className="mt-2 text-ink-muted">Tours and stays you have booked.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <button
@@ -340,7 +340,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
           <EmptyState
             icon={CalendarDays}
             title="No trips yet"
-            body="You have not booked a tour, so this list is empty. That is normal. When you complete a booking, it appears here."
+            body="You have not booked a tour or stay, so this list is empty. When you complete a booking, it appears here."
             action={
               <button type="button" onClick={() => onNavigate('packages')} className="tv-btn-primary">
                 Browse tours
@@ -406,7 +406,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                 >
                   <div className="flex items-baseline justify-between gap-3">
                     <h3 className="font-semibold text-ink truncate">
-                      {titles[b.listing_id] ?? 'Tour'}
+                      {titles[b.listing_id] ?? (((b.check_out && /^\d{4}-\d{2}-\d{2}$/.test(b.check_out)) || parseStayCheckOutFromNotes(b.special_requests)) ? 'Stay' : 'Tour')}
                     </h3>
                     <span className="text-xs font-medium capitalize text-ink-muted shrink-0">{b.status}</span>
                   </div>
@@ -440,7 +440,9 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                   {b.status === 'cancelled' && b.special_requests && (
                     <p className="text-sm text-ink-muted">{b.special_requests}</p>
                   )}
-                  {(b.status === 'pending' || b.status === 'confirmed') && (
+                  {(b.status === 'pending' || b.status === 'confirmed') &&
+                    !b.check_out &&
+                    !parseStayCheckOutFromNotes(b.special_requests) && (
                     <div className="max-w-lg">
                       <label htmlFor={`stay-${b.id}`} className="block text-xs font-medium text-ink-muted mb-1">
                         Place of stay
@@ -475,7 +477,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         onClick={() => onTourSelect({ id: b.listing_id })}
                         className="tv-btn-ghost"
                       >
-                        View tour
+                        {b.check_out || parseStayCheckOutFromNotes(b.special_requests) ? 'View stay' : 'View tour'}
                       </button>
                     )}
                     {b.status === 'pending' && (

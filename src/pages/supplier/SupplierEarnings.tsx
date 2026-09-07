@@ -137,6 +137,13 @@ export default function SupplierEarnings() {
             <p className="font-display text-5xl sm:text-6xl tabular-nums text-ink tracking-tight">
               {formatMoney(pending, primaryCurrency)}
             </p>
+            <p className="mt-4 text-sm text-ink-muted">
+              Gross bookings{' '}
+              <span className="tabular-nums font-semibold text-ink">
+                {formatMoney(pending + paid, primaryCurrency)}
+              </span>
+              <span className="text-ink-faint"> · pending + paid. Refunds are not automatic.</span>
+            </p>
             {payoutProgressPct !== null ? (
               <p className="mt-3 text-sm text-ink-muted">{payoutProgressPct}% of your payout minimum</p>
             ) : null}

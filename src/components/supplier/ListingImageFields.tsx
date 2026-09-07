@@ -66,13 +66,8 @@ export default function ListingImageFields({
     fileRef.current?.click();
   };
 
-  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    const index = uploadIndexRef.current;
-    uploadIndexRef.current = null;
-    if (!file || !userId || !uploadsEnabled || index == null) return;
-
+  const ingestFileAtIndex = async (file: File, index: number) => {
+    if (!userId || !uploadsEnabled) return;
     setBusyIndex(index);
     setError(null);
     const prevUrl = (slots[index] ?? '').trim();
@@ -91,6 +86,15 @@ export default function ListingImageFields({
     if (prevUrl && isListingImageStoragePublicUrl(prevUrl)) {
       void removeListingImageIfOwned(userId, prevUrl);
     }
+  };
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    const index = uploadIndexRef.current;
+    uploadIndexRef.current = null;
+    if (!file || !userId || !uploadsEnabled || index == null) return;
+    await ingestFileAtIndex(file, index);
   };
 
   const clearSlot = (index: number) => {
@@ -157,9 +161,9 @@ export default function ListingImageFields({
       )}
 
       <div id="supplier-listing-field-image" className="space-y-2">
-        <p className="text-xs text-gray-600 leading-relaxed">
-          <span className="font-medium text-gray-800">Order = what travelers see</span> (first photo is the main image).
-          Select a photo and use the arrows to reorder. Empty slots are not shown to guests.
+        <p className="text-xs text-ink-muted leading-relaxed">
+          <span className="font-medium text-ink">Order = what travelers see</span> (first photo is the cover).
+          Select a photo and use the arrows to reorder. You can also drag a file onto Add photo.
         </p>
         <p className="text-xs text-finland font-medium tabular-nums">
           {filledCount} / {LISTING_PHOTO_MIN}–{LISTING_PHOTO_MAX} photos added
@@ -174,7 +178,7 @@ export default function ListingImageFields({
             aria-label="Move selected photo earlier in the order"
             disabled={selectedIndex === null || selectedIndex <= 0 || busyIndex !== null}
             onClick={moveLeft}
-            className="touch-manipulation inline-flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none"
+            className="tv-btn-ghost h-11 w-11 sm:h-12 sm:w-12 p-0 disabled:opacity-40"
           >
             <ChevronLeft className="h-5 w-5" aria-hidden />
           </button>
@@ -185,7 +189,7 @@ export default function ListingImageFields({
               selectedIndex === null || selectedIndex >= filledCount - 1 || busyIndex !== null || filledCount < 2
             }
             onClick={moveRight}
-            className="touch-manipulation inline-flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none"
+            className="tv-btn-ghost h-11 w-11 sm:h-12 sm:w-12 p-0 disabled:opacity-40"
           >
             <ChevronRight className="h-5 w-5" aria-hidden />
           </button>
@@ -206,9 +210,9 @@ export default function ListingImageFields({
                   aria-pressed={selected}
                   aria-label={`${selected ? 'Selected: ' : ''}${caption}. Photo ${index + 1} of ${filledCount}`}
                   className={[
-                    'relative w-full overflow-hidden rounded-xl border-2 bg-gray-50 transition-[box-shadow,transform,border-color] duration-150 touch-manipulation',
+                    'relative w-full overflow-hidden rounded-xl border-2 bg-paper transition-[box-shadow,transform,border-color] duration-150 touch-manipulation',
                     'aspect-square max-h-[88px] sm:max-h-[96px]',
-                    selected ? 'border-finland ring-2 ring-finland/30 shadow-md scale-[1.04]' : 'border-gray-200 hover:border-gray-300',
+                    selected ? 'border-finland ring-2 ring-finland/30 shadow-md scale-[1.04]' : 'border-black/[0.08] hover:border-ink/30',
                   ].join(' ')}
                 >
                   {p ? (
@@ -225,7 +229,7 @@ export default function ListingImageFields({
                     </span>
                   )}
                 </button>
-                <p className="truncate text-center text-[10px] text-gray-600 leading-tight px-0.5" title={caption}>
+                <p className="truncate text-center text-[10px] text-ink-muted leading-tight px-0.5" title={caption}>
                   {caption}
                 </p>
                 <div className="flex gap-0.5 justify-center flex-wrap">
@@ -266,7 +270,17 @@ export default function ListingImageFields({
                 setSelectedIndex(addSlotIndex);
                 openPickerForIndex(addSlotIndex);
               }}
-              className="touch-manipulation flex h-[88px] w-[5.75rem] sm:h-[96px] sm:w-[6.25rem] shrink-0 flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-gray-300 bg-gray-50/80 text-gray-500 hover:border-finland/50 hover:bg-finland/5 hover:text-finland disabled:opacity-40"
+              onDragOver={(e) => {
+                if (!uploadsEnabled || busyIndex !== null) return;
+                e.preventDefault();
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                const file = e.dataTransfer.files?.[0];
+                if (!file || !file.type.startsWith('image/')) return;
+                void ingestFileAtIndex(file, addSlotIndex);
+              }}
+              className="touch-manipulation flex h-[88px] w-[5.75rem] sm:h-[96px] sm:w-[6.25rem] shrink-0 flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-black/[0.12] bg-paper text-ink-muted hover:border-finland/50 hover:bg-finland/5 hover:text-finland disabled:opacity-40"
               aria-label="Add another photo"
             >
               <Plus className="h-7 w-7" strokeWidth={1.75} aria-hidden />
@@ -277,28 +291,28 @@ export default function ListingImageFields({
       </div>
 
       {selectedIndex !== null && selectedIndex < filledCount && (
-        <div className="rounded-lg border border-gray-200 bg-gray-50/80 p-3 space-y-2">
+        <div className="rounded-lg border border-black/[0.06] bg-paper p-3 space-y-2">
           {isSelectedStorage ? (
             <>
-              <p className="text-xs font-medium text-gray-800">
+              <p className="text-xs font-medium text-ink">
                 {displayNameForPhotoSlot(storageUrl, labels[selectedIndex] ?? '')}
               </p>
-              <p className="text-xs text-gray-600 leading-relaxed">
+              <p className="text-xs text-ink-muted leading-relaxed">
                 Uploaded from your device. Use <span className="font-medium">Replace</span> to swap the file, or{' '}
                 <span className="font-medium">Clear</span> to remove.
               </p>
             </>
           ) : (
             <>
-              <label className="block text-xs font-medium text-gray-600">
+              <label className="block text-xs font-medium text-ink-muted">
                 Image URL (optional — or use Replace / Add photo to upload)
-                {selectedIndex === 0 ? ' — main image' : ''}
+                {selectedIndex === 0 ? ' — cover' : ''}
               </label>
               <input
                 type="url"
                 value={slots[selectedIndex] ?? ''}
                 onChange={(e) => setSlotUrl(selectedIndex, e.target.value)}
-                className="w-full px-2 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-finland text-xs"
+                className="tv-input text-xs"
                 placeholder="https://…"
               />
             </>

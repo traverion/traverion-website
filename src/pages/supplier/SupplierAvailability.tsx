@@ -319,6 +319,7 @@ export default function SupplierAvailability() {
                 <span className="inline-flex items-center gap-1.5">
                   <span className="h-2 w-2 rounded-full bg-rose-300" /> Blocked
                 </span>
+                <span>Minimum stay and nightly price live on the listing, not as a second calendar.</span>
               </>
             ) : (
               <>
@@ -336,12 +337,13 @@ export default function SupplierAvailability() {
             )}
           </div>
 
-          <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-medium uppercase tracking-[0.14em] text-ink-faint mb-2" aria-hidden>
+          <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+          <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-medium uppercase tracking-[0.14em] text-ink-faint mb-2 min-w-[28rem] sm:min-w-0" aria-hidden>
             {WEEKDAYS.map((d) => (
               <div key={d}>{d}</div>
             ))}
           </div>
-          <div key={`${year}-${monthIndex0}`} className="grid grid-cols-7 gap-1 sm:gap-2 motion-safe:animate-fade-in min-w-0">
+          <div key={`${year}-${monthIndex0}`} className="grid grid-cols-7 gap-1 sm:gap-2 motion-safe:animate-fade-in min-w-[28rem] sm:min-w-0">
             {cells.map((cell) => {
               const open = cell.inMonth && weekdayOpen(cell.iso);
               const cap = rowByDate.get(cell.iso);
@@ -418,6 +420,7 @@ export default function SupplierAvailability() {
                 </button>
               );
             })}
+          </div>
           </div>
 
           {editing ? (

@@ -161,9 +161,32 @@ export default function StayDetails({ stayId, onBack }: Props) {
         )}
         <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">Stay</p>
         <h1 className="font-display text-3xl sm:text-5xl text-ink tracking-tight mb-2">{stay.title}</h1>
-        <p className="text-ink-muted flex items-center gap-2 mb-8">
+        <p className="text-ink-muted flex items-center gap-2 mb-4">
           <MapPin className="w-4 h-4" aria-hidden />
           {[stay.city, stay.country].filter(Boolean).join(', ') || stay.destination}
+        </p>
+        <p className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-ink-muted mb-10">
+          {typeof s?.maxGuests === 'number' ? <span>Up to {s.maxGuests} guests</span> : null}
+          {typeof s?.bedrooms === 'number' ? (
+            <span>
+              {s.bedrooms} bedroom{s.bedrooms === 1 ? '' : 's'}
+            </span>
+          ) : null}
+          {typeof s?.beds === 'number' ? (
+            <span>
+              {s.beds} bed{s.beds === 1 ? '' : 's'}
+            </span>
+          ) : null}
+          {typeof s?.bathrooms === 'number' ? (
+            <span>
+              {s.bathrooms} bath{s.bathrooms === 1 ? '' : 's'}
+            </span>
+          ) : null}
+          {nightly > 0 ? (
+            <span className="text-ink font-semibold tabular-nums">
+              {currency} {nightly.toFixed(0)} / night
+            </span>
+          ) : null}
         </p>
 
         <div className="grid lg:grid-cols-[1fr_20rem] gap-10 pb-24 lg:pb-0">
@@ -194,6 +217,14 @@ export default function StayDetails({ stayId, onBack }: Props) {
                 <p className="text-ink-muted">{amenityLine}</p>
               </div>
             ) : null}
+            <div>
+              <h2 className="font-display text-2xl mb-3">Availability</h2>
+              <p className="text-ink-muted leading-relaxed">
+                Minimum stay {minNights} night{minNights === 1 ? '' : 's'}
+                {typeof s?.maxGuests === 'number' ? ` · up to ${s.maxGuests} guests` : ''}.
+                Occupied nights are blocked at checkout — the calendar cannot double-book.
+              </p>
+            </div>
             {s?.checkInTime || s?.checkOutTime ? (
               <div>
                 <h2 className="font-display text-2xl mb-3">Check-in & check-out</h2>
