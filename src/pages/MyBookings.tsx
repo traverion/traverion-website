@@ -362,8 +362,8 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                   key={id}
                   type="button"
                   onClick={() => setTripView(id)}
-                  className={`lux-flat rounded-full px-3.5 py-1.5 text-sm font-medium ${
-                    tripView === id ? 'bg-paper-raised text-ink shadow-sm' : 'text-ink-muted'
+                  className={`lux-flat rounded-full px-3.5 py-1.5 text-sm font-medium transition-[background-color,color,box-shadow] duration-150 ${
+                    tripView === id ? 'bg-paper-raised text-ink shadow-sm' : 'text-ink-muted hover:text-ink'
                   }`}
                 >
                   {label}

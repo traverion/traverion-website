@@ -78,6 +78,7 @@ export default function SupplierListings() {
   const [payoutVerificationStatus, setPayoutVerificationStatus] = useState<string | null>(null);
   const [payoutOnFile, setPayoutOnFile] = useState(false);
   const [publishGate, setPublishGate] = useState<{ listingId: string; title: string; blockers: string[] } | null>(null);
+  const [justPublishedId, setJustPublishedId] = useState<string | null>(null);
   const [showCreateChooser, setShowCreateChooser] = useState(false);
 
   const startNewTour = useCallback(() => {
@@ -532,6 +533,10 @@ export default function SupplierListings() {
     const res = await updateListingStatus(listing.id, newStatus);
     if (res.ok) {
       setError(null);
+      if (newStatus === 'published') {
+        setJustPublishedId(listing.id);
+        window.setTimeout(() => setJustPublishedId((id) => (id === listing.id ? null : id)), 420);
+      }
       loadListings();
       window.dispatchEvent(new Event('traverion:supplier-onboarding-refresh'));
       window.dispatchEvent(new CustomEvent('traverion:published-listings-changed'));
@@ -837,7 +842,7 @@ export default function SupplierListings() {
                       <span
                         className={`absolute left-3 top-3 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
                           isLive ? 'bg-paper-raised text-ink' : 'bg-ink/70 text-paper-raised'
-                        }`}
+                        } ${justPublishedId === listing.id ? 'tv-pop' : ''}`}
                       >
                         {isLive ? 'Live tour' : 'Draft tour'}
                       </span>
@@ -909,7 +914,7 @@ export default function SupplierListings() {
               />
               <div
                 role="menu"
-                className="fixed z-[70] rounded-xl border border-gray-200 bg-white py-1 shadow-xl ring-1 ring-black/5"
+                className="fixed z-[70] rounded-xl bg-paper-raised py-1 shadow-soft-lg ring-1 ring-black/[0.08] origin-top-right motion-safe:animate-slide-down"
                 style={{
                   top: listingActionsMenuBox.top,
                   left: listingActionsMenuBox.left,

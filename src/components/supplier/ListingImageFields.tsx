@@ -203,9 +203,9 @@ export default function ListingImageFields({
                   type="button"
                   onClick={() => setSelectedIndex(selected ? null : index)}
                   className={[
-                    'relative w-full overflow-hidden rounded-xl border-2 bg-gray-50 transition-shadow touch-manipulation',
+                    'relative w-full overflow-hidden rounded-xl border-2 bg-gray-50 transition-[box-shadow,transform,border-color] duration-150 touch-manipulation',
                     'aspect-square max-h-[88px] sm:max-h-[96px]',
-                    selected ? 'border-finland ring-2 ring-finland/30 shadow-md' : 'border-gray-200 hover:border-gray-300',
+                    selected ? 'border-finland ring-2 ring-finland/30 shadow-md scale-[1.04]' : 'border-gray-200 hover:border-gray-300',
                   ].join(' ')}
                 >
                   {p ? (

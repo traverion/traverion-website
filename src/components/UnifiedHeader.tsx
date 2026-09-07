@@ -131,7 +131,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                 <span className="text-[10px] font-medium uppercase tracking-wide">Profile</span>
               </button>
               {isUserMenuOpen && (
-                <div className="absolute right-0 top-full mt-1 py-1 w-48 bg-paper-raised rounded-xl shadow-soft-lg ring-1 ring-black/[0.08] animate-slide-down">
+                <div className="absolute right-0 top-full mt-1 py-1 w-48 origin-top-right bg-paper-raised rounded-xl shadow-soft-lg ring-1 ring-black/[0.08] motion-safe:animate-slide-down">
                   {!isSupabaseConfigured() ? (
                     <div className="px-3 py-2 space-y-2">
                       <p className="text-xs text-gray-600 leading-snug">
@@ -228,7 +228,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
 
         {/* Mobile Menu */}
         {isMobileMenuOpen && (
-          <div className="lg:hidden border-t border-black/[0.06] bg-paper max-h-screen overflow-y-auto">
+          <div className="lg:hidden border-t border-black/[0.06] bg-paper max-h-screen overflow-y-auto motion-safe:animate-fade-in-down">
             <nav className="flex flex-col p-4 space-y-2">
               <button
                 onClick={() => {

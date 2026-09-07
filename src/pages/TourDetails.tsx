@@ -11,6 +11,7 @@ import {
   XCircle,
   ChevronDown,
   MessageCircle,
+  Heart,
 } from 'lucide-react';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
@@ -62,6 +63,7 @@ function readSearchPrefill(): { date: string; guests: number } {
   };
 }
 import GuestStepper from '../components/booking/GuestStepper';
+import { fetchWishlistListingIds, toggleWishlist } from '../data/supabase-wishlist';
 
 interface TourDetailsProps {
   tourId: string;
@@ -100,7 +102,13 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   const [selectedBookingVariant, setSelectedBookingVariant] = useState<TourBookingVariant | null>(null);
   const [variantChecking, setVariantChecking] = useState(false);
   const [optionsAttentionPulse, setOptionsAttentionPulse] = useState(false);
+  const [savedToWishlist, setSavedToWishlist] = useState(false);
+  const [wishlistBusy, setWishlistBusy] = useState(false);
+  const [savePop, setSavePop] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
   const optionsSectionRef = useRef<HTMLDivElement>(null);
+  const userRef = useRef(user);
+  userRef.current = user;
 
   const partyBounds = useMemo(() => (tour ? getPartySizeBounds(tour) : { min: 1, max: 12 }), [tour]);
   const canBook = Boolean(tour && isListingVisibleToTravelers(tour.status));
@@ -132,6 +140,51 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     if (!tour?.id) return;
     setGuests((g) => Math.min(partyBounds.max, Math.max(partyBounds.min, g)));
   }, [tour?.id, partyBounds.min, partyBounds.max]);
+
+  useEffect(() => {
+    if (!user?.id || !tour?.id || !isSupabaseListingId(tour.id) || !isSupabaseConfigured()) {
+      setSavedToWishlist(false);
+      return;
+    }
+    let cancelled = false;
+    fetchWishlistListingIds(user.id)
+      .then((ids) => {
+        if (!cancelled) setSavedToWishlist(ids.includes(tour.id));
+      })
+      .catch(() => {
+        if (!cancelled) setSavedToWishlist(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, tour?.id]);
+
+  const handleToggleWishlist = useCallback(() => {
+    if (!tour?.id || !isSupabaseListingId(tour.id) || !isSupabaseConfigured()) return;
+    const listingId = tour.id;
+    const run = async () => {
+      const uid = userRef.current?.id;
+      if (!uid) return;
+      setWishlistBusy(true);
+      try {
+        const res = await toggleWishlist(uid, listingId);
+        if (!res.error) {
+          setSavedToWishlist(res.inWishlist);
+          if (res.inWishlist) {
+            setSavePop(true);
+            window.setTimeout(() => setSavePop(false), 280);
+          }
+        }
+      } finally {
+        setWishlistBusy(false);
+      }
+    };
+    if (!user) {
+      requestAuth({ onSuccess: () => void run() });
+      return;
+    }
+    void run();
+  }, [tour?.id, user, requestAuth]);
 
   useEffect(() => {
     setTourLoadError(null);
@@ -393,22 +446,43 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                 <ArrowLeft className="w-4 h-4" />
                 Tours
               </button>
-              <button
-                type="button"
-                className="lux-flat p-2 rounded-full bg-black/35 text-white backdrop-blur-sm hover:bg-black/50"
-                aria-label="Share"
-                onClick={() => {
-                  const url = window.location.href;
-                  const title = tour.title;
-                  if (navigator.share) {
-                    void navigator.share({ title, url }).catch(() => {});
-                  } else if (navigator.clipboard?.writeText) {
-                    void navigator.clipboard.writeText(url);
-                  }
-                }}
-              >
-                <Share2 size={18} />
-              </button>
+              <div className="flex items-center gap-2">
+                {isSupabaseListingId(tour.id) && isSupabaseConfigured() ? (
+                  <button
+                    type="button"
+                    className="lux-flat p-2 rounded-full bg-black/35 text-white backdrop-blur-sm hover:bg-black/50 disabled:opacity-60"
+                    aria-label={savedToWishlist ? 'Remove from saved tours' : 'Save this tour'}
+                    aria-pressed={savedToWishlist}
+                    disabled={wishlistBusy}
+                    onClick={handleToggleWishlist}
+                  >
+                    <Heart
+                      size={18}
+                      className={`${savedToWishlist ? 'fill-white' : ''} ${savePop ? 'tv-pop' : ''}`}
+                    />
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className="lux-flat p-2 rounded-full bg-black/35 text-white backdrop-blur-sm hover:bg-black/50"
+                  aria-label={shareCopied ? 'Link copied' : 'Share'}
+                  onClick={() => {
+                    const url = window.location.href;
+                    const title = tour.title;
+                    const done = () => {
+                      setShareCopied(true);
+                      window.setTimeout(() => setShareCopied(false), 1400);
+                    };
+                    if (navigator.share) {
+                      void navigator.share({ title, url }).then(done).catch(() => {});
+                    } else if (navigator.clipboard?.writeText) {
+                      void navigator.clipboard.writeText(url).then(done);
+                    }
+                  }}
+                >
+                  {shareCopied ? <CheckCircle size={18} className="tv-pop" /> : <Share2 size={18} />}
+                </button>
+              </div>
             </div>
             
             {/* Image Thumbnails */}
@@ -417,9 +491,9 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                 <button
                   key={index}
                   onClick={() => setSelectedImage(index)}
-                  className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all duration-300 ${
-                    selectedImage === index 
-                      ? 'border-white shadow-lg' 
+                  className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-[transform,border-color,box-shadow] duration-200 ${
+                    selectedImage === index
+                      ? 'border-white shadow-lg scale-105'
                       : 'border-white/50 hover:border-white/80'
                   }`}
                 >

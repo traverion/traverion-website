@@ -309,7 +309,7 @@ export default function SupplierAvailability() {
                       capacity: String(cap?.capacity ?? defaultSpots(listing)),
                     });
                   }}
-                  className={`lux-flat min-h-[4.75rem] sm:min-h-[6.25rem] rounded-2xl p-1.5 sm:p-2 text-left transition-colors duration-150 disabled:opacity-40 ${
+                  className={`lux-flat min-h-[4.75rem] sm:min-h-[6.25rem] rounded-2xl p-1.5 sm:p-2 text-left transition-[background-color,box-shadow,transform] duration-150 disabled:opacity-40 motion-safe:active:scale-[0.97] ${
                     !cell.inMonth
                       ? 'bg-transparent text-ink-faint'
                       : isEditing

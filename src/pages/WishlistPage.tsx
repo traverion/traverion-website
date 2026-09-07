@@ -2,7 +2,7 @@
  * Consumer: saved listings (wishlist). Requires login when Supabase is configured.
  */
 import { useState, useEffect, useCallback } from 'react';
-import { LogIn, ArrowLeft, Trash2, Heart } from 'lucide-react';
+import { LogIn, ArrowLeft, Heart } from 'lucide-react';
 import { SkeletonListItem, SkeletonConsumerPage } from '../components/ui/Skeleton';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
@@ -176,11 +176,11 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
                 <button
                   type="button"
                   onClick={() => handleRemove(tour.id)}
-                  className="lux-flat p-2 text-ink-muted hover:text-red-700"
+                  className="lux-flat p-2 text-ink-muted hover:text-ink active:scale-90"
                   title="Remove from wishlist"
                   aria-label={`Remove ${tour.title} from wishlist`}
                 >
-                  <Trash2 className="w-5 h-5" />
+                  <Heart className="w-5 h-5 fill-ink/80" />
                 </button>
               </div>
             ))}

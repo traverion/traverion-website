@@ -48,7 +48,7 @@ export default function BookingDateField({
         {label}
       </label>
       <div
-        className="group relative cursor-pointer overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition-all duration-200 ease-smooth hover:border-finland/35 hover:shadow-md focus-within:border-finland focus-within:shadow-md focus-within:ring-2 focus-within:ring-finland/15"
+        className="group relative cursor-pointer overflow-hidden rounded-xl bg-paper-raised shadow-[0_0_0_1px_rgba(28,25,23,0.08)] transition-[box-shadow] duration-150 hover:shadow-[0_0_0_1px_rgba(0,53,128,0.28)] focus-within:shadow-[0_0_0_2px_rgba(0,53,128,0.35)]"
         onClick={openPicker}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {

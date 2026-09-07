@@ -230,7 +230,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
               {paid ? (
                 <>
                   <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-green-100 text-green-600">
-                    <CheckCircle className="w-8 h-8" aria-hidden />
+                    <CheckCircle className="w-8 h-8 tv-pop" aria-hidden />
                   </div>
                   <h1 className="text-xl sm:text-2xl font-semibold text-gray-900 tracking-tight">Booking confirmed</h1>
                   <p className="mt-2 text-sm text-gray-600 leading-relaxed">

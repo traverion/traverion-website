@@ -1,6 +1,6 @@
 import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Pencil, Plus, Trash2, X } from 'lucide-react';
+import { Check, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { TourPackage } from '../../types/tour';
 import type { ListingBookingOption, ListingExtras, ScheduleStyle, VenueSetting } from '../../types/listingExtras';
 import {
@@ -1398,8 +1398,18 @@ export default function SupplierListingForm({
             >
               {draftCloseBusy ? 'Saving…' : '← Exit'}
             </button>
-            <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint">
-              {draftCloseBusy ? 'Saving' : 'Saved'}
+            <p
+              key={draftCloseBusy ? 'saving' : 'saved'}
+              className="text-[11px] uppercase tracking-[0.16em] text-ink-faint inline-flex items-center gap-1"
+            >
+              {draftCloseBusy ? (
+                'Saving'
+              ) : (
+                <>
+                  <Check className="h-3 w-3 text-finland tv-pop" aria-hidden />
+                  Saved
+                </>
+              )}
             </p>
           </div>
           <div className="mb-5 min-w-0">

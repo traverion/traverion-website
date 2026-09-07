@@ -472,7 +472,7 @@ export default function Packages({ onTourSelect }: PackagesProps) {
                         key={chip.id}
                         type="button"
                         onClick={() => setSelectedDestination(chip.id)}
-                        className={`px-3 py-1.5 rounded-full text-sm ${
+                        className={`px-3 py-1.5 rounded-full text-sm transition-colors duration-150 ${
                           selectedDestination === chip.id ? 'bg-ink text-paper-raised' : 'bg-paper text-ink'
                         }`}
                       >
@@ -489,7 +489,7 @@ export default function Packages({ onTourSelect }: PackagesProps) {
                         key={chip.id}
                         type="button"
                         onClick={() => setPriceRange(chip.id)}
-                        className={`px-3 py-1.5 rounded-full text-sm ${
+                        className={`px-3 py-1.5 rounded-full text-sm transition-colors duration-150 ${
                           priceRange === chip.id ? 'bg-ink text-paper-raised' : 'bg-paper text-ink'
                         }`}
                       >
@@ -506,7 +506,7 @@ export default function Packages({ onTourSelect }: PackagesProps) {
                         key={tag.id}
                         type="button"
                         onClick={() => toggleTag(tag.id)}
-                        className={`px-3 py-1.5 rounded-full text-sm ${
+                        className={`px-3 py-1.5 rounded-full text-sm transition-colors duration-150 ${
                           selectedTags.includes(tag.id) ? 'bg-ink text-paper-raised' : 'bg-paper text-ink'
                         }`}
                       >

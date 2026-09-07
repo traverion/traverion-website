@@ -705,7 +705,7 @@ export default function SupplierLayout() {
                   key={item.id}
                   type="button"
                   onClick={() => handleNavigate(item.id)}
-                  className={`lux-flat px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                  className={`lux-flat px-3 py-1.5 rounded-full text-sm font-medium transition-colors duration-150 ${
                     active ? 'bg-ink text-paper-raised' : 'text-ink-muted hover:text-ink'
                   }`}
                 >
@@ -724,7 +724,7 @@ export default function SupplierLayout() {
               {(user?.email ?? user?.id ?? 'S').slice(0, 1).toUpperCase()}
             </button>
             {accountMenuOpen && (
-              <div className="absolute right-0 top-11 w-64 rounded-2xl bg-paper-raised shadow-soft-xl p-2 z-50">
+              <div className="absolute right-0 top-11 w-64 rounded-2xl bg-paper-raised shadow-soft-xl p-2 z-50 origin-top-right motion-safe:animate-slide-down">
                 <p className="px-3 pt-2 pb-1 text-[10px] uppercase tracking-[0.16em] text-ink-faint">Business</p>
                 <button type="button" onClick={() => handleNavigate('earnings')} className="lux-flat w-full text-left px-3 py-2 rounded-xl text-sm hover:bg-paper">Money</button>
                 <button type="button" onClick={() => handleNavigate('reviews')} className="lux-flat w-full text-left px-3 py-2 rounded-xl text-sm hover:bg-paper">Reviews</button>
@@ -744,7 +744,7 @@ export default function SupplierLayout() {
       </header>
 
       {mobileAccountOpen && (
-        <div className="md:hidden fixed inset-0 z-50 bg-paper pt-[env(safe-area-inset-top)]">
+        <div className="md:hidden fixed inset-0 z-50 bg-paper pt-[env(safe-area-inset-top)] motion-safe:animate-fade-in">
           <div className="flex items-center justify-between px-4 py-3">
             <h2 className="font-display text-2xl">Account</h2>
             <button type="button" onClick={() => setMobileAccountOpen(false)} className="lux-tap-target p-2" aria-label="Close">
