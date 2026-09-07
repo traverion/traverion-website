@@ -123,8 +123,19 @@ describe('quoteBooking', () => {
       todayIso: today,
     });
     expect(q.ok).toBe(false);
-    if (q.ok) return;
-    expect(q.code).toBe('unpublished');
+    if (!q.ok) expect(q.code).toBe('unpublished');
+  });
+
+  it('does not quote stay or experience inventory as a tour departure', () => {
+    const q = quoteBooking({
+      tour: tour({ listingExtras: { inventoryFamily: 'stay', bookingOptions: [] } }),
+      discounts: [],
+      bookingDate: '2026-09-10',
+      guests: 2,
+      todayIso: today,
+    });
+    expect(q.ok).toBe(false);
+    if (!q.ok) expect(q.code).toBe('inventory');
   });
 
   it('rejects closed weekdays', () => {
@@ -316,6 +327,9 @@ describe('parsePathname legacy brochure URLs', () => {
     expect(parsePathname('/cart').page).toBe('cart');
     expect(parsePathname('/account').page).toBe('account');
     expect(parsePathname('/bookings').page).toBe('bookings');
+    expect(parsePathname('/stays')).toEqual({ page: 'inventory-reserved', destinationSlug: 'stay' });
+    expect(parsePathname('/experiences')).toEqual({ page: 'inventory-reserved', destinationSlug: 'experience' });
+    expect(parsePathname('/packages').page).toBe('packages');
   });
 });
 

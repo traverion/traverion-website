@@ -29,6 +29,7 @@ import {
   redirectIfInAppAdminOnPublicMarketingSite,
 } from './lib/adminHost';
 import { getListingByIdAsync } from './data/listings';
+import { listingIsOnTravelerCatalog } from './lib/inventory';
 import { isPartnerMarketingPathForCurrentHost, isPartnerPortalPathForCurrentHost } from './lib/partnerHost';
 import { rememberProductReturn, isStaticConsumerPage } from './lib/navReturn';
 import type { TourPackage as TourPackageType } from './types/tour';
@@ -57,6 +58,7 @@ const Packages = lazy(() => import('./pages/Packages'));
 const MyBookings = lazy(() => import('./pages/MyBookings'));
 const AuthPage = lazy(() => import('./pages/AuthPage'));
 const TourDetails = lazy(() => import('./pages/TourDetails'));
+const ReservedInventoryPage = lazy(() => import('./pages/ReservedInventoryPage'));
 const SupplierLayout = lazy(() => import('./components/supplier/SupplierLayout'));
 
 function PartnerRouteFallback() {
@@ -224,6 +226,13 @@ function App() {
       }
       return;
     }
+    if (currentPage === 'inventory-reserved') {
+      const path = destinationSlug === 'stay' ? '/stays' : destinationSlug === 'experience' ? '/experiences' : '/stays';
+      if (window.location.pathname !== path) {
+        window.history.replaceState({}, '', path);
+      }
+      return;
+    }
     if (currentPage === 'auth' || currentPage === 'email-confirmed') {
       return;
     }
@@ -308,6 +317,13 @@ function App() {
       affiliate: { title: 'Affiliate program', description: 'Partner with Traverion and earn commissions.' },
       'content-creator': { title: 'Content creators', description: 'Collaborate with Traverion on travel content.' },
       destination: { title: 'Destination', description: 'Tours and activities in this destination.' },
+      'inventory-reserved': {
+        title: destinationSlug === 'stay' ? 'Stays' : 'Experiences',
+        description:
+          destinationSlug === 'stay'
+            ? 'Stays are not live on Traverion yet.'
+            : 'Experiences is a reserved category, not mixed into Tours.',
+      },
     };
     const meta = metaByPage[currentPage];
     if (meta) setPageMetaWithOg(meta.title, meta.description);
@@ -322,7 +338,14 @@ function App() {
       about: '/about', sitemap: '/sitemap',
       'legal-notice': '/legal-notice', affiliate: '/affiliate', 'content-creator': '/content-creator',
     };
-    const path = currentPage === 'destination' ? `/destinations/${destinationSlug || ''}` : (pathMap[currentPage] ?? '/');
+    const path =
+      currentPage === 'destination'
+        ? `/destinations/${destinationSlug || ''}`
+        : currentPage === 'inventory-reserved'
+          ? destinationSlug === 'stay'
+            ? '/stays'
+            : '/experiences'
+          : (pathMap[currentPage] ?? '/');
     setCanonicalUrl(path);
   }, [currentPage, destinationSlug, isSupplierArea]);
 
@@ -334,6 +357,7 @@ function App() {
   }, [currentPage]);
 
   const handleTourSelect = (tour: TourPackageType) => {
+    if (!listingIsOnTravelerCatalog(tour)) return;
     setSelectedTour(tour);
     setCurrentPage('tour-details');
   };
@@ -353,6 +377,13 @@ function App() {
         return <Home onTourSelect={handleTourSelect} onNavigate={handleNavigate} />;
       case 'packages':
         return <Packages onTourSelect={handleTourSelect} onNavigate={handleNavigate} />;
+      case 'inventory-reserved':
+        return (
+          <ReservedInventoryPage
+            family={destinationSlug === 'stay' ? 'stay' : 'experience'}
+            onNavigate={handleNavigate}
+          />
+        );
       case 'destination':
         return (
           <DestinationPage

@@ -34,6 +34,7 @@ import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { publicTourListingUrl } from '../../lib/publicSiteUrl';
 import { getListingPublishBlockers } from '../../lib/listingPublishGate';
 import { listingHeroImageSrc } from '../../lib/listingPhotoGrid';
+import { PARTNER_CREATE_INVENTORY } from '../../lib/inventory';
 import { normalizeListingForDraftSave } from '../../lib/listingDraftUtils';
 import { SkeletonListItem } from '../../components/ui/Skeleton';
 import ErrorState from '../../components/ErrorState';
@@ -736,14 +737,24 @@ export default function SupplierListings() {
             <h2 id="create-listing-title" className="font-display text-2xl text-ink">What would you like to list?</h2>
             <p className="mt-2 text-sm text-ink-muted">Only live inventory is offered. Nothing unfinished is published to travelers.</p>
             <div className="mt-6 space-y-2">
-              <button type="button" onClick={startNewTour} className="lux-flat w-full rounded-2xl bg-paper px-4 py-4 text-left hover:bg-black/[0.04]">
-                <p className="font-semibold text-ink">Tour</p>
-                <p className="mt-1 text-sm text-ink-muted">A guided day, activity, or departure with a price and meeting point.</p>
-              </button>
-              <div className="w-full rounded-2xl px-4 py-4 text-left opacity-70">
-                <p className="font-semibold text-ink">Stay</p>
-                <p className="mt-1 text-sm text-ink-muted">Apartments and rooms are coming. Not available to create yet.</p>
-              </div>
+              {PARTNER_CREATE_INVENTORY.map((opt) =>
+                opt.canCreate ? (
+                  <button
+                    key={opt.family}
+                    type="button"
+                    onClick={startNewTour}
+                    className="lux-flat w-full rounded-2xl bg-paper px-4 py-4 text-left hover:bg-black/[0.04]"
+                  >
+                    <p className="font-semibold text-ink">{opt.title}</p>
+                    <p className="mt-1 text-sm text-ink-muted">{opt.description}</p>
+                  </button>
+                ) : (
+                  <div key={opt.family} className="w-full rounded-2xl px-4 py-4 text-left opacity-70">
+                    <p className="font-semibold text-ink">{opt.title}</p>
+                    <p className="mt-1 text-sm text-ink-muted">{opt.description}</p>
+                  </div>
+                ),
+              )}
             </div>
             <button type="button" onClick={closeCreateChooser} className="tv-btn-ghost mt-4">
               Cancel

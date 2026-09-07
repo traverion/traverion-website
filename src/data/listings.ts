@@ -3,6 +3,7 @@ import { activities } from './activities';
 import { tourPackages, getTourById } from './tours';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { fetchAllListings, fetchListingById } from './supabase-listings';
+import { filterTravelerCatalog } from '../lib/inventory';
 
 const STORAGE_KEY = 'traverion_supplier_listings';
 
@@ -33,7 +34,7 @@ export function getAllListings(options: {
   const base = [...getSupplierListings()];
   if (includeSeed) base.push(...activities);
   if (includeHolidayPackages) base.push(...tourPackages);
-  return base;
+  return includeSeed || includeHolidayPackages ? base : filterTravelerCatalog(base);
 }
 
 const PUBLISHED_CATALOG_TTL_MS = 45_000;
@@ -70,8 +71,9 @@ export async function getAllListingsAsync(options: {
     if (publishedCatalogInflight) return publishedCatalogInflight;
     publishedCatalogInflight = fetchAllListings()
       .then((data) => {
-        publishedCatalogCache = { at: Date.now(), data };
-        return data;
+        const next = filterTravelerCatalog(data);
+        publishedCatalogCache = { at: Date.now(), data: next };
+        return next;
       })
       .finally(() => {
         publishedCatalogInflight = null;
@@ -86,7 +88,7 @@ export async function getAllListingsAsync(options: {
   }
   if (includeSeed) base = [...base, ...activities];
   if (includeHolidayPackages) base = [...base, ...tourPackages];
-  return base;
+  return includeSeed || includeHolidayPackages ? base : filterTravelerCatalog(base);
 }
 
 /** Resolve a listing by id: supplier/Supabase first, then seed activities, then holiday packages. Sync (localStorage + seed/tours). */

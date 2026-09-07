@@ -13,6 +13,7 @@ import {
 import type { ListingDiscount } from '../data/supabase-discounts';
 import { applyDiscount, discountsApplicableToOption } from '../data/supabase-discounts';
 import { getPartySizeBounds, getPartySizeBoundsForVariant, guestCountValidationError } from './booking-flow';
+import { listingCanUseTravelerQuote } from './inventory';
 
 export type BookingQuoteDiscount = Pick<
   ListingDiscount,
@@ -34,7 +35,7 @@ export type BookingQuoteOk = {
 
 export type BookingQuoteErr = {
   ok: false;
-  code: 'unpublished' | 'bad_date' | 'weekday' | 'season' | 'party' | 'option' | 'price';
+  code: 'unpublished' | 'bad_date' | 'weekday' | 'season' | 'party' | 'option' | 'price' | 'inventory';
   error: string;
 };
 
@@ -134,6 +135,7 @@ export type QuoteTourSlice = {
   price?: { startingFrom?: number; currency?: string };
   listingExtras?: unknown;
   groupSize?: string;
+  isHolidayPackage?: boolean;
 };
 
 /**
@@ -154,6 +156,9 @@ export function quoteBooking(input: {
 
   if (!isListingBookable(input.tour.status)) {
     return { ok: false, code: 'unpublished', error: 'This tour is not available to book.' };
+  }
+  if (!listingCanUseTravelerQuote(input.tour)) {
+    return { ok: false, code: 'inventory', error: 'This listing is not available to book yet.' };
   }
   if (!ISO_DATE.test(date)) {
     return { ok: false, code: 'bad_date', error: 'Choose a valid date.' };

@@ -168,6 +168,14 @@ export function quoteListingBooking(input: {
   if (status && status !== 'published') {
     return { ok: false, error: 'This tour is not available to book.' };
   }
+  const extrasObj =
+    input.listing.listing_extras && typeof input.listing.listing_extras === 'object'
+      ? (input.listing.listing_extras as { inventoryFamily?: unknown })
+      : null;
+  const family = extrasObj?.inventoryFamily;
+  if (family === 'stay' || family === 'experience' || family === 'package') {
+    return { ok: false, error: 'This listing is not available to book yet.' };
+  }
   if (!ISO_DATE.test(date)) return { ok: false, error: 'Choose a valid date.' };
   if (date < today) return { ok: false, error: 'Choose a date that is today or later.' };
   if (!Number.isFinite(guests) || guests < 1 || guests > 99) {

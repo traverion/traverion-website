@@ -55,6 +55,11 @@ export interface ListingExtras {
    * Same length/order as the internal 12-slot grid; parallel to URLs in form state.
    */
   photoSlotLabels?: string[];
+  /**
+   * Public inventory family when this listing is not a tour (stay / experience / package).
+   * Omitted means tour. Separate from `experience_kind` on the listing row.
+   */
+  inventoryFamily?: 'tour' | 'stay' | 'experience' | 'package';
 }
 
 const WEEKDAY_COUNT = 7;
@@ -240,6 +245,11 @@ export function parseListingExtras(raw: unknown): ListingExtras {
       .map((x, i) => normalizeListingBookingOption(x as Record<string, unknown>, `opt-${i}`));
   }
 
+  const fam = o.inventoryFamily;
+  if (fam === 'tour' || fam === 'stay' || fam === 'experience' || fam === 'package') {
+    out.inventoryFamily = fam;
+  }
+
   return out;
 }
 
@@ -256,5 +266,8 @@ export function listingExtrasToDb(extras: ListingExtras | undefined): Record<str
   if (extras.galleryImageUrls?.length) payload.galleryImageUrls = extras.galleryImageUrls;
   if (extras.photoSlotLabels?.some((l) => l.trim())) payload.photoSlotLabels = extras.photoSlotLabels;
   if (extras.bookingOptions?.length) payload.bookingOptions = extras.bookingOptions;
+  if (extras.inventoryFamily && extras.inventoryFamily !== 'tour') {
+    payload.inventoryFamily = extras.inventoryFamily;
+  }
   return Object.keys(payload).length > 0 ? payload : null;
 }

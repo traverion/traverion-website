@@ -42,6 +42,7 @@ import { dateNotInPast } from '../lib/validation';
 import { checkAvailability } from '../data/supabase-availability';
 import { optionRunsOnDate, formatOptionWeekdays } from '../lib/booking-quote';
 import { isListingVisibleToTravelers } from '../lib/product-workflows';
+import { listingIsOnTravelerCatalog } from '../lib/inventory';
 import { listingShowsFreeCancellation, publicReviewLabel } from '../lib/listingTruth';
 import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
 import BookingPage from './BookingPage';
@@ -371,8 +372,8 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     }
   };
 
-  if (!tour) {
-    const isLoading = isSupabaseConfigured() && !tourLoadError;
+  if (!tour || !listingIsOnTravelerCatalog(tour)) {
+    const isLoading = isSupabaseConfigured() && !tourLoadError && !tour;
     if (isLoading) {
       return (
         <div className="min-h-screen bg-paper tv-page animate-fade-in">

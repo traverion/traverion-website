@@ -1,6 +1,8 @@
 /**
  * Maps URL pathnames to the app's internal page id (used on load, popstate, etc.).
  */
+import { reservedInventoryFamilyFromPath } from './inventory';
+
 /** Old hardcoded SEA brochure URLs — keep reachable as the live catalog, not a second product. */
 const LEGACY_BROCHURE_PATHS = new Set([
   '/14-vietnam-thailand',
@@ -93,6 +95,10 @@ export function parsePathname(pathname: string, options?: ParsePathnameOptions):
 
   if (LEGACY_BROCHURE_PATHS.has(normalized)) {
     return { page: 'packages', destinationSlug: null };
+  }
+  const reservedFamily = reservedInventoryFamilyFromPath(normalized);
+  if (reservedFamily) {
+    return { page: 'inventory-reserved', destinationSlug: reservedFamily };
   }
   if (/^\/tour\/[0-9a-f-]{36}$/i.test(normalized)) {
     return { page: 'packages', destinationSlug: null };

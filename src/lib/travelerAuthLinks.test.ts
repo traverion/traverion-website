@@ -7,6 +7,8 @@ describe('consumer path aliases', () => {
     expect(parsePathname('/tours').page).toBe('packages');
     expect(parsePathname('/trips').page).toBe('bookings');
     expect(parsePathname('/packages').page).toBe('packages');
+    expect(parsePathname('/stays')).toEqual({ page: 'inventory-reserved', destinationSlug: 'stay' });
+    expect(parsePathname('/experiences')).toEqual({ page: 'inventory-reserved', destinationSlug: 'experience' });
     expect(parsePathname('/bookings').page).toBe('bookings');
   });
 });
