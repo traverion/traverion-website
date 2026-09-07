@@ -134,25 +134,10 @@ export default function SupplierEarnings() {
 
       {loading ? (
         <SupplierListSkeleton rows={3} />
-      ) : !hasMoney ? (
-        <SupplierEmptyState
-          icon={Wallet}
-          title="No payouts yet"
-          body="No traveler has completed a paid booking, so there is nothing to pay out. Traverion does not invent balances. Add payout details so you are ready when the first booking lands."
-          action={
-            <button
-              type="button"
-              onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/business-profile#supplier-business-payout`)}
-              className="tv-btn-primary"
-            >
-              Payout account
-            </button>
-          }
-        />
       ) : (
         <>
           <section className="mb-12">
-            <p className="text-[11px] uppercase tracking-[0.18em] text-ink-faint mb-2">Available to pay out</p>
+            <p className="text-[11px] uppercase tracking-[0.18em] text-ink-faint mb-2">Pending payout</p>
             <p className="font-display text-5xl sm:text-6xl tabular-nums text-ink tracking-tight">
               {formatMoney(pending, primaryCurrency)}
             </p>
@@ -160,11 +145,9 @@ export default function SupplierEarnings() {
               <p className="mt-3 text-sm text-ink-muted">{payoutProgressPct}% of your payout minimum</p>
             ) : null}
             <p className="mt-4 text-sm text-ink-muted max-w-lg">{nextPayoutLabel}</p>
-            {paid > 0 ? (
-              <p className="mt-6 text-sm text-ink-muted">
-                Paid to date <span className="tabular-nums font-semibold text-ink">{formatMoney(paid, primaryCurrency)}</span>
-              </p>
-            ) : null}
+            <p className="mt-6 text-sm text-ink-muted">
+              Paid to date <span className="tabular-nums font-semibold text-ink">{formatMoney(paid, primaryCurrency)}</span>
+            </p>
             <button
               type="button"
               onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/business-profile#supplier-business-payout`)}
@@ -174,6 +157,13 @@ export default function SupplierEarnings() {
             </button>
           </section>
 
+          {!hasMoney ? (
+            <SupplierEmptyState
+              icon={Wallet}
+              title="No payouts yet"
+              body="No traveler has completed a paid booking, so there is nothing to pay out. Traverion does not invent balances. Add payout details so you are ready when the first booking lands."
+            />
+          ) : (
           <section>
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <h2 className="text-[11px] uppercase tracking-[0.18em] text-ink-faint">History</h2>
@@ -229,6 +219,7 @@ export default function SupplierEarnings() {
               </ul>
             )}
           </section>
+          )}
         </>
       )}
     </div>
