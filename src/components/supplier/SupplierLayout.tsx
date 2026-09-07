@@ -49,6 +49,7 @@ import { fetchConsumerProfile } from '../../data/supabase-consumer-profile';
 import { partnerSignInTravelerOnlyEmailError } from '../../lib/customerSupplierAuthMessages';
 import { setPartnerAuthFlash } from '../../lib/partnerAuthFlash';
 import { publicSiteBaseUrl } from '../../lib/publicSiteUrl';
+import ErrorState from '../ErrorState';
 
 const SupplierEarnings = lazy(() => import('../../pages/supplier/SupplierEarnings'));
 const SupplierReviews = lazy(() => import('../../pages/supplier/SupplierReviews'));
@@ -638,26 +639,17 @@ export default function SupplierLayout() {
     }
     if (partnerGateView === 'error') {
       return (
-        <div className="min-h-screen bg-paper flex flex-col items-center justify-center gap-4 p-6 text-center">
-          <p className="text-sm text-ink-muted max-w-md">
-            We could not verify your partner account. Check your connection and try again.
-          </p>
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            <button
-              type="button"
-              onClick={() => setPartnerGateRetryKey((k) => k + 1)}
-              className="tv-btn-primary"
-            >
-              Try again
-            </button>
-            <button
-              type="button"
-              onClick={() => void signOut()}
-              className="tv-btn-secondary"
-            >
-              Sign out
-            </button>
-          </div>
+        <div className="min-h-screen bg-paper flex items-center justify-center px-4">
+          <ErrorState
+            title="Partner account unavailable"
+            body="We could not verify your partner account. Check your connection and try again."
+            retry={{ onClick: () => setPartnerGateRetryKey((k) => k + 1) }}
+            extra={
+              <button type="button" onClick={() => void signOut()} className="tv-btn-ghost">
+                Sign out
+              </button>
+            }
+          />
         </div>
       );
     }
@@ -674,26 +666,17 @@ export default function SupplierLayout() {
     }
     if (partnerGateView === 'error') {
       return (
-        <div className="min-h-screen bg-paper flex flex-col items-center justify-center gap-4 p-6 text-center">
-          <p className="text-sm text-ink-muted max-w-md">
-            We could not verify your partner account. Check your connection and try again.
-          </p>
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            <button
-              type="button"
-              onClick={() => setPartnerGateRetryKey((k) => k + 1)}
-              className="tv-btn-primary"
-            >
-              Try again
-            </button>
-            <button
-              type="button"
-              onClick={() => void signOut()}
-              className="tv-btn-secondary"
-            >
-              Sign out
-            </button>
-          </div>
+        <div className="min-h-screen bg-paper flex items-center justify-center px-4">
+          <ErrorState
+            title="Partner account unavailable"
+            body="We could not verify your partner account. Check your connection and try again."
+            retry={{ onClick: () => setPartnerGateRetryKey((k) => k + 1) }}
+            extra={
+              <button type="button" onClick={() => void signOut()} className="tv-btn-ghost">
+                Sign out
+              </button>
+            }
+          />
         </div>
       );
     }

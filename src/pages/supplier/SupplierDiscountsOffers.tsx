@@ -14,6 +14,8 @@ import {
 } from '../../data/supabase-discounts';
 import { parseListingExtras, materializedBookingOptions } from '../../types/listingExtras';
 import DiscountOfferWizardModal from '../../components/supplier/DiscountOfferWizardModal';
+import ErrorState from '../../components/ErrorState';
+import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import {
   SUPPLIER_PAGE_CLASS,
   SupplierListSkeleton,
@@ -88,7 +90,7 @@ export default function SupplierDiscountsOffers() {
       });
       setRows(flat);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not load data');
+      setError(userFacingError(e, USER_ERROR.offers));
       setListings([]);
       setRows([]);
     } finally {
@@ -149,9 +151,12 @@ export default function SupplierDiscountsOffers() {
       )}
 
       {error && (
-        <p className="text-sm text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2" role="alert">
-          {error}
-        </p>
+        <ErrorState
+          className="py-6"
+          title="Offers unavailable"
+          body={userFacingError(error, USER_ERROR.offers)}
+          retry={{ onClick: () => void loadAll() }}
+        />
       )}
 
       {loading ? (

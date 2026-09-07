@@ -12,7 +12,9 @@ import { isSupabaseListingId } from '../lib/discount-display';
 import { PublicListingBrowseCard } from '../components/PublicListingBrowseCard';
 import { supplierPortalHref } from '../lib/partnerHost';
 import EmptyState from '../components/EmptyState';
+import ErrorState from '../components/ErrorState';
 import { SkeletonCardGrid, SkeletonFeaturedHero, SkeletonPlaceGrid } from '../components/ui/Skeleton';
+import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 import { TRAVERION_STANDARD_CANCELLATION_POLICY } from '../types/listingExtras';
 import { HERO_IMG } from '../lib/heroImages';
 
@@ -32,7 +34,10 @@ interface HomeProps {
 }
 
 export default function Home({ onTourSelect, onNavigate }: HomeProps) {
-  const { listings: supplierListings } = usePublishedSupplierListings({ emptyOnFirstError: false });
+  const { listings: supplierListings, error: listingsError, reload: reloadCatalog } = usePublishedSupplierListings({
+    emptyOnFirstError: false,
+  });
+  const catalogLoading = isSupabaseConfigured() && supplierListings === null && !listingsError;
   const [searchTerm, setSearchTerm] = useState('');
   const [when, setWhen] = useState('');
   const [who, setWho] = useState('');
@@ -40,8 +45,6 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
   const [reviewAggregates, setReviewAggregates] = useState<Map<string, { rating: number; count: number }>>(
     () => new Map()
   );
-
-  const catalogLoading = isSupabaseConfigured() && supplierListings === null;
 
   const allListings = useMemo(() => {
     const base =
@@ -238,13 +241,25 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-end justify-between gap-3 mb-8">
             <h2 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Tours</h2>
-            {!catalogLoading && allListings.length > 0 ? (
+            {!catalogLoading && !listingsError && allListings.length > 0 ? (
               <button type="button" onClick={() => goToPackages()} className="lux-flat text-sm font-semibold text-finland">
                 All tours <ArrowRight className="w-4 h-4 inline" />
               </button>
             ) : null}
           </div>
-          {catalogLoading ? (
+          {listingsError && supplierListings === null ? (
+            <ErrorState
+              className="py-8"
+              title="Tours unavailable"
+              body={userFacingError(listingsError, USER_ERROR.tours)}
+              retry={{ onClick: () => reloadCatalog() }}
+              extra={
+                <a href="/contact" className="tv-btn-ghost inline-flex">
+                  Contact support
+                </a>
+              }
+            />
+          ) : catalogLoading ? (
             <div aria-busy="true" aria-label="Loading tours">
               <SkeletonFeaturedHero />
               <SkeletonCardGrid count={3} />

@@ -1,3 +1,4 @@
+import { userFacingError } from './userFacingError';
 import type { TourPackage } from '../types/tour';
 import type { ListingBookingOption } from '../types/listingExtras';
 import { materializedBookingOptions } from '../types/listingExtras';
@@ -224,13 +225,8 @@ export function humanizeBookingSubmitError(message: string | undefined): string 
   if (lower.includes('jwt') || lower.includes('session') || lower.includes('auth')) {
     return 'Your session may have expired. Sign in again, then confirm your booking once more.';
   }
-  if (
-    lower.includes('violates') ||
-    lower.includes('constraint') ||
-    lower.includes('foreign key') ||
-    lower.includes('not null')
-  ) {
+  if (lower.includes('violates') || lower.includes('constraint') || lower.includes('foreign key') || lower.includes('not null')) {
     return 'Something on the server rejected this request. Refresh the page or try again in a few minutes.';
   }
-  return raw;
+  return userFacingError(raw, 'We could not save your booking. Check your connection and tap Confirm again.');
 }

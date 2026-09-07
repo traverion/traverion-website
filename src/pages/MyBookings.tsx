@@ -5,6 +5,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { LogIn, RefreshCw, ArrowLeft, CalendarDays } from 'lucide-react';
 import EmptyState from '../components/EmptyState';
+import ErrorState from '../components/ErrorState';
+import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 import { SkeletonListItem, SkeletonConsumerPage } from '../components/ui/Skeleton';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
@@ -93,7 +95,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
       const titleMap = await fetchListingTitlesByIds(ids);
       setTitles(titleMap);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load bookings');
+      setError(userFacingError(e, USER_ERROR.trips));
     } finally {
       setLoading(false);
     }
@@ -119,7 +121,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
       const res = await updateGuestBookingSpecialRequests(b.id, nextNotes);
       setStaySavingId(null);
       if (res.success) await load();
-      else setError(res.error ?? 'Could not save place of stay.');
+      else setError(userFacingError(res.error, 'Could not save place of stay.'));
     },
     [stayDrafts, load]
   );
@@ -135,7 +137,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
       if (b.booking_date) await decrementAvailabilityBooked(b.listing_id, b.booking_date, b.guests ?? 1);
       load();
     } else {
-      setError(res.error ?? 'Could not cancel booking');
+      setError(userFacingError(res.error, 'Could not cancel this booking. Try again.'));
     }
   }, [getRefundChoiceForCancel, load]);
 
@@ -145,7 +147,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
     const res = await resumePendingBookingCheckout({ bookingId: b.id });
     setPayingId(null);
     if (!res.success || !res.checkoutUrl) {
-      setError(res.error ?? 'Could not open payment checkout.');
+      setError(userFacingError(res.error, USER_ERROR.checkout));
       return;
     }
     window.location.assign(res.checkoutUrl);
@@ -286,9 +288,17 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
         </div>
 
         {error && (
-          <div className="mb-4 p-4 rounded-lg bg-red-50 text-red-700 text-sm">
-            {error}
-          </div>
+          <ErrorState
+            className="py-6"
+            title="Trips unavailable"
+            body={userFacingError(error, USER_ERROR.trips)}
+            retry={{ onClick: () => void load() }}
+            extra={
+              <button type="button" onClick={() => onNavigate('contact')} className="tv-btn-ghost">
+                Contact support
+              </button>
+            }
+          />
         )}
         {paymentBanner === 'success' && (
           <div className="mb-8 max-w-lg">

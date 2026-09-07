@@ -17,6 +17,8 @@ import { SkeletonCardGrid } from '../components/ui/Skeleton';
 import { PublicListingBrowseCard } from '../components/PublicListingBrowseCard';
 import { supplierPortalHref } from '../lib/partnerHost';
 import EmptyState from '../components/EmptyState';
+import ErrorState from '../components/ErrorState';
+import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 
 type SortOption = 'recommended' | 'price-asc' | 'price-desc' | 'rating' | 'duration';
 
@@ -349,12 +351,17 @@ export default function Packages({ onTourSelect }: PackagesProps) {
         </p>
 
         {listingsLoadError && isSupabaseConfigured() && (
-          <div className="mt-6 flex items-center justify-between gap-4 text-sm text-red-800">
-            <span>{listingsLoadError}</span>
-            <button type="button" onClick={() => reloadSupplierListings()} className="tv-btn-ghost">
-              Try again
-            </button>
-          </div>
+          <ErrorState
+            className="mt-6 py-6"
+            title="Tours unavailable"
+            body={userFacingError(listingsLoadError, USER_ERROR.tours)}
+            retry={{ onClick: () => reloadSupplierListings() }}
+            extra={
+              <a href="/contact" className="tv-btn-ghost inline-flex">
+                Contact support
+              </a>
+            }
+          />
         )}
 
         <div className="mt-8 flex flex-col lg:flex-row gap-3 lg:items-center">

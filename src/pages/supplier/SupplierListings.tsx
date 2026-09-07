@@ -5,8 +5,6 @@ import {
   Pencil,
   Trash2,
   EyeOff,
-  AlertCircle,
-  RefreshCw,
   Cog,
   Map,
 } from 'lucide-react';
@@ -36,6 +34,8 @@ import { publicTourListingUrl } from '../../lib/publicSiteUrl';
 import { getListingPublishBlockers } from '../../lib/listingPublishGate';
 import { normalizeListingForDraftSave } from '../../lib/listingDraftUtils';
 import { SkeletonListItem } from '../../components/ui/Skeleton';
+import ErrorState from '../../components/ErrorState';
+import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import { SUPPLIER_PAGE_CLASS, SupplierEmptyState, SupplierModalHeader, SupplierPageHero } from '../../components/supplier/supplierUi';
 
 function verificationStatusLabel(status: string): string {
@@ -284,7 +284,7 @@ export default function SupplierListings() {
           setLoading(false);
         })
         .catch((e) => {
-          setError(e instanceof Error ? e.message : 'Failed to load listings');
+          setError(userFacingError(e, USER_ERROR.listings));
           setLoading(false);
         });
     } else {
@@ -457,8 +457,9 @@ export default function SupplierListings() {
     if (isSupabase && user) {
       const res = editingId ? await updateListing(editingId, tour) : await insertListing(tour, user.id);
       if (!res.ok) {
-        setError(res.error);
-        return { success: false, error: res.error };
+        const msg = userFacingError(res.error, USER_ERROR.listingSave);
+        setError(msg);
+        return { success: false, error: msg };
       }
       setError(null);
       if (tour.status === 'published') {
@@ -496,7 +497,7 @@ export default function SupplierListings() {
         setListingPendingDelete(null);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not remove listing');
+      setError(userFacingError(e, 'Could not remove listing. Try again.'));
     } finally {
       setDeleteBusy(false);
     }
@@ -536,7 +537,7 @@ export default function SupplierListings() {
       window.dispatchEvent(new CustomEvent('traverion:published-listings-changed'));
       return true;
     }
-    setError(res.error);
+    setError(userFacingError(res.error, USER_ERROR.listingSave));
     return false;
   };
 
@@ -710,12 +711,12 @@ export default function SupplierListings() {
       )}
 
       {error && (
-        <div className="p-4 rounded-lg bg-red-50 text-red-700 text-sm flex items-center justify-between gap-4">
-          <span className="flex items-center gap-2"><AlertCircle className="w-4 h-4 flex-shrink-0" />{error}</span>
-          <button type="button" onClick={() => loadListings()} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-100 text-red-800 font-medium hover:bg-red-200">
-            <RefreshCw className="w-4 h-4" /> Try again
-          </button>
-        </div>
+        <ErrorState
+          className="py-6"
+          title="Listings unavailable"
+          body={userFacingError(error, USER_ERROR.listings)}
+          retry={{ onClick: () => void loadListings() }}
+        />
       )}
 
       {showCreateChooser && (

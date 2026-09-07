@@ -20,6 +20,8 @@ import {
 import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { SUPPLIER_PAGE_CLASS, SupplierEmptyState } from '../../components/supplier/supplierUi';
+import ErrorState from '../../components/ErrorState';
+import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -90,7 +92,7 @@ export default function SupplierAvailability() {
         return '';
       });
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not load tours');
+      setError(userFacingError(e, USER_ERROR.calendar));
     } finally {
       setLoading(false);
     }
@@ -147,7 +149,7 @@ export default function SupplierAvailability() {
     const res = await upsertAvailability(listingId, [{ available_date: iso, capacity }]);
     setSavingIso(null);
     if (!res.success) {
-      setError(res.error ?? 'Could not save that date');
+      setError(userFacingError(res.error, 'Could not save that date. Try again.'));
       return;
     }
     setEditing(null);
@@ -161,7 +163,7 @@ export default function SupplierAvailability() {
     const res = await deleteAvailability(listingId, iso);
     setSavingIso(null);
     if (!res.success) {
-      setError(res.error ?? 'Could not clear that date');
+      setError(userFacingError(res.error, 'Could not clear that date. Try again.'));
       return;
     }
     setEditing(null);
@@ -273,9 +275,12 @@ export default function SupplierAvailability() {
           </div>
 
           {error ? (
-            <p className="mb-3 text-sm text-red-600" role="alert">
-              {error}
-            </p>
+            <ErrorState
+              className="mb-4 py-4"
+              title="Calendar unavailable"
+              body={userFacingError(error, USER_ERROR.calendar)}
+              retry={{ onClick: () => void loadListings() }}
+            />
           ) : null}
 
           <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-medium uppercase tracking-[0.14em] text-ink-faint mb-2">

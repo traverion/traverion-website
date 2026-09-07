@@ -59,7 +59,7 @@ export default function AuthModal() {
     ) {
       return 'An account with this phone number already exists. Try logging in instead.';
     }
-    return message;
+    return 'Something went wrong. Check your details and try again.';
   };
 
   const serverMessageToFields = (rawMessage: string): TravelerFieldErrors => {

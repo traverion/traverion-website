@@ -4,6 +4,8 @@ import {
   fetchSupplierPortalNotifications,
   type SupplierPortalNotificationRow,
 } from '../../data/supabase-supplier-portal-notifications';
+import ErrorState from '../ErrorState';
+import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 
 const DISMISS_STORAGE_KEY = (userId: string) => `supplier_portal_notice_dismissed_v1_${userId}`;
 
@@ -60,7 +62,7 @@ export default function SupplierPortalNoticePanel({ userId }: SupplierPortalNoti
     setError(null);
     fetchSupplierPortalNotifications()
       .then(setRows)
-      .catch((e) => setError(e instanceof Error ? e.message : 'Could not load messages'))
+      .catch((e) => setError(userFacingError(e, USER_ERROR.generic)))
       .finally(() => setLoading(false));
   }, []);
 
@@ -92,12 +94,12 @@ export default function SupplierPortalNoticePanel({ userId }: SupplierPortalNoti
 
   if (error) {
     return (
-      <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 flex items-center justify-between gap-3">
-        <span>{error}</span>
-        <button type="button" onClick={() => void load()} className="text-red-900 font-medium underline shrink-0">
-          Retry
-        </button>
-      </div>
+      <ErrorState
+        className="py-4"
+        title="Messages unavailable"
+        body={userFacingError(error, USER_ERROR.generic)}
+        retry={{ onClick: () => void load() }}
+      />
     );
   }
 

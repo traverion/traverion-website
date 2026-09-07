@@ -5,6 +5,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CheckCircle, Calendar, Users, Loader2, LogIn } from 'lucide-react';
 import { Skeleton } from '../components/ui/Skeleton';
+import ErrorState from '../components/ErrorState';
+import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import {
@@ -79,7 +81,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
         setListingTitle('');
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not load booking');
+      setError(userFacingError(e, USER_ERROR.booking));
     }
   }, [sessionId, user?.email]);
 
@@ -133,30 +135,28 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
 
   if (!isSupabaseConfigured()) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-6 py-16 bg-paper text-center">
-        <p className="text-gray-700 mb-6">Bookings are not available here.</p>
-        <button
-          type="button"
-          onClick={() => onNavigate('packages')}
-          className="px-6 py-3 rounded-xl bg-finland text-white font-semibold hover:bg-finland-dark"
-        >
-          Browse tours
-        </button>
+      <div className="min-h-screen bg-paper px-4 py-16">
+        <div className="max-w-md mx-auto">
+          <ErrorState
+            title="Booking confirmation unavailable"
+            body="Bookings are not available in this environment."
+            back={{ onClick: () => onNavigate('packages'), label: 'Browse tours' }}
+          />
+        </div>
       </div>
     );
   }
 
   if (!sessionId) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-6 py-16 bg-paper">
-        <p className="text-gray-700 text-center max-w-md mb-6">{error ?? 'No checkout session in this link.'}</p>
-        <button
-          type="button"
-          onClick={goToBookings}
-          className="px-6 py-3 rounded-xl bg-finland text-white font-semibold hover:bg-finland-dark"
-        >
-          Check my bookings
-        </button>
+      <div className="min-h-screen bg-paper px-4 py-16">
+        <div className="max-w-md mx-auto">
+          <ErrorState
+            title="No checkout in this link"
+            body={userFacingError(error, 'This page needs the return link from payment. Open Trips if you already booked.')}
+            back={{ onClick: goToBookings, label: 'Check my trips' }}
+          />
+        </div>
       </div>
     );
   }
@@ -196,9 +196,18 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
 
       <div className="w-full max-w-lg">
         {error && (
-          <div className="rounded-2xl border border-red-200 bg-red-50 text-red-800 px-5 py-4 text-sm mb-6 text-center">
-            {error}
-          </div>
+          <ErrorState
+            className="py-6"
+            title="Could not load this booking"
+            body={userFacingError(error, USER_ERROR.booking)}
+            retry={{ onClick: () => void load() }}
+            back={{ onClick: goToBookings, label: 'Check my trips' }}
+            extra={
+              <button type="button" onClick={() => onNavigate('contact')} className="tv-btn-ghost">
+                Contact support
+              </button>
+            }
+          />
         )}
 
         {!booking && !error && (

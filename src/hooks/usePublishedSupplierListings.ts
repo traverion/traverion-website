@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getAllListingsAsync } from '../data/listings';
 import { isSupabaseConfigured } from '../lib/supabase';
+import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 import type { TourPackage } from '../types/tour';
 
 type Options = {
@@ -33,7 +34,7 @@ export function usePublishedSupplierListings(options?: Options): {
         setError(null);
       })
       .catch((e) => {
-        setError(e instanceof Error ? e.message : 'Failed to load tours');
+        setError(userFacingError(e, USER_ERROR.tours));
         if (emptyOnFirstError) {
           setListings((prev) => (prev === null ? [] : prev));
         }

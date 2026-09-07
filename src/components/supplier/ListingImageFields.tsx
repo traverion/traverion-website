@@ -5,6 +5,7 @@ import {
   removeListingImageIfOwned,
   uploadListingImage,
 } from '../../data/supabase-listing-images';
+import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import {
   LISTING_PHOTO_MAX,
   LISTING_PHOTO_MIN,
@@ -78,7 +79,7 @@ export default function ListingImageFields({
     const { publicUrl, error: upErr } = await uploadListingImage(userId, file);
     setBusyIndex(null);
     if (upErr || !publicUrl) {
-      setError(upErr ?? 'Upload failed');
+      setError(userFacingError(upErr, USER_ERROR.upload));
       return;
     }
     const nextS = [...normalizePhotoSlots(slots)];
@@ -149,7 +150,7 @@ export default function ListingImageFields({
       />
 
       {error && (
-        <p className="text-sm text-red-600 rounded-lg border border-red-200 bg-red-50 px-3 py-2" role="alert">
+        <p className="text-sm text-red-800" role="alert">
           {error}
         </p>
       )}

@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { AlertCircle, RefreshCw, Wallet } from 'lucide-react';
+import { Wallet } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { fetchSupplierEarnings, SupplierEarning } from '../../data/supabase-earnings';
 import { fetchSupplierProfile } from '../../data/supabase-supplier-profile';
 import { SUPPLIER_PAGE_CLASS, SupplierEmptyState, SupplierListSkeleton } from '../../components/supplier/supplierUi';
+import ErrorState from '../../components/ErrorState';
+import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 
@@ -35,7 +37,7 @@ export default function SupplierEarnings() {
         setLoading(false);
       })
       .catch((e) => {
-        setError(e instanceof Error ? e.message : 'Failed to load earnings');
+        setError(userFacingError(e, USER_ERROR.money));
         setLoading(false);
       });
   }, [isSupabase, user?.id]);
@@ -122,12 +124,12 @@ export default function SupplierEarnings() {
       </header>
 
       {error && (
-        <div className="mb-8 flex items-center justify-between gap-4 text-sm text-red-800">
-          <span className="flex items-center gap-2"><AlertCircle className="w-4 h-4 shrink-0" />{error}</span>
-          <button type="button" onClick={() => load()} className="tv-btn-ghost">
-            <RefreshCw className="w-4 h-4" /> Try again
-          </button>
-        </div>
+        <ErrorState
+          className="py-6"
+          title="Payouts unavailable"
+          body={userFacingError(error, USER_ERROR.money)}
+          retry={{ onClick: () => void load() }}
+        />
       )}
 
       {loading ? (

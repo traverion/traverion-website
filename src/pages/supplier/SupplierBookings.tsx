@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  AlertCircle,
   CheckCircle,
   ChevronLeft,
   ChevronRight,
@@ -17,6 +16,8 @@ import type { TourPackage } from '../../types/tour';
 import { LISTING_PLACEHOLDER_IMAGE } from '../../lib/listingQualityScore';
 import { orderedPhotoUrls, photoSlotsFromTourPackage } from '../../lib/listingPhotoGrid';
 import { SkeletonListItem } from '../../components/ui/Skeleton';
+import ErrorState from '../../components/ErrorState';
+import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import {
   SUPPLIER_PAGE_CLASS,
   SupplierEmptyState,
@@ -221,7 +222,7 @@ export default function SupplierBookings() {
       setBookings(bookingsList);
       setListingMeta(meta);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load bookings');
+      setError(userFacingError(e, USER_ERROR.bookings));
     } finally {
       setLoading(false);
     }
@@ -525,19 +526,12 @@ export default function SupplierBookings() {
       )}
 
       {error && (
-        <div className="flex items-center justify-between gap-4 rounded-lg bg-red-50 p-4 text-sm text-red-700">
-          <span className="flex items-center gap-2">
-            <AlertCircle className="h-4 w-4 shrink-0" aria-hidden />
-            {error}
-          </span>
-          <button
-            type="button"
-            onClick={() => void load()}
-            className="rounded-lg bg-red-100 px-3 py-1.5 font-medium text-red-800 hover:bg-red-200"
-          >
-            Try again
-          </button>
-        </div>
+        <ErrorState
+          className="py-6"
+          title="Bookings unavailable"
+          body={userFacingError(error, USER_ERROR.bookings)}
+          retry={{ onClick: () => void load() }}
+        />
       )}
 
       {loading ? (

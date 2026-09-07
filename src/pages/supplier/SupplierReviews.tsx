@@ -2,7 +2,7 @@
  * Supplier: view all reviews for my listings and reply.
  */
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Star, MessageSquare, Send, AlertCircle, RefreshCw } from 'lucide-react';
+import { Star, MessageSquare, Send } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import {
   SUPPLIER_PAGE_CLASS,
@@ -10,6 +10,8 @@ import {
   SupplierListSkeleton,
   SupplierPageHero,
 } from '../../components/supplier/supplierUi';
+import ErrorState from '../../components/ErrorState';
+import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import {
   fetchReviewsForSupplierListings,
   getReviewRepliesByReviewIds,
@@ -60,7 +62,7 @@ export default function SupplierReviews() {
         }, {})
       );
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load reviews');
+      setError(userFacingError(e, USER_ERROR.reviews));
     } finally {
       setLoading(false);
     }
@@ -126,7 +128,7 @@ export default function SupplierReviews() {
     if (res.success) {
       load();
     } else {
-      setReplyError(res.error ?? 'Could not save reply. Check that you own this listing.');
+      setReplyError(userFacingError(res.error, 'Could not save that reply. Try again.'));
     }
   };
 
@@ -146,21 +148,21 @@ export default function SupplierReviews() {
       />
 
       {error && (
-        <div className="p-4 rounded-lg bg-red-50 text-red-700 text-sm flex items-center justify-between gap-4">
-          <span className="flex items-center gap-2"><AlertCircle className="w-4 h-4 flex-shrink-0" />{error}</span>
-          <button type="button" onClick={() => load()} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-100 text-red-800 font-medium hover:bg-red-200">
-            <RefreshCw className="w-4 h-4" /> Try again
-          </button>
-        </div>
+        <ErrorState
+          className="py-6"
+          title="Reviews unavailable"
+          body={userFacingError(error, USER_ERROR.reviews)}
+          retry={{ onClick: () => void load() }}
+        />
       )}
 
       {replyError && (
-        <div className="p-4 rounded-lg bg-red-50 text-red-700 text-sm flex items-center justify-between gap-4">
-          <span className="flex items-center gap-2"><AlertCircle className="w-4 h-4 flex-shrink-0" />{replyError}</span>
-          <button type="button" onClick={() => setReplyError(null)} className="text-sm font-medium text-red-800 hover:underline">
-            Dismiss
-          </button>
-        </div>
+        <ErrorState
+          className="py-4"
+          title="Reply not saved"
+          body={userFacingError(replyError, 'Could not save that reply. Try again.')}
+          back={{ onClick: () => setReplyError(null), label: 'Dismiss' }}
+        />
       )}
 
       {loading ? (

@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { userFacingError } from '../lib/userFacingError';
 import { TourPackage } from '../types/tour';
 import { listingExtrasToDb, parseListingExtras } from '../types/listingExtras';
 
@@ -253,9 +254,7 @@ export type ListingSaveResult =
 export type ListingStatusResult = { ok: true } | { ok: false; error: string };
 
 function formatSupabaseListingError(prefix: string, error: { message?: string; details?: string; hint?: string }): string {
-  const parts = [error.message, error.details, error.hint].filter(Boolean);
-  const detail = parts.length ? parts.join(' — ') : 'Unknown error';
-  return `${prefix}: ${detail}`;
+  return userFacingError(error.message, `${prefix}. Check your connection and try again.`);
 }
 
 /** Insert a new listing (requires auth; supplier_id = current user). */

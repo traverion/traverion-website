@@ -102,7 +102,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
     ) {
       return 'An account with this phone number already exists. Try signing in instead.';
     }
-    return message;
+    return 'Something went wrong. Check your details and try again.';
   };
 
   const serverMessageToFields = (rawMessage: string): TravelerPageFieldErrors => {

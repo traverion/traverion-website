@@ -25,6 +25,8 @@ import { decrementAvailabilityBooked } from '../../data/supabase-availability';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { canManageBookings } from '../../lib/supplierTeamRoles';
 import { SUPPLIER_PAGE_CLASS, SupplierEmptyState, SupplierPageHero } from '../../components/supplier/supplierUi';
+import ErrorState from '../../components/ErrorState';
+import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 
 function toYmd(d: Date): string {
   const y = d.getFullYear();
@@ -236,7 +238,7 @@ export default function SupplierPickupPlanner() {
       setPickupInstructions(instructions);
       setListingGuideMeta(guideMeta);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load pickup data');
+      setError(userFacingError(e, USER_ERROR.pickup));
     } finally {
       setLoading(false);
     }
@@ -865,19 +867,12 @@ export default function SupplierPickupPlanner() {
       )}
 
       {error && (
-        <div className="flex items-center justify-between gap-4 rounded-lg bg-red-50 p-4 text-sm text-red-700">
-          <span className="flex items-center gap-2">
-            <AlertCircle className="h-4 w-4 shrink-0" aria-hidden />
-            {error}
-          </span>
-          <button
-            type="button"
-            onClick={() => void load()}
-            className="rounded-lg bg-red-100 px-3 py-1.5 font-medium text-red-800 hover:bg-red-200"
-          >
-            Try again
-          </button>
-        </div>
+        <ErrorState
+          className="py-6"
+          title="Pickups unavailable"
+          body={userFacingError(error, USER_ERROR.pickup)}
+          retry={{ onClick: () => void load() }}
+        />
       )}
 
       {actionFeedbackBanner}

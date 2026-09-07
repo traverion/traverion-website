@@ -21,7 +21,7 @@ export default function SupplierLogin({ onAuthenticated, isSupabase }: SupplierL
     }
     if (m.includes('email not confirmed')) return 'Please confirm your email before signing in.';
     if (m.includes('invalid login credentials')) return 'Incorrect email or password.';
-    return message;
+    return 'Something went wrong. Check your details and try again.';
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -94,7 +94,7 @@ export default function SupplierLogin({ onAuthenticated, isSupabase }: SupplierL
             />
           </div>
           {error && (
-            <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>
+            <p className="text-sm text-red-800" role="alert">{error}</p>
           )}
           {successMessage && (
             <p className="text-sm text-green-700 bg-green-50 px-3 py-2 rounded-lg">{successMessage}</p>

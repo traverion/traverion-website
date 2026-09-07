@@ -54,6 +54,7 @@ import {
   type TourBookingVariant,
 } from '../lib/booking-flow';
 import { markBookingsUnread } from '../lib/customerBookingNotifications';
+import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 
 interface BookingPageProps {
   tour: TourPackage;
@@ -505,7 +506,7 @@ export default function BookingPage({
           bookingOptionId: optionId,
         });
         if (!quoted.ok) {
-          setError(quoted.error);
+          setError(userFacingError(quoted.error, USER_ERROR.checkout));
           setSubmitting(false);
           return;
         }
@@ -523,7 +524,7 @@ export default function BookingPage({
           cancelPath: '/bookings?payment=cancelled',
         });
         if (!checkout.success || !checkout.checkoutUrl) {
-          setError(checkout.error ?? 'Could not start checkout. Please try again.');
+          setError(userFacingError(checkout.error, USER_ERROR.checkout));
           setSubmitting(false);
           return;
         }

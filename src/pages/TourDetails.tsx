@@ -13,9 +13,10 @@ import {
   MessageCircle,
 } from 'lucide-react';
 import EmptyState from '../components/EmptyState';
+import ErrorState from '../components/ErrorState';
 import { useAuth } from '../contexts/AuthContext';
-import LuxuryButton from '../components/ui/LuxuryButton';
 import { getListingById, getListingByIdAsync } from '../data/listings';
+import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { analytics } from '../lib/analytics';
 import { TourPackage } from '../types/tour';
@@ -139,7 +140,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
         .then((found) => { setTour(found ?? null); })
         .catch((e) => {
           setTour(null);
-          setTourLoadError(e instanceof Error ? e.message : 'Failed to load tour');
+          setTourLoadError(userFacingError(e, USER_ERROR.tour));
         });
     } else {
       setTour(getListingById(tourId) ?? null);
@@ -327,31 +328,34 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       );
     }
     return (
-      <div className="min-h-screen bg-paper pt-20 flex items-center justify-center">
-        <div className="text-center max-w-md px-4">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
-            {tourLoadError ? 'Something went wrong' : 'Tour not found'}
-          </h1>
-          {tourLoadError && <p className="text-gray-600 mb-4">{tourLoadError}</p>}
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            {tourLoadError && (
-              <LuxuryButton
-                variant="primary"
-                onClick={() => {
-                  setTourLoadError(null);
-                  getListingByIdAsync(tourId)
-                    .then((found) => setTour(found ?? null))
-                    .catch((e) => setTourLoadError(e instanceof Error ? e.message : 'Failed to load tour'));
-                }}
-              >
-                Try again
-              </LuxuryButton>
-            )}
-            <LuxuryButton variant="outline" onClick={onBack}>
-              <ArrowLeft className="mr-2 w-4 h-4" />
-              Back to Tours
-            </LuxuryButton>
-          </div>
+      <div className="min-h-screen bg-paper pt-20">
+        <div className="max-w-lg mx-auto px-4 py-16">
+          <ErrorState
+            title={tourLoadError ? 'Tour unavailable' : 'Tour not found'}
+            body={
+              tourLoadError
+                ? userFacingError(tourLoadError, USER_ERROR.tour)
+                : USER_ERROR.tourMissing
+            }
+            retry={
+              tourLoadError
+                ? {
+                    onClick: () => {
+                      setTourLoadError(null);
+                      getListingByIdAsync(tourId)
+                        .then((found) => setTour(found ?? null))
+                        .catch((e) => setTourLoadError(userFacingError(e, USER_ERROR.tour)));
+                    },
+                  }
+                : undefined
+            }
+            back={{ onClick: onBack, label: 'Back to tours' }}
+            extra={
+              <a href="/contact" className="tv-btn-ghost inline-flex">
+                Contact support
+              </a>
+            }
+          />
         </div>
       </div>
     );
@@ -957,7 +961,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                         setHasReviewed(true);
                         loadReviews();
                       } else {
-                        setReviewError(res.error ?? 'Failed to submit');
+                        setReviewError(userFacingError(res.error, USER_ERROR.review));
                       }
                     }}
                     className="px-4 py-2 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark disabled:opacity-50"

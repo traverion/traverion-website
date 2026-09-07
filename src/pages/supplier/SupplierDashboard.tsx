@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { SUPPLIER_PAGE_CLASS, SupplierEmptyState, SupplierListSkeleton } from '../../components/supplier/supplierUi';
+import ErrorState from '../../components/ErrorState';
+import { USER_ERROR } from '../../lib/userFacingError';
 import { CalendarDays } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { fetchMyListings } from '../../data/supabase-listings';
@@ -51,11 +53,8 @@ export default function SupplierDashboard({ onNavigateToBookings }: SupplierDash
       fetchSupplierProfile(uid),
     ]);
     const failures: string[] = [];
-    const failureDetails: string[] = [];
-    const noteFailure = (key: string, reason: unknown) => {
+    const noteFailure = (key: string) => {
       failures.push(key);
-      const msg = reason instanceof Error ? reason.message : String(reason);
-      failureDetails.push(`${key}: ${msg}`);
     };
     if (settled[0].status === 'fulfilled') {
       const listings = settled[0].value;
@@ -63,7 +62,7 @@ export default function SupplierDashboard({ onNavigateToBookings }: SupplierDash
       setDraftListingsCount(listings.filter((t) => t.status === 'draft').length);
       setListingTitlesById(Object.fromEntries(listings.map((t) => [t.id, t.title])));
     } else {
-      noteFailure('listings', settled[0].reason);
+      noteFailure('listings');
       setPublishedListingsCount(0);
       setDraftListingsCount(0);
       setListingTitlesById({});
@@ -71,26 +70,18 @@ export default function SupplierDashboard({ onNavigateToBookings }: SupplierDash
     if (settled[1].status === 'fulfilled') {
       setSupplierBookings(settled[1].value);
     } else {
-      noteFailure('bookings', settled[1].reason);
+      noteFailure('bookings');
       setSupplierBookings([]);
     }
     if (settled[2].status === 'fulfilled') {
       setProfile(settled[2].value);
     } else {
-      noteFailure('profile', settled[2].reason);
+      noteFailure('profile');
       setProfile(null);
     }
     if (failures.length > 0) {
       const critical = failures.includes('bookings');
-      const detail =
-        failureDetails.length > 0
-          ? ` Details: ${failureDetails.slice(0, 2).join(' · ')}${failureDetails.length > 2 ? ' …' : ''}`
-          : '';
-      setDashboardError(
-        critical
-          ? `Bookings could not be loaded. Check your connection and try again.${detail}`
-          : `Some profile data could not be refreshed.${detail}`
-      );
+      setDashboardError(critical ? USER_ERROR.bookings : USER_ERROR.today);
     }
     setDashboardLoading(false);
   }, [isSupabase, user?.id]);
@@ -186,7 +177,12 @@ export default function SupplierDashboard({ onNavigateToBookings }: SupplierDash
       </header>
 
       {dashboardError && (
-        <p className="text-sm text-amber-800 mb-6">{dashboardError}</p>
+        <ErrorState
+          className="py-6"
+          title="Today unavailable"
+          body={dashboardError}
+          retry={{ onClick: () => void reloadDashboard() }}
+        />
       )}
 
       <section className="mb-12">

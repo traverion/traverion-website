@@ -28,6 +28,7 @@ import {
 } from '../../lib/listingPhotoGrid';
 import { getListingPublishBlockers } from '../../lib/listingPublishGate';
 import { isSupabaseConfigured } from '../../lib/supabase';
+import { userFacingError } from '../../lib/userFacingError';
 import { MIN_LISTING_DESCRIPTION_LENGTH } from '../../lib/listingQualityScore';
 
 const TAG_OPTIONS = [
@@ -934,7 +935,7 @@ export default function SupplierListingForm({
         try {
           const result = await onSave(listing);
           if (!result.success) {
-            setSubmitError(result.error ?? 'Could not save your listing. Please try again.');
+            setSubmitError(userFacingError(result.error, 'Could not save your listing. Please try again.'));
             return;
           }
           clearWizardStepStorage(editingId);
@@ -1412,10 +1413,10 @@ export default function SupplierListingForm({
             </p>
           </div>
           {draftCloseError && (
-            <p className="mb-3 text-sm text-red-600 rounded-lg border border-red-200 bg-red-50 px-3 py-2">{draftCloseError}</p>
+            <p className="mb-3 text-sm text-red-800" role="alert">{draftCloseError}</p>
           )}
           {submitError && (
-            <p className="mb-3 text-sm text-red-600 rounded-lg border border-red-200 bg-red-50 px-3 py-2" role="alert">
+            <p className="mb-3 text-sm text-red-800" role="alert">
               {submitError}
             </p>
           )}

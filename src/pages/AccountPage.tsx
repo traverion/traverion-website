@@ -11,6 +11,7 @@ import {
   LogIn,
 } from 'lucide-react';
 import { SkeletonFormFields, SkeletonConsumerPage } from '../components/ui/Skeleton';
+import { userFacingError } from '../lib/userFacingError';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { fetchMyBookings } from '../data/supabase-bookings';
@@ -219,7 +220,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
                     setProfileMessage({ kind: 'ok', text: 'Profile saved.' });
                     await loadProfile();
                   } else {
-                    setProfileMessage({ kind: 'err', text: res.error ?? 'Could not save.' });
+                    setProfileMessage({ kind: 'err', text: userFacingError(res.error, 'Could not save.') });
                   }
                 })();
               }}

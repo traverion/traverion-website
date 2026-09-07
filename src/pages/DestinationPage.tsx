@@ -1,7 +1,9 @@
 import { useMemo, useState, useEffect } from 'react';
 import { ArrowLeft, MapPin } from 'lucide-react';
 import EmptyState from '../components/EmptyState';
+import ErrorState from '../components/ErrorState';
 import { SkeletonCardGrid, Skeleton } from '../components/ui/Skeleton';
+import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 import { getAllListings, SHOW_SEED_LISTINGS } from '../data/listings';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { usePublishedSupplierListings } from '../hooks/usePublishedSupplierListings';
@@ -35,8 +37,10 @@ interface DestinationPageProps {
 }
 
 export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate }: DestinationPageProps) {
-  const { listings: supplierListings } = usePublishedSupplierListings({ emptyOnFirstError: false });
-  const catalogLoading = isSupabaseConfigured() && supplierListings === null;
+  const { listings: supplierListings, error: listingsError, reload: reloadCatalog } = usePublishedSupplierListings({
+    emptyOnFirstError: false,
+  });
+  const catalogLoading = isSupabaseConfigured() && supplierListings === null && !listingsError;
   const [reviewAggregates, setReviewAggregates] = useState<Map<string, { rating: number; count: number }>>(
     () => new Map()
   );
@@ -115,7 +119,15 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
           </p>
         )}
 
-        {catalogLoading ? (
+        {listingsError && supplierListings === null ? (
+          <ErrorState
+            className="py-8"
+            title="Tours unavailable"
+            body={userFacingError(listingsError, USER_ERROR.tours)}
+            retry={{ onClick: () => reloadCatalog() }}
+            back={{ onClick: onBack, label: 'View all tours' }}
+          />
+        ) : catalogLoading ? (
           <div aria-busy="true" aria-label="Loading tours">
             <SkeletonCardGrid count={6} />
           </div>

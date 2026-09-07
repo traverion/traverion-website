@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { SUPPLIER_PAGE_CLASS, SupplierPageHero } from '../../components/supplier/supplierUi';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { userFacingError } from '../../lib/userFacingError';
 
 type Props = {
   onBack: () => void;
@@ -18,7 +19,7 @@ function mapAuthError(message: string): string {
   const m = message.toLowerCase();
   if (m.includes('invalid login credentials')) return 'Current password is incorrect.';
   if (m.includes('same as')) return 'Choose a password that is different from your current one.';
-  return message;
+  return 'Something went wrong. Check your details and try again.';
 }
 
 export default function SupplierChangePassword({ onBack, userEmail, isSupabase, supabase }: Props) {
@@ -80,7 +81,7 @@ export default function SupplierChangePassword({ onBack, userEmail, isSupabase, 
       setConfirmPassword('');
       setSuccess(true);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Something went wrong.');
+      setError(userFacingError(e, 'Something went wrong. Check your details and try again.'));
     } finally {
       setSaving(false);
     }

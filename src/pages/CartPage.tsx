@@ -2,9 +2,11 @@
  * Consumer: saved items. Booking happens on the experience page via Stripe checkout.
  */
 import { useState, useEffect, useCallback } from 'react';
-import { LogIn, ArrowLeft, Trash2, RefreshCw, ShoppingBag } from 'lucide-react';
+import { LogIn, ArrowLeft, Trash2, ShoppingBag } from 'lucide-react';
 import { SkeletonListItem, SkeletonConsumerPage } from '../components/ui/Skeleton';
 import EmptyState from '../components/EmptyState';
+import ErrorState from '../components/ErrorState';
+import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { fetchCartWithListings, removeFromCart, type CartItemWithListing } from '../data/supabase-cart';
@@ -31,7 +33,7 @@ export default function CartPage({ onNavigate, onBookTour }: CartPageProps) {
       const list = await fetchCartWithListings(user.id);
       setItems(list);
     } catch (e) {
-      setLoadError(e instanceof Error ? e.message : 'Failed to load cart');
+      setLoadError(userFacingError(e, USER_ERROR.cart));
     } finally {
       setLoading(false);
     }
@@ -127,12 +129,12 @@ export default function CartPage({ onNavigate, onBookTour }: CartPageProps) {
           </button>
         </div>
         {loadError && (
-          <div className="mb-4 p-4 rounded-lg bg-red-50 text-red-700 text-sm flex items-center justify-between gap-4">
-            <span>{loadError}</span>
-            <button type="button" onClick={() => load()} className="tv-btn-ghost">
-              <RefreshCw className="w-4 h-4" /> Try again
-            </button>
-          </div>
+          <ErrorState
+            className="py-6"
+            title="Cart unavailable"
+            body={userFacingError(loadError, USER_ERROR.cart)}
+            retry={{ onClick: () => void load() }}
+          />
         )}
         {loading ? (
           <div className="space-y-4">
