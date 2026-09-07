@@ -116,7 +116,7 @@ export function parsePathname(pathname: string, options?: ParsePathnameOptions):
   if (normalized === '/' || normalized === '') {
     return { page: 'home', destinationSlug: null };
   }
-  return { page: 'home', destinationSlug: null };
+  return { page: 'not-found', destinationSlug: null };
 }
 
 export function shouldClearSelectedTour(page: string): boolean {

@@ -2,6 +2,7 @@ import { useState, useEffect, useLayoutEffect, useCallback, lazy, Suspense } fro
 import UnifiedHeader from './components/UnifiedHeader';
 import Footer from './components/Footer';
 import SkipLink from './components/SkipLink';
+import ErrorState from './components/ErrorState';
 import Home from './pages/Home';
 import { TranslationProvider } from './contexts/TranslationContext';
 import { SupplierAuthProvider } from './contexts/SupplierAuthContext';
@@ -259,7 +260,7 @@ function App() {
       }
       return;
     }
-    if (currentPage === 'auth' || currentPage === 'email-confirmed') {
+    if (currentPage === 'auth' || currentPage === 'email-confirmed' || currentPage === 'not-found') {
       return;
     }
     const urlMapping: { [key: string]: string } = {
@@ -349,12 +350,15 @@ function App() {
         title: 'Experiences',
         description: 'Experiences is a reserved category, not mixed into Tours.',
       },
+      'not-found': { title: 'Page not found', description: 'This address is not a Traverion page.' },
     };
     const meta = metaByPage[currentPage];
     if (meta) setPageMetaWithOg(meta.title, meta.description);
     else setPageMetaWithOg('Traverion', 'Tours worldwide.');
 
-    setRobotsNoIndex(currentPage === 'booking-confirmed' || currentPage === 'reset-password');
+    setRobotsNoIndex(
+      currentPage === 'booking-confirmed' || currentPage === 'reset-password' || currentPage === 'not-found'
+    );
 
     const pathMap: Record<string, string> = {
       home: '/', packages: '/packages', stays: '/stays', auth: '/auth', 'reset-password': '/set-password', 'email-confirmed': '/email-confirmed', cart: '/cart', account: '/account', wishlist: '/wishlist', bookings: '/bookings',
@@ -368,6 +372,8 @@ function App() {
         ? `/destinations/${destinationSlug || ''}`
         : currentPage === 'inventory-reserved'
           ? '/experiences'
+          : currentPage === 'not-found'
+            ? window.location.pathname
           : (pathMap[currentPage] ?? '/');
     setCanonicalUrl(path);
   }, [currentPage, destinationSlug, isSupplierArea]);
@@ -538,6 +544,18 @@ function App() {
         return <AdminStaffLogin />;
       case 'admin-app':
         return <AdminGate mode="dashboard-only" />;
+      case 'not-found':
+        return (
+          <div className="min-h-screen bg-paper tv-page">
+            <div className="max-w-lg mx-auto px-4 py-16">
+              <ErrorState
+                title="Page not found"
+                body="This address is not a Traverion page. Check the link, or open Tours."
+                back={{ onClick: () => handleNavigate('packages'), label: 'Browse tours' }}
+              />
+            </div>
+          </div>
+        );
       default:
         return <Home onTourSelect={handleTourSelect} onNavigate={handleNavigate} />;
     }
