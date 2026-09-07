@@ -165,16 +165,23 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     const run = async () => {
       const uid = userRef.current?.id;
       if (!uid) return;
+      const previous = savedToWishlist;
+      const next = !previous;
+      setSavedToWishlist(next);
+      if (next) {
+        setSavePop(true);
+        window.setTimeout(() => setSavePop(false), 280);
+      }
       setWishlistBusy(true);
       try {
         const res = await toggleWishlist(uid, listingId);
-        if (!res.error) {
+        if (res.error) {
+          setSavedToWishlist(previous);
+        } else {
           setSavedToWishlist(res.inWishlist);
-          if (res.inWishlist) {
-            setSavePop(true);
-            window.setTimeout(() => setSavePop(false), 280);
-          }
         }
+      } catch {
+        setSavedToWishlist(previous);
       } finally {
         setWishlistBusy(false);
       }
@@ -184,7 +191,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       return;
     }
     void run();
-  }, [tour?.id, user, requestAuth]);
+  }, [tour?.id, user, requestAuth, savedToWishlist]);
 
   useEffect(() => {
     setTourLoadError(null);

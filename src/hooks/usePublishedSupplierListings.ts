@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { getAllListingsAsync } from '../data/listings';
+import { getAllListingsAsync, peekPublishedListingsCache } from '../data/listings';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 import type { TourPackage } from '../types/tour';
@@ -21,7 +21,9 @@ export function usePublishedSupplierListings(options?: Options): {
   reload: () => void;
 } {
   const emptyOnFirstError = options?.emptyOnFirstError !== false;
-  const [listings, setListings] = useState<TourPackage[] | null>(null);
+  const [listings, setListings] = useState<TourPackage[] | null>(() =>
+    isSupabaseConfigured() ? peekPublishedListingsCache() : null
+  );
   const [error, setError] = useState<string | null>(null);
   const lastReloadAt = useRef(0);
 

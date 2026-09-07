@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Menu, X, User, LogOut, LayoutDashboard, Calendar } from 'lucide-react';
+import { prefetchAuthPage, prefetchMyBookingsPage, prefetchPackagesPage } from '../lib/routePrefetch';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { BRAND_LOGO_SRC } from '../lib/brandAssets';
@@ -107,6 +108,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
             <button
               type="button"
               onClick={() => onNavigate('packages')}
+              onPointerEnter={prefetchPackagesPage}
               className={`lux-flat text-sm font-medium ${
                 currentPage === 'packages' || currentPage === 'tour-details' || currentPage === 'destination'
                   ? 'text-ink'
@@ -125,6 +127,10 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                 onClick={() => setIsUserMenuOpen((o) => !o)}
                 className="lux-tap-target flex flex-col items-center gap-0.5 p-1.5 text-gray-600 hover:text-finland rounded-lg"
                 aria-label="Profile"
+                onPointerEnter={() => {
+                  prefetchAuthPage();
+                  prefetchMyBookingsPage();
+                }}
               >
                 {user ? (
                   <span className="relative w-8 h-8 rounded-full bg-finland/20 text-finland flex items-center justify-center text-sm font-medium border border-gray-200">
@@ -222,6 +228,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
               <button
                 type="button"
                 onClick={() => onNavigate('packages')}
+                onPointerEnter={prefetchPackagesPage}
                 className="tv-btn-primary h-10 px-5 text-sm"
               >
                 Find tours
@@ -230,6 +237,11 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
             <button
               type="button"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              onPointerEnter={() => {
+                prefetchPackagesPage();
+                prefetchAuthPage();
+                prefetchMyBookingsPage();
+              }}
               className="no-lux-interaction lux-tap-target lg:hidden inline-flex h-11 w-11 items-center justify-center text-gray-600 hover:text-finland rounded-lg"
               aria-label={isMobileMenuOpen ? 'Close menu' : 'Menu'}
               aria-expanded={isMobileMenuOpen}
@@ -260,6 +272,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                   onNavigate('packages');
                   setIsMobileMenuOpen(false);
                 }}
+                onPointerEnter={prefetchPackagesPage}
                 className={`lux-flat text-left px-4 py-3 rounded-lg transition-colors duration-300 ease-lux font-medium ${
                   currentPage === 'packages' || currentPage === 'tour-details'
                     ? 'bg-finland/10 text-finland'

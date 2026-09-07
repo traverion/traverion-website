@@ -1,4 +1,6 @@
+import { memo } from 'react';
 import { ArrowRight, MapPin } from 'lucide-react';
+import { prefetchTourDetailsPage } from '../lib/routePrefetch';
 import type { TourPackage } from '../types/tour';
 import type { ListingDiscount } from '../data/supabase-discounts';
 import { getDisplayPriceForTour } from '../lib/discount-display';
@@ -22,7 +24,7 @@ export type PublicListingBrowseCardProps = {
 /**
  * Customer-facing browse card: hero image, location, title, reviews/rating, duration, from-price.
  */
-export function PublicListingBrowseCard({
+export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
   tour,
   index,
   onSelect,
@@ -56,6 +58,7 @@ export function PublicListingBrowseCard({
         }
       }}
       onClick={onSelect}
+      onPointerEnter={prefetchTourDetailsPage}
       className="group relative bg-paper-raised rounded-2xl overflow-hidden cursor-pointer shadow-none hover:shadow-soft-lg hover:-translate-y-0.5 transition-all duration-300 ease-[cubic-bezier(0.33,1,0.68,1)] motion-safe:animate-fade-in-up focus:outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2"
       style={{ animationDelay: `${Math.min(index * 45, 320)}ms` }}
     >
@@ -63,7 +66,11 @@ export function PublicListingBrowseCard({
         <img
           src={tour.image}
           alt={tour.title}
-          loading="lazy"
+          loading={index < 2 ? 'eager' : 'lazy'}
+          fetchPriority={index === 0 ? 'high' : 'low'}
+          decoding="async"
+          width={800}
+          height={640}
           className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.04]"
         />
         <div
@@ -157,4 +164,4 @@ export function PublicListingBrowseCard({
       </div>
     </article>
   );
-}
+});

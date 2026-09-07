@@ -1,12 +1,7 @@
 import { useState, useEffect, useLayoutEffect, useCallback, lazy, Suspense } from 'react';
 import UnifiedHeader from './components/UnifiedHeader';
-import StickyBookingButton from './components/StickyBookingButton';
 import Footer from './components/Footer';
-import SupplierLayout from './components/supplier/SupplierLayout';
 import Home from './pages/Home';
-import Packages from './pages/Packages';
-import MyBookings from './pages/MyBookings';
-import AuthPage from './pages/AuthPage';
 import { TranslationProvider } from './contexts/TranslationContext';
 import { SupplierAuthProvider } from './contexts/SupplierAuthContext';
 import { AuthProvider } from './contexts/AuthContext';
@@ -57,7 +52,24 @@ const Sitemap = lazy(() => import('./pages/Sitemap'));
 const LegalNotice = lazy(() => import('./pages/LegalNotice'));
 const AffiliatePage = lazy(() => import('./pages/AffiliatePage'));
 const ContentCreatorPage = lazy(() => import('./pages/ContentCreatorPage'));
+const Packages = lazy(() => import('./pages/Packages'));
+const MyBookings = lazy(() => import('./pages/MyBookings'));
+const AuthPage = lazy(() => import('./pages/AuthPage'));
 const TourDetails = lazy(() => import('./pages/TourDetails'));
+const SupplierLayout = lazy(() => import('./components/supplier/SupplierLayout'));
+
+function PartnerRouteFallback() {
+  return (
+    <div className="min-h-screen bg-paper" aria-busy="true" aria-label="Loading">
+      <p className="sr-only">Loading</p>
+      <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 pt-10">
+        <div className="h-10 w-48 rounded-lg bg-black/[0.06] animate-pulse" />
+        <div className="mt-8 h-24 rounded-2xl bg-black/[0.04] animate-pulse" />
+        <div className="mt-4 h-24 rounded-2xl bg-black/[0.04] animate-pulse" />
+      </div>
+    </div>
+  );
+}
 
 function RouteFallback() {
   return (
@@ -444,7 +456,9 @@ function App() {
       <TranslationProvider>
         <AuthProvider>
           <SupplierAuthProvider>
-            <SupplierLayout />
+            <Suspense fallback={<PartnerRouteFallback />}>
+              <SupplierLayout />
+            </Suspense>
           </SupplierAuthProvider>
         </AuthProvider>
       </TranslationProvider>
@@ -481,7 +495,6 @@ function App() {
               </div>
             </main>
             <Footer onNavigate={handleNavigate} />
-            <StickyBookingButton onNavigate={handleNavigate} />
             <AuthModal />
           </div>
         )}

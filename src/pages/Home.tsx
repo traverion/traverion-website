@@ -17,6 +17,7 @@ import { SkeletonCardGrid, SkeletonFeaturedHero, SkeletonPlaceGrid } from '../co
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 import { TRAVERION_STANDARD_CANCELLATION_POLICY } from '../types/listingExtras';
 import { HERO_IMG } from '../lib/heroImages';
+import { prefetchPackagesPage } from '../lib/routePrefetch';
 
 const TAG_LABELS: Record<string, string> = {
   'free-cancellation': 'Free cancellation',
@@ -121,7 +122,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
     <div className="min-h-screen bg-paper">
       <section className="relative text-white min-h-[88dvh] flex flex-col justify-end overflow-hidden tv-page">
         <div className="page-hero-media" aria-hidden>
-          <img src={HERO_IMG.vacation} alt="" />
+          <img src={HERO_IMG.vacation} alt="" fetchPriority="high" decoding="async" width={1600} height={1067} />
         </div>
         <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/50 to-black/30" aria-hidden />
         <div className="relative z-10 w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-10 sm:pb-16 page-hero-content">
@@ -134,6 +135,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
           </p>
           <form
             onSubmit={submitSearch}
+            onPointerEnter={prefetchPackagesPage}
             className="bg-paper-raised text-ink rounded-2xl p-2 sm:p-2.5 grid grid-cols-2 sm:grid-cols-[1fr_auto_auto_auto] gap-2 max-w-3xl shadow-soft-xl"
           >
             <label className="sr-only" htmlFor="home-search">Where</label>
@@ -227,7 +229,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                 <div className="absolute bottom-6 left-6 right-6 text-white">
                   <p className="font-display text-2xl mb-2">Search anyway</p>
                   <p className="text-sm text-white/80 mb-4">Date and guests still apply as soon as inventory is live.</p>
-                  <button type="button" onClick={() => goToPackages()} className="tv-btn-secondary">
+                  <button type="button" onClick={() => goToPackages()} onPointerEnter={prefetchPackagesPage} className="tv-btn-secondary">
                     Browse tours
                   </button>
                 </div>
@@ -242,7 +244,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
           <div className="flex items-end justify-between gap-3 mb-8">
             <h2 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Tours</h2>
             {!catalogLoading && !listingsError && allListings.length > 0 ? (
-              <button type="button" onClick={() => goToPackages()} className="lux-flat text-sm font-semibold text-finland">
+              <button type="button" onClick={() => goToPackages()} onPointerEnter={prefetchPackagesPage} className="lux-flat text-sm font-semibold text-finland">
                 All tours <ArrowRight className="w-4 h-4 inline" />
               </button>
             ) : null}

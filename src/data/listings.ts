@@ -36,12 +36,48 @@ export function getAllListings(options: {
   return base;
 }
 
+const PUBLISHED_CATALOG_TTL_MS = 45_000;
+let publishedCatalogCache: { at: number; data: TourPackage[] } | null = null;
+let publishedCatalogInflight: Promise<TourPackage[]> | null = null;
+
+export function peekPublishedListingsCache(): TourPackage[] | null {
+  if (!publishedCatalogCache) return null;
+  if (Date.now() - publishedCatalogCache.at > PUBLISHED_CATALOG_TTL_MS) return null;
+  return publishedCatalogCache.data;
+}
+
+export function invalidatePublishedListingsCache() {
+  publishedCatalogCache = null;
+  publishedCatalogInflight = null;
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('traverion:published-listings-changed', () => {
+    invalidatePublishedListingsCache();
+  });
+}
+
 /** Async: all listings from Supabase (when configured) or localStorage. Use in components that can wait. */
 export async function getAllListingsAsync(options: {
   includeSeed?: boolean;
   includeHolidayPackages?: boolean;
 }): Promise<TourPackage[]> {
   const { includeSeed = SHOW_SEED_LISTINGS, includeHolidayPackages = false } = options;
+  const usePublishedCache = isSupabaseConfigured() && !includeSeed && !includeHolidayPackages;
+  if (usePublishedCache) {
+    const hit = peekPublishedListingsCache();
+    if (hit) return hit;
+    if (publishedCatalogInflight) return publishedCatalogInflight;
+    publishedCatalogInflight = fetchAllListings()
+      .then((data) => {
+        publishedCatalogCache = { at: Date.now(), data };
+        return data;
+      })
+      .finally(() => {
+        publishedCatalogInflight = null;
+      });
+    return publishedCatalogInflight;
+  }
   let base: TourPackage[];
   if (isSupabaseConfigured()) {
     base = await fetchAllListings();
