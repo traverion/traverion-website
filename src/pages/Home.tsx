@@ -18,6 +18,7 @@ import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 import { TRAVERION_STANDARD_CANCELLATION_POLICY } from '../types/listingExtras';
 import { HERO_IMG } from '../lib/heroImages';
 import { prefetchPackagesPage } from '../lib/routePrefetch';
+import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
 
 const TAG_LABELS: Record<string, string> = {
   'free-cancellation': 'Free cancellation',
@@ -63,6 +64,8 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
   }, [allListings]);
 
   const displayedListings = useMemo(() => allListings.slice(0, MAX_RESULTS_HOME), [allListings]);
+  const featuredListing = displayedListings[0];
+  const featuredSrc = featuredListing ? listingHeroImageSrc(featuredListing.image) : undefined;
 
   const displayedIds = useMemo(
     () => displayedListings.map((t) => t.id).filter(isSupabaseListingId),
@@ -280,18 +283,24 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
             />
           ) : (
             <>
-              {displayedListings[0] ? (
+              {featuredListing ? (
                 <button
                   type="button"
-                  onClick={() => onTourSelect(displayedListings[0])}
-                  className="lux-flat relative w-full h-[22rem] sm:h-[28rem] rounded-3xl overflow-hidden mb-6 text-left group"
+                  onClick={() => onTourSelect(featuredListing)}
+                  className="lux-flat relative w-full h-[22rem] sm:h-[28rem] rounded-3xl overflow-hidden mb-6 text-left group bg-ink/20"
                 >
-                  <img src={displayedListings[0].image} alt="" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.03]" />
+                  {featuredSrc ? (
+                    <img
+                      src={featuredSrc}
+                      alt=""
+                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.03]"
+                    />
+                  ) : null}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
                   <div className="absolute bottom-6 left-6 right-6 text-white">
                     <p className="text-xs uppercase tracking-[0.16em] text-white/70 mb-2">Featured</p>
-                    <p className="font-display text-3xl sm:text-4xl">{displayedListings[0].title}</p>
-                    <p className="mt-1 text-sm text-white/80">{displayedListings[0].city || displayedListings[0].destination}</p>
+                    <p className="font-display text-3xl sm:text-4xl">{featuredListing.title}</p>
+                    <p className="mt-1 text-sm text-white/80">{featuredListing.city || featuredListing.destination}</p>
                   </div>
                 </button>
               ) : null}

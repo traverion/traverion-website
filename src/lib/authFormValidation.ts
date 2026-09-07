@@ -6,7 +6,5 @@ export function isValidEmailFormat(value: string): boolean {
 }
 
 export function authInputErrorClasses(hasError: boolean): string {
-  return hasError
-    ? 'border-red-400 focus:border-red-500 focus:ring-red-200'
-    : 'border-gray-200 focus:border-finland focus:ring-finland';
+  return hasError ? 'tv-input shadow-[0_0_0_2px_rgba(185,28,28,0.45)]' : 'tv-input';
 }

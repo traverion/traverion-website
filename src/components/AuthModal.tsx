@@ -326,7 +326,7 @@ export default function AuthModal() {
                     });
                   }}
                   placeholder="First name"
-                  className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 outline-none transition-shadow ${authInputErrorClasses(!!fieldErrors.firstName)}`}
+                  className={authInputErrorClasses(!!fieldErrors.firstName)}
                   autoComplete="given-name"
                   aria-invalid={fieldErrors.firstName ? true : undefined}
                   aria-describedby={fieldErrors.firstName ? 'auth-modal-first-name-err' : undefined}
@@ -356,7 +356,7 @@ export default function AuthModal() {
                     });
                   }}
                   placeholder="Last name"
-                  className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 outline-none transition-shadow ${authInputErrorClasses(!!fieldErrors.lastName)}`}
+                  className={authInputErrorClasses(!!fieldErrors.lastName)}
                   autoComplete="family-name"
                   aria-invalid={fieldErrors.lastName ? true : undefined}
                   aria-describedby={fieldErrors.lastName ? 'auth-modal-last-name-err' : undefined}
@@ -388,7 +388,7 @@ export default function AuthModal() {
                 });
               }}
               placeholder="you@example.com"
-              className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 outline-none transition-shadow ${authInputErrorClasses(!!fieldErrors.email)}`}
+              className={authInputErrorClasses(!!fieldErrors.email)}
               autoComplete="email"
               aria-invalid={fieldErrors.email ? true : undefined}
               aria-describedby={fieldErrors.email ? 'auth-email-err' : undefined}
@@ -433,7 +433,7 @@ export default function AuthModal() {
                   });
                 }}
                 placeholder="+358 40 123 4567"
-                className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 outline-none transition-shadow ${authInputErrorClasses(!!fieldErrors.phoneNumber)}`}
+                className={authInputErrorClasses(!!fieldErrors.phoneNumber)}
                 autoComplete="tel"
                 aria-invalid={fieldErrors.phoneNumber ? true : undefined}
                 aria-describedby={fieldErrors.phoneNumber ? 'auth-phone-err' : undefined}
@@ -467,7 +467,7 @@ export default function AuthModal() {
                     });
                   }}
                   placeholder="Min. 6 characters"
-                  className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 outline-none transition-shadow bg-white ${authInputErrorClasses(!!fieldErrors.password)}`}
+                  className={authInputErrorClasses(!!fieldErrors.password)}
                   autoComplete="new-password"
                   aria-invalid={fieldErrors.password ? true : undefined}
                   aria-describedby={fieldErrors.password ? 'auth-password-err' : undefined}
@@ -497,7 +497,7 @@ export default function AuthModal() {
                     });
                   }}
                   placeholder="Same as above"
-                  className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 outline-none transition-shadow bg-white ${authInputErrorClasses(!!fieldErrors.confirmPassword)}`}
+                  className={authInputErrorClasses(!!fieldErrors.confirmPassword)}
                   autoComplete="new-password"
                   aria-invalid={fieldErrors.confirmPassword ? true : undefined}
                   aria-describedby={fieldErrors.confirmPassword ? 'auth-confirm-err' : undefined}
@@ -529,7 +529,7 @@ export default function AuthModal() {
                   });
                 }}
                 placeholder="••••••••"
-                className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 outline-none transition-shadow ${authInputErrorClasses(!!fieldErrors.password)}`}
+                className={authInputErrorClasses(!!fieldErrors.password)}
                 autoComplete="current-password"
                 aria-invalid={fieldErrors.password ? true : undefined}
                 aria-describedby={fieldErrors.password ? 'auth-password-signin-err' : undefined}

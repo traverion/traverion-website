@@ -529,9 +529,9 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
               <div>
                 <h1 className="font-display text-3xl lg:text-5xl text-ink tracking-tight mb-3">{tour.title}</h1>
                 {tour.subtitle?.trim() && (
-                  <p className="text-lg text-gray-600 mb-3 leading-snug">{tour.subtitle.trim()}</p>
+                  <p className="text-lg text-ink-muted mb-3 leading-snug">{tour.subtitle.trim()}</p>
                 )}
-                <div className="flex items-center text-gray-600 mb-4">
+                <div className="flex items-center text-ink-muted mb-4">
                   <MapPin size={20} className="mr-2 text-finland" />
                   <span>{tour.destination}</span>
                 </div>
@@ -543,7 +543,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                     {review.score ? (
                       <>
                         <Star size={18} className="text-finland fill-finland mr-1 flex-shrink-0" />
-                        <strong className="text-gray-900">{review.score}</strong>
+                          <strong className="text-ink">{review.score}</strong>
                         <span>
                           ({review.count} {review.count === 1 ? 'review' : 'reviews'})
                         </span>

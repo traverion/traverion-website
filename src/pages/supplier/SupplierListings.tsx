@@ -602,22 +602,22 @@ export default function SupplierListings() {
       />
 
       {!canEditListings && (
-        <div className="p-4 rounded-lg bg-slate-50 border border-slate-200 text-slate-800 text-sm">
-          <p className="font-medium text-slate-900">View-only access</p>
-          <p className="mt-1 text-slate-600">
+        <div className="p-4 rounded-2xl bg-black/[0.03] text-ink text-sm">
+          <p className="font-medium text-ink">View-only access</p>
+          <p className="mt-1 text-ink-muted">
             You can browse listings on this page. Creating, editing, or publishing requires an owner, manager, or ops role.
           </p>
         </div>
       )}
 
       {canEditListings && !canPostNewListing && (
-        <div className="p-4 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="p-4 rounded-2xl bg-paper-raised ring-1 ring-black/[0.06] text-ink text-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             {missingBusinessDetails && (
-              <p className="font-semibold text-amber-950">Missing information</p>
+              <p className="font-semibold text-ink">Missing information</p>
             )}
             {missingPayoutForPublish && !missingBusinessDetails && (
-              <p className="font-semibold text-amber-950">
+              <p className="font-semibold text-ink">
                 {!payoutOnFile
                   ? 'Payout bank details required'
                   : (payoutVerificationStatus ?? '').trim().toLowerCase() === 'rejected'
@@ -633,8 +633,8 @@ export default function SupplierListings() {
               {profileGateMessage}
             </p>
             {!missingBusinessDetails && verificationStatus && (
-              <p className="mt-1 text-xs text-amber-800/90">
-                Business: <span className="font-semibold">{verificationStatusLabel(verificationStatus)}</span>
+              <p className="mt-1 text-xs text-ink-faint">
+                Business: <span className="font-semibold text-ink">{verificationStatusLabel(verificationStatus)}</span>
                 {payoutOnFile ? (
                   <>
                     {' · '}
@@ -651,7 +651,7 @@ export default function SupplierListings() {
                 <button
                   type="button"
                   onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/business-profile#supplier-business-company`)}
-                  className="text-xs px-2.5 py-1 rounded-full border border-amber-300 bg-white text-amber-800 hover:bg-amber-100"
+                  className="tv-btn-ghost text-sm"
                 >
                   Complete business profile
                 </button>
@@ -660,7 +660,7 @@ export default function SupplierListings() {
                 <button
                   type="button"
                   onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/business-profile#supplier-business-payout`)}
-                  className="text-xs px-2.5 py-1 rounded-full border border-amber-300 bg-white text-amber-800 hover:bg-amber-100"
+                  className="tv-btn-ghost text-sm"
                 >
                   {payoutOnFile ? 'Payment & payouts' : 'Add IBAN & BIC'}
                 </button>
@@ -669,7 +669,7 @@ export default function SupplierListings() {
                 <button
                   type="button"
                   onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/business-profile#supplier-business-company`)}
-                  className="text-xs px-2.5 py-1 rounded-full border border-amber-300 bg-white text-amber-800 hover:bg-amber-100"
+                  className="tv-btn-ghost text-sm"
                 >
                   Business profile & verification
                 </button>
@@ -679,7 +679,7 @@ export default function SupplierListings() {
           <button
             type="button"
             onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/business-profile`)}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark shrink-0"
+            className="tv-btn-primary shrink-0"
           >
             Open settings
           </button>
@@ -687,11 +687,11 @@ export default function SupplierListings() {
       )}
 
       {publishGate && (
-        <div className="p-4 rounded-lg bg-amber-50 border border-amber-200 text-amber-950 text-sm">
+        <div className="p-4 rounded-2xl bg-paper-raised ring-1 ring-black/[0.06] text-ink text-sm">
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
             <div>
-              <p className="font-medium text-amber-900">Complete these before publishing “{publishGate.title}”</p>
-              <ul className="mt-2 list-disc list-inside space-y-1 text-amber-900/90">
+              <p className="font-medium text-ink">Complete these before publishing “{publishGate.title}”</p>
+              <ul className="mt-2 list-disc list-inside space-y-1 text-ink-muted">
                 {publishGate.blockers.map((line) => (
                   <li key={line}>{line}</li>
                 ))}
@@ -704,7 +704,7 @@ export default function SupplierListings() {
                   openSupplierListingEditor(publishGate.listingId);
                   setPublishGate(null);
                 }}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-finland text-white text-sm font-medium hover:bg-finland-dark"
+                className="tv-btn-primary"
               >
                 <Pencil className="w-4 h-4" />
                 Edit tour
@@ -712,7 +712,7 @@ export default function SupplierListings() {
               <button
                 type="button"
                 onClick={() => setPublishGate(null)}
-                className="px-3 py-2 rounded-lg border border-amber-300 text-amber-900 text-sm hover:bg-amber-100/80"
+                className="tv-btn-ghost"
               >
                 Dismiss
               </button>
@@ -985,19 +985,19 @@ export default function SupplierListings() {
 
       {listingPendingDelete && typeof document !== 'undefined'
         ? createPortal(
-            <div className="fixed inset-0 z-[80] flex items-end justify-center p-0 sm:items-center sm:p-4 sm:pt-[max(1rem,env(safe-area-inset-top))]">
+            <div className="tv-sheet-overlay z-[80]">
               <button
                 type="button"
-                className="absolute inset-0 bg-slate-900/35 backdrop-blur-md"
+                className="absolute inset-0"
                 aria-label="Close"
                 disabled={deleteBusy}
                 onClick={() => !deleteBusy && setListingPendingDelete(null)}
               />
-              <div
+              <aside
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="supplier-delete-listing-title"
-                className="relative z-[81] max-h-[min(calc(100dvh_-_env(safe-area-inset-bottom)_-_0.75rem),92dvh)] w-full max-w-md overflow-hidden rounded-t-2xl border border-gray-200 bg-white shadow-2xl sm:rounded-2xl motion-safe:animate-slide-up sm:motion-safe:animate-none"
+                className="tv-sheet-panel relative z-[81] motion-safe:animate-slide-up"
               >
                 <SupplierModalHeader
                   icon={Trash2}
@@ -1005,14 +1005,14 @@ export default function SupplierListings() {
                   onClose={deleteBusy ? undefined : () => setListingPendingDelete(null)}
                 />
                 <div className="p-4 sm:p-6 overflow-y-auto pb-[max(1rem,env(safe-area-inset-bottom))]">
-                <p className="text-sm text-gray-600">
-                  <span className="font-medium text-gray-900">{listingPendingDelete.title}</span> will be removed from
+                <p className="text-sm text-ink-muted">
+                  <span className="font-medium text-ink">{listingPendingDelete.title}</span> will be removed from
                   your supplier account. This cannot be undone.
                 </p>
                 <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                   <button
                     type="button"
-                    className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-800 hover:bg-gray-50 disabled:opacity-50"
+                    className="tv-btn-ghost"
                     disabled={deleteBusy}
                     onClick={() => setListingPendingDelete(null)}
                   >
@@ -1020,7 +1020,7 @@ export default function SupplierListings() {
                   </button>
                   <button
                     type="button"
-                    className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+                    className="tv-btn-primary"
                     disabled={deleteBusy}
                     onClick={() => void confirmDeleteListing()}
                   >
@@ -1028,7 +1028,7 @@ export default function SupplierListings() {
                   </button>
                 </div>
                 </div>
-              </div>
+              </aside>
             </div>,
             document.body
           )
@@ -1036,19 +1036,19 @@ export default function SupplierListings() {
 
       {listingPendingDeactivate && typeof document !== 'undefined'
         ? createPortal(
-            <div className="fixed inset-0 z-[80] flex items-end justify-center p-0 sm:items-center sm:p-4 sm:pt-[max(1rem,env(safe-area-inset-top))]">
+            <div className="tv-sheet-overlay z-[80]">
               <button
                 type="button"
-                className="absolute inset-0 bg-slate-900/35 backdrop-blur-md"
+                className="absolute inset-0"
                 aria-label="Close"
                 disabled={deactivateBusy}
                 onClick={() => !deactivateBusy && setListingPendingDeactivate(null)}
               />
-              <div
+              <aside
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="supplier-deactivate-listing-title"
-                className="relative z-[81] max-h-[min(calc(100dvh_-_env(safe-area-inset-bottom)_-_0.75rem),92dvh)] w-full max-w-md overflow-hidden rounded-t-2xl border border-gray-200 bg-white shadow-2xl sm:rounded-2xl motion-safe:animate-slide-up sm:motion-safe:animate-none"
+                className="tv-sheet-panel relative z-[81] motion-safe:animate-slide-up"
               >
                 <SupplierModalHeader
                   icon={EyeOff}
@@ -1056,14 +1056,14 @@ export default function SupplierListings() {
                   onClose={deactivateBusy ? undefined : () => setListingPendingDeactivate(null)}
                 />
                 <div className="p-4 sm:p-6 overflow-y-auto pb-[max(1rem,env(safe-area-inset-bottom))]">
-                <p className="text-sm text-gray-600">
-                  <span className="font-medium text-gray-900">{listingPendingDeactivate.title}</span> will be hidden from
+                <p className="text-sm text-ink-muted">
+                  <span className="font-medium text-ink">{listingPendingDeactivate.title}</span> will be hidden from
                   Traverion until you publish it again from this page.
                 </p>
                 <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                   <button
                     type="button"
-                    className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-800 hover:bg-gray-50 disabled:opacity-50"
+                    className="tv-btn-ghost"
                     disabled={deactivateBusy}
                     onClick={() => setListingPendingDeactivate(null)}
                   >
@@ -1071,7 +1071,7 @@ export default function SupplierListings() {
                   </button>
                   <button
                     type="button"
-                    className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-finland px-4 py-2.5 text-sm font-semibold text-white hover:bg-finland-dark disabled:opacity-50"
+                    className="tv-btn-primary"
                     disabled={deactivateBusy}
                     onClick={() => void confirmDeactivateListing()}
                   >
@@ -1079,7 +1079,7 @@ export default function SupplierListings() {
                   </button>
                 </div>
                 </div>
-              </div>
+              </aside>
             </div>,
             document.body
           )

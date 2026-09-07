@@ -11,8 +11,9 @@ import { setPageMetaWithOg } from '../lib/seo';
 import { activities } from '../data/activities';
 import { TourPackage } from '../types/tour';
 import { getReviewAggregatesForListingIds } from '../data/supabase-reviews';
+import { fetchDiscountsByListingIds } from '../data/supabase-discounts';
 import { isSupabaseListingId } from '../lib/discount-display';
-import { ListingCardRating } from '../components/ListingCardRating';
+import { PublicListingBrowseCard } from '../components/PublicListingBrowseCard';
 
 const TAG_LABELS: Record<string, string> = {
   'free-cancellation': 'Free cancellation',
@@ -44,6 +45,9 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
   const [reviewAggregates, setReviewAggregates] = useState<Map<string, { rating: number; count: number }>>(
     () => new Map()
   );
+  const [discountsByListing, setDiscountsByListing] = useState<
+    Map<string, import('../data/supabase-discounts').ListingDiscount[]>
+  >(() => new Map());
   const allListings = useMemo(() => {
     const base =
       isSupabaseConfigured() && supplierListings !== null
@@ -74,13 +78,19 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
   useEffect(() => {
     if (!isSupabaseConfigured() || !listingIdsForReviewsKey) {
       setReviewAggregates(new Map());
+      setDiscountsByListing(new Map());
       return;
     }
     const ids = listingIdsForReviewsKey.split(',');
     let cancelled = false;
-    getReviewAggregatesForListingIds(ids).then((m) => {
-      if (!cancelled) setReviewAggregates(m);
-    });
+    Promise.all([fetchDiscountsByListingIds(ids), getReviewAggregatesForListingIds(ids)]).then(
+      ([discounts, reviews]) => {
+        if (!cancelled) {
+          setDiscountsByListing(discounts);
+          setReviewAggregates(reviews);
+        }
+      }
+    );
     return () => {
       cancelled = true;
     };
@@ -101,7 +111,7 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
 
   return (
     <div className="min-h-screen bg-paper tv-page">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-12 pb-16 motion-safe:animate-fade-in">
         <button
           type="button"
           onClick={onBack}
@@ -110,7 +120,7 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
           <ArrowLeft className="w-4 h-4" />
           Back to all tours
         </button>
-        <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight mb-2">Tours in {label}</h1>
+        <h1 className="font-display text-4xl sm:text-5xl text-ink tracking-tight">Tours in {label}</h1>
         {catalogLoading ? (
           <Skeleton className="h-4 w-40 mb-8" />
         ) : (
@@ -144,61 +154,18 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
           />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {listings.map(tour => (
-              <article
+            {listings.map((tour, index) => (
+              <PublicListingBrowseCard
                 key={tour.id}
-                role="button"
-                tabIndex={0}
-                onClick={() => onTourSelect(tour)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    onTourSelect(tour);
-                  }
-                }}
-                className="stagger-item listing-card bg-white rounded-2xl overflow-hidden border border-gray-100 cursor-pointer group focus:outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2"
-                aria-label={`View ${tour.title}`}
-              >
-                <div className="relative h-52 overflow-hidden">
-                  <img src={tour.image} alt={tour.title} className="listing-card-image w-full h-full object-cover" />
-                  <div className="absolute top-3 left-3 flex flex-wrap gap-2">
-                    {tour.tags?.includes('free-cancellation') && (
-                      <span className="bg-white/95 text-gray-700 text-xs font-medium px-2.5 py-1 rounded-md shadow-sm">
-                        Free cancellation
-                      </span>
-                    )}
-                    {tour.tags?.includes('bestseller') && (
-                      <span className="bg-amber-500 text-white text-xs font-semibold px-2.5 py-1 rounded-md">Bestseller</span>
-                    )}
-                  </div>
-                  <div className="absolute bottom-3 right-3 bg-black/60 text-white text-sm font-semibold px-2.5 py-1 rounded-md">
-                    From {tour.price.currency ?? 'USD'} {tour.price.startingFrom}
-                  </div>
-                </div>
-                <div className="p-4">
-                  <h3 className="font-semibold text-gray-900 mb-1.5 line-clamp-2 group-hover:text-finland transition-colors">
-                    {tour.title}
-                  </h3>
-                  <div className="flex items-center text-gray-500 text-sm mb-2">
-                    <MapPin className="w-4 h-4 mr-1 flex-shrink-0 text-gray-400" />
-                    <span className="truncate">{tour.city ?? tour.destination}</span>
-                  </div>
-                  <ListingCardRating tour={tour} aggregate={reviewAggregates.get(tour.id)} />
-                  {tour.tags && tour.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mt-2">
-                      {tour.tags.filter(t => t !== 'free-cancellation' && t !== 'bestseller').map(tagId => (
-                        <span key={tagId} className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
-                          {TAG_LABELS[tagId] ?? tagId}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  <div className="mt-3 pt-3 border-t border-gray-100">
-                    <span className="text-lg font-bold text-finland">From {tour.price.currency ?? 'USD'} {tour.price.startingFrom}</span>
-                    <span className="text-sm text-gray-500 ml-1">/ person</span>
-                  </div>
-                </div>
-              </article>
+                tour={tour}
+                index={index}
+                onSelect={() => onTourSelect(tour)}
+                discountsByListing={discountsByListing}
+                reviewAggregate={reviewAggregates.get(tour.id)}
+                tagLabels={TAG_LABELS}
+                size="default"
+                showTagPills
+              />
             ))}
           </div>
         )}

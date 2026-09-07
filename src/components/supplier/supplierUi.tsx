@@ -22,8 +22,7 @@ export const SUPPLIER_HERO_STAT_GRID_CLASS =
 export const SUPPLIER_HERO_STAT_GRID_2_CLASS =
   'mt-5 grid w-full min-w-0 grid-cols-2 gap-2 sm:gap-3 border-t border-gray-100 pt-5';
 
-export const SUPPLIER_MODAL_OVERLAY_CLASS =
-  'fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/35 backdrop-blur-md p-0 sm:p-4 sm:pt-[max(1rem,env(safe-area-inset-top))]';
+export const SUPPLIER_MODAL_OVERLAY_CLASS = 'tv-sheet-overlay';
 
 export const SUPPLIER_MODAL_PANEL_CLASS =
   'relative z-10 bg-paper-raised rounded-t-2xl sm:rounded-2xl shadow-xl ring-1 ring-black/[0.08] w-full overflow-hidden motion-safe:animate-slide-up sm:motion-safe:animate-none';
@@ -68,15 +67,15 @@ export function SupplierModalHeader({ icon: Icon, title, subtitle, onClose }: Su
           <Icon className="w-5 h-5 text-finland" aria-hidden />
         </div>
         <div className="min-w-0">
-          <h2 className="text-lg font-semibold text-gray-900 truncate">{title}</h2>
-          {subtitle ? <p className="text-xs text-gray-500 mt-0.5">{subtitle}</p> : null}
+          <h2 className="text-lg font-semibold text-ink truncate">{title}</h2>
+          {subtitle ? <p className="text-xs text-ink-muted mt-0.5">{subtitle}</p> : null}
         </div>
       </div>
       {onClose ? (
         <button
           type="button"
           onClick={onClose}
-          className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 shrink-0"
+          className="p-2 rounded-lg text-ink-muted hover:bg-black/[0.04] shrink-0"
           aria-label="Close"
         >
           <X className="w-5 h-5" aria-hidden />

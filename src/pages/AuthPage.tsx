@@ -375,7 +375,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
             {tab === 'signup' && (
               <>
                 <div>
-                  <label htmlFor="auth-page-first-name" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="auth-page-first-name" className="block text-sm font-medium text-ink mb-1">
                     Name
                   </label>
                   <input
@@ -393,7 +393,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
                       });
                     }}
                     placeholder="First name"
-                    className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 outline-none ${authInputErrorClasses(!!fieldErrors.firstName)}`}
+                    className={authInputErrorClasses(!!fieldErrors.firstName)}
                     autoComplete="given-name"
                     aria-invalid={fieldErrors.firstName ? true : undefined}
                     aria-describedby={fieldErrors.firstName ? 'auth-page-first-name-err' : undefined}
@@ -405,7 +405,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
                   )}
                 </div>
                 <div>
-                  <label htmlFor="auth-page-last-name" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="auth-page-last-name" className="block text-sm font-medium text-ink mb-1">
                     Surname
                   </label>
                   <input
@@ -423,7 +423,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
                       });
                     }}
                     placeholder="Last name"
-                    className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 outline-none ${authInputErrorClasses(!!fieldErrors.lastName)}`}
+                    className={authInputErrorClasses(!!fieldErrors.lastName)}
                     autoComplete="family-name"
                     aria-invalid={fieldErrors.lastName ? true : undefined}
                     aria-describedby={fieldErrors.lastName ? 'auth-page-last-name-err' : undefined}
@@ -437,7 +437,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
               </>
             )}
             <div>
-              <label htmlFor="auth-page-email" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="auth-page-email" className="block text-sm font-medium text-ink mb-1">
                 Email
               </label>
               <input
@@ -455,7 +455,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
                   });
                 }}
                 placeholder="you@example.com"
-                className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 outline-none ${authInputErrorClasses(!!fieldErrors.email)}`}
+                className={authInputErrorClasses(!!fieldErrors.email)}
                 autoComplete="email"
                 aria-invalid={fieldErrors.email ? true : undefined}
                 aria-describedby={fieldErrors.email ? 'auth-page-email-err' : undefined}
@@ -493,7 +493,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
             </div>
             {tab === 'signup' && (
               <div>
-                <label htmlFor="auth-page-phone" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="auth-page-phone" className="block text-sm font-medium text-ink mb-1">
                   Phone number
                 </label>
                 <input
@@ -511,7 +511,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
                     });
                   }}
                   placeholder="+358 40 123 4567"
-                  className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 outline-none ${authInputErrorClasses(!!fieldErrors.phoneNumber)}`}
+                  className={authInputErrorClasses(!!fieldErrors.phoneNumber)}
                   autoComplete="tel"
                   aria-invalid={fieldErrors.phoneNumber ? true : undefined}
                   aria-describedby={fieldErrors.phoneNumber ? 'auth-page-phone-err' : undefined}
@@ -524,10 +524,10 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
               </div>
             )}
             {tab === 'signup' ? (
-              <div className="rounded-xl border border-gray-200 bg-gray-50/80 p-3.5 space-y-2">
-                <p className="text-xs font-medium text-gray-600 uppercase tracking-wide">Choose a password</p>
+              <div className="rounded-2xl bg-black/[0.03] p-3.5 space-y-2">
+                <p className="text-xs font-medium text-ink-faint uppercase tracking-wide">Choose a password</p>
                 <div>
-                  <label htmlFor="auth-page-password" className="block text-xs font-medium text-gray-600 mb-1">
+                  <label htmlFor="auth-page-password" className="block text-xs font-medium text-ink-muted mb-1">
                     Password
                   </label>
                   <input
@@ -545,7 +545,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
                       });
                     }}
                     placeholder="Min. 6 characters"
-                    className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 outline-none bg-white ${authInputErrorClasses(!!fieldErrors.password)}`}
+                    className={authInputErrorClasses(!!fieldErrors.password)}
                     autoComplete="new-password"
                     aria-invalid={fieldErrors.password ? true : undefined}
                     aria-describedby={fieldErrors.password ? 'auth-page-password-err' : undefined}
@@ -557,7 +557,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
                   )}
                 </div>
                 <div>
-                  <label htmlFor="auth-page-confirm" className="block text-xs font-medium text-gray-600 mb-1">
+                  <label htmlFor="auth-page-confirm" className="block text-xs font-medium text-ink-muted mb-1">
                     Confirm password
                   </label>
                   <input
@@ -575,7 +575,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
                       });
                     }}
                     placeholder="Same as above"
-                    className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 outline-none bg-white ${authInputErrorClasses(!!fieldErrors.confirmPassword)}`}
+                    className={authInputErrorClasses(!!fieldErrors.confirmPassword)}
                     autoComplete="new-password"
                     aria-invalid={fieldErrors.confirmPassword ? true : undefined}
                     aria-describedby={fieldErrors.confirmPassword ? 'auth-page-confirm-err' : undefined}
@@ -589,7 +589,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
               </div>
             ) : (
               <div>
-                <label htmlFor="auth-page-password-signin" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="auth-page-password-signin" className="block text-sm font-medium text-ink mb-1">
                   Password
                 </label>
                 <input
@@ -607,7 +607,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
                     });
                   }}
                   placeholder="••••••••"
-                  className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 outline-none ${authInputErrorClasses(!!fieldErrors.password)}`}
+                  className={authInputErrorClasses(!!fieldErrors.password)}
                   autoComplete="current-password"
                   aria-invalid={fieldErrors.password ? true : undefined}
                   aria-describedby={fieldErrors.password ? 'auth-page-password-signin-err' : undefined}
@@ -619,7 +619,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
                 )}
               </div>
             )}
-            {successMessage && <p className="text-sm text-gray-700 bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">{successMessage}</p>}
+            {successMessage && <p className="text-sm text-ink bg-black/[0.03] px-3 py-2 rounded-xl">{successMessage}</p>}
             <button
               type="submit"
               disabled={submitting}

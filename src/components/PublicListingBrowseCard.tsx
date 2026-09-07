@@ -102,21 +102,21 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
             {hasDiscount ? (
               <div className="text-right">
                 {showStrikethrough && (
-                  <span className="block text-xs font-medium text-gray-400 line-through">
+                  <span className="block text-xs font-medium text-ink-faint line-through">
                     {currency} {originalPrice.toFixed(0)}
                   </span>
                 )}
                 <span className="text-lg font-bold leading-tight text-finland">From {currency} {fromAmount.toFixed(0)}</span>
               </div>
             ) : (
-              <span className="text-lg font-bold text-gray-900">From {currency} {originalPrice.toFixed(0)}</span>
+              <span className="text-lg font-bold text-ink">From {currency} {originalPrice.toFixed(0)}</span>
             )}
           </div>
         </div>
       </div>
       <div className={padClass}>
         <h3
-          className={`line-clamp-2 font-semibold leading-snug tracking-tight text-gray-900 transition-colors duration-200 group-hover:text-finland ${
+          className={`line-clamp-2 font-semibold leading-snug tracking-tight text-ink transition-colors duration-200 group-hover:text-finland ${
             size === 'compact' ? 'text-base sm:text-lg' : 'text-lg sm:text-xl'
           }`}
         >
@@ -126,16 +126,16 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
           className={`mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1 rounded-xl px-3 py-2.5 tabular-nums ${
             hasDiscount
               ? 'border border-emerald-200/80 bg-gradient-to-r from-finland/[0.08] to-emerald-50 shadow-sm'
-              : 'border border-gray-100 bg-gray-50/90'
+              : 'border border-black/[0.06] bg-black/[0.03]'
           } ${size === 'compact' ? 'py-2' : ''}`}
           aria-label={hasDiscount ? `From ${currency} ${fromAmount}, ${label}` : `From ${currency} ${originalPrice}`}
         >
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-600">From</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">From</span>
           {showStrikethrough && (
-            <span className="text-sm font-medium text-gray-500 line-through">{currency} {originalPrice.toFixed(0)}</span>
+            <span className="text-sm font-medium text-ink-faint line-through">{currency} {originalPrice.toFixed(0)}</span>
           )}
           <span
-            className={`font-bold tracking-tight ${hasDiscount ? 'text-finland' : 'text-gray-900'} ${size === 'compact' ? 'text-xl' : 'text-2xl'}`}
+            className={`font-bold tracking-tight ${hasDiscount ? 'text-finland' : 'text-ink'} ${size === 'compact' ? 'text-xl' : 'text-2xl'}`}
           >
             {currency} {fromAmount.toFixed(0)}
           </span>
@@ -145,8 +145,8 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
             </span>
           )}
         </div>
-        <div className="mt-2 flex min-w-0 items-center gap-1.5 text-sm font-medium text-gray-700">
-          <MapPin className="h-4 w-4 flex-shrink-0 text-gray-500" aria-hidden />
+        <div className="mt-2 flex min-w-0 items-center gap-1.5 text-sm font-medium text-ink-muted">
+          <MapPin className="h-4 w-4 flex-shrink-0 text-ink-faint" aria-hidden />
           <span className="truncate">{locationLine}</span>
         </div>
         <div className="mt-2.5">
@@ -157,7 +157,7 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
             {extraTags.slice(0, 3).map((tagId) => (
               <span
                 key={tagId}
-                className="rounded-md bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-700"
+                className="rounded-md bg-black/[0.04] px-2 py-0.5 text-[11px] font-medium text-ink-muted"
               >
                 {tagLabels[tagId] ?? tagId}
               </span>

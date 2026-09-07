@@ -76,7 +76,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
       setBooking(row);
       if (row.listing_id) {
         const titles = await fetchListingTitlesByIds([row.listing_id]);
-        setListingTitle(titles[row.listing_id] ?? 'Your experience');
+        setListingTitle(titles[row.listing_id] ?? 'Your tour');
       } else {
         setListingTitle('');
       }
@@ -165,14 +165,14 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-6 py-16 bg-paper">
         <img src={BRAND_LOGO_SRC} alt="Traverion" className="h-9 w-auto mb-8 opacity-90" />
-        <p className="text-gray-800 text-center max-w-md mb-2 font-medium">Sign in to see your confirmation</p>
-        <p className="text-gray-600 text-center max-w-sm text-sm mb-8">
+        <p className="text-ink text-center max-w-md mb-2 font-medium">Sign in to see your confirmation</p>
+        <p className="text-ink-muted text-center max-w-sm text-sm mb-8">
           Your payment was tied to your account. Sign in with the same email to view this booking.
         </p>
         <button
           type="button"
           onClick={goSignIn}
-          className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-finland text-white font-semibold hover:bg-finland-dark"
+          className="tv-btn-primary"
         >
           <LogIn className="w-4 h-4" />
           Sign in
@@ -232,8 +232,8 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                   <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-green-100 text-green-600">
                     <CheckCircle className="w-8 h-8 tv-pop" aria-hidden />
                   </div>
-                  <h1 className="text-xl sm:text-2xl font-semibold text-gray-900 tracking-tight">Booking confirmed</h1>
-                  <p className="mt-2 text-sm text-gray-600 leading-relaxed">
+                  <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Booking confirmed</h1>
+                  <p className="mt-2 text-sm text-ink-muted leading-relaxed">
                     Thank you — your payment went through. The operator may follow up about meeting or pickup details.
                   </p>
                 </>
@@ -242,23 +242,23 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                   <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-amber-50 text-amber-600">
                     <Loader2 className="w-8 h-8 animate-spin" aria-hidden />
                   </div>
-                  <h1 className="text-xl sm:text-2xl font-semibold text-gray-900 tracking-tight">Confirming payment</h1>
-                  <p className="mt-2 text-sm text-gray-600 leading-relaxed">
+                  <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Confirming payment</h1>
+                  <p className="mt-2 text-sm text-ink-muted leading-relaxed">
                     Almost done — we are finalizing your booking. This usually takes a few seconds.
                   </p>
                 </>
               ) : (
                 <>
-                  <h1 className="text-xl sm:text-2xl font-semibold text-gray-900 tracking-tight">Booking received</h1>
-                  <p className="mt-2 text-sm text-gray-600 leading-relaxed">
+                  <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Booking received</h1>
+                  <p className="mt-2 text-sm text-ink-muted leading-relaxed">
                     We saved your booking. If payment is still processing, status will update shortly.
                   </p>
                 </>
               )}
             </div>
 
-            <div className="px-6 py-6 space-y-4 text-sm text-gray-700">
-              <p className="text-base font-semibold text-gray-900">{listingTitle || 'Your experience'}</p>
+            <div className="py-6 space-y-4 text-sm text-ink-muted">
+              <p className="text-base font-semibold text-ink">{listingTitle || 'Your tour'}</p>
               {typeof booking.booking_number === 'number' && booking.booking_number > 0 ? (
                 <p className="text-sm font-mono text-finland font-semibold tracking-wide -mt-1">
                   Booking #{booking.booking_number}
@@ -267,39 +267,39 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
               <div className="flex items-start gap-3">
                 <Calendar className="w-5 h-5 text-finland shrink-0 mt-0.5" aria-hidden />
                 <div>
-                  <p className="font-medium text-gray-900">Date</p>
+                  <p className="font-medium text-ink">Date</p>
                   <p>{dateLabel}</p>
-                  {startHm ? <p className="text-gray-500 mt-0.5">Start {startHm}</p> : null}
+                  {startHm ? <p className="text-ink-faint mt-0.5">Start {startHm}</p> : null}
                 </div>
               </div>
               <div className="flex items-start gap-3">
                 <Users className="w-5 h-5 text-finland shrink-0 mt-0.5" aria-hidden />
                 <div>
-                  <p className="font-medium text-gray-900">Guests</p>
+                  <p className="font-medium text-ink">Guests</p>
                   <p>
                     {booking.guests} {booking.guests === 1 ? 'guest' : 'guests'}
                   </p>
                 </div>
               </div>
               {paid && booking.amount_paid != null && (
-                <p className="text-xs text-gray-500 pt-1 border-t border-gray-100">
+                <p className="text-xs text-ink-faint pt-1 border-t border-black/[0.06]">
                   Amount paid: {(booking.currency ?? 'USD').toUpperCase()} {Number(booking.amount_paid).toFixed(2)}
                 </p>
               )}
             </div>
 
-            <div className="px-6 pb-6 pt-0 flex flex-col gap-3">
+            <div className="pt-2 flex flex-col gap-3">
               <button
                 type="button"
                 onClick={goToBookings}
-                className="w-full py-3.5 rounded-xl bg-finland text-white font-semibold text-center hover:bg-finland-dark transition-colors shadow-sm"
+                className="tv-btn-primary w-full"
               >
-                Check my bookings
+                Check my trips
               </button>
               <button
                 type="button"
                 onClick={() => onNavigate('packages')}
-                className="w-full py-3 rounded-xl border border-gray-200 text-gray-800 font-medium hover:bg-gray-50 transition-colors"
+                className="tv-btn-secondary w-full"
               >
                 Browse more tours
               </button>

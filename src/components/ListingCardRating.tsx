@@ -24,25 +24,25 @@ export function ListingCardRating({ tour, aggregate, compact }: Props) {
   const textSize = compact ? 'text-xs' : 'text-sm';
 
   return (
-    <div className={`flex items-center font-medium ${textSize} text-gray-700`}>
+    <div className={`flex items-center font-medium ${textSize} text-ink`}>
       {hasReal ? (
         <>
           <Star className={`mr-0.5 fill-finland text-finland ${compact ? 'h-3.5 w-3.5' : 'h-4 w-4'}`} />
-          <strong className="text-gray-900">{aggregate.rating}</strong>
-          <span className="ml-1 text-gray-600">({aggregate.count})</span>
+          <strong className="text-ink">{aggregate.rating}</strong>
+          <span className="ml-1 text-ink-muted">({aggregate.count})</span>
         </>
       ) : showSeedRating ? (
         <>
           <Star className={`mr-0.5 fill-finland text-finland ${compact ? 'h-3.5 w-3.5' : 'h-4 w-4'}`} />
-          <strong className="text-gray-900">{tour.rating}</strong>
-          <span className="ml-1 text-gray-600">({tour.reviews})</span>
+          <strong className="text-ink">{tour.rating}</strong>
+          <span className="ml-1 text-ink-muted">({tour.reviews})</span>
         </>
       ) : (
-        <span className={`text-gray-600 ${compact ? 'max-w-[9rem] truncate' : ''}`}>No reviews yet</span>
+        <span className={`text-ink-muted ${compact ? 'max-w-[9rem] truncate' : ''}`}>No reviews yet</span>
       )}
-      <span className="mx-1.5 text-gray-400">·</span>
-      <Clock className={`mr-0.5 text-gray-500 ${compact ? 'h-3 w-3' : 'h-3.5 w-3.5'}`} />
-      <span className="text-gray-800">{tour.duration}</span>
+      <span className="mx-1.5 text-ink-faint">·</span>
+      <Clock className={`mr-0.5 text-ink-muted ${compact ? 'h-3 w-3' : 'h-3.5 w-3.5'}`} />
+      <span className="text-ink">{tour.duration}</span>
     </div>
   );
 }
