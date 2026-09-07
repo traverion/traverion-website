@@ -10,7 +10,9 @@ import {
   CheckCircle,
   XCircle,
   ChevronDown,
+  MessageCircle,
 } from 'lucide-react';
+import EmptyState from '../components/EmptyState';
 import { useAuth } from '../contexts/AuthContext';
 import LuxuryButton from '../components/ui/LuxuryButton';
 import { getListingById, getListingByIdAsync } from '../data/listings';
@@ -845,7 +847,12 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="font-display text-2xl sm:text-3xl text-ink mb-6">Reviews</h2>
           {reviews.length === 0 && !showReviewForm && (
-            <p className="text-ink-muted mb-6">No reviews yet. Be the first to leave one after your tour.</p>
+            <EmptyState
+              icon={MessageCircle}
+              className="py-4"
+              title="No reviews yet"
+              body="Guests who have taken this tour have not left a review. That is normal for a new listing. You can write one after your trip."
+            />
           )}
           <div className="space-y-6 mb-8">
             {reviews.map((r) => (

@@ -11,6 +11,7 @@ import {
   RefreshCw,
   Trash2,
   Users,
+  CalendarDays,
 } from 'lucide-react';
 import type { TourPackage } from '../../types/tour';
 import { LISTING_PLACEHOLDER_IMAGE } from '../../lib/listingQualityScore';
@@ -34,6 +35,8 @@ import { decrementAvailabilityBooked } from '../../data/supabase-availability';
 import { fetchMyListings, pgTimeToHm } from '../../data/supabase-listings';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { canManageBookings } from '../../lib/supplierTeamRoles';
+import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
+import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 
 const BOOKINGS_PAGE_SIZE = 10;
 
@@ -546,13 +549,24 @@ export default function SupplierBookings() {
         </div>
       ) : bookings.length === 0 ? (
         <SupplierEmptyState
+          icon={CalendarDays}
           title="No bookings yet"
-          body="When travelers book your tours, they appear here."
+          body="No traveler has booked your tours yet. That is normal until a listing is live and someone checks out. When they do, bookings appear here."
+          action={
+            <button
+              type="button"
+              onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/listings`)}
+              className="tv-btn-primary"
+            >
+              View listings
+            </button>
+          }
         />
       ) : filteredBookings.length === 0 ? (
         <SupplierEmptyState
+          icon={CalendarDays}
           title="Nothing in this view"
-          body="Try another tab, date range, or search."
+          body="You have bookings, but none match this tab, date range, or search. That is a filter — not a missing page."
         />
       ) : (
         <div className="space-y-4">

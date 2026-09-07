@@ -9,6 +9,7 @@ import {
   ChevronDown,
   ArrowLeft,
   CheckCircle2,
+  CalendarDays,
 } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import {
@@ -889,13 +890,15 @@ export default function SupplierPickupPlanner() {
         </div>
       ) : activeBookingsCount === 0 ? (
         <SupplierEmptyState
+          icon={CalendarDays}
           title="No bookings yet"
-          body="When travelers book your tours, pickup times and meeting copy show up here."
+          body="Pickup times show up after a traveler books. You have none yet — that is normal until a tour is live and booked."
         />
       ) : listBookings.length === 0 ? (
         <SupplierEmptyState
+          icon={CalendarDays}
           title="Nothing in this view"
-          body="Clear the dates, listing, or pickup-copy filter to see more bookings. Cancelled bookings stay hidden."
+          body="You have bookings, but none match these dates, listing, or pickup filter. Cancelled bookings stay hidden. Clear filters to see the rest."
           action={
             <button
               type="button"
@@ -906,7 +909,7 @@ export default function SupplierPickupPlanner() {
                 setNeedsPickupOnly(false);
                 setSortDate('asc');
               }}
-              className="tv-btn-ghost"
+              className="tv-btn-primary"
             >
               Clear filters
             </button>

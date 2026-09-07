@@ -1,6 +1,7 @@
 import { useEffect, type ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { X } from 'lucide-react';
+import EmptyState from '../EmptyState';
 
 /** Full-width supplier portal pages — fills the main column on desktop, fluid on mobile. */
 export const SUPPLIER_PAGE_CLASS = 'w-full min-w-0 max-w-full motion-safe:animate-fade-in';
@@ -96,21 +97,19 @@ export function SupplierListSkeleton({ rows = 3 }: { rows?: number }) {
 }
 
 export function SupplierEmptyState({
+  icon,
   title,
   body,
   action,
+  className,
 }: {
+  icon?: LucideIcon;
   title: string;
   body: string;
   action?: ReactNode;
+  className?: string;
 }) {
-  return (
-    <div className="py-16 sm:py-24 max-w-md">
-      <h2 className="font-display text-2xl sm:text-3xl text-ink">{title}</h2>
-      <p className="mt-3 text-sm sm:text-base text-ink-muted leading-relaxed">{body}</p>
-      {action ? <div className="mt-6">{action}</div> : null}
-    </div>
-  );
+  return <EmptyState icon={icon} title={title} body={body} action={action} className={className} />;
 }
 
 export function SupplierStatSkeletonGrid({ count = 4 }: { count?: number }) {

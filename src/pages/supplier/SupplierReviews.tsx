@@ -167,8 +167,9 @@ export default function SupplierReviews() {
         <SupplierListSkeleton rows={3} />
       ) : reviews.length === 0 ? (
         <SupplierEmptyState
+          icon={Star}
           title="No reviews yet"
-          body="When guests rate a tour, their feedback appears here."
+          body="Guests have not rated a tour yet. That is normal for new listings. Feedback appears here after a trip."
         />
       ) : (
         <div className="space-y-4 sm:space-y-5">
@@ -239,17 +240,17 @@ export default function SupplierReviews() {
               </div>
 
           {filteredReviews.length === 0 ? (
-            <div className="max-w-md py-8">
-              <p className="font-display text-2xl text-ink">No reviews match</p>
-              <p className="text-sm text-ink-muted mt-2">Try another listing, rating, or reply status.</p>
-              <button
-                type="button"
-                onClick={clearFilters}
-                className="tv-btn-ghost mt-4"
-              >
-                Clear filters
-              </button>
-            </div>
+            <SupplierEmptyState
+              icon={Star}
+              className="py-8"
+              title="No reviews match"
+              body="You have reviews, but none match this listing, rating, or reply filter. Clear filters to see all of them."
+              action={
+                <button type="button" onClick={clearFilters} className="tv-btn-primary">
+                  Clear filters
+                </button>
+              }
+            />
           ) : (
           <div className="divide-y divide-black/[0.06]">
           {filteredReviews.map((r) => (

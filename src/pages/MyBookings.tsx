@@ -3,7 +3,8 @@
  * RLS ensures only rows where guest_email = auth user email are returned.
  */
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { LogIn, RefreshCw, ArrowLeft } from 'lucide-react';
+import { LogIn, RefreshCw, ArrowLeft, CalendarDays } from 'lucide-react';
+import EmptyState from '../components/EmptyState';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import {
@@ -228,18 +229,24 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
       <div className="min-h-screen bg-paper pt-20">
         <div className="max-w-xl mx-auto px-4 py-12 pb-16">
           <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Trips</h1>
-          <p className="mt-2 text-ink-muted">Log in to see tours you’ve booked.</p>
-          <button
-            type="button"
-            onClick={() => {
-              window.history.pushState({}, '', '/log-in?next=account');
-              onNavigate('auth');
-            }}
-            className="mt-8 inline-flex items-center gap-2 px-6 py-3 rounded-full bg-finland text-white font-medium hover:bg-finland-dark"
-          >
-            <LogIn className="w-5 h-5" />
-            Log in
-          </button>
+          <EmptyState
+            icon={LogIn}
+            className="pt-6 pb-0"
+            title="Log in to see your trips"
+            body="Bookings are tied to your traveler account. You have not signed in, so there is nothing to show."
+            action={
+              <button
+                type="button"
+                onClick={() => {
+                  window.history.pushState({}, '', '/log-in?next=account');
+                  onNavigate('auth');
+                }}
+                className="tv-btn-primary"
+              >
+                Log in
+              </button>
+            }
+          />
         </div>
       </div>
     );
@@ -315,17 +322,16 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
         {loading ? (
           <p className="text-ink-muted">Loading your trips…</p>
         ) : bookings.length === 0 ? (
-          <div className="max-w-md py-8">
-            <h2 className="font-display text-2xl text-ink">No trips yet</h2>
-            <p className="mt-3 text-sm text-ink-muted">When you book a tour, it will show up here.</p>
-            <button
-              type="button"
-              onClick={() => onNavigate('packages')}
-              className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-finland text-white font-medium hover:bg-finland-dark"
-            >
-              Browse tours
-            </button>
-          </div>
+          <EmptyState
+            icon={CalendarDays}
+            title="No trips yet"
+            body="You have not booked a tour, so this list is empty. That is normal. When you complete a booking, it appears here."
+            action={
+              <button type="button" onClick={() => onNavigate('packages')} className="tv-btn-primary">
+                Browse tours
+              </button>
+            }
+          />
         ) : (
           <div className="space-y-6">
             <div className="flex gap-1 rounded-full bg-black/[0.04] p-1 w-fit">
@@ -347,20 +353,31 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
               ))}
             </div>
             {visibleBookings.length === 0 ? (
-              <div className="py-8 max-w-md">
-                <h2 className="font-display text-2xl text-ink">
-                  {tripView === 'upcoming'
+              <EmptyState
+                icon={CalendarDays}
+                className="py-8"
+                title={
+                  tripView === 'upcoming'
                     ? 'No upcoming trips'
                     : tripView === 'past'
                       ? 'No past trips'
-                      : 'No cancelled trips'}
-                </h2>
-                <p className="mt-3 text-sm text-ink-muted">
-                  {tripView === 'upcoming'
-                    ? 'Book a tour and it will appear here.'
-                    : 'Nothing in this list right now.'}
-                </p>
-              </div>
+                      : 'No cancelled trips'
+                }
+                body={
+                  tripView === 'upcoming'
+                    ? 'Nothing is scheduled. If you have trips, they may be under Past. Book a tour to add one here.'
+                    : tripView === 'past'
+                      ? 'You have no completed trips in this list yet. That is normal until a booked date has passed.'
+                      : 'You have not cancelled a booking. That is a good sign — this tab stays empty until you do.'
+                }
+                action={
+                  tripView === 'upcoming' ? (
+                    <button type="button" onClick={() => onNavigate('packages')} className="tv-btn-primary">
+                      Browse tours
+                    </button>
+                  ) : undefined
+                }
+              />
             ) : (
           <div className="divide-y divide-black/[0.06]">
             {visibleBookings.map((b) => {

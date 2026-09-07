@@ -2,8 +2,9 @@
  * Consumer: saved items. Booking happens on the experience page via Stripe checkout.
  */
 import { useState, useEffect, useCallback } from 'react';
-import { LogIn, ArrowLeft, Trash2, RefreshCw } from 'lucide-react';
+import { LogIn, ArrowLeft, Trash2, RefreshCw, ShoppingBag } from 'lucide-react';
 import { SkeletonListItem } from '../components/ui/Skeleton';
+import EmptyState from '../components/EmptyState';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { fetchCartWithListings, removeFromCart, type CartItemWithListing } from '../data/supabase-cart';
@@ -61,10 +62,17 @@ export default function CartPage({ onNavigate, onBookTour }: CartPageProps) {
       <div className="min-h-screen bg-paper pt-20">
         <div className="max-w-xl mx-auto px-4 py-12">
           <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Cart</h1>
-          <p className="mt-2 text-ink-muted">Cart is available only in the live app. You can still browse and book tours.</p>
-          <button type="button" onClick={() => onNavigate('packages')} className="tv-btn-primary mt-8">
-            Browse tours
-          </button>
+          <EmptyState
+            icon={ShoppingBag}
+            className="pt-6 pb-0"
+            title="Cart needs the live app"
+            body="Saved tours are only available when Traverion is connected. You can still browse and book."
+            action={
+              <button type="button" onClick={() => onNavigate('packages')} className="tv-btn-primary">
+                Browse tours
+              </button>
+            }
+          />
         </div>
       </div>
     );
@@ -75,18 +83,24 @@ export default function CartPage({ onNavigate, onBookTour }: CartPageProps) {
       <div className="min-h-screen bg-paper pt-20">
         <div className="max-w-xl mx-auto px-4 py-12">
           <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Cart</h1>
-          <p className="mt-2 text-ink-muted">Log in to see tours you saved. Booking happens on the tour page.</p>
-          <button
-            type="button"
-            onClick={() => {
-              window.history.pushState({}, '', '/sign-up?next=cart');
-              onNavigate('auth');
-            }}
-            className="tv-btn-primary mt-8"
-          >
-            <LogIn className="w-5 h-5" />
-            Log in
-          </button>
+          <EmptyState
+            icon={LogIn}
+            className="pt-6 pb-0"
+            title="Log in to see saved tours"
+            body="Cart is tied to your traveler account. You have not signed in, so there is nothing to show. Booking still happens on the tour page."
+            action={
+              <button
+                type="button"
+                onClick={() => {
+                  window.history.pushState({}, '', '/sign-up?next=cart');
+                  onNavigate('auth');
+                }}
+                className="tv-btn-primary"
+              >
+                Log in
+              </button>
+            }
+          />
         </div>
       </div>
     );
@@ -124,13 +138,16 @@ export default function CartPage({ onNavigate, onBookTour }: CartPageProps) {
             ))}
           </div>
         ) : items.length === 0 ? (
-          <div className="max-w-md py-8">
-            <h2 className="font-display text-2xl text-ink">Cart is empty</h2>
-            <p className="mt-3 text-sm text-ink-muted">Save a tour, then book it from the listing.</p>
-            <button type="button" onClick={() => onNavigate('packages')} className="tv-btn-primary mt-6">
-              Browse tours
-            </button>
-          </div>
+          <EmptyState
+            icon={ShoppingBag}
+            title="Cart is empty"
+            body="You have not saved a tour yet. That is normal until you find one you want. Save from a listing, then book it there — checkout is not on this page."
+            action={
+              <button type="button" onClick={() => onNavigate('packages')} className="tv-btn-primary">
+                Browse tours
+              </button>
+            }
+          />
         ) : (
           <div className="divide-y divide-black/[0.06]">
             {items.map((item) => (

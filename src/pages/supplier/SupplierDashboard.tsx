@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { SUPPLIER_PAGE_CLASS } from '../../components/supplier/supplierUi';
+import { SUPPLIER_PAGE_CLASS, SupplierEmptyState } from '../../components/supplier/supplierUi';
+import { CalendarDays } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { fetchMyListings } from '../../data/supabase-listings';
 import { fetchBookingsForSupplier, type BookingRow } from '../../data/supabase-bookings';
@@ -193,10 +194,21 @@ export default function SupplierDashboard({ onNavigateToBookings }: SupplierDash
         {dashboardLoading && publishedListingsCount === null ? (
           <p className="text-ink-muted text-sm">Loading…</p>
         ) : todayScheduleRows.length === 0 ? (
-          <div className="max-w-md">
-            <p className="font-display text-2xl text-ink">No operations today</p>
-            <p className="mt-2 text-sm text-ink-muted">When you have a tour running today, guests show up here.</p>
-          </div>
+          <SupplierEmptyState
+            icon={CalendarDays}
+            className="py-4"
+            title="No operations today"
+            body="Nothing is running today. That is a quiet day, not a missing schedule. Guests show up here when a tour is booked for today."
+            action={
+              <button
+                type="button"
+                onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/calendar`)}
+                className="tv-btn-primary"
+              >
+                Open calendar
+              </button>
+            }
+          />
         ) : (
           <ul className="space-y-4">
             {todayScheduleRows.map((row) => (

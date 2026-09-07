@@ -8,6 +8,7 @@ import {
   AlertCircle,
   RefreshCw,
   Cog,
+  Map,
 } from 'lucide-react';
 import { TourPackage } from '../../types/tour';
 import { getSupplierListings, setSupplierListings } from '../../data/listings';
@@ -781,8 +782,9 @@ export default function SupplierListings() {
         </div>
       ) : listings.length === 0 && !showForm ? (
         <SupplierEmptyState
+          icon={Map}
           title="No listings yet"
-          body="Start with a tour. Photos, price, and meeting point — then publish when you’re ready. Stays will be available here later."
+          body="You have not created a tour. That is the starting point — Traverion does not add sample listings. Photos, price, and meeting point first; publish when you are ready. Stays will be available here later."
           action={
             <button
               type="button"

@@ -158,8 +158,9 @@ export default function SupplierDiscountsOffers() {
         <SupplierListSkeleton rows={3} />
       ) : listings.length === 0 ? (
         <SupplierEmptyState
+          icon={MapPin}
           title="No listings yet"
-          body="Add and publish a listing with at least one bookable option, then you can attach timed discounts here."
+          body="Offers attach to a published tour. You have no listings yet, so this page is empty. That is expected until you create one."
           action={
             <button type="button" onClick={goToListings} className="tv-btn-primary">
               Open listings
@@ -184,8 +185,9 @@ export default function SupplierDiscountsOffers() {
 
             {rows.length === 0 ? (
               <SupplierEmptyState
+                icon={Tag}
                 title="No offers yet"
-                body="Create a timed discount on a published listing. It will appear on the public tour page."
+                body="You have listings, but no timed discounts. That is normal. Create one on a published tour and it will show on the public tour page."
                 action={
                   canEdit ? (
                     <button type="button" onClick={openNew} className="tv-btn-primary">

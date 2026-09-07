@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { AlertCircle, RefreshCw } from 'lucide-react';
+import { AlertCircle, RefreshCw, Wallet } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { fetchSupplierEarnings, SupplierEarning } from '../../data/supabase-earnings';
 import { fetchSupplierProfile } from '../../data/supabase-supplier-profile';
-import { SUPPLIER_PAGE_CLASS, SupplierListSkeleton } from '../../components/supplier/supplierUi';
+import { SUPPLIER_PAGE_CLASS, SupplierEmptyState, SupplierListSkeleton } from '../../components/supplier/supplierUi';
 import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 
@@ -133,19 +133,20 @@ export default function SupplierEarnings() {
       {loading ? (
         <SupplierListSkeleton rows={3} />
       ) : !hasMoney ? (
-        <div className="max-w-md py-8">
-          <p className="font-display text-2xl text-ink">No payouts yet</p>
-          <p className="mt-2 text-sm text-ink-muted leading-relaxed">
-            When travelers complete paid bookings, pending and paid amounts appear here. Traverion does not invent balances.
-          </p>
-          <button
-            type="button"
-            onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/business-profile#supplier-business-payout`)}
-            className="tv-btn-secondary mt-6"
-          >
-            Payout account
-          </button>
-        </div>
+        <SupplierEmptyState
+          icon={Wallet}
+          title="No payouts yet"
+          body="No traveler has completed a paid booking, so there is nothing to pay out. Traverion does not invent balances. Add payout details so you are ready when the first booking lands."
+          action={
+            <button
+              type="button"
+              onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/business-profile#supplier-business-payout`)}
+              className="tv-btn-primary"
+            >
+              Payout account
+            </button>
+          }
+        />
       ) : (
         <>
           <section className="mb-12">
@@ -198,7 +199,12 @@ export default function SupplierEarnings() {
               </div>
             </div>
             {filteredEarnings.length === 0 ? (
-              <p className="text-sm text-ink-muted">No rows for this filter.</p>
+              <SupplierEmptyState
+                icon={Wallet}
+                className="py-6"
+                title="No rows for this filter"
+                body="Payout history exists, but nothing matches this status. Switch to All to see every period."
+              />
             ) : (
               <ul className="divide-y divide-black/[0.06]">
                 {filteredEarnings.map((e) => (

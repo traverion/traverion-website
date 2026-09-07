@@ -1,4 +1,4 @@
-import { ArrowRight, Search, ShieldCheck } from 'lucide-react';
+import { ArrowRight, Search, ShieldCheck, Compass } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import { getAllListings, SHOW_SEED_LISTINGS } from '../data/listings';
 import { getDestinationsFromListings } from '../data/activities';
@@ -11,6 +11,7 @@ import { getReviewAggregatesForListingIds } from '../data/supabase-reviews';
 import { isSupabaseListingId } from '../lib/discount-display';
 import { PublicListingBrowseCard } from '../components/PublicListingBrowseCard';
 import { supplierPortalHref } from '../lib/partnerHost';
+import EmptyState from '../components/EmptyState';
 import { TRAVERION_STANDARD_CANCELLATION_POLICY } from '../types/listingExtras';
 import { HERO_IMG } from '../lib/heroImages';
 
@@ -239,7 +240,16 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
             ) : null}
           </div>
           {allListings.length === 0 ? (
-            <p className="text-ink-muted max-w-md">Nothing published yet. That is honest — not a demo catalog.</p>
+            <EmptyState
+              icon={Compass}
+              title="No tours yet"
+              body="Nothing is live on Traverion right now. That is normal — we do not fill this page with sample listings. When an operator publishes, tours appear here."
+              action={
+                <a href={supplierPortalHref('/login')} className="tv-btn-primary inline-flex">
+                  List your tours
+                </a>
+              }
+            />
           ) : (
             <>
               {displayedListings[0] ? (

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { fetchMyListings } from '../../data/supabase-listings';
 import { fetchBookingsForSupplier, type BookingRow } from '../../data/supabase-bookings';
@@ -224,8 +224,9 @@ export default function SupplierAvailability() {
         </div>
       ) : listings.length === 0 ? (
         <SupplierEmptyState
+          icon={CalendarDays}
           title="Create a listing first"
-          body="Calendar shows departures and guests after you have a tour."
+          body="Calendar shows departures and guests after you have a tour. You have none yet — that is the first step, not a broken calendar."
           action={
             <button
               type="button"

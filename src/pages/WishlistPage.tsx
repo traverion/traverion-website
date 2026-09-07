@@ -2,8 +2,9 @@
  * Consumer: saved listings (wishlist). Requires login when Supabase is configured.
  */
 import { useState, useEffect, useCallback } from 'react';
-import { LogIn, ArrowLeft, Trash2, RefreshCw } from 'lucide-react';
+import { LogIn, ArrowLeft, Trash2, RefreshCw, Heart } from 'lucide-react';
 import { SkeletonListItem } from '../components/ui/Skeleton';
+import EmptyState from '../components/EmptyState';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { fetchWishlistListingIds, removeFromWishlist } from '../data/supabase-wishlist';
@@ -61,10 +62,17 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
       <div className="min-h-screen bg-paper pt-20">
         <div className="max-w-xl mx-auto px-4 py-12">
           <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Wishlist</h1>
-          <p className="mt-2 text-ink-muted">Saved tours are available only in the live app. You can still browse tours.</p>
-          <button type="button" onClick={() => onNavigate('packages')} className="tv-btn-primary mt-8">
-            Browse tours
-          </button>
+          <EmptyState
+            icon={Heart}
+            className="pt-6 pb-0"
+            title="Saved tours need the live app"
+            body="Wishlist is only available when Traverion is connected. You can still browse tours."
+            action={
+              <button type="button" onClick={() => onNavigate('packages')} className="tv-btn-primary">
+                Browse tours
+              </button>
+            }
+          />
         </div>
       </div>
     );
@@ -75,18 +83,24 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
       <div className="min-h-screen bg-paper pt-20">
         <div className="max-w-xl mx-auto px-4 py-12">
           <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Wishlist</h1>
-          <p className="mt-2 text-ink-muted">Log in to save tours and see them here.</p>
-          <button
-            type="button"
-            onClick={() => {
-              window.history.pushState({}, '', '/sign-up?next=wishlist');
-              onNavigate('auth');
-            }}
-            className="tv-btn-primary mt-8"
-          >
-            <LogIn className="w-5 h-5" />
-            Log in
-          </button>
+          <EmptyState
+            icon={LogIn}
+            className="pt-6 pb-0"
+            title="Log in to see saved tours"
+            body="Wishlist is tied to your traveler account. You have not signed in, so this list is empty."
+            action={
+              <button
+                type="button"
+                onClick={() => {
+                  window.history.pushState({}, '', '/sign-up?next=wishlist');
+                  onNavigate('auth');
+                }}
+                className="tv-btn-primary"
+              >
+                Log in
+              </button>
+            }
+          />
         </div>
       </div>
     );
@@ -124,13 +138,16 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
             ))}
           </div>
         ) : listings.length === 0 ? (
-          <div className="max-w-md py-8">
-            <h2 className="font-display text-2xl text-ink">Nothing saved yet</h2>
-            <p className="mt-3 text-sm text-ink-muted">Save a tour while browsing and it will show up here.</p>
-            <button type="button" onClick={() => onNavigate('packages')} className="tv-btn-primary mt-6">
-              Browse tours
-            </button>
-          </div>
+          <EmptyState
+            icon={Heart}
+            title="Nothing saved yet"
+            body="Your wishlist is empty because you have not saved a tour. That is expected. Save one while browsing and it will show up here."
+            action={
+              <button type="button" onClick={() => onNavigate('packages')} className="tv-btn-primary">
+                Browse tours
+              </button>
+            }
+          />
         ) : (
           <div className="divide-y divide-black/[0.06]">
             {listings.map((tour) => (

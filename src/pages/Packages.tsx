@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useDeferredValue, useRef } from 'react';
-import { Search, Filter, X } from 'lucide-react';
+import { Search, Filter, X, Compass } from 'lucide-react';
 import { getAllListings, SHOW_SEED_LISTINGS, durationToMinutes } from '../data/listings';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { usePublishedSupplierListings } from '../hooks/usePublishedSupplierListings';
@@ -16,6 +16,7 @@ import { getPartySizeBounds } from '../lib/booking-flow';
 import { SkeletonCardGrid } from '../components/ui/Skeleton';
 import { PublicListingBrowseCard } from '../components/PublicListingBrowseCard';
 import { supplierPortalHref } from '../lib/partnerHost';
+import EmptyState from '../components/EmptyState';
 
 type SortOption = 'recommended' | 'price-asc' | 'price-desc' | 'rating' | 'duration';
 
@@ -531,15 +532,18 @@ export default function Packages({ onTourSelect }: PackagesProps) {
           ))}
         </div>
         ) : allListings.length > 0 ? (
-              <div className="py-16 max-w-md">
-                <h3 className="font-display text-2xl text-ink">No tours match</h3>
-                <p className="mt-2 text-ink-muted">Change the search or clear filters.</p>
-                {hasActiveFilters ? (
-                  <button type="button" onClick={clearAllFilters} className="tv-btn-primary mt-6">
-                    Clear filters
-                  </button>
-                ) : null}
-              </div>
+              <EmptyState
+                icon={Search}
+                title="No tours match"
+                body="Nothing in the catalog fits this search. That is a filter result, not a missing page. Change the query or clear filters to see live tours again."
+                action={
+                  hasActiveFilters ? (
+                    <button type="button" onClick={clearAllFilters} className="tv-btn-primary">
+                      Clear filters
+                    </button>
+                  ) : undefined
+                }
+              />
         ) : null}
 
         {isSupabaseConfigured() && supplierListings === null ? (
@@ -547,15 +551,16 @@ export default function Packages({ onTourSelect }: PackagesProps) {
             <SkeletonCardGrid count={6} />
           </div>
         ) : allListings.length === 0 ? (
-          <div className="py-16 max-w-md">
-            <h3 className="font-display text-2xl text-ink">No tours published yet</h3>
-            <p className="mt-2 text-ink-muted">
-              When operators publish, they appear here. If you run tours, you can list yours today.
-            </p>
-            <a href={supplierPortalHref('/login')} className="tv-btn-primary mt-6 inline-flex">
-              List your tours
-            </a>
-          </div>
+          <EmptyState
+            icon={Compass}
+            title="No tours published yet"
+            body="Operators have not published live tours. That is expected — Traverion does not show a demo catalog. If you run tours, you can list yours today."
+            action={
+              <a href={supplierPortalHref('/login')} className="tv-btn-primary inline-flex">
+                List your tours
+              </a>
+            }
+          />
         ) : null}
 
         <p className="mt-16 text-sm text-ink-faint max-w-lg">

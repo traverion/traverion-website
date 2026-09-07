@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect } from 'react';
 import { ArrowLeft, MapPin } from 'lucide-react';
+import EmptyState from '../components/EmptyState';
 import { getAllListings, SHOW_SEED_LISTINGS } from '../data/listings';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { usePublishedSupplierListings } from '../hooks/usePublishedSupplierListings';
@@ -93,32 +94,32 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-20">
+    <div className="min-h-screen bg-paper pt-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <button
           type="button"
           onClick={onBack}
-          className="flex items-center gap-2 text-gray-600 hover:text-finland mb-6"
+          className="tv-btn-ghost mb-6 -ml-2"
         >
           <ArrowLeft className="w-4 h-4" />
           Back to all tours
         </button>
-        <h1 className="text-3xl font-semibold text-gray-900 mb-2">Tours in {label}</h1>
-        <p className="text-gray-600 mb-8">
+        <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight mb-2">Tours in {label}</h1>
+        <p className="text-ink-muted mb-8">
           {listings.length} {listings.length === 1 ? 'tour' : 'tours'} in this destination
         </p>
 
         {listings.length === 0 ? (
-          <div className="text-center py-16 bg-white rounded-2xl border border-gray-100">
-            <p className="text-gray-500">No tours in this destination yet.</p>
-            <button
-              type="button"
-              onClick={onBack}
-              className="mt-4 text-finland font-semibold hover:text-finland-dark"
-            >
-              View all tours
-            </button>
-          </div>
+          <EmptyState
+            icon={MapPin}
+            title="No tours here yet"
+            body={`Nothing is published in ${label} right now. That is normal until an operator lists a tour for this place.`}
+            action={
+              <button type="button" onClick={onBack} className="tv-btn-primary">
+                View all tours
+              </button>
+            }
+          />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {listings.map(tour => (
