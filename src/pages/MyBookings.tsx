@@ -7,6 +7,7 @@ import { LogIn, RefreshCw, ArrowLeft, CalendarDays } from 'lucide-react';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
+import { travelerLoginHref } from '../lib/travelerAuthLinks';
 import { useDialogFocus } from '../hooks/useDialogFocus';
 import { SkeletonListItem, SkeletonConsumerPage } from '../components/ui/Skeleton';
 import { useAuth } from '../contexts/AuthContext';
@@ -239,7 +240,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
               <button
                 type="button"
                 onClick={() => {
-                  window.history.pushState({}, '', '/log-in?next=account');
+                  window.history.pushState({}, '', travelerLoginHref('bookings'));
                   onNavigate('auth');
                 }}
                 className="tv-btn-primary"

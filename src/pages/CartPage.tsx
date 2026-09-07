@@ -1,5 +1,5 @@
 /**
- * Consumer: saved items. Booking happens on the experience page via Stripe checkout.
+ * Consumer: saved items. Booking happens on the tour page via Stripe checkout.
  */
 import { useState, useEffect, useCallback } from 'react';
 import { LogIn, ArrowLeft, Trash2, ShoppingBag } from 'lucide-react';
@@ -7,6 +7,7 @@ import { SkeletonListItem, SkeletonConsumerPage } from '../components/ui/Skeleto
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
+import { travelerLoginHref } from '../lib/travelerAuthLinks';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { fetchCartWithListings, removeFromCart, type CartItemWithListing } from '../data/supabase-cart';
@@ -97,7 +98,7 @@ export default function CartPage({ onNavigate, onBookTour }: CartPageProps) {
               <button
                 type="button"
                 onClick={() => {
-                  window.history.pushState({}, '', '/sign-up?next=cart');
+                  window.history.pushState({}, '', travelerLoginHref('cart'));
                   onNavigate('auth');
                 }}
                 className="tv-btn-primary"

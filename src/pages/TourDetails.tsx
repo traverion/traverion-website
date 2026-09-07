@@ -431,21 +431,16 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     .slice(0, 3);
   const hero = (tour.image ?? '').trim();
   const uniqueGallery = [hero, ...galleryExtras].filter((u, i, arr) => u && arr.indexOf(u) === i);
-  const stockFallback = [
-    'https://images.pexels.com/photos/346885/pexels-photo-346885.jpeg',
-    'https://images.pexels.com/photos/1285625/pexels-photo-1285625.jpeg',
-    'https://images.pexels.com/photos/2506923/pexels-photo-2506923.jpeg',
-  ];
-  const images =
-    uniqueGallery.length > 0 ? uniqueGallery : stockFallback;
+  const images = uniqueGallery;
+  const hasGallery = images.length > 0;
 
   return (
     <div className="min-h-screen bg-paper tv-page pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-0">
       <section className="relative">
         <div className="relative h-[28rem] lg:h-[70vh]">
             <div
-              className="absolute inset-0 bg-cover bg-center transition-all duration-1000"
-              style={{ backgroundImage: `url(${images[selectedImage]})` }}
+              className={`absolute inset-0 bg-cover bg-center transition-all duration-1000 ${hasGallery ? '' : 'bg-ink/20'}`}
+              style={hasGallery ? { backgroundImage: `url(${images[Math.min(selectedImage, images.length - 1)]})` } : undefined}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/20" />
             <div className="absolute top-4 left-4 right-4 z-10 flex items-center justify-between">
@@ -496,22 +491,26 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
               </div>
             </div>
             
-            {/* Image Thumbnails */}
+            {images.length > 1 ? (
             <div className="absolute bottom-4 left-4 right-4 flex space-x-2 overflow-x-auto">
               {images.map((img, index) => (
                 <button
                   key={index}
+                  type="button"
                   onClick={() => setSelectedImage(index)}
+                  aria-label={`Photo ${index + 1} of ${images.length}`}
+                  aria-current={selectedImage === index ? 'true' : undefined}
                   className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-[transform,border-color,box-shadow] duration-200 ${
                     selectedImage === index
                       ? 'border-white shadow-lg scale-105'
                       : 'border-white/50 hover:border-white/80'
                   }`}
                 >
-                  <img src={img} alt={`Gallery ${index + 1}`} className="w-full h-full object-cover" />
+                  <img src={img} alt="" className="w-full h-full object-cover" />
                 </button>
               ))}
             </div>
+            ) : null}
         </div>
       </section>
 

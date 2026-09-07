@@ -13,6 +13,7 @@ const LEGACY_BROCHURE_PATHS = new Set([
 
 const PATH_TO_PAGE: Record<string, string> = {
   '/packages': 'packages',
+  '/tours': 'packages',
   '/cart': 'cart',
   '/auth': 'auth',
   '/sign-up': 'auth',
@@ -22,6 +23,7 @@ const PATH_TO_PAGE: Record<string, string> = {
   '/account': 'account',
   '/wishlist': 'wishlist',
   '/bookings': 'bookings',
+  '/trips': 'bookings',
   '/booking-confirmed': 'booking-confirmed',
   '/blog': 'blog',
   '/contact': 'contact',

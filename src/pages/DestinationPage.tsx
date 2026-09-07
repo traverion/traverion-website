@@ -90,7 +90,7 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
     if (!label) return;
     setPageMetaWithOg(
       `Tours in ${label}`,
-      `Book tours and activities in ${label}. ${listings.length} experience${listings.length !== 1 ? 's' : ''} available.`
+      `Book tours in ${label}. ${listings.length} tour${listings.length !== 1 ? 's' : ''} available.`
     );
   }, [label, listings.length]);
 
@@ -145,10 +145,19 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {listings.map(tour => (
-              <div
+              <article
                 key={tour.id}
+                role="button"
+                tabIndex={0}
                 onClick={() => onTourSelect(tour)}
-                className="stagger-item listing-card bg-white rounded-2xl overflow-hidden border border-gray-100 cursor-pointer group"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onTourSelect(tour);
+                  }
+                }}
+                className="stagger-item listing-card bg-white rounded-2xl overflow-hidden border border-gray-100 cursor-pointer group focus:outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2"
+                aria-label={`View ${tour.title}`}
               >
                 <div className="relative h-52 overflow-hidden">
                   <img src={tour.image} alt={tour.title} className="listing-card-image w-full h-full object-cover" />
@@ -189,7 +198,7 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
                     <span className="text-sm text-gray-500 ml-1">/ person</span>
                   </div>
                 </div>
-              </div>
+              </article>
             ))}
           </div>
         )}

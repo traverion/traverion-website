@@ -11,6 +11,7 @@ import { supplierPortalHref } from '../lib/partnerHost';
 import { authInputErrorClasses, isValidEmailFormat } from '../lib/authFormValidation';
 import ForgotPasswordInline, { type ForgotPasswordSendResult } from '../components/auth/ForgotPasswordInline';
 import { TRAVELER_RESET_PASSWORD_PATH } from '../lib/partnerPortalPaths';
+import { sanitizeTravelerAuthNext } from '../lib/travelerAuthLinks';
 
 type AuthTab = 'signin' | 'signup';
 
@@ -39,7 +40,7 @@ function readAuthQuery(): { tab: AuthTab; next: string } {
   const nextParam = params.get('next');
   return {
     tab,
-    next: nextParam || 'cart',
+    next: sanitizeTravelerAuthNext(nextParam),
   };
 }
 
@@ -136,19 +137,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
     return { form: text };
   };
 
-  const nextPage = useMemo(() => {
-    const allowed = new Set([
-      'home',
-      'packages',
-      'cart',
-      'bookings',
-      'booking-confirmed',
-      'account',
-      'wishlist',
-      'contact',
-    ]);
-    return allowed.has(next) ? next : 'cart';
-  }, [next]);
+  const nextPage = useMemo(() => sanitizeTravelerAuthNext(next), [next]);
 
   useEffect(() => {
     const params = new URLSearchParams();

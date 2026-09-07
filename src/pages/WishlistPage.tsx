@@ -7,6 +7,7 @@ import { SkeletonListItem, SkeletonConsumerPage } from '../components/ui/Skeleto
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
+import { travelerLoginHref } from '../lib/travelerAuthLinks';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { fetchWishlistListingIds, removeFromWishlist } from '../data/supabase-wishlist';
@@ -97,7 +98,7 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
               <button
                 type="button"
                 onClick={() => {
-                  window.history.pushState({}, '', '/sign-up?next=wishlist');
+                  window.history.pushState({}, '', travelerLoginHref('wishlist'));
                   onNavigate('auth');
                 }}
                 className="tv-btn-primary"

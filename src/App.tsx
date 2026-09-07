@@ -358,23 +358,26 @@ function App() {
           <DestinationPage
             slug={destinationSlug}
             onTourSelect={handleTourSelect}
-            onBack={() => setCurrentPage('packages')}
+            onBack={() => {
+              window.history.replaceState({}, '', '/packages');
+              setCurrentPage('packages');
+            }}
             onNavigate={handleNavigate}
           />
         );
       case 'blog':
-        return <Blog />;
+        return <Blog onNavigate={handleNavigate} />;
       case 'tour-details':
         return selectedTour ? (
           <TourDetails tourId={selectedTour.id} onBack={handleBackToTours} />
         ) : (
-          <Home onTourSelect={handleTourSelect} />
+          <Home onTourSelect={handleTourSelect} onNavigate={handleNavigate} />
         );
       case 'booking':
         return selectedTour ? (
           <TourDetails tourId={selectedTour.id} onBack={handleBackToTours} />
         ) : (
-          <Home onTourSelect={handleTourSelect} />
+          <Home onTourSelect={handleTourSelect} onNavigate={handleNavigate} />
         );
       case 'cart':
         return (

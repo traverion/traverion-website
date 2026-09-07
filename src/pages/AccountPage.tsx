@@ -6,12 +6,12 @@ import {
   Calendar,
   Heart,
   ShoppingCart,
-  Star,
   ChevronRight,
   LogIn,
 } from 'lucide-react';
 import { SkeletonFormFields, SkeletonConsumerPage } from '../components/ui/Skeleton';
 import { userFacingError } from '../lib/userFacingError';
+import { travelerLoginHref } from '../lib/travelerAuthLinks';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { fetchMyBookings } from '../data/supabase-bookings';
@@ -124,7 +124,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
           <button
             type="button"
             onClick={() => {
-              window.history.pushState({}, '', '/log-in?next=account');
+              window.history.pushState({}, '', travelerLoginHref('account'));
               onNavigate('auth');
             }}
             className="tv-btn-primary mt-8"
@@ -146,8 +146,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
     description: string;
     icon: typeof Calendar;
     count?: string;
-    onClick: () => void;
-    muted?: boolean;
+    onClick?: () => void;
   }[] = [
     {
       id: 'bookings',
@@ -172,14 +171,6 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
       icon: ShoppingCart,
       count: stats != null ? badge(stats.cart) : undefined,
       onClick: () => onNavigate('cart'),
-    },
-    {
-      id: 'reviews',
-      title: 'Reviews',
-      description: 'Leave feedback after your trips — coming soon',
-      icon: Star,
-      onClick: () => {},
-      muted: true,
     },
   ];
 
@@ -287,16 +278,12 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
         <ul className="divide-y divide-black/[0.06]">
           {tiles.map((tile) => {
             const Icon = tile.icon;
-            const interactive = !tile.muted;
             return (
               <li key={tile.id}>
                 <button
                   type="button"
-                  disabled={!interactive}
                   onClick={tile.onClick}
-                  className={`lux-flat w-full text-left min-h-[3.5rem] py-4 flex items-center gap-4 ${
-                    interactive ? '' : 'opacity-60 cursor-default'
-                  }`}
+                  className="lux-flat w-full text-left min-h-[3.5rem] py-4 flex items-center gap-4"
                 >
                   <Icon className="w-5 h-5 text-ink-muted shrink-0" strokeWidth={tile.id === 'wishlist' ? 2 : 1.75} />
                   <span className="min-w-0 flex-1">
@@ -308,7 +295,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
                     </span>
                     <span className="block text-sm text-ink-muted mt-0.5">{tile.description}</span>
                   </span>
-                  {interactive && <ChevronRight className="w-5 h-5 text-ink-faint shrink-0" />}
+                  <ChevronRight className="w-5 h-5 text-ink-faint shrink-0" />
                 </button>
               </li>
             );
