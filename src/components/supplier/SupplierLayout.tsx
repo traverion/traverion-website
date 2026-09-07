@@ -638,6 +638,12 @@ export default function SupplierLayout() {
     replacePathIfChanged(PARTNER_APP_BASE);
   };
 
+  const handlePartnerSignOut = () => {
+    setAccountMenuOpen(false);
+    setMobileAccountOpen(false);
+    void signOut().then(() => replacePathIfChanged(PARTNER_LOGIN_PATH));
+  };
+
   void pathEpoch;
   const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
   const onLoginPath = isSupplierLoginPath(pathname);
@@ -695,7 +701,7 @@ export default function SupplierLayout() {
             body="We could not verify your partner account. Check your connection and try again."
             retry={{ onClick: () => setPartnerGateRetryKey((k) => k + 1) }}
             extra={
-              <button type="button" onClick={() => void signOut()} className="tv-btn-ghost">
+              <button type="button" onClick={handlePartnerSignOut} className="tv-btn-ghost">
                 Sign out
               </button>
             }
@@ -721,7 +727,7 @@ export default function SupplierLayout() {
             body="We could not verify your partner account. Check your connection and try again."
             retry={{ onClick: () => setPartnerGateRetryKey((k) => k + 1) }}
             extra={
-              <button type="button" onClick={() => void signOut()} className="tv-btn-ghost">
+              <button type="button" onClick={handlePartnerSignOut} className="tv-btn-ghost">
                 Sign out
               </button>
             }
@@ -802,7 +808,7 @@ export default function SupplierLayout() {
                 {!onboardingComplete && (
                   <button type="button" onClick={() => handleNavigate('onboarding')} className="lux-flat w-full text-left px-3 py-2 rounded-xl text-sm hover:bg-paper">Finish setup</button>
                 )}
-                <button type="button" onClick={() => signOut()} className="lux-flat w-full text-left px-3 py-2 rounded-xl text-sm text-red-700 hover:bg-paper">Log out</button>
+                <button type="button" onClick={handlePartnerSignOut} className="lux-flat w-full text-left px-3 py-2 rounded-xl text-sm text-red-700 hover:bg-paper">Log out</button>
               </div>
             )}
           </div>
@@ -833,7 +839,7 @@ export default function SupplierLayout() {
             {!onboardingComplete && (
               <button type="button" onClick={() => handleNavigate('onboarding')} className="lux-flat w-full text-left py-3.5 text-base">Finish setup</button>
             )}
-            <button type="button" onClick={() => signOut()} className="lux-flat w-full text-left py-3.5 text-base text-red-700">Log out</button>
+            <button type="button" onClick={handlePartnerSignOut} className="lux-flat w-full text-left py-3.5 text-base text-red-700">Log out</button>
           </div>
         </div>
       )}

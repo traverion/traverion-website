@@ -101,6 +101,15 @@ function readInitialRoute(): { page: string; destinationSlug: string | null } {
   let page = parsed.page;
   const { destinationSlug } = parsed;
   page = mapStripeReturnRoute(page, window.location.search);
+  const params = new URLSearchParams(window.location.search);
+  const tourParam = params.get('tour');
+  const stayParam = params.get('stay');
+  if (page === 'packages' && tourParam && /^[0-9a-f-]{36}$/i.test(tourParam)) {
+    return { page: 'tour-details', destinationSlug };
+  }
+  if (page === 'stays' && stayParam && /^[0-9a-f-]{36}$/i.test(stayParam)) {
+    return { page: 'stay-details', destinationSlug };
+  }
   return { page, destinationSlug };
 }
 
@@ -131,10 +140,19 @@ function App() {
     let page = parsed.page;
     const destinationSlug = parsed.destinationSlug;
     page = mapStripeReturnRoute(page, window.location.search);
+    const stayParam = params.get('stay');
+    if (!adminHost && page === 'packages' && tourParam && /^[0-9a-f-]{36}$/i.test(tourParam)) {
+      page = 'tour-details';
+    }
+    if (!adminHost && page === 'stays' && stayParam && /^[0-9a-f-]{36}$/i.test(stayParam)) {
+      page = 'stay-details';
+    }
     setCurrentPage(page);
     setDestinationSlug(destinationSlug);
     const keepTourForDeepLink =
-      !adminHost && page === 'packages' && tourParam && /^[0-9a-f-]{36}$/i.test(tourParam);
+      !adminHost &&
+      ((page === 'tour-details' && tourParam && /^[0-9a-f-]{36}$/i.test(tourParam)) ||
+        (page === 'stay-details' && stayParam && /^[0-9a-f-]{36}$/i.test(stayParam)));
     if (shouldClearSelectedTour(page) && !keepTourForDeepLink) {
       setSelectedTour(null);
     }
@@ -227,23 +245,37 @@ function App() {
       }
       return;
     }
-    if (currentPage === 'tour-details' && selectedTour) {
-      const params = new URLSearchParams(window.location.search);
-      params.set('tour', selectedTour.id);
-      const next = `/packages?${params.toString()}`;
-      const current = `${window.location.pathname}${window.location.search}`;
-      if (current !== next) {
-        window.history.replaceState({}, '', next);
+    if (currentPage === 'tour-details') {
+      if (selectedTour) {
+        const params = new URLSearchParams(window.location.search);
+        params.set('tour', selectedTour.id);
+        const next = `/packages?${params.toString()}`;
+        const current = `${window.location.pathname}${window.location.search}`;
+        if (current !== next) {
+          window.history.replaceState({}, '', next);
+        }
       }
       return;
     }
-    if (currentPage === 'stay-details' && selectedTour) {
-      const params = new URLSearchParams(window.location.search);
-      params.set('stay', selectedTour.id);
-      params.delete('tour');
-      const next = `/stays?${params.toString()}`;
+    if (currentPage === 'stay-details') {
+      if (selectedTour) {
+        const params = new URLSearchParams(window.location.search);
+        params.set('stay', selectedTour.id);
+        params.delete('tour');
+        const next = `/stays?${params.toString()}`;
+        const current = `${window.location.pathname}${window.location.search}`;
+        if (current !== next) {
+          window.history.replaceState({}, '', next);
+        }
+      }
+      return;
+    }
+    if (currentPage === 'packages') {
+      normalizePublicTourDeepLinkPathname(window.location.pathname);
       const current = `${window.location.pathname}${window.location.search}`;
-      if (current !== next) {
+      const qs = new URLSearchParams(window.location.search).toString();
+      const next = qs ? `/packages?${qs}` : '/packages';
+      if (current !== next && window.location.pathname === '/packages') {
         window.history.replaceState({}, '', next);
       }
       return;
@@ -446,7 +478,9 @@ function App() {
         return selectedTour ? (
           <StayDetails stayId={selectedTour.id} onBack={handleBackToStays} />
         ) : (
-          <Stays onStaySelect={handleTourSelect} onNavigate={handleNavigate} />
+          <div className="min-h-[50vh] bg-paper" aria-busy="true" aria-label="Loading stay">
+            <RouteFallback />
+          </div>
         );
       case 'inventory-reserved':
         return (
@@ -470,13 +504,17 @@ function App() {
         return selectedTour ? (
           <TourDetails tourId={selectedTour.id} onBack={handleBackToTours} />
         ) : (
-          <Home onTourSelect={handleTourSelect} onNavigate={handleNavigate} />
+          <div className="min-h-[50vh] bg-paper" aria-busy="true" aria-label="Loading tour">
+            <RouteFallback />
+          </div>
         );
       case 'booking':
         return selectedTour ? (
           <TourDetails tourId={selectedTour.id} onBack={handleBackToTours} />
         ) : (
-          <Home onTourSelect={handleTourSelect} onNavigate={handleNavigate} />
+          <div className="min-h-[50vh] bg-paper" aria-busy="true" aria-label="Loading tour">
+            <RouteFallback />
+          </div>
         );
       case 'cart':
         return (

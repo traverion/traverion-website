@@ -96,8 +96,6 @@ export default function SupplierListings() {
     setEditingId(null);
     setShowForm(true);
     setFormFocusSection(null);
-    window.history.pushState({}, '', `${PARTNER_APP_BASE}/listings`);
-    window.dispatchEvent(new PopStateEvent('popstate'));
   }, [canEditListings, canPostNewListing]);
 
   const startNewStay = useCallback(() => {
@@ -107,8 +105,6 @@ export default function SupplierListings() {
     setEditingId(null);
     setShowForm(true);
     setFormFocusSection(null);
-    window.history.pushState({}, '', `${PARTNER_APP_BASE}/listings`);
-    window.dispatchEvent(new PopStateEvent('popstate'));
   }, [canEditListings, canPostNewListing]);
 
   const openCreateChooser = useCallback(() => {
@@ -435,6 +431,13 @@ export default function SupplierListings() {
       }
     };
     loadProfileGate();
+    const onFocus = () => void loadProfileGate();
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onFocus);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onFocus);
+    };
   }, [isSupabase, user?.id]);
 
   const consumeListingFormFocus = useCallback(() => {

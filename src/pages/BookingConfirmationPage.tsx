@@ -251,7 +251,10 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                   </div>
                   <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Booking confirmed</h1>
                   <p className="mt-2 text-sm text-ink-muted leading-relaxed">
-                    Thank you — your payment went through. The operator may follow up about meeting or pickup details.
+                    Thank you — your payment went through.{' '}
+                    {stayCheckOut
+                      ? 'The host may follow up with arrival instructions.'
+                      : 'The operator may follow up about meeting or pickup details.'}
                   </p>
                 </>
               ) : confirming ? (

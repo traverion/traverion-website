@@ -239,7 +239,7 @@ export default function SupplierDashboard({ onNavigateToBookings }: SupplierDash
                   {listingTitlesById[b.listing_id] ?? 'Tour'}
                 </button>
                 <p className="text-sm text-ink-muted">
-                  {b.booking_date} · {b.guests} guests
+                  {b.booking_date} · {b.guests} guest{b.guests === 1 ? '' : 's'}
                 </p>
               </li>
             ))}

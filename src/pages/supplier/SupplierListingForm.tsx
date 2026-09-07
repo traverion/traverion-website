@@ -439,7 +439,7 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
     endLocation: endLoc,
     price: {
       startingFrom: derivedStarting,
-      currency: 'USD',
+      currency: 'EUR',
       perPerson: true,
       twinOccupancy: false,
       customQuote: false,
@@ -1185,7 +1185,7 @@ export default function SupplierListingForm({
                 />
               </div>
               <div id="supplier-listing-field-price">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Price (USD) *</label>
+                <label className="block text-sm font-medium text-ink mb-1">Price (EUR) *</label>
                 <input
                   type="number"
                   min={0}
@@ -1205,7 +1205,7 @@ export default function SupplierListingForm({
                   onChange={(e) => patchOptionDraft({ startTime: e.target.value })}
                   className="tv-input w-full max-w-[12rem]"
                 />
-                <p className="text-xs text-gray-500 mt-1">Shown to guests; you can adjust on the booking.</p>
+                <p className="text-xs text-ink-muted mt-1">Shown to guests; you can adjust on the booking.</p>
               </div>
               <div className="sm:col-span-2" id="supplier-listing-field-option-duration">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Duration for this option *</label>
@@ -1262,7 +1262,7 @@ export default function SupplierListingForm({
                         <span className="font-medium text-gray-800">90 minutes</span>.
                       </p>
                       {optionDraft.duration.trim() ? (
-                        <p className="text-xs text-gray-500 mt-1">
+                        <p className="text-xs text-ink-muted mt-1">
                           Saved as:{' '}
                           <span className="font-medium text-gray-700 tabular-nums">{optionDraft.duration.trim()}</span>
                           {durParts.amount === '' && optionDraft.duration.trim().length >= 2 && (
@@ -1471,7 +1471,7 @@ export default function SupplierListingForm({
       <button
         type="button"
         className="absolute inset-0 z-[80] bg-slate-900/35 backdrop-blur-md motion-safe:animate-fade-in supports-[backdrop-filter]:bg-slate-900/25 cursor-pointer border-0 p-0"
-        aria-label="Close tour editor"
+        aria-label={form.inventoryFamily === 'stay' || createFamily === 'stay' ? 'Close stay editor' : 'Close tour editor'}
         onClick={() => void handleCloseIntent()}
       />
       <div className="relative z-[81] flex min-h-0 w-full flex-1 flex-col justify-stretch px-0 py-0 pointer-events-none">
@@ -1513,7 +1513,11 @@ export default function SupplierListingForm({
           </div>
           <div className="mb-5 min-w-0">
             <h2 id="supplier-listing-editor-title" className="font-display text-2xl sm:text-3xl text-ink">
-              {editingId ? form.title.trim() || 'Tour' : 'Create tour'}
+              {editingId
+                ? form.title.trim() || (form.inventoryFamily === 'stay' ? 'Stay' : 'Tour')
+                : createFamily === 'stay'
+                  ? 'Create stay'
+                  : 'Create tour'}
             </h2>
             <p className="text-sm text-ink-muted mt-1 max-w-xl">
               {editingId
@@ -1529,7 +1533,18 @@ export default function SupplierListingForm({
               {submitError}
             </p>
           )}
-          <nav aria-label={editingId ? 'Tour sections' : 'Create tour steps'} className="flex gap-1 overflow-x-auto pb-0.5">
+          <nav
+            aria-label={
+              editingId
+                ? form.inventoryFamily === 'stay'
+                  ? 'Stay sections'
+                  : 'Tour sections'
+                : createFamily === 'stay'
+                  ? 'Create stay steps'
+                  : 'Create tour steps'
+            }
+            className="flex gap-1 overflow-x-auto pb-0.5"
+          >
             {steps.map((step, idx) => {
               const current = idx === stepIdx;
               return (
@@ -1581,7 +1596,7 @@ export default function SupplierListingForm({
             <div className="space-y-5 transition-all duration-300 ease-out opacity-100 translate-y-0">
               <div id="supplier-listing-field-language">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Primary language of the tour *</label>
-                <p className="text-xs text-gray-500 mb-2">The main language guests hear during the tour.</p>
+                <p className="text-xs text-ink-muted mb-2">The main language guests hear during the tour.</p>
                 <select
                   value={form.experienceLanguage}
                   onChange={(e) => setForm((f) => ({ ...f, experienceLanguage: e.target.value }))}
@@ -1602,7 +1617,7 @@ export default function SupplierListingForm({
             <div className="space-y-5 transition-all duration-300 ease-out opacity-100 translate-y-0">
               <div id="supplier-listing-field-title">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
-                <p className="text-xs text-gray-500 mb-2">A clear, specific name travelers will see in search and on the listing page.</p>
+                <p className="text-xs text-ink-muted mb-2">A clear, specific name travelers will see in search and on the listing page.</p>
                 <input
                   type="text"
                   value={form.title}
@@ -1623,7 +1638,7 @@ export default function SupplierListingForm({
             <div className="space-y-4 transition-all duration-300 ease-out opacity-100 translate-y-0">
               <div id="supplier-listing-field-category">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
-                <p className="text-xs text-gray-500 mb-3">Choose the option that best describes what you sell. You can add more detail in later steps.</p>
+                <p className="text-xs text-ink-muted mb-3">Choose the option that best describes what you sell. You can add more detail in later steps.</p>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   {EXPERIENCE_KIND_OPTIONS.map((opt) => {
                     const selected = form.experienceKind === opt.id;
@@ -1652,7 +1667,7 @@ export default function SupplierListingForm({
             <div className="space-y-5 transition-all duration-300 ease-out opacity-100 translate-y-0">
               <div id="supplier-listing-field-subtitle">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Subtitle *</label>
-                <p className="text-xs text-gray-500 mb-2">
+                <p className="text-xs text-ink-muted mb-2">
                   A short line under the title on the listing page (max {MAX_SUBTITLE_LENGTH} characters).
                 </p>
                 <input
@@ -1663,7 +1678,7 @@ export default function SupplierListingForm({
                   className="tv-input"
                   placeholder="e.g. Small-group food walk with local hosts"
                 />
-                <p className="text-xs text-gray-500 mt-1 tabular-nums">
+                <p className="text-xs text-ink-muted mt-1 tabular-nums">
                   {form.subtitle.length}/{MAX_SUBTITLE_LENGTH}
                 </p>
               </div>
@@ -1671,7 +1686,7 @@ export default function SupplierListingForm({
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   About this {form.inventoryFamily === 'stay' ? 'stay' : 'tour'} *
                 </label>
-                <p className="text-xs text-gray-500 mb-2">
+                <p className="text-xs text-ink-muted mb-2">
                   Main description for guests (at least {MIN_LISTING_DESCRIPTION_LENGTH} characters for publishing, max{' '}
                   {MAX_DESCRIPTION_LENGTH}).
                 </p>
@@ -1695,7 +1710,7 @@ export default function SupplierListingForm({
                       : 'supplier-listing-description-hint'
                   }
                 />
-                <p id="supplier-listing-description-hint" className="text-xs text-gray-500 mt-1 tabular-nums">
+                <p id="supplier-listing-description-hint" className="text-xs text-ink-muted mt-1 tabular-nums">
                   {form.description.length}/{MAX_DESCRIPTION_LENGTH}
                 </p>
                 {form.description.trim().length < MIN_LISTING_DESCRIPTION_LENGTH && (
@@ -1704,15 +1719,16 @@ export default function SupplierListingForm({
                     className="text-sm text-red-600 mt-1.5"
                     role="alert"
                   >
-                    Add at least {MIN_LISTING_DESCRIPTION_LENGTH} characters to continue — describe the tour, what
-                    guests should expect, and any practical details.
+                    Add at least {MIN_LISTING_DESCRIPTION_LENGTH} characters to continue — describe the{' '}
+                    {form.inventoryFamily === 'stay' ? 'stay' : 'tour'}, what guests should expect, and any practical
+                    details.
                   </p>
                 )}
               </div>
               <div id="supplier-listing-field-highlights" className="space-y-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Highlights (optional)</label>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-ink-muted mt-1">
                     Up to five short selling points — each on its own line below.
                   </p>
                 </div>
@@ -1741,7 +1757,7 @@ export default function SupplierListingForm({
             <div className="space-y-5 transition-all duration-300 ease-out opacity-100 translate-y-0">
               <div id="supplier-listing-field-includes">
                 <label className="block text-sm font-medium text-gray-700 mb-1">What&apos;s included *</label>
-                <p className="text-xs text-gray-500 mb-2">At least two clear items (tickets, guide, transport, tastings, etc.).</p>
+                <p className="text-xs text-ink-muted mb-2">At least two clear items (tickets, guide, transport, tastings, etc.).</p>
                 <div className="space-y-2">
                   {form.includes.map((line, index) => (
                     <input
@@ -1762,7 +1778,7 @@ export default function SupplierListingForm({
               </div>
               <div id="supplier-listing-field-excludes">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Not included *</label>
-                <p className="text-xs text-gray-500 mb-2">At least one line so guests know what to budget for.</p>
+                <p className="text-xs text-ink-muted mb-2">At least one line so guests know what to budget for.</p>
                 <div className="space-y-2">
                   {form.excludes.map((line, index) => (
                     <input
@@ -1788,7 +1804,7 @@ export default function SupplierListingForm({
                 <summary className="cursor-pointer list-none flex items-start justify-between gap-3">
                   <span>
                     <span className="block text-sm font-semibold text-gray-900">Optional: good to know</span>
-                    <span className="block text-xs text-gray-500 mt-0.5">Accessibility, age, setting, extra languages</span>
+                    <span className="block text-xs text-ink-muted mt-0.5">Accessibility, age, setting, extra languages</span>
                   </span>
                   <span className="text-xs text-finland font-medium mt-0.5">
                     {form.accessibilitySummary.trim() ||
@@ -1815,7 +1831,7 @@ export default function SupplierListingForm({
                     className="tv-input"
                     placeholder="Steps, uneven ground, wheelchair access, hearing loops, etc."
                   />
-                  <p className="text-xs text-gray-500 mt-1 tabular-nums">
+                  <p className="text-xs text-ink-muted mt-1 tabular-nums">
                     {form.accessibilitySummary.length}/{MAX_ACCESSIBILITY_LENGTH}
                   </p>
                 </div>
@@ -1849,7 +1865,7 @@ export default function SupplierListingForm({
                 </div>
                 <div id="supplier-listing-field-languages">
                   <label className="block text-sm font-medium text-gray-700 mb-2">Additional languages offered (optional)</label>
-                  <p className="text-xs text-gray-500 mb-2">Besides the primary language you set earlier.</p>
+                  <p className="text-xs text-ink-muted mb-2">Besides the primary language you set earlier.</p>
                   <div className="flex flex-wrap gap-2">
                     {LANGUAGE_OPTIONS.filter((o) => o.code !== 'other').map((o) => {
                       const disabled = o.code === form.experienceLanguage;
@@ -1918,12 +1934,12 @@ export default function SupplierListingForm({
                   className="tv-input"
                   placeholder="e.g. coastal route · several towns — or leave blank"
                 />
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-ink-muted">
                   If you skip this, we use city and country from above; if you fill this instead, cards can show this route label.
                 </p>
               </div>
               {form.inventoryFamily !== 'stay' ? (
-              <p className="text-xs text-gray-500 -mt-2">
+              <p className="text-xs text-ink-muted -mt-2">
                 Use the main base or usual starting city. Per-option meeting and pickup are set under{' '}
                 <span className="font-medium text-gray-700">Cost &amp; options</span>.
               </p>
@@ -1959,7 +1975,7 @@ export default function SupplierListingForm({
                     </option>
                   ))}
                 </select>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-ink-muted mt-1">
                   You will set the exact meeting or pickup place for each bookable option under Cost &amp; options.
                 </p>
               </div>
@@ -1970,7 +1986,7 @@ export default function SupplierListingForm({
                 <summary className="cursor-pointer list-none flex items-start justify-between gap-3">
                   <span>
                     <span className="block text-sm font-semibold text-gray-900">Optional: how timing works</span>
-                    <span className="block text-xs text-gray-500 mt-0.5">Fixed slot, flexible window, or arrange with guests</span>
+                    <span className="block text-xs text-ink-muted mt-0.5">Fixed slot, flexible window, or arrange with guests</span>
                   </span>
                   <span className="text-xs text-finland font-medium mt-0.5">
                     {form.typicalTimelineNotes.trim() || (form.scheduleStyle && form.scheduleStyle !== 'flexible')
@@ -2022,7 +2038,7 @@ export default function SupplierListingForm({
                     className="tv-input"
                     placeholder="e.g. 09:00 meet at the square · 09:15 start walking · short break at 10:30 · end around 12:00"
                   />
-                  <p className="text-xs text-gray-500 mt-1 tabular-nums">
+                  <p className="text-xs text-ink-muted mt-1 tabular-nums">
                     {form.typicalTimelineNotes.length}/{MAX_TIMELINE_LENGTH}
                   </p>
                 </div>
@@ -2039,7 +2055,7 @@ export default function SupplierListingForm({
               <p className="text-sm text-ink-muted">Nightly rate for the property, not per person.</p>
               <div className="grid sm:grid-cols-2 gap-3">
                 <label className="block text-sm">
-                  Nightly price (USD)
+                  Nightly price (EUR)
                   <input
                     type="number"
                     min={1}
@@ -2119,7 +2135,7 @@ export default function SupplierListingForm({
                 </label>
               </div>
               <label className="block text-sm">
-                Cleaning fee (USD, optional)
+                Cleaning fee (EUR, optional)
                 <input
                   type="number"
                   min={0}
@@ -2166,7 +2182,7 @@ export default function SupplierListingForm({
                       <p className="text-sm font-semibold text-gray-900 truncate">
                         {opt.name.trim() || 'Untitled option'}
                       </p>
-                      <p className="text-xs text-gray-500 tabular-nums">
+                      <p className="text-xs text-ink-muted tabular-nums">
                         ${opt.priceUsd} · {opt.duration.trim() || '—'}
                       </p>
                     </div>
@@ -2205,7 +2221,7 @@ export default function SupplierListingForm({
                 </button>
               </div>
               {materializedBookingOptions(form.bookingOptions).length === 0 && (
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-ink-muted">
                   Add at least one complete option to continue. The lowest price appears as &quot;from&quot; on listing cards.
                 </p>
               )}
@@ -2235,7 +2251,7 @@ export default function SupplierListingForm({
                 <summary className="cursor-pointer list-none flex items-start justify-between gap-3">
                   <span>
                     <span className="block text-sm font-semibold text-gray-900">Optional: tags</span>
-                    <span className="block text-xs text-gray-500 mt-0.5">Help travelers filter (pickup, small group, etc.)</span>
+                    <span className="block text-xs text-ink-muted mt-0.5">Help travelers filter (pickup, small group, etc.)</span>
                   </span>
                   <span className="text-xs text-finland font-medium mt-0.5">{form.tags.length > 0 ? 'Saved' : 'Add'}</span>
                 </summary>

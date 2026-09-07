@@ -634,7 +634,7 @@ export default function Packages({ onTourSelect }: PackagesProps) {
         ) : null}
 
         <p className="mt-16 text-sm text-ink-faint max-w-lg">
-          Packages from agencies will join this catalog when operators publish them.
+          Live tours from operators appear here when they publish. Traverion does not fill this page with sample trips.
         </p>
       </div>
     </div>

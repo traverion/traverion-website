@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Wallet } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { fetchSupplierEarnings, SupplierEarning } from '../../data/supabase-earnings';
+import { fetchBookingsForSupplier, type BookingRow } from '../../data/supabase-bookings';
 import { fetchSupplierProfile } from '../../data/supabase-supplier-profile';
 import { SUPPLIER_PAGE_CLASS, SupplierEmptyState, SupplierListSkeleton } from '../../components/supplier/supplierUi';
 import ErrorState from '../../components/ErrorState';
@@ -18,6 +19,7 @@ function formatMoney(amount: number, currency: string) {
 export default function SupplierEarnings() {
   const { user, isSupabase } = useSupplierAuth();
   const [earnings, setEarnings] = useState<SupplierEarning[]>([]);
+  const [paidBookings, setPaidBookings] = useState<BookingRow[]>([]);
   const [profile, setProfile] = useState<Awaited<ReturnType<typeof fetchSupplierProfile>>>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -31,9 +33,14 @@ export default function SupplierEarnings() {
     }
     setLoading(true);
     setError(null);
-    fetchSupplierEarnings(uid)
-      .then((data) => {
+    Promise.all([fetchSupplierEarnings(uid), fetchBookingsForSupplier(uid)])
+      .then(([data, bookings]) => {
         setEarnings(data);
+        setPaidBookings(
+          bookings.filter(
+            (b) => (b.payment_status ?? '') === 'paid' && b.status !== 'cancelled' && Number(b.amount_paid) > 0
+          )
+        );
         setLoading(false);
       })
       .catch((e) => {
@@ -54,24 +61,28 @@ export default function SupplierEarnings() {
   }, [isSupabase, user?.id]);
 
   const primaryCurrency = useMemo(() => {
+    const bookingCur = paidBookings.find((b) => (b.currency ?? '').trim())?.currency;
     const row = earnings.find((e) => e.status !== 'cancelled');
-    return row?.currency ?? earnings[0]?.currency ?? 'USD';
-  }, [earnings]);
+    return (bookingCur || row?.currency || earnings[0]?.currency || 'USD').toUpperCase();
+  }, [earnings, paidBookings]);
 
-  const { pending, paid, filteredEarnings } = useMemo(() => {
+  const { pending, paid, gross, filteredEarnings } = useMemo(() => {
     const nonCancelled = earnings.filter((e) => e.status !== 'cancelled');
-    const pendingSum = nonCancelled.filter((e) => e.status === 'pending').reduce((sum, e) => sum + Number(e.amount), 0);
-    const paidSum = nonCancelled.filter((e) => e.status === 'paid').reduce((sum, e) => sum + Number(e.amount), 0);
+    const paidOut = nonCancelled.filter((e) => e.status === 'paid').reduce((sum, e) => sum + Number(e.amount), 0);
+    const pendingRows = nonCancelled.filter((e) => e.status === 'pending').reduce((sum, e) => sum + Number(e.amount), 0);
+    const collected = paidBookings.reduce((sum, b) => sum + Number(b.amount_paid ?? 0), 0);
+    const pendingPayout = pendingRows > 0 ? pendingRows : Math.max(0, collected - paidOut);
     const filtered =
       statusFilter === 'all'
         ? nonCancelled
         : nonCancelled.filter((e) => e.status === statusFilter);
     return {
-      pending: pendingSum,
-      paid: paidSum,
+      pending: pendingPayout,
+      paid: paidOut,
+      gross: collected,
       filteredEarnings: filtered,
     };
-  }, [earnings, statusFilter]);
+  }, [earnings, statusFilter, paidBookings]);
 
   const earningsForInvoices = useMemo(
     () => earnings.filter((e) => e.status !== 'cancelled'),
@@ -108,14 +119,14 @@ export default function SupplierEarnings() {
     URL.revokeObjectURL(url);
   };
 
-  const hasMoney = pending > 0 || paid > 0 || earningsForInvoices.length > 0;
+  const hasMoney = gross > 0 || pending > 0 || paid > 0 || earningsForInvoices.length > 0;
 
   return (
     <div className={SUPPLIER_PAGE_CLASS}>
       <header className="pt-2 sm:pt-8 mb-10">
         <h1 className="font-display text-4xl sm:text-5xl text-ink tracking-tight">Money</h1>
         <p className="mt-2 text-ink-muted max-w-xl">
-          Payouts from completed bookings. Nothing here is estimated.
+          What travelers paid, and what Traverion has paid you. Payouts are manual — this page never invents a transfer.
         </p>
       </header>
 
@@ -138,11 +149,11 @@ export default function SupplierEarnings() {
               {formatMoney(pending, primaryCurrency)}
             </p>
             <p className="mt-4 text-sm text-ink-muted">
-              Gross bookings{' '}
+              Gross collected{' '}
               <span className="tabular-nums font-semibold text-ink">
-                {formatMoney(pending + paid, primaryCurrency)}
+                {formatMoney(gross, primaryCurrency)}
               </span>
-              <span className="text-ink-faint"> · pending + paid. Refunds are not automatic.</span>
+              <span className="text-ink-faint"> · paid traveler bookings. Payouts are manual.</span>
             </p>
             {payoutProgressPct !== null ? (
               <p className="mt-3 text-sm text-ink-muted">{payoutProgressPct}% of your payout minimum</p>
@@ -169,7 +180,9 @@ export default function SupplierEarnings() {
           ) : (
           <section>
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-              <h2 className="text-[11px] uppercase tracking-[0.18em] text-ink-faint">History</h2>
+              <h2 className="text-[11px] uppercase tracking-[0.18em] text-ink-faint">
+                {filteredEarnings.length > 0 ? 'Payout history' : 'Collected'}
+              </h2>
               <div className="flex flex-wrap items-center gap-1">
                 {(['all', 'pending', 'paid'] as const).map((s) => (
                   <button
@@ -194,12 +207,32 @@ export default function SupplierEarnings() {
               </div>
             </div>
             {filteredEarnings.length === 0 ? (
+              paidBookings.length > 0 ? (
+                <ul className="divide-y divide-black/[0.06]">
+                  {paidBookings.map((b) => (
+                    <li key={b.id} className="py-4 flex items-baseline justify-between gap-4">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-ink">
+                          {b.guest_name?.trim() || 'Guest'} · {b.booking_date}
+                        </p>
+                        <p className="mt-0.5 text-xs text-ink-muted">
+                          Collected from traveler · not paid out yet
+                        </p>
+                      </div>
+                      <p className="tabular-nums font-semibold text-ink shrink-0">
+                        {formatMoney(Number(b.amount_paid ?? 0), (b.currency ?? primaryCurrency).toUpperCase())}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
               <SupplierEmptyState
                 icon={Wallet}
                 className="py-6"
                 title="No rows for this filter"
                 body="Payout history exists, but nothing matches this status. Switch to All to see every period."
               />
+              )
             ) : (
               <ul className="divide-y divide-black/[0.06]">
                 {filteredEarnings.map((e) => (

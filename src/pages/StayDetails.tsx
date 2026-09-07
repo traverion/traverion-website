@@ -12,6 +12,7 @@ import { fetchSupplierPublicLegal } from '../data/supabase-supplier-profile';
 import type { TourPackage } from '../types/tour';
 import ErrorState from '../components/ErrorState';
 import { Skeleton } from '../components/ui/Skeleton';
+import { setPageMetaWithOg } from '../lib/seo';
 
 type Props = {
   stayId: string;
@@ -59,6 +60,16 @@ export default function StayDetails({ stayId, onBack }: Props) {
       cancelled = true;
     };
   }, [stayId]);
+
+  useEffect(() => {
+    if (!stay) return;
+    const desc = stay.description?.trim().slice(0, 160) || `${stay.title} in ${[stay.city, stay.country].filter(Boolean).join(', ')}`;
+    setPageMetaWithOg(stay.title, desc, {
+      title: stay.title,
+      image: stay.image,
+      type: 'website',
+    });
+  }, [stay]);
 
   useEffect(() => {
     if (!stay?.supplierId) {
