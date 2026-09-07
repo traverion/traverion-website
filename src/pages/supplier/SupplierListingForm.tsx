@@ -307,6 +307,19 @@ type ListingFormState = {
   minGuestAge: string;
   venueSetting: VenueSetting;
   additionalLanguages: string[];
+  inventoryFamily: 'tour' | 'stay';
+  stayPropertyType: string;
+  stayBedrooms: string;
+  stayBeds: string;
+  stayBathrooms: string;
+  stayMaxGuests: string;
+  stayNightly: string;
+  stayMinNights: string;
+  stayCheckIn: string;
+  stayCheckOut: string;
+  stayAmenities: string;
+  stayHouseRules: string;
+  stayCleaningFee: string;
 };
 
 /** Stored listing destination label: optional custom text, or derived from city/country, or “Various locations”. */
@@ -325,17 +338,32 @@ function resolveListingDestinationLabel(
 
 function buildListingFromForm(form: ListingFormState, existingId?: string): TourPackage {
   const id = existingId ?? `supplier-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+  const isStay = form.inventoryFamily === 'stay';
   const resolvedDestination = resolveListingDestinationLabel(form);
   const startLoc = form.city.trim() || resolvedDestination;
   const endLoc = startLoc;
   const opts = form.bookingOptions;
   const activeOpts = materializedBookingOptions(opts);
   const first = activeOpts[0];
+  const stayNightly = Number.parseFloat(form.stayNightly);
+  const stayMaxGuests = Number.parseInt(form.stayMaxGuests, 10);
+  const stayMinNights = Number.parseInt(form.stayMinNights, 10);
+  const stayBedrooms = Number.parseInt(form.stayBedrooms, 10);
+  const stayBeds = Number.parseInt(form.stayBeds, 10);
+  const stayBaths = Number.parseFloat(form.stayBathrooms);
+  const stayCleaning = Number.parseFloat(form.stayCleaningFee);
   const positivePrices = activeOpts.map((o) => o.priceUsd).filter((p) => p > 0);
   const derivedStarting =
-    positivePrices.length > 0 ? Math.min(...positivePrices) : 0;
-  const groupSizeStr =
-    activeOpts.length === 0
+    isStay && Number.isFinite(stayNightly) && stayNightly > 0
+      ? stayNightly
+      : positivePrices.length > 0
+        ? Math.min(...positivePrices)
+        : 0;
+  const groupSizeStr = isStay
+    ? Number.isFinite(stayMaxGuests) && stayMaxGuests >= 1
+      ? `Up to ${stayMaxGuests} guests`
+      : 'Guests'
+    : activeOpts.length === 0
       ? '1–12 guests'
       : activeOpts.length === 1
         ? `${activeOpts[0].minPersons}–${activeOpts[0].maxPersons} guests`
@@ -376,7 +404,29 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
       : {}),
     ...(galleryList.length > 0 ? { galleryImageUrls: galleryList } : {}),
     ...(labelsNorm.some((l) => l.trim()) ? { photoSlotLabels: labelsNorm } : {}),
-    ...(activeOpts.length > 0 ? { bookingOptions: activeOpts } : {}),
+    ...(activeOpts.length > 0 && !isStay ? { bookingOptions: activeOpts } : {}),
+    ...(isStay ? { inventoryFamily: 'stay' as const } : {}),
+    ...(isStay
+      ? {
+          stay: {
+            propertyType: form.stayPropertyType.trim() || undefined,
+            bedrooms: Number.isFinite(stayBedrooms) ? stayBedrooms : undefined,
+            beds: Number.isFinite(stayBeds) ? stayBeds : undefined,
+            bathrooms: Number.isFinite(stayBaths) ? stayBaths : undefined,
+            amenities: form.stayAmenities
+              .split(',')
+              .map((x) => x.trim())
+              .filter(Boolean),
+            checkInTime: form.stayCheckIn.trim() || undefined,
+            checkOutTime: form.stayCheckOut.trim() || undefined,
+            houseRules: form.stayHouseRules.trim() || undefined,
+            nightlyPriceUsd: Number.isFinite(stayNightly) && stayNightly > 0 ? stayNightly : undefined,
+            minNights: Number.isFinite(stayMinNights) && stayMinNights >= 1 ? stayMinNights : 1,
+            maxGuests: Number.isFinite(stayMaxGuests) && stayMaxGuests >= 1 ? stayMaxGuests : undefined,
+            cleaningFeeUsd: Number.isFinite(stayCleaning) && stayCleaning >= 0 ? stayCleaning : undefined,
+          },
+        }
+      : {}),
   };
   return {
     id,
@@ -453,13 +503,19 @@ function listingPhotosReadyToPublish(form: ListingFormState): boolean {
 }
 
 function isStepSatisfied(idx: number, form: ListingFormState): boolean {
+  const isStay = form.inventoryFamily === 'stay';
   if (idx === 0) {
     const sub = form.subtitle.trim();
     const desc = form.description.trim();
+    const kindOk =
+      isStay ||
+      form.experienceKind === 'tour' ||
+      form.experienceKind === 'ticket' ||
+      form.experienceKind === 'transportation';
     return (
-      form.experienceLanguage.trim().length > 0 &&
+      (isStay || form.experienceLanguage.trim().length > 0) &&
       form.title.trim().length > 0 &&
-      (form.experienceKind === 'tour' || form.experienceKind === 'ticket' || form.experienceKind === 'transportation') &&
+      kindOk &&
       sub.length > 0 &&
       sub.length <= MAX_SUBTITLE_LENGTH &&
       desc.length >= MIN_LISTING_DESCRIPTION_LENGTH &&
@@ -467,6 +523,9 @@ function isStepSatisfied(idx: number, form: ListingFormState): boolean {
     );
   }
   if (idx === 1) {
+    if (isStay) {
+      return form.city.trim().length > 0 && form.country.trim().length > 0;
+    }
     const inc = form.includes.map((s) => s.trim()).filter(Boolean).length;
     const exc = form.excludes.map((s) => s.trim()).filter(Boolean).length;
     return (
@@ -478,6 +537,11 @@ function isStepSatisfied(idx: number, form: ListingFormState): boolean {
     );
   }
   if (idx === 2) {
+    if (form.inventoryFamily === 'stay') {
+      const nightly = Number.parseFloat(form.stayNightly);
+      const maxG = Number.parseInt(form.stayMaxGuests, 10);
+      return Number.isFinite(nightly) && nightly > 0 && Number.isFinite(maxG) && maxG >= 1;
+    }
     const active = materializedBookingOptions(form.bookingOptions);
     return active.length >= 1 && active.every(isBookingOptionOkForStep);
   }
@@ -516,6 +580,19 @@ const emptyForm: ListingFormState = {
   minGuestAge: '',
   venueSetting: 'unspecified',
   additionalLanguages: [] as string[],
+  inventoryFamily: 'tour',
+  stayPropertyType: 'Apartment',
+  stayBedrooms: '1',
+  stayBeds: '1',
+  stayBathrooms: '1',
+  stayMaxGuests: '4',
+  stayNightly: '',
+  stayMinNights: '1',
+  stayCheckIn: '16:00',
+  stayCheckOut: '11:00',
+  stayAmenities: '',
+  stayHouseRules: '',
+  stayCleaningFee: '',
 };
 
 export type ListingEditorSaveResult = { success: boolean; error?: string };
@@ -533,6 +610,7 @@ interface SupplierListingFormProps {
   onFocusConsumed?: () => void;
   /** False when business / payout verification blocks going live (Settings). */
   canPostNewListing?: boolean;
+  createFamily?: 'tour' | 'stay';
 }
 
 type StepId = 'the_experience' | 'practical' | 'cost_options' | 'photos';
@@ -547,6 +625,7 @@ export default function SupplierListingForm({
   focusSection,
   onFocusConsumed,
   canPostNewListing = true,
+  createFamily = 'tour',
 }: SupplierListingFormProps) {
   const { user } = useAuth();
   const [form, setForm] = useState<ListingFormState>(emptyForm);
@@ -699,6 +778,19 @@ export default function SupplierListingForm({
           minGuestAge: extras.minGuestAge ?? '',
           venueSetting: extras.venueSetting ?? 'unspecified',
           additionalLanguages: extras.additionalLanguages ?? [],
+          inventoryFamily: extras.inventoryFamily === 'stay' ? 'stay' : 'tour',
+          stayPropertyType: extras.stay?.propertyType ?? 'Apartment',
+          stayBedrooms: extras.stay?.bedrooms != null ? String(extras.stay.bedrooms) : '1',
+          stayBeds: extras.stay?.beds != null ? String(extras.stay.beds) : '1',
+          stayBathrooms: extras.stay?.bathrooms != null ? String(extras.stay.bathrooms) : '1',
+          stayMaxGuests: extras.stay?.maxGuests != null ? String(extras.stay.maxGuests) : '4',
+          stayNightly: extras.stay?.nightlyPriceUsd != null ? String(extras.stay.nightlyPriceUsd) : '',
+          stayMinNights: extras.stay?.minNights != null ? String(extras.stay.minNights) : '1',
+          stayCheckIn: extras.stay?.checkInTime ?? '16:00',
+          stayCheckOut: extras.stay?.checkOutTime ?? '11:00',
+          stayAmenities: (extras.stay?.amenities ?? []).join(', '),
+          stayHouseRules: extras.stay?.houseRules ?? '',
+          stayCleaningFee: extras.stay?.cleaningFeeUsd != null ? String(extras.stay.cleaningFeeUsd) : '',
         };
         initialFormSnapshotRef.current = serializeListingFormState(next);
         setForm(next);
@@ -711,11 +803,22 @@ export default function SupplierListingForm({
       // Create flow: seed empty template once — never when this mount started as an edit (see sessionOpenedAsCreateRef).
       if (sessionOpenedAsCreateRef.current && !createModeEmptySeededRef.current) {
         createModeEmptySeededRef.current = true;
-        initialFormSnapshotRef.current = serializeListingFormState(emptyForm);
-        setForm(emptyForm);
+        const seeded = {
+          ...emptyForm,
+          inventoryFamily: createFamily,
+          ...(createFamily === 'stay'
+            ? {
+                experienceLanguage: 'en',
+                duration: 'Per night',
+                experienceKind: 'tour' as const,
+              }
+            : {}),
+        };
+        initialFormSnapshotRef.current = serializeListingFormState(seeded);
+        setForm(seeded);
       }
     }
-  }, [editingId, existingListings]);
+  }, [editingId, existingListings, createFamily]);
 
   useEffect(() => {
     optionModalOpenRef.current = optionModalOpen;
@@ -1474,7 +1577,7 @@ export default function SupplierListingForm({
           className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6 sm:py-5"
         >
           <div key={stepIdx} className="motion-safe:animate-fade-in">
-          {stepIdx === 0 && (
+          {stepIdx === 0 && form.inventoryFamily !== 'stay' && (
             <div className="space-y-5 transition-all duration-300 ease-out opacity-100 translate-y-0">
               <div id="supplier-listing-field-language">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Primary language of the tour *</label>
@@ -1492,6 +1595,11 @@ export default function SupplierListingForm({
                   ))}
                 </select>
               </div>
+            </div>
+          )}
+
+          {stepIdx === 0 && (
+            <div className="space-y-5 transition-all duration-300 ease-out opacity-100 translate-y-0">
               <div id="supplier-listing-field-title">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
                 <p className="text-xs text-gray-500 mb-2">A clear, specific name travelers will see in search and on the listing page.</p>
@@ -1500,14 +1608,18 @@ export default function SupplierListingForm({
                   value={form.title}
                   onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
                   className="tv-input"
-                  placeholder="e.g. Old town walking tour · small groups"
+                  placeholder={
+                    form.inventoryFamily === 'stay'
+                      ? 'e.g. Harbour apartment · two bedrooms'
+                      : 'e.g. Old town walking tour · small groups'
+                  }
                   required
                 />
               </div>
             </div>
           )}
 
-          {stepIdx === 0 && (
+          {stepIdx === 0 && form.inventoryFamily !== 'stay' && (
             <div className="space-y-4 transition-all duration-300 ease-out opacity-100 translate-y-0">
               <div id="supplier-listing-field-category">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
@@ -1556,7 +1668,9 @@ export default function SupplierListingForm({
                 </p>
               </div>
               <div id="supplier-listing-field-description">
-                <label className="block text-sm font-medium text-gray-700 mb-1">About this tour *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  About this {form.inventoryFamily === 'stay' ? 'stay' : 'tour'} *
+                </label>
                 <p className="text-xs text-gray-500 mb-2">
                   Main description for guests (at least {MIN_LISTING_DESCRIPTION_LENGTH} characters for publishing, max{' '}
                   {MAX_DESCRIPTION_LENGTH}).
@@ -1623,7 +1737,7 @@ export default function SupplierListingForm({
             </div>
           )}
 
-          {stepIdx === 1 && (
+          {stepIdx === 1 && form.inventoryFamily !== 'stay' && (
             <div className="space-y-5 transition-all duration-300 ease-out opacity-100 translate-y-0">
               <div id="supplier-listing-field-includes">
                 <label className="block text-sm font-medium text-gray-700 mb-1">What&apos;s included *</label>
@@ -1779,7 +1893,7 @@ export default function SupplierListingForm({
                     value={form.city}
                     onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
                     className="tv-input"
-                    placeholder="e.g. Lisbon — main base or starting point"
+                    placeholder="e.g. Lisbon — neighbourhood or street"
                     required
                   />
                 </div>
@@ -1790,7 +1904,7 @@ export default function SupplierListingForm({
                     value={form.country}
                     onChange={(e) => setForm((f) => ({ ...f, country: e.target.value }))}
                     className="tv-input"
-                    placeholder="Primary country for this tour"
+                    placeholder={form.inventoryFamily === 'stay' ? 'Country of the property' : 'Primary country for this tour'}
                     required
                   />
                 </div>
@@ -1808,10 +1922,14 @@ export default function SupplierListingForm({
                   If you skip this, we use city and country from above; if you fill this instead, cards can show this route label.
                 </p>
               </div>
+              {form.inventoryFamily !== 'stay' ? (
               <p className="text-xs text-gray-500 -mt-2">
                 Use the main base or usual starting city. Per-option meeting and pickup are set under{' '}
                 <span className="font-medium text-gray-700">Cost &amp; options</span>.
               </p>
+              ) : null}
+              {form.inventoryFamily !== 'stay' ? (
+              <>
               <div id="supplier-listing-field-duration">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Duration *</label>
                 <input
@@ -1910,10 +2028,126 @@ export default function SupplierListingForm({
                 </div>
                 </div>
               </details>
+              </>
+              ) : null}
             </div>
           )}
 
-          {stepIdx === 2 && (
+          {stepIdx === 2 && form.inventoryFamily === 'stay' && (
+            <div className="space-y-4">
+              <h3 className="font-display text-xl text-ink">Stay price and rooms</h3>
+              <p className="text-sm text-ink-muted">Nightly rate for the property, not per person.</p>
+              <div className="grid sm:grid-cols-2 gap-3">
+                <label className="block text-sm">
+                  Nightly price (USD)
+                  <input
+                    type="number"
+                    min={1}
+                    value={form.stayNightly}
+                    onChange={(e) => setForm((f) => ({ ...f, stayNightly: e.target.value }))}
+                    className="tv-input mt-1 w-full"
+                  />
+                </label>
+                <label className="block text-sm">
+                  Max guests
+                  <input
+                    type="number"
+                    min={1}
+                    value={form.stayMaxGuests}
+                    onChange={(e) => setForm((f) => ({ ...f, stayMaxGuests: e.target.value }))}
+                    className="tv-input mt-1 w-full"
+                  />
+                </label>
+                <label className="block text-sm">
+                  Bedrooms
+                  <input
+                    type="number"
+                    min={0}
+                    value={form.stayBedrooms}
+                    onChange={(e) => setForm((f) => ({ ...f, stayBedrooms: e.target.value }))}
+                    className="tv-input mt-1 w-full"
+                  />
+                </label>
+                <label className="block text-sm">
+                  Beds
+                  <input
+                    type="number"
+                    min={0}
+                    value={form.stayBeds}
+                    onChange={(e) => setForm((f) => ({ ...f, stayBeds: e.target.value }))}
+                    className="tv-input mt-1 w-full"
+                  />
+                </label>
+                <label className="block text-sm">
+                  Bathrooms
+                  <input
+                    type="number"
+                    min={0}
+                    step={0.5}
+                    value={form.stayBathrooms}
+                    onChange={(e) => setForm((f) => ({ ...f, stayBathrooms: e.target.value }))}
+                    className="tv-input mt-1 w-full"
+                  />
+                </label>
+                <label className="block text-sm">
+                  Minimum nights
+                  <input
+                    type="number"
+                    min={1}
+                    value={form.stayMinNights}
+                    onChange={(e) => setForm((f) => ({ ...f, stayMinNights: e.target.value }))}
+                    className="tv-input mt-1 w-full"
+                  />
+                </label>
+                <label className="block text-sm">
+                  Check-in
+                  <input
+                    type="time"
+                    value={form.stayCheckIn}
+                    onChange={(e) => setForm((f) => ({ ...f, stayCheckIn: e.target.value }))}
+                    className="tv-input mt-1 w-full"
+                  />
+                </label>
+                <label className="block text-sm">
+                  Check-out
+                  <input
+                    type="time"
+                    value={form.stayCheckOut}
+                    onChange={(e) => setForm((f) => ({ ...f, stayCheckOut: e.target.value }))}
+                    className="tv-input mt-1 w-full"
+                  />
+                </label>
+              </div>
+              <label className="block text-sm">
+                Cleaning fee (USD, optional)
+                <input
+                  type="number"
+                  min={0}
+                  value={form.stayCleaningFee}
+                  onChange={(e) => setForm((f) => ({ ...f, stayCleaningFee: e.target.value }))}
+                  className="tv-input mt-1 w-full"
+                />
+              </label>
+              <label className="block text-sm">
+                Amenities (comma separated)
+                <input
+                  value={form.stayAmenities}
+                  onChange={(e) => setForm((f) => ({ ...f, stayAmenities: e.target.value }))}
+                  className="tv-input mt-1 w-full"
+                  placeholder="Wifi, kitchen, parking"
+                />
+              </label>
+              <label className="block text-sm">
+                House rules
+                <textarea
+                  value={form.stayHouseRules}
+                  onChange={(e) => setForm((f) => ({ ...f, stayHouseRules: e.target.value }))}
+                  className="tv-input mt-1 w-full min-h-[5rem]"
+                />
+              </label>
+            </div>
+          )}
+          {stepIdx === 2 && form.inventoryFamily !== 'stay' && (
             <div className="space-y-4 transition-all duration-300 ease-out opacity-100 translate-y-0">
               <div>
                 <h3 className="font-display text-xl text-ink">Cost &amp; bookable options</h3>

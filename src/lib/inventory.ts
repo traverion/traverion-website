@@ -2,7 +2,7 @@
  * Traveler inventory families vs operator listing rows.
  *
  * Families (do not collapse): tour, stay, experience, package.
- * Live for travelers today: tour only.
+ * Live for travelers today: tour and stay.
  *
  * `listings.experience_kind` (tour | ticket | transportation) is the operator format of a tour,
  * not the Experiences category. Do not rename that column.
@@ -15,7 +15,7 @@
 export const INVENTORY_FAMILIES = ['tour', 'stay', 'experience', 'package'] as const;
 export type InventoryFamily = (typeof INVENTORY_FAMILIES)[number];
 
-export const LIVE_INVENTORY_FAMILIES = ['tour'] as const;
+export const LIVE_INVENTORY_FAMILIES = ['tour', 'stay'] as const;
 export type LiveInventoryFamily = (typeof LIVE_INVENTORY_FAMILIES)[number];
 
 export type InventoryAvailabilityUnit =
@@ -74,14 +74,29 @@ export function availabilityUnitForListing(listing: InventoryListingSlice): Inve
   return INVENTORY_AVAILABILITY_UNIT[inventoryFamilyFromListing(listing)];
 }
 
-/** Traveler catalog and checkout only for live families (tours). */
+/** Traveler catalog for live families (tours and stays). */
 export function listingIsOnTravelerCatalog(listing: InventoryListingSlice): boolean {
   return isInventoryFamilyLive(inventoryFamilyFromListing(listing));
 }
 
-/** Checkout quotes a tour departure. Other units are not implemented. */
+/** Traveler catalog for a public family (Tours vs Stays stay separate). */
+export function listingIsFamily(
+  listing: InventoryListingSlice,
+  family: InventoryFamily
+): boolean {
+  return inventoryFamilyFromListing(listing) === family;
+}
+
+export function filterCatalogByFamily<T extends InventoryListingSlice>(
+  listings: T[],
+  family: InventoryFamily
+): T[] {
+  return listings.filter((l) => listingIsFamily(l, family) && listingIsOnTravelerCatalog(l));
+}
+
+/** Checkout quotes a tour departure. Stay nights use a separate quote path. */
 export function listingCanUseTravelerQuote(listing: InventoryListingSlice): boolean {
-  return listingIsOnTravelerCatalog(listing) && availabilityUnitForListing(listing) === 'tour_departure';
+  return listingIsFamily(listing, 'tour') && availabilityUnitForListing(listing) === 'tour_departure';
 }
 
 export function filterTravelerCatalog<T extends InventoryListingSlice>(listings: T[]): T[] {
@@ -105,20 +120,16 @@ export const PARTNER_CREATE_INVENTORY: PartnerCreateInventoryOption[] = [
   },
   {
     family: 'stay',
-    canCreate: false,
+    canCreate: true,
     title: 'Stay',
-    description: 'Apartments and rooms are coming. Not available to create yet.',
+    description: 'An apartment or room with nights, guest capacity, and house rules.',
   },
 ];
 
-export const RESERVED_PUBLIC_INVENTORY_PATHS: Record<string, Exclude<InventoryFamily, 'tour'>> = {
-  '/stays': 'stay',
-  '/experiences': 'experience',
-};
-
-export function reservedInventoryFamilyFromPath(pathname: string): Exclude<InventoryFamily, 'tour'> | null {
+export function reservedInventoryFamilyFromPath(pathname: string): Exclude<InventoryFamily, 'tour' | 'stay'> | null {
   const normalized = pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
-  return RESERVED_PUBLIC_INVENTORY_PATHS[normalized] ?? null;
+  if (normalized === '/experiences') return 'experience';
+  return null;
 }
 
 export function publicPathForInventoryFamily(family: InventoryFamily): string {
@@ -128,13 +139,7 @@ export function publicPathForInventoryFamily(family: InventoryFamily): string {
   return '/packages';
 }
 
-export function reservedInventoryCopy(family: Exclude<InventoryFamily, 'tour'>): { title: string; body: string } {
-  if (family === 'stay') {
-    return {
-      title: 'Stays are not live',
-      body: 'Traverion does not sell rooms yet. That is expected — stays will be their own category, not mixed into Tours.',
-    };
-  }
+export function reservedInventoryCopy(family: Exclude<InventoryFamily, 'tour' | 'stay'>): { title: string; body: string } {
   if (family === 'package') {
     return {
       title: 'Packages are not live',

@@ -6,7 +6,8 @@ import type { ListingDiscount } from '../data/supabase-discounts';
 import { getDisplayPriceForTour } from '../lib/discount-display';
 import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
 import { listingShowsFreeCancellation } from '../lib/listingTruth';
-import { formatTourDurationDisplay } from '../types/listingExtras';
+import { formatTourDurationDisplay, parseListingExtras } from '../types/listingExtras';
+import { listingIsFamily } from '../lib/inventory';
 import { ListingCardRating } from './ListingCardRating';
 
 export type PublicListingBrowseCardProps = {
@@ -45,9 +46,16 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
   const fromAmount = hasDiscount ? price : originalPrice;
   const showStrikethrough = hasDiscount && originalPrice > fromAmount;
   const currency = tour.price?.currency ?? 'USD';
+  const isStay = listingIsFamily(tour, 'stay');
+  const stay = isStay ? parseListingExtras(tour.listingExtras).stay : undefined;
+  const stayNightly = stay?.nightlyPriceUsd && stay.nightlyPriceUsd > 0 ? stay.nightlyPriceUsd : fromAmount;
   const locationLine =
     [tour.city, tour.country].filter(Boolean).join(', ') || tour.destination || 'Various locations';
-  const durationLine = formatTourDurationDisplay(tour.duration || '');
+  const durationLine = isStay
+    ? stay?.maxGuests
+      ? `Up to ${stay.maxGuests} guests`
+      : tour.groupSize || ''
+    : formatTourDurationDisplay(tour.duration || '');
   const extraTags =
     tour.tags?.filter((t) => t !== 'free-cancellation' && t !== 'bestseller') ?? [];
   const heroSrc = listingHeroImageSrc(tour.image);
@@ -88,7 +96,7 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
         />
         ) : null}
         <div className="absolute top-2.5 left-2.5 flex flex-wrap gap-1.5">
-          {listingShowsFreeCancellation(tour) && (
+          {listingShowsFreeCancellation(tour) && !isStay && (
             <span className="bg-white/95 text-ink text-[11px] font-medium px-2 py-0.5 rounded-full">
               Free cancellation
             </span>
@@ -112,16 +120,24 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
         </h3>
         <p
           className={`mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 tabular-nums ${size === 'compact' ? 'text-lg' : 'text-xl'}`}
-          aria-label={hasDiscount ? `From ${currency} ${fromAmount} per person, ${label}` : `From ${currency} ${originalPrice} per person`}
+          aria-label={
+            isStay
+              ? `${currency} ${stayNightly} per night`
+              : hasDiscount
+                ? `From ${currency} ${fromAmount} per person, ${label}`
+                : `From ${currency} ${originalPrice} per person`
+          }
         >
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">From</span>
-          {showStrikethrough ? (
+          {isStay ? null : (
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">From</span>
+          )}
+          {showStrikethrough && !isStay ? (
             <span className="text-sm font-medium text-ink-faint line-through">{currency} {originalPrice.toFixed(0)}</span>
           ) : null}
-          <span className={`font-bold tracking-tight ${hasDiscount ? 'text-finland' : 'text-ink'}`}>
-            {currency} {fromAmount.toFixed(0)}
+          <span className={`font-bold tracking-tight ${hasDiscount && !isStay ? 'text-finland' : 'text-ink'}`}>
+            {currency} {(isStay ? stayNightly : fromAmount).toFixed(0)}
           </span>
-          <span className="text-sm font-medium text-ink-muted">per person</span>
+          <span className="text-sm font-medium text-ink-muted">{isStay ? 'per night' : 'per person'}</span>
         </p>
         <div className="mt-2 flex min-w-0 items-center gap-1.5 text-sm font-medium text-ink-muted">
           <MapPin className="h-4 w-4 flex-shrink-0 text-ink-faint" aria-hidden />

@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useDeferredValue, useRef } f
 import { useDialogFocus } from '../hooks/useDialogFocus';
 import { Search, Filter, X, Compass } from 'lucide-react';
 import { getAllListings, SHOW_SEED_LISTINGS, durationToMinutes } from '../data/listings';
+import { filterCatalogByFamily } from '../lib/inventory';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { usePublishedSupplierListings } from '../hooks/usePublishedSupplierListings';
 import { analytics } from '../lib/analytics';
@@ -15,7 +16,7 @@ import { listingRunsOnDate } from '../lib/booking-quote';
 import { getPartySizeBounds } from '../lib/booking-flow';
 import { SkeletonCardGrid } from '../components/ui/Skeleton';
 import { PublicListingBrowseCard } from '../components/PublicListingBrowseCard';
-import { supplierPortalHref } from '../lib/partnerHost';
+import { supplierPortalLandingHref } from '../lib/partnerHost';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
@@ -192,7 +193,7 @@ export default function Packages({ onTourSelect }: PackagesProps) {
       isSupabaseConfigured() && supplierListings !== null
         ? [...supplierListings]
         : [...getAllListings({ includeSeed: false, includeHolidayPackages: false })];
-    return base;
+    return filterCatalogByFamily(base, 'tour');
   }, [supplierListings]);
 
   const supabaseListingIds = useMemo(
@@ -364,50 +365,16 @@ export default function Packages({ onTourSelect }: PackagesProps) {
           />
         )}
 
-        <div className="mt-8 flex flex-col lg:flex-row gap-3 lg:items-center">
-          <div className="flex gap-2 min-w-0 flex-1">
-            <div className="relative flex-1 min-w-0">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-faint" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Where or what"
-                aria-label="Search tours"
-                className="tv-input pl-10"
-              />
-            </div>
-            <div className="lg:hidden shrink-0">
-              <button
-                type="button"
-                className="tv-btn-secondary"
-                onClick={() => setMobileFiltersOpen(true)}
-                aria-expanded={mobileFiltersOpen}
-                aria-controls="tours-filters"
-              >
-                <Filter className="w-4 h-4" />
-                Filters{extraFilterCount > 0 ? ` · ${extraFilterCount}` : ''}
-              </button>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-2 lg:hidden">
+        <div className="mt-8 bg-paper-raised rounded-2xl p-2 sm:p-2.5 grid grid-cols-2 lg:grid-cols-[1fr_auto_auto_auto_auto] gap-2 shadow-soft-lg">
+          <div className="relative col-span-2 lg:col-span-1 min-w-0">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-faint pointer-events-none" />
             <input
-              type="date"
-              value={filterDate}
-              onChange={(e) => setFilterDate(e.target.value)}
-              aria-label="Any date"
-              className="tv-input"
-            />
-            <input
-              type="number"
-              min={1}
-              max={99}
-              inputMode="numeric"
-              value={filterGuests}
-              onChange={(e) => setFilterGuests(e.target.value)}
-              placeholder="Guests"
-              aria-label="Guests"
-              className="tv-input"
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Where or what"
+              aria-label="Search tours"
+              className="w-full h-12 pl-10 pr-4 rounded-xl bg-transparent text-ink"
             />
           </div>
           <input
@@ -415,7 +382,7 @@ export default function Packages({ onTourSelect }: PackagesProps) {
             value={filterDate}
             onChange={(e) => setFilterDate(e.target.value)}
             aria-label="Date"
-            className="tv-input hidden lg:block lg:w-40"
+            className="h-12 px-3 rounded-xl bg-transparent text-ink"
           />
           <input
             type="number"
@@ -426,12 +393,12 @@ export default function Packages({ onTourSelect }: PackagesProps) {
             onChange={(e) => setFilterGuests(e.target.value)}
             placeholder="Guests"
             aria-label="Guests"
-            className="tv-input hidden lg:block lg:w-28"
+            className="h-12 px-3 rounded-xl bg-transparent text-ink"
           />
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as SortOption)}
-            className="tv-input hidden lg:block lg:w-48"
+            className="h-12 px-3 rounded-xl bg-transparent text-ink col-span-1"
             aria-label="Sort"
           >
             <option value="recommended">Recommended</option>
@@ -440,16 +407,16 @@ export default function Packages({ onTourSelect }: PackagesProps) {
             <option value="rating">Top rated</option>
             <option value="duration">Duration</option>
           </select>
-          <div className="hidden lg:block shrink-0">
-            <button
-              type="button"
-              className="tv-btn-secondary"
-              onClick={() => setMobileFiltersOpen(true)}
-            >
-              <Filter className="w-4 h-4" />
-              Filters{extraFilterCount > 0 ? ` · ${extraFilterCount}` : ''}
-            </button>
-          </div>
+          <button
+            type="button"
+            className="tv-btn-secondary h-12 col-span-1"
+            onClick={() => setMobileFiltersOpen(true)}
+            aria-expanded={mobileFiltersOpen}
+            aria-controls="tours-filters"
+          >
+            <Filter className="w-4 h-4" />
+            Filters{extraFilterCount > 0 ? ` · ${extraFilterCount}` : ''}
+          </button>
         </div>
 
         {hasActiveFilters && (
@@ -654,7 +621,7 @@ export default function Packages({ onTourSelect }: PackagesProps) {
             title="No tours published yet"
             body="Operators have not published live tours. That is expected — Traverion does not show a demo catalog. If you run tours, you can list yours today."
             action={
-              <a href={supplierPortalHref('/login')} className="tv-btn-primary inline-flex">
+              <a href={supplierPortalLandingHref()} className="tv-btn-primary inline-flex">
                 List your tours
               </a>
             }

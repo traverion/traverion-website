@@ -60,6 +60,44 @@ export interface ListingExtras {
    * Omitted means tour. Separate from `experience_kind` on the listing row.
    */
   inventoryFamily?: 'tour' | 'stay' | 'experience' | 'package';
+  /** Stay-only facts. Ignored for tours. */
+  stay?: StayDetails;
+}
+
+export type StayDetails = {
+  propertyType?: string;
+  bedrooms?: number;
+  beds?: number;
+  bathrooms?: number;
+  amenities?: string[];
+  checkInTime?: string;
+  checkOutTime?: string;
+  houseRules?: string;
+  nightlyPriceUsd?: number;
+  minNights?: number;
+  maxGuests?: number;
+  cleaningFeeUsd?: number;
+};
+
+function normalizeStayDetails(raw: unknown): StayDetails | undefined {
+  if (raw == null || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+  const o = raw as Record<string, unknown>;
+  const out: StayDetails = {};
+  if (typeof o.propertyType === 'string' && o.propertyType.trim()) out.propertyType = o.propertyType.trim();
+  if (typeof o.bedrooms === 'number' && o.bedrooms >= 0) out.bedrooms = Math.floor(o.bedrooms);
+  if (typeof o.beds === 'number' && o.beds >= 0) out.beds = Math.floor(o.beds);
+  if (typeof o.bathrooms === 'number' && o.bathrooms >= 0) out.bathrooms = Math.round(o.bathrooms * 2) / 2;
+  if (Array.isArray(o.amenities)) {
+    out.amenities = o.amenities.map((x) => String(x ?? '').trim()).filter(Boolean).slice(0, 24);
+  }
+  if (typeof o.checkInTime === 'string' && o.checkInTime.trim()) out.checkInTime = o.checkInTime.trim().slice(0, 5);
+  if (typeof o.checkOutTime === 'string' && o.checkOutTime.trim()) out.checkOutTime = o.checkOutTime.trim().slice(0, 5);
+  if (typeof o.houseRules === 'string' && o.houseRules.trim()) out.houseRules = o.houseRules.trim().slice(0, 2000);
+  if (typeof o.nightlyPriceUsd === 'number' && o.nightlyPriceUsd > 0) out.nightlyPriceUsd = o.nightlyPriceUsd;
+  if (typeof o.minNights === 'number' && o.minNights >= 1) out.minNights = Math.floor(o.minNights);
+  if (typeof o.maxGuests === 'number' && o.maxGuests >= 1) out.maxGuests = Math.floor(o.maxGuests);
+  if (typeof o.cleaningFeeUsd === 'number' && o.cleaningFeeUsd >= 0) out.cleaningFeeUsd = o.cleaningFeeUsd;
+  return Object.keys(out).length > 0 ? out : undefined;
 }
 
 const WEEKDAY_COUNT = 7;
@@ -249,6 +287,8 @@ export function parseListingExtras(raw: unknown): ListingExtras {
   if (fam === 'tour' || fam === 'stay' || fam === 'experience' || fam === 'package') {
     out.inventoryFamily = fam;
   }
+  const stay = normalizeStayDetails(o.stay);
+  if (stay) out.stay = stay;
 
   return out;
 }
@@ -269,5 +309,6 @@ export function listingExtrasToDb(extras: ListingExtras | undefined): Record<str
   if (extras.inventoryFamily && extras.inventoryFamily !== 'tour') {
     payload.inventoryFamily = extras.inventoryFamily;
   }
+  if (extras.stay && Object.keys(extras.stay).length > 0) payload.stay = extras.stay;
   return Object.keys(payload).length > 0 ? payload : null;
 }

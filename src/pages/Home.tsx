@@ -1,6 +1,7 @@
 import { ArrowRight, Search, ShieldCheck, Compass } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import { getAllListings } from '../data/listings';
+import { filterCatalogByFamily } from '../lib/inventory';
 import { getDestinationsFromListings } from '../data/catalogMeta';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { usePublishedSupplierListings } from '../hooks/usePublishedSupplierListings';
@@ -9,7 +10,7 @@ import { fetchDiscountsByListingIds } from '../data/supabase-discounts';
 import { getReviewAggregatesForListingIds } from '../data/supabase-reviews';
 import { isSupabaseListingId } from '../lib/discount-display';
 import { PublicListingBrowseCard } from '../components/PublicListingBrowseCard';
-import { supplierPortalHref } from '../lib/partnerHost';
+import { supplierPortalLandingHref } from '../lib/partnerHost';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
 import { SkeletonCardGrid, SkeletonFeaturedHero, SkeletonPlaceGrid } from '../components/ui/Skeleton';
@@ -47,7 +48,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
     () => new Map()
   );
 
-  const allListings = useMemo(() => {
+  const catalogBase = useMemo(() => {
     const base =
       isSupabaseConfigured() && supplierListings !== null
         ? [...supplierListings]
@@ -55,11 +56,15 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
     return base;
   }, [supplierListings]);
 
+  const allListings = useMemo(() => filterCatalogByFamily(catalogBase, 'tour'), [catalogBase]);
+  const stayListings = useMemo(() => filterCatalogByFamily(catalogBase, 'stay'), [catalogBase]);
+  const [searchFamily, setSearchFamily] = useState<'tours' | 'stays'>('tours');
+
   const placeChips = useMemo(() => {
-    return getDestinationsFromListings(allListings)
+    return getDestinationsFromListings([...allListings, ...stayListings])
       .filter((d) => d.type === 'city' || d.type === 'region')
       .slice(0, 8);
-  }, [allListings]);
+  }, [allListings, stayListings]);
 
   const displayedListings = useMemo(() => allListings.slice(0, MAX_RESULTS_HOME), [allListings]);
   const featuredListing = displayedListings[0];
@@ -114,9 +119,24 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
     onNavigate('packages');
   };
 
+  const goToStays = (extra?: { q?: string; date?: string; guests?: string }) => {
+    if (!onNavigate) return;
+    const params = new URLSearchParams();
+    const q = (extra?.q ?? searchTerm).trim();
+    const date = (extra?.date ?? when).trim();
+    const guests = (extra?.guests ?? who).trim();
+    if (q) params.set('q', q);
+    if (date) params.set('date', date);
+    if (guests) params.set('guests', guests);
+    const query = params.toString();
+    window.history.pushState({}, '', query ? `/stays?${query}` : '/stays');
+    onNavigate('stays');
+  };
+
   const submitSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    goToPackages();
+    if (searchFamily === 'stays') goToStays();
+    else goToPackages();
   };
 
   return (
@@ -127,18 +147,38 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
         </div>
         <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/50 to-black/30" aria-hidden />
         <div className="relative z-10 w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-10 sm:pb-16 page-hero-content">
-          <p className="page-hero-eyebrow text-xs tracking-[0.22em] uppercase mb-4">Independent tours</p>
+          <p className="page-hero-eyebrow text-xs tracking-[0.22em] uppercase mb-4">Independent travel</p>
           <h1 className="page-hero-title font-display text-4xl sm:text-6xl lg:text-7xl tracking-tight max-w-3xl leading-[1.05] mb-5">
             Book the people who run the day.
           </h1>
           <p className="page-hero-subtitle text-base sm:text-lg mb-8 max-w-xl font-normal">
-            Live tours from operators — not a brochure. Free cancellation up to 24 hours before.
+            Live tours and stays from operators — not a brochure. Free cancellation on tours up to 24 hours before.
           </p>
+          <div className="flex gap-1 rounded-full bg-white/15 p-1 mb-3 w-fit">
+            <button
+              type="button"
+              onClick={() => setSearchFamily('tours')}
+              className={`lux-flat rounded-full px-4 py-1.5 text-sm font-medium ${
+                searchFamily === 'tours' ? 'bg-white text-ink' : 'text-white/80'
+              }`}
+            >
+              Tours
+            </button>
+            <button
+              type="button"
+              onClick={() => setSearchFamily('stays')}
+              className={`lux-flat rounded-full px-4 py-1.5 text-sm font-medium ${
+                searchFamily === 'stays' ? 'bg-white text-ink' : 'text-white/80'
+              }`}
+            >
+              Stays
+            </button>
+          </div>
           <form
             onSubmit={submitSearch}
             onPointerEnter={prefetchPackagesPage}
             className="bg-paper-raised text-ink rounded-2xl p-2 sm:p-2.5 grid grid-cols-2 sm:grid-cols-[1fr_auto_auto_auto] gap-2 max-w-3xl shadow-soft-xl"
-            aria-label="Search tours"
+            aria-label={searchFamily === 'stays' ? 'Search stays' : 'Search tours'}
           >
             <label className="sr-only" htmlFor="home-search">Where</label>
             <div className="relative min-w-0 col-span-2 sm:col-span-1">
@@ -202,7 +242,9 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                   <button
                     key={p.id}
                     type="button"
-                    onClick={() => goToPackages({ destination: p.id })}
+                    onClick={() =>
+                      searchFamily === 'stays' ? goToStays({ q: p.label }) : goToPackages({ destination: p.id })
+                    }
                     className="lux-flat relative h-56 sm:h-72 rounded-3xl overflow-hidden text-left group"
                   >
                     <img src={img} alt="" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
@@ -220,7 +262,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                 <div className="absolute bottom-6 left-6 right-6 text-white">
                   <p className="font-display text-2xl mb-2">Operators are listing now</p>
                   <p className="text-sm text-white/80 mb-4">When a tour is published, it appears here for travelers to book.</p>
-                  <a href={supplierPortalHref('/login')} className="tv-btn-primary bg-white text-ink hover:bg-paper">
+                  <a href={supplierPortalLandingHref()} className="tv-btn-primary bg-white text-ink hover:bg-paper">
                     List your tours
                   </a>
                 </div>
@@ -241,7 +283,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
         </div>
       </section>
 
-      <section className="pb-16 sm:pb-24">
+      <section className="pb-12 sm:pb-16">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-end justify-between gap-3 mb-8">
             <h2 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Tours</h2>
@@ -274,7 +316,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
               title="No tours yet"
               body="Nothing is live on Traverion right now. That is normal — we do not fill this page with sample listings. When an operator publishes, tours appear here."
               action={
-                <a href={supplierPortalHref('/login')} className="tv-btn-primary inline-flex">
+                <a href={supplierPortalLandingHref()} className="tv-btn-primary inline-flex">
                   List your tours
                 </a>
               }
@@ -318,6 +360,41 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                 ))}
               </div>
             </>
+          )}
+        </div>
+      </section>
+
+      <section className="pb-16 sm:pb-24">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-end justify-between gap-3 mb-8">
+            <h2 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Stays</h2>
+            {!catalogLoading && stayListings.length > 0 ? (
+              <button type="button" onClick={() => goToStays()} className="lux-flat text-sm font-semibold text-finland">
+                All stays <ArrowRight className="w-4 h-4 inline" />
+              </button>
+            ) : null}
+          </div>
+          {catalogLoading ? (
+            <SkeletonCardGrid count={3} />
+          ) : stayListings.length === 0 ? (
+            <p className="text-ink-muted max-w-xl leading-relaxed">
+              No stays are published yet. When an operator lists an apartment or room, it appears here — separate from Tours.
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {stayListings.slice(0, 6).map((item, index) => (
+                <PublicListingBrowseCard
+                  key={item.id}
+                  tour={item}
+                  index={index}
+                  onSelect={() => onTourSelect(item)}
+                  discountsByListing={new Map()}
+                  tagLabels={{}}
+                  size="default"
+                  showTagPills={false}
+                />
+              ))}
+            </div>
           )}
         </div>
       </section>

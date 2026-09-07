@@ -16,10 +16,12 @@ const LEGACY_BROCHURE_PATHS = new Set([
 const PATH_TO_PAGE: Record<string, string> = {
   '/packages': 'packages',
   '/tours': 'packages',
+  '/stays': 'stays',
   '/cart': 'cart',
   '/auth': 'auth',
   '/sign-up': 'auth',
   '/log-in': 'auth',
+  '/login': 'auth',
   '/set-password': 'reset-password',
   '/email-confirmed': 'email-confirmed',
   '/account': 'account',
@@ -66,7 +68,7 @@ export function normalizePublicTourDeepLinkPathname(pathname: string): string {
   return '/packages';
 }
 
-const TOUR_FLOW_PAGES = new Set(['tour-details', 'booking', 'tour-package']);
+const TOUR_FLOW_PAGES = new Set(['tour-details', 'booking', 'tour-package', 'stay-details']);
 
 export type ParsePathnameOptions = {
   /** When true, only /login and /admin are staff routes; everything else maps to staff login. */

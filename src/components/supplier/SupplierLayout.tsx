@@ -14,7 +14,8 @@ import SupplierDashboard from '../../pages/supplier/SupplierDashboard';
 import SupplierListings from '../../pages/supplier/SupplierListings';
 import SupplierBookings from '../../pages/supplier/SupplierBookings';
 import SupplierAvailability from '../../pages/supplier/SupplierAvailability';
-import SupplierLoginPage from './SupplierLoginPage';
+import PartnerAuthPage from './PartnerAuthPage';
+import PartnerLandingPage from './PartnerLandingPage';
 import {
   authUserHasPartnerSignupMetadata,
   ensureSupplierProfile,
@@ -38,8 +39,10 @@ import { isPartnerMarketingPathForCurrentHost } from '../../lib/partnerHost';
 import {
   PARTNER_APP_BASE,
   PARTNER_EMAIL_VERIFIED_PATH,
+  PARTNER_LANDING_DEV_PATH,
   PARTNER_LOGIN_PATH,
   PARTNER_RESET_PASSWORD_PATH,
+  PARTNER_SIGNUP_PATH,
   partnerMarketingPageFromPathname,
 } from '../../lib/partnerPortalPaths';
 import PartnerMarketingStaticPage from './PartnerMarketingStaticPage';
@@ -167,8 +170,15 @@ function getSectionFromPath(pathname: string): SupplierSection | null {
 }
 
 function isSupplierLoginPath(pathname: string): boolean {
-  const p = pathname.replace(/\/$/, '');
-  return p === PARTNER_LOGIN_PATH;
+  const p = pathname.replace(/\/$/, '') || '/';
+  return p === PARTNER_LOGIN_PATH || p === PARTNER_SIGNUP_PATH;
+}
+
+function isPartnerLandingPath(pathname: string): boolean {
+  const p = pathname.replace(/\/$/, '') || '/';
+  if (p === PARTNER_LANDING_DEV_PATH) return true;
+  if (typeof window === 'undefined') return false;
+  return window.location.hostname === 'partner.traverion.com' && (p === '/' || p === '');
 }
 
 function isPartnerResetPasswordPath(pathname: string): boolean {
@@ -612,6 +622,7 @@ export default function SupplierLayout() {
   void pathEpoch;
   const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
   const onLoginPath = isSupplierLoginPath(pathname);
+  const onLandingPath = isPartnerLandingPath(pathname);
   const onPortalPath = isSupplierPortalPath(pathname);
   const partnerMarketingPage = partnerMarketingPageFromPathname(pathname);
   const onboardingHasListing = onboardingListingCount !== null && onboardingListingCount > 0;
@@ -635,6 +646,15 @@ export default function SupplierLayout() {
 
   if (partnerMarketingPage && isPartnerMarketingPathForCurrentHost(pathname)) {
     return <PartnerMarketingStaticPage pageId={partnerMarketingPage} />;
+  }
+
+  if (onLandingPath && !user) {
+    return <PartnerLandingPage />;
+  }
+
+  if (onLandingPath && user && partnerGateView === 'allowed') {
+    window.location.replace(PARTNER_APP_BASE);
+    return <PartnerBusyScreen label="Opening partner workspace" />;
   }
 
   if (onPortalPath && !user) {
@@ -699,7 +719,14 @@ export default function SupplierLayout() {
   }
 
   if (onLoginPath && !user) {
-    return <SupplierLoginPage onAuthenticated={handleAuthenticated} isSupabase={isSupabase} />;
+    const p = pathname.replace(/\/$/, '') || '/';
+    return (
+      <PartnerAuthPage
+        mode={p === PARTNER_SIGNUP_PATH ? 'signup' : 'signin'}
+        onAuthenticated={handleAuthenticated}
+        isSupabase={isSupabase}
+      />
+    );
   }
 
   return (

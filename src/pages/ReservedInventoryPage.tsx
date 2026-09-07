@@ -6,7 +6,7 @@ import {
 } from '../lib/inventory';
 
 type Props = {
-  family: Exclude<InventoryFamily, 'tour'>;
+  family: Exclude<InventoryFamily, 'tour' | 'stay'>;
   onNavigate: (page: string) => void;
 };
 

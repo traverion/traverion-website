@@ -11,7 +11,9 @@
  * Optional env: VITE_PARTNER_PORTAL_URL (staging).
  */
 
+import { travelerMarketingLoginAlias } from './authHostRouting';
 import {
+  PARTNER_LANDING_DEV_PATH,
   PARTNER_LOGIN_PATH,
   isPartnerMarketingStaticPath,
   isPartnerPortalPath,
@@ -36,9 +38,12 @@ export function isPartnerPortalPathForCurrentHost(pathname: string): boolean {
   if (typeof window === 'undefined') return false;
   const p = pathname.replace(/\/$/, '') || '/';
 
-  if (!isPartnerPortalPath(p)) return false;
-  if (isTraverionPartnerHost()) return true;
+  if (isTraverionPartnerHost()) {
+    if (p === '/' || p === '') return true;
+    return isPartnerPortalPath(p);
+  }
 
+  if (!isPartnerPortalPath(p)) return false;
   const h = window.location.hostname;
   return h === 'localhost' || h === '127.0.0.1';
 }
@@ -111,6 +116,7 @@ export function normalizePartnerHostForSupplierSpa(): void {
   if (typeof window === 'undefined') return;
   if (!isTraverionPartnerHost()) return;
   const p = window.location.pathname.replace(/\/$/, '') || '/';
+  if (p === '/' || p === '') return;
   if (isPartnerPortalPath(p)) return;
   if (isTraverionPartnerHost() && isPartnerMarketingStaticPath(p)) return;
   const qs = window.location.search;
@@ -129,14 +135,19 @@ export function redirectTravelerMarketingSupplierPathsToPartnerHost(): void {
   window.location.replace(target);
 }
 
-/** www / apex: /login → partner login (same path on partner host). */
-export function redirectTravelerMarketingPartnerLoginShortcut(): void {
+/**
+ * www / apex: `/login` is traveler sign-in (`/log-in`), never partner.traverion.com.
+ * Partner login lives only on the partner host.
+ */
+export function rewriteTravelerMarketingLoginToTravelerAuth(): void {
   if (typeof window === 'undefined') return;
-  if (!isTravelerMarketingHost()) return;
-  const p = window.location.pathname.replace(/\/$/, '') || '/';
-  if (p !== PARTNER_LOGIN_PATH) return;
-  const target = `${supplierPortalPublicBaseUrl()}${PARTNER_LOGIN_PATH}${window.location.search}${window.location.hash}`;
-  window.location.replace(target);
+  const next = travelerMarketingLoginAlias(
+    window.location.hostname,
+    window.location.pathname,
+    `${window.location.search}${window.location.hash}`
+  );
+  if (!next) return;
+  window.history.replaceState({}, '', next);
 }
 
 /**
@@ -149,4 +160,14 @@ export function supplierPortalHref(path: string): string {
     if (!isTravelerMarketingHost()) return pathNorm;
   }
   return `${supplierPortalPublicBaseUrl()}${pathNorm}`;
+}
+
+/** Partner marketing entry (landing). Never the traveler home on localhost. */
+export function supplierPortalLandingHref(): string {
+  if (typeof window !== 'undefined') {
+    const h = window.location.hostname;
+    if (h === 'localhost' || h === '127.0.0.1') return PARTNER_LANDING_DEV_PATH;
+    if (isTraverionPartnerHost()) return '/';
+  }
+  return `${supplierPortalPublicBaseUrl()}/`;
 }

@@ -2,6 +2,12 @@
 
 export const PARTNER_LOGIN_PATH = '/login';
 
+/** Dedicated partner signup (not an overlay on the landing page). */
+export const PARTNER_SIGNUP_PATH = '/signup';
+
+/** Local-only preview of the partner landing (www `/` is the traveler home). */
+export const PARTNER_LANDING_DEV_PATH = '/for-partners';
+
 /** Password reset email links land here (recovery session in URL hash). */
 export const PARTNER_RESET_PASSWORD_PATH = '/reset-password';
 
@@ -65,6 +71,8 @@ export function isPartnerPortalPath(pathname: string): boolean {
   const p = normalizePartnerPath(pathname);
   return (
     p === PARTNER_LOGIN_PATH ||
+    p === PARTNER_SIGNUP_PATH ||
+    p === PARTNER_LANDING_DEV_PATH ||
     p === PARTNER_RESET_PASSWORD_PATH ||
     p === PARTNER_EMAIL_VERIFIED_PATH ||
     p === PARTNER_APP_BASE ||

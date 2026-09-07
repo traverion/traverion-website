@@ -7,7 +7,7 @@ import {
 import { redirectMainDomainAdminToStaffLogin } from './lib/adminHost';
 import {
   redirectTravelerMarketingSupplierPathsToPartnerHost,
-  redirectTravelerMarketingPartnerLoginShortcut,
+  rewriteTravelerMarketingLoginToTravelerAuth,
   rewriteLegacySupplierPathsOnPartnerHost,
   normalizePartnerHostForSupplierSpa,
 } from './lib/partnerHost';
@@ -18,7 +18,7 @@ redirectIfPasswordRecoveryLandingInWrongPlace();
 redirectLegacyTravelerResetPasswordPath();
 redirectMainDomainAdminToStaffLogin();
 redirectTravelerMarketingSupplierPathsToPartnerHost();
-redirectTravelerMarketingPartnerLoginShortcut();
+rewriteTravelerMarketingLoginToTravelerAuth();
 rewriteLegacySupplierPathsOnPartnerHost();
 normalizePartnerHostForSupplierSpa();
 

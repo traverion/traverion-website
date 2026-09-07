@@ -7,7 +7,7 @@ describe('consumer path aliases', () => {
     expect(parsePathname('/tours').page).toBe('packages');
     expect(parsePathname('/trips').page).toBe('bookings');
     expect(parsePathname('/packages').page).toBe('packages');
-    expect(parsePathname('/stays')).toEqual({ page: 'inventory-reserved', destinationSlug: 'stay' });
+    expect(parsePathname('/stays')).toEqual({ page: 'stays', destinationSlug: null });
     expect(parsePathname('/experiences')).toEqual({ page: 'inventory-reserved', destinationSlug: 'experience' });
     expect(parsePathname('/bookings').page).toBe('bookings');
   });
@@ -19,6 +19,8 @@ describe('travelerLoginHref', () => {
     expect(travelerLoginHref('wishlist')).toBe('/log-in?next=wishlist');
     expect(travelerLoginHref('cart')).toBe('/log-in?next=cart');
     expect(travelerLoginHref('account')).toBe('/log-in?next=account');
+    expect(travelerLoginHref('stays')).toBe('/log-in?next=stays');
+    expect(travelerLoginHref('packages')).toBe('/log-in?next=packages');
   });
 
   it('does not honor unknown next targets', () => {

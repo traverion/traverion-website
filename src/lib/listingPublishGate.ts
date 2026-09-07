@@ -49,6 +49,7 @@ function optionPublishIssues(
 export function getListingPublishBlockers(listing: TourPackage, todayIso?: string): string[] {
   const today = todayIso ?? new Date().toISOString().slice(0, 10);
   const out: string[] = [];
+  const isStay = listing.listingExtras?.inventoryFamily === 'stay';
   const title = listing.title?.trim() ?? '';
   if (title.length < 10) {
     out.push('Title is too short — add a clear, specific title (at least 10 characters).');
@@ -70,7 +71,16 @@ export function getListingPublishBlockers(listing: TourPackage, todayIso?: strin
   }
   const bookingOptions = materializedBookingOptions(listing.listingExtras?.bookingOptions);
   const price = listing.price?.startingFrom;
-  if (bookingOptions.length > 0) {
+  if (isStay) {
+    const stay = listing.listingExtras?.stay;
+    const nightly = stay?.nightlyPriceUsd ?? (typeof price === 'number' ? price : 0);
+    if (typeof nightly !== 'number' || nightly <= 0) {
+      out.push('Set a nightly price greater than zero.');
+    }
+    if (typeof stay?.maxGuests !== 'number' || stay.maxGuests < 1) {
+      out.push('Set how many guests the property can host.');
+    }
+  } else if (bookingOptions.length > 0) {
     for (let i = 0; i < bookingOptions.length; i++) {
       out.push(...optionPublishIssues(bookingOptions[i], i, bookingOptions.length > 1, today));
     }
@@ -81,29 +91,35 @@ export function getListingPublishBlockers(listing: TourPackage, todayIso?: strin
   const heroIsPlaceholder =
     !img || img === LISTING_PLACEHOLDER_IMAGE || img.includes('pexels.com/photos/346885');
   if (heroIsPlaceholder) {
-    out.push('Replace the placeholder hero image with a real photo of your tour.');
+    out.push(
+      isStay
+        ? 'Replace the placeholder hero image with a real photo of the property.'
+        : 'Replace the placeholder hero image with a real photo of your tour.'
+    );
   }
   const city = listing.city?.trim();
   const country = listing.country?.trim();
   if (!city || !country) {
     out.push('Add both city and country so the listing can be discovered and trusted.');
   }
-  const groupSize = (listing.groupSize ?? '').trim();
-  if (bookingOptions.length === 0 && groupSize.length < 3) {
-    out.push('Set group size (for example min–max guests or “up to X”) so guests know what to expect.');
-  }
-  const meet = (listing.meetingPoint ?? '').trim().length;
-  const pickup = (listing.pickupInstructions ?? '').trim().length;
-  if (bookingOptions.length === 0 && meet + pickup < 12) {
-    out.push('Add meeting point and/or pickup instructions so guests know where to go.');
-  }
-  const inc = (listing.includes ?? []).map((s) => String(s).trim()).filter(Boolean);
-  const exc = (listing.excludes ?? []).map((s) => String(s).trim()).filter(Boolean);
-  if (inc.length < 2) {
-    out.push('Add at least two “what’s included” items so the offer is clear.');
-  }
-  if (exc.length < 1) {
-    out.push('Add at least one “not included” item (for example meals or tickets) to set expectations.');
+  if (!isStay) {
+    const groupSize = (listing.groupSize ?? '').trim();
+    if (bookingOptions.length === 0 && groupSize.length < 3) {
+      out.push('Set group size (for example min–max guests or “up to X”) so guests know what to expect.');
+    }
+    const meet = (listing.meetingPoint ?? '').trim().length;
+    const pickup = (listing.pickupInstructions ?? '').trim().length;
+    if (bookingOptions.length === 0 && meet + pickup < 12) {
+      out.push('Add meeting point and/or pickup instructions so guests know where to go.');
+    }
+    const inc = (listing.includes ?? []).map((s) => String(s).trim()).filter(Boolean);
+    const exc = (listing.excludes ?? []).map((s) => String(s).trim()).filter(Boolean);
+    if (inc.length < 2) {
+      out.push('Add at least two “what’s included” items so the offer is clear.');
+    }
+    if (exc.length < 1) {
+      out.push('Add at least one “not included” item (for example meals or tickets) to set expectations.');
+    }
   }
   const gallery = (listing.listingExtras?.galleryImageUrls ?? []).map((u) => String(u).trim()).filter(Boolean);
   if (!heroIsPlaceholder && gallery.length < 3) {

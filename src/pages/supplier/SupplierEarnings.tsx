@@ -79,12 +79,8 @@ export default function SupplierEarnings() {
   );
 
   const threshold = profile?.payout_threshold_min ?? 0;
-  const cycle = profile?.payment_cycle ?? 'monthly';
-  const nextPayoutLabel = threshold > 0
-    ? `Next payout when pending balance ≥ ${formatMoney(threshold, primaryCurrency)} (${cycle})`
-    : cycle
-      ? `Payout cycle: ${cycle}. Set minimum in Settings.`
-      : 'Set payout schedule in Settings.';
+  const nextPayoutLabel =
+    'Payouts are reviewed by Traverion. There is no automatic transfer date until payouts are enabled for your account.';
 
   const payoutProgressPct =
     threshold > 0 && pending > 0 ? Math.min(100, Math.round((pending / threshold) * 100)) : null;

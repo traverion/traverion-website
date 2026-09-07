@@ -91,12 +91,9 @@ export function redirectIfPasswordRecoveryLandingInWrongPlace(): void {
         return;
       }
     }
-    // www /login is a shortcut to partner login — recovery links there belong on partner host.
-    // Traveler reset lives at /set-password on www — never send www recovery to partner.
-    if (p === PARTNER_LOGIN_PATH) {
-      window.location.replace(
-        `${supplierPortalPublicBaseUrl()}${PARTNER_RESET_PASSWORD_PATH}${search}${fragment}`
-      );
+    // www /login is traveler sign-in — recovery stays on www /set-password.
+    if (p === PARTNER_LOGIN_PATH || p === '/log-in' || p === '/sign-up' || p === '/auth') {
+      window.location.replace(`${origin}${TRAVELER_RESET_PASSWORD_PATH}${search}${fragment}`);
       return;
     }
   }

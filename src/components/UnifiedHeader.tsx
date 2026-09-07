@@ -127,6 +127,16 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
             >
               Tours
             </button>
+            <button
+              type="button"
+              onClick={() => onNavigate('stays')}
+              aria-current={currentPage === 'stays' || currentPage === 'stay-details' ? 'page' : undefined}
+              className={`lux-flat text-sm font-medium ${
+                currentPage === 'stays' || currentPage === 'stay-details' ? 'text-ink' : 'text-ink-muted hover:text-ink'
+              }`}
+            >
+              Stays
+            </button>
           </nav>
 
           {/* Action area: Cart, Profile (icon + label) */}
@@ -306,6 +316,19 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                 }`}
               >
                 Tours
+              </button>
+              <button
+                onClick={() => {
+                  onNavigate('stays');
+                  setIsMobileMenuOpen(false);
+                }}
+                className={`lux-flat text-left px-4 py-3 rounded-lg transition-colors duration-300 ease-lux font-medium ${
+                  currentPage === 'stays' || currentPage === 'stay-details'
+                    ? 'bg-finland/10 text-finland'
+                    : 'text-ink hover:bg-black/[0.04]'
+                }`}
+              >
+                Stays
               </button>
               {!isSupabaseConfigured() && (
                 <div className="px-4 py-3 rounded-lg bg-black/[0.03] ring-1 ring-black/[0.06] text-sm text-ink-muted">

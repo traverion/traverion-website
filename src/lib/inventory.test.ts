@@ -23,11 +23,11 @@ describe('inventory families', () => {
     expect(INVENTORY_AVAILABILITY_UNIT.experience).toBe('experience_slot');
   });
 
-  it('only publishes tours to travelers', () => {
-    expect([...LIVE_INVENTORY_FAMILIES]).toEqual(['tour']);
+  it('only publishes tours and stays to travelers', () => {
+    expect([...LIVE_INVENTORY_FAMILIES]).toEqual(['tour', 'stay']);
     expect(listingIsOnTravelerCatalog({})).toBe(true);
     expect(listingIsOnTravelerCatalog({ isHolidayPackage: true })).toBe(false);
-    expect(listingIsOnTravelerCatalog({ listingExtras: { inventoryFamily: 'stay' } })).toBe(false);
+    expect(listingIsOnTravelerCatalog({ listingExtras: { inventoryFamily: 'stay' } })).toBe(true);
     expect(listingIsOnTravelerCatalog({ listingExtras: { inventoryFamily: 'experience' } })).toBe(false);
   });
 
@@ -47,15 +47,19 @@ describe('inventory families', () => {
       filterTravelerCatalog([
         { id: 't' },
         { id: 's', listingExtras: { inventoryFamily: 'stay' } },
+        { id: 'e', listingExtras: { inventoryFamily: 'experience' } },
       ]).map((l) => (l as { id: string }).id),
-    ).toEqual(['t']);
+    ).toEqual(['t', 's']);
   });
 
-  it('keeps stay and experience URLs reserved, and partner create honest', () => {
-    expect(reservedInventoryFamilyFromPath('/stays')).toBe('stay');
+  it('keeps experience URLs reserved, and partner can create tour and stay', () => {
+    expect(reservedInventoryFamilyFromPath('/stays')).toBeNull();
     expect(reservedInventoryFamilyFromPath('/experiences')).toBe('experience');
     expect(reservedInventoryFamilyFromPath('/packages')).toBeNull();
-    expect(PARTNER_CREATE_INVENTORY.filter((o) => o.canCreate).map((o) => o.family)).toEqual(['tour']);
+    expect(PARTNER_CREATE_INVENTORY.filter((o) => o.canCreate).map((o) => o.family)).toEqual([
+      'tour',
+      'stay',
+    ]);
     expect(PARTNER_CREATE_INVENTORY.some((o) => o.family === 'experience')).toBe(false);
     expect(MARKETPLACE_PRIMITIVES).toEqual([
       'listing',

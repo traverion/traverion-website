@@ -18,3 +18,9 @@ export function publicTourListingUrl(listingId: string): string {
   const base = publicSiteBaseUrl();
   return `${base}/tour/${listingId}`;
 }
+
+/** Public stay page: `/stays?stay=<uuid>`. */
+export function publicStayListingUrl(listingId: string): string {
+  const base = publicSiteBaseUrl();
+  return `${base}/stays?stay=${encodeURIComponent(listingId)}`;
+}

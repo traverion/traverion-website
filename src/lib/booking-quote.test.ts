@@ -315,6 +315,28 @@ describe('getListingPublishBlockers', () => {
     );
     expect(ended.some((m) => m.toLowerCase().includes('past'))).toBe(true);
   });
+
+  it('publishes a stay without tour meeting points or booking options', () => {
+    const stayReady = getListingPublishBlockers(
+      tour({
+        subtitle: 'Quiet apartment near the harbour',
+        description: 'A'.repeat(120),
+        image: 'https://example.com/real.jpg',
+        includes: [],
+        excludes: [],
+        listingExtras: {
+          inventoryFamily: 'stay',
+          stay: { nightlyPriceUsd: 120, maxGuests: 4 },
+          galleryImageUrls: [
+            'https://example.com/2.jpg',
+            'https://example.com/3.jpg',
+            'https://example.com/4.jpg',
+          ],
+        },
+      })
+    );
+    expect(stayReady).toEqual([]);
+  });
 });
 
 describe('parsePathname legacy brochure URLs', () => {
@@ -327,7 +349,7 @@ describe('parsePathname legacy brochure URLs', () => {
     expect(parsePathname('/cart').page).toBe('cart');
     expect(parsePathname('/account').page).toBe('account');
     expect(parsePathname('/bookings').page).toBe('bookings');
-    expect(parsePathname('/stays')).toEqual({ page: 'inventory-reserved', destinationSlug: 'stay' });
+    expect(parsePathname('/stays')).toEqual({ page: 'stays', destinationSlug: null });
     expect(parsePathname('/experiences')).toEqual({ page: 'inventory-reserved', destinationSlug: 'experience' });
     expect(parsePathname('/packages').page).toBe('packages');
   });

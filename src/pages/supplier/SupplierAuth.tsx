@@ -430,7 +430,7 @@ export default function SupplierAuth({
       <div className={`w-full ${compact ? '' : 'max-w-md sm:max-w-lg xl:max-w-xl 2xl:max-w-[28rem] mx-auto lg:mx-0 flex-shrink-0'}`}>
         <div className={compact ? '' : 'overflow-hidden'}>
           <>
-          {!(mode === 'signin' && passwordResetPanel) && (
+          {!(mode === 'signin' && passwordResetPanel) && !compact && (
           <div className="flex gap-1 rounded-full bg-black/[0.04] p-1 mb-5 w-fit">
             <button
               type="button"

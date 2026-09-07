@@ -7,7 +7,7 @@ import { publicSiteBaseUrl } from '../lib/publicSiteUrl';
 import { BRAND_LOGO_SRC } from '../lib/brandAssets';
 import { subscribePasswordRecovery } from '../lib/passwordRecoveryFlow';
 import { DUPLICATE_TRAVERION_EMAIL_MESSAGE_PREFIX, EMAIL_ALREADY_IN_USE } from '../lib/customerSupplierAuthMessages';
-import { supplierPortalHref } from '../lib/partnerHost';
+import { supplierPortalLandingHref } from '../lib/partnerHost';
 import { authInputErrorClasses, isValidEmailFormat } from '../lib/authFormValidation';
 import ForgotPasswordInline, { type ForgotPasswordSendResult } from '../components/auth/ForgotPasswordInline';
 import { TRAVELER_RESET_PASSWORD_PATH } from '../lib/partnerPortalPaths';
@@ -34,7 +34,7 @@ function readAuthQuery(): { tab: AuthTab; next: string } {
   const params = new URLSearchParams(window.location.search);
   const tabParam = params.get('tab');
   let tab: AuthTab = 'signup';
-  if (path === '/log-in') tab = 'signin';
+  if (path === '/log-in' || path === '/login') tab = 'signin';
   else if (path === '/sign-up') tab = 'signup';
   else if (tabParam === 'signin') tab = 'signin';
   const nextParam = params.get('next');
@@ -305,11 +305,11 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
                   {tab === 'signin' ? 'Log in' : 'Create account'}
                 </h1>
                 <p className="text-sm text-ink-muted mt-1">
-                  Book tours and manage your trips.
+                  Manage trips, confirmations, and bookings. This is not the partner dashboard.
                 </p>
                 <p className="text-xs text-ink-faint mt-2">
                   Want to be a supplier?{' '}
-                  <a href={supplierPortalHref('/login')} className="text-finland font-medium hover:underline">
+                  <a href={supplierPortalLandingHref()} className="text-finland font-medium hover:underline">
                     Join here
                   </a>
                 </p>

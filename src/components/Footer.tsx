@@ -1,6 +1,6 @@
 import { Instagram } from 'lucide-react';
 import { BRAND_LOGO_SRC } from '../lib/brandAssets';
-import { supplierPortalHref } from '../lib/partnerHost';
+import { supplierPortalLandingHref } from '../lib/partnerHost';
 import { publicSiteBaseUrl } from '../lib/publicSiteUrl';
 
 /** TikTok logo (Lucide has no brand icon). */
@@ -40,7 +40,7 @@ export default function Footer({ onNavigate }: { onNavigate?: (page: string) => 
               <span className="font-sans text-sm font-semibold tracking-[0.18em] text-ink">TRAVERION</span>
             </a>
             <p className="text-sm text-ink-muted max-w-xs">
-              Discover and book tours from independent operators. Holiday packages are coming next.
+              Discover and book tours and stays from independent operators.
             </p>
           </div>
 
@@ -62,6 +62,8 @@ export default function Footer({ onNavigate }: { onNavigate?: (page: string) => 
             <h3 className="font-sans text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint mb-3">Company</h3>
             <ul className="space-y-2">
               <li><button type="button" onClick={() => nav('about')} className={`${linkClass} text-left bg-transparent border-0 cursor-pointer`}>About Us</button></li>
+              <li><button type="button" onClick={() => nav('packages')} className={`${linkClass} text-left bg-transparent border-0 cursor-pointer`}>Tours</button></li>
+              <li><button type="button" onClick={() => nav('stays')} className={`${linkClass} text-left bg-transparent border-0 cursor-pointer`}>Stays</button></li>
             </ul>
           </div>
 
@@ -79,7 +81,7 @@ export default function Footer({ onNavigate }: { onNavigate?: (page: string) => 
                   Become a content creator
                 </a>
               </li>
-              <li><a href={supplierPortalHref('/login')} className={linkClass}>Become a supplier</a></li>
+              <li><a href={supplierPortalLandingHref()} className={linkClass}>Become a supplier</a></li>
             </ul>
           </div>
         </div>

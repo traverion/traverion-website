@@ -247,7 +247,7 @@ export default function SupplierDashboard({ onNavigateToBookings }: SupplierDash
       </section>
       )}
 
-      {attentionCount > 0 && (
+            {attentionCount > 0 && (
       <section className="mb-12">
         <h2 className="text-[11px] uppercase tracking-[0.18em] text-ink-faint mb-4">Needs attention</h2>
         <ul className="space-y-2 text-sm">
@@ -274,6 +274,15 @@ export default function SupplierDashboard({ onNavigateToBookings }: SupplierDash
             )}
           </ul>
       </section>
+      )}
+
+      {attentionCount === 0 && !dashboardLoading && (
+        <section className="mb-12">
+          <h2 className="text-[11px] uppercase tracking-[0.18em] text-ink-faint mb-4">Needs attention</h2>
+          <p className="text-ink-muted max-w-lg leading-relaxed">
+            Nothing needs you right now. Bookings, drafts, and verification will show up here when they do.
+          </p>
+        </section>
       )}
 
       {recentBookings.length > 0 && (

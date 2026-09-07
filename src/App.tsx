@@ -29,9 +29,10 @@ import {
   redirectIfInAppAdminOnPublicMarketingSite,
 } from './lib/adminHost';
 import { getListingByIdAsync } from './data/listings';
-import { listingIsOnTravelerCatalog } from './lib/inventory';
+import { listingIsFamily, listingIsOnTravelerCatalog } from './lib/inventory';
 import { isPartnerMarketingPathForCurrentHost, isPartnerPortalPathForCurrentHost } from './lib/partnerHost';
 import { rememberProductReturn, isStaticConsumerPage } from './lib/navReturn';
+import { takeTravelerReturnStay } from './lib/travelerAuthLinks';
 import type { TourPackage as TourPackageType } from './types/tour';
 import { SkeletonCardGrid, SkeletonPageHero } from './components/ui/Skeleton';
 
@@ -58,6 +59,8 @@ const Packages = lazy(() => import('./pages/Packages'));
 const MyBookings = lazy(() => import('./pages/MyBookings'));
 const AuthPage = lazy(() => import('./pages/AuthPage'));
 const TourDetails = lazy(() => import('./pages/TourDetails'));
+const Stays = lazy(() => import('./pages/Stays'));
+const StayDetails = lazy(() => import('./pages/StayDetails'));
 const ReservedInventoryPage = lazy(() => import('./pages/ReservedInventoryPage'));
 const SupplierLayout = lazy(() => import('./components/supplier/SupplierLayout'));
 
@@ -93,7 +96,9 @@ function readInitialRoute(): { page: string; destinationSlug: string | null } {
     return parsePathname(window.location.pathname, { adminHost: true });
   }
   const path = normalizeLegacyBrochurePathname(normalizePublicTourDeepLinkPathname(window.location.pathname));
-  let { page, destinationSlug } = parsePathname(path);
+  const parsed = parsePathname(path);
+  let page = parsed.page;
+  const { destinationSlug } = parsed;
   page = mapStripeReturnRoute(page, window.location.search);
   return { page, destinationSlug };
 }
@@ -121,7 +126,9 @@ function App() {
     const pathForParse = adminHost
       ? window.location.pathname
       : normalizeLegacyBrochurePathname(normalizePublicTourDeepLinkPathname(window.location.pathname));
-    let { page, destinationSlug } = parsePathname(pathForParse, { adminHost });
+    const parsed = parsePathname(pathForParse, { adminHost });
+    let page = parsed.page;
+    const destinationSlug = parsed.destinationSlug;
     page = mapStripeReturnRoute(page, window.location.search);
     setCurrentPage(page);
     setDestinationSlug(destinationSlug);
@@ -145,6 +152,15 @@ function App() {
     const run = () => {
       normalizePublicTourDeepLinkPathname(window.location.pathname);
       const path = window.location.pathname.replace(/\/$/, '') || '/';
+      const stayParam = new URLSearchParams(window.location.search).get('stay');
+      if (path === '/stays' && stayParam && /^[0-9a-f-]{36}$/i.test(stayParam)) {
+        void getListingByIdAsync(stayParam).then((t) => {
+          if (cancelled || !t) return;
+          setSelectedTour(t);
+          setCurrentPage('stay-details');
+        });
+        return;
+      }
       const tourParam = new URLSearchParams(window.location.search).get('tour');
       if (path !== '/packages' || !tourParam || !/^[0-9a-f-]{36}$/i.test(tourParam)) return;
       void getListingByIdAsync(tourParam).then((t) => {
@@ -220,16 +236,26 @@ function App() {
       }
       return;
     }
-    if (currentPage === 'packages') {
-      if (window.location.pathname !== '/packages') {
-        window.history.replaceState({}, '', `/packages${window.location.search}`);
+    if (currentPage === 'stay-details' && selectedTour) {
+      const params = new URLSearchParams(window.location.search);
+      params.set('stay', selectedTour.id);
+      params.delete('tour');
+      const next = `/stays?${params.toString()}`;
+      const current = `${window.location.pathname}${window.location.search}`;
+      if (current !== next) {
+        window.history.replaceState({}, '', next);
+      }
+      return;
+    }
+    if (currentPage === 'stays') {
+      if (window.location.pathname !== '/stays') {
+        window.history.replaceState({}, '', `/stays${window.location.search}`);
       }
       return;
     }
     if (currentPage === 'inventory-reserved') {
-      const path = destinationSlug === 'stay' ? '/stays' : destinationSlug === 'experience' ? '/experiences' : '/stays';
-      if (window.location.pathname !== path) {
-        window.history.replaceState({}, '', path);
+      if (window.location.pathname !== '/experiences') {
+        window.history.replaceState({}, '', '/experiences');
       }
       return;
     }
@@ -238,6 +264,7 @@ function App() {
     }
     const urlMapping: { [key: string]: string } = {
       'packages': '/packages',
+      'stays': '/stays',
       'cart': '/cart',
       'auth': '/auth',
       'account': '/account',
@@ -298,6 +325,7 @@ function App() {
     const metaByPage: Record<string, { title: string; description?: string }> = {
       home: { title: 'Traverion', description: 'Book tours and activities worldwide. Find and reserve experiences with free cancellation.' },
       packages: { title: 'Tours', description: 'Browse and book tours worldwide. Filter by destination, price, and more.' },
+      stays: { title: 'Stays', description: 'Apartments and rooms from independent operators.' },
       auth: { title: 'Sign in', description: 'Sign in or create an account to manage your bookings and cart.' },
       'reset-password': { title: 'Set a new password', description: 'Choose a new password for your Traverion traveler account.' },
       'email-confirmed': { title: 'Email confirmed', description: 'Your Traverion traveler email was verified.' },
@@ -318,11 +346,8 @@ function App() {
       'content-creator': { title: 'Content creators', description: 'Collaborate with Traverion on travel content.' },
       destination: { title: 'Destination', description: 'Tours and activities in this destination.' },
       'inventory-reserved': {
-        title: destinationSlug === 'stay' ? 'Stays' : 'Experiences',
-        description:
-          destinationSlug === 'stay'
-            ? 'Stays are not live on Traverion yet.'
-            : 'Experiences is a reserved category, not mixed into Tours.',
+        title: 'Experiences',
+        description: 'Experiences is a reserved category, not mixed into Tours.',
       },
     };
     const meta = metaByPage[currentPage];
@@ -332,7 +357,7 @@ function App() {
     setRobotsNoIndex(currentPage === 'booking-confirmed' || currentPage === 'reset-password');
 
     const pathMap: Record<string, string> = {
-      home: '/', packages: '/packages', auth: '/auth', 'reset-password': '/set-password', 'email-confirmed': '/email-confirmed', cart: '/cart', account: '/account', wishlist: '/wishlist', bookings: '/bookings',
+      home: '/', packages: '/packages', stays: '/stays', auth: '/auth', 'reset-password': '/set-password', 'email-confirmed': '/email-confirmed', cart: '/cart', account: '/account', wishlist: '/wishlist', bookings: '/bookings',
       'booking-confirmed': '/booking-confirmed',
       blog: '/blog', contact: '/contact', privacy: '/privacy', terms: '/terms', cookies: '/cookies',
       about: '/about', sitemap: '/sitemap',
@@ -342,9 +367,7 @@ function App() {
       currentPage === 'destination'
         ? `/destinations/${destinationSlug || ''}`
         : currentPage === 'inventory-reserved'
-          ? destinationSlug === 'stay'
-            ? '/stays'
-            : '/experiences'
+          ? '/experiences'
           : (pathMap[currentPage] ?? '/');
     setCanonicalUrl(path);
   }, [currentPage, destinationSlug, isSupplierArea]);
@@ -353,13 +376,42 @@ function App() {
     if (isStaticConsumerPage(page) && !isStaticConsumerPage(currentPage)) {
       rememberProductReturn(currentPage, `${window.location.pathname}${window.location.search}`);
     }
+    if (page === 'stays') {
+      const stayId = takeTravelerReturnStay();
+      if (stayId) {
+        void getListingByIdAsync(stayId).then((t) => {
+          if (!t || !listingIsFamily(t, 'stay')) {
+            setCurrentPage('stays');
+            return;
+          }
+          setSelectedTour(t);
+          setCurrentPage('stay-details');
+        });
+        return;
+      }
+    }
     setCurrentPage(page);
   }, [currentPage]);
 
   const handleTourSelect = (tour: TourPackageType) => {
+    if (listingIsFamily(tour, 'stay')) {
+      setSelectedTour(tour);
+      setCurrentPage('stay-details');
+      return;
+    }
     if (!listingIsOnTravelerCatalog(tour)) return;
     setSelectedTour(tour);
     setCurrentPage('tour-details');
+  };
+
+  const handleBackToStays = () => {
+    setSelectedTour(null);
+    setCurrentPage('stays');
+    const params = new URLSearchParams(window.location.search);
+    params.delete('stay');
+    params.delete('tour');
+    const qs = params.toString();
+    window.history.replaceState({}, '', qs ? `/stays?${qs}` : '/stays');
   };
 
   const handleBackToTours = () => {
@@ -377,10 +429,18 @@ function App() {
         return <Home onTourSelect={handleTourSelect} onNavigate={handleNavigate} />;
       case 'packages':
         return <Packages onTourSelect={handleTourSelect} onNavigate={handleNavigate} />;
+      case 'stays':
+        return <Stays onStaySelect={handleTourSelect} onNavigate={handleNavigate} />;
+      case 'stay-details':
+        return selectedTour ? (
+          <StayDetails stayId={selectedTour.id} onBack={handleBackToStays} />
+        ) : (
+          <Stays onStaySelect={handleTourSelect} onNavigate={handleNavigate} />
+        );
       case 'inventory-reserved':
         return (
           <ReservedInventoryPage
-            family={destinationSlug === 'stay' ? 'stay' : 'experience'}
+            family="experience"
             onNavigate={handleNavigate}
           />
         );

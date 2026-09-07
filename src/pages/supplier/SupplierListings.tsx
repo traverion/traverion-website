@@ -31,10 +31,10 @@ import {
 } from '../../lib/supplierOnboarding';
 import { canManageBookings } from '../../lib/supplierTeamRoles';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
-import { publicTourListingUrl } from '../../lib/publicSiteUrl';
+import { publicStayListingUrl, publicTourListingUrl } from '../../lib/publicSiteUrl';
 import { getListingPublishBlockers } from '../../lib/listingPublishGate';
 import { listingHeroImageSrc } from '../../lib/listingPhotoGrid';
-import { PARTNER_CREATE_INVENTORY } from '../../lib/inventory';
+import { inventoryFamilyFromListing, PARTNER_CREATE_INVENTORY } from '../../lib/inventory';
 import { normalizeListingForDraftSave } from '../../lib/listingDraftUtils';
 import { SkeletonListItem } from '../../components/ui/Skeleton';
 import ErrorState from '../../components/ErrorState';
@@ -57,6 +57,8 @@ export default function SupplierListings() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formFocusSection, setFormFocusSection] = useState<string | null>(null);
   const [listings, setListings] = useState<TourPackage[]>([]);
+  const [workspaceFilter, setWorkspaceFilter] = useState<'all' | 'tour' | 'stay' | 'draft' | 'published'>('all');
+  const [showCreateChooser, setShowCreateChooser] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   /** Row id whose gear actions dropdown is open (Edit / Deactivate / Delete). */
@@ -82,7 +84,7 @@ export default function SupplierListings() {
   const [payoutOnFile, setPayoutOnFile] = useState(false);
   const [publishGate, setPublishGate] = useState<{ listingId: string; title: string; blockers: string[] } | null>(null);
   const [justPublishedId, setJustPublishedId] = useState<string | null>(null);
-  const [showCreateChooser, setShowCreateChooser] = useState(false);
+  const [createFamily, setCreateFamily] = useState<'tour' | 'stay'>('tour');
   const createChooserRef = useRef<HTMLDivElement>(null);
   const closeCreateChooser = useCallback(() => setShowCreateChooser(false), []);
   useDialogFocus(showCreateChooser, createChooserRef, closeCreateChooser);
@@ -90,6 +92,18 @@ export default function SupplierListings() {
   const startNewTour = useCallback(() => {
     if (!canEditListings || !canPostNewListing) return;
     setShowCreateChooser(false);
+    setCreateFamily('tour');
+    setEditingId(null);
+    setShowForm(true);
+    setFormFocusSection(null);
+    window.history.pushState({}, '', `${PARTNER_APP_BASE}/listings`);
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  }, [canEditListings, canPostNewListing]);
+
+  const startNewStay = useCallback(() => {
+    if (!canEditListings || !canPostNewListing) return;
+    setShowCreateChooser(false);
+    setCreateFamily('stay');
     setEditingId(null);
     setShowForm(true);
     setFormFocusSection(null);
@@ -580,7 +594,7 @@ export default function SupplierListings() {
     <div className={SUPPLIER_PAGE_CLASS}>
       <SupplierPageHero
         title="Listings"
-        description="Tours you operate. Stays join this workspace when they are ready."
+        description="Tours and stays you operate. Drafts stay private until you publish."
         actions={
           <button
             type="button"
@@ -600,6 +614,31 @@ export default function SupplierListings() {
           </button>
         }
       />
+
+      {listings.length > 0 && !showForm ? (
+        <div className="flex flex-wrap gap-1 mb-8" role="tablist" aria-label="Listing filters">
+          {([
+            { id: 'all', label: 'All' },
+            { id: 'tour', label: 'Tours' },
+            { id: 'stay', label: 'Stays' },
+            { id: 'draft', label: 'Draft' },
+            { id: 'published', label: 'Published' },
+          ] as const).map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={workspaceFilter === tab.id}
+              onClick={() => setWorkspaceFilter(tab.id)}
+              className={`lux-flat rounded-full px-3.5 py-2 min-h-11 text-sm font-medium ${
+                workspaceFilter === tab.id ? 'bg-ink text-paper-raised' : 'text-ink-muted hover:text-ink'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       {!canEditListings && (
         <div className="p-4 rounded-2xl bg-black/[0.03] text-ink text-sm">
@@ -735,14 +774,14 @@ export default function SupplierListings() {
           <button type="button" tabIndex={-1} className="absolute inset-0" aria-label="Close" onClick={closeCreateChooser} />
           <aside role="dialog" aria-modal="true" aria-labelledby="create-listing-title" className="tv-sheet-panel relative motion-safe:animate-slide-up">
             <h2 id="create-listing-title" className="font-display text-2xl text-ink">What would you like to list?</h2>
-            <p className="mt-2 text-sm text-ink-muted">Only live inventory is offered. Nothing unfinished is published to travelers.</p>
+            <p className="mt-2 text-sm text-ink-muted">Tour or stay. Experiences and packages are not offered here yet.</p>
             <div className="mt-6 space-y-2">
               {PARTNER_CREATE_INVENTORY.map((opt) =>
                 opt.canCreate ? (
                   <button
                     key={opt.family}
                     type="button"
-                    onClick={startNewTour}
+                    onClick={opt.family === 'stay' ? startNewStay : startNewTour}
                     className="lux-flat w-full rounded-2xl bg-paper px-4 py-4 text-left hover:bg-black/[0.04]"
                   >
                     <p className="font-semibold text-ink">{opt.title}</p>
@@ -765,11 +804,12 @@ export default function SupplierListings() {
 
       {showForm && (
         <SupplierListingForm
-          key={editingId ?? 'create'}
+          key={`${editingId ?? 'create'}-${createFamily}`}
           editingId={editingId}
           existingListings={listings}
           onSave={handleSave}
           canPostNewListing={canPostNewListing}
+          createFamily={createFamily}
           enableDraftOnClose={Boolean(isSupabase && canEditListings)}
           onSaveDraft={async (tour) => {
             if (!isSupabase || !user?.id || !canEditListings) return false;
@@ -806,7 +846,7 @@ export default function SupplierListings() {
         <SupplierEmptyState
           icon={Map}
           title="No listings yet"
-          body="You have not created a tour. That is the starting point — Traverion does not add sample listings. Photos, price, and meeting point first; publish when you are ready. Stays will be available here later."
+          body="You have not created a tour or stay. Photos, price, and the details guests need first; publish when you are ready."
           action={
             <button
               type="button"
@@ -829,8 +869,27 @@ export default function SupplierListings() {
       ) : (
         listings.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-            {listings.map((listing) => {
+            {listings
+              .filter((listing) => {
+                const family = inventoryFamilyFromListing(listing);
+                const isLive = listing.status !== 'draft';
+                if (workspaceFilter === 'tour') return family === 'tour';
+                if (workspaceFilter === 'stay') return family === 'stay';
+                if (workspaceFilter === 'draft') return !isLive;
+                if (workspaceFilter === 'published') return isLive;
+                return true;
+              })
+              .map((listing) => {
               const isLive = listing.status !== 'draft';
+              const family = inventoryFamilyFromListing(listing);
+              const isStay = family === 'stay';
+              const typeLabel = isStay
+                ? isLive
+                  ? 'Live stay'
+                  : 'Draft stay'
+                : isLive
+                  ? 'Live tour'
+                  : 'Draft tour';
               const currency = listing.price?.currency ?? 'USD';
               const from = listing.price?.startingFrom;
               const money =
@@ -863,7 +922,7 @@ export default function SupplierListings() {
                           isLive ? 'bg-paper-raised text-ink' : 'bg-ink/70 text-paper-raised'
                         } ${justPublishedId === listing.id ? 'tv-pop' : ''}`}
                       >
-                        {isLive ? 'Live tour' : 'Draft tour'}
+                        {typeLabel}
                       </span>
                     </div>
                     <div className="pt-3">
@@ -885,7 +944,7 @@ export default function SupplierListings() {
                     )}
                     {isLive ? (
                       <a
-                        href={publicTourListingUrl(listing.id)}
+                        href={isStay ? publicStayListingUrl(listing.id) : publicTourListingUrl(listing.id)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-xs font-medium text-ink-muted hover:text-ink"
@@ -902,7 +961,7 @@ export default function SupplierListings() {
                       disabled={!canEditListings}
                       aria-expanded={listingActionsMenuId === listing.id}
                       aria-haspopup="menu"
-                      aria-label="Tour actions"
+                      aria-label={isStay ? 'Stay actions' : 'Tour actions'}
                       className="ml-auto lux-flat inline-flex h-9 w-9 items-center justify-center rounded-full text-ink-muted hover:text-ink disabled:opacity-40"
                     >
                       <Cog className="h-4 w-4" aria-hidden />

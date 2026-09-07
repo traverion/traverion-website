@@ -13,6 +13,7 @@ import {
 import { materializedBookingOptions } from '../../types/listingExtras';
 import type { TourPackage } from '../../types/tour';
 import { optionRunsOnDate } from '../../lib/booking-quote';
+import { inventoryFamilyFromListing } from '../../lib/inventory';
 import {
   buildMonthCells,
   defaultCapacityForOpenDay,
@@ -184,7 +185,7 @@ export default function SupplierAvailability() {
         <div>
           <h1 className="font-display text-3xl sm:text-5xl text-ink tracking-tight">Calendar</h1>
           <p className="mt-2 text-sm text-ink-muted max-w-lg">
-            Departures, guests, and optional daily caps. Open days follow each tour’s weekday rules.
+            Tours: departures and capacity. Stays: nights booked or blocked. Open a listing to edit that day.
           </p>
         </div>
         {!isSupabase || !user ? null : listings.length > 0 ? (
@@ -202,13 +203,14 @@ export default function SupplierAvailability() {
               <option value="">All listings</option>
               {listings.map((l) => (
                 <option key={l.id} value={l.id}>
+                  {inventoryFamilyFromListing(l) === 'stay' ? 'Stay · ' : 'Tour · '}
                   {l.title}
                   {l.status === 'draft' ? ' (draft)' : ''}
                 </option>
               ))}
             </select>
             {viewingAll ? (
-              <p className="mt-2 text-xs font-medium text-finland">Select a tour to edit daily caps</p>
+              <p className="mt-2 text-xs font-medium text-finland">Select a listing to edit daily caps</p>
             ) : null}
           </label>
         ) : null}
