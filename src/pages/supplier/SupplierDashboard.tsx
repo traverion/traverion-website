@@ -193,8 +193,8 @@ export default function SupplierDashboard({ onNavigateToBookings }: SupplierDash
           <SupplierEmptyState
             icon={CalendarDays}
             className="py-4"
-            title="No operations today"
-            body="Nothing is running today. That is a quiet day, not a missing schedule. Guests show up here when a tour is booked for today."
+            title="You're set for today"
+            body="Nothing needs you right now. Guests and stay arrivals appear here when they are booked for today."
             action={
               <button
                 type="button"
