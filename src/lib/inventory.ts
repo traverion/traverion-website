@@ -9,7 +9,7 @@
  *
  * Shared marketplace primitives: listing, booking, availability, money, business, customer.
  * Availability is family-specific: tour departure, stay night, package itinerary, experience slot.
- * The live quote path is tour departure only.
+ * Live quote paths: tour departure (`quoteBooking`) and stay nights (`quoteStayNights`).
  */
 
 export const INVENTORY_FAMILIES = ['tour', 'stay', 'experience', 'package'] as const;

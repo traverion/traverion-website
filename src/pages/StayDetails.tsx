@@ -6,6 +6,8 @@ import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
 import { listingIsFamily } from '../lib/inventory';
 import { useAuth } from '../contexts/AuthContext';
 import { rememberTravelerReturnStay, travelerLoginHref } from '../lib/travelerAuthLinks';
+import { quoteStayNights } from '../lib/booking-quote';
+import { createBookingCheckoutSession } from '../data/supabase-bookings';
 import type { TourPackage } from '../types/tour';
 import ErrorState from '../components/ErrorState';
 import { Skeleton } from '../components/ui/Skeleton';
@@ -15,21 +17,28 @@ type Props = {
   onBack: () => void;
 };
 
-function nightsBetween(checkIn: string, checkOut: string): number | null {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(checkIn) || !/^\d{4}-\d{2}-\d{2}$/.test(checkOut)) return null;
-  const a = Date.parse(`${checkIn}T12:00:00Z`);
-  const b = Date.parse(`${checkOut}T12:00:00Z`);
-  const n = Math.round((b - a) / 86400000);
-  return n >= 1 ? n : null;
+function readStayPrefill(): { checkIn: string; checkOut: string; guests: number } {
+  if (typeof window === 'undefined') return { checkIn: '', checkOut: '', guests: 2 };
+  const p = new URLSearchParams(window.location.search);
+  const checkIn = (p.get('date') ?? p.get('checkIn') ?? '').trim();
+  const checkOut = (p.get('checkout') ?? p.get('checkOut') ?? '').trim();
+  const g = Number.parseInt(p.get('guests') ?? '', 10);
+  return {
+    checkIn: /^\d{4}-\d{2}-\d{2}$/.test(checkIn) ? checkIn : '',
+    checkOut: /^\d{4}-\d{2}-\d{2}$/.test(checkOut) ? checkOut : '',
+    guests: Number.isFinite(g) && g >= 1 ? Math.min(99, Math.floor(g)) : 2,
+  };
 }
 
 export default function StayDetails({ stayId, onBack }: Props) {
   const { user } = useAuth();
   const [stay, setStay] = useState<TourPackage | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [checkIn, setCheckIn] = useState('');
-  const [checkOut, setCheckOut] = useState('');
-  const [guests, setGuests] = useState(2);
+  const [checkIn, setCheckIn] = useState(() => readStayPrefill().checkIn);
+  const [checkOut, setCheckOut] = useState(() => readStayPrefill().checkOut);
+  const [guests, setGuests] = useState(() => readStayPrefill().guests);
+  const [paying, setPaying] = useState(false);
+  const [payError, setPayError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -52,17 +61,51 @@ export default function StayDetails({ stayId, onBack }: Props) {
   const extras = stay ? parseListingExtras(stay.listingExtras) : {};
   const s = extras.stay;
   const gallery = (extras.galleryImageUrls ?? []).map((u) => String(u).trim()).filter(Boolean);
-  const nightly = s?.nightlyPriceUsd && s.nightlyPriceUsd > 0 ? s.nightlyPriceUsd : stay?.price.startingFrom ?? 0;
-  const nights = nightsBetween(checkIn, checkOut);
+  const stayQuote = stay
+    ? quoteStayNights({
+        tour: stay,
+        checkIn,
+        checkOut,
+        guests,
+      })
+    : null;
+  const nightly = stayQuote?.ok ? stayQuote.nightlyPrice : s?.nightlyPriceUsd && s.nightlyPriceUsd > 0 ? s.nightlyPriceUsd : stay?.price.startingFrom ?? 0;
+  const nights = stayQuote?.ok ? stayQuote.nights : null;
   const minNights = s?.minNights ?? 1;
   const maxGuests = s?.maxGuests ?? 12;
-  const cleaning = s?.cleaningFeeUsd ?? 0;
-  const quoteOk = nights != null && nights >= minNights && guests >= 1 && guests <= maxGuests && nightly > 0;
-  const total = quoteOk && nights ? nights * nightly + cleaning : 0;
+  const cleaning = stayQuote?.ok ? stayQuote.cleaningFee : s?.cleaningFeeUsd ?? 0;
+  const quoteOk = stayQuote?.ok === true;
+  const total = stayQuote?.ok ? stayQuote.totalAmount : 0;
   const currency = (stay?.price.currency ?? 'USD').toUpperCase();
   const hero = stay ? listingHeroImageSrc(stay.image) : undefined;
 
   const amenityLine = useMemo(() => (s?.amenities ?? []).filter(Boolean).join(' · '), [s?.amenities]);
+
+  const startStayCheckout = () => {
+    if (!stay || !stayQuote?.ok) {
+      document.getElementById('stay-checkin')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    setPaying(true);
+    setPayError(null);
+    void createBookingCheckoutSession({
+      listingId: stay.id,
+      listingTitle: stay.title,
+      bookingDate: stayQuote.checkIn,
+      checkoutDate: stayQuote.checkOut,
+      guests: stayQuote.guests,
+      currency: stayQuote.currency,
+      successPath: '/booking-confirmed',
+      cancelPath: '/stays?payment=cancelled',
+    }).then((res) => {
+      setPaying(false);
+      if (!res.success || !res.checkoutUrl) {
+        setPayError(res.error ?? 'Checkout could not start. You were not charged.');
+        return;
+      }
+      window.location.assign(res.checkoutUrl);
+    });
+  };
 
   if (error && !stay) {
     return (
@@ -110,10 +153,17 @@ export default function StayDetails({ stayId, onBack }: Props) {
           {[stay.city, stay.country].filter(Boolean).join(', ') || stay.destination}
         </p>
 
-        <div className="grid lg:grid-cols-[1fr_20rem] gap-10">
-          <div className="space-y-8 text-[15px] leading-relaxed text-ink">
-            {stay.description ? <p className="text-ink-muted">{stay.description}</p> : null}
-            <ul className="space-y-2 text-ink-muted">
+        <div className="grid lg:grid-cols-[1fr_20rem] gap-10 pb-24 lg:pb-0">
+          <div className="space-y-10 text-[15px] leading-relaxed text-ink">
+            {stay.description ? (
+              <div>
+                <h2 className="font-display text-2xl mb-3">The place</h2>
+                <p className="text-ink-muted">{stay.description}</p>
+              </div>
+            ) : null}
+            <div>
+              <h2 className="font-display text-2xl mb-3">Sleeping</h2>
+              <ul className="space-y-2 text-ink-muted">
               {s?.propertyType ? <li>{s.propertyType}</li> : null}
               {typeof s?.bedrooms === 'number' ? <li>{s.bedrooms} bedroom{s.bedrooms === 1 ? '' : 's'}</li> : null}
               {typeof s?.beds === 'number' ? <li>{s.beds} bed{s.beds === 1 ? '' : 's'}</li> : null}
@@ -123,16 +173,35 @@ export default function StayDetails({ stayId, onBack }: Props) {
                   <Users className="w-4 h-4" aria-hidden /> Up to {s.maxGuests} guests
                 </li>
               ) : null}
-              {amenityLine ? <li>{amenityLine}</li> : null}
-              {s?.checkInTime ? <li>Check-in from {s.checkInTime}</li> : null}
-              {s?.checkOutTime ? <li>Check-out by {s.checkOutTime}</li> : null}
-            </ul>
+              </ul>
+            </div>
+            {amenityLine ? (
+              <div>
+                <h2 className="font-display text-2xl mb-3">Amenities</h2>
+                <p className="text-ink-muted">{amenityLine}</p>
+              </div>
+            ) : null}
+            {s?.checkInTime || s?.checkOutTime ? (
+              <div>
+                <h2 className="font-display text-2xl mb-3">Check-in & check-out</h2>
+                <ul className="space-y-2 text-ink-muted">
+                  {s?.checkInTime ? <li>Check-in from {s.checkInTime}</li> : null}
+                  {s?.checkOutTime ? <li>Check-out by {s.checkOutTime}</li> : null}
+                </ul>
+              </div>
+            ) : null}
             {s?.houseRules ? (
               <div>
                 <h2 className="font-display text-2xl mb-2">House rules</h2>
                 <p className="text-ink-muted whitespace-pre-wrap">{s.houseRules}</p>
               </div>
             ) : null}
+            <div>
+              <h2 className="font-display text-2xl mb-2">Cancellation</h2>
+              <p className="text-ink-muted">
+                You may cancel free of charge up to 24 hours before check-in. After that, guest-initiated cancellations are not available. If the operator cancels, that is handled from your booking details.
+              </p>
+            </div>
           </div>
 
           <aside className="lg:sticky lg:top-24 h-fit rounded-2xl bg-paper-raised p-5 shadow-soft-lg">
@@ -185,10 +254,24 @@ export default function StayDetails({ stayId, onBack }: Props) {
                 </strong>
               </p>
             ) : null}
+            {stayQuote && !stayQuote.ok && checkIn && checkOut ? (
+              <p className="mt-3 text-sm text-red-700">{stayQuote.error}</p>
+            ) : null}
             {user ? (
-              <p className="mt-4 text-sm text-ink-muted leading-relaxed">
-                Stay checkout is not open yet. You will never see a fake success — when nights can be charged, the same Stripe flow as tours will be used.
-              </p>
+              <>
+                {payError ? <p className="mt-3 text-sm text-red-700">{payError}</p> : null}
+                <button
+                  type="button"
+                  className="tv-btn-primary w-full mt-4 disabled:opacity-50"
+                  disabled={!quoteOk || paying}
+                  onClick={startStayCheckout}
+                >
+                  {paying ? 'Opening checkout…' : 'Continue to payment'}
+                </button>
+                <p className="mt-3 text-xs text-ink-muted leading-relaxed">
+                  Price is confirmed on the server. If checkout cannot start, you will see an error — never a fake success.
+                </p>
+              </>
             ) : (
               <a
                 href={travelerLoginHref('stays')}
@@ -199,6 +282,34 @@ export default function StayDetails({ stayId, onBack }: Props) {
               </a>
             )}
           </aside>
+        </div>
+      </div>
+      <div className="lg:hidden fixed bottom-0 inset-x-0 z-30 border-t border-black/[0.06] bg-paper-raised px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        <div className="flex items-center justify-between gap-3 max-w-5xl mx-auto">
+          <p className="text-sm text-ink min-w-0">
+            <span className="font-semibold">
+              {currency} {quoteOk ? total.toFixed(0) : nightly > 0 ? nightly.toFixed(0) : '—'}
+            </span>
+            <span className="text-ink-muted"> {quoteOk ? 'total' : '/ night'}</span>
+          </p>
+          {user ? (
+            <button
+              type="button"
+              className="tv-btn-primary shrink-0 disabled:opacity-50"
+              disabled={paying}
+              onClick={startStayCheckout}
+            >
+              {quoteOk ? (paying ? 'Opening…' : 'Book') : 'Choose dates'}
+            </button>
+          ) : (
+            <a
+              href={travelerLoginHref('stays')}
+              className="tv-btn-primary shrink-0"
+              onClick={() => rememberTravelerReturnStay(stay.id)}
+            >
+              Log in
+            </a>
+          )}
         </div>
       </div>
     </div>

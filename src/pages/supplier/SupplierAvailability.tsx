@@ -14,6 +14,7 @@ import { materializedBookingOptions } from '../../types/listingExtras';
 import type { TourPackage } from '../../types/tour';
 import { optionRunsOnDate } from '../../lib/booking-quote';
 import { inventoryFamilyFromListing } from '../../lib/inventory';
+import { nightsOccupiedByStay, stayRangeFromBooking } from '../../lib/stayOccupancy';
 import {
   buildMonthCells,
   defaultCapacityForOpenDay,
@@ -52,29 +53,48 @@ export default function SupplierAvailability() {
 
   const listing = listings.find((l) => l.id === listingId) ?? null;
   const viewingAll = listingId === '';
+  const stayCalendar = Boolean(listing && inventoryFamilyFromListing(listing) === 'stay');
   const cells = useMemo(() => buildMonthCells(year, monthIndex0), [year, monthIndex0]);
   const rowByDate = useMemo(() => new Map(rows.map((r) => [r.available_date, r])), [rows]);
   const guestsByDate = useMemo(() => {
     const map = new Map<string, { guests: number; count: number }>();
+    const listingById = new Map(listings.map((l) => [l.id, l]));
     for (const b of bookings) {
       if (!viewingAll && b.listing_id !== listingId) continue;
       if (!b.booking_date) continue;
-      const cur = map.get(b.booking_date) ?? { guests: 0, count: 0 };
-      cur.guests += b.guests ?? 0;
-      cur.count += 1;
-      map.set(b.booking_date, cur);
+      const item = listingById.get(b.listing_id);
+      const isStay = item ? inventoryFamilyFromListing(item) === 'stay' : false;
+      const nights = isStay
+        ? (() => {
+            const range = stayRangeFromBooking(b);
+            return range ? nightsOccupiedByStay(range.checkIn, range.checkOut) : [b.booking_date];
+          })()
+        : [b.booking_date];
+      for (const iso of nights) {
+        const cur = map.get(iso) ?? { guests: 0, count: 0 };
+        cur.guests += b.guests ?? 0;
+        cur.count += 1;
+        map.set(iso, cur);
+      }
     }
     return map;
-  }, [bookings, listingId, viewingAll]);
+  }, [bookings, listingId, viewingAll, listings]);
   const dayBookings = useMemo(
     () =>
       editing
-        ? bookings.filter(
-            (b) =>
-              b.booking_date === editing.iso && (viewingAll || b.listing_id === listingId)
-          )
+        ? bookings.filter((b) => {
+            if (!viewingAll && b.listing_id !== listingId) return false;
+            const item = listings.find((l) => l.id === b.listing_id);
+            const isStay = item ? inventoryFamilyFromListing(item) === 'stay' : false;
+            if (isStay) {
+              const range = stayRangeFromBooking(b);
+              if (!range) return false;
+              return nightsOccupiedByStay(range.checkIn, range.checkOut).includes(editing.iso);
+            }
+            return b.booking_date === editing.iso;
+          })
         : [],
-    [bookings, editing, listingId, viewingAll]
+    [bookings, editing, listingId, viewingAll, listings]
   );
 
   const loadListings = useCallback(async () => {
@@ -210,8 +230,12 @@ export default function SupplierAvailability() {
               ))}
             </select>
             {viewingAll ? (
+              <p className="mt-2 text-xs font-medium text-finland">Select a listing to edit that day</p>
+            ) : stayCalendar ? (
+              <p className="mt-2 text-xs font-medium text-finland">Stay nights — occupied, available, or blocked</p>
+            ) : (
               <p className="mt-2 text-xs font-medium text-finland">Select a listing to edit daily caps</p>
-            ) : null}
+            )}
           </label>
         ) : null}
       </div>
@@ -228,7 +252,7 @@ export default function SupplierAvailability() {
         <SupplierEmptyState
           icon={CalendarDays}
           title="Create a listing first"
-          body="Calendar shows departures and guests after you have a tour. You have none yet — that is the first step, not a broken calendar."
+          body="Calendar shows departures and nights after you have a tour or stay. You have none yet — that is the first step, not a broken calendar."
           action={
             <button
               type="button"
@@ -284,16 +308,32 @@ export default function SupplierAvailability() {
           ) : null}
 
           <div className="mb-4 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-muted" aria-hidden>
-            <span className="inline-flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-finland/40" /> Guests
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-finland/15" /> Cap
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-rose-300" /> Full
-            </span>
-            <span className="inline-flex items-center gap-1.5 text-ink-faint">Closed days show —</span>
+            {stayCalendar ? (
+              <>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-finland/40" /> Occupied
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-finland/15" /> Available
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-rose-300" /> Blocked
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-finland/40" /> Guests
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-finland/15" /> Cap
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-rose-300" /> Full
+                </span>
+                <span className="inline-flex items-center gap-1.5 text-ink-faint">Closed days show —</span>
+              </>
+            )}
           </div>
 
           <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-medium uppercase tracking-[0.14em] text-ink-faint mb-2" aria-hidden>
@@ -317,13 +357,17 @@ export default function SupplierAvailability() {
               });
               const statusLabel = !cell.inMonth
                 ? undefined
-                : booked
-                  ? `${dateLabel}, ${booked.guests} guest${booked.guests === 1 ? '' : 's'}`
-                  : cap
-                    ? `${dateLabel}, ${remaining} of ${cap.capacity} spots left`
-                    : open
-                      ? `${dateLabel}, open`
-                      : dateLabel;
+                : stayCalendar && booked
+                  ? `${dateLabel}, occupied`
+                  : stayCalendar && cap && remaining === 0
+                    ? `${dateLabel}, blocked`
+                    : booked
+                      ? `${dateLabel}, ${booked.guests} guest${booked.guests === 1 ? '' : 's'}`
+                      : cap
+                        ? `${dateLabel}, ${remaining} of ${cap.capacity} spots left`
+                        : open
+                          ? `${dateLabel}, ${stayCalendar ? 'available' : 'open'}`
+                          : dateLabel;
               return (
                 <button
                   key={cell.iso}
@@ -360,14 +404,14 @@ export default function SupplierAvailability() {
                   <span className="block text-sm font-semibold text-ink">{cell.day}</span>
                   {cell.inMonth && booked ? (
                     <span className="mt-0.5 block text-[10px] font-medium leading-tight text-finland">
-                      {booked.guests} guest{booked.guests === 1 ? '' : 's'}
+                      {stayCalendar ? 'Occupied' : `${booked.guests} guest${booked.guests === 1 ? '' : 's'}`}
                     </span>
                   ) : cell.inMonth && cap ? (
                     <span className={`mt-0.5 block text-[10px] leading-tight ${remaining === 0 ? 'font-semibold text-rose-700' : 'text-ink-muted'}`}>
-                      {remaining === 0 ? 'Full' : `${remaining}/${cap.capacity} left`}
+                      {remaining === 0 ? (stayCalendar ? 'Blocked' : 'Full') : stayCalendar ? 'Open' : `${remaining}/${cap.capacity} left`}
                     </span>
                   ) : cell.inMonth && open ? (
-                    <span className="mt-0.5 block text-[10px] leading-tight text-ink-faint">Open</span>
+                    <span className="mt-0.5 block text-[10px] leading-tight text-ink-faint">{stayCalendar ? 'Available' : 'Open'}</span>
                   ) : cell.inMonth ? (
                     <span className="mt-0.5 block text-[10px] leading-tight text-ink-faint">—</span>
                   ) : null}
@@ -393,7 +437,9 @@ export default function SupplierAvailability() {
                 })}
               </p>
               {dayBookings.length === 0 ? (
-                <p className="mt-3 text-sm text-ink-muted">No guests on this date.</p>
+                <p className="mt-3 text-sm text-ink-muted">
+                  {stayCalendar ? 'No stay on this night.' : 'No guests on this date.'}
+                </p>
               ) : (
                 <ul className="mt-4 space-y-3">
                   {dayBookings.map((b) => (
@@ -406,7 +452,7 @@ export default function SupplierAvailability() {
                         <p className="font-semibold text-ink">{b.guest_name?.trim() || 'Guest'}</p>
                         <p className="text-sm text-ink-muted">
                           {viewingAll
-                            ? `${listings.find((l) => l.id === b.listing_id)?.title ?? 'Tour'} · ${b.guests} guest${b.guests === 1 ? '' : 's'}`
+                            ? `${listings.find((l) => l.id === b.listing_id)?.title ?? 'Listing'} · ${b.guests} guest${b.guests === 1 ? '' : 's'}`
                             : `${b.guests} guest${b.guests === 1 ? '' : 's'}`}
                         </p>
                       </button>
@@ -416,8 +462,38 @@ export default function SupplierAvailability() {
               )}
               {viewingAll ? (
                 <p className="mt-5 text-sm text-ink-muted">
-                  Choose a listing above to set a daily cap. Caps are per tour, not for the whole calendar.
+                  Choose a listing above to edit that day. Caps are per tour. Stays use occupied nights.
                 </p>
+              ) : stayCalendar ? (
+                <>
+                  <p className="mt-5 text-sm text-ink-muted">
+                    Block a night by setting spots to 0. Clearing returns the night to available.
+                  </p>
+                  <div className="mt-4 flex flex-col sm:flex-row gap-2 sm:items-center">
+                    <label className="text-sm text-ink" htmlFor="day-capacity">
+                      Block
+                    </label>
+                    <input
+                      id="day-capacity"
+                      type="number"
+                      min={0}
+                      max={99}
+                      value={editing.capacity}
+                      onChange={(e) => setEditing({ ...editing, capacity: e.target.value })}
+                      className="tv-input w-24"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void saveCap(editing.iso, Math.max(0, Math.floor(Number(editing.capacity) || 0)))}
+                      className="tv-btn-primary"
+                    >
+                      Save
+                    </button>
+                    <button type="button" onClick={() => void clearCap(editing.iso)} className="tv-btn-ghost">
+                      Clear
+                    </button>
+                  </div>
+                </>
               ) : (
                 <>
               <p className="mt-5 text-sm text-ink-muted">

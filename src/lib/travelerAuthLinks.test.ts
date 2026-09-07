@@ -21,6 +21,8 @@ describe('travelerLoginHref', () => {
     expect(travelerLoginHref('account')).toBe('/log-in?next=account');
     expect(travelerLoginHref('stays')).toBe('/log-in?next=stays');
     expect(travelerLoginHref('packages')).toBe('/log-in?next=packages');
+    expect(travelerLoginHref('partner')).toBe('/log-in?next=home');
+    expect(travelerLoginHref('signup')).toBe('/log-in?next=home');
   });
 
   it('does not honor unknown next targets', () => {

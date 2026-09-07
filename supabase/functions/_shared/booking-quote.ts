@@ -44,8 +44,93 @@ export type QuoteErr = { ok: false; error: string };
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
+function addCalendarDays(iso: string, days: number): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d + days));
+  return dt.toISOString().slice(0, 10);
+}
+
+export function parseStayCheckOutFromNotes(notes: string | null | undefined): string | null {
+  if (!notes) return null;
+  for (const raw of notes.split(/\n+/)) {
+    const m = raw.trim().match(/^check_out:\s*(\d{4}-\d{2}-\d{2})/i);
+    if (m?.[1] && ISO_DATE.test(m[1])) return m[1];
+  }
+  return null;
+}
+
+export function stayDateRangesOverlap(aIn: string, aOut: string, bIn: string, bOut: string): boolean {
+  if (!ISO_DATE.test(aIn) || !ISO_DATE.test(aOut) || !ISO_DATE.test(bIn) || !ISO_DATE.test(bOut)) return false;
+  return aIn < bOut && bIn < aOut;
+}
+
+export function stayRangeFromBooking(booking: {
+  booking_date: string | null;
+  special_requests?: string | null;
+}): { checkIn: string; checkOut: string } | null {
+  const checkIn = (booking.booking_date ?? '').trim();
+  if (!ISO_DATE.test(checkIn)) return null;
+  const parsed = parseStayCheckOutFromNotes(booking.special_requests);
+  const checkOut = parsed && parsed > checkIn ? parsed : addCalendarDays(checkIn, 1);
+  return { checkIn, checkOut };
+}
+
 function money(n: number): number {
   return Math.round(n * 100) / 100;
+}
+
+function nightsBetween(checkIn: string, checkOut: string): number | null {
+  if (!ISO_DATE.test(checkIn) || !ISO_DATE.test(checkOut)) return null;
+  const a = Date.parse(`${checkIn}T12:00:00Z`);
+  const b = Date.parse(`${checkOut}T12:00:00Z`);
+  const n = Math.round((b - a) / 86400000);
+  return n >= 1 ? n : null;
+}
+
+function quoteStayListing(input: {
+  listing: ListingQuoteRow;
+  checkIn: string;
+  checkOut: string;
+  guests: number;
+  today: string;
+}): QuoteOk | QuoteErr {
+  const extras =
+    input.listing.listing_extras && typeof input.listing.listing_extras === 'object'
+      ? (input.listing.listing_extras as { stay?: Record<string, unknown> })
+      : null;
+  const stay = extras?.stay ?? {};
+  if (!ISO_DATE.test(input.checkIn) || !ISO_DATE.test(input.checkOut)) {
+    return { ok: false, error: 'Choose valid check-in and check-out dates.' };
+  }
+  if (input.checkIn < input.today) return { ok: false, error: 'Check-in must be today or later.' };
+  const nights = nightsBetween(input.checkIn, input.checkOut);
+  if (nights == null) return { ok: false, error: 'Check-out must be after check-in.' };
+  const minNights = typeof stay.minNights === 'number' && stay.minNights >= 1 ? Math.floor(stay.minNights) : 1;
+  if (nights < minNights) {
+    return { ok: false, error: `Minimum stay is ${minNights} night${minNights === 1 ? '' : 's'}.` };
+  }
+  const maxGuests = typeof stay.maxGuests === 'number' && stay.maxGuests >= 1 ? Math.floor(stay.maxGuests) : 99;
+  if (!Number.isFinite(input.guests) || input.guests < 1) {
+    return { ok: false, error: 'Enter how many guests will stay.' };
+  }
+  if (input.guests > maxGuests) {
+    return { ok: false, error: `This stay allows up to ${maxGuests} guests.` };
+  }
+  const nightly =
+    typeof stay.nightlyPriceUsd === 'number' && stay.nightlyPriceUsd > 0
+      ? stay.nightlyPriceUsd
+      : Number(input.listing.price_starting_from ?? 0);
+  if (!(nightly > 0)) return { ok: false, error: 'This stay does not have a nightly price yet.' };
+  const cleaning = typeof stay.cleaningFeeUsd === 'number' && stay.cleaningFeeUsd > 0 ? stay.cleaningFeeUsd : 0;
+  const currency = (input.listing.price_currency ?? 'USD').trim().toUpperCase() || 'USD';
+  return {
+    ok: true,
+    currency,
+    unitPrice: money(nightly),
+    totalAmount: money(nights * nightly + cleaning),
+    optionId: null,
+    optionLabel: `${nights} night${nights === 1 ? '' : 's'}`,
+  };
 }
 
 function weekdayIndexMondayFirst(isoDate: string): number | null {
@@ -160,21 +245,31 @@ export function quoteListingBooking(input: {
   guests: number;
   bookingOptionId?: string | null;
   todayIso?: string;
+  checkoutDate?: string | null;
 }): QuoteOk | QuoteErr {
   const today = input.todayIso ?? new Date().toISOString().slice(0, 10);
   const date = (input.bookingDate ?? '').trim();
   const guests = Number(input.guests);
   const status = (input.listing.status ?? '').trim();
   if (status && status !== 'published') {
-    return { ok: false, error: 'This tour is not available to book.' };
+    return { ok: false, error: 'This listing is not available to book.' };
   }
   const extrasObj =
     input.listing.listing_extras && typeof input.listing.listing_extras === 'object'
-      ? (input.listing.listing_extras as { inventoryFamily?: unknown })
+      ? (input.listing.listing_extras as { inventoryFamily?: unknown; stay?: Record<string, unknown> })
       : null;
   const family = extrasObj?.inventoryFamily;
-  if (family === 'stay' || family === 'experience' || family === 'package') {
+  if (family === 'experience' || family === 'package') {
     return { ok: false, error: 'This listing is not available to book yet.' };
+  }
+  if (family === 'stay') {
+    return quoteStayListing({
+      listing: input.listing,
+      checkIn: date,
+      checkOut: (input.checkoutDate ?? '').trim(),
+      guests,
+      today,
+    });
   }
   if (!ISO_DATE.test(date)) return { ok: false, error: 'Choose a valid date.' };
   if (date < today) return { ok: false, error: 'Choose a date that is today or later.' };

@@ -97,14 +97,14 @@
     {
       "source": "/login",
       "has": [{ "type": "host", "value": "www.traverion.com" }],
-      "destination": "https://partner.traverion.com/login",
-      "permanent": true
+      "destination": "/log-in",
+      "permanent": false
     },
     {
       "source": "/login",
       "has": [{ "type": "host", "value": "traverion.com" }],
-      "destination": "https://partner.traverion.com/login",
-      "permanent": true
+      "destination": "https://www.traverion.com/log-in",
+      "permanent": false
     },
     {
       "source": "/thailand-vietnam-14-day",

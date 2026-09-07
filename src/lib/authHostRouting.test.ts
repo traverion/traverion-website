@@ -31,4 +31,9 @@ describe('auth host boundaries', () => {
     expect(travelerMarketingRecoveryPath('partner.traverion.com', '/login')).toBe('/reset-password');
     expect(travelerMarketingRecoveryPath('partner.traverion.com', '/signup')).toBe('/reset-password');
   });
+
+  it('does not rewrite partner /signup or /login on the partner host', () => {
+    expect(travelerMarketingLoginAlias('partner.traverion.com', '/signup', '')).toBeNull();
+    expect(travelerMarketingLoginAlias('partner.traverion.com', '/login', '?next=1')).toBeNull();
+  });
 });

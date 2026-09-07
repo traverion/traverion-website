@@ -256,6 +256,95 @@ export function quoteBooking(input: {
   };
 }
 
+export type StayQuoteOk = {
+  ok: true;
+  currency: string;
+  nights: number;
+  nightlyPrice: number;
+  cleaningFee: number;
+  totalAmount: number;
+  guests: number;
+  checkIn: string;
+  checkOut: string;
+};
+
+export type StayQuoteResult = StayQuoteOk | BookingQuoteErr;
+
+function nightsBetween(checkIn: string, checkOut: string): number | null {
+  if (!ISO_DATE.test(checkIn) || !ISO_DATE.test(checkOut)) return null;
+  const a = Date.parse(`${checkIn}T12:00:00Z`);
+  const b = Date.parse(`${checkOut}T12:00:00Z`);
+  const n = Math.round((b - a) / 86400000);
+  return n >= 1 ? n : null;
+}
+
+/** Authoritative stay quote: nights × nightly + cleaning. Never trust a client total. */
+export function quoteStayNights(input: {
+  tour: QuoteTourSlice;
+  checkIn: string;
+  checkOut: string;
+  guests: number;
+  todayIso?: string;
+}): StayQuoteResult {
+  const today = input.todayIso ?? new Date().toISOString().slice(0, 10);
+  if (!isListingBookable(input.tour.status)) {
+    return { ok: false, code: 'unpublished', error: 'This stay is not available to book.' };
+  }
+  const extras = parseListingExtras(input.tour.listingExtras);
+  if (extras.inventoryFamily !== 'stay') {
+    return { ok: false, code: 'inventory', error: 'This listing is not a stay.' };
+  }
+  const stay = extras.stay;
+  const checkIn = (input.checkIn ?? '').trim();
+  const checkOut = (input.checkOut ?? '').trim();
+  const guests = Number(input.guests);
+  if (!ISO_DATE.test(checkIn) || !ISO_DATE.test(checkOut)) {
+    return { ok: false, code: 'bad_date', error: 'Choose valid check-in and check-out dates.' };
+  }
+  if (checkIn < today) {
+    return { ok: false, code: 'bad_date', error: 'Check-in must be today or later.' };
+  }
+  const nights = nightsBetween(checkIn, checkOut);
+  if (nights == null) {
+    return { ok: false, code: 'bad_date', error: 'Check-out must be after check-in.' };
+  }
+  const minNights = stay?.minNights && stay.minNights >= 1 ? stay.minNights : 1;
+  if (nights < minNights) {
+    return {
+      ok: false,
+      code: 'bad_date',
+      error: `Minimum stay is ${minNights} night${minNights === 1 ? '' : 's'}.`,
+    };
+  }
+  const maxGuests = stay?.maxGuests && stay.maxGuests >= 1 ? stay.maxGuests : 99;
+  if (!Number.isFinite(guests) || guests < 1) {
+    return { ok: false, code: 'party', error: 'Enter how many guests will stay.' };
+  }
+  if (guests > maxGuests) {
+    return { ok: false, code: 'party', error: `This stay allows up to ${maxGuests} guests.` };
+  }
+  const nightly =
+    stay?.nightlyPriceUsd && stay.nightlyPriceUsd > 0
+      ? stay.nightlyPriceUsd
+      : Number(input.tour.price?.startingFrom ?? 0);
+  if (!(nightly > 0)) {
+    return { ok: false, code: 'price', error: 'This stay does not have a nightly price yet.' };
+  }
+  const cleaning = stay?.cleaningFeeUsd && stay.cleaningFeeUsd > 0 ? stay.cleaningFeeUsd : 0;
+  const currency = (input.tour.price?.currency ?? 'USD').trim().toUpperCase() || 'USD';
+  return {
+    ok: true,
+    currency,
+    nights,
+    nightlyPrice: money(nightly),
+    cleaningFee: money(cleaning),
+    totalAmount: money(nights * nightly + cleaning),
+    guests,
+    checkIn,
+    checkOut,
+  };
+}
+
 /** True when a client-sent amount does not match the authoritative quote (underpay / overpay). */
 export function clientAmountConflictsWithQuote(clientTotal: number, quoteTotal: number): boolean {
   if (!Number.isFinite(clientTotal)) return false;

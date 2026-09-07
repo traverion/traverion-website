@@ -94,10 +94,6 @@ export default function SupplierAuth({
   }, [initialMode]);
 
   useEffect(() => {
-    onModeChange?.(mode);
-  }, [mode, onModeChange]);
-
-  useEffect(() => {
     const flash = consumePartnerAuthFlash();
     if (!flash) return;
     setFieldErrors({ email: flash.message });
@@ -175,10 +171,12 @@ export default function SupplierAuth({
     else if (!isValidEmailFormat(trimmedEmail)) next.email = 'Enter a valid email address.';
 
     if (mode === 'signup') {
-      if (!businessName.trim()) next.businessName = 'Enter your registered business name.';
-      if (!phoneNumber.trim()) next.phoneNumber = 'Enter your phone number.';
-      else if (normalizePhoneNumber(phoneNumber).replace(/\D/g, '').length < 9) {
-        next.phoneNumber = 'Enter a valid phone number.';
+      if (!compact) {
+        if (!businessName.trim()) next.businessName = 'Enter your registered business name.';
+        if (!phoneNumber.trim()) next.phoneNumber = 'Enter your phone number.';
+        else if (normalizePhoneNumber(phoneNumber).replace(/\D/g, '').length < 9) {
+          next.phoneNumber = 'Enter a valid phone number.';
+        }
       }
       if (!password) next.password = 'Enter a password.';
       else if (password.length < 8) next.password = 'Use at least 8 characters.';
@@ -200,8 +198,9 @@ export default function SupplierAuth({
     try {
       if (isSupabase && supabase) {
         if (mode === 'signup') {
-          const cleanBusinessName = businessName.trim();
-          const cleanPhoneNumber = normalizePhoneNumber(phoneNumber);
+          const cleanBusinessName = compact ? '' : businessName.trim();
+          const cleanPhoneNumber = compact ? '' : normalizePhoneNumber(phoneNumber);
+          if (!compact) {
           const phoneAvail = await isPhoneAvailableForSignup(phoneNumber);
           if (phoneAvail.error) {
             setFieldErrors(serverMessageToFields(phoneAvail.error));
@@ -213,14 +212,16 @@ export default function SupplierAuth({
             });
             return;
           }
+          }
           const { data, error: err } = await supabase.auth.signUp({
             email: normalizedEmail,
             password,
             options: {
               emailRedirectTo: partnerPortalAuthRedirectUrl(PARTNER_EMAIL_VERIFIED_PATH),
               data: {
-                supplier_business_name: cleanBusinessName,
-                supplier_phone: cleanPhoneNumber,
+                traverion_product: 'partner',
+                ...(cleanBusinessName ? { supplier_business_name: cleanBusinessName } : {}),
+                ...(cleanPhoneNumber ? { supplier_phone: cleanPhoneNumber } : {}),
               },
             },
           });
@@ -242,9 +243,9 @@ export default function SupplierAuth({
               return;
             }
             const ensured = await ensureSupplierProfile(data.session.user.id, {
-              display_name: cleanBusinessName,
-              company_legal_name: cleanBusinessName,
-              contact_phone: cleanPhoneNumber,
+              display_name: cleanBusinessName || normalizedEmail.split('@')[0] || null,
+              company_legal_name: cleanBusinessName || null,
+              contact_phone: cleanPhoneNumber || null,
             });
             if (!ensured.success) {
               await supabase.auth.signOut();
@@ -273,7 +274,7 @@ export default function SupplierAuth({
           }
           if (data.user) {
             const userMeta = data.user.user_metadata as
-              | { supplier_business_name?: string; supplier_phone?: string }
+              | { supplier_business_name?: string; supplier_phone?: string; traverion_product?: string }
               | undefined;
             const travelerSignInUrl = `${publicSiteBaseUrl()}/log-in`;
             const [existingProfile, consumerRow] = await Promise.all([
@@ -291,7 +292,9 @@ export default function SupplierAuth({
               return;
             }
             const signedUpAsPartner =
-              Boolean(userMeta?.supplier_business_name?.trim()) || Boolean(userMeta?.supplier_phone?.trim());
+              userMeta?.traverion_product === 'partner' ||
+              Boolean(userMeta?.supplier_business_name?.trim()) ||
+              Boolean(userMeta?.supplier_phone?.trim());
             if (!signedUpAsPartner) {
               await supabase.auth.signOut();
               setFieldErrors({ email: partnerSignInTravelerOnlyEmailError(travelerSignInUrl) });
@@ -439,6 +442,7 @@ export default function SupplierAuth({
                 setFieldErrors({});
                 setSuccessMessage(null);
                 exitPartnerPasswordReset();
+                onModeChange?.('signin');
               }}
               className={`lux-flat rounded-full px-3.5 py-1.5 text-sm font-medium ${
                 mode === 'signin' ? 'bg-paper-raised text-ink shadow-sm' : 'text-ink-muted'
@@ -453,6 +457,7 @@ export default function SupplierAuth({
                 setFieldErrors({});
                 setSuccessMessage(null);
                 exitPartnerPasswordReset();
+                onModeChange?.('signup');
               }}
               className={`lux-flat rounded-full px-3.5 py-1.5 text-sm font-medium ${
                 mode === 'signup' ? 'bg-paper-raised text-ink shadow-sm' : 'text-ink-muted'
@@ -491,7 +496,7 @@ export default function SupplierAuth({
               </p>
             )}
             <div>
-              <label className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5" htmlFor="supplier-auth-email">
+              <label className="block text-[11px] font-medium uppercase tracking-wide text-ink-muted mb-1.5" htmlFor="supplier-auth-email">
                 Email
               </label>
               {mode === 'signup' && (
@@ -527,9 +532,9 @@ export default function SupplierAuth({
                 </p>
               )}
             </div>
-            {mode === 'signup' && (
+            {mode === 'signup' && !compact && (
               <div>
-                <label className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5" htmlFor="supplier-auth-business">
+                <label className="block text-[11px] font-medium uppercase tracking-wide text-ink-muted mb-1.5" htmlFor="supplier-auth-business">
                   Business name
                 </label>
                 <p className="text-xs text-ink-faint mb-2">
@@ -563,9 +568,9 @@ export default function SupplierAuth({
                 )}
               </div>
             )}
-            {mode === 'signup' && (
+            {mode === 'signup' && !compact && (
               <div>
-                <label className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5" htmlFor="supplier-auth-phone">
+                <label className="block text-[11px] font-medium uppercase tracking-wide text-ink-muted mb-1.5" htmlFor="supplier-auth-phone">
                   Phone number
                 </label>
                 <input
@@ -596,7 +601,7 @@ export default function SupplierAuth({
               </div>
             )}
             <div>
-              <label className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5" htmlFor="supplier-auth-password">
+              <label className="block text-[11px] font-medium uppercase tracking-wide text-ink-muted mb-1.5" htmlFor="supplier-auth-password">
                 Password
               </label>
               <input
@@ -644,7 +649,7 @@ export default function SupplierAuth({
             </div>
             {mode === 'signup' && (
               <div>
-                <label className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5" htmlFor="supplier-auth-confirm">
+                <label className="block text-[11px] font-medium uppercase tracking-wide text-ink-muted mb-1.5" htmlFor="supplier-auth-confirm">
                   Confirm password
                 </label>
                 <input

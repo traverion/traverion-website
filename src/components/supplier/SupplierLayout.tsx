@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import type { User } from '@supabase/supabase-js';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
 import { supabase } from '../../lib/supabase';
 import SupplierDashboard from '../../pages/supplier/SupplierDashboard';
 import SupplierListings from '../../pages/supplier/SupplierListings';
@@ -54,7 +55,8 @@ import { setPartnerAuthFlash } from '../../lib/partnerAuthFlash';
 import { publicSiteBaseUrl } from '../../lib/publicSiteUrl';
 import ErrorState from '../ErrorState';
 import SkipLink from '../SkipLink';
-import { useDialogFocus } from '../../hooks/useDialogFocus';
+import { replacePathIfChanged } from '../../lib/authNavigation';
+import { partnerRedirectForSession } from '../../lib/partnerAuthState';
 
 const SupplierEarnings = lazy(() => import('../../pages/supplier/SupplierEarnings'));
 const SupplierReviews = lazy(() => import('../../pages/supplier/SupplierReviews'));
@@ -384,6 +386,23 @@ export default function SupplierLayout() {
   })();
 
   useEffect(() => {
+    if (loading) return;
+    if (partnerGateView === 'blocked') return;
+    const kind =
+      !user ? 'anon'
+      : partnerGateView === 'checking' ? 'checking-profile'
+      : partnerGateView === 'error' ? 'error'
+      : partnerGateView === 'allowed' ? 'partner'
+      : 'unknown';
+    const dest = partnerRedirectForSession({
+      kind,
+      pathname: window.location.pathname,
+      hostname: window.location.hostname,
+    });
+    if (dest) replacePathIfChanged(dest);
+  }, [loading, user, partnerGateView]);
+
+  useEffect(() => {
     if (!user?.id) blockedRedirectStarted.current = false;
   }, [user?.id]);
 
@@ -408,7 +427,7 @@ export default function SupplierLayout() {
       }
       setPartnerAuthFlash({ message, email: email || undefined, tab: 'signin' });
       await signOut();
-      window.location.replace(PARTNER_LOGIN_PATH);
+      replacePathIfChanged(PARTNER_LOGIN_PATH);
     })();
   }, [partnerGateView, user?.id, user?.email, signOut]);
 
@@ -616,7 +635,7 @@ export default function SupplierLayout() {
 
   const handleAuthenticated = () => {
     setSection('dashboard');
-    window.location.replace(PARTNER_APP_BASE);
+    replacePathIfChanged(PARTNER_APP_BASE);
   };
 
   void pathEpoch;
@@ -653,12 +672,10 @@ export default function SupplierLayout() {
   }
 
   if (onLandingPath && user && partnerGateView === 'allowed') {
-    window.location.replace(PARTNER_APP_BASE);
     return <PartnerBusyScreen label="Opening partner workspace" />;
   }
 
   if (onPortalPath && !user) {
-    window.location.replace(SUPPLIER_LOGIN_PATH);
     return <PartnerBusyScreen label="Redirecting to login" />;
   }
 
@@ -687,7 +704,6 @@ export default function SupplierLayout() {
       );
     }
     if (partnerGateView === 'allowed') {
-      window.location.replace(PARTNER_APP_BASE);
       return <PartnerBusyScreen label="Opening partner workspace" />;
     }
   }

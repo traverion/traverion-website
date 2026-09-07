@@ -155,6 +155,7 @@ export async function createBookingCheckoutSession(params: {
   totalAmount?: number;
   currency?: string;
   bookingOptionId?: string;
+  checkoutDate?: string;
   successPath?: string;
   cancelPath?: string;
 }): Promise<{ success: boolean; checkoutUrl?: string; bookingId?: string; error?: string }> {
@@ -171,6 +172,7 @@ export async function createBookingCheckoutSession(params: {
       specialRequests: params.specialRequests,
       currency: params.currency,
       bookingOptionId: params.bookingOptionId,
+      checkoutDate: params.checkoutDate,
       successPath: params.successPath,
       cancelPath: params.cancelPath,
     },

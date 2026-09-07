@@ -2,7 +2,7 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 import Stripe from 'https://esm.sh/stripe@16.12.0?target=deno';
-import { quoteListingBooking, type DiscountRow, type ListingQuoteRow } from '../_shared/booking-quote.ts';
+import { quoteListingBooking, stayDateRangesOverlap, stayRangeFromBooking, type DiscountRow, type ListingQuoteRow } from '../_shared/booking-quote.ts';
 
 type RequestBody = {
   bookingId?: string;
@@ -17,6 +17,7 @@ type RequestBody = {
   totalAmount?: number;
   currency?: string;
   bookingOptionId?: string;
+  checkoutDate?: string;
   successPath?: string;
   cancelPath?: string;
 };
@@ -95,6 +96,7 @@ serve(async (req) => {
     const customerPhone = String(body.customerPhone ?? '').trim();
     const specialRequests = String(body.specialRequests ?? '').trim();
     const requestedOptionId = String(body.bookingOptionId ?? '').trim();
+    const checkoutDate = String(body.checkoutDate ?? '').trim();
     const successPath = sanitizePath(body.successPath, '/booking-confirmed');
     const cancelPath = sanitizePath(body.cancelPath, '/bookings?payment=cancelled');
 
@@ -195,9 +197,33 @@ serve(async (req) => {
       bookingDate,
       guests,
       bookingOptionId: storedOptionId,
+      checkoutDate: checkoutDate || null,
     });
     if (!quote.ok) {
       return json({ success: false, error: quote.error }, 400);
+    }
+
+    const extrasFamily =
+      listingRow.listing_extras && typeof listingRow.listing_extras === 'object'
+        ? (listingRow.listing_extras as { inventoryFamily?: unknown }).inventoryFamily
+        : null;
+    if (extrasFamily === 'stay' && checkoutDate) {
+      const { data: existingStayBookings, error: stayBusyErr } = await admin
+        .from('bookings')
+        .select('id, booking_date, special_requests, status')
+        .eq('listing_id', listingId)
+        .neq('status', 'cancelled');
+      if (stayBusyErr) return json({ success: false, error: stayBusyErr.message }, 500);
+      for (const row of existingStayBookings ?? []) {
+        if (targetBookingId && String(row.id) === targetBookingId) continue;
+        const range = stayRangeFromBooking({
+          booking_date: typeof row.booking_date === 'string' ? row.booking_date : null,
+          special_requests: typeof row.special_requests === 'string' ? row.special_requests : null,
+        });
+        if (range && stayDateRangesOverlap(bookingDate, checkoutDate, range.checkIn, range.checkOut)) {
+          return json({ success: false, error: 'Those nights are already booked.' }, 409);
+        }
+      }
     }
 
     const totalAmount = quote.totalAmount;
@@ -206,6 +232,7 @@ serve(async (req) => {
       customerPhone ? `Guest phone: ${customerPhone}` : '',
       specialRequests,
       quote.optionId ? `booking_option_id: ${quote.optionId}` : '',
+      checkoutDate ? `check_out: ${checkoutDate}` : '',
     ].filter(Boolean);
 
     if (!targetBookingId) {

@@ -199,13 +199,18 @@ export async function removeSupplierBusinessLogoFiles(userId: string): Promise<v
 type PartnerSignupMeta = {
   supplier_business_name?: string;
   supplier_phone?: string;
+  traverion_product?: string;
 };
 
 /** True when this auth user went through partner sign-up (metadata from SupplierAuth). */
 export function authUserHasPartnerSignupMetadata(user: object | null | undefined): boolean {
   if (!user) return false;
   const m = (user as { user_metadata?: PartnerSignupMeta }).user_metadata;
-  return Boolean(m?.supplier_business_name?.trim()) || Boolean(m?.supplier_phone?.trim());
+  return (
+    m?.traverion_product === 'partner' ||
+    Boolean(m?.supplier_business_name?.trim()) ||
+    Boolean(m?.supplier_phone?.trim())
+  );
 }
 
 /**

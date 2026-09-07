@@ -79,6 +79,12 @@ export default function PartnerLandingPage() {
               </p>
             </div>
             <div>
+              <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">Sell</p>
+              <p className="text-lg text-ink leading-relaxed">
+                Travelers find you on Traverion. They compare dates, understand the product, and pay — you do not rebuild a shopfront.
+              </p>
+            </div>
+            <div>
               <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">Get paid</p>
               <p className="text-lg text-ink leading-relaxed">
                 Travelers pay with Stripe. Money shows pending and paid as they actually are — never a fake payout date.
@@ -102,6 +108,17 @@ export default function PartnerLandingPage() {
               </p>
             </div>
           </div>
+        </section>
+
+        <section className="max-w-5xl mx-auto px-5 sm:px-8 py-16 sm:py-20">
+          <h2 className="font-display text-3xl sm:text-4xl tracking-tight mb-4">Money, plainly</h2>
+          <p className="text-ink-muted leading-relaxed max-w-2xl mb-8">
+            Travelers pay with Stripe. Pending and paid are real ledger states. Payouts are reviewed by Traverion — there is no invented transfer date.
+          </p>
+          <h2 className="font-display text-3xl sm:text-4xl tracking-tight mb-4">A business product</h2>
+          <p className="text-ink-muted leading-relaxed max-w-2xl">
+            Listings, calendar, bookings, and payout details live in one partner account. Travelers never see this. Partners never land in a traveler trip inbox by accident.
+          </p>
         </section>
 
         <section className="max-w-5xl mx-auto px-5 sm:px-8 py-16 sm:py-20">

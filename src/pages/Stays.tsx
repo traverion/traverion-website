@@ -6,6 +6,7 @@ import { getAllListings } from '../data/listings';
 import { filterCatalogByFamily } from '../lib/inventory';
 import { parseListingExtras } from '../types/listingExtras';
 import { PublicListingBrowseCard } from '../components/PublicListingBrowseCard';
+import { quoteStayNights } from '../lib/booking-quote';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
 import { SkeletonCardGrid } from '../components/ui/Skeleton';
@@ -23,18 +24,20 @@ export default function Stays({ onStaySelect }: Props) {
   const catalogLoading = isSupabaseConfigured() && supplierListings === null;
   const [q, setQ] = useState(() => new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search).get('q') ?? '');
   const [checkIn, setCheckIn] = useState(() => new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search).get('date') ?? '');
+  const [checkOut, setCheckOut] = useState(() => new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search).get('checkout') ?? '');
   const [guests, setGuests] = useState(() => new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search).get('guests') ?? '');
 
   useEffect(() => {
     const p = new URLSearchParams();
     if (q.trim()) p.set('q', q.trim());
     if (checkIn) p.set('date', checkIn);
+    if (checkOut) p.set('checkout', checkOut);
     if (guests) p.set('guests', guests);
     const next = p.toString() ? `/stays?${p.toString()}` : '/stays';
     if (window.location.pathname + window.location.search !== next) {
       window.history.replaceState({}, '', next);
     }
-  }, [q, checkIn, guests]);
+  }, [q, checkIn, checkOut, guests]);
 
   const stays = useMemo(() => {
     const base =
@@ -69,7 +72,7 @@ export default function Stays({ onStaySelect }: Props) {
         </p>
 
         <form
-          className="grid grid-cols-2 sm:grid-cols-[1fr_auto_auto_auto] gap-2 bg-paper-raised rounded-2xl p-2 shadow-soft-lg max-w-3xl mb-10"
+          className="grid grid-cols-2 sm:grid-cols-[1fr_auto_auto_auto_auto] gap-2 bg-paper-raised rounded-2xl p-2 shadow-soft-lg max-w-4xl mb-10"
           onSubmit={(e) => e.preventDefault()}
           aria-label="Search stays"
         >
@@ -95,6 +98,16 @@ export default function Stays({ onStaySelect }: Props) {
             type="date"
             value={checkIn}
             onChange={(e) => setCheckIn(e.target.value)}
+            className="h-12 px-3 rounded-xl bg-transparent text-ink"
+          />
+          <label className="sr-only" htmlFor="stays-out">
+            Check-out
+          </label>
+          <input
+            id="stays-out"
+            type="date"
+            value={checkOut}
+            onChange={(e) => setCheckOut(e.target.value)}
             className="h-12 px-3 rounded-xl bg-transparent text-ink"
           />
           <label className="sr-only" htmlFor="stays-guests">
@@ -142,7 +155,13 @@ export default function Stays({ onStaySelect }: Props) {
           />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {filtered.map((item, index) => (
+            {filtered.map((item, index) => {
+              const guestN = Number.parseInt(guests, 10) || 1;
+              const stayQuote =
+                checkIn && checkOut
+                  ? quoteStayNights({ tour: item, checkIn, checkOut, guests: guestN })
+                  : null;
+              return (
               <PublicListingBrowseCard
                 key={item.id}
                 tour={item}
@@ -152,8 +171,14 @@ export default function Stays({ onStaySelect }: Props) {
                 tagLabels={{}}
                 showTagPills={false}
                 size="default"
+                stayStayTotal={
+                  stayQuote?.ok
+                    ? { nights: stayQuote.nights, total: stayQuote.totalAmount, currency: stayQuote.currency }
+                    : null
+                }
               />
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

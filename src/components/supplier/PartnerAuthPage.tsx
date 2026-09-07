@@ -40,23 +40,22 @@ export default function PartnerAuthPage({ mode, onAuthenticated, isSupabase }: P
       <main id="main-content" className="flex-1 px-5 sm:px-8 pb-16">
         <div className="mx-auto w-full max-w-md pt-6 sm:pt-10">
           <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">Traverion Partner</p>
-          <h1 className="font-display text-3xl sm:text-4xl tracking-tight mb-2">
+          <h1 className="font-display text-3xl sm:text-4xl tracking-tight mb-2 text-ink">
             {mode === 'signin' ? 'Log in' : 'Create your partner account'}
           </h1>
           <p className="text-sm text-ink-muted mb-8 leading-relaxed">
             {mode === 'signin'
               ? 'This is the supplier product — listings, calendar, bookings, and money.'
-              : 'Start with an account. You will add business details next, then publish.'}
+              : 'Step 1 of 2 — your account. Business details come next, after you confirm email.'}
           </p>
+          <div className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft-lg ring-1 ring-black/[0.06]">
           <SupplierAuth
             onAuthenticated={onAuthenticated}
             isSupabase={isSupabase}
             initialMode={mode}
             compact
-            onModeChange={(next) => {
-              window.location.assign(next === 'signup' ? PARTNER_SIGNUP_PATH : PARTNER_LOGIN_PATH);
-            }}
           />
+          </div>
         </div>
       </main>
     </div>

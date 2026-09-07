@@ -15,6 +15,7 @@ import {
 } from '../data/supabase-bookings';
 import { fetchListingTitlesByIds, pgTimeToHm } from '../data/supabase-listings';
 import { BRAND_LOGO_SRC } from '../lib/brandAssets';
+import { parseStayCheckOutFromNotes, nightsOccupiedByStay, stayRangeFromBooking } from '../lib/stayOccupancy';
 import { clearBookingsUnread } from '../lib/customerBookingNotifications';
 
 const SESSION_RETURN_KEY = 'traverion_checkout_return_session_id';
@@ -102,19 +103,33 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
     return () => window.clearTimeout(t);
   }, [canQuery, booking, load, pollCount]);
 
+  const stayCheckOut = booking ? parseStayCheckOutFromNotes(booking.special_requests) : null;
+  const stayRange = stayCheckOut && booking ? stayRangeFromBooking(booking) : null;
+  const stayNights = stayRange ? nightsOccupiedByStay(stayRange.checkIn, stayRange.checkOut).length : null;
+
   const dateLabel = useMemo(() => {
     if (!booking?.booking_date) return '—';
     try {
-      return new Date(`${booking.booking_date}T12:00:00`).toLocaleDateString(undefined, {
+      const start = new Date(`${booking.booking_date}T12:00:00`).toLocaleDateString(undefined, {
         weekday: 'long',
         year: 'numeric',
         month: 'long',
         day: 'numeric',
       });
+      if (stayCheckOut) {
+        const end = new Date(`${stayCheckOut}T12:00:00`).toLocaleDateString(undefined, {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        });
+        return `${start} → ${end}`;
+      }
+      return start;
     } catch {
       return booking.booking_date;
     }
-  }, [booking?.booking_date]);
+  }, [booking?.booking_date, stayCheckOut]);
 
   const paid = Boolean(booking && (booking.payment_status ?? '') === 'paid');
   const confirming = Boolean(booking && (booking.payment_status ?? 'pending') !== 'paid');
@@ -258,7 +273,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
             </div>
 
             <div className="py-6 space-y-4 text-sm text-ink-muted">
-              <p className="text-base font-semibold text-ink">{listingTitle || 'Your tour'}</p>
+              <p className="text-base font-semibold text-ink">{listingTitle || (stayCheckOut ? 'Your stay' : 'Your tour')}</p>
               {typeof booking.booking_number === 'number' && booking.booking_number > 0 ? (
                 <p className="text-sm font-mono text-finland font-semibold tracking-wide -mt-1">
                   Booking #{booking.booking_number}
@@ -267,9 +282,15 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
               <div className="flex items-start gap-3">
                 <Calendar className="w-5 h-5 text-finland shrink-0 mt-0.5" aria-hidden />
                 <div>
-                  <p className="font-medium text-ink">Date</p>
+                  <p className="font-medium text-ink">{stayCheckOut ? 'Stay dates' : 'Date'}</p>
                   <p>{dateLabel}</p>
-                  {startHm ? <p className="text-ink-faint mt-0.5">Start {startHm}</p> : null}
+                  {stayNights ? (
+                    <p className="text-ink-faint mt-0.5">
+                      {stayNights} night{stayNights === 1 ? '' : 's'}
+                    </p>
+                  ) : startHm ? (
+                    <p className="text-ink-faint mt-0.5">Start {startHm}</p>
+                  ) : null}
                 </div>
               </div>
               <div className="flex items-start gap-3">
@@ -298,10 +319,10 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
               </button>
               <button
                 type="button"
-                onClick={() => onNavigate('packages')}
+                onClick={() => onNavigate(stayCheckOut ? 'stays' : 'packages')}
                 className="tv-btn-secondary w-full"
               >
-                Browse more tours
+                {stayCheckOut ? 'Browse more stays' : 'Browse more tours'}
               </button>
             </div>
           </div>

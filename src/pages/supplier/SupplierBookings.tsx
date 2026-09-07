@@ -37,6 +37,8 @@ import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { canManageBookings } from '../../lib/supplierTeamRoles';
 import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
+import { inventoryFamilyFromListing } from '../../lib/inventory';
+import { parseStayCheckOutFromNotes } from '../../lib/stayOccupancy';
 
 const BOOKINGS_PAGE_SIZE = 10;
 
@@ -45,6 +47,7 @@ type ListingBookingMeta = {
   imageUrl: string | null;
   location: string;
   duration: string;
+  family: ReturnType<typeof inventoryFamilyFromListing>;
 };
 
 function buildListingMeta(listing: TourPackage): ListingBookingMeta {
@@ -59,6 +62,7 @@ function buildListingMeta(listing: TourPackage): ListingBookingMeta {
     imageUrl,
     location,
     duration: listing.duration || '—',
+    family: inventoryFamilyFromListing(listing),
   };
 }
 
@@ -567,7 +571,11 @@ export default function SupplierBookings() {
             {paginatedBookings.map((booking) => {
               const startHm = booking.start_time ? pgTimeToHm(booking.start_time) ?? null : null;
               const meta = listingMeta[booking.listing_id];
-              const listingTitle = meta?.title ?? 'Tour';
+              const listingTitle = meta?.title ?? (meta?.family === 'stay' ? 'Stay' : 'Tour');
+              const stayOut = parseStayCheckOutFromNotes(booking.special_requests);
+              const dateLine = stayOut
+                ? `${booking.booking_date ?? ''} → ${stayOut}`
+                : formatActivityDateLong(booking.booking_date, startHm);
               const paidLabel = formatBookingMoney(booking.amount_paid, booking.currency);
               const needsAck = !booking.acknowledged_at && booking.status !== 'cancelled';
               return (
@@ -598,7 +606,7 @@ export default function SupplierBookings() {
                       </div>
                       <p className="mt-0.5 text-sm text-ink-muted truncate">{listingTitle}</p>
                       <p className="mt-1 text-sm text-ink-muted">
-                        {formatActivityDateLong(booking.booking_date, startHm)}
+                        {dateLine}
                         {' · '}
                         {booking.guests} guest{booking.guests === 1 ? '' : 's'}
                         {paidLabel ? ` · ${paidLabel}` : ''}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clientAmountConflictsWithQuote, formatOptionWeekdays, listingRunsOnDate, quoteBooking, weekdayIndexMondayFirst } from './booking-quote';
+import { clientAmountConflictsWithQuote, formatOptionWeekdays, listingRunsOnDate, quoteBooking, quoteStayNights, weekdayIndexMondayFirst } from './booking-quote';
 import type { TourPackage } from '../types/tour';
 import type { ListingBookingOption } from '../types/listingExtras';
 import { getListingPublishBlockers } from './listingPublishGate';
@@ -136,6 +136,26 @@ describe('quoteBooking', () => {
     });
     expect(q.ok).toBe(false);
     if (!q.ok) expect(q.code).toBe('inventory');
+  });
+
+  it('quotes a stay as nights × nightly plus cleaning', () => {
+    const q = quoteStayNights({
+      tour: tour({
+        listingExtras: {
+          inventoryFamily: 'stay',
+          stay: { nightlyPriceUsd: 100, maxGuests: 4, minNights: 2, cleaningFeeUsd: 40 },
+          bookingOptions: [],
+        },
+      }),
+      checkIn: '2026-09-10',
+      checkOut: '2026-09-13',
+      guests: 2,
+      todayIso: today,
+    });
+    expect(q.ok).toBe(true);
+    if (!q.ok) return;
+    expect(q.nights).toBe(3);
+    expect(q.totalAmount).toBe(340);
   });
 
   it('rejects closed weekdays', () => {

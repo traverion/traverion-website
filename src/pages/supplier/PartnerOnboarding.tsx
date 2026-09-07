@@ -40,18 +40,18 @@ export default function PartnerOnboarding({
     },
     {
       n: '03',
-      title: 'First tour',
-      body: 'Photos, price, meeting point, then publish when you are ready.',
+      title: 'First listing',
+      body: 'A tour or a stay. Photos, price, then publish when you are ready.',
       done: hasTour,
       action: onTours,
-      cta: hasTour ? 'Open tours' : 'Create a tour',
+      cta: hasTour ? 'Open listings' : 'Create listing',
     },
   ];
 
   return (
     <div className="max-w-2xl mx-auto px-1 sm:px-0 py-8 sm:py-14">
       <p className="text-xs uppercase tracking-[0.2em] text-ink-muted mb-3">Welcome</p>
-      <h1 className="font-display text-4xl sm:text-5xl text-ink mb-4">Set up your tours.</h1>
+      <h1 className="font-display text-4xl sm:text-5xl text-ink mb-4">Set up your operation.</h1>
       <p className="text-ink-muted text-base leading-relaxed mb-10 max-w-lg">
         Three things, then you are live. You can skip and come back — nothing is published until you choose.
       </p>

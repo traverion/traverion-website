@@ -23,6 +23,8 @@ export type PublicListingBrowseCardProps = {
   showTagPills?: boolean;
   /** Home search results: small “View details” affordance. */
   showViewDetailsHint?: boolean;
+  /** When stay dates are selected, show nights × total instead of only nightly. */
+  stayStayTotal?: { nights: number; total: number; currency: string } | null;
 };
 
 /**
@@ -38,6 +40,7 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
   size = 'default',
   showTagPills = false,
   showViewDetailsHint = false,
+  stayStayTotal = null,
 }: PublicListingBrowseCardProps) {
   const imgClass = size === 'compact' ? 'h-44' : 'h-56 sm:h-64';
   const padClass = size === 'compact' ? 'p-3' : 'p-4';
@@ -122,7 +125,9 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
           className={`mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 tabular-nums ${size === 'compact' ? 'text-lg' : 'text-xl'}`}
           aria-label={
             isStay
-              ? `${currency} ${stayNightly} per night`
+              ? stayStayTotal
+                ? `${stayStayTotal.currency} ${stayStayTotal.total} for ${stayStayTotal.nights} nights`
+                : `${currency} ${stayNightly} per night`
               : hasDiscount
                 ? `From ${currency} ${fromAmount} per person, ${label}`
                 : `From ${currency} ${originalPrice} per person`
@@ -138,6 +143,12 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
             {currency} {(isStay ? stayNightly : fromAmount).toFixed(0)}
           </span>
           <span className="text-sm font-medium text-ink-muted">{isStay ? 'per night' : 'per person'}</span>
+          {isStay && stayStayTotal ? (
+            <span className="w-full text-sm font-medium text-ink">
+              {stayStayTotal.nights} night{stayStayTotal.nights === 1 ? '' : 's'} · {stayStayTotal.currency}{' '}
+              {stayStayTotal.total.toFixed(0)}
+            </span>
+          ) : null}
         </p>
         <div className="mt-2 flex min-w-0 items-center gap-1.5 text-sm font-medium text-ink-muted">
           <MapPin className="h-4 w-4 flex-shrink-0 text-ink-faint" aria-hidden />
