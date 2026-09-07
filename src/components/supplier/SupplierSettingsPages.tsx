@@ -533,7 +533,7 @@ function BusinessProfilePage(p: Props) {
                     {p.businessLogoUrl ? (
                       <img src={p.businessLogoUrl} alt="" className="w-full h-full object-cover" />
                     ) : (
-                      <Building2 className="w-10 h-10 text-gray-300" aria-hidden />
+                      <Building2 className="w-10 h-10 text-ink-faint" aria-hidden />
                     )}
                   </div>
                   <div className="flex flex-col gap-2 min-w-0">
@@ -601,7 +601,7 @@ function BusinessProfilePage(p: Props) {
             description="Registered name and identifiers — must match your official documents."
           >
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Business type</label>
+              <label className="block text-sm font-medium text-ink mb-1.5">Business type</label>
               <select
                 value={p.businessType}
                 disabled={identityFieldsDisabled}
@@ -614,10 +614,10 @@ function BusinessProfilePage(p: Props) {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-ink mb-1">
                   Registered business name (legal name)
                 </label>
-                <p className="text-xs text-gray-500 mb-2">
+                <p className="text-xs text-ink-muted mb-2">
                   Enter the name exactly as registered with authorities. Our team checks that it matches your
                   registration documents before your account can go live.
                 </p>
@@ -633,13 +633,13 @@ function BusinessProfilePage(p: Props) {
               {p.businessType === 'company' && (
                 <>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Registration number</label>
-                    <p className="text-xs text-gray-500 mb-2">
+                    <label className="block text-sm font-medium text-ink mb-1">Registration number</label>
+                    <p className="text-xs text-ink-muted mb-2">
                       Official number from your company register, exactly as shown on your registration certificate. We
                       match this to your uploaded proof. Formats differ by jurisdiction—enter yours exactly as printed,
                       including hyphens, spaces, or a country or tax prefix if your certificate shows one (e.g.{' '}
-                      <span className="font-mono text-gray-700">12345678-9</span> or{' '}
-                      <span className="font-mono text-gray-700">AB123456789</span>).
+                      <span className="font-mono text-ink">12345678-9</span> or{' '}
+                      <span className="font-mono text-ink">AB123456789</span>).
                     </p>
                     <input
                       type="text"
@@ -651,8 +651,8 @@ function BusinessProfilePage(p: Props) {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Managing director</label>
-                    <p className="text-xs text-gray-500 mb-2">One person named as managing director on your registration.</p>
+                    <label className="block text-sm font-medium text-ink mb-1">Managing director</label>
+                    <p className="text-xs text-ink-muted mb-2">One person named as managing director on your registration.</p>
                     <input
                       type="text"
                       value={p.managingDirectors}
@@ -673,7 +673,7 @@ function BusinessProfilePage(p: Props) {
           >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Street address</label>
+                <label className="block text-sm font-medium text-ink mb-1.5">Street address</label>
                 <input
                   type="text"
                   value={p.addressStreet}
@@ -684,7 +684,7 @@ function BusinessProfilePage(p: Props) {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">City</label>
+                <label className="block text-sm font-medium text-ink mb-1.5">City</label>
                 <input
                   type="text"
                   value={p.addressCity}
@@ -695,7 +695,7 @@ function BusinessProfilePage(p: Props) {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">ZIP / postal code</label>
+                <label className="block text-sm font-medium text-ink mb-1.5">ZIP / postal code</label>
                 <input
                   type="text"
                   value={p.addressPostalCode}
@@ -706,7 +706,7 @@ function BusinessProfilePage(p: Props) {
                 />
               </div>
               <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Country</label>
+                <label className="block text-sm font-medium text-ink mb-1.5">Country</label>
                 <input
                   type="text"
                   value={p.addressCountry}
@@ -729,8 +729,8 @@ function BusinessProfilePage(p: Props) {
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">VAT ID (optional)</label>
-                      <p className="text-xs text-gray-500 mb-2">
+                      <label className="block text-sm font-medium text-ink mb-1">VAT ID (optional)</label>
+                      <p className="text-xs text-ink-muted mb-2">
                         If you are VAT-registered, enter your VAT number in the format your country uses.
                       </p>
                       <input
@@ -743,8 +743,8 @@ function BusinessProfilePage(p: Props) {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Other tax ID (optional)</label>
-                      <p className="text-xs text-gray-500 mb-2">
+                      <label className="block text-sm font-medium text-ink mb-1">Other tax ID (optional)</label>
+                      <p className="text-xs text-ink-muted mb-2">
                         Only when your jurisdiction issues a tax identifier separate from the registration number above.
                       </p>
                       <input
@@ -764,8 +764,8 @@ function BusinessProfilePage(p: Props) {
           {p.businessType === 'individual' && (
             <ProfileSection icon={Landmark} title="Tax & registration" description="Required for individual trader verification.">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Tax or registration number</label>
-                <p className="text-xs text-gray-500 mb-2">
+                <label className="block text-sm font-medium text-ink mb-1.5">Tax or registration number</label>
+                <p className="text-xs text-ink-muted mb-2">
                   Your business or tax identifier exactly as it appears on your trade or tax registration documents.
                 </p>
                 <input
@@ -778,7 +778,7 @@ function BusinessProfilePage(p: Props) {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">VAT ID (optional)</label>
+                <label className="block text-sm font-medium text-ink mb-1.5">VAT ID (optional)</label>
                 <input
                   type="text"
                   value={p.vatId}
@@ -798,8 +798,8 @@ function BusinessProfilePage(p: Props) {
           >
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Business registration proof</label>
-                  <p className="text-xs text-gray-500 mb-2">
+                <label className="block text-sm font-medium text-ink mb-1.5">Business registration proof</label>
+                  <p className="text-xs text-ink-muted mb-2">
                     {p.businessType === 'company'
                       ? 'Official extract or certificate showing your company name and registration number (PDF or clear photo).'
                       : 'Official proof of your business or sole trader registration, trade register extract, or equivalent (PDF or clear photo).'}
@@ -886,10 +886,10 @@ function BusinessProfilePage(p: Props) {
                   </div>
                   {p.companyRegistrationPath && companyRegDisplayName ? (
                     <p
-                      className="mt-2 text-xs text-gray-600 break-all"
+                      className="mt-2 text-xs text-ink-muted break-all"
                       title={companyRegDisplayName}
                     >
-                      <span className="font-medium text-gray-700">Uploaded file: </span>
+                      <span className="font-medium text-ink">Uploaded file: </span>
                       {companyRegDisplayName}
                     </p>
                   ) : null}
@@ -1069,7 +1069,7 @@ function BusinessProfilePage(p: Props) {
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">IBAN</label>
+                  <label className="block text-sm font-medium text-ink mb-1.5">IBAN</label>
                   <input
                     type="text"
                     value={p.payoutIban}
@@ -1080,7 +1080,7 @@ function BusinessProfilePage(p: Props) {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">BIC / SWIFT</label>
+                  <label className="block text-sm font-medium text-ink mb-1.5">BIC / SWIFT</label>
                   <input
                     type="text"
                     value={p.payoutBic}
@@ -1118,8 +1118,8 @@ function BusinessProfilePage(p: Props) {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Payout frequency</label>
-                <p className="text-xs text-gray-500 mb-2">How often we settle payouts once enabled.</p>
+                <label className="block text-sm font-medium text-ink mb-1.5">Payout frequency</label>
+                <p className="text-xs text-ink-muted mb-2">How often we settle payouts once enabled.</p>
                 <select
                   value={p.paymentCycle}
                   onChange={(e) => p.setPaymentCycle(e.target.value as 'monthly' | 'biweekly' | '')}
@@ -1131,8 +1131,8 @@ function BusinessProfilePage(p: Props) {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Minimum payout threshold</label>
-                <p className="text-xs text-gray-500 mb-2">Minimum balance before a payout is sent (e.g. 50).</p>
+                <label className="block text-sm font-medium text-ink mb-1.5">Minimum payout threshold</label>
+                <p className="text-xs text-ink-muted mb-2">Minimum balance before a payout is sent (e.g. 50).</p>
                 <input
                   type="number"
                   min={0}
@@ -1206,7 +1206,7 @@ function BusinessProfilePage(p: Props) {
           >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Policy number</label>
+                <label className="block text-sm font-medium text-ink mb-1.5">Policy number</label>
                 <input
                   type="text"
                   value={p.insurancePolicyNumber}
@@ -1216,7 +1216,7 @@ function BusinessProfilePage(p: Props) {
                 />
               </div>
               <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Coverage details</label>
+                <label className="block text-sm font-medium text-ink mb-1.5">Coverage details</label>
                 <input
                   type="text"
                   value={p.insuranceCoverage}
@@ -1226,7 +1226,7 @@ function BusinessProfilePage(p: Props) {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Start date</label>
+                <label className="block text-sm font-medium text-ink mb-1.5">Start date</label>
                 <input
                   type="date"
                   value={p.insuranceStart}
@@ -1235,7 +1235,7 @@ function BusinessProfilePage(p: Props) {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">End date</label>
+                <label className="block text-sm font-medium text-ink mb-1.5">End date</label>
                 <input
                   type="date"
                   value={p.insuranceEnd}
@@ -1244,7 +1244,7 @@ function BusinessProfilePage(p: Props) {
                 />
               </div>
               <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Provider</label>
+                <label className="block text-sm font-medium text-ink mb-1.5">Provider</label>
                 <input
                   type="text"
                   value={p.insuranceProvider}
