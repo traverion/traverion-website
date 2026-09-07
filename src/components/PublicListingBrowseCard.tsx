@@ -1,11 +1,12 @@
 import { memo } from 'react';
-import { ArrowRight, MapPin } from 'lucide-react';
+import { ArrowRight, Clock, MapPin } from 'lucide-react';
 import { prefetchTourDetailsPage } from '../lib/routePrefetch';
 import type { TourPackage } from '../types/tour';
 import type { ListingDiscount } from '../data/supabase-discounts';
 import { getDisplayPriceForTour } from '../lib/discount-display';
 import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
 import { listingShowsFreeCancellation } from '../lib/listingTruth';
+import { formatTourDurationDisplay } from '../types/listingExtras';
 import { ListingCardRating } from './ListingCardRating';
 
 export type PublicListingBrowseCardProps = {
@@ -46,6 +47,7 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
   const currency = tour.price?.currency ?? 'USD';
   const locationLine =
     [tour.city, tour.country].filter(Boolean).join(', ') || tour.destination || 'Various locations';
+  const durationLine = formatTourDurationDisplay(tour.duration || '');
   const extraTags =
     tour.tags?.filter((t) => t !== 'free-cancellation' && t !== 'bestseller') ?? [];
   const heroSrc = listingHeroImageSrc(tour.image);
@@ -92,27 +94,13 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
             </span>
           )}
         </div>
-        <div className="absolute bottom-2.5 right-2.5 left-2.5 flex justify-end items-end gap-2">
-          {hasDiscount && label && (
-            <span className="pointer-events-none shrink-0 rounded-lg bg-emerald-600 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-white shadow-md ring-2 ring-white/30">
+        {hasDiscount && label ? (
+          <div className="absolute bottom-2.5 right-2.5">
+            <span className="pointer-events-none rounded-lg bg-finland px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-white">
               {label}
             </span>
-          )}
-          <div className="pointer-events-none max-w-[min(100%,14rem)] rounded-xl bg-white/95 px-3 py-2 shadow-lg ring-1 ring-black/5 backdrop-blur-sm tabular-nums">
-            {hasDiscount ? (
-              <div className="text-right">
-                {showStrikethrough && (
-                  <span className="block text-xs font-medium text-ink-faint line-through">
-                    {currency} {originalPrice.toFixed(0)}
-                  </span>
-                )}
-                <span className="text-lg font-bold leading-tight text-finland">From {currency} {fromAmount.toFixed(0)}</span>
-              </div>
-            ) : (
-              <span className="text-lg font-bold text-ink">From {currency} {originalPrice.toFixed(0)}</span>
-            )}
           </div>
-        </div>
+        ) : null}
       </div>
       <div className={padClass}>
         <h3
@@ -122,33 +110,29 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
         >
           {tour.title}
         </h3>
-        <div
-          className={`mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1 rounded-xl px-3 py-2.5 tabular-nums ${
-            hasDiscount
-              ? 'border border-emerald-200/80 bg-gradient-to-r from-finland/[0.08] to-emerald-50 shadow-sm'
-              : 'border border-black/[0.06] bg-black/[0.03]'
-          } ${size === 'compact' ? 'py-2' : ''}`}
-          aria-label={hasDiscount ? `From ${currency} ${fromAmount}, ${label}` : `From ${currency} ${originalPrice}`}
+        <p
+          className={`mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 tabular-nums ${size === 'compact' ? 'text-lg' : 'text-xl'}`}
+          aria-label={hasDiscount ? `From ${currency} ${fromAmount} per person, ${label}` : `From ${currency} ${originalPrice} per person`}
         >
           <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">From</span>
-          {showStrikethrough && (
+          {showStrikethrough ? (
             <span className="text-sm font-medium text-ink-faint line-through">{currency} {originalPrice.toFixed(0)}</span>
-          )}
-          <span
-            className={`font-bold tracking-tight ${hasDiscount ? 'text-finland' : 'text-ink'} ${size === 'compact' ? 'text-xl' : 'text-2xl'}`}
-          >
+          ) : null}
+          <span className={`font-bold tracking-tight ${hasDiscount ? 'text-finland' : 'text-ink'}`}>
             {currency} {fromAmount.toFixed(0)}
           </span>
-          {hasDiscount && label && (
-            <span className="ml-auto inline-flex items-center rounded-full bg-emerald-600 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white shadow-sm sm:ml-0">
-              {label}
-            </span>
-          )}
-        </div>
+          <span className="text-sm font-medium text-ink-muted">per person</span>
+        </p>
         <div className="mt-2 flex min-w-0 items-center gap-1.5 text-sm font-medium text-ink-muted">
           <MapPin className="h-4 w-4 flex-shrink-0 text-ink-faint" aria-hidden />
           <span className="truncate">{locationLine}</span>
         </div>
+        {durationLine ? (
+          <div className="mt-1 flex min-w-0 items-center gap-1.5 text-sm text-ink-muted">
+            <Clock className="h-4 w-4 flex-shrink-0 text-ink-faint" aria-hidden />
+            <span className="truncate">{durationLine}</span>
+          </div>
+        ) : null}
         <div className="mt-2.5">
           <ListingCardRating tour={tour} aggregate={reviewAggregate} compact={size === 'compact'} />
         </div>

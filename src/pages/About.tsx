@@ -19,7 +19,7 @@ export default function About({ onNavigate }: AboutProps) {
       onNavigate={onNavigate}
     >
       <p>
-        Traverion is a tours and activities platform where travelers can discover and book experiences worldwide, and
+        Traverion is a tours marketplace where travelers can discover and book tours worldwide, and
         where local providers can list and manage their offerings with tools designed for real-world operations — not
         just a pretty listing page.
       </p>

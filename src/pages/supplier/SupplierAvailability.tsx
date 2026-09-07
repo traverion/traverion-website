@@ -207,6 +207,9 @@ export default function SupplierAvailability() {
                 </option>
               ))}
             </select>
+            {viewingAll ? (
+              <p className="mt-2 text-xs font-medium text-finland">Select a tour to edit daily caps</p>
+            ) : null}
           </label>
         ) : null}
       </div>
@@ -278,6 +281,19 @@ export default function SupplierAvailability() {
             />
           ) : null}
 
+          <div className="mb-4 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-muted" aria-hidden>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-finland/40" /> Guests
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-finland/15" /> Cap
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-rose-300" /> Full
+            </span>
+            <span className="inline-flex items-center gap-1.5 text-ink-faint">Closed days show —</span>
+          </div>
+
           <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-medium uppercase tracking-[0.14em] text-ink-faint mb-2" aria-hidden>
             {WEEKDAYS.map((d) => (
               <div key={d}>{d}</div>
@@ -341,15 +357,17 @@ export default function SupplierAvailability() {
                 >
                   <span className="block text-sm font-semibold text-ink">{cell.day}</span>
                   {cell.inMonth && booked ? (
-                    <span className="mt-0.5 block text-[10px] leading-tight text-ink">
+                    <span className="mt-0.5 block text-[10px] font-medium leading-tight text-finland">
                       {booked.guests} guest{booked.guests === 1 ? '' : 's'}
                     </span>
                   ) : cell.inMonth && cap ? (
-                    <span className="mt-0.5 block text-[10px] leading-tight text-ink-muted">
-                      {remaining}/{cap.capacity} left
+                    <span className={`mt-0.5 block text-[10px] leading-tight ${remaining === 0 ? 'font-semibold text-rose-700' : 'text-ink-muted'}`}>
+                      {remaining === 0 ? 'Full' : `${remaining}/${cap.capacity} left`}
                     </span>
                   ) : cell.inMonth && open ? (
                     <span className="mt-0.5 block text-[10px] leading-tight text-ink-faint">Open</span>
+                  ) : cell.inMonth ? (
+                    <span className="mt-0.5 block text-[10px] leading-tight text-ink-faint">—</span>
                   ) : null}
                 </button>
               );

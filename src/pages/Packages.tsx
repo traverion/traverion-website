@@ -337,9 +337,7 @@ export default function Packages({ onTourSelect }: PackagesProps) {
   const extraFilterCount =
     (selectedDestination !== 'all' ? 1 : 0) +
     selectedTags.length +
-    (priceRange !== 'all' ? 1 : 0) +
-    (filterDate ? 1 : 0) +
-    (filterGuests ? 1 : 0);
+    (priceRange !== 'all' ? 1 : 0);
 
   return (
     <div className="min-h-screen bg-paper tv-page">
@@ -395,6 +393,26 @@ export default function Packages({ onTourSelect }: PackagesProps) {
                 Filters{extraFilterCount > 0 ? ` · ${extraFilterCount}` : ''}
               </button>
             </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2 lg:hidden">
+            <input
+              type="date"
+              value={filterDate}
+              onChange={(e) => setFilterDate(e.target.value)}
+              aria-label="Any date"
+              className="tv-input"
+            />
+            <input
+              type="number"
+              min={1}
+              max={99}
+              inputMode="numeric"
+              value={filterGuests}
+              onChange={(e) => setFilterGuests(e.target.value)}
+              placeholder="Guests"
+              aria-label="Guests"
+              className="tv-input"
+            />
           </div>
           <input
             type="date"

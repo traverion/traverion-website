@@ -78,8 +78,8 @@ function BookingProgress({ step, flow }: { step: Step; flow: 'page' | 'modal' })
   if (step === 'done') return null;
   const labels =
     flow === 'modal'
-      ? (['Your trip', 'Checkout', 'Confirm'] as const)
-      : (['Date & guests', 'Your details', 'Confirm'] as const);
+      ? (['Trip', 'Details', 'Pay'] as const)
+      : (['Date', 'Details', 'Pay'] as const);
   const order: Step[] = flow === 'modal' ? ['review', 'contact', 'confirm'] : ['date-guests', 'contact', 'confirm'];
   const currentIndex = Math.max(0, order.indexOf(step));
 
@@ -92,22 +92,22 @@ function BookingProgress({ step, flow }: { step: Step; flow: 'page' | 'modal' })
           return (
             <li key={label} className="contents">
               {i > 0 && (
-                <span className="mx-0.5 sm:mx-1 text-gray-300 select-none" aria-hidden>
+                <span className="mx-0.5 sm:mx-1 text-ink-faint select-none" aria-hidden>
                   →
                 </span>
               )}
               <span
                 className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors duration-200 ${
                   done
-                    ? 'bg-green-50 text-green-800 ring-1 ring-green-200'
+                    ? 'bg-finland/10 text-finland ring-1 ring-finland/20'
                     : current
                       ? 'bg-finland/10 text-finland ring-1 ring-finland/30'
-                      : 'bg-gray-50 text-gray-400 ring-1 ring-gray-100'
+                      : 'bg-black/[0.04] text-ink-faint ring-1 ring-black/[0.04]'
                 }`}
               >
                 <span
                   className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
-                    done ? 'bg-green-600 text-white' : current ? 'bg-finland text-white' : 'bg-gray-200 text-gray-500'
+                    done ? 'bg-finland text-white' : current ? 'bg-finland text-white' : 'bg-black/[0.08] text-ink-faint'
                   }`}
                   aria-hidden
                 >
@@ -670,8 +670,8 @@ export default function BookingPage({
         {step === 'contact' && (
           <div className="bg-paper-raised rounded-2xl p-6 sm:p-8 ring-1 ring-black/[0.06]">
             <BookingProgress step={step} flow={flowMode} />
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Checkout</h2>
-            <p className="text-sm text-gray-500 mb-6 flex items-start gap-2">
+            <h2 className="text-xl font-semibold text-ink mb-2">Your details</h2>
+            <p className="text-sm text-ink-muted mb-6 flex items-start gap-2">
               <Shield className="w-4 h-4 text-finland shrink-0 mt-0.5" aria-hidden />
               <span>
                 Your details are used for the booking confirmation. You are not charged on this page — payment happens
@@ -679,87 +679,87 @@ export default function BookingPage({
                 {user?.email ? (
                   <>
                     {' '}
-                    <strong className="text-gray-700">Email is fixed to your account</strong> so confirmations reach the
+                    <strong className="text-ink">Email is fixed to your account</strong> so confirmations reach the
                     right inbox.
                   </>
                 ) : null}
               </span>
             </p>
             <div className="space-y-4">
-              <div className="rounded-xl border border-gray-200 bg-slate-50 p-3.5 text-sm text-gray-700">
-                <p className="font-medium text-gray-900">{tour.title}</p>
-                <p className="mt-1 text-xs text-gray-600">
+              <div className="rounded-xl bg-black/[0.03] ring-1 ring-black/[0.06] p-3.5 text-sm text-ink-muted">
+                <p className="font-medium text-ink">{tour.title}</p>
+                <p className="mt-1 text-xs">
                   {dateDisplay || date || 'Select date'} · {guests} {guests === 1 ? 'guest' : 'guests'}
                   {selectedVariant ? ` · ${selectedVariant.label}` : ''}
                 </p>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">First name</label>
+                  <label className="block text-sm font-medium text-ink mb-1">First name</label>
                   <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-faint pointer-events-none" />
                     <input
                       type="text"
                       value={firstName}
                       onChange={(e) => setFirstName(e.target.value)}
                       placeholder="John"
                       autoComplete="given-name"
-                      className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland focus-visible:outline-none"
+                      className="tv-input pl-10"
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Last name</label>
+                  <label className="block text-sm font-medium text-ink mb-1">Last name</label>
                   <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-faint pointer-events-none" />
                     <input
                       type="text"
                       value={lastName}
                       onChange={(e) => setLastName(e.target.value)}
                       placeholder="Smith"
                       autoComplete="family-name"
-                      className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland focus-visible:outline-none"
+                      className="tv-input pl-10"
                     />
                   </div>
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Phone (optional)</label>
+                <label className="block text-sm font-medium text-ink mb-1">Phone (optional)</label>
                 <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-faint pointer-events-none" />
                   <input
                     type="tel"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="+358 …"
                     autoComplete="tel"
-                    className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland focus-visible:outline-none"
+                    className="tv-input pl-10"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Place of stay (optional)</label>
+                <label className="block text-sm font-medium text-ink mb-1">Place of stay (optional)</label>
                 <div className="relative">
-                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-faint pointer-events-none" />
                   <input
                     type="text"
                     value={placeOfStay}
                     onChange={(e) => setPlaceOfStay(e.target.value)}
                     placeholder="Hotel name or address"
                     autoComplete="street-address"
-                    className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland focus-visible:outline-none"
+                    className="tv-input pl-10"
                   />
                 </div>
                 {tour.meetingPoint?.trim() ? (
-                  <p className="mt-1 text-xs text-gray-500">
+                  <p className="mt-1 text-xs text-ink-muted">
                     Meeting point is still {tour.meetingPoint.trim()}. Add your stay location for easier coordination.
                   </p>
                 ) : null}
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <label className="block text-sm font-medium text-ink mb-1">Email</label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-faint pointer-events-none" />
                   <input
                     type="email"
                     value={email}
@@ -770,25 +770,23 @@ export default function BookingPage({
                     placeholder="you@example.com"
                     autoComplete="email"
                     aria-readonly={Boolean(user?.email)}
-                    className={`w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland focus-visible:outline-none ${
-                      user?.email ? 'bg-gray-100 text-gray-700 cursor-not-allowed' : ''
-                    }`}
+                    className={`tv-input pl-10 ${user?.email ? 'bg-black/[0.04] text-ink-muted cursor-not-allowed' : ''}`}
                   />
                 </div>
                 {user?.email ? (
-                  <p className="mt-1 text-xs text-gray-500">This must match your signed-in account.</p>
+                  <p className="mt-1 text-xs text-ink-muted">This must match your signed-in account.</p>
                 ) : null}
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Special requests (optional)</label>
+                <label className="block text-sm font-medium text-ink mb-1">Special requests (optional)</label>
                 <div className="relative">
-                  <MessageSquare className="absolute left-3 top-3 w-5 h-5 text-gray-400 pointer-events-none" />
+                  <MessageSquare className="absolute left-3 top-3 w-5 h-5 text-ink-faint pointer-events-none" />
                   <textarea
                     value={specialRequests}
                     onChange={(e) => setSpecialRequests(e.target.value)}
                     placeholder="Dietary needs, accessibility, questions for the provider…"
                     rows={3}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-finland focus:border-finland resize-none focus-visible:outline-none"
+                    className="tv-input pl-10 min-h-[5.5rem] py-3 resize-none"
                   />
                 </div>
               </div>
@@ -805,16 +803,16 @@ export default function BookingPage({
               <button
                 type="button"
                 onClick={() => setStep(contactBackStep)}
-                className="px-4 py-2.5 text-gray-600 hover:text-finland focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2 rounded-lg"
+                className="tv-btn-ghost"
               >
                 Back
               </button>
               <button
                 type="button"
                 onClick={handleContinueFromContact}
-                className="px-6 py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark transition-all duration-200 ease-smooth active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2"
+                className="tv-btn-primary"
               >
-                Review and confirm
+                Review and pay
               </button>
             </div>
           </div>
@@ -823,12 +821,12 @@ export default function BookingPage({
         {step === 'confirm' && (
           <div className="bg-paper-raised rounded-2xl p-6 sm:p-8 ring-1 ring-black/[0.06]">
             <BookingProgress step={step} flow={flowMode} />
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Confirm booking</h2>
-            <p className="text-sm text-gray-600 mb-6 flex items-start gap-2 rounded-xl bg-finland/5 border border-finland/15 px-3 py-2.5">
+            <h2 className="text-xl font-semibold text-ink mb-2">Pay to confirm</h2>
+            <p className="text-sm text-ink-muted mb-6 flex items-start gap-2 rounded-xl bg-finland/5 ring-1 ring-finland/15 px-3 py-2.5">
               <ClipboardList className="w-4 h-4 text-finland shrink-0 mt-0.5" aria-hidden />
               <span>
                 {isSupabaseConfigured()
-                  ? `Continue to pay ${currency} ${total} and confirm this booking. You are not charged until checkout completes.`
+                  ? `Pay ${currency} ${total} on Stripe to confirm this tour. Nothing is taken until checkout completes.`
                   : 'Live card checkout is not configured in this environment. We will not pretend a payment succeeded.'}
               </span>
             </p>
@@ -924,7 +922,11 @@ export default function BookingPage({
                   disabled={submitting}
                   className="tv-btn-primary"
                 >
-                  {submitting ? 'Redirecting to payment…' : 'Continue to payment'}
+                  {submitting
+                    ? 'Redirecting to Stripe…'
+                    : isSupabaseConfigured()
+                      ? `Pay with Stripe · ${currency} ${total}`
+                      : 'Continue to payment'}
                 </button>
               </div>
             </div>

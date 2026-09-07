@@ -320,6 +320,21 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     });
   };
 
+  const handleStickyBookCta = () => {
+    if (!bookingDate.trim()) {
+      document.getElementById('tour-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      window.requestAnimationFrame(() => {
+        document.getElementById('tour-booking-date-input')?.focus();
+      });
+      return;
+    }
+    if (bookingVariantsOpen) {
+      document.getElementById('tour-booking-variants-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+    handleCheckAvailabilityToggle();
+  };
+
   const handlePickTourVariant = async (variant: TourBookingVariant) => {
     if (!tour) return;
     if (!isListingVisibleToTravelers(tour.status)) {
@@ -734,11 +749,11 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
 
             {/* Right: Sticky booking card */}
             <div className="lg:col-span-1">
-              <div id="tour-booking-panel" className="lg:sticky lg:top-24 bg-transparent p-0 lg:bg-paper-raised lg:rounded-2xl lg:p-6 lg:ring-1 lg:ring-black/[0.06]">
+              <div id="tour-booking-panel" className="lg:sticky lg:top-24 bg-paper-raised rounded-2xl p-5 ring-1 ring-black/[0.06] lg:p-6">
                 {!canBook ? (
                   <div>
-                    <p className="text-lg font-semibold text-gray-900">Not bookable yet</p>
-                    <p className="mt-2 text-sm text-gray-600">
+                    <p className="text-lg font-semibold text-ink">Not bookable yet</p>
+                    <p className="mt-2 text-sm text-ink-muted">
                       This tour is a draft. Travelers will see a booking option once the operator publishes it.
                     </p>
                   </div>
@@ -751,16 +766,16 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                   const shown = hasDiscount ? price : tour.price.startingFrom;
                   return (
                     <>
-                      <div className="text-2xl font-bold text-gray-900 mb-1">
+                      <div className="text-2xl font-bold text-ink mb-1">
                         From {currency} {Number(shown).toFixed(0)}
                         {hasDiscount && (
-                          <span className="text-base font-normal text-gray-500 ml-1 line-through">
+                          <span className="text-base font-normal text-ink-faint ml-1 line-through">
                             {currency} {originalPrice}
                           </span>
                         )}
                       </div>
-                      {hasDiscount && <p className="text-sm text-green-600 mb-1">{label}</p>}
-                      <p className="text-sm text-gray-500 mb-4">per person</p>
+                      {hasDiscount && <p className="text-sm text-finland mb-1">{label}</p>}
+                      <p className="text-sm text-ink-muted mb-4">per person</p>
                     </>
                   );
                 })()}
@@ -809,13 +824,13 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                       Select one option below to continue.
                     </p>
                   )}
-                  <div className="mt-3 space-y-1.5 text-xs text-gray-600">
+                  <div className="mt-3 space-y-1.5 text-xs text-ink-muted">
                     <p className="flex items-center gap-2">
-                      <CheckCircle className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />{' '}
+                      <CheckCircle className="w-3.5 h-3.5 text-finland flex-shrink-0" />{' '}
                       {tour.cancellationPolicy?.trim() || TRAVERION_STANDARD_CANCELLATION_POLICY}
                     </p>
                     <p className="flex items-center gap-2">
-                      <Shield className="w-3.5 h-3.5 text-finland flex-shrink-0" /> Secure checkout — you pay to confirm
+                      <Shield className="w-3.5 h-3.5 text-finland flex-shrink-0" /> Pay via Stripe to confirm
                     </p>
                   </div>
                 </div>
@@ -1072,7 +1087,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       </section>
 
       {canBook && !bookingModalOpen ? (
-        <div className="lg:hidden fixed inset-x-0 bottom-0 z-40 border-t border-black/[0.06] bg-paper-raised/95 backdrop-blur-md px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        <div className="lg:hidden fixed inset-x-0 bottom-0 z-40 border-t border-black/[0.06] bg-paper-raised/95 backdrop-blur-md px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] motion-safe:animate-slide-up">
           <div className="flex items-center justify-between gap-3">
             {(() => {
               const { price, originalPrice, label } = getDisplayPriceForTour(tour, discountsByListing);
@@ -1083,19 +1098,27 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-ink">
                     From {currency} {Number(shown).toFixed(0)}
+                    <span className="font-normal text-ink-muted"> · per person</span>
                   </p>
-                  <p className="text-xs text-ink-muted">per person</p>
+                  <p className="text-xs text-ink-muted">
+                    {listingShowsFreeCancellation(tour) ? 'Free cancellation' : 'Pay via Stripe to confirm'}
+                  </p>
                 </div>
               );
             })()}
             <button
               type="button"
-              onClick={() => {
-                document.getElementById('tour-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              }}
+              onClick={handleStickyBookCta}
+              disabled={variantChecking}
               className="tv-btn-primary shrink-0"
             >
-              Check dates
+              {variantChecking
+                ? 'Checking…'
+                : !bookingDate.trim()
+                  ? 'Pick a date'
+                  : bookingVariantsOpen
+                    ? 'Choose option'
+                    : 'Check availability'}
             </button>
           </div>
         </div>

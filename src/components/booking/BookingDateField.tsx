@@ -44,7 +44,7 @@ export default function BookingDateField({
 
   return (
     <div className={className}>
-      <label htmlFor={id} className="mb-1.5 block text-sm font-medium tracking-tight text-gray-700">
+      <label htmlFor={id} className="mb-1.5 block text-sm font-medium tracking-tight text-ink">
         {label}
       </label>
       <div

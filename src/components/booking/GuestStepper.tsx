@@ -46,7 +46,7 @@ export default function GuestStepper({
 
   return (
     <div className={className}>
-      <span id={labelId} className="mb-1.5 block text-sm font-medium tracking-tight text-gray-700">
+      <span id={labelId} className="mb-1.5 block text-sm font-medium tracking-tight text-ink">
         {label}
       </span>
       <div

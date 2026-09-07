@@ -1832,7 +1832,7 @@ export default function SupplierListingForm({
                 />
               </div>
               <div id="supplier-listing-field-start">
-                <label className="block text-sm font-medium text-gray-700 mb-1">How does the experience start? *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">How does the tour start? *</label>
                 <select
                   value={form.experienceStartStyle}
                   onChange={(e) =>
