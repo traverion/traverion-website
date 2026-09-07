@@ -135,7 +135,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
               <button
                 type="button"
                 onClick={() => setIsUserMenuOpen((o) => !o)}
-                className="lux-tap-target flex flex-col items-center gap-0.5 p-1.5 text-gray-600 hover:text-finland rounded-lg"
+                className="lux-tap-target flex flex-col items-center gap-0.5 p-1.5 text-ink-muted hover:text-finland rounded-lg"
                 aria-label="Profile"
                 aria-expanded={isUserMenuOpen}
                 aria-haspopup="menu"
@@ -146,14 +146,14 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                 }}
               >
                 {user ? (
-                  <span className="relative w-8 h-8 rounded-full bg-finland/20 text-finland flex items-center justify-center text-sm font-medium border border-gray-200">
+                  <span className="relative w-8 h-8 rounded-full bg-finland/20 text-finland flex items-center justify-center text-sm font-medium ring-1 ring-black/[0.08]">
                     {(user.email ?? user.id).slice(0, 1).toUpperCase()}
                     {hasUnreadBookings ? (
                       <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white" />
                     ) : null}
                   </span>
                 ) : (
-                  <span className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center">
+                  <span className="w-8 h-8 rounded-full ring-1 ring-black/[0.08] flex items-center justify-center">
                     <User className="w-4 h-4" />
                   </span>
                 )}
