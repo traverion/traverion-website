@@ -13,6 +13,13 @@ export function isPlaceholderListingImageUrl(url: string): boolean {
   return !u || u === LISTING_PLACEHOLDER_IMAGE || u.includes('pexels.com/photos/346885');
 }
 
+/** Real listing photo, or null when the URL is empty / stock placeholder. */
+export function listingHeroImageSrc(url: string | null | undefined): string | null {
+  const u = (url ?? '').trim();
+  if (isPlaceholderListingImageUrl(u)) return null;
+  return u;
+}
+
 /** Fixed 12 slots; empty strings allowed between filled cells. */
 export function normalizePhotoSlots(fromSlots: string[] | undefined | null): string[] {
   const base = Array.isArray(fromSlots) ? fromSlots.map((s) => String(s ?? '')) : [];

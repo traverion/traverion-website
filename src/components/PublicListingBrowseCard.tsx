@@ -4,6 +4,8 @@ import { prefetchTourDetailsPage } from '../lib/routePrefetch';
 import type { TourPackage } from '../types/tour';
 import type { ListingDiscount } from '../data/supabase-discounts';
 import { getDisplayPriceForTour } from '../lib/discount-display';
+import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
+import { listingShowsFreeCancellation } from '../lib/listingTruth';
 import { ListingCardRating } from './ListingCardRating';
 
 export type PublicListingBrowseCardProps = {
@@ -46,6 +48,7 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
     [tour.city, tour.country].filter(Boolean).join(', ') || tour.destination || 'Various locations';
   const extraTags =
     tour.tags?.filter((t) => t !== 'free-cancellation' && t !== 'bestseller') ?? [];
+  const heroSrc = listingHeroImageSrc(tour.image);
 
   return (
     <article
@@ -63,23 +66,27 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
       style={{ animationDelay: `${Math.min(index * 45, 320)}ms` }}
       aria-label={`View ${tour.title}`}
     >
-      <div className={`relative ${imgClass} overflow-hidden bg-gray-100`}>
-        <img
-          src={tour.image}
-          alt={tour.title}
-          loading={index < 2 ? 'eager' : 'lazy'}
-          fetchPriority={index === 0 ? 'high' : 'low'}
-          decoding="async"
-          width={800}
-          height={640}
-          className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.04]"
-        />
+      <div className={`relative ${imgClass} overflow-hidden bg-black/[0.04]`}>
+        {heroSrc ? (
+          <img
+            src={heroSrc}
+            alt={tour.title}
+            loading={index < 2 ? 'eager' : 'lazy'}
+            fetchPriority={index === 0 ? 'high' : 'low'}
+            decoding="async"
+            width={800}
+            height={640}
+            className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.04]"
+          />
+        ) : null}
+        {heroSrc ? (
         <div
           className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent opacity-80"
           aria-hidden
         />
+        ) : null}
         <div className="absolute top-2.5 left-2.5 flex flex-wrap gap-1.5">
-          {tour.tags?.includes('free-cancellation') && (
+          {listingShowsFreeCancellation(tour) && (
             <span className="bg-white/95 text-ink text-[11px] font-medium px-2 py-0.5 rounded-full">
               Free cancellation
             </span>

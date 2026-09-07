@@ -33,6 +33,7 @@ import { canManageBookings } from '../../lib/supplierTeamRoles';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { publicTourListingUrl } from '../../lib/publicSiteUrl';
 import { getListingPublishBlockers } from '../../lib/listingPublishGate';
+import { listingHeroImageSrc } from '../../lib/listingPhotoGrid';
 import { normalizeListingForDraftSave } from '../../lib/listingDraftUtils';
 import { SkeletonListItem } from '../../components/ui/Skeleton';
 import ErrorState from '../../components/ErrorState';
@@ -830,6 +831,7 @@ export default function SupplierListings() {
                       ? `€${from}`
                       : `${from} ${currency}`;
               const place = [listing.city, listing.country ?? listing.destination].filter(Boolean).join(', ');
+              const heroSrc = listingHeroImageSrc(listing.image);
               return (
                 <article key={listing.id} className="group min-w-0">
                   <button
@@ -838,11 +840,13 @@ export default function SupplierListings() {
                     className="lux-flat block w-full text-left"
                   >
                     <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-black/[0.04]">
-                      <img
-                        src={listing.image}
-                        alt=""
-                        className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]"
-                      />
+                      {heroSrc ? (
+                        <img
+                          src={heroSrc}
+                          alt=""
+                          className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]"
+                        />
+                      ) : null}
                       <span
                         className={`absolute left-3 top-3 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
                           isLive ? 'bg-paper-raised text-ink' : 'bg-ink/70 text-paper-raised'

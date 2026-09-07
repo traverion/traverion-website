@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabase';
 import { userFacingError } from '../lib/userFacingError';
 import { TourPackage } from '../types/tour';
 import { listingExtrasToDb, parseListingExtras } from '../types/listingExtras';
+import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
 
 export type ListingRow = {
   id: string;
@@ -94,7 +95,7 @@ export function rowToTourPackage(row: ListingRow): TourPackage {
     category: (row.category as TourPackage['category']) ?? '3*',
     tourType: (row.tour_type as TourPackage['tourType']) ?? 'cultural',
     validity: row.validity ?? 'Year round',
-    image: row.image ?? 'https://images.pexels.com/photos/346885/pexels-photo-346885.jpeg',
+    image: listingHeroImageSrc(row.image) ?? '',
     subtitle: row.listing_subtitle?.trim() || undefined,
     description: row.description,
     highlights: Array.isArray(row.highlights) ? row.highlights : [],
@@ -182,7 +183,7 @@ export function tourPackageToRow(tour: Partial<TourPackage> & { title: string; d
     category: tour.category ?? '3*',
     tour_type: tour.tourType ?? 'cultural',
     validity: tour.validity ?? 'Year round',
-    image: tour.image ?? null,
+    image: listingHeroImageSrc(tour.image) ?? null,
     description: tour.description ?? '',
     highlights: Array.isArray(tour.highlights) ? tour.highlights : [],
     itinerary: Array.isArray(tour.itinerary) && tour.itinerary.length > 0 ? tour.itinerary : defaultItinerary,
@@ -191,7 +192,7 @@ export function tourPackageToRow(tour: Partial<TourPackage> & { title: string; d
     difficulty: tour.difficulty ?? 'Easy',
     group_size: tour.groupSize ?? '2-12 People',
     best_time: tour.bestTime ?? 'Year round',
-    rating: tour.rating ?? 4.5,
+    rating: tour.rating ?? 0,
     reviews: tour.reviews ?? 0,
     is_popular: tour.isPopular ?? false,
     city: tour.city ?? null,

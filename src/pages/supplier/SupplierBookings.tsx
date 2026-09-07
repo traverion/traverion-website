@@ -13,8 +13,7 @@ import {
   CalendarDays,
 } from 'lucide-react';
 import type { TourPackage } from '../../types/tour';
-import { LISTING_PLACEHOLDER_IMAGE } from '../../lib/listingQualityScore';
-import { orderedPhotoUrls, photoSlotsFromTourPackage } from '../../lib/listingPhotoGrid';
+import { listingHeroImageSrc, orderedPhotoUrls, photoSlotsFromTourPackage } from '../../lib/listingPhotoGrid';
 import { SkeletonListItem } from '../../components/ui/Skeleton';
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
@@ -43,14 +42,14 @@ const BOOKINGS_PAGE_SIZE = 10;
 
 type ListingBookingMeta = {
   title: string;
-  imageUrl: string;
+  imageUrl: string | null;
   location: string;
   duration: string;
 };
 
 function buildListingMeta(listing: TourPackage): ListingBookingMeta {
   const urls = orderedPhotoUrls(photoSlotsFromTourPackage(listing));
-  const imageUrl = urls[0] || listing.image || LISTING_PLACEHOLDER_IMAGE;
+  const imageUrl = listingHeroImageSrc(urls[0] || listing.image);
   const location =
     [listing.city, listing.country ?? listing.destination].filter(Boolean).join(', ') ||
     listing.destination ||
@@ -583,11 +582,15 @@ export default function SupplierBookings() {
                       highlightBookingId === booking.id ? 'bg-paper-raised -mx-2 px-2 rounded-xl' : ''
                     }`}
                   >
-                    <img
-                      src={meta?.imageUrl ?? LISTING_PLACEHOLDER_IMAGE}
-                      alt=""
-                      className="h-14 w-14 sm:h-16 sm:w-16 rounded-xl object-cover shrink-0"
-                    />
+                    {meta?.imageUrl ? (
+                      <img
+                        src={meta.imageUrl}
+                        alt=""
+                        className="h-14 w-14 sm:h-16 sm:w-16 rounded-xl object-cover shrink-0"
+                      />
+                    ) : (
+                      <div className="h-14 w-14 sm:h-16 sm:w-16 rounded-xl bg-black/[0.04] shrink-0" aria-hidden />
+                    )}
                     <div className="min-w-0 flex-1">
                       <div className="flex items-baseline justify-between gap-3">
                         <p className="font-semibold text-ink truncate">{booking.guest_name || 'Guest'}</p>
@@ -696,11 +699,15 @@ export default function SupplierBookings() {
                 />
                 <div className="space-y-5 p-4 sm:p-5">
                   <div className="flex items-start gap-4">
-                    <img
-                      src={meta?.imageUrl ?? LISTING_PLACEHOLDER_IMAGE}
-                      alt=""
-                      className="h-20 w-20 sm:h-24 sm:w-24 rounded-2xl object-cover shrink-0"
-                    />
+                    {meta?.imageUrl ? (
+                      <img
+                        src={meta.imageUrl}
+                        alt=""
+                        className="h-20 w-20 sm:h-24 sm:w-24 rounded-2xl object-cover shrink-0"
+                      />
+                    ) : (
+                      <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-2xl bg-black/[0.04] shrink-0" aria-hidden />
+                    )}
                     <div className="min-w-0 flex-1">
                       <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize ring-1 ${bookingStatusClass(booking.status)}`}>
                         {booking.status}

@@ -42,6 +42,8 @@ import { dateNotInPast } from '../lib/validation';
 import { checkAvailability } from '../data/supabase-availability';
 import { optionRunsOnDate, formatOptionWeekdays } from '../lib/booking-quote';
 import { isListingVisibleToTravelers } from '../lib/product-workflows';
+import { listingShowsFreeCancellation, publicReviewLabel } from '../lib/listingTruth';
+import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
 import BookingPage from './BookingPage';
 import {
   getPartySizeBounds,
@@ -263,25 +265,27 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       return;
     }
     const desc = (tour.description || '').slice(0, 160);
+    const ogImage = listingHeroImageSrc(tour.image) ?? undefined;
     setPageMetaWithOg(tour.title, desc, {
       title: tour.title,
       description: desc,
-      image: tour.image,
+      image: ogImage,
       type: 'article',
     });
+    const review = publicReviewLabel(reviewAggregate);
     setTourJsonLd({
       id: tour.id,
       title: tour.title,
       description: tour.description ?? '',
-      image: tour.image,
+      image: ogImage,
       destination: tour.destination,
       duration: tour.duration,
-      rating: tour.rating,
-      reviews: tour.reviews,
+      rating: review.score != null ? Number(review.score) : undefined,
+      reviews: review.count > 0 ? review.count : undefined,
       price: tour.price ? { startingFrom: tour.price.startingFrom, currency: tour.price.currency } : undefined,
     });
     return () => clearTourJsonLd();
-  }, [tour]);
+  }, [tour, reviewAggregate]);
 
   const closeBookingModal = () => {
     setBookingModalOpen(false);
@@ -426,13 +430,14 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   }
 
   const galleryExtras = (tour.listingExtras?.galleryImageUrls ?? [])
-    .map((u) => String(u).trim())
-    .filter(Boolean)
+    .map((u) => listingHeroImageSrc(u))
+    .filter((u): u is string => Boolean(u))
     .slice(0, 3);
-  const hero = (tour.image ?? '').trim();
-  const uniqueGallery = [hero, ...galleryExtras].filter((u, i, arr) => u && arr.indexOf(u) === i);
+  const hero = listingHeroImageSrc(tour.image);
+  const uniqueGallery = [hero, ...galleryExtras].filter((u, i, arr): u is string => Boolean(u) && arr.indexOf(u) === i);
   const images = uniqueGallery;
   const hasGallery = images.length > 0;
+  const review = publicReviewLabel(reviewAggregate);
 
   return (
     <div className="min-h-screen bg-paper tv-page pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-0">
@@ -530,22 +535,21 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                   <span>{tour.destination}</span>
                 </div>
                 <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-ink-muted mb-6">
-                  {(tour.tags?.includes('free-cancellation') || !tour.tags?.length) && (
+                  {listingShowsFreeCancellation(tour) && (
                     <span>Free cancellation</span>
                   )}
                   <span className="flex items-center flex-wrap gap-x-2">
-                    <Star size={18} className="text-finland fill-finland mr-1 flex-shrink-0" />
-                    <strong className="text-gray-900">
-                      {reviewAggregate != null
-                        ? reviewAggregate.count > 0
-                          ? reviewAggregate.rating.toFixed(1)
-                          : '0.0'
-                        : tour.rating}
-                    </strong>
-                    <span>
-                      ({reviewAggregate != null ? reviewAggregate.count : tour.reviews}{' '}
-                      {(reviewAggregate != null ? reviewAggregate.count : tour.reviews) === 1 ? 'review' : 'reviews'})
-                    </span>
+                    {review.score ? (
+                      <>
+                        <Star size={18} className="text-finland fill-finland mr-1 flex-shrink-0" />
+                        <strong className="text-gray-900">{review.score}</strong>
+                        <span>
+                          ({review.count} {review.count === 1 ? 'review' : 'reviews'})
+                        </span>
+                      </>
+                    ) : (
+                      <span>No reviews yet</span>
+                    )}
                   </span>
                   <span className="flex items-center">
                     <Clock size={18} className="mr-1 flex-shrink-0" aria-hidden />

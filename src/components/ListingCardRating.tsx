@@ -1,5 +1,6 @@
 import { Star, Clock } from 'lucide-react';
 import { isSupabaseListingId } from '../lib/discount-display';
+import { SHOW_SEED_LISTINGS } from '../data/listings';
 import type { TourPackage } from '../types/tour';
 
 type TourRatingFields = Pick<TourPackage, 'id' | 'rating' | 'reviews' | 'duration'>;
@@ -19,7 +20,7 @@ type Props = {
 export function ListingCardRating({ tour, aggregate, compact }: Props) {
   const isDb = isSupabaseListingId(tour.id);
   const hasReal = isDb && aggregate && aggregate.count > 0;
-  const placeholder = isDb && (!aggregate || aggregate.count === 0);
+  const showSeedRating = SHOW_SEED_LISTINGS && !isDb;
   const textSize = compact ? 'text-xs' : 'text-sm';
 
   return (
@@ -30,14 +31,14 @@ export function ListingCardRating({ tour, aggregate, compact }: Props) {
           <strong className="text-gray-900">{aggregate.rating}</strong>
           <span className="ml-1 text-gray-600">({aggregate.count})</span>
         </>
-      ) : placeholder ? (
-        <span className={`text-gray-600 ${compact ? 'max-w-[9rem] truncate' : ''}`}>No reviews yet</span>
-      ) : (
+      ) : showSeedRating ? (
         <>
           <Star className={`mr-0.5 fill-finland text-finland ${compact ? 'h-3.5 w-3.5' : 'h-4 w-4'}`} />
           <strong className="text-gray-900">{tour.rating}</strong>
           <span className="ml-1 text-gray-600">({tour.reviews})</span>
         </>
+      ) : (
+        <span className={`text-gray-600 ${compact ? 'max-w-[9rem] truncate' : ''}`}>No reviews yet</span>
       )}
       <span className="mx-1.5 text-gray-400">·</span>
       <Clock className={`mr-0.5 text-gray-500 ${compact ? 'h-3 w-3' : 'h-3.5 w-3.5'}`} />

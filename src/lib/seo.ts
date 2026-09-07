@@ -140,7 +140,11 @@ export function setTourJsonLd(tour: {
     image: tour.image || `${baseUrl}${BRAND_LOGO_SRC}`,
     url,
     ...(tour.destination && { destination: tour.destination }),
-    ...(tour.rating != null && { aggregateRating: { '@type': 'AggregateRating', ratingValue: tour.rating, reviewCount: tour.reviews ?? 0 } }),
+    ...(tour.reviews != null &&
+      tour.reviews > 0 &&
+      tour.rating != null && {
+        aggregateRating: { '@type': 'AggregateRating', ratingValue: tour.rating, reviewCount: tour.reviews },
+      }),
     ...(tour.price?.startingFrom != null && {
       offers: {
         '@type': 'Offer',

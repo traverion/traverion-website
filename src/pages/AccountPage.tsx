@@ -10,7 +10,8 @@ import {
   LogIn,
 } from 'lucide-react';
 import { SkeletonFormFields, SkeletonConsumerPage } from '../components/ui/Skeleton';
-import { userFacingError } from '../lib/userFacingError';
+import { USER_ERROR, userFacingError } from '../lib/userFacingError';
+import ErrorState from '../components/ErrorState';
 import { travelerLoginHref } from '../lib/travelerAuthLinks';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
@@ -32,6 +33,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
   const { user, loading: authLoading } = useAuth();
   const [stats, setStats] = useState<HubStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
+  const [statsError, setStatsError] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState('');
   const [phone, setPhone] = useState('');
   const [profileLoading, setProfileLoading] = useState(false);
@@ -44,6 +46,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
       return;
     }
     setStatsLoading(true);
+    setStatsError(null);
     try {
       const [bookings, wishlistIds, cart] = await Promise.all([
         fetchMyBookings(),
@@ -55,8 +58,9 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
         wishlist: wishlistIds.length,
         cart,
       });
-    } catch {
-      setStats({ bookings: 0, wishlist: 0, cart: 0 });
+    } catch (e) {
+      setStats(null);
+      setStatsError(userFacingError(e, USER_ERROR.trips));
     } finally {
       setStatsLoading(false);
     }
@@ -64,7 +68,10 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
 
   useEffect(() => {
     if (user) loadStats();
-    else setStats(null);
+    else {
+      setStats(null);
+      setStatsError(null);
+    }
   }, [user, loadStats]);
 
   const loadProfile = useCallback(async () => {
@@ -275,6 +282,14 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
         </section>
 
         <h2 className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">Your travel</h2>
+        {statsError ? (
+          <ErrorState
+            className="mb-4 py-4"
+            title="Could not load your trips"
+            body={statsError}
+            retry={{ onClick: () => void loadStats() }}
+          />
+        ) : null}
         <ul className="divide-y divide-black/[0.06]">
           {tiles.map((tile) => {
             const Icon = tile.icon;

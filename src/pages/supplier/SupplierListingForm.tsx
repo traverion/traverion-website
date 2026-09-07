@@ -399,7 +399,7 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
     category: '3*',
     tourType: 'cultural',
     validity: 'Year round',
-    image: mainImage || 'https://images.pexels.com/photos/346885/pexels-photo-346885.jpeg',
+    image: mainImage,
     description: desc,
     highlights: highlightList,
     itinerary: [
@@ -418,7 +418,7 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
     difficulty: form.difficulty,
     groupSize: groupSizeStr,
     bestTime: 'Year round',
-    rating: 4.5,
+    rating: 0,
     reviews: 0,
     isPopular: false,
     city: form.city || undefined,

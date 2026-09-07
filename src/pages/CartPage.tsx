@@ -11,6 +11,7 @@ import { travelerLoginHref } from '../lib/travelerAuthLinks';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { fetchCartWithListings, removeFromCart, type CartItemWithListing } from '../data/supabase-cart';
+import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
 
 interface CartPageProps {
   onNavigate: (page: string) => void;
@@ -156,14 +157,20 @@ export default function CartPage({ onNavigate, onBookTour }: CartPageProps) {
           />
         ) : (
           <div className="divide-y divide-black/[0.06]">
-            {items.map((item) => (
+            {items.map((item) => {
+              const thumb = listingHeroImageSrc(item.listing_image);
+              return (
               <div key={item.id} className="flex items-center gap-4 py-5">
                 <div className="flex-1 flex gap-4 min-w-0">
-                  <img
-                    src={item.listing_image ?? 'https://images.pexels.com/photos/346885/pexels-photo-346885.jpeg'}
-                    alt=""
-                    className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl object-cover shrink-0"
-                  />
+                  {thumb ? (
+                    <img
+                      src={thumb}
+                      alt=""
+                      className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl object-cover shrink-0"
+                    />
+                  ) : (
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-black/[0.04] shrink-0" aria-hidden />
+                  )}
                   <div className="min-w-0">
                     <h2 className="font-semibold text-ink truncate">{item.listing_title ?? 'Tour'}</h2>
                     <p className="mt-0.5 text-sm text-ink-muted">
@@ -189,7 +196,8 @@ export default function CartPage({ onNavigate, onBookTour }: CartPageProps) {
                   </button>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

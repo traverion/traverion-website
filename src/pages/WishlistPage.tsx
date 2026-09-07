@@ -13,6 +13,7 @@ import { isSupabaseConfigured } from '../lib/supabase';
 import { fetchWishlistListingIds, removeFromWishlist } from '../data/supabase-wishlist';
 import { fetchListingById } from '../data/supabase-listings';
 import { TourPackage } from '../types/tour';
+import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
 
 interface WishlistPageProps {
   onNavigate: (page: string) => void;
@@ -156,14 +157,20 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
           />
         ) : (
           <div className="divide-y divide-black/[0.06]">
-            {listings.map((tour) => (
+            {listings.map((tour) => {
+              const thumb = listingHeroImageSrc(tour.image);
+              return (
               <div key={tour.id} className="flex items-center gap-4 py-5">
                 <button
                   type="button"
                   onClick={() => onTourSelect(tour)}
                   className="lux-flat flex-1 text-left flex gap-4 min-w-0"
                 >
-                  <img src={tour.image} alt="" className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl object-cover shrink-0" />
+                  {thumb ? (
+                    <img src={thumb} alt="" className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl object-cover shrink-0" />
+                  ) : (
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-black/[0.04] shrink-0" aria-hidden />
+                  )}
                   <div className="min-w-0">
                     <h2 className="font-semibold text-ink truncate">{tour.title}</h2>
                     <p className="mt-0.5 text-sm text-ink-muted">
@@ -184,7 +191,8 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
                   <Heart className="w-5 h-5 fill-ink/80" />
                 </button>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
