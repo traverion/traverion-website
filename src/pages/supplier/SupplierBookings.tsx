@@ -1043,7 +1043,10 @@ export default function SupplierBookings() {
             {isPaidPaymentStatus(cancelModal.payment_status) ? (
               <>
                 <NoticeCallout title="Consequences before you send" tone="danger">
-                  <p>Traveler refund: Full refund (processed after they accept, via the original payment method).</p>
+                  <p>
+                    Traveler refund: a full refund is expected. Traverion does not send the Stripe refund
+                    automatically; refund status becomes Refunded only after Stripe records it.
+                  </p>
                   <p className="mt-1">
                     Supplier cancellation fee:{' '}
                     {supplierCancellationFeeEur(cancelReason) === 0
