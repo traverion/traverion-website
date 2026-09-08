@@ -226,11 +226,11 @@ serve(async (req) => {
       headline = 'Action needed: cancellation request';
       intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">The host requested to cancel this booking. Open Trips to review the reason and accept or decline. Traverion will not cancel automatically if you do not respond.</p>`;
       if (diffs.length) extraHtml = fieldDiffTableHtml(diffs);
-      footerNote = 'If you accept, a full refund is expected. Timing depends on your payment method.';
+      footerNote = 'If you accept, a full refund is expected. Traverion does not send the refund automatically; it is recorded after Stripe processes it.';
     } else if (kind === 'cancellation_accepted') {
       headline = 'Cancellation confirmed';
-      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">You accepted the host’s cancellation request. This booking is cancelled. A refund will be processed according to the booking policy.</p>`;
-      footerNote = 'Refunds appear on the original payment method. This can take a few days depending on your bank.';
+      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">You accepted the host’s cancellation request. This booking is cancelled. A refund is due; it is recorded when Stripe processes it — Traverion does not refund automatically.</p>`;
+      footerNote = 'Watch Trips for Refund pending, then Refunded. Timing depends on your bank.';
     } else if (kind === 'cancellation_declined') {
       headline = 'Your booking stays confirmed';
       intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">You declined the host’s cancellation request. The booking remains active.</p>`;

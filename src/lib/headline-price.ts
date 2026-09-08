@@ -17,7 +17,7 @@ export type HeadlinePick<T extends PricedNamedOption> = {
   option: T | null;
   /** How the catalog should present this price. */
   mode: 'participant-standard' | 'from-minimum' | 'single' | 'empty';
-  /** Short unit for “From €189 / adult”. */
+  /** Short unit for “From €189 per adult”. */
   qualifier: string | null;
 };
 

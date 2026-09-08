@@ -1074,9 +1074,9 @@ export default function SupplierListings() {
                   onClose={deleteBusy ? undefined : () => setListingPendingDelete(null)}
                 />
                 <div className="p-4 sm:p-6 overflow-y-auto pb-[max(1rem,env(safe-area-inset-bottom))]">
-                <p className="text-sm text-ink-muted">
-                  <span className="font-medium text-ink">{listingPendingDelete.title}</span> will be removed from
-                  your supplier account. This cannot be undone.
+                <p className="text-sm text-ink-muted leading-relaxed">
+                  <span className="font-medium text-ink">{listingPendingDelete.title}</span> will disappear from
+                  Partner listings. Confirmed bookings stay in Bookings. This cannot be undone.
                 </p>
                 <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                   <button
@@ -1085,11 +1085,11 @@ export default function SupplierListings() {
                     disabled={deleteBusy}
                     onClick={() => setListingPendingDelete(null)}
                   >
-                    Cancel
+                    Keep listing
                   </button>
                   <button
                     type="button"
-                    className="tv-btn-primary"
+                    className="inline-flex items-center justify-center min-h-[44px] rounded-lg bg-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-800 disabled:opacity-50"
                     disabled={deleteBusy}
                     onClick={() => void confirmDeleteListing()}
                   >
@@ -1125,9 +1125,9 @@ export default function SupplierListings() {
                   onClose={deactivateBusy ? undefined : () => setListingPendingDeactivate(null)}
                 />
                 <div className="p-4 sm:p-6 overflow-y-auto pb-[max(1rem,env(safe-area-inset-bottom))]">
-                <p className="text-sm text-ink-muted">
+                <p className="text-sm text-ink-muted leading-relaxed">
                   <span className="font-medium text-ink">{listingPendingDeactivate.title}</span> will be hidden from
-                  Traverion until you publish it again from this page.
+                  travelers. Existing bookings stay. New checkouts stop until you publish it again.
                 </p>
                 <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                   <button
@@ -1136,7 +1136,7 @@ export default function SupplierListings() {
                     disabled={deactivateBusy}
                     onClick={() => setListingPendingDeactivate(null)}
                   >
-                    Cancel
+                    Keep published
                   </button>
                   <button
                     type="button"
@@ -1144,7 +1144,7 @@ export default function SupplierListings() {
                     disabled={deactivateBusy}
                     onClick={() => void confirmDeactivateListing()}
                   >
-                    {deactivateBusy ? 'Updating…' : 'Deactivate'}
+                    {deactivateBusy ? 'Updating…' : 'Take offline'}
                   </button>
                 </div>
                 </div>

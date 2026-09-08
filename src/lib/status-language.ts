@@ -22,7 +22,7 @@ export function cancellationRequestLabel(status: string | null | undefined): str
   if (s === 'requested') return 'Awaiting response';
   if (s === 'accepted') return 'Accepted';
   if (s === 'declined') return 'Declined';
-  if (s === 'expired') return 'Expired';
+  if (s === 'expired') return 'Review window passed';
   if (s === 'resolved') return 'Resolved';
   return 'None';
 }

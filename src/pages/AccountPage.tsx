@@ -28,7 +28,8 @@ interface AccountPageProps {
 type HubStats = { bookings: number; wishlist: number };
 
 export default function AccountPage({ onNavigate }: AccountPageProps) {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, signOut } = useAuth();
+  const [signingOut, setSigningOut] = useState(false);
   const [stats, setStats] = useState<HubStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
   const [statsError, setStatsError] = useState<string | null>(null);
@@ -154,7 +155,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
     {
       id: 'bookings',
       title: 'Trips',
-      description: 'Tours you’ve booked',
+      description: 'Upcoming, past, and cancelled bookings',
       icon: Calendar,
       count: stats != null ? badge(stats.bookings) : undefined,
       onClick: () => onNavigate('bookings'),
@@ -162,7 +163,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
     {
       id: 'wishlist',
       title: 'Wishlist',
-      description: 'Tours you saved',
+      description: 'Tours and stays you saved',
       icon: Heart,
       count: stats != null ? badge(stats.wishlist) : undefined,
       onClick: () => onNavigate('wishlist'),
@@ -304,6 +305,26 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
             );
           })}
         </ul>
+
+        <section className="mt-14">
+          <h2 className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-3">Security</h2>
+          <p className="text-sm text-ink-muted leading-relaxed">
+            You are signed in as this traveler. Signing out does not change bookings.
+          </p>
+          <button
+            type="button"
+            disabled={signingOut}
+            className="tv-btn-secondary mt-4 disabled:opacity-50"
+            onClick={() => {
+              setSigningOut(true);
+              void signOut().finally(() => {
+                onNavigate('home');
+              });
+            }}
+          >
+            {signingOut ? 'Signing out…' : 'Sign out'}
+          </button>
+        </section>
 
         <p className="mt-10">
           <button type="button" onClick={() => onNavigate('packages')} className="tv-btn-ghost -ml-2">

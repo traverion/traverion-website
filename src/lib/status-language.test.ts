@@ -6,6 +6,6 @@ describe('status language', () => {
     expect(bookingLifecycleLabel('confirmed', 'paid')).toBe('Confirmed');
     expect(bookingLifecycleLabel('pending', 'pending')).toBe('Pending payment');
     expect(bookingLifecycleLabel('cancelled', 'paid')).toBe('Cancelled');
-    expect(cancellationRequestLabel('requested')).toBe('Awaiting response');
+    expect(cancellationRequestLabel('expired')).toBe('Review window passed');
   });
 });

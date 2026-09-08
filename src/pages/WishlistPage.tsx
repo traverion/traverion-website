@@ -150,7 +150,7 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
           <EmptyState
             icon={Heart}
             title="Nothing saved yet"
-            body="Your wishlist is empty because you have not saved a tour. That is expected. Save one while browsing and it will show up here."
+            body="Your wishlist is empty because you have not saved a tour or stay. Save one while browsing and it will show up here."
             action={
               <button type="button" onClick={() => onNavigate('packages')} className="tv-btn-primary">
                 Browse tours
