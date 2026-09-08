@@ -981,7 +981,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                     disabled={variantChecking || bookingModalOpen}
                     className="tv-btn-primary w-full disabled:opacity-60"
                   >
-                    {variantChecking ? 'Checking…' : 'Check availability'}
+                    {variantChecking ? 'Checking…' : 'See options'}
                     <ChevronDown
                       className={`h-5 w-5 shrink-0 transition-transform duration-200 ease-out ${bookingVariantsOpen ? 'rotate-180' : ''}`}
                       aria-hidden
@@ -1033,22 +1033,37 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                   <button
                     type="button"
                     disabled={Boolean(dayErr)}
-                    className={`w-full px-4 py-3 text-left transition-colors sm:py-3.5 ${
-                      dayErr ? 'opacity-50 cursor-not-allowed' : 'hover:bg-finland/5 active:bg-finland/10'
+                    className={`w-full px-4 py-3.5 text-left rounded-xl ring-1 transition-colors sm:py-4 ${
+                      dayErr
+                        ? 'opacity-50 cursor-not-allowed ring-black/[0.04]'
+                        : 'ring-black/[0.08] hover:bg-finland/5 hover:ring-finland/30 active:bg-finland/10'
                     }`}
                     onClick={() => void handlePickTourVariant(v)}
                   >
-                    <span className="font-medium text-ink">{v.label}</span>
+                    <span className="flex items-start justify-between gap-3">
+                      <span className="font-semibold text-ink">{v.label}</span>
+                      <span className="text-sm font-semibold text-ink tabular-nums shrink-0">
+                        {formatMoney(v.pricePerPerson, tour.price?.currency)}
+                        <span className="block text-right text-xs font-normal text-ink-muted">per person</span>
+                      </span>
+                    </span>
                     {v.listingOption ? (
-                      <span className="mt-0.5 block text-xs text-ink-muted">
-                        Runs {formatOptionWeekdays(v.listingOption.weekdays)}
+                      <span className="mt-1.5 block text-xs text-ink-muted">
+                        {[
+                          v.listingOption.duration.trim() || null,
+                          v.listingOption.startTime.trim() ? `Starts ${v.listingOption.startTime}` : null,
+                          v.listingOption.pickupPlace.trim() || null,
+                          `Runs ${formatOptionWeekdays(v.listingOption.weekdays)}`,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
                       </span>
                     ) : null}
-                    <span className="mt-0.5 block text-xs leading-snug text-ink-muted">{v.subtitle}</span>
-                    <span className="mt-1.5 block text-sm font-semibold text-finland">
-                      From {formatMoney(v.pricePerPerson, tour.price?.currency)}{' '}
-                      <span className="font-normal text-ink-muted">/ person</span>
-                    </span>
+                    {v.listingOption?.optionInfo?.trim() ? (
+                      <span className="mt-1 block text-xs leading-snug text-ink-muted">{v.listingOption.optionInfo.trim()}</span>
+                    ) : v.subtitle ? (
+                      <span className="mt-1 block text-xs leading-snug text-ink-muted">{v.subtitle}</span>
+                    ) : null}
                     {dayErr ? <span className="mt-1 block text-xs text-red-600">{dayErr}</span> : null}
                   </button>
                 </li>
@@ -1222,7 +1237,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                   ? 'Pick a date'
                   : bookingVariantsOpen
                     ? 'Choose option'
-                    : 'Check availability'}
+                    : 'See options'}
             </button>
           </div>
         </div>

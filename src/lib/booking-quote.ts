@@ -351,3 +351,21 @@ export function clientAmountConflictsWithQuote(clientTotal: number, quoteTotal: 
   if (!Number.isFinite(clientTotal)) return false;
   return Math.abs(clientTotal - quoteTotal) > 0.009;
 }
+
+export function tourQuotePriceLines(quote: BookingQuoteOk): { label: string; amount: number }[] {
+  const unit = quote.optionLabel?.trim() || 'Guest';
+  return [{ label: `${unit} × ${quote.guests}`, amount: quote.totalAmount }];
+}
+
+export function stayQuotePriceLines(quote: StayQuoteOk): { label: string; amount: number }[] {
+  const lines: { label: string; amount: number }[] = [
+    {
+      label: `Nightly rate × ${quote.nights} night${quote.nights === 1 ? '' : 's'}`,
+      amount: quote.nightlyPrice * quote.nights,
+    },
+  ];
+  if (quote.cleaningFee > 0) {
+    lines.push({ label: 'Cleaning', amount: quote.cleaningFee });
+  }
+  return lines;
+}

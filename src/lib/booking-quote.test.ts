@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clientAmountConflictsWithQuote, formatOptionWeekdays, listingRunsOnDate, quoteBooking, quoteStayNights, weekdayIndexMondayFirst } from './booking-quote';
+import { clientAmountConflictsWithQuote, formatOptionWeekdays, listingRunsOnDate, quoteBooking, quoteStayNights, stayQuotePriceLines, tourQuotePriceLines, weekdayIndexMondayFirst } from './booking-quote';
 import type { TourPackage } from '../types/tour';
 import type { ListingBookingOption } from '../types/listingExtras';
 import { getListingPublishBlockers } from './listingPublishGate';
@@ -405,5 +405,39 @@ describe('formatOptionWeekdays', () => {
     expect(formatOptionWeekdays([true, true, true, true, true, true, true])).toBe('Every day');
     expect(formatOptionWeekdays([true, true, true, true, true, false, false])).toBe('Mon–Fri');
     expect(formatOptionWeekdays([false, false, false, false, false, true, true])).toBe('Sat, Sun');
+  });
+});
+
+describe('quote price lines', () => {
+  it('splits stay nights and cleaning from the authoritative quote', () => {
+    expect(
+      stayQuotePriceLines({
+        ok: true,
+        currency: 'EUR',
+        nights: 2,
+        nightlyPrice: 185,
+        cleaningFee: 75,
+        totalAmount: 445,
+        guests: 2,
+        checkIn: '2026-10-01',
+        checkOut: '2026-10-03',
+      })
+    ).toEqual([
+      { label: 'Nightly rate × 2 nights', amount: 370 },
+      { label: 'Cleaning', amount: 75 },
+    ]);
+    expect(
+      tourQuotePriceLines({
+        ok: true,
+        currency: 'EUR',
+        unitPrice: 189,
+        originalUnitPrice: 189,
+        totalAmount: 378,
+        guests: 2,
+        bookingDate: '2026-10-01',
+        optionId: null,
+        optionLabel: 'Adult',
+      })
+    ).toEqual([{ label: 'Adult × 2', amount: 378 }]);
   });
 });

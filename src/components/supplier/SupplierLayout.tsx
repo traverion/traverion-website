@@ -6,6 +6,7 @@ import {
   CalendarDays,
   X,
   UserCircle2,
+  MessageSquare,
 } from 'lucide-react';
 import type { User } from '@supabase/supabase-js';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
@@ -60,6 +61,7 @@ import { partnerRedirectForSession } from '../../lib/partnerAuthState';
 import { appStripeIsTestMode } from '../../lib/money';
 
 const SupplierEarnings = lazy(() => import('../../pages/supplier/SupplierEarnings'));
+const SupplierInbox = lazy(() => import('../../pages/supplier/SupplierInbox'));
 const SupplierReviews = lazy(() => import('../../pages/supplier/SupplierReviews'));
 const SupplierPickupPlanner = lazy(() => import('../../pages/supplier/SupplierPickupPlanner'));
 const SupplierDiscountsOffers = lazy(() => import('../../pages/supplier/SupplierDiscountsOffers'));
@@ -113,6 +115,7 @@ type SupplierSection =
   | 'listings'
   | 'availability'
   | 'bookings'
+  | 'inbox'
   | 'earnings'
   | 'discounts'
   | 'reviews'
@@ -128,6 +131,7 @@ const PRIMARY_NAV: { id: SupplierSection; label: string; icon: typeof LayoutDash
   { id: 'availability', label: 'Calendar', icon: CalendarDays },
   { id: 'listings', label: 'Listings', icon: MapPin },
   { id: 'bookings', label: 'Bookings', icon: Calendar },
+  { id: 'inbox', label: 'Inbox', icon: MessageSquare },
 ];
 
 const PATH_ALIASES: Record<string, SupplierSection> = {
@@ -138,6 +142,8 @@ const PATH_ALIASES: Record<string, SupplierSection> = {
   listings: 'listings',
   availability: 'availability',
   bookings: 'bookings',
+  inbox: 'inbox',
+  account: 'account-settings',
   earnings: 'earnings',
   discounts: 'discounts',
   reviews: 'reviews',
@@ -898,6 +904,7 @@ export default function SupplierLayout() {
           {section === 'listings' && <SupplierListings />}
           {section === 'availability' && <SupplierAvailability />}
           {section === 'bookings' && <SupplierBookings />}
+          {section === 'inbox' && <SupplierInbox />}
           {section === 'earnings' && <SupplierEarnings />}
           {section === 'discounts' && <SupplierDiscountsOffers />}
           {section === 'reviews' && <SupplierReviews />}

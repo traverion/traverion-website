@@ -7,6 +7,12 @@ import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { fetchMyListings } from '../../data/supabase-listings';
 import { fetchBookingsForSupplier, type BookingRow } from '../../data/supabase-bookings';
 import { fetchSupplierProfile } from '../../data/supabase-supplier-profile';
+import {
+  fetchCancellationRequestsForBookings,
+} from '../../data/supabase-booking-ops';
+import { listingPickupCopyIncomplete } from '../../lib/pickup-completeness';
+import { isPaidPaymentStatus } from '../../lib/payment-states';
+import type { TourPackage } from '../../types/tour';
 import SupplierPortalNoticePanel from '../../components/supplier/SupplierPortalNoticePanel';
 import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
@@ -30,6 +36,8 @@ export default function SupplierDashboard({ onNavigateToBookings }: SupplierDash
   const [publishedListingsCount, setPublishedListingsCount] = useState<number | null>(null);
   const [draftListingsCount, setDraftListingsCount] = useState(0);
   const [listingTitlesById, setListingTitlesById] = useState<Record<string, string>>({});
+  const [listingsById, setListingsById] = useState<Record<string, TourPackage>>({});
+  const [openCancelCount, setOpenCancelCount] = useState(0);
   const [supplierBookings, setSupplierBookings] = useState<BookingRow[]>([]);
   const [profile, setProfile] = useState<Awaited<ReturnType<typeof fetchSupplierProfile>> | null>(null);
   const [dashboardLoading, setDashboardLoading] = useState(false);
@@ -41,6 +49,7 @@ export default function SupplierDashboard({ onNavigateToBookings }: SupplierDash
       setPublishedListingsCount(0);
       setDraftListingsCount(0);
       setListingTitlesById({});
+      setListingsById({});
       setSupplierBookings([]);
       setProfile(null);
       setDashboardError(null);
@@ -63,17 +72,23 @@ export default function SupplierDashboard({ onNavigateToBookings }: SupplierDash
       setPublishedListingsCount(listings.filter((t) => t.status === 'published').length);
       setDraftListingsCount(listings.filter((t) => t.status === 'draft').length);
       setListingTitlesById(Object.fromEntries(listings.map((t) => [t.id, t.title])));
+      setListingsById(Object.fromEntries(listings.map((t) => [t.id, t])));
     } else {
       noteFailure('listings');
       setPublishedListingsCount(0);
       setDraftListingsCount(0);
       setListingTitlesById({});
+      setListingsById({});
     }
     if (settled[1].status === 'fulfilled') {
       setSupplierBookings(settled[1].value);
+      const ids = settled[1].value.map((b) => b.id);
+      const reqs = await fetchCancellationRequestsForBookings(ids);
+      setOpenCancelCount(reqs.filter((r) => r.status === 'requested').length);
     } else {
       noteFailure('bookings');
       setSupplierBookings([]);
+      setOpenCancelCount(0);
     }
     if (settled[2].status === 'fulfilled') {
       setProfile(settled[2].value);
@@ -137,7 +152,21 @@ export default function SupplierDashboard({ onNavigateToBookings }: SupplierDash
     return true;
   }, [profile?.verification_status]);
 
-  const attentionCount = pendingBookings.length + draftListingsCount + (verificationNeedsAction ? 1 : 0);
+  const pickupGaps = useMemo(
+    () =>
+      supplierBookings.filter((b) => {
+        if (!bookingOccupiesInventory(b) || !isPaidPaymentStatus(b.payment_status)) return false;
+        if (!b.booking_date || b.booking_date < todayYmd) return false;
+        if (b.check_out) return false;
+        if (b.pickup_time) return false;
+        const listing = listingsById[b.listing_id];
+        return listingPickupCopyIncomplete(listing?.meetingPoint, listing?.pickupInstructions);
+      }),
+    [supplierBookings, listingsById, todayYmd]
+  );
+
+  const attentionCount =
+    pendingBookings.length + draftListingsCount + (verificationNeedsAction ? 1 : 0) + pickupGaps.length + openCancelCount;
 
   const recentBookings = useMemo(
     () =>
@@ -257,6 +286,20 @@ export default function SupplierDashboard({ onNavigateToBookings }: SupplierDash
       <section className="mb-12">
         <h2 className="text-[11px] uppercase tracking-[0.18em] text-ink-faint mb-4">Needs attention</h2>
         <ul className="space-y-2 text-sm">
+            {openCancelCount > 0 && (
+              <li>
+                <button type="button" onClick={() => onNavigateToBookings?.()} className="lux-flat min-h-11 w-full text-left py-2 text-finland font-medium">
+                  {openCancelCount} cancellation request{openCancelCount === 1 ? '' : 's'} waiting for the traveler
+                </button>
+              </li>
+            )}
+            {pickupGaps.length > 0 && (
+              <li>
+                <button type="button" onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/pickup`)} className="lux-flat min-h-11 w-full text-left py-2 text-finland font-medium">
+                  {pickupGaps.length} paid booking{pickupGaps.length === 1 ? '' : 's'} missing pickup details
+                </button>
+              </li>
+            )}
             {pendingBookings.length > 0 && (
               <li>
                 <button type="button" onClick={() => onNavigateToBookings?.()} className="lux-flat min-h-11 w-full text-left py-2 text-finland font-medium">
@@ -286,7 +329,7 @@ export default function SupplierDashboard({ onNavigateToBookings }: SupplierDash
         <section className="mb-12">
           <h2 className="text-[11px] uppercase tracking-[0.18em] text-ink-faint mb-4">Needs attention</h2>
           <p className="text-ink-muted max-w-lg leading-relaxed">
-            Nothing needs you right now. Bookings, drafts, and verification will show up here when they do.
+            Nothing needs you right now. Pickup gaps, cancellation requests, drafts, and verification will show up here when they do.
           </p>
         </section>
       )}

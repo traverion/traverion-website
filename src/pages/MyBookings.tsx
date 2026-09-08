@@ -19,10 +19,23 @@ import {
   resumePendingBookingCheckout,
   type BookingRow,
 } from '../data/supabase-bookings';
-import { fetchListingTitlesByIds, pgTimeToHm } from '../data/supabase-listings';
+import { fetchListingOpsByIds, pgTimeToHm, type ListingOpsMeta } from '../data/supabase-listings';
 import { parseStayCheckOutFromNotes } from '../lib/stayOccupancy';
 import { formatMoney, isStripeTestCheckoutSession } from '../lib/money';
 import { travelerPaymentLabel } from '../lib/payment-states';
+import { bookingLifecycleLabel } from '../lib/status-language';
+import { travelerSelfCancelRefundChoice, supplierCancellationReasonLabel } from '../lib/cancellation-policy';
+import {
+  bookingAllowsMessaging,
+  fetchCancellationRequestsForBookings,
+  notifyCancellationResolved,
+  respondToCancellationRequest,
+  type CancellationRequestRow,
+} from '../data/supabase-booking-ops';
+import BookingMessageThread from '../components/BookingMessageThread';
+import StatusChip, { toneForPaymentLabel } from '../components/StatusChip';
+import NoticeCallout from '../components/NoticeCallout';
+import { listingPickupCopyIncomplete } from '../lib/pickup-completeness';
 import { decrementAvailabilityBooked } from '../data/supabase-availability';
 import { clearBookingsUnread } from '../lib/customerBookingNotifications';
 
@@ -57,6 +70,9 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   const { user, loading: authLoading } = useAuth();
   const [bookings, setBookings] = useState<BookingRow[]>([]);
   const [titles, setTitles] = useState<Record<string, string>>({});
+  const [listingOps, setListingOps] = useState<Record<string, ListingOpsMeta>>({});
+  const [cancelRequests, setCancelRequests] = useState<Record<string, CancellationRequestRow>>({});
+  const [respondingId, setRespondingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
@@ -71,13 +87,11 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   const [tripView, setTripView] = useState<'upcoming' | 'past' | 'cancelled'>('upcoming');
   const [openTripId, setOpenTripId] = useState<string | null>(null);
 
-  /** Tour start is within 24 hours from now → no refund. Otherwise full refund. */
-  const getRefundChoiceForCancel = useCallback((bookingDate: string | null): 'full_refund' | 'no_refund' => {
-    if (!bookingDate) return 'no_refund';
-    const startMs = new Date(bookingDate + 'T00:00:00').getTime();
-    const nowMs = Date.now();
-    const hours24 = 24 * 60 * 60 * 1000;
-    return startMs - nowMs > hours24 ? 'full_refund' : 'no_refund';
+  const getRefundChoiceForCancel = useCallback((b: BookingRow): 'full_refund' | 'no_refund' => {
+    return travelerSelfCancelRefundChoice({
+      bookingDate: b.booking_date,
+      startTimeHm: pgTimeToHm(b.start_time),
+    });
   }, []);
 
   const load = useCallback(async () => {
@@ -91,8 +105,15 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
       const list = await fetchMyBookings();
       setBookings(list);
       const ids = [...new Set(list.map((b) => b.listing_id))];
-      const titleMap = await fetchListingTitlesByIds(ids);
-      setTitles(titleMap);
+      const ops = await fetchListingOpsByIds(ids);
+      setListingOps(ops);
+      setTitles(Object.fromEntries(Object.entries(ops).map(([id, v]) => [id, v.title])));
+      const reqs = await fetchCancellationRequestsForBookings(list.map((b) => b.id));
+      const open: Record<string, CancellationRequestRow> = {};
+      for (const r of reqs) {
+        if (r.status === 'requested' && !open[r.booking_id]) open[r.booking_id] = r;
+      }
+      setCancelRequests(open);
     } catch (e) {
       setError(userFacingError(e, USER_ERROR.trips));
     } finally {
@@ -128,7 +149,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   const handleCancelBooking = useCallback(async (b: BookingRow) => {
     setCancellingId(b.id);
     setError(null);
-    const refundChoice = getRefundChoiceForCancel(b.booking_date);
+    const refundChoice = getRefundChoiceForCancel(b);
     const res = await cancelBookingAsCustomer(b.id, refundChoice);
     setCancellingId(null);
     setCancelConfirm(null);
@@ -139,6 +160,36 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
       setError(userFacingError(res.error, 'Could not cancel this booking. Try again.'));
     }
   }, [getRefundChoiceForCancel, load]);
+
+  const handleRespondCancellation = useCallback(
+    async (b: BookingRow, req: CancellationRequestRow, accept: boolean) => {
+      setRespondingId(req.id);
+      setError(null);
+      const res = await respondToCancellationRequest(req.id, accept);
+      setRespondingId(null);
+      if (!res.ok) {
+        setError(userFacingError(res.error, 'Could not update this cancellation request.'));
+        return;
+      }
+      const ops = listingOps[b.listing_id];
+      if (ops?.supplier_id && b.guest_email) {
+        void notifyCancellationResolved({
+          accepted: accept,
+          customerEmail: b.guest_email,
+          customerName: b.guest_name,
+          listingTitle: ops.title || titles[b.listing_id] || 'Booking',
+          bookingId: b.id,
+          bookingNumber: typeof b.booking_number === 'number' ? b.booking_number : undefined,
+          bookingDate: b.booking_date,
+          supplierId: ops.supplier_id,
+          listingId: b.listing_id,
+          guests: b.guests,
+        });
+      }
+      await load();
+    },
+    [listingOps, titles, load]
+  );
 
   const handlePayNow = useCallback(async (b: BookingRow) => {
     setError(null);
@@ -160,6 +211,12 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   useEffect(() => {
     if (user?.id) clearBookingsUnread(user.id);
   }, [user?.id]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const id = new URLSearchParams(window.location.search).get('booking')?.trim();
+    if (id) setOpenTripId(id);
+  }, []);
 
   /** Webhook may lag a few seconds behind the redirect — refresh once more after payment. */
   useEffect(() => {
@@ -399,6 +456,15 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
           <div className="divide-y divide-black/[0.06]">
             {visibleBookings.map((b) => {
               const open = openTripId === b.id;
+              const lifecycle = bookingLifecycleLabel(b.status, b.payment_status);
+              const payLabel = travelerPaymentLabel(b);
+              const openCancel = cancelRequests[b.id];
+              const isStay = Boolean(
+                (b.check_out && /^\d{4}-\d{2}-\d{2}$/.test(b.check_out)) || parseStayCheckOutFromNotes(b.special_requests)
+              );
+              const ops = listingOps[b.listing_id];
+              const pickupMissing =
+                !isStay && listingPickupCopyIncomplete(ops?.meeting_point, ops?.pickup_instructions) && !b.pickup_time;
               return (
               <article key={b.id} className="py-5">
                 <button
@@ -408,9 +474,15 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                 >
                   <div className="flex items-baseline justify-between gap-3">
                     <h3 className="font-semibold text-ink truncate">
-                      {titles[b.listing_id] ?? (((b.check_out && /^\d{4}-\d{2}-\d{2}$/.test(b.check_out)) || parseStayCheckOutFromNotes(b.special_requests)) ? 'Stay' : 'Tour')}
+                      {titles[b.listing_id] ?? (isStay ? 'Stay' : 'Tour')}
                     </h3>
-                    <span className="text-xs font-medium text-ink-muted shrink-0">{travelerPaymentLabel(b)}</span>
+                    <span className="flex flex-wrap justify-end gap-1.5 shrink-0">
+                      {openCancel ? <StatusChip tone="warn">Host cancellation</StatusChip> : null}
+                      <StatusChip tone={toneForPaymentLabel(lifecycle)}>{lifecycle}</StatusChip>
+                      {payLabel !== lifecycle ? (
+                        <StatusChip tone={toneForPaymentLabel(payLabel)}>{payLabel}</StatusChip>
+                      ) : null}
+                    </span>
                   </div>
                   <p className="mt-1 text-sm text-ink-muted">
                     {(() => {
@@ -441,6 +513,48 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                   ) : null}
                   {b.pickup_time ? (
                     <p className="text-sm text-ink-muted">Pickup {pgTimeToHm(b.pickup_time)}</p>
+                  ) : pickupMissing ? (
+                    <NoticeCallout title="Pickup details pending" tone="warn">
+                      Your host still needs to confirm meeting or pickup details. They will appear here when ready.
+                    </NoticeCallout>
+                  ) : null}
+                  {openCancel ? (
+                    <NoticeCallout
+                      title="The host requested cancellation"
+                      tone="danger"
+                      action={
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            className="tv-btn-primary bg-red-700 hover:bg-red-800"
+                            disabled={respondingId === openCancel.id}
+                            onClick={() => void handleRespondCancellation(b, openCancel, true)}
+                          >
+                            {respondingId === openCancel.id ? 'Saving…' : 'Accept cancellation'}
+                          </button>
+                          <button
+                            type="button"
+                            className="tv-btn-secondary"
+                            disabled={respondingId === openCancel.id}
+                            onClick={() => void handleRespondCancellation(b, openCancel, false)}
+                          >
+                            Keep booking
+                          </button>
+                        </div>
+                      }
+                    >
+                      <p>
+                        Reason: {supplierCancellationReasonLabel(openCancel.reason_code)}
+                        {openCancel.reason_text ? ` — ${openCancel.reason_text}` : ''}
+                      </p>
+                      <p className="mt-1">
+                        If you accept, this booking is cancelled and a full refund is expected. Traverion does not
+                        cancel automatically if you do nothing
+                        {openCancel.expires_at
+                          ? ` (request noted until ${new Date(openCancel.expires_at).toLocaleString()}).`
+                          : '.'}
+                      </p>
+                    </NoticeCallout>
                   ) : null}
                   {b.status === 'cancelled' && b.special_requests && (
                     <p className="text-sm text-ink-muted">{b.special_requests}</p>
@@ -495,17 +609,35 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         {payingId === b.id ? 'Opening checkout…' : 'Pay now'}
                       </button>
                     )}
-                    {b.status === 'confirmed' && (
+                    {b.status === 'confirmed' && !openCancel && (
                       <button
                         type="button"
                         onClick={() => setCancelConfirm(b)}
                         disabled={cancellingId !== null}
                         className="tv-btn-ghost text-red-700"
                       >
-                        Cancel booking
+                        Request cancellation
                       </button>
                     )}
                   </div>
+                  {bookingAllowsMessaging({
+                    status: b.status,
+                    payment_status: b.payment_status,
+                    openCancellation: Boolean(openCancel),
+                  }) ? (
+                    <BookingMessageThread
+                      bookingId={b.id}
+                      canCompose
+                      viewerRole="traveler"
+                      listingTitle={titles[b.listing_id] ?? 'Booking'}
+                      listingId={b.listing_id}
+                      supplierId={ops?.supplier_id}
+                      customerEmail={b.guest_email}
+                      customerName={b.guest_name}
+                      bookingNumber={typeof b.booking_number === 'number' ? b.booking_number : undefined}
+                      bookingDate={b.booking_date}
+                    />
+                  ) : null}
                 </div>
                 ) : null}
               </article>
@@ -525,9 +657,17 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                 {titles[cancelConfirm.listing_id] ?? 'Tour'} · {cancelConfirm.booking_date ? new Date(cancelConfirm.booking_date).toLocaleDateString() : 'Date TBC'}
               </p>
               <p className="mt-3 text-sm text-ink-muted">
-                {getRefundChoiceForCancel(cancelConfirm.booking_date) === 'full_refund'
-                  ? 'Your tour start is more than 24 hours away. You will receive a full refund.'
-                  : 'Your tour starts within 24 hours. No refund applies.'}
+                {getRefundChoiceForCancel(cancelConfirm) === 'full_refund'
+                  ? `You are more than 24 hours before the scheduled ${
+                      cancelConfirm.check_out || parseStayCheckOutFromNotes(cancelConfirm.special_requests)
+                        ? 'check-in'
+                        : 'start'
+                    }. You should receive a full refund.`
+                  : `This ${
+                      cancelConfirm.check_out || parseStayCheckOutFromNotes(cancelConfirm.special_requests)
+                        ? 'check-in is'
+                        : 'start is'
+                    } within 24 hours. No refund applies for a traveler-initiated cancellation.`}
               </p>
               <div className="mt-6 flex flex-wrap gap-2">
                 <button

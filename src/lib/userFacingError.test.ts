@@ -22,8 +22,8 @@ describe('userFacingError', () => {
     expect(userFacingError('duplicate key value violates unique constraint "listings_pkey"', USER_ERROR.listingSave)).toBe(
       USER_ERROR.listingSave
     );
-    expect(userFacingError('Stripe: No such checkout.session: cs_test_abc', USER_ERROR.checkout)).toBe(
-      USER_ERROR.checkout
+    expect(userFacingError('P0001: Those nights are already booked.', USER_ERROR.checkout)).toBe(
+      'Those dates were just booked by another traveler. Choose different dates to continue.'
     );
   });
 

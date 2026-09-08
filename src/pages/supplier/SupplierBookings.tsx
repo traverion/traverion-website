@@ -15,7 +15,23 @@ import {
 import type { TourPackage } from '../../types/tour';
 import { listingHeroImageSrc, orderedPhotoUrls, photoSlotsFromTourPackage } from '../../lib/listingPhotoGrid';
 import { formatMoney } from '../../lib/money';
-import { partnerPaymentLabel } from '../../lib/payment-states';
+import { isPaidPaymentStatus, partnerPaymentLabel } from '../../lib/payment-states';
+import {
+  SUPPLIER_CANCELLATION_REASON_CODES,
+  isForceMajeureReason,
+  snapshotSupplierCancellationPolicy,
+  supplierCancellationFeeEur,
+  supplierCancellationReasonLabel,
+} from '../../lib/cancellation-policy';
+import {
+  bookingAllowsMessaging,
+  fetchCancellationRequestsForBookings,
+  notifyTravelerCancellationRequest,
+  requestSupplierCancellation,
+  type CancellationRequestRow,
+} from '../../data/supabase-booking-ops';
+import BookingMessageThread from '../../components/BookingMessageThread';
+import NoticeCallout from '../../components/NoticeCallout';
 import { SkeletonListItem } from '../../components/ui/Skeleton';
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
@@ -79,11 +95,10 @@ function bookingStatusClass(status: string): string {
   return 'bg-amber-50 text-amber-900 ring-amber-200/80';
 }
 
-const CANCELLATION_REASONS = [
-  { id: 'customer_request', label: 'Customer requested cancellation' },
-  { id: 'force_majeure', label: 'Force majeure' },
-  { id: 'operational', label: 'Operational reasons' },
-] as const;
+const CANCELLATION_REASONS = SUPPLIER_CANCELLATION_REASON_CODES.map((id) => ({
+  id,
+  label: supplierCancellationReasonLabel(id),
+}));
 
 const REFUND_CHOICES = [
   { id: 'full_refund', label: 'Full refund' },
@@ -203,7 +218,10 @@ export default function SupplierBookings() {
 
   const [cancelModal, setCancelModal] = useState<BookingRow | null>(null);
   const [cancelReason, setCancelReason] = useState<string>(CANCELLATION_REASONS[0].id);
-  const [cancelRefund, setCancelRefund] = useState<RefundChoice>('full_refund');
+  const [cancelReasonText, setCancelReasonText] = useState('');
+  const [cancelEvidence, setCancelEvidence] = useState('');
+  const [cancelError, setCancelError] = useState<string | null>(null);
+  const [openCancels, setOpenCancels] = useState<Record<string, CancellationRequestRow>>({});
 
   const load = useCallback(async () => {
     const uid = user?.id;
@@ -224,6 +242,12 @@ export default function SupplierBookings() {
       });
       setBookings(bookingsList);
       setListingMeta(meta);
+      const reqs = await fetchCancellationRequestsForBookings(bookingsList.map((b) => b.id));
+      const open: Record<string, CancellationRequestRow> = {};
+      for (const r of reqs) {
+        if (r.status === 'requested' && !open[r.booking_id]) open[r.booking_id] = r;
+      }
+      setOpenCancels(open);
     } catch (e) {
       setError(userFacingError(e, USER_ERROR.bookings));
     } finally {
@@ -374,6 +398,39 @@ export default function SupplierBookings() {
     },
     [canEditBookings]
   );
+
+  const handleRequestSupplierCancel = useCallback(async () => {
+    if (!cancelModal || !canEditBookings) return;
+    setCancelError(null);
+    setUpdatingId(cancelModal.id);
+    const res = await requestSupplierCancellation({
+      bookingId: cancelModal.id,
+      reasonCode: cancelReason,
+      reasonText: cancelReasonText,
+      evidenceNote: cancelEvidence.trim() || undefined,
+    });
+    setUpdatingId(null);
+    if (!res.ok) {
+      setCancelError(userFacingError(res.error, 'Could not send the cancellation request.'));
+      return;
+    }
+    const email = (cancelModal.guest_email ?? '').trim();
+    if (email) {
+      void notifyTravelerCancellationRequest({
+        customerEmail: email,
+        customerName: cancelModal.guest_name,
+        listingTitle: listingMeta[cancelModal.listing_id]?.title ?? 'Booking',
+        bookingId: cancelModal.id,
+        bookingNumber: typeof cancelModal.booking_number === 'number' ? cancelModal.booking_number : undefined,
+        bookingDate: cancelModal.booking_date,
+        reasonLabel: supplierCancellationReasonLabel(cancelReason),
+      });
+    }
+    setCancelModal(null);
+    setCancelReasonText('');
+    setCancelEvidence('');
+    await load();
+  }, [cancelModal, canEditBookings, cancelReason, cancelReasonText, cancelEvidence, listingMeta, load]);
 
   const handleAcknowledge = useCallback(
     async (booking: BookingRow) => {
@@ -824,15 +881,42 @@ export default function SupplierBookings() {
                       ) : null}
                       <button
                         type="button"
-                        disabled={busy}
-                        onClick={() => setCancelModal(booking)}
+                        disabled={busy || Boolean(openCancels[booking.id])}
+                        onClick={() => {
+                          setCancelError(null);
+                          setCancelReasonText('');
+                          setCancelEvidence('');
+                          setCancelModal(booking);
+                        }}
                         className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
                       >
                         <Trash2 className="h-4 w-4" aria-hidden />
-                        Cancel
+                        {openCancels[booking.id] ? 'Awaiting traveler' : 'Request cancellation'}
                       </button>
                     </div>
                   ) : null}
+                  {openCancels[booking.id] ? (
+                    <NoticeCallout title="Waiting for the traveler" tone="warn">
+                      You requested cancellation. The booking stays active until the traveler accepts. Traverion does
+                      not auto-cancel if they do not respond.
+                    </NoticeCallout>
+                  ) : null}
+                  <BookingMessageThread
+                    bookingId={booking.id}
+                    canCompose={bookingAllowsMessaging({
+                      status: booking.status,
+                      payment_status: booking.payment_status,
+                      openCancellation: Boolean(openCancels[booking.id]),
+                    })}
+                    viewerRole="supplier"
+                    listingTitle={listingMeta[booking.listing_id]?.title ?? 'Listing'}
+                    listingId={booking.listing_id}
+                    supplierId={user?.id}
+                    customerEmail={booking.guest_email}
+                    customerName={booking.guest_name}
+                    bookingNumber={typeof booking.booking_number === 'number' ? booking.booking_number : undefined}
+                    bookingDate={booking.booking_date}
+                  />
                 </div>
               </>
             );
@@ -844,68 +928,126 @@ export default function SupplierBookings() {
         <SupplierModalShell onClose={() => setCancelModal(null)} maxWidth="md">
           <SupplierModalHeader
             icon={Trash2}
-            title="Cancel booking"
-            subtitle="Set a reason and refund handling for this cancellation."
+            title={isPaidPaymentStatus(cancelModal.payment_status) ? 'Request cancellation' : 'Cancel unpaid booking'}
+            subtitle={
+              isPaidPaymentStatus(cancelModal.payment_status)
+                ? 'The traveler must accept before this booking is cancelled.'
+                : 'This booking is not paid. Cancelling releases the hold immediately.'
+            }
             onClose={() => setCancelModal(null)}
           />
           <div className="space-y-4 p-4 sm:p-5">
-            <div className="rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-900">
-              You are cancelling booking{' '}
-              <span className="font-semibold">
-                {typeof cancelModal.booking_number === 'number' ? `#${cancelModal.booking_number}` : cancelModal.id.slice(0, 8)}
-              </span>
-              .
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-gray-700">Reason</label>
-              <select
-                value={cancelReason}
-                onChange={(e) => setCancelReason(e.target.value)}
-                className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-finland"
-              >
-                {CANCELLATION_REASONS.map((reason) => (
-                  <option key={reason.id} value={reason.id}>
-                    {reason.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-gray-700">Refund choice</label>
-              <select
-                value={cancelRefund}
-                onChange={(e) => setCancelRefund(e.target.value as RefundChoice)}
-                className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-finland"
-              >
-                {REFUND_CHOICES.map((choice) => (
-                  <option key={choice.id} value={choice.id}>
-                    {choice.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setCancelModal(null)}
-                className="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
-              >
-                Keep booking
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  void handleStatusChange(cancelModal, 'cancelled', {
-                    cancellation_reason: cancelReason,
-                    refund_choice: cancelRefund,
-                  })
-                }
-                disabled={updatingId === cancelModal.id || !canEditBookings}
-                className="rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
-              >
-                Confirm cancellation
-              </button>
-            </div>
+            {isPaidPaymentStatus(cancelModal.payment_status) ? (
+              <>
+                <NoticeCallout title="Consequences before you send" tone="danger">
+                  <p>Traveler refund: Full refund (processed after they accept, via the original payment method).</p>
+                  <p className="mt-1">
+                    Supplier cancellation fee:{' '}
+                    {supplierCancellationFeeEur(cancelReason) === 0
+                      ? '€0 (force majeure / restriction)'
+                      : `€${supplierCancellationFeeEur(cancelReason).toFixed(0)} (supplier-responsibility)`}
+                  </p>
+                  <p className="mt-1">
+                    Reason: {supplierCancellationReasonLabel(cancelReason)}. Fee is recorded when the traveler accepts,
+                    not when you send this request.
+                  </p>
+                  {isForceMajeureReason(cancelReason) ? (
+                    <p className="mt-1">Force majeure is audited. Explain clearly — this is not an automatic fee waiver button.</p>
+                  ) : null}
+                </NoticeCallout>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-ink" htmlFor="cancel-reason-code">
+                    Reason
+                  </label>
+                  <select
+                    id="cancel-reason-code"
+                    value={cancelReason}
+                    onChange={(e) => setCancelReason(e.target.value)}
+                    className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-finland"
+                  >
+                    {CANCELLATION_REASONS.map((reason) => (
+                      <option key={reason.id} value={reason.id}>
+                        {reason.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-ink" htmlFor="cancel-reason-text">
+                    Explanation
+                  </label>
+                  <textarea
+                    id="cancel-reason-text"
+                    value={cancelReasonText}
+                    onChange={(e) => setCancelReasonText(e.target.value)}
+                    rows={4}
+                    className="tv-input min-h-[6rem]"
+                    placeholder="What happened, and why the traveler cannot take this booking."
+                  />
+                </div>
+                {isForceMajeureReason(cancelReason) ? (
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-ink" htmlFor="cancel-evidence">
+                      Evidence note (optional)
+                    </label>
+                    <textarea
+                      id="cancel-evidence"
+                      value={cancelEvidence}
+                      onChange={(e) => setCancelEvidence(e.target.value)}
+                      rows={2}
+                      className="tv-input"
+                      placeholder="Weather warning, official restriction, or other note for the record."
+                    />
+                  </div>
+                ) : null}
+                {cancelError ? <p className="text-sm text-red-700">{cancelError}</p> : null}
+                <p className="text-xs text-ink-faint">
+                  Policy {snapshotSupplierCancellationPolicy(cancelReason).policy_id}. Traverion does not auto-accept if
+                  the traveler does not respond.
+                </p>
+                <div className="flex items-center justify-end gap-2">
+                  <button type="button" onClick={() => setCancelModal(null)} className="tv-btn-ghost">
+                    Keep booking
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleRequestSupplierCancel()}
+                    disabled={updatingId === cancelModal.id || !canEditBookings}
+                    className="rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                  >
+                    {updatingId === cancelModal.id ? 'Sending…' : 'Send request to traveler'}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-900">
+                  Cancel unpaid booking{' '}
+                  <span className="font-semibold">
+                    {typeof cancelModal.booking_number === 'number' ? `#${cancelModal.booking_number}` : 'this hold'}
+                  </span>
+                  . No traveler refund is due because payment is not complete.
+                </div>
+                <div className="flex items-center justify-end gap-2">
+                  <button type="button" onClick={() => setCancelModal(null)} className="tv-btn-ghost">
+                    Keep booking
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void handleStatusChange(cancelModal, 'cancelled', {
+                        cancellation_reason: 'unpaid_release',
+                        refund_choice: 'no_refund',
+                      })
+                    }
+                    disabled={updatingId === cancelModal.id || !canEditBookings}
+                    className="rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                  >
+                    Release hold
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </SupplierModalShell>
       )}

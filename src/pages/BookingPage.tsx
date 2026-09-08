@@ -23,8 +23,10 @@ import { createBookingCheckoutSession } from '../data/supabase-bookings';
 import type { ListingDiscount } from '../data/supabase-discounts';
 import { fetchConsumerProfileRow } from '../data/supabase-consumer-profile';
 import { getDisplayPriceForBookingVariant } from '../lib/discount-display';
-import { quoteBooking, formatOptionWeekdays } from '../lib/booking-quote';
+import { quoteBooking, formatOptionWeekdays, tourQuotePriceLines } from '../lib/booking-quote';
 import { formatMoney, normalizeCurrency } from '../lib/money';
+import PriceBreakdown from '../components/PriceBreakdown';
+import { CHECKOUT_HOLD_MINUTES } from '../lib/booking-hold';
 import { isListingVisibleToTravelers } from '../lib/product-workflows';
 import {
   checkAvailability,
@@ -188,7 +190,8 @@ export default function BookingPage({
   }, [presentation, selectedVariant, tour, date, guests, discountsByListing, fallbackBasePrice]);
 
   const pricePerPerson = priceInfo.price;
-  const total = pricePerPerson * guests;
+  const quoted = priceInfo.quote && priceInfo.quote.ok ? priceInfo.quote : null;
+  const total = quoted ? quoted.totalAmount : pricePerPerson * guests;
   const cancellationText =
     tour.cancellationPolicy?.trim() || TRAVERION_STANDARD_CANCELLATION_POLICY;
 
@@ -578,18 +581,27 @@ export default function BookingPage({
               </p>
             </div>
             <div className="mb-6">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint mb-2">Estimated total</p>
-              <div className="flex justify-between text-sm text-ink-muted">
-                <span>
-                  {formatMoney(pricePerPerson, currency)} × {guests} guests
-                  {priceInfo.label ? (
-                    <span className="block text-xs text-green-600 mt-1">{priceInfo.label}</span>
-                  ) : null}
-                </span>
-                <span className="font-medium text-ink">
-                  {formatMoney(total, currency)}
-                </span>
-              </div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint mb-2">Total</p>
+              {quoted ? (
+                <PriceBreakdown
+                  currency={quoted.currency}
+                  lines={tourQuotePriceLines(quoted)}
+                  total={quoted.totalAmount}
+                  originalTotal={quoted.originalUnitPrice * quoted.guests}
+                  discountLabel={quoted.discountLabel}
+                  footnote={`${quoted.optionLabel} · ${quoted.guests === 1 ? '1 guest' : `${quoted.guests} guests`}`}
+                />
+              ) : (
+                <div className="flex justify-between text-sm text-ink-muted">
+                  <span>
+                    {formatMoney(pricePerPerson, currency)} × {guests} guests
+                    {priceInfo.label ? (
+                      <span className="block text-xs text-green-600 mt-1">{priceInfo.label}</span>
+                    ) : null}
+                  </span>
+                  <span className="font-medium text-ink">{formatMoney(total, currency)}</span>
+                </div>
+              )}
             </div>
             <div className="mb-6">
               <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint mb-1.5">Cancellation</p>
@@ -651,13 +663,15 @@ export default function BookingPage({
             <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-between sm:items-center">
               <div className="text-sm text-ink-muted">
                 <p>
-                  <span className="text-ink-faint">Estimated total</span>{' '}
+                  <span className="text-ink-faint">Total</span>{' '}
                   <strong className="text-ink">
                     {quoteBlockReason ? '—' : formatMoney(total, currency)}
                   </strong>
                 </p>
                 <p className="text-xs text-ink-faint mt-0.5">
-                  {guests} × {formatMoney(pricePerPerson, currency)} — no payment taken on this step.
+                  {quoted
+                    ? `${quoted.optionLabel} × ${quoted.guests} — no payment taken on this step.`
+                    : `${guests} × ${formatMoney(pricePerPerson, currency)} — no payment taken on this step.`}
                 </p>
               </div>
               <button
@@ -666,7 +680,7 @@ export default function BookingPage({
                 disabled={availabilityChecking || availabilityModalOpen || Boolean(quoteBlockReason)}
                 className="w-full sm:w-auto px-6 py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark disabled:opacity-60 transition-all duration-200 ease-smooth active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2"
               >
-                {availabilityChecking ? 'Checking…' : 'Check availability'}
+                {availabilityChecking ? 'Checking…' : 'See options'}
               </button>
             </div>
           </div>
@@ -831,7 +845,7 @@ export default function BookingPage({
               <ClipboardList className="w-4 h-4 text-finland shrink-0 mt-0.5" aria-hidden />
               <span>
                 {isSupabaseConfigured()
-                  ? `Pay ${formatMoney(total, currency)} on Stripe to confirm this tour. Nothing is taken until checkout completes.`
+                  ? `Pay ${formatMoney(total, currency)} on Stripe to confirm. Inventory is held for ${CHECKOUT_HOLD_MINUTES} minutes while you complete checkout.`
                   : 'Live card checkout is not configured in this environment. We will not pretend a payment succeeded.'}
               </span>
             </p>
@@ -880,16 +894,28 @@ export default function BookingPage({
             </div>
 
             <div className="mb-6">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint mb-2">Price breakdown</p>
-              <div className="flex justify-between text-sm text-ink">
-                <span>
-                  {formatMoney(pricePerPerson, currency)} × {guests} guests
-                </span>
-                <span className="font-medium">
-                  {formatMoney(total, currency)}
-                </span>
-              </div>
-              <p className="text-xs text-ink-muted mt-2">This is the amount you pay at checkout.</p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint mb-2">You pay now</p>
+              {quoted ? (
+                <PriceBreakdown
+                  currency={quoted.currency}
+                  lines={tourQuotePriceLines(quoted)}
+                  total={quoted.totalAmount}
+                  originalTotal={quoted.originalUnitPrice * quoted.guests}
+                  discountLabel={quoted.discountLabel}
+                  holdNote={`Spots are held for ${CHECKOUT_HOLD_MINUTES} minutes after you continue to Stripe. If checkout expires, the hold is released.`}
+                  footnote="This is the amount Stripe will charge. Currency matches the listing."
+                />
+              ) : (
+                <>
+                  <div className="flex justify-between text-sm text-ink">
+                    <span>
+                      {formatMoney(pricePerPerson, currency)} × {guests} guests
+                    </span>
+                    <span className="font-medium">{formatMoney(total, currency)}</span>
+                  </div>
+                  <p className="text-xs text-ink-muted mt-2">This is the amount you pay at checkout.</p>
+                </>
+              )}
             </div>
 
             <div className="mb-6">

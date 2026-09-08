@@ -6,7 +6,7 @@ import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
 import { listingIsFamily } from '../lib/inventory';
 import { useAuth } from '../contexts/AuthContext';
 import { rememberTravelerReturnStay, travelerLoginHref } from '../lib/travelerAuthLinks';
-import { quoteStayNights } from '../lib/booking-quote';
+import { quoteStayNights, stayQuotePriceLines } from '../lib/booking-quote';
 import { stayDateRangesOverlap, nightsOccupiedByStay } from '../lib/stayOccupancy';
 import { createBookingCheckoutSession, fetchPublishedStayOccupiedRanges } from '../data/supabase-bookings';
 import { fetchSupplierPublicLegal } from '../data/supabase-supplier-profile';
@@ -15,6 +15,9 @@ import ErrorState from '../components/ErrorState';
 import { Skeleton } from '../components/ui/Skeleton';
 import { setPageMetaWithOg } from '../lib/seo';
 import { formatMoney, normalizeCurrency } from '../lib/money';
+import PriceBreakdown from '../components/PriceBreakdown';
+import { userFacingError } from '../lib/userFacingError';
+import { CHECKOUT_HOLD_MINUTES } from '../lib/booking-hold';
 
 type Props = {
   stayId: string;
@@ -111,7 +114,6 @@ export default function StayDetails({ stayId, onBack }: Props) {
   const nights = stayQuote?.ok ? stayQuote.nights : null;
   const minNights = s?.minNights ?? 1;
   const maxGuests = s?.maxGuests ?? 12;
-  const cleaning = stayQuote?.ok ? stayQuote.cleaningFee : s?.cleaningFeeUsd ?? 0;
   const quoteOk = stayQuote?.ok === true;
   const total = stayQuote?.ok ? stayQuote.totalAmount : 0;
   const currency = normalizeCurrency(stay?.price.currency);
@@ -128,7 +130,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
       return;
     }
     if (selectionOccupied) {
-      setPayError('Those nights are already booked.');
+      setPayError('Those dates were just booked by another traveler. Choose different dates to continue.');
       return;
     }
     if (checkoutLockRef.current || paying) return;
@@ -148,7 +150,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
       setPaying(false);
       checkoutLockRef.current = false;
       if (!res.success || !res.checkoutUrl) {
-        setPayError(res.error ?? 'Checkout could not start. You were not charged.');
+        setPayError(userFacingError(res.error, 'Checkout could not start. You were not charged.'));
         return;
       }
       window.location.assign(res.checkoutUrl);
@@ -338,15 +340,17 @@ export default function StayDetails({ stayId, onBack }: Props) {
               <p className="mt-3 text-sm text-red-700">Minimum stay is {minNights} night{minNights === 1 ? '' : 's'}.</p>
             ) : null}
             {selectionOccupied ? (
-              <p className="mt-3 text-sm text-red-700">Those nights are already booked.</p>
+              <p className="mt-3 text-sm text-red-700">Those dates were just booked by another traveler. Choose different dates to continue.</p>
             ) : null}
-            {quoteOk ? (
-              <p className="mt-3 text-sm text-ink-muted">
-                {nights} night{nights === 1 ? '' : 's'}
-                {cleaning > 0 ? ` + ${formatMoney(cleaning, currency)} cleaning` : ''}
-                {' · '}
-                <strong className="text-ink">{formatMoney(total, currency)}</strong>
-              </p>
+            {quoteOk && stayQuote?.ok ? (
+              <div className="mt-4">
+                <PriceBreakdown
+                  currency={stayQuote.currency}
+                  lines={stayQuotePriceLines(stayQuote)}
+                  total={stayQuote.totalAmount}
+                  holdNote={`Nights are held for ${CHECKOUT_HOLD_MINUTES} minutes after you continue to Stripe.`}
+                />
+              </div>
             ) : null}
             {stayQuote && !stayQuote.ok && checkIn && checkOut ? (
               <p className="mt-3 text-sm text-red-700">{stayQuote.error}</p>

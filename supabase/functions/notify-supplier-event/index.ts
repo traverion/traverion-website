@@ -16,7 +16,9 @@ type EventType =
   | 'guest_message'
   | 'booking_detail_changed'
   /** Copy of schedule change you saved — guest is notified separately */
-  | 'host_schedule_updated';
+  | 'host_schedule_updated'
+  | 'cancellation_accepted'
+  | 'cancellation_declined';
 
 type Payload = {
   supplierId: string;
@@ -70,6 +72,8 @@ function eventSubject(payload: Payload): string {
     return `${refTag}New booking: ${listing}`;
   }
   if (payload.eventType === 'booking_cancelled') return `${refTag}Booking cancelled: ${listing}`;
+  if (payload.eventType === 'cancellation_accepted') return `${refTag}Cancellation accepted: ${listing}`;
+  if (payload.eventType === 'cancellation_declined') return `${refTag}Traveler declined cancellation: ${listing}`;
   if (payload.eventType === 'guest_message') return `${refTag}Message from a guest: ${listing}`;
   if (payload.eventType === 'booking_detail_changed') return `${refTag}Booking updated: ${listing}`;
   if (payload.eventType === 'host_schedule_updated') return `${refTag}Schedule saved (your update): ${listing}`;
@@ -164,6 +168,12 @@ ${bodyText}
   } else if (payload.eventType === 'booking_cancelled') {
     headline = 'Booking cancelled';
     sub = 'A booking was cancelled.';
+  } else if (payload.eventType === 'cancellation_accepted') {
+    headline = 'Cancellation accepted';
+    sub = 'The traveler accepted your cancellation request. The booking is cancelled and inventory is released. Any supplier fee is on Money.';
+  } else if (payload.eventType === 'cancellation_declined') {
+    headline = 'Traveler declined cancellation';
+    sub = 'The traveler declined your cancellation request. The booking stays active.';
   } else if (payload.eventType === 'new_review') {
     headline = 'New review';
     sub = 'Someone left a review on your tour.';

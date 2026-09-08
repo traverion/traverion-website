@@ -1,0 +1,63 @@
+import { describe, expect, it } from 'vitest';
+import { canAccessBookingThread, canPostBookingMessage } from './messaging-authorization';
+
+describe('messaging authorization', () => {
+  it('blocks anonymous and pre-booking contact', () => {
+    expect(
+      canAccessBookingThread({ authenticated: false, isGuestOnBooking: false, isSupplierOnListing: false })
+    ).toBe(false);
+    expect(
+      canPostBookingMessage({
+        authenticated: true,
+        isGuestOnBooking: false,
+        isSupplierOnListing: false,
+        paymentPaid: true,
+        bookingCancelled: false,
+        openCancellationRequest: false,
+      }).ok
+    ).toBe(false);
+    expect(
+      canPostBookingMessage({
+        authenticated: true,
+        isGuestOnBooking: true,
+        isSupplierOnListing: false,
+        paymentPaid: false,
+        bookingCancelled: false,
+        openCancellationRequest: false,
+      }).reason
+    ).toMatch(/after this booking is paid/i);
+  });
+
+  it('allows post-paid booking parties and keeps history after cancel', () => {
+    expect(
+      canPostBookingMessage({
+        authenticated: true,
+        isGuestOnBooking: true,
+        isSupplierOnListing: false,
+        paymentPaid: true,
+        bookingCancelled: false,
+        openCancellationRequest: false,
+      }).ok
+    ).toBe(true);
+    expect(
+      canPostBookingMessage({
+        authenticated: true,
+        isGuestOnBooking: false,
+        isSupplierOnListing: true,
+        paymentPaid: true,
+        bookingCancelled: true,
+        openCancellationRequest: true,
+      }).ok
+    ).toBe(true);
+    expect(
+      canPostBookingMessage({
+        authenticated: true,
+        isGuestOnBooking: true,
+        isSupplierOnListing: false,
+        paymentPaid: true,
+        bookingCancelled: true,
+        openCancellationRequest: false,
+      }).ok
+    ).toBe(false);
+  });
+});

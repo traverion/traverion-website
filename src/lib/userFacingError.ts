@@ -27,7 +27,22 @@ export const USER_ERROR = {
 } as const;
 
 const TECHNICAL =
-  /supabase|postgrest|pgrst\d*|\bpostgres\b|postgresql|\bjwt\b|\brls\b|row-level security|edge function|functions\/v1|\bstripe\b|stripe\.com|\bsk_(live|test)_|permission denied for|column .+ does not exist|relation .+ does not exist|violates (unique|foreign|check|not-null)|foreign key|unique constraint|not null constraint|duplicate key|json object requested|\buuid\b|\bjsonb\b|internal server error|stack trace|at Object\.|TypeError:|NetworkError|Failed to fetch|Load failed|AbortError|\bCORS\b|ECONNREFUSED|ENOTFOUND|timeout of \d+ms|22P02|23505|42501|PGRST|no such checkout/i;
+  /supabase|postgrest|pgrst\d*|\bpostgres\b|postgresql|\bjwt\b|\brls\b|row-level security|edge function|functions\/v1|\bstripe\b|stripe\.com|\bsk_(live|test)_|permission denied for|column .+ does not exist|relation .+ does not exist|violates (unique|foreign|check|not-null)|foreign key|unique constraint|not null constraint|duplicate key|json object requested|\buuid\b|\bjsonb\b|internal server error|stack trace|at Object\.|TypeError:|NetworkError|Failed to fetch|Load failed|AbortError|\bCORS\b|ECONNREFUSED|ENOTFOUND|timeout of \d+ms|22P02|23505|42501|PGRST|P0001|no such checkout/i;
+
+const KNOWN_HUMAN: Array<{ test: RegExp; copy: string }> = [
+  {
+    test: /those nights are already booked/i,
+    copy: 'Those dates were just booked by another traveler. Choose different dates to continue.',
+  },
+  {
+    test: /checkout session has expired|session expired/i,
+    copy: 'This checkout expired and the hold was released. Start checkout again to continue.',
+  },
+];
+
+function stripSqlPrefix(raw: string): string {
+  return raw.replace(/^(?:ERROR:\s*)?(?:P0001:\s*)+/i, '').trim();
+}
 
 export function isTechnicalErrorMessage(raw: string): boolean {
   const msg = raw.trim();
@@ -45,6 +60,11 @@ export function userFacingError(raw: unknown, fallback: string = USER_ERROR.gene
         ? raw.message.trim()
         : '';
   if (!msg) return fallback;
-  if (isTechnicalErrorMessage(msg)) return fallback;
-  return msg;
+  const stripped = stripSqlPrefix(msg);
+  for (const row of KNOWN_HUMAN) {
+    if (row.test.test(stripped) || row.test.test(msg)) return row.copy;
+  }
+  if (isTechnicalErrorMessage(msg) && isTechnicalErrorMessage(stripped)) return fallback;
+  if (isTechnicalErrorMessage(msg) && !isTechnicalErrorMessage(stripped)) return stripped;
+  return stripped || fallback;
 }

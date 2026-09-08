@@ -13,7 +13,12 @@ type EmailKind =
   | 'booking_confirmed_paid'
   | 'your_details_updated'
   | 'host_updated_schedule'
-  | 'booking_cancelled';
+  | 'booking_cancelled'
+  | 'cancellation_requested_by_supplier'
+  | 'cancellation_accepted'
+  | 'cancellation_declined'
+  | 'new_booking_message'
+  | 'pickup_action_required';
 
 type Payload = {
   customerEmail: string;
@@ -120,6 +125,16 @@ function subjectForKind(kind: EmailKind, title: string, refDigits?: string): str
       return `${tag}Updated meeting times — ${t}`;
     case 'booking_cancelled':
       return `${tag}Booking cancelled — ${t}`;
+    case 'cancellation_requested_by_supplier':
+      return `Action needed: supplier requested cancellation — ${tag}${t}`;
+    case 'cancellation_accepted':
+      return `${tag}Cancellation confirmed — ${t}`;
+    case 'cancellation_declined':
+      return `${tag}Cancellation request declined — ${t}`;
+    case 'new_booking_message':
+      return `${tag}New message about your booking — ${t}`;
+    case 'pickup_action_required':
+      return `${tag}Pickup details still needed — ${t}`;
     default:
       return `${tag}Booking received — ${t}`;
   }
@@ -204,6 +219,25 @@ serve(async (req) => {
       intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your reservation has been cancelled as requested. Summary below.</p>`;
       if (diffs.length) extraHtml = fieldDiffTableHtml(diffs);
       footerNote = 'Refund timing depends on your payment method and bank. If you paid by card, look for a reversal from Traverion or your card statement.';
+    } else if (kind === 'cancellation_requested_by_supplier') {
+      headline = 'Action needed: cancellation request';
+      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">The host requested to cancel this booking. Open Trips to review the reason and accept or decline. Traverion will not cancel automatically if you do not respond.</p>`;
+      if (diffs.length) extraHtml = fieldDiffTableHtml(diffs);
+      footerNote = 'If you accept, a full refund is expected. Timing depends on your payment method.';
+    } else if (kind === 'cancellation_accepted') {
+      headline = 'Cancellation confirmed';
+      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">You accepted the host’s cancellation request. This booking is cancelled. A refund will be processed according to the booking policy.</p>`;
+      footerNote = 'Refunds appear on the original payment method. This can take a few days depending on your bank.';
+    } else if (kind === 'cancellation_declined') {
+      headline = 'Your booking stays confirmed';
+      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">You declined the host’s cancellation request. The booking remains active.</p>`;
+    } else if (kind === 'new_booking_message') {
+      headline = 'New message about your booking';
+      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">You have a new message about this booking. Open Trips to read and reply.</p>`;
+      if (diffs.length) extraHtml = fieldDiffTableHtml(diffs);
+    } else if (kind === 'pickup_action_required') {
+      headline = 'Pickup details still needed';
+      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your booking is confirmed. The host still needs to confirm pickup or meeting details — they will appear in Trips when ready.</p>`;
     } else {
       headline = 'We received your booking request';
       intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your request is recorded for <strong>${escapeHtml(title)}</strong>. Complete payment when prompted in the app, or wait for confirmation if no payment is required.</p>`;

@@ -137,6 +137,19 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
             >
               Stays
             </button>
+            {user ? (
+              <button
+                type="button"
+                onClick={openBookings}
+                onPointerEnter={prefetchMyBookingsPage}
+                aria-current={currentPage === 'bookings' ? 'page' : undefined}
+                className={`lux-flat text-sm font-medium ${
+                  currentPage === 'bookings' ? 'text-ink' : 'text-ink-muted hover:text-ink'
+                }`}
+              >
+                Trips
+              </button>
+            ) : null}
           </nav>
 
           {/* Action area: Cart, Profile (icon + label) */}

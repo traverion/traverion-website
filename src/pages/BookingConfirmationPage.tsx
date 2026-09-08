@@ -13,10 +13,12 @@ import {
   fetchMyBookingByCheckoutSessionId,
   type BookingWithPaymentRow,
 } from '../data/supabase-bookings';
-import { fetchListingTitlesByIds, pgTimeToHm } from '../data/supabase-listings';
+import { fetchListingOpsByIds, pgTimeToHm } from '../data/supabase-listings';
 import { BRAND_LOGO_SRC } from '../lib/brandAssets';
 import { parseStayCheckOutFromNotes, nightsOccupiedByStay, stayRangeFromBooking } from '../lib/stayOccupancy';
 import { formatMoney, isStripeTestCheckoutSession } from '../lib/money';
+import NoticeCallout from '../components/NoticeCallout';
+import { listingPickupCopyIncomplete } from '../lib/pickup-completeness';
 import { clearBookingsUnread } from '../lib/customerBookingNotifications';
 
 const SESSION_RETURN_KEY = 'traverion_checkout_return_session_id';
@@ -50,6 +52,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
   }, [sessionId]);
   const [booking, setBooking] = useState<BookingWithPaymentRow | null>(null);
   const [listingTitle, setListingTitle] = useState('');
+  const [pickupPending, setPickupPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pollCount, setPollCount] = useState(0);
 
@@ -78,10 +81,16 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
       }
       setBooking(row);
       if (row.listing_id) {
-        const titles = await fetchListingTitlesByIds([row.listing_id]);
-        setListingTitle(titles[row.listing_id] ?? 'Your tour');
+        const ops = await fetchListingOpsByIds([row.listing_id]);
+        const meta = ops[row.listing_id];
+        setListingTitle(meta?.title || 'Your tour');
+        const stay = Boolean(row.check_out);
+        setPickupPending(
+          !stay && listingPickupCopyIncomplete(meta?.meeting_point, meta?.pickup_instructions) && !row.pickup_time
+        );
       } else {
         setListingTitle('');
+        setPickupPending(false);
       }
     } catch (e) {
       setError(userFacingError(e, USER_ERROR.booking));
@@ -336,10 +345,15 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
               )}
               <p className="text-xs text-ink-faint leading-relaxed pt-2">
                 {stayCheckOut
-                  ? 'Next: the host may send arrival instructions. This stay is also in Trips.'
-                  : 'Next: the operator may follow up about meeting or pickup. This booking is also in Trips.'}{' '}
+                  ? 'Next: the host may send arrival instructions. Manage this stay from Trips.'
+                  : 'Next: the operator may follow up about meeting or pickup. Manage this booking from Trips.'}{' '}
                 Free cancellation up to 24 hours before {stayCheckOut ? 'check-in' : 'start'}, unless the listing says otherwise.
               </p>
+              {paid && pickupPending ? (
+                <NoticeCallout title="Pickup details pending" tone="warn">
+                  Your booking is confirmed. Meeting or pickup details are not complete yet — they will appear in Trips when the host updates them.
+                </NoticeCallout>
+              ) : null}
             </div>
 
             <div className="pt-2 flex flex-col gap-3">

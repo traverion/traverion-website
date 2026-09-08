@@ -21,6 +21,17 @@ type Props = {
 
 export default function Stays({ onStaySelect }: Props) {
   const { listings: supplierListings, error, reload } = usePublishedSupplierListings();
+  const [paymentBanner, setPaymentBanner] = useState<'cancelled' | null>(null);
+
+  useEffect(() => {
+    const payment = new URLSearchParams(window.location.search).get('payment');
+    if ((payment ?? '').toLowerCase() === 'cancelled') {
+      setPaymentBanner('cancelled');
+      const url = new URL(window.location.href);
+      url.searchParams.delete('payment');
+      window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+    }
+  }, []);
   const catalogLoading = isSupabaseConfigured() && supplierListings === null;
   const [q, setQ] = useState(() => new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search).get('q') ?? '');
   const [checkIn, setCheckIn] = useState(() => new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search).get('date') ?? '');
@@ -70,6 +81,11 @@ export default function Stays({ onStaySelect }: Props) {
         <p className="text-ink-muted max-w-xl mb-8 leading-relaxed">
           Apartments and rooms from operators — not mixed into Tours. Dates are nights, not departures.
         </p>
+        {paymentBanner === 'cancelled' ? (
+          <p className="mb-8 max-w-xl rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-950 ring-1 ring-amber-200/70">
+            Checkout was cancelled and no payment was taken. Any date hold is released. Choose dates again when you are ready.
+          </p>
+        ) : null}
 
         <form
           className="grid grid-cols-2 sm:grid-cols-[1fr_auto_auto_auto_auto] gap-2 bg-paper-raised rounded-2xl p-2 shadow-soft-lg max-w-4xl mb-10"

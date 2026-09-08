@@ -332,10 +332,32 @@ export async function fetchListingById(id: string): Promise<TourPackage | null> 
 
 /** Fetch listing titles for given ids (public). Returns id -> title map. */
 export async function fetchListingTitlesByIds(ids: string[]): Promise<Record<string, string>> {
+  const ops = await fetchListingOpsByIds(ids);
+  return Object.fromEntries(Object.entries(ops).map(([id, v]) => [id, v.title]));
+}
+
+export type ListingOpsMeta = {
+  title: string;
+  supplier_id: string | null;
+  meeting_point: string | null;
+  pickup_instructions: string | null;
+};
+
+export async function fetchListingOpsByIds(ids: string[]): Promise<Record<string, ListingOpsMeta>> {
   if (!supabase || ids.length === 0) return {};
-  const { data, error } = await supabase.from('listings').select('id, title').in('id', ids);
+  const { data, error } = await supabase
+    .from('listings')
+    .select('id, title, supplier_id, meeting_point, pickup_instructions')
+    .in('id', ids);
   if (error) return {};
-  const map: Record<string, string> = {};
-  (data ?? []).forEach((r: { id: string; title: string }) => { map[r.id] = r.title ?? ''; });
+  const map: Record<string, ListingOpsMeta> = {};
+  for (const r of data ?? []) {
+    map[r.id] = {
+      title: r.title ?? '',
+      supplier_id: r.supplier_id ?? null,
+      meeting_point: r.meeting_point ?? null,
+      pickup_instructions: r.pickup_instructions ?? null,
+    };
+  }
   return map;
 }

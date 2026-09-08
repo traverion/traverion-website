@@ -12,11 +12,13 @@ import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { formatMoney, isStripeTestCheckoutSession, normalizeCurrency } from '../../lib/money';
 import { isCollectedBooking, sumCollectedAmount } from '../../lib/payment-states';
 import { fetchMyListings } from '../../data/supabase-listings';
+import { fetchSupplierLedger, type SupplierLedgerEntry } from '../../data/supabase-booking-ops';
 
 export default function SupplierEarnings() {
   const { user, isSupabase } = useSupplierAuth();
   const [earnings, setEarnings] = useState<SupplierEarning[]>([]);
   const [paidBookings, setPaidBookings] = useState<BookingRow[]>([]);
+  const [ledger, setLedger] = useState<SupplierLedgerEntry[]>([]);
   const [listingTitles, setListingTitles] = useState<Record<string, string>>({});
   const [profile, setProfile] = useState<Awaited<ReturnType<typeof fetchSupplierProfile>>>(null);
   const [loading, setLoading] = useState(true);
@@ -31,11 +33,12 @@ export default function SupplierEarnings() {
     }
     setLoading(true);
     setError(null);
-    Promise.all([fetchSupplierEarnings(uid), fetchBookingsForSupplier(uid), fetchMyListings(uid)])
-      .then(([data, bookings, listings]) => {
+    Promise.all([fetchSupplierEarnings(uid), fetchBookingsForSupplier(uid), fetchMyListings(uid), fetchSupplierLedger(uid)])
+      .then(([data, bookings, listings, ledgerRows]) => {
         setEarnings(data);
         setListingTitles(Object.fromEntries(listings.map((l) => [l.id, l.title])));
         setPaidBookings(bookings.filter(isCollectedBooking));
+        setLedger(ledgerRows);
         setLoading(false);
       })
       .catch((e) => {
@@ -61,12 +64,14 @@ export default function SupplierEarnings() {
     return (bookingCur || row?.currency || earnings[0]?.currency || 'EUR').toUpperCase();
   }, [earnings, paidBookings]);
 
-  const { pending, paid, gross, filteredEarnings } = useMemo(() => {
+  const { pending, paid, gross, fees, available, filteredEarnings } = useMemo(() => {
     const nonCancelled = earnings.filter((e) => e.status !== 'cancelled');
     const paidOut = nonCancelled.filter((e) => e.status === 'paid').reduce((sum, e) => sum + Number(e.amount), 0);
     const pendingRows = nonCancelled.filter((e) => e.status === 'pending').reduce((sum, e) => sum + Number(e.amount), 0);
     const collected = sumCollectedAmount(paidBookings);
-    const pendingPayout = pendingRows > 0 ? pendingRows : Math.max(0, collected - paidOut);
+    const feeSum = ledger.reduce((sum, e) => sum + Number(e.amount), 0);
+    const availableBalance = collected + feeSum - paidOut;
+    const pendingPayout = pendingRows > 0 ? pendingRows + feeSum : availableBalance;
     const filtered =
       statusFilter === 'all'
         ? nonCancelled
@@ -75,9 +80,11 @@ export default function SupplierEarnings() {
       pending: pendingPayout,
       paid: paidOut,
       gross: collected,
+      fees: feeSum,
+      available: availableBalance,
       filteredEarnings: filtered,
     };
-  }, [earnings, statusFilter, paidBookings]);
+  }, [earnings, statusFilter, paidBookings, ledger]);
 
   const earningsForInvoices = useMemo(
     () => earnings.filter((e) => e.status !== 'cancelled'),
@@ -114,7 +121,7 @@ export default function SupplierEarnings() {
     URL.revokeObjectURL(url);
   };
 
-  const hasMoney = gross > 0 || pending > 0 || paid > 0 || earningsForInvoices.length > 0;
+  const hasMoney = gross > 0 || pending !== 0 || paid > 0 || earningsForInvoices.length > 0 || ledger.length > 0;
 
   return (
     <div className={SUPPLIER_PAGE_CLASS}>
@@ -139,20 +146,34 @@ export default function SupplierEarnings() {
       ) : (
         <>
           <section className="mb-12">
-            <p className="text-[11px] uppercase tracking-[0.18em] text-ink-faint mb-2">Pending payout</p>
-            <p className="font-display text-5xl sm:text-6xl tabular-nums text-ink tracking-tight">
-              {formatMoney(pending, primaryCurrency)}
+            <p className="text-[11px] uppercase tracking-[0.18em] text-ink-faint mb-2">
+              {available < 0 ? 'Balance' : 'Pending payout'}
+            </p>
+            <p className={`font-display text-5xl sm:text-6xl tabular-nums tracking-tight ${available < 0 ? 'text-red-800' : 'text-ink'}`}>
+              {formatMoney(available, primaryCurrency)}
             </p>
             <p className="mt-4 text-sm text-ink-muted">
               Collected{' '}
               <span className="tabular-nums font-semibold text-ink">
                 {formatMoney(gross, primaryCurrency)}
               </span>
+              {fees !== 0 ? (
+                <>
+                  {' '}
+                  · fees & adjustments{' '}
+                  <span className="tabular-nums font-semibold text-ink">{formatMoney(fees, primaryCurrency)}</span>
+                </>
+              ) : null}
               <span className="text-ink-faint">
                 {' '}
                 · paid traveler bookings only. Refunded payments are excluded. Payouts are manual.
               </span>
             </p>
+            {available < 0 ? (
+              <p className="mt-3 text-sm text-red-800 max-w-lg">
+                This account has a negative balance. Future collected earnings offset it before the next payout.
+              </p>
+            ) : null}
             {payoutProgressPct !== null ? (
               <p className="mt-3 text-sm text-ink-muted">{payoutProgressPct}% of your payout minimum</p>
             ) : null}
@@ -204,6 +225,27 @@ export default function SupplierEarnings() {
                 </button>
               </div>
             </div>
+            {ledger.length > 0 ? (
+              <ul className="mb-8 divide-y divide-black/[0.06]">
+                {ledger.map((e) => (
+                  <li key={e.id} className="py-4 flex items-baseline justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-ink">{e.reason}</p>
+                      <p className="mt-0.5 text-xs text-ink-muted">
+                        {e.kind.replace(/_/g, ' ')}
+                        {e.booking_id ? ' · linked booking' : ''}
+                        {e.policy_id ? ` · ${e.policy_id}` : ''}
+                        {' · '}
+                        {new Date(e.created_at).toLocaleString()}
+                      </p>
+                    </div>
+                    <p className={`tabular-nums font-semibold shrink-0 ${Number(e.amount) < 0 ? 'text-red-800' : 'text-ink'}`}>
+                      {formatMoney(Number(e.amount), e.currency)}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
             {filteredEarnings.length === 0 ? (
               paidBookings.length > 0 ? (
                 <ul className="divide-y divide-black/[0.06]">
