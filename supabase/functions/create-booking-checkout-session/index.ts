@@ -182,6 +182,13 @@ serve(async (req) => {
       if (!bookingDate || !/^\d{4}-\d{2}-\d{2}$/.test(bookingDate)) {
         return json({ success: false, error: 'bookingDate must be YYYY-MM-DD' }, 400);
       }
+      {
+        const [y, m, d] = bookingDate.split('-').map(Number);
+        const dt = new Date(Date.UTC(y, m - 1, d));
+        if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== d) {
+          return json({ success: false, error: 'bookingDate must be a real calendar date' }, 400);
+        }
+      }
       if (!Number.isFinite(guests) || guests < 1 || guests > 99) {
         return json({ success: false, error: 'guests must be between 1 and 99' }, 400);
       }
