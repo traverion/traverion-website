@@ -8,6 +8,7 @@
   }
 }
 
+/* Partner listing editor portals to body and sets data-partner-overlay. Keep .partner-bottom-nav at z-40 so it stays above listing cards; do not raise main above it. */
 body[data-partner-overlay='1'] .partner-bottom-nav {
   visibility: hidden;
   pointer-events: none;
