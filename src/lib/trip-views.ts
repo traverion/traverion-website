@@ -29,6 +29,16 @@ export function partnerBookingIsOperatingTrip(b: {
   return partnerBookingIsLiveTrip(b) && !bookingIsCancelledTrip(b);
 }
 
+/** Unacknowledged operating trips only — not cancelled, refunded, or failed checkouts. */
+export function partnerBookingNeedsLook(b: {
+  acknowledged_at?: string | null;
+  status?: string | null;
+  payment_status?: string | null;
+}): boolean {
+  if (b.acknowledged_at) return false;
+  return partnerBookingIsOperatingTrip(b);
+}
+
 /** Upcoming and Past are for active trips only. Refunded money belongs with Cancelled. */
 export function bookingMatchesTripView(
   b: { status?: string | null; payment_status?: string | null; booking_date?: string | null },

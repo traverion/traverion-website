@@ -58,7 +58,7 @@ import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { inventoryFamilyFromListing } from '../../lib/inventory';
 import { parseStayCheckOutFromNotes, nightsOccupiedByStay, stayRangeFromBooking } from '../../lib/stayOccupancy';
-import { partnerBookingIsLiveTrip, bookingIsCancelledTrip, partnerBookingIsOperatingTrip } from '../../lib/trip-views';
+import { partnerBookingIsLiveTrip, bookingIsCancelledTrip, partnerBookingIsOperatingTrip, partnerBookingNeedsLook } from '../../lib/trip-views';
 import { formatStayNightHuman } from '../../lib/stay-calendar';
 
 const BOOKINGS_PAGE_SIZE = 10;
@@ -449,7 +449,7 @@ export default function SupplierBookings() {
 
   const handleAcknowledge = useCallback(
     async (booking: BookingRow) => {
-      if (!canEditBookings) return;
+      if (!canEditBookings || !partnerBookingIsOperatingTrip(booking)) return;
       setUpdatingId(booking.id);
       const ok = await acknowledgeBooking(booking.id);
       if (ok) {
@@ -688,12 +688,12 @@ export default function SupplierBookings() {
                 ? `${formatStayNightHuman(booking.booking_date ?? '')} → ${formatStayNightHuman(stayOut)}`
                 : formatActivityDateLong(booking.booking_date, startHm);
               const paidLabel = formatBookingMoney(booking.amount_paid, booking.currency);
-              const needsAck = !booking.acknowledged_at && booking.status !== 'cancelled';
+              const needsAck = partnerBookingNeedsLook(booking);
               const pickupGap =
                 meta?.family !== 'stay' &&
                 !stayOut &&
                 isPaidPaymentStatus(booking.payment_status) &&
-                booking.status !== 'cancelled' &&
+                !bookingIsCancelledTrip(booking) &&
                 !booking.pickup_time;
               const openCancel = openCancels[booking.id];
               return (
@@ -815,7 +815,7 @@ export default function SupplierBookings() {
             const meta = listingMeta[booking.listing_id];
             const listingTitle = meta?.title ?? 'Tour';
             const paidLabel = formatBookingMoney(booking.amount_paid, booking.currency);
-            const needsAck = !booking.acknowledged_at && booking.status !== 'cancelled';
+            const needsAck = partnerBookingNeedsLook(booking);
             const busy = updatingId === booking.id;
             const refLabel =
               typeof booking.booking_number === 'number' && booking.booking_number > 0

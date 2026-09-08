@@ -27,7 +27,7 @@ import { canManageBookings } from '../../lib/supplierTeamRoles';
 import { SUPPLIER_PAGE_CLASS, SupplierEmptyState, SupplierPageHero } from '../../components/supplier/supplierUi';
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
-import { partnerBookingIsLiveTrip, partnerBookingIsOperatingTrip } from '../../lib/trip-views';
+import { partnerBookingIsLiveTrip, partnerBookingIsOperatingTrip, partnerBookingNeedsLook } from '../../lib/trip-views';
 import { bookingIsStayNight, bookingNeedsPickupCopy } from '../../lib/pickup-completeness';
 import { inventoryFamilyFromListing } from '../../lib/inventory';
 
@@ -449,7 +449,7 @@ export default function SupplierPickupPlanner() {
 
   const handleAcknowledgeSelected = async () => {
     if (!canEditBookings) return;
-    if (!selectedBooking || selectedBooking.status === 'cancelled' || selectedBooking.acknowledged_at) return;
+    if (!selectedBooking || !partnerBookingNeedsLook(selectedBooking)) return;
     setUpdatingId(selectedBooking.id);
     const ok = await acknowledgeBooking(selectedBooking.id);
     if (ok) {
@@ -699,7 +699,7 @@ export default function SupplierPickupPlanner() {
         <div className="mt-10 flex flex-wrap gap-2">
           {selectedBooking.status !== 'cancelled' && (
             <>
-              {!selectedBooking.acknowledged_at && (
+              {partnerBookingNeedsLook(selectedBooking) && (
                 <button
                   type="button"
                   disabled={!canEditBookings || updatingId === selectedBooking.id}

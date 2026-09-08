@@ -4,6 +4,7 @@ import {
   bookingMatchesTripView,
   partnerBookingIsLiveTrip,
   partnerBookingIsOperatingTrip,
+  partnerBookingNeedsLook,
 } from './trip-views';
 
 const today = '2026-09-08';
@@ -57,5 +58,36 @@ describe('trip list views', () => {
     expect(
       partnerBookingIsOperatingTrip({ status: 'pending', payment_status: 'pending' })
     ).toBe(true);
+  });
+
+  it('does not ask the partner to look at cancelled or refunded trips', () => {
+    expect(
+      partnerBookingNeedsLook({
+        acknowledged_at: null,
+        status: 'confirmed',
+        payment_status: 'refunded',
+      })
+    ).toBe(false);
+    expect(
+      partnerBookingNeedsLook({
+        acknowledged_at: null,
+        status: 'cancelled',
+        payment_status: 'paid',
+      })
+    ).toBe(false);
+    expect(
+      partnerBookingNeedsLook({
+        acknowledged_at: null,
+        status: 'confirmed',
+        payment_status: 'paid',
+      })
+    ).toBe(true);
+    expect(
+      partnerBookingNeedsLook({
+        acknowledged_at: '2026-09-08T12:00:00Z',
+        status: 'confirmed',
+        payment_status: 'paid',
+      })
+    ).toBe(false);
   });
 });
