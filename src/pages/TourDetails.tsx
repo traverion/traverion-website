@@ -1198,12 +1198,11 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
             {(() => {
               const { price, qualifier } = getDisplayPriceForTour(tour, discountsByListing);
               const currency = normalizeCurrency(tour.price?.currency);
-              const unit = qualifier ? `/ ${qualifier}` : 'per person';
               return (
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-ink">
                     From {formatMoney(Number(price), currency)}
-                    <span className="font-normal text-ink-muted"> · {unit}</span>
+                    <span className="font-normal text-ink-muted">{qualifier ? ` / ${qualifier}` : ' · per person'}</span>
                   </p>
                   <p className="text-xs text-ink-muted">
                     {listingShowsFreeCancellation(tour) ? 'Free cancellation' : 'Pay via Stripe to confirm'}
