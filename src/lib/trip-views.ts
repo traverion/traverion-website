@@ -21,6 +21,14 @@ export function partnerBookingIsLiveTrip(b: { payment_status?: string | null }):
   return !bookingIsFailedCheckout(b);
 }
 
+/** Partner operating work: a real booking that still needs today/upcoming/pickup handling. */
+export function partnerBookingIsOperatingTrip(b: {
+  status?: string | null;
+  payment_status?: string | null;
+}): boolean {
+  return partnerBookingIsLiveTrip(b) && !bookingIsCancelledTrip(b);
+}
+
 /** Upcoming and Past are for active trips only. Refunded money belongs with Cancelled. */
 export function bookingMatchesTripView(
   b: { status?: string | null; payment_status?: string | null; booking_date?: string | null },

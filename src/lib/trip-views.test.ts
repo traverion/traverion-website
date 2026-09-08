@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { bookingIsCancelledTrip, bookingMatchesTripView, partnerBookingIsLiveTrip } from './trip-views';
+import {
+  bookingIsCancelledTrip,
+  bookingMatchesTripView,
+  partnerBookingIsLiveTrip,
+  partnerBookingIsOperatingTrip,
+} from './trip-views';
 
 const today = '2026-09-08';
 
@@ -37,5 +42,20 @@ describe('trip list views', () => {
     expect(partnerBookingIsLiveTrip({ payment_status: 'failed' })).toBe(false);
     expect(partnerBookingIsLiveTrip({ payment_status: 'pending' })).toBe(true);
     expect(partnerBookingIsLiveTrip({ payment_status: 'paid' })).toBe(true);
+  });
+
+  it('does not treat refunded bookings as partner operating work', () => {
+    expect(
+      partnerBookingIsOperatingTrip({ status: 'confirmed', payment_status: 'refunded' })
+    ).toBe(false);
+    expect(
+      partnerBookingIsOperatingTrip({ status: 'cancelled', payment_status: 'paid' })
+    ).toBe(false);
+    expect(
+      partnerBookingIsOperatingTrip({ status: 'confirmed', payment_status: 'paid' })
+    ).toBe(true);
+    expect(
+      partnerBookingIsOperatingTrip({ status: 'pending', payment_status: 'pending' })
+    ).toBe(true);
   });
 });

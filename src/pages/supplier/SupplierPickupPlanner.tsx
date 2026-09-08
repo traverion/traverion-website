@@ -27,7 +27,7 @@ import { canManageBookings } from '../../lib/supplierTeamRoles';
 import { SUPPLIER_PAGE_CLASS, SupplierEmptyState, SupplierPageHero } from '../../components/supplier/supplierUi';
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
-import { partnerBookingIsLiveTrip } from '../../lib/trip-views';
+import { partnerBookingIsLiveTrip, partnerBookingIsOperatingTrip } from '../../lib/trip-views';
 
 function toYmd(d: Date): string {
   const y = d.getFullYear();
@@ -249,11 +249,10 @@ export default function SupplierPickupPlanner() {
     load();
   }, [load]);
 
-  /** Active pickup work only: hide cancelled (status narrowing was removed as non-essential UI). */
+  /** Active pickup work only: hide cancelled, refunded, and failed checkouts. */
   const filtered = useMemo(() => {
     return bookings.filter((b) => {
-      if (!partnerBookingIsLiveTrip(b)) return false;
-      if (b.status === 'cancelled') return false;
+      if (!partnerBookingIsOperatingTrip(b)) return false;
 
       const bd = b.booking_date;
       if (dateFrom && bd && bd < dateFrom) return false;
@@ -514,7 +513,7 @@ export default function SupplierPickupPlanner() {
   if (!user) return null;
 
   const filtersOn = Boolean(dateFrom || dateTo || listingFilterId || needsPickupOnly);
-  const activeBookingsCount = bookings.filter((b) => partnerBookingIsLiveTrip(b) && b.status !== 'cancelled').length;
+  const activeBookingsCount = bookings.filter((b) => partnerBookingIsOperatingTrip(b)).length;
 
   if (selectedBooking) {
     const listingTitle = listingTitles[selectedBooking.listing_id] ?? 'Listing';

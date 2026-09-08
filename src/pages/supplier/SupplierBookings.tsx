@@ -58,7 +58,7 @@ import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { inventoryFamilyFromListing } from '../../lib/inventory';
 import { parseStayCheckOutFromNotes, nightsOccupiedByStay, stayRangeFromBooking } from '../../lib/stayOccupancy';
-import { partnerBookingIsLiveTrip } from '../../lib/trip-views';
+import { partnerBookingIsLiveTrip, bookingIsCancelledTrip, partnerBookingIsOperatingTrip } from '../../lib/trip-views';
 import { formatStayNightHuman } from '../../lib/stay-calendar';
 
 const BOOKINGS_PAGE_SIZE = 10;
@@ -292,7 +292,7 @@ export default function SupplierBookings() {
       const isStay = meta?.family === 'stay' || Boolean(b.check_out);
       const stayRange = isStay ? stayRangeFromBooking(b) : null;
       if (view === 'today') {
-        if (b.status === 'cancelled') return false;
+        if (!partnerBookingIsOperatingTrip(b)) return false;
         if (stayRange) {
           if (!nightsOccupiedByStay(stayRange.checkIn, stayRange.checkOut).includes(todayIso)) return false;
         } else if (b.booking_date !== todayIso) {
@@ -300,7 +300,7 @@ export default function SupplierBookings() {
         }
       }
       if (view === 'upcoming') {
-        if (b.status === 'cancelled') return false;
+        if (!partnerBookingIsOperatingTrip(b)) return false;
         if (stayRange) {
           if (stayRange.checkIn <= todayIso) return false;
         } else if (!b.booking_date || b.booking_date <= todayIso) {
@@ -309,16 +309,16 @@ export default function SupplierBookings() {
       }
       if (view === 'past') {
         if (stayRange) {
-          if (stayRange.checkOut > todayIso && b.status !== 'cancelled') return false;
+          if (stayRange.checkOut > todayIso && partnerBookingIsOperatingTrip(b)) return false;
         } else if (!b.booking_date || b.booking_date >= todayIso) {
           return false;
         }
       }
       if (opsFilter === 'unpaid') {
-        if ((b.payment_status ?? 'pending').trim().toLowerCase() !== 'pending' || b.status === 'cancelled') return false;
+        if ((b.payment_status ?? 'pending').trim().toLowerCase() !== 'pending' || bookingIsCancelledTrip(b)) return false;
       }
       if (opsFilter === 'pickup') {
-        if (isStay || b.status === 'cancelled' || !isPaidPaymentStatus(b.payment_status) || b.pickup_time) return false;
+        if (isStay || bookingIsCancelledTrip(b) || !isPaidPaymentStatus(b.payment_status) || b.pickup_time) return false;
       }
       if (opsFilter === 'cancel') {
         if (!openCancels[b.id]) return false;
