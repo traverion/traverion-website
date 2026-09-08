@@ -590,14 +590,34 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                       {tour.groupSize}
                     </span>
                   ) : null}
+                  {tour.experienceLanguage?.trim() ? (
+                    <span className="inline-flex items-center gap-1.5">
+                      {({
+                        en: 'English',
+                        es: 'Spanish',
+                        fr: 'French',
+                        de: 'German',
+                        it: 'Italian',
+                        pt: 'Portuguese',
+                        fi: 'Finnish',
+                        sv: 'Swedish',
+                      } as Record<string, string>)[tour.experienceLanguage.trim().toLowerCase()] ??
+                        tour.experienceLanguage.trim()}
+                    </span>
+                  ) : null}
+                  {tour.meetingPoint?.trim() ? (
+                    <span className="inline-flex items-center gap-1.5 truncate max-w-[18rem]" title={tour.meetingPoint.trim()}>
+                      {tour.meetingPoint.trim()}
+                    </span>
+                  ) : null}
                   {(() => {
                     const { price, qualifier, summary } = getDisplayPriceForTour(tour, discountsByListing);
                     const currency = normalizeCurrency(tour.price?.currency);
-                    const unit = qualifier ? `/ ${qualifier}` : '';
+                    const unit = qualifier ? `per ${qualifier}` : 'per person';
                     return (
                       <span className="text-ink font-semibold tabular-nums">
                         From {formatMoney(Number(price), currency)}
-                        {unit ? <span className="font-medium text-ink-muted"> {unit}</span> : null}
+                        <span className="font-medium text-ink-muted"> {unit}</span>
                         {summary ? (
                           <span className="ml-2 font-medium text-ink-muted">{summary}</span>
                         ) : null}

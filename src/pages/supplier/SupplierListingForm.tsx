@@ -46,7 +46,7 @@ const EXPERIENCE_START_OPTIONS: {
   value: 'unspecified' | 'fixed_meeting_place' | 'operator_pickup' | 'either_available';
   label: string;
 }[] = [
-  { value: 'unspecified', label: 'Not sure yet — describe per option under Cost & options' },
+  { value: 'unspecified', label: 'Not sure yet — describe per option under Price' },
   { value: 'fixed_meeting_place', label: 'Guests meet us at a fixed meeting point' },
   { value: 'operator_pickup', label: 'We pick guests up (for example from their accommodation area)' },
   { value: 'either_available', label: 'Both meeting at a set place and pickup are available' },
@@ -2062,7 +2062,7 @@ export default function SupplierListingForm({
               {form.inventoryFamily !== 'stay' ? (
               <p className="text-xs text-ink-muted -mt-2">
                 Use the main base or usual starting city. Per-option meeting and pickup are set under{' '}
-                <span className="font-medium text-ink">Cost &amp; options</span>.
+                <span className="font-medium text-ink">Price</span>.
               </p>
               ) : null}
               {form.inventoryFamily !== 'stay' ? (
@@ -2097,7 +2097,7 @@ export default function SupplierListingForm({
                   ))}
                 </select>
                 <p className="text-xs text-ink-muted mt-1">
-                  You will set the exact meeting or pickup place for each bookable option under Cost &amp; options.
+                  You will set the exact meeting or pickup place for each bookable option under Price.
                 </p>
               </div>
               <details
@@ -2106,8 +2106,8 @@ export default function SupplierListingForm({
               >
                 <summary className="cursor-pointer list-none flex items-start justify-between gap-3">
                   <span>
-                    <span className="block text-sm font-semibold text-ink">Optional: how timing works</span>
-                    <span className="block text-xs text-ink-muted mt-0.5">Fixed slot, flexible window, or arrange with guests</span>
+                    <span className="block text-sm font-semibold text-ink">Itinerary / timing</span>
+                    <span className="block text-xs text-ink-muted mt-0.5">Typical flow guests should expect, if you have one</span>
                   </span>
                   <span className="text-xs text-finland font-medium mt-0.5">
                     {form.typicalTimelineNotes.trim() || (form.scheduleStyle && form.scheduleStyle !== 'flexible')
@@ -2265,6 +2265,25 @@ export default function SupplierListingForm({
                   className="tv-input mt-1 w-full"
                 />
               </label>
+              {Number.parseFloat(form.stayNightly) > 0 ? (
+                <p className="text-sm text-ink leading-relaxed rounded-xl bg-black/[0.03] px-3 py-3">
+                  Example {Number.parseInt(form.stayMinNights, 10) > 1 ? `${form.stayMinNights}-night` : '1-night'} stay:{' '}
+                  {formatMoney(Number.parseFloat(form.stayNightly), listingCurrency)} ×{' '}
+                  {Math.max(1, Number.parseInt(form.stayMinNights, 10) || 1)} nights
+                  {Number.parseFloat(form.stayCleaningFee) > 0
+                    ? ` + ${formatMoney(Number.parseFloat(form.stayCleaningFee), listingCurrency)} cleaning`
+                    : ''}
+                  {' = '}
+                  <span className="font-semibold">
+                    {formatMoney(
+                      Number.parseFloat(form.stayNightly) * Math.max(1, Number.parseInt(form.stayMinNights, 10) || 1) +
+                        (Number.parseFloat(form.stayCleaningFee) > 0 ? Number.parseFloat(form.stayCleaningFee) : 0),
+                      listingCurrency
+                    )}
+                  </span>
+                  . Guests see this breakdown before they pay.
+                </p>
+              ) : null}
               <label className="block text-sm">
                 Amenities (comma separated)
                 <input
