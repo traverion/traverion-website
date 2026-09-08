@@ -3,6 +3,7 @@ import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 import Stripe from 'https://esm.sh/stripe@16.12.0?target=deno';
 import { quoteListingBooking, stayDateRangesOverlap, stayRangeFromBooking, type DiscountRow, type ListingQuoteRow } from '../_shared/booking-quote.ts';
+import { bookingOccupiesInventory, type InventoryHoldRow } from '../_shared/booking-hold.ts';
 
 type RequestBody = {
   bookingId?: string;
@@ -39,23 +40,6 @@ function sanitizePath(path: string | undefined, fallback: string): string {
   if (raw.startsWith('/\\')) return fallback;
   if (/^[a-z][a-z0-9+.-]*:/i.test(raw.slice(1))) return fallback;
   return raw;
-}
-
-function occupiesInventory(row: {
-  status?: unknown;
-  payment_status?: unknown;
-  hold_expires_at?: unknown;
-  created_at?: unknown;
-}): boolean {
-  const status = String(row.status ?? '');
-  if (status === 'cancelled') return false;
-  const pay = String(row.payment_status ?? 'pending').toLowerCase();
-  if (pay === 'paid') return true;
-  if (pay !== 'pending') return false;
-  const hold = typeof row.hold_expires_at === 'string' ? Date.parse(row.hold_expires_at) : NaN;
-  if (Number.isFinite(hold)) return hold > Date.now();
-  const created = typeof row.created_at === 'string' ? Date.parse(row.created_at) : Date.now();
-  return Number.isFinite(created) && created > Date.now() - 30 * 60 * 1000;
 }
 
 function optionIdFromNotes(notes: unknown): string | null {
@@ -259,7 +243,7 @@ serve(async (req) => {
       }
       for (const row of stayRows ?? []) {
         if (targetBookingId && String(row.id) === targetBookingId) continue;
-        if (!occupiesInventory(row as Record<string, unknown>)) continue;
+        if (!bookingOccupiesInventory(row as InventoryHoldRow)) continue;
         const range = stayRangeFromBooking({
           booking_date: typeof row.booking_date === 'string' ? row.booking_date : null,
           check_out: typeof (row as { check_out?: unknown }).check_out === 'string' ? (row as { check_out: string }).check_out : null,

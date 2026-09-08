@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { bookingOccupiesInventory, bookingOccupiesPublicStayCalendar, CHECKOUT_HOLD_MINUTES } from './booking-hold';
+import { bookingOccupiesInventory as checkoutSessionOccupiesInventory } from '../../supabase/functions/_shared/booking-hold';
 
 describe('booking inventory holds', () => {
   const now = Date.parse('2026-09-08T12:00:00.000Z');
@@ -20,6 +21,20 @@ describe('booking inventory holds', () => {
     expect(
       bookingOccupiesInventory({ status: 'confirmed', payment_status: 'refunded' }, now)
     ).toBe(false);
+  });
+
+  it('keeps checkout-session occupancy in sync with the app helper', () => {
+    const rows = [
+      { status: 'confirmed', payment_status: 'paid' },
+      { status: 'confirmed', payment_status: 'complete' },
+      { status: 'confirmed', payment_status: 'succeeded' },
+      { status: 'cancelled', payment_status: 'paid' },
+      { status: 'pending', payment_status: 'pending', hold_expires_at: '2026-09-08T12:20:00.000Z' },
+      { status: 'pending', payment_status: 'failed' },
+    ];
+    for (const row of rows) {
+      expect(checkoutSessionOccupiesInventory(row, now)).toBe(bookingOccupiesInventory(row, now));
+    }
   });
 
   it('releases pending holds after hold_expires_at', () => {
