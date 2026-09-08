@@ -8,6 +8,7 @@ import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
 import { listingShowsFreeCancellation } from '../lib/listingTruth';
 import { formatTourDurationDisplay, parseListingExtras } from '../types/listingExtras';
 import { listingIsFamily } from '../lib/inventory';
+import { formatMoney, normalizeCurrency } from '../lib/money';
 import { ListingCardRating } from './ListingCardRating';
 
 export type PublicListingBrowseCardProps = {
@@ -48,7 +49,7 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
   const hasDiscount = Boolean(label && price < originalPrice);
   const fromAmount = hasDiscount ? price : originalPrice;
   const showStrikethrough = hasDiscount && originalPrice > fromAmount;
-  const currency = tour.price?.currency ?? 'USD';
+  const currency = normalizeCurrency(tour.price?.currency);
   const isStay = listingIsFamily(tour, 'stay');
   const stay = isStay ? parseListingExtras(tour.listingExtras).stay : undefined;
   const stayNightly = stay?.nightlyPriceUsd && stay.nightlyPriceUsd > 0 ? stay.nightlyPriceUsd : fromAmount;
@@ -126,27 +127,27 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
           aria-label={
             isStay
               ? stayStayTotal
-                ? `${stayStayTotal.currency} ${stayStayTotal.total} for ${stayStayTotal.nights} nights`
-                : `${currency} ${stayNightly} per night`
+                ? `${formatMoney(stayStayTotal.total, stayStayTotal.currency)} for ${stayStayTotal.nights} nights`
+                : `${formatMoney(stayNightly, currency)} per night`
               : hasDiscount
-                ? `From ${currency} ${fromAmount} per person, ${label}`
-                : `From ${currency} ${originalPrice} per person`
+                ? `From ${formatMoney(fromAmount, currency)} per person, ${label}`
+                : `From ${formatMoney(originalPrice, currency)} per person`
           }
         >
           {isStay ? null : (
             <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">From</span>
           )}
           {showStrikethrough && !isStay ? (
-            <span className="text-sm font-medium text-ink-faint line-through">{currency} {originalPrice.toFixed(0)}</span>
+            <span className="text-sm font-medium text-ink-faint line-through">{formatMoney(originalPrice, currency)}</span>
           ) : null}
           <span className={`font-bold tracking-tight ${hasDiscount && !isStay ? 'text-finland' : 'text-ink'}`}>
-            {currency} {(isStay ? stayNightly : fromAmount).toFixed(0)}
+            {formatMoney(isStay ? stayNightly : fromAmount, currency)}
           </span>
           <span className="text-sm font-medium text-ink-muted">{isStay ? 'per night' : 'per person'}</span>
           {isStay && stayStayTotal ? (
             <span className="w-full text-sm font-medium text-ink">
-              {stayStayTotal.nights} night{stayStayTotal.nights === 1 ? '' : 's'} · {stayStayTotal.currency}{' '}
-              {stayStayTotal.total.toFixed(0)}
+              {stayStayTotal.nights} night{stayStayTotal.nights === 1 ? '' : 's'} ·{' '}
+              {formatMoney(stayStayTotal.total, stayStayTotal.currency)}
             </span>
           ) : null}
         </p>

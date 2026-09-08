@@ -16,6 +16,7 @@ import {
 import { fetchListingTitlesByIds, pgTimeToHm } from '../data/supabase-listings';
 import { BRAND_LOGO_SRC } from '../lib/brandAssets';
 import { parseStayCheckOutFromNotes, nightsOccupiedByStay, stayRangeFromBooking } from '../lib/stayOccupancy';
+import { formatMoney, isStripeTestCheckoutSession } from '../lib/money';
 import { clearBookingsUnread } from '../lib/customerBookingNotifications';
 
 const SESSION_RETURN_KEY = 'traverion_checkout_return_session_id';
@@ -311,15 +312,15 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                 <div className="pt-1 border-t border-black/[0.06] space-y-1">
                   {stayCheckOut && booking.nights && booking.nightly_amount != null ? (
                     <p>
-                      {booking.nights} night{booking.nights === 1 ? '' : 's'} × {(booking.currency ?? 'USD').toUpperCase()}{' '}
-                      {Number(booking.nightly_amount).toFixed(0)}
+                      {booking.nights} night{booking.nights === 1 ? '' : 's'} × {formatMoney(Number(booking.nightly_amount), booking.currency)}
                       {booking.cleaning_fee != null && Number(booking.cleaning_fee) > 0
-                        ? ` + ${(booking.currency ?? 'USD').toUpperCase()} ${Number(booking.cleaning_fee).toFixed(0)} cleaning`
+                        ? ` + ${formatMoney(Number(booking.cleaning_fee), booking.currency)} cleaning`
                         : ''}
                     </p>
                   ) : null}
                   <p className="text-ink font-medium">
-                    Paid {(booking.currency ?? 'USD').toUpperCase()} {Number(booking.amount_paid).toFixed(2)}
+                    Paid {formatMoney(Number(booking.amount_paid), booking.currency)}
+                    {isStripeTestCheckoutSession(booking.checkout_session_id) ? ' · Stripe TEST' : ''}
                   </p>
                 </div>
               )}

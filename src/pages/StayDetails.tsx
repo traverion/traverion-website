@@ -7,12 +7,14 @@ import { listingIsFamily } from '../lib/inventory';
 import { useAuth } from '../contexts/AuthContext';
 import { rememberTravelerReturnStay, travelerLoginHref } from '../lib/travelerAuthLinks';
 import { quoteStayNights } from '../lib/booking-quote';
-import { createBookingCheckoutSession } from '../data/supabase-bookings';
+import { stayDateRangesOverlap, nightsOccupiedByStay } from '../lib/stayOccupancy';
+import { createBookingCheckoutSession, fetchPublishedStayOccupiedRanges } from '../data/supabase-bookings';
 import { fetchSupplierPublicLegal } from '../data/supabase-supplier-profile';
 import type { TourPackage } from '../types/tour';
 import ErrorState from '../components/ErrorState';
 import { Skeleton } from '../components/ui/Skeleton';
 import { setPageMetaWithOg } from '../lib/seo';
+import { formatMoney, normalizeCurrency } from '../lib/money';
 
 type Props = {
   stayId: string;
@@ -42,6 +44,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
   const [hostName, setHostName] = useState<string | null>(null);
+  const [occupiedRanges, setOccupiedRanges] = useState<{ checkIn: string; checkOut: string }[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -82,6 +85,13 @@ export default function StayDetails({ stayId, onBack }: Props) {
     });
   }, [stay?.supplierId]);
 
+  useEffect(() => {
+    if (!stay?.id) {
+      setOccupiedRanges([]);
+      return;
+    }
+    void fetchPublishedStayOccupiedRanges(stay.id).then(setOccupiedRanges);
+  }, [stay?.id]);
   const extras = stay ? parseListingExtras(stay.listingExtras) : {};
   const s = extras.stay;
   const gallery = (extras.galleryImageUrls ?? []).map((u) => String(u).trim()).filter(Boolean);
@@ -100,7 +110,10 @@ export default function StayDetails({ stayId, onBack }: Props) {
   const cleaning = stayQuote?.ok ? stayQuote.cleaningFee : s?.cleaningFeeUsd ?? 0;
   const quoteOk = stayQuote?.ok === true;
   const total = stayQuote?.ok ? stayQuote.totalAmount : 0;
-  const currency = (stay?.price.currency ?? 'USD').toUpperCase();
+  const currency = normalizeCurrency(stay?.price.currency);
+  const occupiedNights = occupiedRanges.flatMap((r) => nightsOccupiedByStay(r.checkIn, r.checkOut));
+  const selectionOccupied =
+    checkIn && checkOut ? occupiedRanges.some((r) => stayDateRangesOverlap(checkIn, checkOut, r.checkIn, r.checkOut)) : false;
   const hero = stay ? listingHeroImageSrc(stay.image) : undefined;
 
   const amenityLine = useMemo(() => (s?.amenities ?? []).filter(Boolean).join(' · '), [s?.amenities]);
@@ -108,6 +121,10 @@ export default function StayDetails({ stayId, onBack }: Props) {
   const startStayCheckout = () => {
     if (!stay || !stayQuote?.ok) {
       document.getElementById('stay-checkin')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    if (selectionOccupied) {
+      setPayError('Those nights are already booked.');
       return;
     }
     setPaying(true);
@@ -193,9 +210,9 @@ export default function StayDetails({ stayId, onBack }: Props) {
               {s.bathrooms} bath{s.bathrooms === 1 ? '' : 's'}
             </span>
           ) : null}
-          {nightly > 0 ? (
+              {nightly > 0 ? (
             <span className="text-ink font-semibold tabular-nums">
-              {currency} {nightly.toFixed(0)} / night
+              {formatMoney(nightly, currency)} / night
             </span>
           ) : null}
         </p>
@@ -233,8 +250,16 @@ export default function StayDetails({ stayId, onBack }: Props) {
               <p className="text-ink-muted leading-relaxed">
                 Minimum stay {minNights} night{minNights === 1 ? '' : 's'}
                 {typeof s?.maxGuests === 'number' ? ` · up to ${s.maxGuests} guests` : ''}.
-                Occupied nights are blocked at checkout — the calendar cannot double-book.
+                Checkout night is not occupied. If you pick nights that are already taken, booking is refused.
               </p>
+              {occupiedNights.length > 0 ? (
+                <p className="mt-3 text-sm text-ink">
+                  Currently booked: {occupiedNights.slice(0, 12).join(', ')}
+                  {occupiedNights.length > 12 ? '…' : ''}
+                </p>
+              ) : (
+                <p className="mt-3 text-sm text-ink-muted">No occupied nights on the calendar yet besides what you select at checkout.</p>
+              )}
             </div>
             {s?.checkInTime || s?.checkOutTime ? (
               <div>
@@ -267,7 +292,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
 
           <aside className="lg:sticky lg:top-24 h-fit rounded-2xl bg-paper-raised p-5 shadow-soft-lg">
             <p className="text-lg font-semibold text-ink">
-              {currency} {nightly > 0 ? nightly.toFixed(0) : '—'}
+              {nightly > 0 ? formatMoney(nightly, currency) : '—'}
               <span className="text-sm font-normal text-ink-muted"> / night</span>
             </p>
             <label className="mt-4 block text-sm font-medium text-ink" htmlFor="stay-checkin">
@@ -305,14 +330,15 @@ export default function StayDetails({ stayId, onBack }: Props) {
             {nights != null && nights < minNights ? (
               <p className="mt-3 text-sm text-red-700">Minimum stay is {minNights} night{minNights === 1 ? '' : 's'}.</p>
             ) : null}
+            {selectionOccupied ? (
+              <p className="mt-3 text-sm text-red-700">Those nights are already booked.</p>
+            ) : null}
             {quoteOk ? (
               <p className="mt-3 text-sm text-ink-muted">
                 {nights} night{nights === 1 ? '' : 's'}
-                {cleaning > 0 ? ` + ${currency} ${cleaning.toFixed(0)} cleaning` : ''}
+                {cleaning > 0 ? ` + ${formatMoney(cleaning, currency)} cleaning` : ''}
                 {' · '}
-                <strong className="text-ink">
-                  {currency} {total.toFixed(0)}
-                </strong>
+                <strong className="text-ink">{formatMoney(total, currency)}</strong>
               </p>
             ) : null}
             {stayQuote && !stayQuote.ok && checkIn && checkOut ? (
@@ -324,7 +350,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
                 <button
                   type="button"
                   className="tv-btn-primary w-full mt-4 disabled:opacity-50"
-                  disabled={!quoteOk || paying}
+                  disabled={!quoteOk || paying || selectionOccupied}
                   onClick={startStayCheckout}
                 >
                   {paying ? 'Opening checkout…' : 'Continue to payment'}
@@ -349,7 +375,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
         <div className="flex items-center justify-between gap-3 max-w-5xl mx-auto">
           <p className="text-sm text-ink min-w-0">
             <span className="font-semibold">
-              {currency} {quoteOk ? total.toFixed(0) : nightly > 0 ? nightly.toFixed(0) : '—'}
+              {quoteOk ? formatMoney(total, currency) : nightly > 0 ? formatMoney(nightly, currency) : '—'}
             </span>
             <span className="text-ink-muted"> {quoteOk ? 'total' : '/ night'}</span>
           </p>

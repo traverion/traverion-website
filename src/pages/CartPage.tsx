@@ -12,6 +12,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { fetchCartWithListings, removeFromCart, type CartItemWithListing } from '../data/supabase-cart';
 import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
+import { formatMoney } from '../lib/money';
 
 interface CartPageProps {
   onNavigate: (page: string) => void;
@@ -177,7 +178,7 @@ export default function CartPage({ onNavigate, onBookTour }: CartPageProps) {
                       {item.booking_date} · {item.guests} {item.guests === 1 ? 'guest' : 'guests'}
                     </p>
                     <p className="mt-1 text-sm text-ink">
-                      {(item.price_per_person ?? 0) * item.guests} {item.currency ?? 'USD'}
+                      {formatMoney((item.price_per_person ?? 0) * item.guests, item.currency)}
                     </p>
                   </div>
                 </div>

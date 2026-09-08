@@ -78,8 +78,8 @@ export async function checkAvailability(
       options: [
         {
           id: 'open',
-          title: 'Book this date',
-          description: 'No separate capacity calendar for this date — your request goes to the provider.',
+          title: 'This date is available',
+          description: 'The operator accepts bookings on this date.',
           selectable: true,
         },
       ],

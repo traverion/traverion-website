@@ -24,6 +24,7 @@ import type { ListingDiscount } from '../data/supabase-discounts';
 import { fetchConsumerProfileRow } from '../data/supabase-consumer-profile';
 import { getDisplayPriceForBookingVariant } from '../lib/discount-display';
 import { quoteBooking, formatOptionWeekdays } from '../lib/booking-quote';
+import { formatMoney, normalizeCurrency } from '../lib/money';
 import { isListingVisibleToTravelers } from '../lib/product-workflows';
 import {
   checkAvailability,
@@ -156,7 +157,7 @@ export default function BookingPage({
   const hydratedRef = useRef(false);
   const profileHydratedRef = useRef(false);
   const bookingModalRef = useRef<HTMLDivElement>(null);
-  const currency = tour.price?.currency ?? 'USD';
+  const currency = normalizeCurrency(tour.price?.currency);
   const fallbackBasePrice = tour.price?.startingFrom ?? 0;
   const priceInfo = useMemo(() => {
     const day = date.trim() || new Date().toISOString().slice(0, 10);
@@ -222,7 +223,7 @@ export default function BookingPage({
     if (presentation === 'modal') return;
     setPageMetaWithOg(
       `Book: ${tour.title}`,
-      `Reserve ${tour.title}. From ${currency} ${fallbackBasePrice} per person.`,
+      `Reserve ${tour.title}. From ${formatMoney(fallbackBasePrice, currency)} per person.`,
       {
         title: `Book: ${tour.title}`,
         image: tour.image,
@@ -401,17 +402,22 @@ export default function BookingPage({
       return;
     }
     setError(null);
-    setAvailabilityModalOpen(true);
     setAvailabilityChecking(true);
     setAvailabilityModalNote(null);
     setAvailabilityOptions([]);
     try {
       const avail = await checkAvailability(tour.id, date.trim(), guests);
+      if (avail.available && avail.options.some((o) => o.selectable)) {
+        proceedToContactAfterOption();
+        return;
+      }
+      setAvailabilityModalOpen(true);
       setAvailabilityOptions(avail.options);
       if (avail.error && !avail.available) {
         setAvailabilityModalNote('We could not verify capacity for this date.');
       }
     } catch {
+      setAvailabilityModalOpen(true);
       setAvailabilityOptions([
         {
           id: 'network',
@@ -574,13 +580,13 @@ export default function BookingPage({
               <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint mb-2">Estimated total</p>
               <div className="flex justify-between text-sm text-ink-muted">
                 <span>
-                  {currency} {pricePerPerson} × {guests} guests
+                  {formatMoney(pricePerPerson, currency)} × {guests} guests
                   {priceInfo.label ? (
                     <span className="block text-xs text-green-600 mt-1">{priceInfo.label}</span>
                   ) : null}
                 </span>
                 <span className="font-medium text-ink">
-                  {currency} {total}
+                  {formatMoney(total, currency)}
                 </span>
               </div>
             </div>
@@ -646,11 +652,11 @@ export default function BookingPage({
                 <p>
                   <span className="text-ink-faint">Estimated total</span>{' '}
                   <strong className="text-ink">
-                    {currency} {quoteBlockReason ? '—' : total}
+                    {quoteBlockReason ? '—' : formatMoney(total, currency)}
                   </strong>
                 </p>
                 <p className="text-xs text-ink-faint mt-0.5">
-                  {guests} × {currency} {pricePerPerson} — no payment taken on this step.
+                  {guests} × {formatMoney(pricePerPerson, currency)} — no payment taken on this step.
                 </p>
               </div>
               <button
@@ -824,7 +830,7 @@ export default function BookingPage({
               <ClipboardList className="w-4 h-4 text-finland shrink-0 mt-0.5" aria-hidden />
               <span>
                 {isSupabaseConfigured()
-                  ? `Pay ${currency} ${total} on Stripe to confirm this tour. Nothing is taken until checkout completes.`
+                  ? `Pay ${formatMoney(total, currency)} on Stripe to confirm this tour. Nothing is taken until checkout completes.`
                   : 'Live card checkout is not configured in this environment. We will not pretend a payment succeeded.'}
               </span>
             </p>
@@ -876,10 +882,10 @@ export default function BookingPage({
               <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint mb-2">Price breakdown</p>
               <div className="flex justify-between text-sm text-ink">
                 <span>
-                  {currency} {pricePerPerson} × {guests} guests
+                  {formatMoney(pricePerPerson, currency)} × {guests} guests
                 </span>
                 <span className="font-medium">
-                  {currency} {total}
+                  {formatMoney(total, currency)}
                 </span>
               </div>
               <p className="text-xs text-ink-muted mt-2">This is the amount you pay at checkout.</p>
@@ -923,7 +929,7 @@ export default function BookingPage({
                   {submitting
                     ? 'Redirecting to Stripe…'
                     : isSupabaseConfigured()
-                      ? `Pay with Stripe · ${currency} ${total}`
+                      ? `Pay with Stripe · ${formatMoney(total, currency)}`
                       : 'Continue to payment'}
                 </button>
               </div>
@@ -972,7 +978,7 @@ export default function BookingPage({
               <div className="absolute bottom-2 left-3 right-3 text-white">
                 <p className="line-clamp-2 text-sm font-semibold leading-tight">{tour.title}</p>
                 <p className="text-[11px] text-white/90">
-                  {formatTourDurationDisplay(tour.duration)} · From {currency} {pricePerPerson}/person
+                  {formatTourDurationDisplay(tour.duration)} · From {formatMoney(pricePerPerson, currency)}/person
                 </p>
               </div>
             </div>
@@ -1005,7 +1011,7 @@ export default function BookingPage({
                 <div className="absolute bottom-3 left-3 right-3 text-white">
                   <h1 className="text-lg sm:text-xl font-semibold">{tour.title}</h1>
                   <p className="text-sm text-white/90">
-                    {formatTourDurationDisplay(tour.duration)} · From {currency} {pricePerPerson} per person
+                    {formatTourDurationDisplay(tour.duration)} · From {formatMoney(pricePerPerson, currency)} per person
                   </p>
                 </div>
               </div>

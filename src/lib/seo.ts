@@ -138,7 +138,7 @@ export function setTourJsonLd(tour: {
       offers: {
         '@type': 'Offer',
         price: tour.price.startingFrom,
-        priceCurrency: tour.price.currency ?? 'USD',
+        priceCurrency: tour.price.currency ?? 'EUR',
       },
     }),
   });

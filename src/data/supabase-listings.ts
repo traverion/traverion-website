@@ -85,7 +85,7 @@ export function rowToTourPackage(row: ListingRow): TourPackage {
     endLocation: row.end_location ?? row.destination,
     price: {
       startingFrom: Number(row.price_starting_from),
-      currency: row.price_currency ?? 'USD',
+      currency: row.price_currency ?? 'EUR',
       perPerson: true,
       twinOccupancy: false,
       customQuote: false,
@@ -179,7 +179,7 @@ export function tourPackageToRow(tour: Partial<TourPackage> & { title: string; d
     start_location: tour.startLocation ?? tour.city ?? tour.destination,
     end_location: tour.endLocation ?? tour.city ?? tour.destination,
     price_starting_from: tour.price.startingFrom,
-    price_currency: tour.price.currency ?? 'USD',
+    price_currency: tour.price.currency ?? 'EUR',
     category: tour.category ?? '3*',
     tour_type: tour.tourType ?? 'cultural',
     validity: tour.validity ?? 'Year round',

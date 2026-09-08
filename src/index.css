@@ -8,6 +8,11 @@
   }
 }
 
+body[data-partner-overlay='1'] .partner-bottom-nav {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 @layer base {
   html {
     font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;

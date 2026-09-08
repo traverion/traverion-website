@@ -129,7 +129,7 @@ function quoteStayListing(input: {
       : Number(input.listing.price_starting_from ?? 0);
   if (!(nightly > 0)) return { ok: false, error: 'This stay does not have a nightly price yet.' };
   const cleaning = typeof stay.cleaningFeeUsd === 'number' && stay.cleaningFeeUsd > 0 ? stay.cleaningFeeUsd : 0;
-  const currency = (input.listing.price_currency ?? 'USD').trim().toUpperCase() || 'USD';
+  const currency = (input.listing.price_currency ?? 'EUR').trim().toUpperCase() || 'EUR';
   return {
     ok: true,
     currency,
@@ -286,7 +286,7 @@ export function quoteListingBooking(input: {
 
   const opts = parseOptions(input.listing.listing_extras);
   const fallbackBase = Number(input.listing.price_starting_from ?? 0);
-  const currency = (input.listing.price_currency ?? 'USD').trim().toUpperCase() || 'USD';
+  const currency = (input.listing.price_currency ?? 'EUR').trim().toUpperCase() || 'EUR';
   const requestedId = (input.bookingOptionId ?? '').trim();
 
   if (opts.length > 0) {

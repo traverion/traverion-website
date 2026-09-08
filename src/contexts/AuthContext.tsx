@@ -15,6 +15,7 @@ import { isTraverionAdminUser } from '../lib/adminAuth';
 import { customerSignInPartnerOnlyMessage, travelerSignUpDuplicateEmailMessage } from '../lib/customerSupplierAuthMessages';
 import { supplierPortalPublicBaseUrl } from '../lib/partnerHost';
 import { PARTNER_LOGIN_PATH } from '../lib/partnerPortalPaths';
+import { clearSupabaseAuthStorage } from '../lib/clearSupabaseAuthStorage';
 
 type AuthContextValue = {
   user: User | null;
@@ -156,8 +157,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
-    if (supabase) await supabase.auth.signOut();
     setUser(null);
+    if (supabase) {
+      try {
+        await supabase.auth.signOut({ scope: 'local' });
+      } catch {
+        /* storage clear below */
+      }
+    }
+    clearSupabaseAuthStorage();
   }, []);
 
   const requestAuth = useCallback((options?: { onSuccess?: () => void }) => {

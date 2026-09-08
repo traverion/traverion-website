@@ -46,7 +46,7 @@ export async function buildReceiptPdfBytes(input: ReceiptPdfInput): Promise<Uint
   if (typeof input.guests === 'number' && input.guests > 0) draw(`Guests: ${input.guests}`, 11);
 
   y -= 10;
-  const cur = (input.currency ?? 'USD').trim().toUpperCase() || 'USD';
+  const cur = (input.currency ?? 'EUR').trim().toUpperCase() || 'EUR';
   const amt = Number.isFinite(input.amountPaid) ? input.amountPaid.toFixed(2) : '—';
   draw(`Amount paid: ${cur} ${amt}`, 14, bold, rgb(0.05, 0.45, 0.2));
 

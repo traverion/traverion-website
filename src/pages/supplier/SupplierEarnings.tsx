@@ -9,17 +9,23 @@ import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
+import { formatMoney, isStripeTestCheckoutSession, normalizeCurrency } from '../../lib/money';
+import { fetchMyListings } from '../../data/supabase-listings';
 
-function formatMoney(amount: number, currency: string) {
-  const c = currency || 'USD';
-  if (c === 'USD') return `$${amount.toFixed(2)}`;
-  return `${amount.toFixed(2)} ${c}`;
+function isCollectedBooking(b: BookingRow): boolean {
+  if (b.status === 'cancelled') return false;
+  const pay = (b.payment_status ?? '').trim().toLowerCase();
+  const amount = Number(b.amount_paid ?? 0);
+  if (amount <= 0) return false;
+  if (pay === 'paid' || pay === 'complete' || pay === 'succeeded') return true;
+  return Boolean(b.checkout_session_id);
 }
 
 export default function SupplierEarnings() {
   const { user, isSupabase } = useSupplierAuth();
   const [earnings, setEarnings] = useState<SupplierEarning[]>([]);
   const [paidBookings, setPaidBookings] = useState<BookingRow[]>([]);
+  const [listingTitles, setListingTitles] = useState<Record<string, string>>({});
   const [profile, setProfile] = useState<Awaited<ReturnType<typeof fetchSupplierProfile>>>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -33,14 +39,11 @@ export default function SupplierEarnings() {
     }
     setLoading(true);
     setError(null);
-    Promise.all([fetchSupplierEarnings(uid), fetchBookingsForSupplier(uid)])
-      .then(([data, bookings]) => {
+    Promise.all([fetchSupplierEarnings(uid), fetchBookingsForSupplier(uid), fetchMyListings(uid)])
+      .then(([data, bookings, listings]) => {
         setEarnings(data);
-        setPaidBookings(
-          bookings.filter(
-            (b) => (b.payment_status ?? '') === 'paid' && b.status !== 'cancelled' && Number(b.amount_paid) > 0
-          )
-        );
+        setListingTitles(Object.fromEntries(listings.map((l) => [l.id, l.title])));
+        setPaidBookings(bookings.filter(isCollectedBooking));
         setLoading(false);
       })
       .catch((e) => {
@@ -63,7 +66,7 @@ export default function SupplierEarnings() {
   const primaryCurrency = useMemo(() => {
     const bookingCur = paidBookings.find((b) => (b.currency ?? '').trim())?.currency;
     const row = earnings.find((e) => e.status !== 'cancelled');
-    return (bookingCur || row?.currency || earnings[0]?.currency || 'USD').toUpperCase();
+    return (bookingCur || row?.currency || earnings[0]?.currency || 'EUR').toUpperCase();
   }, [earnings, paidBookings]);
 
   const { pending, paid, gross, filteredEarnings } = useMemo(() => {
@@ -175,7 +178,7 @@ export default function SupplierEarnings() {
             <SupplierEmptyState
               icon={Wallet}
               title="No payouts yet"
-              body="No traveler has completed a paid booking, so there is nothing to pay out. Traverion does not invent balances. Add payout details so you are ready when the first booking lands."
+              body="When a traveler completes checkout, the collected amount appears here. Payouts stay manual — Traverion does not invent a transfer."
             />
           ) : (
           <section>
@@ -213,14 +216,19 @@ export default function SupplierEarnings() {
                     <li key={b.id} className="py-4 flex items-baseline justify-between gap-4">
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-ink">
-                          {b.guest_name?.trim() || 'Guest'} · {b.booking_date}
+                          {b.booking_number != null ? `#${b.booking_number} · ` : ''}
+                          {listingTitles[b.listing_id] || b.guest_name?.trim() || 'Guest'}
                         </p>
                         <p className="mt-0.5 text-xs text-ink-muted">
-                          Collected from traveler · not paid out yet
+                          {b.guest_name?.trim() || 'Guest'} · {b.booking_date}
+                          {isStripeTestCheckoutSession(b.checkout_session_id)
+                            ? ' · Stripe TEST'
+                            : ''}
+                          {' · collected, not paid out'}
                         </p>
                       </div>
                       <p className="tabular-nums font-semibold text-ink shrink-0">
-                        {formatMoney(Number(b.amount_paid ?? 0), (b.currency ?? primaryCurrency).toUpperCase())}
+                        {formatMoney(Number(b.amount_paid ?? 0), normalizeCurrency(b.currency ?? primaryCurrency))}
                       </p>
                     </li>
                   ))}

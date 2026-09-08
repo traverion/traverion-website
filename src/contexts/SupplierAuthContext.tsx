@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { clearSupabaseAuthStorage } from '../lib/clearSupabaseAuthStorage';
 
 export type SupplierUser = User | { id: string; email?: string };
 
@@ -47,11 +48,21 @@ export function SupplierAuthProvider({ children }: { children: React.ReactNode }
   }, [isSupabase]);
 
   const signOut = useCallback(async () => {
+    setUser(null);
     if (isSupabase && supabase) {
-      await supabase.auth.signOut();
+      try {
+        await supabase.auth.signOut({ scope: 'local' });
+      } catch {
+        /* still clear storage below */
+      }
+      clearSupabaseAuthStorage();
+      try {
+        await supabase.auth.signOut({ scope: 'local' });
+      } catch {
+        /* already cleared */
+      }
     } else {
       localStorage.removeItem('supplier_authenticated');
-      setUser(null);
     }
   }, [isSupabase]);
 

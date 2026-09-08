@@ -47,7 +47,7 @@ export async function fetchCartWithListings(userId: string): Promise<CartItemWit
     listing_title: byId[item.listing_id]?.title,
     listing_image: byId[item.listing_id]?.image ?? undefined,
     price_per_person: byId[item.listing_id]?.price_starting_from,
-    currency: byId[item.listing_id]?.price_currency ?? 'USD',
+    currency: byId[item.listing_id]?.price_currency ?? 'EUR',
   }));
 }
 

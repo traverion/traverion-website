@@ -57,6 +57,7 @@ import ErrorState from '../ErrorState';
 import SkipLink from '../SkipLink';
 import { replacePathIfChanged } from '../../lib/authNavigation';
 import { partnerRedirectForSession } from '../../lib/partnerAuthState';
+import { appStripeIsTestMode } from '../../lib/money';
 
 const SupplierEarnings = lazy(() => import('../../pages/supplier/SupplierEarnings'));
 const SupplierReviews = lazy(() => import('../../pages/supplier/SupplierReviews'));
@@ -156,9 +157,6 @@ function pathForSection(s: SupplierSection): string {
   return `${PARTNER_APP_BASE}/${s}`;
 }
 
-const ROUTABLE_SECTIONS = Object.values(PATH_ALIASES) as SupplierSection[];
-type ExtraSupplierSection = SupplierSection;
-
 function getSectionFromPath(pathname: string): SupplierSection | null {
   const base = PARTNER_APP_BASE;
   if (pathname === base || pathname === `${base}/`) return 'dashboard';
@@ -167,8 +165,7 @@ function getSectionFromPath(pathname: string): SupplierSection | null {
   if (match[1] === 'settings') return 'business-profile';
   const aliased = PATH_ALIASES[match[1]];
   if (aliased) return aliased;
-  if (!ROUTABLE_SECTIONS.includes(match[1] as ExtraSupplierSection)) return 'dashboard';
-  return match[1] as SupplierSection;
+  return null;
 }
 
 function isSupplierLoginPath(pathname: string): boolean {
@@ -254,6 +251,8 @@ export default function SupplierLayout() {
   const [businessLogoUrl, setBusinessLogoUrl] = useState<string>('');
   const [companyRegistrationPath, setCompanyRegistrationPath] = useState('');
   const [pathEpoch, setPathEpoch] = useState(0);
+  const [unknownPartnerPath, setUnknownPartnerPath] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
 
   const supplierEmail = typeof user?.email === 'string' ? user.email : '';
   const supplierEmailVerified = Boolean((user as { email_confirmed_at?: string | null } | null)?.email_confirmed_at);
@@ -386,7 +385,7 @@ export default function SupplierLayout() {
   })();
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || signingOut) return;
     if (partnerGateView === 'blocked') return;
     const kind =
       !user ? 'anon'
@@ -400,7 +399,7 @@ export default function SupplierLayout() {
       hostname: window.location.hostname,
     });
     if (dest) replacePathIfChanged(dest);
-  }, [loading, user, partnerGateView]);
+  }, [loading, user, partnerGateView, signingOut]);
 
   useEffect(() => {
     if (!user?.id) blockedRedirectStarted.current = false;
@@ -532,8 +531,16 @@ export default function SupplierLayout() {
 
   useEffect(() => {
     const syncFromPath = (fromPop: boolean) => {
-      const s = getSectionFromPath(window.location.pathname);
-      if (s) setSection(s);
+      const pathname = window.location.pathname;
+      const s = getSectionFromPath(pathname);
+      if (s) {
+        setSection(s);
+        setUnknownPartnerPath(false);
+      } else if (isSupplierPortalPath(pathname)) {
+        setUnknownPartnerPath(true);
+      } else {
+        setUnknownPartnerPath(false);
+      }
       if (fromPop) setPathEpoch((e) => e + 1);
     };
     syncFromPath(false);
@@ -606,6 +613,7 @@ export default function SupplierLayout() {
   };
 
   const handleNavigate = (s: SupplierSection) => {
+    setUnknownPartnerPath(false);
     setSection(s);
     window.history.pushState({}, '', pathForSection(s));
     window.dispatchEvent(new PopStateEvent('popstate'));
@@ -639,9 +647,13 @@ export default function SupplierLayout() {
   };
 
   const handlePartnerSignOut = () => {
+    if (signingOut) return;
+    setSigningOut(true);
     setAccountMenuOpen(false);
     setMobileAccountOpen(false);
-    void signOut().then(() => replacePathIfChanged(PARTNER_LOGIN_PATH));
+    void signOut().finally(() => {
+      window.location.replace(PARTNER_LOGIN_PATH);
+    });
   };
 
   void pathEpoch;
@@ -665,8 +677,8 @@ export default function SupplierLayout() {
     return <PartnerResetPasswordPage />;
   }
 
-  if (loading) {
-    return <PartnerBusyScreen label="Loading partner workspace" />;
+  if (loading || signingOut) {
+    return <PartnerBusyScreen label={signingOut ? 'Signing out' : 'Loading partner workspace'} />;
   }
 
   if (partnerMarketingPage && isPartnerMarketingPathForCurrentHost(pathname)) {
@@ -754,6 +766,11 @@ export default function SupplierLayout() {
   return (
     <div className="partner-app-shell min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden bg-paper text-ink">
       <SkipLink />
+      {appStripeIsTestMode() ? (
+        <p className="bg-ink text-paper-raised text-center text-[11px] font-medium tracking-wide px-3 py-1.5">
+          Stripe TEST — payments and Money rows are sandbox, not live charges.
+        </p>
+      ) : null}
       <header className="sticky top-0 z-30 bg-paper/90 backdrop-blur-md pt-[env(safe-area-inset-top)]">
         <div className="mx-auto flex h-14 max-w-6xl items-center gap-6 px-4 sm:px-6">
           <button type="button" onClick={() => handleNavigate('dashboard')} className="lux-flat flex items-center gap-2 shrink-0" aria-label="Partner home">
@@ -847,10 +864,23 @@ export default function SupplierLayout() {
       <main
         id="main-content"
         tabIndex={-1}
-        className={`mx-auto w-full max-w-6xl min-w-0 px-4 sm:px-6 pt-4 pb-[max(1.5rem,calc(5.25rem+env(safe-area-inset-bottom)))] lg:pb-16 outline-none ${section === 'availability' ? 'max-w-none lg:px-10' : ''}`}
+        className={`relative z-[25] mx-auto w-full max-w-6xl min-w-0 px-4 sm:px-6 pt-4 pb-[max(1.5rem,calc(5.25rem+env(safe-area-inset-bottom)))] lg:pb-16 outline-none ${section === 'availability' ? 'max-w-none lg:px-10' : ''}`}
       >
         <div className="lux-page-enter w-full min-w-0">
           <Suspense fallback={<PartnerSectionFallback />}>
+          {unknownPartnerPath ? (
+            <div className="py-16 max-w-md">
+              <h1 className="font-display text-3xl text-ink">This page is not available</h1>
+              <p className="mt-3 text-ink-muted leading-relaxed">
+                Team and Integrations are not part of Partner yet, so those addresses do not open a workspace.
+                Use Today, Listings, Calendar, Bookings, or More.
+              </p>
+              <button type="button" className="tv-btn-primary mt-8" onClick={() => handleNavigate('dashboard')}>
+                Back to Today
+              </button>
+            </div>
+          ) : (
+          <>
           {section === 'onboarding' && (
             <PartnerOnboarding
               onSkip={() => handleNavigate('dashboard')}
@@ -982,12 +1012,14 @@ export default function SupplierLayout() {
               }}
             />
           )}
+          </>
+          )}
           </Suspense>
         </div>
       </main>
 
       <nav
-        className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-paper/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)] border-t border-black/[0.04]"
+        className="partner-bottom-nav md:hidden fixed bottom-0 inset-x-0 z-20 bg-paper/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)] border-t border-black/[0.04] pointer-events-auto"
         aria-label="Primary"
       >
         <div className="flex items-stretch justify-around max-w-lg mx-auto px-1">

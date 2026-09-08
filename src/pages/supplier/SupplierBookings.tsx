@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import type { TourPackage } from '../../types/tour';
 import { listingHeroImageSrc, orderedPhotoUrls, photoSlotsFromTourPackage } from '../../lib/listingPhotoGrid';
+import { formatMoney } from '../../lib/money';
 import { SkeletonListItem } from '../../components/ui/Skeleton';
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
@@ -68,9 +69,7 @@ function buildListingMeta(listing: TourPackage): ListingBookingMeta {
 
 function formatBookingMoney(amount: number | null | undefined, currency: string | null | undefined): string | null {
   if (amount == null || !Number.isFinite(Number(amount)) || Number(amount) <= 0) return null;
-  const c = (currency ?? 'USD').trim() || 'USD';
-  if (c === 'USD') return `$${Number(amount).toFixed(2)}`;
-  return `${Number(amount).toFixed(2)} ${c}`;
+  return formatMoney(Number(amount), currency);
 }
 
 function bookingStatusClass(status: string): string {

@@ -14,6 +14,7 @@ import type { ListingDiscount } from '../data/supabase-discounts';
 import { applyDiscount, discountsApplicableToOption } from '../data/supabase-discounts';
 import { getPartySizeBounds, getPartySizeBoundsForVariant, guestCountValidationError } from './booking-flow';
 import { listingCanUseTravelerQuote } from './inventory';
+import { DEFAULT_CURRENCY, normalizeCurrency } from './money';
 
 export type BookingQuoteDiscount = Pick<
   ListingDiscount,
@@ -173,7 +174,7 @@ export function quoteBooking(input: {
   const extras = parseListingExtras(input.tour.listingExtras);
   const opts = materializedBookingOptions(extras.bookingOptions);
   const fallbackBase = Number(input.tour.price?.startingFrom ?? 0);
-  const currency = (input.tour.price?.currency ?? 'USD').trim().toUpperCase() || 'USD';
+  const currency = normalizeCurrency(input.tour.price?.currency ?? DEFAULT_CURRENCY);
   const requestedId = (input.bookingOptionId ?? '').trim();
 
   const asTour = input.tour as TourPackage;
@@ -331,7 +332,7 @@ export function quoteStayNights(input: {
     return { ok: false, code: 'price', error: 'This stay does not have a nightly price yet.' };
   }
   const cleaning = stay?.cleaningFeeUsd && stay.cleaningFeeUsd > 0 ? stay.cleaningFeeUsd : 0;
-  const currency = (input.tour.price?.currency ?? 'USD').trim().toUpperCase() || 'USD';
+  const currency = normalizeCurrency(input.tour.price?.currency ?? DEFAULT_CURRENCY);
   return {
     ok: true,
     currency,

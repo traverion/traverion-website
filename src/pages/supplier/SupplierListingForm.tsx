@@ -665,6 +665,13 @@ export default function SupplierListingForm({
   const [optionModalDraft, setOptionModalDraft] = useState<ListingBookingOption | null>(null);
   const [optionModalEditingId, setOptionModalEditingId] = useState<string | null>(null);
   const [optionModalErrors, setOptionModalErrors] = useState<string[]>([]);
+
+  useEffect(() => {
+    document.body.dataset.partnerOverlay = '1';
+    return () => {
+      delete document.body.dataset.partnerOverlay;
+    };
+  }, []);
   const [optionModalHasEndingDate, setOptionModalHasEndingDate] = useState(false);
   const optionModalOpenRef = useRef(false);
   const optionModalRef = useRef<HTMLDivElement>(null);
@@ -1175,7 +1182,7 @@ export default function SupplierListingForm({
           <div className="grid grid-cols-1 gap-6 p-4 sm:p-5 lg:grid-cols-2 lg:gap-8">
             <div className="space-y-4 min-w-0">
               <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Option name *</label>
+                <label className="block text-sm font-medium text-ink mb-1">Option name *</label>
                 <input
                   type="text"
                   value={optionDraft.name}
@@ -1198,7 +1205,7 @@ export default function SupplierListingForm({
                 />
               </div>
               <div id="supplier-listing-field-pickup_timing">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Usual start time</label>
+                <label className="block text-sm font-medium text-ink mb-1">Usual start time</label>
                 <input
                   type="time"
                   value={optionDraft.startTime}
@@ -1208,7 +1215,7 @@ export default function SupplierListingForm({
                 <p className="text-xs text-ink-muted mt-1">Shown to guests; you can adjust on the booking.</p>
               </div>
               <div className="sm:col-span-2" id="supplier-listing-field-option-duration">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Duration for this option *</label>
+                <label className="block text-sm font-medium text-ink mb-1">Duration for this option *</label>
                 {(() => {
                   const durParts = parseBookingOptionDuration(optionDraft.duration);
                   return (
@@ -1256,15 +1263,15 @@ export default function SupplierListingForm({
                           </select>
                         </div>
                       </div>
-                      <p className="text-xs text-gray-600 mt-2">
+                      <p className="text-xs text-ink-muted mt-2">
                         Type a number, then choose minutes, hours, or days. Both are required — they are stored as text like{' '}
-                        <span className="font-medium text-gray-800">3 hours</span> or{' '}
-                        <span className="font-medium text-gray-800">90 minutes</span>.
+                        <span className="font-medium text-ink">3 hours</span> or{' '}
+                        <span className="font-medium text-ink">90 minutes</span>.
                       </p>
                       {optionDraft.duration.trim() ? (
                         <p className="text-xs text-ink-muted mt-1">
                           Saved as:{' '}
-                          <span className="font-medium text-gray-700 tabular-nums">{optionDraft.duration.trim()}</span>
+                          <span className="font-medium text-ink tabular-nums">{optionDraft.duration.trim()}</span>
                           {durParts.amount === '' && optionDraft.duration.trim().length >= 2 && (
                             <span className="block mt-1 text-amber-800">
                               This text is kept as-is. Enter a number above to use minutes, hours, or days.
@@ -1277,7 +1284,7 @@ export default function SupplierListingForm({
                 })()}
               </div>
               <div className="sm:col-span-2" id="supplier-listing-field-meeting">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Meeting or pickup place *</label>
+                <label className="block text-sm font-medium text-ink mb-1">Meeting or pickup place *</label>
                 <textarea
                   value={optionDraft.pickupPlace}
                   onChange={(e) => patchOptionDraft({ pickupPlace: e.target.value })}
@@ -1288,7 +1295,7 @@ export default function SupplierListingForm({
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div id="supplier-listing-field-group">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Min guests per booking *</label>
+                  <label className="block text-sm font-medium text-ink mb-1">Min guests per booking *</label>
                   <input
                     type="number"
                     min={1}
@@ -1304,7 +1311,7 @@ export default function SupplierListingForm({
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Max guests per booking *</label>
+                  <label className="block text-sm font-medium text-ink mb-1">Max guests per booking *</label>
                   <input
                     type="number"
                     min={1}
@@ -1322,7 +1329,7 @@ export default function SupplierListingForm({
                 </div>
               </div>
               <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Max spots per start time *</label>
+                <label className="block text-sm font-medium text-ink mb-1">Max spots per start time *</label>
                 <input
                   type="number"
                   min={1}
@@ -1337,7 +1344,7 @@ export default function SupplierListingForm({
                 <p className="text-xs text-ink-muted mt-1">Capacity for one departure or time slot.</p>
               </div>
               <div className="sm:col-span-2" id="supplier-listing-field-pickup">
-                <label className="block text-sm font-medium text-gray-700 mb-1">About this option *</label>
+                <label className="block text-sm font-medium text-ink mb-1">About this option *</label>
                 <textarea
                   value={optionDraft.optionInfo}
                   onChange={(e) => patchOptionDraft({ optionInfo: e.target.value })}
@@ -1347,7 +1354,7 @@ export default function SupplierListingForm({
                 />
               </div>
               <div className="sm:col-span-2">
-                <p className="text-sm font-medium text-gray-800 mb-2">Runs on these weekdays *</p>
+                <p className="text-sm font-medium text-ink mb-2">Runs on these weekdays *</p>
                 <div className="flex flex-wrap gap-2">
                   {WEEKDAY_LABELS.map((label, di) => (
                     <button
@@ -1463,7 +1470,7 @@ export default function SupplierListingForm({
 
   const shell = (
     <div
-      className="fixed inset-0 z-[80] flex flex-col overflow-hidden overscroll-none pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"
+      className="fixed inset-0 z-[80] flex flex-col overflow-hidden overscroll-none"
       role="dialog"
       aria-modal="true"
       aria-labelledby="supplier-listing-editor-title"
@@ -1485,9 +1492,9 @@ export default function SupplierListingForm({
             e.preventDefault();
           }}
           onClick={(e) => e.stopPropagation()}
-          className="pointer-events-auto motion-safe:animate-fade-in motion-reduce:animate-none flex min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden border-0 bg-paper shadow-none h-[min(100dvh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)))] max-h-[min(100dvh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)))] rounded-none"
+          className="pointer-events-auto motion-safe:animate-fade-in motion-reduce:animate-none flex min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden border-0 bg-paper shadow-none h-full rounded-none"
         >
-        <div className="shrink-0 border-b border-black/[0.06] bg-paper px-5 py-4 sm:px-8">
+        <div className="shrink-0 border-b border-black/[0.06] bg-paper px-5 py-4 sm:px-8 pt-[max(1rem,env(safe-area-inset-top))]">
           <div className="mb-3 flex items-center justify-between gap-3">
             <button
               type="button"
@@ -1595,7 +1602,7 @@ export default function SupplierListingForm({
           {stepIdx === 0 && form.inventoryFamily !== 'stay' && (
             <div className="space-y-5 transition-all duration-300 ease-out opacity-100 translate-y-0">
               <div id="supplier-listing-field-language">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Primary language of the tour *</label>
+                <label className="block text-sm font-medium text-ink mb-1">Primary language of the tour *</label>
                 <p className="text-xs text-ink-muted mb-2">The main language guests hear during the tour.</p>
                 <select
                   value={form.experienceLanguage}
@@ -1616,7 +1623,7 @@ export default function SupplierListingForm({
           {stepIdx === 0 && (
             <div className="space-y-5 transition-all duration-300 ease-out opacity-100 translate-y-0">
               <div id="supplier-listing-field-title">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
+                <label className="block text-sm font-medium text-ink mb-1">Title *</label>
                 <p className="text-xs text-ink-muted mb-2">A clear, specific name travelers will see in search and on the listing page.</p>
                 <input
                   type="text"
@@ -1637,7 +1644,7 @@ export default function SupplierListingForm({
           {stepIdx === 0 && form.inventoryFamily !== 'stay' && (
             <div className="space-y-4 transition-all duration-300 ease-out opacity-100 translate-y-0">
               <div id="supplier-listing-field-category">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
+                <label className="block text-sm font-medium text-ink mb-1">Category *</label>
                 <p className="text-xs text-ink-muted mb-3">Choose the option that best describes what you sell. You can add more detail in later steps.</p>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   {EXPERIENCE_KIND_OPTIONS.map((opt) => {
@@ -1650,11 +1657,11 @@ export default function SupplierListingForm({
                         className={`text-left rounded-xl border-2 p-4 transition-colors min-h-[120px] ${
                           selected
                             ? 'border-finland bg-finland/5 ring-1 ring-finland/20'
-                            : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50/80'
+                            : 'border-black/[0.08] bg-paper-raised hover:border-black/[0.12] hover:bg-paper'
                         }`}
                       >
-                        <span className="block text-sm font-semibold text-gray-900">{opt.title}</span>
-                        <span className="mt-2 block text-xs text-gray-600 leading-relaxed">{opt.description}</span>
+                        <span className="block text-sm font-semibold text-ink">{opt.title}</span>
+                        <span className="mt-2 block text-xs text-ink-muted leading-relaxed">{opt.description}</span>
                       </button>
                     );
                   })}
@@ -1666,7 +1673,7 @@ export default function SupplierListingForm({
           {stepIdx === 0 && (
             <div className="space-y-5 transition-all duration-300 ease-out opacity-100 translate-y-0">
               <div id="supplier-listing-field-subtitle">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Subtitle *</label>
+                <label className="block text-sm font-medium text-ink mb-1">Subtitle *</label>
                 <p className="text-xs text-ink-muted mb-2">
                   A short line under the title on the listing page (max {MAX_SUBTITLE_LENGTH} characters).
                 </p>
@@ -1683,7 +1690,7 @@ export default function SupplierListingForm({
                 </p>
               </div>
               <div id="supplier-listing-field-description">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-ink mb-1">
                   About this {form.inventoryFamily === 'stay' ? 'stay' : 'tour'} *
                 </label>
                 <p className="text-xs text-ink-muted mb-2">
@@ -1700,7 +1707,7 @@ export default function SupplierListingForm({
                   className={`w-full px-3 py-2 border rounded-lg focus:ring-2 ${
                     form.description.trim().length < MIN_LISTING_DESCRIPTION_LENGTH
                       ? 'border-amber-300 focus:ring-amber-200 focus:border-amber-400'
-                      : 'border-gray-300 focus:ring-finland'
+                      : 'border-black/[0.12] focus:ring-finland'
                   }`}
                   placeholder="What guests do, what makes it special, practical notes…"
                   aria-invalid={form.description.trim().length < MIN_LISTING_DESCRIPTION_LENGTH}
@@ -1727,14 +1734,14 @@ export default function SupplierListingForm({
               </div>
               <div id="supplier-listing-field-highlights" className="space-y-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Highlights (optional)</label>
+                  <label className="block text-sm font-medium text-ink">Highlights (optional)</label>
                   <p className="text-xs text-ink-muted mt-1">
                     Up to five short selling points — each on its own line below.
                   </p>
                 </div>
                 {form.highlights.map((line, index) => (
                   <div key={index}>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Highlight {index + 1}</label>
+                    <label className="block text-xs font-medium text-ink-muted mb-1">Highlight {index + 1}</label>
                     <input
                       type="text"
                       value={line}
@@ -1756,7 +1763,7 @@ export default function SupplierListingForm({
           {stepIdx === 1 && form.inventoryFamily !== 'stay' && (
             <div className="space-y-5 transition-all duration-300 ease-out opacity-100 translate-y-0">
               <div id="supplier-listing-field-includes">
-                <label className="block text-sm font-medium text-gray-700 mb-1">What&apos;s included *</label>
+                <label className="block text-sm font-medium text-ink mb-1">What&apos;s included *</label>
                 <p className="text-xs text-ink-muted mb-2">At least two clear items (tickets, guide, transport, tastings, etc.).</p>
                 <div className="space-y-2">
                   {form.includes.map((line, index) => (
@@ -1777,7 +1784,7 @@ export default function SupplierListingForm({
                 </div>
               </div>
               <div id="supplier-listing-field-excludes">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Not included *</label>
+                <label className="block text-sm font-medium text-ink mb-1">Not included *</label>
                 <p className="text-xs text-ink-muted mb-2">At least one line so guests know what to budget for.</p>
                 <div className="space-y-2">
                   {form.excludes.map((line, index) => (
@@ -1803,7 +1810,7 @@ export default function SupplierListingForm({
               >
                 <summary className="cursor-pointer list-none flex items-start justify-between gap-3">
                   <span>
-                    <span className="block text-sm font-semibold text-gray-900">Optional: good to know</span>
+                    <span className="block text-sm font-semibold text-ink">Optional: good to know</span>
                     <span className="block text-xs text-ink-muted mt-0.5">Accessibility, age, setting, extra languages</span>
                   </span>
                   <span className="text-xs text-finland font-medium mt-0.5">
@@ -1817,7 +1824,7 @@ export default function SupplierListingForm({
                 </summary>
                 <div className="mt-4 space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Accessibility &amp; mobility (optional)</label>
+                  <label className="block text-sm font-medium text-ink mb-1">Accessibility &amp; mobility (optional)</label>
                   <textarea
                     value={form.accessibilitySummary}
                     maxLength={MAX_ACCESSIBILITY_LENGTH}
@@ -1837,7 +1844,7 @@ export default function SupplierListingForm({
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Minimum guest age (optional)</label>
+                    <label className="block text-sm font-medium text-ink mb-1">Minimum guest age (optional)</label>
                     <input
                       type="text"
                       value={form.minGuestAge}
@@ -1847,7 +1854,7 @@ export default function SupplierListingForm({
                     />
                   </div>
                   <div id="supplier-listing-field-venue">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Setting</label>
+                    <label className="block text-sm font-medium text-ink mb-1">Setting</label>
                     <select
                       value={form.venueSetting}
                       onChange={(e) =>
@@ -1864,7 +1871,7 @@ export default function SupplierListingForm({
                   </div>
                 </div>
                 <div id="supplier-listing-field-languages">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Additional languages offered (optional)</label>
+                  <label className="block text-sm font-medium text-ink mb-2">Additional languages offered (optional)</label>
                   <p className="text-xs text-ink-muted mb-2">Besides the primary language you set earlier.</p>
                   <div className="flex flex-wrap gap-2">
                     {LANGUAGE_OPTIONS.filter((o) => o.code !== 'other').map((o) => {
@@ -1886,9 +1893,9 @@ export default function SupplierListingForm({
                                   : [...f.additionalLanguages, o.code],
                               }))
                             }
-                            className="rounded border-gray-300 text-finland focus:ring-finland"
+                            className="rounded border-black/[0.12] text-finland focus:ring-finland"
                           />
-                          <span className="text-sm text-gray-700">{o.label}</span>
+                          <span className="text-sm text-ink">{o.label}</span>
                         </label>
                       );
                     })}
@@ -1903,7 +1910,7 @@ export default function SupplierListingForm({
             <div className="space-y-4 transition-all duration-300 ease-out opacity-100 translate-y-0">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" id="supplier-listing-field-location">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">City *</label>
+                  <label className="block text-sm font-medium text-ink mb-1">City *</label>
                   <input
                     type="text"
                     value={form.city}
@@ -1914,7 +1921,7 @@ export default function SupplierListingForm({
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Country *</label>
+                  <label className="block text-sm font-medium text-ink mb-1">Country *</label>
                   <input
                     type="text"
                     value={form.country}
@@ -1926,7 +1933,7 @@ export default function SupplierListingForm({
                 </div>
               </div>
               <div id="supplier-listing-field-destination" className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">How it shows as a place (optional)</label>
+                <label className="block text-sm font-medium text-ink">How it shows as a place (optional)</label>
                 <input
                   type="text"
                   value={form.destination}
@@ -1941,13 +1948,13 @@ export default function SupplierListingForm({
               {form.inventoryFamily !== 'stay' ? (
               <p className="text-xs text-ink-muted -mt-2">
                 Use the main base or usual starting city. Per-option meeting and pickup are set under{' '}
-                <span className="font-medium text-gray-700">Cost &amp; options</span>.
+                <span className="font-medium text-ink">Cost &amp; options</span>.
               </p>
               ) : null}
               {form.inventoryFamily !== 'stay' ? (
               <>
               <div id="supplier-listing-field-duration">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Duration *</label>
+                <label className="block text-sm font-medium text-ink mb-1">Duration *</label>
                 <input
                   type="text"
                   value={form.duration}
@@ -1958,7 +1965,7 @@ export default function SupplierListingForm({
                 />
               </div>
               <div id="supplier-listing-field-start">
-                <label className="block text-sm font-medium text-gray-700 mb-1">How does the tour start? *</label>
+                <label className="block text-sm font-medium text-ink mb-1">How does the tour start? *</label>
                 <select
                   value={form.experienceStartStyle}
                   onChange={(e) =>
@@ -1985,7 +1992,7 @@ export default function SupplierListingForm({
               >
                 <summary className="cursor-pointer list-none flex items-start justify-between gap-3">
                   <span>
-                    <span className="block text-sm font-semibold text-gray-900">Optional: how timing works</span>
+                    <span className="block text-sm font-semibold text-ink">Optional: how timing works</span>
                     <span className="block text-xs text-ink-muted mt-0.5">Fixed slot, flexible window, or arrange with guests</span>
                   </span>
                   <span className="text-xs text-finland font-medium mt-0.5">
@@ -1995,7 +2002,7 @@ export default function SupplierListingForm({
                   </span>
                 </summary>
                 <div className="mt-4 space-y-3">
-                <p className="text-xs text-gray-600">
+                <p className="text-xs text-ink-muted">
                   Helps travelers understand whether they are booking a fixed slot, flexible window, or arranging time with you.
                 </p>
                 <div className="space-y-2">
@@ -2005,7 +2012,7 @@ export default function SupplierListingForm({
                       className={`flex cursor-pointer gap-3 rounded-lg border p-3 transition-colors ${
                         form.scheduleStyle === o.value
                           ? 'border-finland bg-finland/5'
-                          : 'border-gray-200 bg-white hover:border-gray-300'
+                          : 'border-black/[0.08] bg-white hover:border-black/[0.12]'
                       }`}
                     >
                       <input
@@ -2014,17 +2021,17 @@ export default function SupplierListingForm({
                         value={o.value}
                         checked={form.scheduleStyle === o.value}
                         onChange={() => setForm((f) => ({ ...f, scheduleStyle: o.value }))}
-                        className="mt-1 border-gray-300 text-finland focus:ring-finland"
+                        className="mt-1 border-black/[0.12] text-finland focus:ring-finland"
                       />
                       <span>
-                        <span className="block text-sm font-medium text-gray-900">{o.label}</span>
-                        <span className="block text-xs text-gray-600 mt-0.5">{o.hint}</span>
+                        <span className="block text-sm font-medium text-ink">{o.label}</span>
+                        <span className="block text-xs text-ink-muted mt-0.5">{o.hint}</span>
                       </span>
                     </label>
                   ))}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Typical flow (optional)</label>
+                  <label className="block text-sm font-medium text-ink mb-1">Typical flow (optional)</label>
                   <textarea
                     value={form.typicalTimelineNotes}
                     maxLength={MAX_TIMELINE_LENGTH}
@@ -2179,7 +2186,7 @@ export default function SupplierListingForm({
                     className="flex flex-wrap items-center justify-between gap-3 py-4"
                   >
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold text-gray-900 truncate">
+                      <p className="text-sm font-semibold text-ink truncate">
                         {opt.name.trim() || 'Untitled option'}
                       </p>
                       <p className="text-xs text-ink-muted tabular-nums">
@@ -2227,7 +2234,7 @@ export default function SupplierListingForm({
               )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Overall difficulty</label>
+                  <label className="block text-sm font-medium text-ink mb-1">Overall difficulty</label>
                   <select
                     value={form.difficulty}
                     onChange={(e) =>
@@ -2250,7 +2257,7 @@ export default function SupplierListingForm({
               >
                 <summary className="cursor-pointer list-none flex items-start justify-between gap-3">
                   <span>
-                    <span className="block text-sm font-semibold text-gray-900">Optional: tags</span>
+                    <span className="block text-sm font-semibold text-ink">Optional: tags</span>
                     <span className="block text-xs text-ink-muted mt-0.5">Help travelers filter (pickup, small group, etc.)</span>
                   </span>
                   <span className="text-xs text-finland font-medium mt-0.5">{form.tags.length > 0 ? 'Saved' : 'Add'}</span>
@@ -2266,9 +2273,9 @@ export default function SupplierListingForm({
                         type="checkbox"
                         checked={form.tags.includes(tag.id)}
                         onChange={() => toggleTag(tag.id)}
-                        className="h-5 w-5 rounded border-gray-300 text-finland focus:ring-2 focus:ring-finland focus:ring-offset-0 shrink-0"
+                        className="h-5 w-5 rounded border-black/[0.12] text-finland focus:ring-2 focus:ring-finland focus:ring-offset-0 shrink-0"
                       />
-                      <span className="text-base text-gray-800 font-medium leading-snug">{tag.label}</span>
+                      <span className="text-base text-ink font-medium leading-snug">{tag.label}</span>
                     </label>
                   ))}
                 </div>
@@ -2281,7 +2288,7 @@ export default function SupplierListingForm({
             <div className="space-y-6">
                 <div>
                   <h3 className="font-display text-xl text-ink">
-                    Tour photos ({LISTING_PHOTO_MIN}–{LISTING_PHOTO_MAX} required to publish)
+                    {form.inventoryFamily === 'stay' || createFamily === 'stay' ? 'Stay photos' : 'Tour photos'} ({LISTING_PHOTO_MIN}–{LISTING_PHOTO_MAX} required to publish)
                   </h3>
                   <p className="mt-1 text-sm text-ink-muted">
                     Add photos in traveler order. The first photo is the main image. Use + Add photo or Replace to upload from
@@ -2324,10 +2331,10 @@ export default function SupplierListingForm({
                   {form.status === 'published' ? 'Update your live listing' : 'Go live or keep a draft'}
                 </p>
                 <p className="mt-2 text-sm text-ink-muted leading-relaxed">
-                  <span className="font-medium text-ink">Publish</span> runs a final check and lists your tour on Traverion for
+                  <span className="font-medium text-ink">Publish</span> runs a final check and lists this{' '}
+                  {form.inventoryFamily === 'stay' || createFamily === 'stay' ? 'stay' : 'tour'} on Traverion for
                   travelers. <span className="font-medium text-ink">Save as draft</span> stores progress without going live.
-                  Promotional discounts are under <span className="font-medium text-ink">Discounts &amp; offers</span> in the
-                  sidebar.
+                  Promotional discounts are under <span className="font-medium text-ink">Offers</span> in Account.
                 </p>
               </div>
             </div>
@@ -2335,7 +2342,7 @@ export default function SupplierListingForm({
           </div>
         </div>
 
-        <div className="px-4 sm:px-6 py-3 sm:py-4 border-t border-gray-200 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 shrink-0">
+        <div className="relative z-10 px-4 sm:px-6 py-3 sm:py-4 border-t border-black/[0.08] bg-paper flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 shrink-0 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           <button
             type="button"
             onClick={() => setStepIdxPersisted((s) => Math.max(0, s - 1))}

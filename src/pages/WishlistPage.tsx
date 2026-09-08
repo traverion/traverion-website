@@ -13,6 +13,7 @@ import { isSupabaseConfigured } from '../lib/supabase';
 import { fetchWishlistListingIds, removeFromWishlist } from '../data/supabase-wishlist';
 import { fetchListingById } from '../data/supabase-listings';
 import { TourPackage } from '../types/tour';
+import { formatMoney } from '../lib/money';
 import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
 
 interface WishlistPageProps {
@@ -177,7 +178,7 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
                       {tour.destination} · {tour.duration}
                     </p>
                     <p className="mt-1 text-sm text-ink">
-                      From {tour.price?.currency ?? 'USD'} {tour.price?.startingFrom ?? 0}
+                      From {formatMoney(tour.price?.startingFrom ?? 0, tour.price?.currency)}
                     </p>
                   </div>
                 </button>

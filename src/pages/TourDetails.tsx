@@ -66,6 +66,7 @@ function readSearchPrefill(): { date: string; guests: number } {
 }
 import GuestStepper from '../components/booking/GuestStepper';
 import { fetchWishlistListingIds, toggleWishlist } from '../data/supabase-wishlist';
+import { formatMoney, normalizeCurrency } from '../lib/money';
 
 interface TourDetailsProps {
   tourId: string;
@@ -121,6 +122,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   const weekdayHint = useMemo(() => {
     const unique = [...new Set(tourVariants.map((v) => formatOptionWeekdays(v.listingOption?.weekdays)))];
     if (unique.length === 1) return `Runs ${unique[0]}`;
+    if (unique.length > 1) return 'Each option has its own days — Adult and Child can differ.';
     return undefined;
   }, [tourVariants]);
 
@@ -587,11 +589,11 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                   {(() => {
                     const { price, originalPrice, label } = getDisplayPriceForTour(tour, discountsByListing);
                     const hasDiscount = Boolean(label && price < originalPrice);
-                    const currency = tour.price?.currency ?? 'USD';
+                    const currency = normalizeCurrency(tour.price?.currency);
                     const shown = hasDiscount ? price : tour.price.startingFrom;
                     return (
                       <span className="text-ink font-semibold tabular-nums">
-                        From {currency} {Number(shown).toFixed(0)}
+                        From {formatMoney(Number(shown), currency)}
                       </span>
                     );
                   })()}
@@ -921,15 +923,15 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                 {(() => {
                   const { price, originalPrice, label } = getDisplayPriceForTour(tour, discountsByListing);
                   const hasDiscount = label && price < originalPrice;
-                  const currency = tour.price?.currency ?? 'USD';
+                  const currency = normalizeCurrency(tour.price?.currency);
                   const shown = hasDiscount ? price : tour.price.startingFrom;
                   return (
                     <>
                       <div className="text-2xl font-bold text-ink mb-1">
-                        From {currency} {Number(shown).toFixed(0)}
+                        From {formatMoney(Number(shown), currency)}
                         {hasDiscount && (
                           <span className="text-base font-normal text-ink-faint ml-1 line-through">
-                            {currency} {originalPrice}
+                            {formatMoney(originalPrice, currency)}
                           </span>
                         )}
                       </div>
@@ -1032,12 +1034,12 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                     <span className="font-medium text-ink">{v.label}</span>
                     {v.listingOption ? (
                       <span className="mt-0.5 block text-xs text-ink-muted">
-                        {formatOptionWeekdays(v.listingOption.weekdays)}
+                        Runs {formatOptionWeekdays(v.listingOption.weekdays)}
                       </span>
                     ) : null}
                     <span className="mt-0.5 block text-xs leading-snug text-ink-muted">{v.subtitle}</span>
                     <span className="mt-1.5 block text-sm font-semibold text-finland">
-                      From {tour.price?.currency ?? 'USD'} {v.pricePerPerson}{' '}
+                      From {formatMoney(v.pricePerPerson, tour.price?.currency)}{' '}
                       <span className="font-normal text-ink-muted">/ person</span>
                     </span>
                     {dayErr ? <span className="mt-1 block text-xs text-red-600">{dayErr}</span> : null}
@@ -1189,12 +1191,12 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
             {(() => {
               const { price, originalPrice, label } = getDisplayPriceForTour(tour, discountsByListing);
               const hasDiscount = Boolean(label && price < originalPrice);
-              const currency = tour.price?.currency ?? 'USD';
+              const currency = normalizeCurrency(tour.price?.currency);
               const shown = hasDiscount ? price : tour.price.startingFrom;
               return (
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-ink">
-                    From {currency} {Number(shown).toFixed(0)}
+                    From {formatMoney(Number(shown), currency)}
                     <span className="font-normal text-ink-muted"> · per person</span>
                   </p>
                   <p className="text-xs text-ink-muted">

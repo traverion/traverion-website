@@ -21,6 +21,7 @@ import {
 } from '../data/supabase-bookings';
 import { fetchListingTitlesByIds, pgTimeToHm } from '../data/supabase-listings';
 import { parseStayCheckOutFromNotes } from '../lib/stayOccupancy';
+import { formatMoney, isStripeTestCheckoutSession } from '../lib/money';
 import { decrementAvailabilityBooked } from '../data/supabase-availability';
 import { clearBookingsUnread } from '../lib/customerBookingNotifications';
 
@@ -427,6 +428,9 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                     {b.guests} {b.guests === 1 ? 'guest' : 'guests'}
                     {b.start_time && !b.check_out ? ` · ${pgTimeToHm(b.start_time) ?? ''}` : ''}
                     {b.nights ? ` · ${b.nights} night${b.nights === 1 ? '' : 's'}` : ''}
+                    {b.amount_paid != null && Number(b.amount_paid) > 0
+                      ? ` · ${formatMoney(Number(b.amount_paid), b.currency)}${isStripeTestCheckoutSession(b.checkout_session_id) ? ' TEST' : ''}`
+                      : ''}
                   </p>
                 </button>
                 {open ? (

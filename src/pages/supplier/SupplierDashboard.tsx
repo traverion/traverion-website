@@ -10,6 +10,7 @@ import { fetchSupplierProfile } from '../../data/supabase-supplier-profile';
 import SupplierPortalNoticePanel from '../../components/supplier/SupplierPortalNoticePanel';
 import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
+import { formatMoney } from '../../lib/money';
 
 interface SupplierDashboardProps {
   onNavigateToBookings?: () => void;
@@ -291,15 +292,7 @@ export default function SupplierDashboard({ onNavigateToBookings }: SupplierDash
           <ul className="space-y-4">
             {recentBookings.map((b) => {
               const paid = b.amount_paid != null && Number.isFinite(Number(b.amount_paid)) ? Number(b.amount_paid) : null;
-              const cur = (b.currency ?? 'EUR').trim() || 'EUR';
-              const money =
-                paid == null
-                  ? null
-                  : cur === 'USD'
-                    ? `$${paid.toFixed(0)}`
-                    : cur === 'EUR'
-                      ? `€${paid.toFixed(0)}`
-                      : `${paid.toFixed(0)} ${cur}`;
+              const money = paid == null ? null : formatMoney(paid, b.currency);
               return (
                 <li key={b.id} className="flex items-baseline justify-between gap-3">
                   <button

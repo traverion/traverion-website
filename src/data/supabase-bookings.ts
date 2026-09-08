@@ -265,7 +265,7 @@ export async function submitBooking(
     status: data.status ?? 'confirmed',
     special_requests,
     total_amount: totalAmount ?? null,
-    currency: data.currency ?? 'USD',
+    currency: data.currency ?? 'EUR',
     guest_user_id,
   }).select('id, booking_number').maybeSingle();
   if (error) return { success: false, error: error.message };
@@ -299,7 +299,7 @@ export async function submitBooking(
         bookingDate: data.departure_date ?? undefined,
         guests: data.travelers ?? undefined,
         totalAmount: totalAmount ?? undefined,
-        currency: data.currency ?? 'USD',
+        currency: data.currency ?? 'EUR',
         emailKind: 'booking_request',
         publicSiteUrl: publicSiteBaseUrl(),
       },
@@ -694,6 +694,8 @@ export async function cancelBookingAsCustomer(
 export async function fetchMyBookings(): Promise<BookingRow[]> {
   if (!supabase) return [];
   const columnTiers = [
+    BOOKING_PAYMENT_COLUMNS,
+    BOOKING_PAYMENT_COLUMNS_LEGACY,
     BOOKING_LIST_COLUMNS,
     BOOKING_LIST_COLUMNS_LEGACY,
     BOOKING_CORE_COLUMNS,
@@ -737,4 +739,21 @@ export async function fetchMyBookingByCheckoutSessionId(
     if (!isLikelyMissingColumnError(error.message)) break;
   }
   throw new Error(lastError ?? 'Could not load booking');
+}
+
+/** Occupied stay ranges for a published listing (no guest PII). Checkout night is exclusive. */
+export async function fetchPublishedStayOccupiedRanges(
+  listingId: string
+): Promise<{ checkIn: string; checkOut: string }[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase.rpc('published_stay_occupied_ranges', {
+    p_listing_id: listingId,
+  });
+  if (error || !Array.isArray(data)) return [];
+  return (data as { check_in: string; check_out: string }[])
+    .map((row) => ({
+      checkIn: String(row.check_in ?? '').slice(0, 10),
+      checkOut: String(row.check_out ?? '').slice(0, 10),
+    }))
+    .filter((row) => /^\d{4}-\d{2}-\d{2}$/.test(row.checkIn) && /^\d{4}-\d{2}-\d{2}$/.test(row.checkOut));
 }

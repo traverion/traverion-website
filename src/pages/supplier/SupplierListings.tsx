@@ -34,6 +34,7 @@ import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { publicStayListingUrl, publicTourListingUrl } from '../../lib/publicSiteUrl';
 import { getListingPublishBlockers } from '../../lib/listingPublishGate';
 import { listingHeroImageSrc } from '../../lib/listingPhotoGrid';
+import { formatMoney } from '../../lib/money';
 import { inventoryFamilyFromListing, PARTNER_CREATE_INVENTORY } from '../../lib/inventory';
 import { normalizeListingForDraftSave } from '../../lib/listingDraftUtils';
 import { SkeletonListItem } from '../../components/ui/Skeleton';
@@ -893,16 +894,9 @@ export default function SupplierListings() {
                 : isLive
                   ? 'Live tour'
                   : 'Draft tour';
-              const currency = listing.price?.currency ?? 'USD';
+              const currency = listing.price?.currency ?? 'EUR';
               const from = listing.price?.startingFrom;
-              const money =
-                from == null
-                  ? null
-                  : currency === 'USD'
-                    ? `$${from}`
-                    : currency === 'EUR'
-                      ? `€${from}`
-                      : `${from} ${currency}`;
+              const money = from == null ? null : formatMoney(from, currency);
               const place = [listing.city, listing.country ?? listing.destination].filter(Boolean).join(', ');
               const heroSrc = listingHeroImageSrc(listing.image);
               return (
