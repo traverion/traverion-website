@@ -864,7 +864,7 @@ export default function SupplierLayout() {
       <main
         id="main-content"
         tabIndex={-1}
-        className={`relative z-[25] mx-auto w-full max-w-6xl min-w-0 px-4 sm:px-6 pt-4 pb-[max(1.5rem,calc(5.25rem+env(safe-area-inset-bottom)))] lg:pb-16 outline-none ${section === 'availability' ? 'max-w-none lg:px-10' : ''}`}
+        className={`mx-auto w-full max-w-6xl min-w-0 px-4 sm:px-6 pt-4 pb-[max(1.5rem,calc(5.25rem+env(safe-area-inset-bottom)))] lg:pb-16 outline-none ${section === 'availability' ? 'max-w-none lg:px-10' : ''}`}
       >
         <div className="lux-page-enter w-full min-w-0">
           <Suspense fallback={<PartnerSectionFallback />}>
@@ -1019,7 +1019,7 @@ export default function SupplierLayout() {
       </main>
 
       <nav
-        className="partner-bottom-nav md:hidden fixed bottom-0 inset-x-0 z-20 bg-paper/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)] border-t border-black/[0.04] pointer-events-auto"
+        className="partner-bottom-nav md:hidden fixed bottom-0 inset-x-0 z-40 bg-paper/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)] border-t border-black/[0.04]"
         aria-label="Primary"
       >
         <div className="flex items-stretch justify-around max-w-lg mx-auto px-1">
