@@ -118,24 +118,26 @@ export default function ListingImageFields({
     pushBundle(nextS, nextL);
   };
 
-  const moveLeft = () => {
-    if (selectedIndex == null || selectedIndex <= 0) return;
+  const moveToIndex = (from: number, to: number) => {
+    if (from === to || from < 0 || to < 0 || from >= filledCount || to >= filledCount) return;
     const nextS = [...normalizePhotoSlots(slots)];
     const nextL = [...normalizePhotoSlotLabels(labels)];
-    [nextS[selectedIndex], nextS[selectedIndex - 1]] = [nextS[selectedIndex - 1], nextS[selectedIndex]];
-    [nextL[selectedIndex], nextL[selectedIndex - 1]] = [nextL[selectedIndex - 1], nextL[selectedIndex]];
+    const [s] = nextS.splice(from, 1);
+    const [l] = nextL.splice(from, 1);
+    nextS.splice(to, 0, s ?? '');
+    nextL.splice(to, 0, l ?? '');
     pushBundle(nextS, nextL);
-    setSelectedIndex(selectedIndex - 1);
+    setSelectedIndex(to);
+  };
+
+  const moveLeft = () => {
+    if (selectedIndex == null || selectedIndex <= 0) return;
+    moveToIndex(selectedIndex, selectedIndex - 1);
   };
 
   const moveRight = () => {
     if (selectedIndex == null || selectedIndex >= filledCount - 1) return;
-    const nextS = [...normalizePhotoSlots(slots)];
-    const nextL = [...normalizePhotoSlotLabels(labels)];
-    [nextS[selectedIndex], nextS[selectedIndex + 1]] = [nextS[selectedIndex + 1], nextS[selectedIndex]];
-    [nextL[selectedIndex], nextL[selectedIndex + 1]] = [nextL[selectedIndex + 1], nextL[selectedIndex]];
-    pushBundle(nextS, nextL);
-    setSelectedIndex(selectedIndex + 1);
+    moveToIndex(selectedIndex, selectedIndex + 1);
   };
 
   const addSlotIndex = filledCount;
@@ -163,7 +165,7 @@ export default function ListingImageFields({
       <div id="supplier-listing-field-image" className="space-y-2">
         <p className="text-xs text-ink-muted leading-relaxed">
           <span className="font-medium text-ink">Order = what travelers see</span> (first photo is the cover).
-          Select a photo and use the arrows to reorder. You can also drag a file onto Add photo.
+          Select a photo and use the arrows to reorder, or drag photos into place. You can also drop a file onto Add photo.
         </p>
         <p className="text-xs text-finland font-medium tabular-nums">
           {filledCount} / {LISTING_PHOTO_MIN}–{LISTING_PHOTO_MAX} photos added
@@ -206,6 +208,20 @@ export default function ListingImageFields({
               <div key={`slot-${index}-${url.slice(-24)}`} className="flex w-[5.75rem] sm:w-[6.25rem] flex-col gap-1 min-w-0">
                 <button
                   type="button"
+                  draggable={!busy}
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData('text/plain', String(index));
+                    e.dataTransfer.effectAllowed = 'move';
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const from = Number.parseInt(e.dataTransfer.getData('text/plain'), 10);
+                    if (Number.isFinite(from)) moveToIndex(from, index);
+                  }}
                   onClick={() => setSelectedIndex(selected ? null : index)}
                   aria-pressed={selected}
                   aria-label={`${selected ? 'Selected: ' : ''}${caption}. Photo ${index + 1} of ${filledCount}`}

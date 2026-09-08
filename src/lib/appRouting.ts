@@ -17,7 +17,7 @@ const PATH_TO_PAGE: Record<string, string> = {
   '/packages': 'packages',
   '/tours': 'packages',
   '/stays': 'stays',
-  '/cart': 'cart',
+  '/cart': 'bookings',
   '/auth': 'auth',
   '/sign-up': 'auth',
   '/log-in': 'auth',
@@ -66,6 +66,15 @@ export function normalizePublicTourDeepLinkPathname(pathname: string): string {
   const qs = new URLSearchParams({ tour: m[1] }).toString();
   window.history.replaceState(window.history.state, '', `/packages?${qs}`);
   return '/packages';
+}
+
+/** Retired saved-cart URL — travelers book from the listing, so send old links to Trips. */
+export function normalizeRetiredCartPathname(pathname: string): string {
+  const normalized =
+    pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
+  if (normalized !== '/cart' || typeof window === 'undefined') return pathname;
+  window.history.replaceState(window.history.state, '', '/trips');
+  return '/trips';
 }
 
 const TOUR_FLOW_PAGES = new Set(['tour-details', 'booking', 'tour-package', 'stay-details']);

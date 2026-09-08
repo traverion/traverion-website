@@ -159,7 +159,7 @@ export default function Stays({ onStaySelect }: Props) {
             body={
               stays.length === 0
                 ? 'Traverion does not fill this page with sample apartments. When an operator publishes a stay, it appears here.'
-                : 'Try another place or guest count.'
+                : 'Try another place, dates, or guest count.'
             }
             action={
               stays.length === 0 ? (

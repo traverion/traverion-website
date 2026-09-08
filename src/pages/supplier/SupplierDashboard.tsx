@@ -274,7 +274,12 @@ export default function SupplierDashboard({ onNavigateToBookings }: SupplierDash
                   {listingTitlesById[b.listing_id] ?? 'Tour'}
                 </button>
                 <p className="text-sm text-ink-muted">
-                  {b.booking_date} · {b.guests} guest{b.guests === 1 ? '' : 's'}
+                  {new Date(`${b.booking_date}T12:00:00`).toLocaleDateString(undefined, {
+                    weekday: 'short',
+                    day: 'numeric',
+                    month: 'short',
+                  })}{' '}
+                  · {b.guests} guest{b.guests === 1 ? '' : 's'}
                 </p>
               </li>
             ))}
@@ -303,7 +308,7 @@ export default function SupplierDashboard({ onNavigateToBookings }: SupplierDash
             {pendingBookings.length > 0 && (
               <li>
                 <button type="button" onClick={() => onNavigateToBookings?.()} className="lux-flat min-h-11 w-full text-left py-2 text-finland font-medium">
-                  {pendingBookings.length} booking{pendingBookings.length === 1 ? '' : 's'} to confirm
+                  {pendingBookings.length} unpaid checkout{pendingBookings.length === 1 ? '' : 's'} still open
                 </button>
               </li>
             )}

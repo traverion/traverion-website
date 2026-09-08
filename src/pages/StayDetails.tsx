@@ -15,9 +15,12 @@ import ErrorState from '../components/ErrorState';
 import { Skeleton } from '../components/ui/Skeleton';
 import { setPageMetaWithOg } from '../lib/seo';
 import { formatMoney, normalizeCurrency } from '../lib/money';
-import PriceBreakdown from '../components/PriceBreakdown';
-import { userFacingError } from '../lib/userFacingError';
+import PriceBreakdown, { PriceHero } from '../components/PriceBreakdown';
+import StayNightPicker from '../components/StayNightPicker';
+import NoticeCallout from '../components/NoticeCallout';
+import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 import { CHECKOUT_HOLD_MINUTES } from '../lib/booking-hold';
+import { formatOccupiedNightRanges, formatStayNightHuman } from '../lib/stay-calendar';
 
 type Props = {
   stayId: string;
@@ -197,27 +200,21 @@ export default function StayDetails({ stayId, onBack }: Props) {
           <div className="mb-8" />
         )}
         <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">Stay</p>
-        <h1 className="font-display text-3xl sm:text-5xl text-ink tracking-tight mb-2">{stay.title}</h1>
-        <p className="text-ink-muted flex items-center gap-2 mb-4">
+        <p className="text-ink-muted flex items-center gap-2 mb-2">
           <MapPin className="w-4 h-4" aria-hidden />
           {[stay.city, stay.country].filter(Boolean).join(', ') || stay.destination}
         </p>
+        <h1 className="font-display text-3xl sm:text-5xl text-ink tracking-tight mb-4">{stay.title}</h1>
         <p className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-ink-muted mb-10">
           {typeof s?.maxGuests === 'number' ? <span>Up to {s.maxGuests} guests</span> : null}
           {typeof s?.bedrooms === 'number' ? (
-            <span>
-              {s.bedrooms} bedroom{s.bedrooms === 1 ? '' : 's'}
-            </span>
+            <span>{s.bedrooms === 1 ? '1 bedroom' : `${s.bedrooms} bedrooms`}</span>
           ) : null}
           {typeof s?.beds === 'number' ? (
-            <span>
-              {s.beds} bed{s.beds === 1 ? '' : 's'}
-            </span>
+            <span>{s.beds === 1 ? '1 bed' : `${s.beds} beds`}</span>
           ) : null}
           {typeof s?.bathrooms === 'number' ? (
-            <span>
-              {s.bathrooms} bath{s.bathrooms === 1 ? '' : 's'}
-            </span>
+            <span>{s.bathrooms === 1 ? '1 bath' : `${s.bathrooms} baths`}</span>
           ) : null}
               {nightly > 0 ? (
             <span className="text-ink font-semibold tabular-nums">
@@ -238,9 +235,13 @@ export default function StayDetails({ stayId, onBack }: Props) {
               <h2 className="font-display text-2xl mb-3">Sleeping</h2>
               <ul className="space-y-2 text-ink-muted">
               {s?.propertyType ? <li>{s.propertyType}</li> : null}
-              {typeof s?.bedrooms === 'number' ? <li>{s.bedrooms} bedroom{s.bedrooms === 1 ? '' : 's'}</li> : null}
-              {typeof s?.beds === 'number' ? <li>{s.beds} bed{s.beds === 1 ? '' : 's'}</li> : null}
-              {typeof s?.bathrooms === 'number' ? <li>{s.bathrooms} bath{s.bathrooms === 1 ? '' : 's'}</li> : null}
+              {typeof s?.bedrooms === 'number' ? (
+                <li>{s.bedrooms === 1 ? '1 bedroom' : `${s.bedrooms} bedrooms`}</li>
+              ) : null}
+              {typeof s?.beds === 'number' ? <li>{s.beds === 1 ? '1 bed' : `${s.beds} beds`}</li> : null}
+              {typeof s?.bathrooms === 'number' ? (
+                <li>{s.bathrooms === 1 ? '1 bath' : `${s.bathrooms} baths`}</li>
+              ) : null}
               {typeof s?.maxGuests === 'number' ? (
                 <li className="flex items-center gap-2">
                   <Users className="w-4 h-4" aria-hidden /> Up to {s.maxGuests} guests
@@ -263,11 +264,13 @@ export default function StayDetails({ stayId, onBack }: Props) {
               </p>
               {occupiedNights.length > 0 ? (
                 <p className="mt-3 text-sm text-ink">
-                  Currently booked: {occupiedNights.slice(0, 12).join(', ')}
-                  {occupiedNights.length > 12 ? '…' : ''}
+                  Currently booked: {formatOccupiedNightRanges(occupiedNights.slice(0, 24))}
+                  {occupiedNights.length > 24 ? '…' : ''}
                 </p>
               ) : (
-                <p className="mt-3 text-sm text-ink-muted">No occupied nights on the calendar yet besides what you select at checkout.</p>
+                <p className="mt-3 text-sm text-ink-muted">
+                  No nights are occupied yet. Choose check-in and check-out on the booking panel.
+                </p>
               )}
             </div>
             {s?.checkInTime || s?.checkOutTime ? (
@@ -300,30 +303,34 @@ export default function StayDetails({ stayId, onBack }: Props) {
           </div>
 
           <aside className="lg:sticky lg:top-24 h-fit rounded-2xl bg-paper-raised p-5 shadow-soft-lg">
-            <p className="text-lg font-semibold text-ink">
-              {nightly > 0 ? formatMoney(nightly, currency) : '—'}
-              <span className="text-sm font-normal text-ink-muted"> / night</span>
+            {nightly > 0 ? (
+              <PriceHero
+                amount={nightly}
+                currency={currency}
+                basis={minNights === 1 ? 'per night · 1 night minimum' : `per night · ${minNights} nights minimum`}
+              />
+            ) : (
+              <p className="text-lg font-semibold text-ink">—</p>
+            )}
+            <div className="mt-4">
+              <StayNightPicker
+                checkIn={checkIn}
+                checkOut={checkOut}
+                occupiedNights={occupiedNights}
+                todayIso={new Date().toISOString().slice(0, 10)}
+                minNights={minNights}
+                onChange={(a, b) => {
+                  setCheckIn(a);
+                  setCheckOut(b);
+                  setPayError(null);
+                }}
+              />
+            </div>
+            <p className="mt-3 text-sm text-ink">
+              {checkIn ? formatStayNightHuman(checkIn) : 'Check-in'}
+              {' → '}
+              {checkOut ? formatStayNightHuman(checkOut) : 'Check-out'}
             </p>
-            <label className="mt-4 block text-sm font-medium text-ink" htmlFor="stay-checkin">
-              Check-in
-            </label>
-            <input
-              id="stay-checkin"
-              type="date"
-              value={checkIn}
-              onChange={(e) => setCheckIn(e.target.value)}
-              className="tv-input mt-1 w-full"
-            />
-            <label className="mt-3 block text-sm font-medium text-ink" htmlFor="stay-checkout">
-              Check-out
-            </label>
-            <input
-              id="stay-checkout"
-              type="date"
-              value={checkOut}
-              onChange={(e) => setCheckOut(e.target.value)}
-              className="tv-input mt-1 w-full"
-            />
             <label className="mt-3 block text-sm font-medium text-ink" htmlFor="stay-guests">
               Guests
             </label>
@@ -337,10 +344,19 @@ export default function StayDetails({ stayId, onBack }: Props) {
               className="tv-input mt-1 w-full"
             />
             {nights != null && nights < minNights ? (
-              <p className="mt-3 text-sm text-red-700">Minimum stay is {minNights} night{minNights === 1 ? '' : 's'}.</p>
+              <div className="mt-3">
+                <NoticeCallout title="Minimum stay not met" tone="warn">
+                  This stay requires at least {minNights === 1 ? '1 night' : `${minNights} nights`}. Extend check-out to
+                  continue.
+                </NoticeCallout>
+              </div>
             ) : null}
             {selectionOccupied ? (
-              <p className="mt-3 text-sm text-red-700">Those dates were just booked by another traveler. Choose different dates to continue.</p>
+              <div className="mt-3">
+                <NoticeCallout title="Those nights are taken" tone="danger">
+                  Another traveler already has this stay on those dates. Choose a different range.
+                </NoticeCallout>
+              </div>
             ) : null}
             {quoteOk && stayQuote?.ok ? (
               <div className="mt-4">
@@ -353,7 +369,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
               </div>
             ) : null}
             {stayQuote && !stayQuote.ok && checkIn && checkOut ? (
-              <p className="mt-3 text-sm text-red-700">{stayQuote.error}</p>
+              <p className="mt-3 text-sm text-red-700">{userFacingError(stayQuote.error, USER_ERROR.checkout)}</p>
             ) : null}
             {user ? (
               <>
@@ -397,7 +413,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
               disabled={paying}
               onClick={startStayCheckout}
             >
-              {quoteOk ? (paying ? 'Opening…' : 'Book') : 'Choose dates'}
+              {quoteOk ? (paying ? 'Opening…' : 'Continue to payment') : 'Select dates'}
             </button>
           ) : (
             <a

@@ -1,11 +1,10 @@
 /**
- * Consumer hub: bookings, wishlist, cart, and future reviews — one place to manage trip planning.
+ * Consumer hub: profile, trips, and saved tours.
  */
 import { useState, useEffect, useCallback } from 'react';
 import {
   Calendar,
   Heart,
-  ShoppingCart,
   ChevronRight,
   LogIn,
 } from 'lucide-react';
@@ -17,7 +16,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { fetchMyBookings } from '../data/supabase-bookings';
 import { fetchWishlistListingIds } from '../data/supabase-wishlist';
-import { fetchCartCount } from '../data/supabase-cart';
 import {
   fetchConsumerProfileRow,
   saveConsumerProfile,
@@ -27,7 +25,7 @@ interface AccountPageProps {
   onNavigate: (page: string) => void;
 }
 
-type HubStats = { bookings: number; wishlist: number; cart: number };
+type HubStats = { bookings: number; wishlist: number };
 
 export default function AccountPage({ onNavigate }: AccountPageProps) {
   const { user, loading: authLoading } = useAuth();
@@ -48,15 +46,13 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
     setStatsLoading(true);
     setStatsError(null);
     try {
-      const [bookings, wishlistIds, cart] = await Promise.all([
+      const [bookings, wishlistIds] = await Promise.all([
         fetchMyBookings(),
         fetchWishlistListingIds(user.id),
-        fetchCartCount(user.id),
       ]);
       setStats({
         bookings: bookings.length,
         wishlist: wishlistIds.length,
-        cart,
       });
     } catch (e) {
       setStats(null);
@@ -170,14 +166,6 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
       icon: Heart,
       count: stats != null ? badge(stats.wishlist) : undefined,
       onClick: () => onNavigate('wishlist'),
-    },
-    {
-      id: 'cart',
-      title: 'Cart',
-      description: 'Saved items — book from the tour page',
-      icon: ShoppingCart,
-      count: stats != null ? badge(stats.cart) : undefined,
-      onClick: () => onNavigate('cart'),
     },
   ];
 

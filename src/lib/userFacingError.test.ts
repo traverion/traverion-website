@@ -22,8 +22,11 @@ describe('userFacingError', () => {
     expect(userFacingError('duplicate key value violates unique constraint "listings_pkey"', USER_ERROR.listingSave)).toBe(
       USER_ERROR.listingSave
     );
-    expect(userFacingError('P0001: Those nights are already booked.', USER_ERROR.checkout)).toBe(
-      'Those dates were just booked by another traveler. Choose different dates to continue.'
+    expect(userFacingError('P0001: Not enough capacity left.', USER_ERROR.checkout)).toBe(
+      'That departure just filled up. Choose another time or date.'
+    );
+    expect(userFacingError('Failed RPC', USER_ERROR.generic)).toBe(
+      "We couldn't update your booking. Nothing was changed. Try again."
     );
   });
 

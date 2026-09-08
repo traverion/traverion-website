@@ -17,7 +17,7 @@ type PortalPhase = 'verifying' | 'traveler' | 'partner' | 'invalid';
 function readNextAfterReset(): string {
   try {
     const next = new URLSearchParams(window.location.search).get('next');
-    const allowed = new Set(['home', 'packages', 'cart', 'bookings', 'booking-confirmed', 'account', 'wishlist', 'contact']);
+    const allowed = new Set(['home', 'packages', 'bookings', 'booking-confirmed', 'account', 'wishlist', 'contact']);
     if (next && allowed.has(next)) return next;
   } catch {
     /* ignore */

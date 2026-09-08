@@ -22,7 +22,6 @@ const SECTIONS: SitemapSection[] = [
     items: [
       { label: 'Sign in / Sign up', href: '/log-in?next=account' },
       { label: 'My account', page: 'account' },
-      { label: 'Saved cart', page: 'cart' },
       { label: 'Wishlist', page: 'wishlist' },
       { label: 'My bookings', page: 'bookings' },
     ],

@@ -38,6 +38,18 @@ const KNOWN_HUMAN: Array<{ test: RegExp; copy: string }> = [
     test: /checkout session has expired|session expired/i,
     copy: 'This checkout expired and the hold was released. Start checkout again to continue.',
   },
+  {
+    test: /not enough capacity|no capacity left/i,
+    copy: 'That departure just filled up. Choose another time or date.',
+  },
+  {
+    test: /failed rpc|rpc error|could not find the function/i,
+    copy: "We couldn't update your booking. Nothing was changed. Try again.",
+  },
+  {
+    test: /inventory (lock|hold) (lost|expired)|hold expired/i,
+    copy: 'Those spots were released while you were checking out. Start checkout again to continue.',
+  },
 ];
 
 function stripSqlPrefix(raw: string): string {

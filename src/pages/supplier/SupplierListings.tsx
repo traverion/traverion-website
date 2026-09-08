@@ -928,14 +928,17 @@ export default function SupplierListings() {
                       </span>
                     </div>
                     <div className="pt-3">
-                      <h2 className="font-sans text-base font-semibold text-ink leading-snug">{listing.title}</h2>
-                      <p className="mt-1 text-sm text-ink-muted">{place || listing.duration}</p>
+                      <p className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">{typeLabel}</p>
+                      {place ? <p className="mt-1 text-sm text-ink-muted">{place}</p> : null}
+                      <h2 className="mt-0.5 font-sans text-base font-semibold text-ink leading-snug">{listing.title}</h2>
                       {money ? (
                         <p className="mt-1 text-sm text-ink">
                           From {money}
-                          {qualifier && !isStay ? ` / ${qualifier}` : isStay ? ' / night' : ''}
+                          {qualifier && !isStay ? ` per ${qualifier}` : isStay ? ' per night' : ''}
                         </p>
-                      ) : null}
+                      ) : (
+                        <p className="mt-1 text-sm text-ink-faint">Price not set</p>
+                      )}
                     </div>
                   </button>
                   <div className="mt-3 flex flex-wrap items-center gap-2">

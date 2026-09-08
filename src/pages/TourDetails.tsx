@@ -67,6 +67,7 @@ function readSearchPrefill(): { date: string; guests: number } {
 import GuestStepper from '../components/booking/GuestStepper';
 import { fetchWishlistListingIds, toggleWishlist } from '../data/supabase-wishlist';
 import { formatMoney, normalizeCurrency } from '../lib/money';
+import { PriceHero } from '../components/PriceBreakdown';
 
 interface TourDetailsProps {
   tourId: string;
@@ -930,20 +931,17 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                   const { price, originalPrice, label, qualifier, summary } = getDisplayPriceForTour(tour, discountsByListing);
                   const hasDiscount = label && price < originalPrice;
                   const currency = normalizeCurrency(tour.price?.currency);
-                  const unit = qualifier ? `/ ${qualifier}` : 'per person';
+                  const unit = qualifier ? `From · per ${qualifier}` : 'From · per person';
                   return (
                     <>
-                      <div className="text-2xl font-bold text-ink mb-1">
-                        From {formatMoney(Number(price), currency)}
-                        {hasDiscount && (
-                          <span className="text-base font-normal text-ink-faint ml-1 line-through">
-                            {formatMoney(originalPrice, currency)}
-                          </span>
-                        )}
-                      </div>
-                      {hasDiscount && <p className="text-sm text-finland mb-1">{label}</p>}
-                      <p className="text-sm text-ink-muted mb-1">{unit}</p>
-                      {summary ? <p className="text-sm text-ink-muted mb-4">{summary}</p> : <div className="mb-4" />}
+                      <PriceHero
+                        amount={Number(price)}
+                        currency={currency}
+                        basis={unit}
+                        originalAmount={hasDiscount ? originalPrice : null}
+                        discountLabel={hasDiscount ? label : null}
+                      />
+                      {summary ? <p className="text-sm text-ink-muted mt-1 mb-4">{summary}</p> : <div className="mb-4" />}
                     </>
                   );
                 })()}
@@ -1015,11 +1013,13 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
             aria-label="Tour options"
             className={`mt-4 lg:mt-6 overflow-hidden transition-all duration-300 ease-out motion-reduce:transition-none ${
               bookingVariantsOpen
-                ? `max-h-[28rem] opacity-100 translate-y-0 ${
+                ? `max-h-[32rem] opacity-100 translate-y-0 ${
                     optionsAttentionPulse ? 'ring-1 ring-finland/25 rounded-2xl' : ''
                   }`
                 : 'max-h-0 opacity-0 -translate-y-2 pointer-events-none'
             }`}
+            hidden={!bookingVariantsOpen}
+            aria-hidden={!bookingVariantsOpen}
           >
             <div className="px-1 pt-2 pb-1 text-[11px] uppercase tracking-[0.16em] text-ink-faint">Choose your option</div>
             <ul className="max-h-[24rem] overflow-y-auto overscroll-contain py-1 [scrollbar-gutter:stable]">
@@ -1028,43 +1028,60 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                   v.listingOption && bookingDate.trim()
                     ? optionRunsOnDate(v.listingOption, bookingDate.trim())
                     : null;
+                const selected = selectedBookingVariant?.id === v.id;
+                const opt = v.listingOption;
+                const groupLine =
+                  opt && opt.minPersons && opt.maxPersons
+                    ? opt.minPersons === opt.maxPersons
+                      ? `${opt.maxPersons} guests`
+                      : `${opt.minPersons}–${opt.maxPersons} guests`
+                    : null;
                 return (
-                <li key={v.id} role="option" aria-disabled={Boolean(dayErr)}>
+                <li key={v.id} role="option" aria-disabled={Boolean(dayErr)} aria-selected={selected}>
                   <button
                     type="button"
                     disabled={Boolean(dayErr)}
                     className={`w-full px-4 py-3.5 text-left rounded-xl ring-1 transition-colors sm:py-4 ${
                       dayErr
                         ? 'opacity-50 cursor-not-allowed ring-black/[0.04]'
-                        : 'ring-black/[0.08] hover:bg-finland/5 hover:ring-finland/30 active:bg-finland/10'
+                        : selected
+                          ? 'bg-ink text-paper-raised ring-ink'
+                          : 'ring-black/[0.08] hover:bg-finland/5 hover:ring-finland/30 active:bg-finland/10'
                     }`}
                     onClick={() => void handlePickTourVariant(v)}
                   >
                     <span className="flex items-start justify-between gap-3">
-                      <span className="font-semibold text-ink">{v.label}</span>
-                      <span className="text-sm font-semibold text-ink tabular-nums shrink-0">
+                      <span className={`font-semibold ${selected ? 'text-paper-raised' : 'text-ink'}`}>{v.label}</span>
+                      <span className={`text-sm font-semibold tabular-nums shrink-0 ${selected ? 'text-paper-raised' : 'text-ink'}`}>
                         {formatMoney(v.pricePerPerson, tour.price?.currency)}
-                        <span className="block text-right text-xs font-normal text-ink-muted">per person</span>
+                        <span className={`block text-right text-xs font-normal ${selected ? 'text-paper-raised/70' : 'text-ink-muted'}`}>
+                          per person
+                        </span>
                       </span>
                     </span>
-                    {v.listingOption ? (
-                      <span className="mt-1.5 block text-xs text-ink-muted">
+                    {opt ? (
+                      <span className={`mt-1.5 block text-xs ${selected ? 'text-paper-raised/75' : 'text-ink-muted'}`}>
                         {[
-                          v.listingOption.duration.trim() || null,
-                          v.listingOption.startTime.trim() ? `Starts ${v.listingOption.startTime}` : null,
-                          v.listingOption.pickupPlace.trim() || null,
-                          `Runs ${formatOptionWeekdays(v.listingOption.weekdays)}`,
+                          opt.duration.trim() || null,
+                          groupLine,
+                          opt.startTime.trim() ? `Starts ${opt.startTime}` : null,
+                          opt.pickupPlace.trim() || null,
+                          `Runs ${formatOptionWeekdays(opt.weekdays)}`,
                         ]
                           .filter(Boolean)
                           .join(' · ')}
                       </span>
                     ) : null}
-                    {v.listingOption?.optionInfo?.trim() ? (
-                      <span className="mt-1 block text-xs leading-snug text-ink-muted">{v.listingOption.optionInfo.trim()}</span>
+                    {opt?.optionInfo?.trim() ? (
+                      <span className={`mt-1 block text-xs leading-snug ${selected ? 'text-paper-raised/80' : 'text-ink-muted'}`}>
+                        {opt.optionInfo.trim()}
+                      </span>
                     ) : v.subtitle ? (
-                      <span className="mt-1 block text-xs leading-snug text-ink-muted">{v.subtitle}</span>
+                      <span className={`mt-1 block text-xs leading-snug ${selected ? 'text-paper-raised/80' : 'text-ink-muted'}`}>
+                        {v.subtitle}
+                      </span>
                     ) : null}
-                    {dayErr ? <span className="mt-1 block text-xs text-red-600">{dayErr}</span> : null}
+                    {dayErr ? <span className="mt-1 block text-xs text-red-200">{dayErr}</span> : null}
                   </button>
                 </li>
                 );

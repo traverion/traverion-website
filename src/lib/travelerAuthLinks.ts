@@ -16,6 +16,7 @@ export type TravelerAuthNextPage = (typeof TRAVELER_AUTH_NEXT_PAGES)[number];
 
 export function sanitizeTravelerAuthNext(next: string | null | undefined): TravelerAuthNextPage {
   const n = (next ?? '').trim();
+  if (n === 'cart') return 'bookings';
   return (TRAVELER_AUTH_NEXT_PAGES as readonly string[]).includes(n) ? (n as TravelerAuthNextPage) : 'home';
 }
 

@@ -472,19 +472,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                   onClick={() => setOpenTripId(open ? null : b.id)}
                   className="lux-flat w-full text-left"
                 >
-                  <div className="flex items-baseline justify-between gap-3">
-                    <h3 className="font-semibold text-ink truncate">
-                      {titles[b.listing_id] ?? (isStay ? 'Stay' : 'Tour')}
-                    </h3>
-                    <span className="flex flex-wrap justify-end gap-1.5 shrink-0">
-                      {openCancel ? <StatusChip tone="warn">Host cancellation</StatusChip> : null}
-                      <StatusChip tone={toneForPaymentLabel(lifecycle)}>{lifecycle}</StatusChip>
-                      {payLabel !== lifecycle ? (
-                        <StatusChip tone={toneForPaymentLabel(payLabel)}>{payLabel}</StatusChip>
-                      ) : null}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-sm text-ink-muted">
+                  <p className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">
                     {(() => {
                       const out =
                         b.check_out && /^\d{4}-\d{2}-\d{2}$/.test(b.check_out)
@@ -497,13 +485,27 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         ? new Date(`${b.booking_date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })
                         : 'Date TBC';
                     })()}
-                    {' · '}
-                    {b.guests} {b.guests === 1 ? 'guest' : 'guests'}
                     {b.start_time && !b.check_out ? ` · ${pgTimeToHm(b.start_time) ?? ''}` : ''}
-                    {b.nights ? ` · ${b.nights} night${b.nights === 1 ? '' : 's'}` : ''}
+                  </p>
+                  <div className="mt-1 flex items-baseline justify-between gap-3">
+                    <h3 className="font-semibold text-ink truncate">
+                      {titles[b.listing_id] ?? (isStay ? 'Stay' : 'Tour')}
+                    </h3>
+                    <span className="flex flex-wrap justify-end gap-1.5 shrink-0">
+                      {openCancel ? <StatusChip tone="warn">Host cancellation</StatusChip> : null}
+                      <StatusChip tone={toneForPaymentLabel(lifecycle)}>{lifecycle}</StatusChip>
+                      {payLabel !== lifecycle ? (
+                        <StatusChip tone={toneForPaymentLabel(payLabel)}>{payLabel}</StatusChip>
+                      ) : null}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-sm text-ink-muted">
+                    {b.guests} {b.guests === 1 ? 'guest' : 'guests'}
+                    {b.nights ? ` · ${b.nights === 1 ? '1 night' : `${b.nights} nights`}` : ''}
                     {b.amount_paid != null && Number(b.amount_paid) > 0 && (b.payment_status ?? '').toLowerCase() === 'paid'
                       ? ` · ${formatMoney(Number(b.amount_paid), b.currency)}${isStripeTestCheckoutSession(b.checkout_session_id) ? ' TEST' : ''}`
                       : ''}
+                    {pickupMissing ? ' · Pickup still needed' : ''}
                   </p>
                 </button>
                 {open ? (

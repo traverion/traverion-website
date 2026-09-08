@@ -53,7 +53,7 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
   const isStay = listingIsFamily(tour, 'stay');
   const stay = isStay ? parseListingExtras(tour.listingExtras).stay : undefined;
   const stayNightly = stay?.nightlyPriceUsd && stay.nightlyPriceUsd > 0 ? stay.nightlyPriceUsd : fromAmount;
-  const unitLabel = isStay ? 'per night' : qualifier ? `/ ${qualifier}` : 'per person';
+  const unitLabel = isStay ? 'per night' : qualifier ? `per ${qualifier}` : 'per person';
   const locationLine =
     [tour.city, tour.country].filter(Boolean).join(', ') || tour.destination || 'Various locations';
   const durationLine = isStay
@@ -116,58 +116,70 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
         ) : null}
       </div>
       <div className={padClass}>
+        <div className="flex min-w-0 items-center gap-1.5 text-sm font-medium text-ink-muted">
+          <MapPin className="h-4 w-4 flex-shrink-0 text-ink-faint" aria-hidden />
+          <span className="truncate">{locationLine}</span>
+        </div>
         <h3
-          className={`line-clamp-2 font-semibold leading-snug tracking-tight text-ink transition-colors duration-200 group-hover:text-finland ${
+          className={`mt-1 line-clamp-2 font-semibold leading-snug tracking-tight text-ink transition-colors duration-200 group-hover:text-finland ${
             size === 'compact' ? 'text-base sm:text-lg' : 'text-lg sm:text-xl'
           }`}
         >
           {tour.title}
         </h3>
-        <p
-          className={`mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 tabular-nums ${size === 'compact' ? 'text-lg' : 'text-xl'}`}
-          aria-label={
-            isStay
-              ? stayStayTotal
-                ? `${formatMoney(stayStayTotal.total, stayStayTotal.currency)} for ${stayStayTotal.nights} nights`
-                : `${formatMoney(stayNightly, currency)} per night`
-              : hasDiscount
-                ? `From ${formatMoney(fromAmount, currency)} ${unitLabel}, ${label}`
-                : `From ${formatMoney(originalPrice, currency)} ${unitLabel}`
-          }
-        >
-          {isStay ? null : (
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">From</span>
-          )}
-          {showStrikethrough && !isStay ? (
-            <span className="text-sm font-medium text-ink-faint line-through">{formatMoney(originalPrice, currency)}</span>
-          ) : null}
-          <span className={`font-bold tracking-tight ${hasDiscount && !isStay ? 'text-finland' : 'text-ink'}`}>
-            {formatMoney(isStay ? stayNightly : fromAmount, currency)}
-          </span>
-          <span className="text-sm font-medium text-ink-muted">{unitLabel}</span>
-          {!isStay && summary ? (
-            <span className="w-full text-xs font-medium text-ink-muted">{summary}</span>
-          ) : null}
-          {isStay && stayStayTotal ? (
-            <span className="w-full text-sm font-medium text-ink">
-              {stayStayTotal.nights} night{stayStayTotal.nights === 1 ? '' : 's'} ·{' '}
-              {formatMoney(stayStayTotal.total, stayStayTotal.currency)}
-            </span>
-          ) : null}
-        </p>
-        <div className="mt-2 flex min-w-0 items-center gap-1.5 text-sm font-medium text-ink-muted">
-          <MapPin className="h-4 w-4 flex-shrink-0 text-ink-faint" aria-hidden />
-          <span className="truncate">{locationLine}</span>
-        </div>
         {durationLine ? (
           <div className="mt-1 flex min-w-0 items-center gap-1.5 text-sm text-ink-muted">
             <Clock className="h-4 w-4 flex-shrink-0 text-ink-faint" aria-hidden />
             <span className="truncate">{durationLine}</span>
           </div>
         ) : null}
-        <div className="mt-2.5">
+        <div className="mt-2">
           <ListingCardRating tour={tour} aggregate={reviewAggregate} compact={size === 'compact'} />
         </div>
+        <p
+          className={`mt-2.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 tabular-nums ${
+            isStay && stayStayTotal ? (size === 'compact' ? 'text-xl' : 'text-2xl') : size === 'compact' ? 'text-lg' : 'text-xl'
+          }`}
+          aria-label={
+            isStay
+              ? stayStayTotal
+                ? `${formatMoney(stayStayTotal.total, stayStayTotal.currency)} total for ${stayStayTotal.nights} nights`
+                : `${formatMoney(stayNightly, currency)} per night`
+              : hasDiscount
+                ? `From ${formatMoney(fromAmount, currency)} ${unitLabel}, ${label}`
+                : `From ${formatMoney(originalPrice, currency)} ${unitLabel}`
+          }
+        >
+          {isStay && stayStayTotal ? (
+            <>
+              <span className="font-bold tracking-tight text-ink">
+                {formatMoney(stayStayTotal.total, stayStayTotal.currency)}
+              </span>
+              <span className="text-sm font-medium text-ink-muted">
+                total · {stayStayTotal.nights} night{stayStayTotal.nights === 1 ? '' : 's'}
+              </span>
+              <span className="w-full text-xs font-medium text-ink-faint">
+                {formatMoney(stayNightly, currency)} per night
+              </span>
+            </>
+          ) : (
+            <>
+              {isStay ? null : (
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">From</span>
+              )}
+              {showStrikethrough && !isStay ? (
+                <span className="text-sm font-medium text-ink-faint line-through">{formatMoney(originalPrice, currency)}</span>
+              ) : null}
+              <span className={`font-bold tracking-tight ${hasDiscount && !isStay ? 'text-finland' : 'text-ink'}`}>
+                {formatMoney(isStay ? stayNightly : fromAmount, currency)}
+              </span>
+              <span className="text-sm font-medium text-ink-muted">{unitLabel}</span>
+              {!isStay && summary ? (
+                <span className="w-full text-xs font-medium text-ink-muted">{summary}</span>
+              ) : null}
+            </>
+          )}
+        </p>
         {showTagPills && extraTags.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-1.5">
             {extraTags.slice(0, 3).map((tagId) => (

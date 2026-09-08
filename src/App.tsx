@@ -20,6 +20,7 @@ import {
 import {
   normalizePublicTourDeepLinkPathname,
   normalizeLegacyBrochurePathname,
+  normalizeRetiredCartPathname,
   parsePathname,
   shouldClearSelectedTour,
   mapStripeReturnRoute,
@@ -39,7 +40,6 @@ import { SkeletonCardGrid, SkeletonPageHero } from './components/ui/Skeleton';
 
 const Blog = lazy(() => import('./pages/Blog'));
 const BookingConfirmationPage = lazy(() => import('./pages/BookingConfirmationPage'));
-const CartPage = lazy(() => import('./pages/CartPage'));
 const AccountPage = lazy(() => import('./pages/AccountPage'));
 const WishlistPage = lazy(() => import('./pages/WishlistPage'));
 const Contact = lazy(() => import('./pages/Contact'));
@@ -96,7 +96,9 @@ function readInitialRoute(): { page: string; destinationSlug: string | null } {
   if (isTraverionAdminHost()) {
     return parsePathname(window.location.pathname, { adminHost: true });
   }
-  const path = normalizeLegacyBrochurePathname(normalizePublicTourDeepLinkPathname(window.location.pathname));
+  const path = normalizeRetiredCartPathname(
+    normalizeLegacyBrochurePathname(normalizePublicTourDeepLinkPathname(window.location.pathname))
+  );
   const parsed = parsePathname(path);
   let page = parsed.page;
   const { destinationSlug } = parsed;
@@ -135,7 +137,9 @@ function App() {
     const adminHost = isTraverionAdminHost();
     const pathForParse = adminHost
       ? window.location.pathname
-      : normalizeLegacyBrochurePathname(normalizePublicTourDeepLinkPathname(window.location.pathname));
+      : normalizeRetiredCartPathname(
+          normalizeLegacyBrochurePathname(normalizePublicTourDeepLinkPathname(window.location.pathname))
+        );
     const parsed = parsePathname(pathForParse, { adminHost });
     let page = parsed.page;
     const destinationSlug = parsed.destinationSlug;
@@ -303,7 +307,6 @@ function App() {
     const urlMapping: { [key: string]: string } = {
       'packages': '/packages',
       'stays': '/stays',
-      'cart': '/cart',
       'auth': '/auth',
       'account': '/account',
       'wishlist': '/wishlist',
@@ -383,11 +386,10 @@ function App() {
       home: { title: '', description: 'Book tours and activities worldwide. Find and reserve experiences with free cancellation.' },
       packages: { title: 'Tours', description: 'Browse and book tours worldwide. Filter by destination, price, and more.' },
       stays: { title: 'Stays', description: 'Apartments and rooms from independent operators.' },
-      auth: { title: 'Sign in', description: 'Sign in or create an account to manage your bookings and cart.' },
+      auth: { title: 'Sign in', description: 'Sign in or create an account to manage your bookings.' },
       'reset-password': { title: 'Set a new password', description: 'Choose a new password for your Traverion traveler account.' },
       'email-confirmed': { title: 'Email confirmed', description: 'Your Traverion traveler email was verified.' },
-      cart: { title: 'Cart', description: 'Your cart. Request bookings for selected tours.' },
-      account: { title: 'My account', description: 'Your bookings, wishlist, and cart in one place.' },
+      account: { title: 'My account', description: 'Your profile, trips, and saved tours.' },
       wishlist: { title: 'Wishlist', description: 'Tours and activities you have saved.' },
       bookings: { title: 'My bookings', description: 'View your tour and activity reservations and their status.' },
       'booking-confirmed': { title: 'Booking confirmed', description: 'Your tour payment was successful.' },
@@ -417,7 +419,7 @@ function App() {
     );
 
     const pathMap: Record<string, string> = {
-      home: '/', packages: '/packages', stays: '/stays', auth: '/auth', 'reset-password': '/set-password', 'email-confirmed': '/email-confirmed', cart: '/cart', account: '/account', wishlist: '/wishlist', bookings: '/bookings',
+      home: '/', packages: '/packages', stays: '/stays', auth: '/auth', 'reset-password': '/set-password', 'email-confirmed': '/email-confirmed', account: '/account', wishlist: '/wishlist', bookings: '/bookings',
       'booking-confirmed': '/booking-confirmed',
       blog: '/blog', contact: '/contact', privacy: '/privacy', terms: '/terms', cookies: '/cookies',
       about: '/about', sitemap: '/sitemap',
@@ -451,6 +453,10 @@ function App() {
         });
         return;
       }
+    }
+    if (page === 'cart') {
+      setCurrentPage('bookings');
+      return;
     }
     setCurrentPage(page);
   }, [currentPage]);
@@ -536,22 +542,6 @@ function App() {
           </div>
         );
       }
-      case 'cart':
-        return (
-          <CartPage
-            onNavigate={handleNavigate}
-            onBookTour={(listingId) => {
-              void getListingByIdAsync(listingId).then((t) => {
-                if (!t) {
-                  window.history.pushState({}, '', '/packages');
-                  setCurrentPage('packages');
-                  return;
-                }
-                handleTourSelect(t);
-              });
-            }}
-          />
-        );
       case 'account':
         return <AccountPage onNavigate={handleNavigate} />;
       case 'wishlist':

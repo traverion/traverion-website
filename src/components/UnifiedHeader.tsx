@@ -152,7 +152,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
             ) : null}
           </nav>
 
-          {/* Action area: Cart, Profile (icon + label) */}
+          {/* Profile */}
           <div className="flex items-center gap-4 sm:gap-6" ref={userMenuRef}>
             <div className="relative hidden lg:block">
               <button
@@ -345,7 +345,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
               </button>
               {!isSupabaseConfigured() && (
                 <div className="px-4 py-3 rounded-lg bg-black/[0.03] ring-1 ring-black/[0.06] text-sm text-ink-muted">
-                  <p className="mb-2">Accounts and saved cart need the live site configuration.</p>
+                  <p className="mb-2">Accounts need the live site configuration.</p>
                   <button
                     type="button"
                     onClick={() => {

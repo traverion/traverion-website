@@ -1031,6 +1031,22 @@ export default function SupplierListingForm({
     return getListingPublishBlockers(asPublished);
   }, [form, editingId]);
 
+  const jumpToPublishBlocker = useCallback(
+    (line: string) => {
+      const t = line.toLowerCase();
+      const step =
+        /photo|image|gallery|cover/.test(t)
+          ? 3
+          : /price|option|nightly|weekday|spot|guest per|meet or are picked|starting date|ending date/.test(t)
+            ? 2
+            : /city|country|location|destination|duration|include|exclude|accessib|meeting/.test(t)
+              ? 1
+              : 0;
+      setStepIdxPersisted(step);
+    },
+    [setStepIdxPersisted]
+  );
+
   const publishButtonTitle = useMemo(() => {
     if (!canPostNewListing) {
       return 'Business and payout verification (IBAN + BIC) required — see Settings.';
@@ -1651,9 +1667,27 @@ export default function SupplierListingForm({
           </nav>
           <p className="mt-3 text-xs text-ink-muted">
             {publishBlockersPreview.length === 0
-              ? 'Ready to publish — open Photos when you want to go live.'
+              ? 'Ready to publish — finish Photos, then publish from this last step.'
               : `${publishBlockersPreview.length} item${publishBlockersPreview.length === 1 ? '' : 's'} left before publish`}
           </p>
+          {publishBlockersPreview.length > 0 ? (
+            <ul className="mt-2 space-y-1">
+              {publishBlockersPreview.slice(0, 5).map((line) => (
+                <li key={line}>
+                  <button
+                    type="button"
+                    className="lux-flat text-left text-xs text-ink-muted hover:text-ink"
+                    onClick={() => jumpToPublishBlocker(line)}
+                  >
+                    {line}
+                  </button>
+                </li>
+              ))}
+              {publishBlockersPreview.length > 5 ? (
+                <li className="text-xs text-ink-faint">And {publishBlockersPreview.length - 5} more</li>
+              ) : null}
+            </ul>
+          ) : null}
         </div>
 
         {publishBlockers && publishBlockers.length > 0 && (
