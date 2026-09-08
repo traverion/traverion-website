@@ -21,6 +21,7 @@ import NoticeCallout from '../components/NoticeCallout';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 import { CHECKOUT_HOLD_MINUTES } from '../lib/booking-hold';
 import { formatOccupiedNightRanges, formatStayNightHuman } from '../lib/stay-calendar';
+import { stayAmenityDisplayList } from '../lib/stay-amenities';
 
 type Props = {
   stayId: string;
@@ -125,7 +126,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
     checkIn && checkOut ? occupiedRanges.some((r) => stayDateRangesOverlap(checkIn, checkOut, r.checkIn, r.checkOut)) : false;
   const hero = stay ? listingHeroImageSrc(stay.image) : undefined;
 
-  const amenities = useMemo(() => (s?.amenities ?? []).map((a) => a.trim()).filter(Boolean), [s?.amenities]);
+  const amenities = useMemo(() => stayAmenityDisplayList(s?.amenities), [s?.amenities]);
 
   const startStayCheckout = () => {
     if (!stay || !stayQuote?.ok) {

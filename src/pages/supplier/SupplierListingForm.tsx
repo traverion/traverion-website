@@ -33,6 +33,7 @@ import { useDialogFocus } from '../../hooks/useDialogFocus';
 import { MIN_LISTING_DESCRIPTION_LENGTH } from '../../lib/listingQualityScore';
 import { headlineStartingAmount } from '../../lib/headline-price';
 import { DEFAULT_CURRENCY, formatMoney, normalizeCurrency } from '../../lib/money';
+import { STAY_AMENITY_PRESETS } from '../../lib/stay-amenities';
 
 const TAG_OPTIONS = [
   { id: 'free-cancellation', label: 'Free cancellation' },
@@ -41,18 +42,6 @@ const TAG_OPTIONS = [
   { id: 'mobile-ticket', label: 'Mobile ticket' },
   { id: 'bestseller', label: 'Bestseller' },
 ];
-
-const STAY_AMENITY_PRESETS = [
-  'Wifi',
-  'Kitchen',
-  'Parking',
-  'Washer',
-  'Heating',
-  'Workspace',
-  'TV',
-  'Hair dryer',
-  'Self check-in',
-] as const;
 
 function stayAmenityTokens(raw: string): string[] {
   return raw
