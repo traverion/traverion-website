@@ -134,7 +134,9 @@ function eventHtml(payload: Payload): string {
   const base = siteBase(payload);
   const logo = logoUrl(base);
   const portal = `${base}/partner`;
-  const bookingsUrl = `${base}/partner/bookings`;
+  const bookingsUrl = payload.bookingId
+    ? `${base}/partner/bookings?booking=${encodeURIComponent(payload.bookingId)}`
+    : `${base}/partner/bookings`;
 
   if (payload.eventType === 'supplier_welcome') {
     const bodyText = escapeHtml(eventBody(payload)).replace(/\n/g, '<br/>');
@@ -258,7 +260,7 @@ ${diffBlock}
 </table>
 </td></tr>
 <tr><td style="padding:0 32px 32px;">
-<a href="${bookingsUrl}" style="display:inline-block;padding:12px 20px;background:#003580;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">View in supplier dashboard</a>
+<a href="${bookingsUrl}" style="display:inline-block;padding:12px 20px;background:#003580;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">${payload.bookingId ? 'Open booking' : 'View in supplier dashboard'}</a>
 <a href="${portal}" style="display:inline-block;margin-left:8px;padding:12px 16px;color:#003580;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;border:1px solid #003580;">Supplier home</a>
 </td></tr>
 </table>

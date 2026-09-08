@@ -218,6 +218,16 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
     if (id) setOpenTripId(id);
   }, []);
 
+  useEffect(() => {
+    if (!openTripId || bookings.length === 0) return;
+    const b = bookings.find((row) => row.id === openTripId);
+    if (!b) return;
+    const today = new Date().toISOString().slice(0, 10);
+    if (b.status === 'cancelled') setTripView('cancelled');
+    else if (b.booking_date && b.booking_date < today) setTripView('past');
+    else setTripView('upcoming');
+  }, [openTripId, bookings]);
+
   /** Webhook may lag a few seconds behind the redirect — refresh once more after payment. */
   useEffect(() => {
     if (paymentBanner !== 'success') return;
@@ -469,7 +479,14 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
               <article key={b.id} className="py-5">
                 <button
                   type="button"
-                  onClick={() => setOpenTripId(open ? null : b.id)}
+                  onClick={() => {
+                    const next = open ? null : b.id;
+                    setOpenTripId(next);
+                    const url = new URL(window.location.href);
+                    if (next) url.searchParams.set('booking', next);
+                    else url.searchParams.delete('booking');
+                    window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+                  }}
                   className="lux-flat w-full text-left"
                 >
                   <p className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">

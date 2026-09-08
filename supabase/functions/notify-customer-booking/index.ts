@@ -64,9 +64,12 @@ function wrapCustomerDocument(params: {
   extraHtml: string;
   publicSiteUrl: string;
   footerNote?: string;
+  ctaUrl?: string;
+  ctaLabel?: string;
 }): string {
   const base = siteBase(params.publicSiteUrl);
-  const bookingsUrl = `${base}/bookings`;
+  const ctaUrl = params.ctaUrl ?? `${base}/trips`;
+  const ctaLabel = params.ctaLabel ?? 'Manage booking';
   const logo = `${base}/traverionlogotransparent.png?v=3`;
   return `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f4f6f8;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f6f8;padding:24px 12px;">
@@ -85,7 +88,7 @@ ${params.detailRowsHtml}
 <tr><td style="padding:8px 32px 24px;font-size:14px;line-height:1.6;color:#374151;">
 ${params.extraHtml}
 ${params.footerNote ? `<p style="margin:16px 0 0;font-size:13px;color:#6b7280;">${params.footerNote}</p>` : ''}
-<p style="margin:20px 0 0;"><a href="${bookingsUrl}" style="display:inline-block;padding:12px 20px;background:#003580;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">View my bookings</a></p>
+<p style="margin:20px 0 0;"><a href="${ctaUrl}" style="display:inline-block;padding:12px 20px;background:#003580;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">${escapeHtml(ctaLabel)}</a></p>
 </td></tr>
 </table>
 <p style="font-size:12px;color:#9ca3af;margin-top:16px;">You are receiving this about a Traverion booking. <a href="${base}" style="color:#003580;">traverion.com</a></p>
@@ -167,7 +170,7 @@ serve(async (req) => {
     const name = String(body.customerName ?? '').trim();
     const greeting = name ? `Hi ${name},` : 'Hi,';
     const publicSiteUrl = siteBase(body.publicSiteUrl);
-    const currency = String(body.currency ?? 'USD').trim().toUpperCase() || 'USD';
+    const currency = String(body.currency ?? 'EUR').trim().toUpperCase() || 'EUR';
     const refDigits = orderTag(body.bookingNumber);
     const amount =
       typeof body.totalAmount === 'number' && Number.isFinite(body.totalAmount) && body.totalAmount >= 0
@@ -247,6 +250,17 @@ serve(async (req) => {
       footerNote = 'You will receive another email when your booking is confirmed and paid (if applicable).';
     }
 
+    const bookingCta = body.bookingId
+      ? `${publicSiteUrl}/trips?booking=${encodeURIComponent(body.bookingId)}`
+      : `${publicSiteUrl}/trips`;
+    const ctaLabel =
+      kind === 'cancellation_requested_by_supplier'
+        ? 'Review cancellation request'
+        : kind === 'new_booking_message'
+          ? 'Open message'
+          : kind === 'pickup_action_required'
+            ? 'Open booking'
+            : 'Manage booking';
     const detailRows = buildDetailRows(body);
     const html = wrapCustomerDocument({
       headline,
@@ -255,6 +269,8 @@ serve(async (req) => {
       extraHtml,
       publicSiteUrl,
       footerNote,
+      ctaUrl: bookingCta,
+      ctaLabel,
     });
 
     const textParts: string[] = [greeting, '', subjectForKind(kind, title, refDigits || undefined), ''];
@@ -271,7 +287,7 @@ serve(async (req) => {
     if (diffs.length) {
       textParts.push('', fieldDiffPlainText(diffs));
     }
-    textParts.push('', `View bookings: ${publicSiteUrl}/bookings`, '', '— Traverion');
+    textParts.push('', `Manage booking: ${bookingCta}`, '', '— Traverion');
     const text = textParts.filter(Boolean).join('\n');
 
     const attachments: { filename: string; content: string }[] = [];
