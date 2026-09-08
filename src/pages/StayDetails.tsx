@@ -125,7 +125,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
     checkIn && checkOut ? occupiedRanges.some((r) => stayDateRangesOverlap(checkIn, checkOut, r.checkIn, r.checkOut)) : false;
   const hero = stay ? listingHeroImageSrc(stay.image) : undefined;
 
-  const amenityLine = useMemo(() => (s?.amenities ?? []).filter(Boolean).join(' · '), [s?.amenities]);
+  const amenities = useMemo(() => (s?.amenities ?? []).map((a) => a.trim()).filter(Boolean), [s?.amenities]);
 
   const startStayCheckout = () => {
     if (!stay || !stayQuote?.ok) {
@@ -249,10 +249,16 @@ export default function StayDetails({ stayId, onBack }: Props) {
               ) : null}
               </ul>
             </div>
-            {amenityLine ? (
+            {amenities.length > 0 ? (
               <div>
                 <h2 className="font-display text-2xl mb-3">Amenities</h2>
-                <p className="text-ink-muted">{amenityLine}</p>
+                <ul className="flex flex-wrap gap-2">
+                  {amenities.map((a) => (
+                    <li key={a} className="rounded-full bg-black/[0.04] px-3 py-1.5 text-sm text-ink">
+                      {a}
+                    </li>
+                  ))}
+                </ul>
               </div>
             ) : null}
             <div>
