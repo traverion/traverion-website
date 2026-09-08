@@ -389,6 +389,7 @@ describe('parsePathname legacy brochure URLs', () => {
     expect(parsePathname('/14-indochina').page).toBe('packages');
     expect(parsePathname('/packages').page).toBe('packages');
     expect(parsePathname('/tour/ec6e5d7e-b5d6-4428-94a4-e3ae0801a4b5').page).toBe('packages');
+    expect(parsePathname('/tours/ec6e5d7e-b5d6-4428-94a4-e3ae0801a4b5').page).toBe('packages');
     expect(parsePathname('/').page).toBe('home');
     expect(parsePathname('/not-a-real-page').page).toBe('not-found');
     expect(parsePathname('/cart').page).toBe('bookings');

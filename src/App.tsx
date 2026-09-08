@@ -167,7 +167,7 @@ function App() {
     syncRouteFromUrl();
   }, [syncRouteFromUrl, isSupplierArea]);
 
-  /** Deep link: /packages?tour=<uuid> or /tour/<uuid> (rewritten) opens TourDetails (supplier “View on site” links). */
+  /** Deep link: /packages?tour=<uuid>, /tour/<uuid>, or /tours/<uuid> (rewritten) opens TourDetails. */
   useEffect(() => {
     if (isSupplierArea) return;
     if (isTraverionAdminHost()) return;

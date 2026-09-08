@@ -54,14 +54,23 @@ export function normalizeLegacyBrochurePathname(pathname: string): string {
   return '/packages';
 }
 
+/** `/tour/<uuid>` (canonical share URL) or `/tours/<uuid>` (plural catalog-style deep link). */
+const TOUR_LISTING_DEEP_LINK = /^\/tours?\/([0-9a-f-]{36})$/i;
+
+export function isTourListingDeepLinkPath(pathname: string): boolean {
+  const normalized =
+    pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
+  return TOUR_LISTING_DEEP_LINK.test(normalized);
+}
+
 /**
  * Canonical public deep link for a Supabase listing is `/packages?tour=<uuid>`.
- * If the URL is `/tour/<uuid>`, rewrite in-place (same tab) so the SPA router opens TourDetails reliably.
+ * If the URL is `/tour/<uuid>` or `/tours/<uuid>`, rewrite in-place so TourDetails opens.
  */
 export function normalizePublicTourDeepLinkPathname(pathname: string): string {
   const normalized =
     pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
-  const m = /^\/tour\/([0-9a-f-]{36})$/i.exec(normalized);
+  const m = TOUR_LISTING_DEEP_LINK.exec(normalized);
   if (!m || typeof window === 'undefined') return pathname;
   const qs = new URLSearchParams({ tour: m[1] }).toString();
   window.history.replaceState(window.history.state, '', `/packages?${qs}`);
@@ -111,7 +120,7 @@ export function parsePathname(pathname: string, options?: ParsePathnameOptions):
   if (reservedFamily) {
     return { page: 'inventory-reserved', destinationSlug: reservedFamily };
   }
-  if (/^\/tour\/[0-9a-f-]{36}$/i.test(normalized)) {
+  if (TOUR_LISTING_DEEP_LINK.test(normalized)) {
     return { page: 'packages', destinationSlug: null };
   }
   const mapped = PATH_TO_PAGE[normalized];
