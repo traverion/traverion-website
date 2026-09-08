@@ -215,18 +215,11 @@ export function clearBookingDraft(tourId: string): void {
 
 export function humanizeBookingSubmitError(message: string | undefined): string {
   const raw = (message ?? '').trim();
-  const lower = raw.toLowerCase();
   if (!raw) {
     return 'We could not save your booking. Check your connection and tap Confirm again.';
   }
-  if (lower.includes('network') || lower.includes('failed to fetch') || lower.includes('load failed')) {
-    return 'Connection problem. Check your network and try again.';
-  }
-  if (lower.includes('jwt') || lower.includes('session') || lower.includes('auth')) {
-    return 'Your session may have expired. Sign in again, then confirm your booking once more.';
-  }
-  if (lower.includes('violates') || lower.includes('constraint') || lower.includes('foreign key') || lower.includes('not null')) {
-    return 'Something on the server rejected this request. Refresh the page or try again in a few minutes.';
-  }
-  return userFacingError(raw, 'We could not save your booking. Check your connection and tap Confirm again.');
+  return userFacingError(
+    raw,
+    'We could not save your booking. Check your connection and tap Confirm again.'
+  );
 }
