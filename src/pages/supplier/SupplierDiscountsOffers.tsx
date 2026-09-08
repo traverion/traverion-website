@@ -22,6 +22,7 @@ import {
   SupplierPageHero,
   SupplierEmptyState,
 } from '../../components/supplier/supplierUi';
+import { formatMoney } from '../../lib/money';
 
 function optionLabelForDiscount(tour: TourPackage, d: ListingDiscount): string {
   if (!d.booking_option_id?.trim()) return 'All options';
@@ -205,7 +206,10 @@ export default function SupplierDiscountsOffers() {
               <div className="divide-y divide-black/[0.06]">
                 {rows.map(({ discount: d, listing }) => {
                   const st = offerStatus(d);
-                  const pct = d.type === 'percent' ? `${Math.round(Number(d.value))}%` : `$${d.value}`;
+                  const pct =
+                    d.type === 'percent'
+                      ? `${Math.round(Number(d.value))}%`
+                      : formatMoney(Number(d.value), listing.price?.currency);
                   return (
                     <article key={d.id} className="py-4 w-full min-w-0 max-w-full space-y-3">
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between min-w-0">

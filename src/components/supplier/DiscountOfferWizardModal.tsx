@@ -12,6 +12,7 @@ import {
   SUPPLIER_DISCOUNT_PERCENT_MAX,
   SUPPLIER_DISCOUNT_MAX_RANGE_DAYS,
 } from '../../data/supabase-discounts';
+import { formatMoney, normalizeCurrency } from '../../lib/money';
 
 const LISTING_WIDE_VALUE = '__listing_wide__';
 
@@ -266,7 +267,7 @@ export default function DiscountOfferWizardModal({ open, onClose, listings, edit
                     )}
                     {bookingOptions.map((o) => (
                       <option key={o.id} value={o.id}>
-                        {o.name.trim() || 'Option'} · ${o.priceUsd} / person
+                        {o.name.trim() || 'Option'} · {formatMoney(o.priceUsd, normalizeCurrency(selectedTour.price?.currency))} / person
                       </option>
                     ))}
                   </select>

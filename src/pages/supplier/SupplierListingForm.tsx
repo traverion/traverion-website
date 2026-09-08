@@ -32,7 +32,7 @@ import { userFacingError } from '../../lib/userFacingError';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
 import { MIN_LISTING_DESCRIPTION_LENGTH } from '../../lib/listingQualityScore';
 import { headlineStartingAmount } from '../../lib/headline-price';
-import { DEFAULT_CURRENCY } from '../../lib/money';
+import { DEFAULT_CURRENCY, formatMoney, normalizeCurrency } from '../../lib/money';
 
 const TAG_OPTIONS = [
   { id: 'free-cancellation', label: 'Free cancellation' },
@@ -702,6 +702,10 @@ export default function SupplierListingForm({
   const [optionModalDraft, setOptionModalDraft] = useState<ListingBookingOption | null>(null);
   const [optionModalEditingId, setOptionModalEditingId] = useState<string | null>(null);
   const [optionModalErrors, setOptionModalErrors] = useState<string[]>([]);
+  const listingCurrency = useMemo(() => {
+    const existing = editingId ? existingListings.find((t) => t.id === editingId) : undefined;
+    return normalizeCurrency(existing?.price?.currency ?? DEFAULT_CURRENCY);
+  }, [editingId, existingListings]);
 
   useEffect(() => {
     document.body.dataset.partnerOverlay = '1';
@@ -1268,7 +1272,7 @@ export default function SupplierListingForm({
                 />
               </div>
               <div id="supplier-listing-field-price">
-                <label className="block text-sm font-medium text-ink mb-1">Price ({DEFAULT_CURRENCY}) *</label>
+                <label className="block text-sm font-medium text-ink mb-1">Price ({listingCurrency}) *</label>
                 <input
                   type="number"
                   min={0}
@@ -2138,7 +2142,7 @@ export default function SupplierListingForm({
               <p className="text-sm text-ink-muted">Nightly rate for the property, not per person.</p>
               <div className="grid sm:grid-cols-2 gap-3">
                 <label className="block text-sm">
-                  Nightly price ({DEFAULT_CURRENCY})
+                  Nightly price ({listingCurrency})
                   <input
                     type="number"
                     min={1}
@@ -2218,7 +2222,7 @@ export default function SupplierListingForm({
                 </label>
               </div>
               <label className="block text-sm">
-                Cleaning fee ({DEFAULT_CURRENCY}, optional)
+                Cleaning fee ({listingCurrency}, optional)
                 <input
                   type="number"
                   min={0}
@@ -2266,7 +2270,7 @@ export default function SupplierListingForm({
                         {opt.name.trim() || 'Untitled option'}
                       </p>
                       <p className="text-xs text-ink-muted tabular-nums">
-                        ${opt.priceUsd} · {opt.duration.trim() || '—'}
+                        {formatMoney(opt.priceUsd, listingCurrency)} · {opt.duration.trim() || '—'}
                       </p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
