@@ -13,6 +13,7 @@ type Props = {
   options: ListingBookingOption[];
   todayIso?: string;
   hint?: string;
+  soldOutDates?: ReadonlySet<string>;
 };
 
 function monthTitle(year: number, month0: number): string {
@@ -30,6 +31,7 @@ export default function TourDatePicker({
   options,
   todayIso: todayProp,
   hint,
+  soldOutDates,
 }: Props) {
   const todayIso = todayProp ?? new Date().toISOString().slice(0, 10);
   const start = value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : todayIso;
@@ -43,10 +45,16 @@ export default function TourDatePicker({
     () =>
       cells.some((iso) => {
         if (!iso) return false;
-        const state = tourDayState({ iso, todayIso, selected: value, options });
+        const state = tourDayState({
+          iso,
+          todayIso,
+          selected: value,
+          options,
+          soldOut: soldOutDates?.has(iso),
+        });
         return state === 'available' || state === 'selected';
       }),
-    [cells, todayIso, value, options]
+    [cells, todayIso, value, options, soldOutDates]
   );
 
   const shift = (delta: number) => {
@@ -91,17 +99,25 @@ export default function TourDatePicker({
         <div className="grid grid-cols-7 gap-0.5">
           {cells.map((iso, i) => {
             if (!iso) return <span key={`e-${i}`} />;
-            const state = tourDayState({ iso, todayIso, selected: value, options });
+            const state = tourDayState({
+              iso,
+              todayIso,
+              selected: value,
+              options,
+              soldOut: soldOutDates?.has(iso),
+            });
             const day = Number(iso.slice(8, 10));
-            const disabled = state === 'past' || state === 'closed';
+            const disabled = state === 'past' || state === 'closed' || state === 'full';
             const cls =
               state === 'selected'
                 ? 'bg-ink text-paper-raised'
                 : state === 'closed'
                   ? 'text-ink-faint/45'
-                  : state === 'past'
-                    ? 'text-ink-faint/40'
-                    : 'text-ink hover:bg-finland/10';
+                  : state === 'full'
+                    ? 'text-ink-faint/50 line-through'
+                    : state === 'past'
+                      ? 'text-ink-faint/40'
+                      : 'text-ink hover:bg-finland/10';
             return (
               <button
                 key={iso}
@@ -124,7 +140,7 @@ export default function TourDatePicker({
             <span className="inline-block w-2 h-2 rounded-sm bg-ink align-middle mr-1" />
             Selected
           </span>
-          <span>Open days are clickable. Faded days are not offered.</span>
+          <span>Open days are clickable. Faded days are not offered. Struck days are fully booked.</span>
         </p>
         {!monthHasOpenDay ? (
           <p className="mt-1.5 text-xs text-ink-muted">No departures this month. Try the next month.</p>

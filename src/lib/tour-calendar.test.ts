@@ -88,4 +88,25 @@ describe('tour calendar states', () => {
       })
     ).toBe('available');
   });
+
+  it('marks a day fully booked from paid occupancy, not failed checkouts', () => {
+    expect(
+      tourDayState({
+        iso: '2026-09-14',
+        todayIso: '2026-09-08',
+        selected: '',
+        options: [option(WEEKDAYS)],
+        soldOut: true,
+      })
+    ).toBe('full');
+    expect(
+      tourDayState({
+        iso: '2026-09-14',
+        todayIso: '2026-09-08',
+        selected: '',
+        options: [option(WEEKDAYS)],
+        soldOut: false,
+      })
+    ).toBe('available');
+  });
 });

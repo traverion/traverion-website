@@ -1,4 +1,4 @@
-import { nextBookedCount, previousBookedCount } from '../lib/availability-ops';
+import { nextBookedCount, previousBookedCount, remainingCapacity } from '../lib/availability-ops';
 import { supabase } from '../lib/supabase';
 
 export type AvailabilityRow = {
@@ -19,6 +19,24 @@ export async function fetchAvailabilityByListingId(listingId: string): Promise<A
     .order('available_date', { ascending: true });
   if (error) return [];
   return (data ?? []) as AvailabilityRow[];
+}
+
+/** Paid guest counts per departure. Failed checkouts are omitted. */
+export async function fetchPublishedTourPaidGuests(
+  listingId: string
+): Promise<Record<string, number>> {
+  if (!supabase) return {};
+  const { data, error } = await supabase.rpc('published_tour_paid_guests', {
+    p_listing_id: listingId,
+  });
+  if (error || !Array.isArray(data)) return {};
+  const out: Record<string, number> = {};
+  for (const row of data as { departure?: unknown; paid_guests?: unknown }[]) {
+    const day = String(row.departure ?? '').slice(0, 10);
+    const n = Number(row.paid_guests ?? 0);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(day) && Number.isFinite(n)) out[day] = n;
+  }
+  return out;
 }
 
 export type AvailabilityCheckOption = {
@@ -85,7 +103,8 @@ export async function checkAvailability(
       ],
     };
   }
-  const remaining = (data.capacity ?? 0) - (data.booked ?? 0);
+  const paidByDay = await fetchPublishedTourPaidGuests(listingId);
+  const remaining = remainingCapacity(data.capacity ?? 0, paidByDay[date] ?? 0);
   const available = remaining >= guests;
   if (!available) {
     const spotsWord = remaining === 1 ? 'spot' : 'spots';

@@ -37,12 +37,13 @@ import { fetchSupplierPublicLegal } from '../data/supabase-supplier-profile';
 import { setPageMetaWithOg, setTourJsonLd, clearTourJsonLd } from '../lib/seo';
 import { Skeleton } from '../components/ui/Skeleton';
 import { dateNotInPast } from '../lib/validation';
-import { checkAvailability } from '../data/supabase-availability';
+import { checkAvailability, fetchAvailabilityByListingId, fetchPublishedTourPaidGuests } from '../data/supabase-availability';
 import { optionRunsOnDate, formatOptionWeekdays } from '../lib/booking-quote';
 import { isListingVisibleToTravelers } from '../lib/product-workflows';
 import { listingIsOnTravelerCatalog } from '../lib/inventory';
 import { listingShowsFreeCancellation, publicReviewLabel } from '../lib/listingTruth';
 import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
+import { remainingCapacity } from '../lib/availability-ops';
 import BookingPage from './BookingPage';
 import {
   getPartySizeBounds,
@@ -113,6 +114,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   const [wishlistBusy, setWishlistBusy] = useState(false);
   const [savePop, setSavePop] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
+  const [soldOutDates, setSoldOutDates] = useState<ReadonlySet<string>>(() => new Set());
   const optionsSectionRef = useRef<HTMLDivElement>(null);
   const userRef = useRef(user);
   userRef.current = user;
@@ -147,6 +149,29 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     const t = window.setTimeout(() => setOptionsAttentionPulse(false), 900);
     return () => window.clearTimeout(t);
   }, [bookingVariantsOpen]);
+
+  useEffect(() => {
+    if (!tour?.id) {
+      setSoldOutDates(new Set());
+      return;
+    }
+    let cancelled = false;
+    void Promise.all([fetchAvailabilityByListingId(tour.id), fetchPublishedTourPaidGuests(tour.id)]).then(
+      ([caps, paidByDay]) => {
+        if (cancelled) return;
+        const next = new Set<string>();
+        for (const row of caps) {
+          const day = String(row.available_date ?? '').slice(0, 10);
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) continue;
+          if (remainingCapacity(row.capacity, paidByDay[day] ?? 0) < 1) next.add(day);
+        }
+        setSoldOutDates(next);
+      }
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [tour?.id]);
 
   useEffect(() => {
     if (!tour?.id) return;
@@ -979,6 +1004,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                       setBookingVariantsOpen(false);
                     }}
                     options={calendarOptions}
+                    soldOutDates={soldOutDates}
                     hint={weekdayHint}
                   />
                   <GuestStepper
