@@ -38,7 +38,7 @@ export function ListingCardRating({ tour, aggregate, compact }: Props) {
           <span className="ml-1 text-ink-muted">({tour.reviews})</span>
         </>
       ) : (
-        <span className={`text-ink-muted ${compact ? 'max-w-[9rem] truncate' : ''}`}>No reviews yet</span>
+        <span className={`text-ink-faint ${compact ? 'max-w-[9rem] truncate' : ''}`}>No reviews yet</span>
       )}
       <span className="mx-1.5 text-ink-faint">·</span>
       <Clock className={`mr-0.5 text-ink-muted ${compact ? 'h-3 w-3' : 'h-3.5 w-3.5'}`} />

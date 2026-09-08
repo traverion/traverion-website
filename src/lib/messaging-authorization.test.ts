@@ -28,6 +28,20 @@ describe('messaging authorization', () => {
     ).toMatch(/after this booking is paid/i);
   });
 
+  it('denies contact without a paid booking relationship', () => {
+    const denyPost = {
+      authenticated: true,
+      paymentPaid: true,
+      bookingCancelled: false,
+      openCancellationRequest: false,
+    } as const;
+    expect(
+      canAccessBookingThread({ authenticated: true, isGuestOnBooking: false, isSupplierOnListing: false })
+    ).toBe(false);
+    expect(canPostBookingMessage({ ...denyPost, isGuestOnBooking: false, isSupplierOnListing: false }).ok).toBe(false);
+    expect(canPostBookingMessage({ ...denyPost, isGuestOnBooking: true, isSupplierOnListing: true }).ok).toBe(true);
+  });
+
   it('allows post-paid booking parties and keeps history after cancel', () => {
     expect(
       canPostBookingMessage({
