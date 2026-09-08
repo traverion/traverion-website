@@ -14,6 +14,14 @@ import { isCollectedBooking, sumCollectedAmount } from '../../lib/payment-states
 import { fetchMyListings } from '../../data/supabase-listings';
 import { fetchSupplierLedger, type SupplierLedgerEntry } from '../../data/supabase-booking-ops';
 
+function ledgerKindLabel(kind: string): string {
+  const k = kind.trim().toLowerCase();
+  if (k === 'cancellation_fee' || k === 'supplier_cancellation_fee') return 'Cancellation fee';
+  if (k === 'offset' || k === 'balance_offset') return 'Balance offset';
+  if (k === 'adjustment') return 'Adjustment';
+  return kind.replace(/_/g, ' ');
+}
+
 export default function SupplierEarnings() {
   const { user, isSupabase } = useSupplierAuth();
   const [earnings, setEarnings] = useState<SupplierEarning[]>([]);
@@ -226,17 +234,19 @@ export default function SupplierEarnings() {
               </div>
             </div>
             {ledger.length > 0 ? (
-              <ul className="mb-8 divide-y divide-black/[0.06]">
+              <div className="mb-8">
+                <h3 className="text-[11px] uppercase tracking-[0.18em] text-ink-faint mb-2">Fees & adjustments</h3>
+              <ul className="divide-y divide-black/[0.06]">
                 {ledger.map((e) => (
                   <li key={e.id} className="py-4 flex items-baseline justify-between gap-4">
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-ink">{e.reason}</p>
                       <p className="mt-0.5 text-xs text-ink-muted">
-                        {e.kind.replace(/_/g, ' ')}
+                        {ledgerKindLabel(e.kind)}
                         {e.booking_id ? ' · linked booking' : ''}
                         {e.policy_id ? ` · ${e.policy_id}` : ''}
                         {' · '}
-                        {new Date(e.created_at).toLocaleString()}
+                        {new Date(e.created_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
                       </p>
                     </div>
                     <p className={`tabular-nums font-semibold shrink-0 ${Number(e.amount) < 0 ? 'text-red-800' : 'text-ink'}`}>
@@ -245,6 +255,7 @@ export default function SupplierEarnings() {
                   </li>
                 ))}
               </ul>
+              </div>
             ) : null}
             {filteredEarnings.length === 0 ? (
               paidBookings.length > 0 ? (

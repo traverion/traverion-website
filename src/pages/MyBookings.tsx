@@ -550,8 +550,8 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         {openCancel.reason_text ? ` — ${openCancel.reason_text}` : ''}
                       </p>
                       <p className="mt-1">
-                        If you accept, this booking is cancelled and a full refund is expected. Traverion does not
-                        cancel automatically if you do nothing
+                        If you accept, this booking is cancelled and a full refund is expected. Refund status becomes
+                        Refunded only after Stripe records it. Traverion does not cancel automatically if you do nothing
                         {openCancel.expires_at
                           ? ` (request noted until ${new Date(openCancel.expires_at).toLocaleString()}).`
                           : '.'}
@@ -664,7 +664,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                       cancelConfirm.check_out || parseStayCheckOutFromNotes(cancelConfirm.special_requests)
                         ? 'check-in'
                         : 'start'
-                    }. You should receive a full refund.`
+                    }. You should receive a full refund. The booking will show Refund pending until Stripe records the refund — Traverion does not mark it refunded early.`
                   : `This ${
                       cancelConfirm.check_out || parseStayCheckOutFromNotes(cancelConfirm.special_requests)
                         ? 'check-in is'

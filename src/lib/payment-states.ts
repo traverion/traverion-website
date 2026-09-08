@@ -34,9 +34,11 @@ export function isCollectedBooking(b: MoneyBookingRow): boolean {
 }
 
 export function travelerPaymentLabel(b: MoneyBookingRow): string {
-  if ((b.status ?? '').trim().toLowerCase() === 'cancelled') return 'Cancelled';
   const pay = normalizePaymentStatus(b.payment_status);
+  const cancelled = (b.status ?? '').trim().toLowerCase() === 'cancelled';
   if (pay === 'refunded') return 'Refunded';
+  if (cancelled && isPaidPaymentStatus(pay)) return 'Refund pending';
+  if (cancelled) return 'Cancelled';
   if (pay === 'failed') return 'Payment failed';
   if (isPaidPaymentStatus(pay)) return 'Paid';
   if (pay === 'pending' || b.checkout_session_id) return 'Payment pending';

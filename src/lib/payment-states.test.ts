@@ -44,10 +44,10 @@ describe('payment states', () => {
       'Refunded'
     );
     expect(
-      sumCollectedAmount([
-        { status: 'confirmed', payment_status: 'paid', amount_paid: 189 },
-        { status: 'confirmed', payment_status: 'refunded', amount_paid: 445 },
-      ])
-    ).toBe(189);
+      travelerPaymentLabel({ status: 'cancelled', payment_status: 'paid', amount_paid: 189 })
+    ).toBe('Refund pending');
+    expect(
+      travelerPaymentLabel({ status: 'cancelled', payment_status: 'refunded', amount_paid: 189 })
+    ).toBe('Refunded');
   });
 });
