@@ -218,7 +218,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
           ) : null}
               {nightly > 0 ? (
             <span className="text-ink font-semibold tabular-nums">
-              {formatMoney(nightly, currency)} / night
+              {formatMoney(nightly, currency)} per night
             </span>
           ) : null}
         </p>
@@ -404,7 +404,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
             <span className="font-semibold">
               {quoteOk ? formatMoney(total, currency) : nightly > 0 ? formatMoney(nightly, currency) : '—'}
             </span>
-            <span className="text-ink-muted"> {quoteOk ? 'total' : '/ night'}</span>
+            <span className="text-ink-muted"> {quoteOk ? 'total' : 'per night'}</span>
           </p>
           {user ? (
             <button

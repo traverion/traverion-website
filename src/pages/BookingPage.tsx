@@ -33,7 +33,7 @@ import {
   type AvailabilityCheckOption,
 } from '../data/supabase-availability';
 import AvailabilityOptionsModal from '../components/booking/AvailabilityOptionsModal';
-import BookingDateField from '../components/booking/BookingDateField';
+import TourDatePicker from '../components/TourDatePicker';
 import GuestStepper from '../components/booking/GuestStepper';
 import { useDialogFocus } from '../hooks/useDialogFocus';
 import { analytics } from '../lib/analytics';
@@ -45,6 +45,7 @@ import {
 } from '../types/listingExtras';
 import {
   getPartySizeBounds,
+  getTourBookingVariants,
   guestCountValidationError,
   formatBookingDateDisplay,
   loadBookingDraft,
@@ -200,6 +201,13 @@ export default function BookingPage({
     if (!opt) return undefined;
     return `Runs ${formatOptionWeekdays(opt.weekdays)}`;
   }, [selectedVariant]);
+
+  const calendarOptions = useMemo(() => {
+    if (selectedVariant?.listingOption) return [selectedVariant.listingOption];
+    return getTourBookingVariants(tour)
+      .map((v) => v.listingOption)
+      .filter((o): o is NonNullable<typeof o> => Boolean(o));
+  }, [selectedVariant, tour]);
 
   const quoteBlockReason =
     date.trim() && priceInfo.quote && !priceInfo.quote.ok ? priceInfo.quote.error : null;
@@ -635,10 +643,11 @@ export default function BookingPage({
             <BookingProgress step={step} flow={flowMode} />
             <h2 className="text-xl font-semibold text-ink mb-6">Select date and guests</h2>
             <div className="space-y-4">
-              <BookingDateField
+              <TourDatePicker
                 id="booking-flow-date-input"
                 value={date}
                 onChange={setDate}
+                options={calendarOptions}
                 hint={weekdayHint}
               />
               <GuestStepper

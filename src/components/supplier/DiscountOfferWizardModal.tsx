@@ -267,7 +267,7 @@ export default function DiscountOfferWizardModal({ open, onClose, listings, edit
                     )}
                     {bookingOptions.map((o) => (
                       <option key={o.id} value={o.id}>
-                        {o.name.trim() || 'Option'} · {formatMoney(o.priceUsd, normalizeCurrency(selectedTour.price?.currency))} / person
+                        {o.name.trim() || 'Option'} · {formatMoney(o.priceUsd, normalizeCurrency(selectedTour.price?.currency))} per person
                       </option>
                     ))}
                   </select>

@@ -51,7 +51,7 @@ import {
   getTourBookingVariants,
   type TourBookingVariant,
 } from '../lib/booking-flow';
-import BookingDateField from '../components/booking/BookingDateField';
+import TourDatePicker from '../components/TourDatePicker';
 import { useDialogFocus } from '../hooks/useDialogFocus';
 
 function readSearchPrefill(): { date: string; guests: number } {
@@ -120,10 +120,14 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   const partyBounds = useMemo(() => (tour ? getPartySizeBounds(tour) : { min: 1, max: 12 }), [tour]);
   const canBook = Boolean(tour && isListingVisibleToTravelers(tour.status));
   const tourVariants = useMemo(() => (tour ? getTourBookingVariants(tour) : []), [tour]);
+  const calendarOptions = useMemo(
+    () => tourVariants.map((v) => v.listingOption).filter((o): o is NonNullable<typeof o> => Boolean(o)),
+    [tourVariants]
+  );
   const weekdayHint = useMemo(() => {
     const unique = [...new Set(tourVariants.map((v) => formatOptionWeekdays(v.listingOption?.weekdays)))];
     if (unique.length === 1) return `Runs ${unique[0]}`;
-    if (unique.length > 1) return 'Each option has its own days — Adult and Child can differ.';
+    if (unique.length > 1) return 'Each option has its own days — Adult and Child can differ';
     return undefined;
   }, [tourVariants]);
 
@@ -966,7 +970,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                   );
                 })()}
                 <div className="space-y-4">
-                  <BookingDateField
+                  <TourDatePicker
                     id="tour-booking-date-input"
                     value={bookingDate}
                     onChange={(next) => {
@@ -974,6 +978,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                       setBookingCardError(null);
                       setBookingVariantsOpen(false);
                     }}
+                    options={calendarOptions}
                     hint={weekdayHint}
                   />
                   <GuestStepper
@@ -1254,7 +1259,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-ink">
                     From {formatMoney(Number(price), currency)}
-                    <span className="font-normal text-ink-muted">{qualifier ? ` / ${qualifier}` : ' · per person'}</span>
+                    <span className="font-normal text-ink-muted">{qualifier ? ` per ${qualifier}` : ' per person'}</span>
                   </p>
                   <p className="text-xs text-ink-muted">
                     {listingShowsFreeCancellation(tour) ? 'Free cancellation' : 'Pay via Stripe to confirm'}
