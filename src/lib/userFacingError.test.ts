@@ -26,6 +26,9 @@ describe('userFacingError', () => {
     expect(userFacingError('P0001: Not enough capacity left.', USER_ERROR.checkout)).toBe(
       'That departure just filled up. Choose another time or date.'
     );
+    expect(userFacingError('Those nights are blocked.', USER_ERROR.checkout)).toBe(
+      'Those dates are blocked. Choose different dates to continue.'
+    );
     expect(userFacingError('Failed RPC', USER_ERROR.generic)).toBe(
       "We couldn't update your booking. Nothing was changed. Try again."
     );

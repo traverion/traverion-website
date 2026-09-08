@@ -35,6 +35,10 @@ const KNOWN_HUMAN: Array<{ test: RegExp; copy: string }> = [
     copy: 'Those dates were just booked by another traveler. Choose different dates to continue.',
   },
   {
+    test: /those nights are blocked/i,
+    copy: 'Those dates are blocked. Choose different dates to continue.',
+  },
+  {
     test: /checkout session has expired|session expired/i,
     copy: 'This checkout expired and the hold was released. Start checkout again to continue.',
   },

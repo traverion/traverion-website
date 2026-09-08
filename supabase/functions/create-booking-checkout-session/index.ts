@@ -2,7 +2,7 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 import Stripe from 'https://esm.sh/stripe@16.12.0?target=deno';
-import { quoteListingBooking, stayDateRangesOverlap, stayRangeFromBooking, type DiscountRow, type ListingQuoteRow } from '../_shared/booking-quote.ts';
+import { quoteListingBooking, stayDateRangesOverlap, stayNightIsOperatorBlocked, stayRangeFromBooking, type DiscountRow, type ListingQuoteRow } from '../_shared/booking-quote.ts';
 import { bookingOccupiesInventory, type InventoryHoldRow } from '../_shared/booking-hold.ts';
 
 type RequestBody = {
@@ -256,14 +256,13 @@ serve(async (req) => {
 
       const { data: blockedRows } = await admin
         .from('listing_availability')
-        .select('available_date, capacity, booked')
+        .select('available_date, capacity')
         .eq('listing_id', listingId)
         .gte('available_date', bookingDate)
         .lt('available_date', checkoutDate);
       for (const row of blockedRows ?? []) {
-        const remaining = Number(row.capacity ?? 0) - Number(row.booked ?? 0);
-        if (remaining <= 0) {
-          return json({ success: false, error: 'One or more of those nights is blocked or already occupied.' }, 409);
+        if (stayNightIsOperatorBlocked(Number(row.capacity ?? 0))) {
+          return json({ success: false, error: 'Those nights are blocked.' }, 409);
         }
       }
     }

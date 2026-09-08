@@ -82,6 +82,11 @@ export function stayRangeFromBooking(booking: {
   return { checkIn, checkOut };
 }
 
+/** Partner closed this night. Occupancy is paid + live holds, not listing_availability.booked. */
+export function stayNightIsOperatorBlocked(capacity: number): boolean {
+  return !Number.isFinite(capacity) || capacity <= 0;
+}
+
 function money(n: number): number {
   return Math.round(n * 100) / 100;
 }

@@ -3,8 +3,10 @@ import {
   nightsOccupiedByStay,
   parseStayCheckOutFromNotes,
   stayDateRangesOverlap,
+  stayNightIsOperatorBlocked,
   stayRangeFromBooking,
 } from './stayOccupancy';
+import { stayNightIsOperatorBlocked as checkoutStayNightIsOperatorBlocked } from '../../supabase/functions/_shared/booking-quote';
 
 describe('stay occupancy', () => {
   it('occupies nights exclusive of check-out', () => {
@@ -40,5 +42,13 @@ describe('stay occupancy', () => {
       checkIn: '2026-09-10',
       checkOut: '2026-09-11',
     });
+  });
+
+  it('treats capacity 0 as an operator block, not listing_availability.booked', () => {
+    expect(stayNightIsOperatorBlocked(0)).toBe(true);
+    expect(stayNightIsOperatorBlocked(1)).toBe(false);
+    expect(stayNightIsOperatorBlocked(8)).toBe(false);
+    expect(checkoutStayNightIsOperatorBlocked(0)).toBe(stayNightIsOperatorBlocked(0));
+    expect(checkoutStayNightIsOperatorBlocked(1)).toBe(stayNightIsOperatorBlocked(1));
   });
 });
