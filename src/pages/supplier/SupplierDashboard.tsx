@@ -213,7 +213,7 @@ export default function SupplierDashboard({ onNavigateToBookings }: SupplierDash
         <button
           type="button"
           onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/listings?new=1`)}
-          className="tv-btn-primary self-start"
+          className={`${attentionCount > 0 ? 'tv-btn-ghost' : 'tv-btn-primary'} self-start`}
         >
           New listing
         </button>
@@ -333,7 +333,7 @@ export default function SupplierDashboard({ onNavigateToBookings }: SupplierDash
             {verificationNeedsAction && (
               <li>
                 <button type="button" onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/onboarding`)} className="lux-flat min-h-11 w-full text-left py-2 text-finland font-medium">
-                  Finish setup
+                  Finish business and payout setup
                 </button>
               </li>
             )}

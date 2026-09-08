@@ -8,7 +8,8 @@ import { usePublishedSupplierListings } from '../hooks/usePublishedSupplierListi
 import { TourPackage } from '../types/tour';
 import { fetchDiscountsByListingIds } from '../data/supabase-discounts';
 import { getReviewAggregatesForListingIds } from '../data/supabase-reviews';
-import { isSupabaseListingId } from '../lib/discount-display';
+import { isSupabaseListingId, getDisplayPriceForTour } from '../lib/discount-display';
+import { formatMoney, normalizeCurrency } from '../lib/money';
 import { PublicListingBrowseCard } from '../components/PublicListingBrowseCard';
 import { supplierPortalLandingHref } from '../lib/partnerHost';
 import EmptyState from '../components/EmptyState';
@@ -347,6 +348,22 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                     <p className="text-xs uppercase tracking-[0.16em] text-white/70 mb-2">Featured</p>
                     <p className="text-sm text-white/80">{featuredListing.city || featuredListing.destination}</p>
                     <p className="font-display text-3xl sm:text-4xl mt-1">{featuredListing.title}</p>
+                    {(() => {
+                      const { price, qualifier, summary } = getDisplayPriceForTour(
+                        featuredListing,
+                        discountsByListing
+                      );
+                      const currency = normalizeCurrency(featuredListing.price?.currency);
+                      return (
+                        <p className="mt-2 text-sm sm:text-base font-semibold tabular-nums text-white">
+                          From {formatMoney(Number(price), currency)}
+                          {qualifier ? ` per ${qualifier}` : ' per person'}
+                          {summary ? (
+                            <span className="block mt-0.5 font-medium text-white/80">{summary}</span>
+                          ) : null}
+                        </p>
+                      );
+                    })()}
                   </div>
                 </button>
               ) : null}
