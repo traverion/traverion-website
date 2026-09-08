@@ -11,12 +11,17 @@ import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { formatMoney, isStripeTestCheckoutSession, normalizeCurrency } from '../../lib/money';
 import { isCollectedBooking, sumCollectedAmount } from '../../lib/payment-states';
+import { ledgerAdjustmentTotal } from '../../lib/supplier-ledger-balance';
 import { fetchMyListings } from '../../data/supabase-listings';
 import { fetchSupplierLedger, type SupplierLedgerEntry } from '../../data/supabase-booking-ops';
 
 function ledgerKindLabel(kind: string): string {
   const k = kind.trim().toLowerCase();
-  if (k === 'cancellation_fee' || k === 'supplier_cancellation_fee') return 'Cancellation fee';
+  if (k === 'cancellation_fee' || k === 'supplier_cancellation_fee' || k === 'cancellation_penalty') {
+    return 'Cancellation fee';
+  }
+  if (k === 'booking_earnings') return 'Booking earnings';
+  if (k === 'refund') return 'Earnings reversal';
   if (k === 'offset' || k === 'balance_offset') return 'Balance offset';
   if (k === 'adjustment') return 'Adjustment';
   return kind.replace(/_/g, ' ');
@@ -77,7 +82,7 @@ export default function SupplierEarnings() {
     const paidOut = nonCancelled.filter((e) => e.status === 'paid').reduce((sum, e) => sum + Number(e.amount), 0);
     const pendingRows = nonCancelled.filter((e) => e.status === 'pending').reduce((sum, e) => sum + Number(e.amount), 0);
     const collected = sumCollectedAmount(paidBookings);
-    const feeSum = ledger.reduce((sum, e) => sum + Number(e.amount), 0);
+    const feeSum = ledgerAdjustmentTotal(ledger);
     const availableBalance = collected + feeSum - paidOut;
     const pendingPayout = pendingRows > 0 ? pendingRows + feeSum : availableBalance;
     const filtered =
@@ -235,7 +240,7 @@ export default function SupplierEarnings() {
             </div>
             {ledger.length > 0 ? (
               <div className="mb-8">
-                <h3 className="text-[11px] uppercase tracking-[0.18em] text-ink-faint mb-2">Fees & adjustments</h3>
+                <h3 className="text-[11px] uppercase tracking-[0.18em] text-ink-faint mb-2">Ledger</h3>
               <ul className="divide-y divide-black/[0.06]">
                 {ledger.map((e) => (
                   <li key={e.id} className="py-4 flex items-baseline justify-between gap-4">

@@ -301,6 +301,12 @@ serve(async (req) => {
           .maybeSingle();
         const existingPay = (existingBooking?.payment_status ?? '').toLowerCase();
         if (existingPay === 'paid' || existingPay === 'refunded') {
+          if (existingPay === 'paid') {
+            const { error: earnErr } = await admin.rpc('record_paid_booking_earnings', {
+              p_booking_id: bookingId,
+            });
+            if (earnErr) throw new Error(earnErr.message);
+          }
           await markProcessed('processed');
           return json({
             success: true,
@@ -345,6 +351,11 @@ serve(async (req) => {
           currency,
           payload: event as unknown as Record<string, unknown>,
         });
+
+        const { error: earnErr } = await admin.rpc('record_paid_booking_earnings', {
+          p_booking_id: bookingId,
+        });
+        if (earnErr) throw new Error(earnErr.message);
 
         await notifyPaidBookingSideEffects({
           admin,
