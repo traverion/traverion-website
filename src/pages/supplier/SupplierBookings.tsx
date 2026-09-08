@@ -942,9 +942,28 @@ export default function SupplierBookings() {
                     </div>
                   ) : null}
                   {openCancels[booking.id] ? (
-                    <NoticeCallout title="Waiting for the traveler" tone="warn">
-                      You requested cancellation. The booking stays active until the traveler accepts. Traverion does
-                      not auto-cancel if they do not respond.
+                    <NoticeCallout
+                      title={
+                        openCancels[booking.id]!.expires_at &&
+                        new Date(openCancels[booking.id]!.expires_at!).getTime() < Date.now()
+                          ? 'Review window passed — still waiting'
+                          : 'Waiting for the traveler'
+                      }
+                      tone="warn"
+                    >
+                      Requested{' '}
+                      {new Date(openCancels[booking.id]!.created_at).toLocaleString(undefined, {
+                        dateStyle: 'medium',
+                        timeStyle: 'short',
+                      })}
+                      {openCancels[booking.id]!.expires_at
+                        ? ` · noted until ${new Date(openCancels[booking.id]!.expires_at!).toLocaleString(undefined, {
+                            dateStyle: 'medium',
+                            timeStyle: 'short',
+                          })}`
+                        : ''}
+                      . The booking stays active until the traveler accepts. Traverion does not auto-cancel if they do
+                      not respond.
                     </NoticeCallout>
                   ) : null}
                   <BookingMessageThread

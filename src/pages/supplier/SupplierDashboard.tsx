@@ -37,7 +37,9 @@ export default function SupplierDashboard({ onNavigateToBookings }: SupplierDash
   const [draftListingsCount, setDraftListingsCount] = useState(0);
   const [listingTitlesById, setListingTitlesById] = useState<Record<string, string>>({});
   const [listingsById, setListingsById] = useState<Record<string, TourPackage>>({});
-  const [openCancelCount, setOpenCancelCount] = useState(0);
+  const [openCancels, setOpenCancels] = useState<
+    Awaited<ReturnType<typeof fetchCancellationRequestsForBookings>>
+  >([]);
   const [supplierBookings, setSupplierBookings] = useState<BookingRow[]>([]);
   const [profile, setProfile] = useState<Awaited<ReturnType<typeof fetchSupplierProfile>> | null>(null);
   const [dashboardLoading, setDashboardLoading] = useState(false);
@@ -51,6 +53,7 @@ export default function SupplierDashboard({ onNavigateToBookings }: SupplierDash
       setListingTitlesById({});
       setListingsById({});
       setSupplierBookings([]);
+      setOpenCancels([]);
       setProfile(null);
       setDashboardError(null);
       setDashboardLoading(false);
@@ -84,11 +87,11 @@ export default function SupplierDashboard({ onNavigateToBookings }: SupplierDash
       setSupplierBookings(settled[1].value);
       const ids = settled[1].value.map((b) => b.id);
       const reqs = await fetchCancellationRequestsForBookings(ids);
-      setOpenCancelCount(reqs.filter((r) => r.status === 'requested').length);
+      setOpenCancels(reqs.filter((r) => r.status === 'requested'));
     } else {
       noteFailure('bookings');
       setSupplierBookings([]);
-      setOpenCancelCount(0);
+      setOpenCancels([]);
     }
     if (settled[2].status === 'fulfilled') {
       setProfile(settled[2].value);
@@ -164,6 +167,11 @@ export default function SupplierDashboard({ onNavigateToBookings }: SupplierDash
       }),
     [supplierBookings, listingsById, todayYmd]
   );
+
+  const openCancelCount = openCancels.length;
+  const overdueCancelCount = openCancels.filter(
+    (r) => r.expires_at && new Date(r.expires_at).getTime() < Date.now()
+  ).length;
 
   const attentionCount =
     pendingBookings.length + draftListingsCount + (verificationNeedsAction ? 1 : 0) + pickupGaps.length + openCancelCount;
@@ -295,6 +303,9 @@ export default function SupplierDashboard({ onNavigateToBookings }: SupplierDash
               <li>
                 <button type="button" onClick={() => onNavigateToBookings?.()} className="lux-flat min-h-11 w-full text-left py-2 text-finland font-medium">
                   {openCancelCount} cancellation request{openCancelCount === 1 ? '' : 's'} waiting for the traveler
+                  {overdueCancelCount > 0
+                    ? ` · ${overdueCancelCount} past the review window (Traverion does not auto-cancel)`
+                    : ''}
                 </button>
               </li>
             )}
