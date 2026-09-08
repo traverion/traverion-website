@@ -55,6 +55,44 @@ async function incrementAvailabilityBookedAdmin(
   }
 }
 
+async function decrementAvailabilityBookedAdmin(
+  admin: SupabaseClient,
+  listingId: string,
+  bookingDate: string | null,
+  guests: number,
+  checkOut?: string | null
+) {
+  const nights: string[] = [];
+  if (bookingDate && checkOut && checkOut > bookingDate) {
+    let cur = bookingDate;
+    while (cur < checkOut) {
+      nights.push(cur);
+      const [y, m, d] = cur.split('-').map(Number);
+      const dt = new Date(Date.UTC(y, m - 1, d + 1));
+      cur = dt.toISOString().slice(0, 10);
+      if (nights.length > 400) break;
+    }
+  } else if (bookingDate) {
+    nights.push(bookingDate);
+  }
+  const party = Number.isFinite(guests) ? Math.max(1, Math.floor(guests)) : 1;
+  for (const day of nights) {
+    const { data: row } = await admin
+      .from('listing_availability')
+      .select('booked')
+      .eq('listing_id', listingId)
+      .eq('available_date', day)
+      .maybeSingle();
+    if (!row) continue;
+    const next = Math.max(0, (row.booked ?? 0) - party);
+    await admin
+      .from('listing_availability')
+      .update({ booked: next })
+      .eq('listing_id', listingId)
+      .eq('available_date', day);
+  }
+}
+
 /** Supplier + traveler emails after paid checkout (same as legacy submitBooking flow). */
 async function notifyPaidBookingSideEffects(params: {
   admin: SupabaseClient;
@@ -319,6 +357,15 @@ serve(async (req) => {
         const currency = (pi.currency ?? 'usd').toUpperCase();
         const paymentIntentId = pi.id;
 
+        const { data: failedBooking } = await admin
+          .from('bookings')
+          .select('id, payment_status')
+          .eq('id', bookingId)
+          .maybeSingle();
+        if ((failedBooking?.payment_status ?? '').toLowerCase() === 'paid') {
+          await markProcessed('processed');
+          return json({ success: true, ignored: true, alreadyPaid: true, bookingId });
+        }
         const { error: bookingErr } = await admin
           .from('bookings')
           .update({
@@ -326,7 +373,8 @@ serve(async (req) => {
             payment_provider: 'stripe',
             payment_intent_id: paymentIntentId,
           })
-          .eq('id', bookingId);
+          .eq('id', bookingId)
+          .eq('payment_status', 'pending');
         if (bookingErr) throw new Error(bookingErr.message);
 
         await admin.from('booking_payment_events').insert({
@@ -341,6 +389,111 @@ serve(async (req) => {
 
         await markProcessed('processed');
         return json({ success: true, eventId: event.id, bookingId, status: 'failed' });
+      }
+
+      if (event.type === 'checkout.session.expired') {
+        const session = event.data.object as Stripe.Checkout.Session;
+        const bookingId = session.metadata?.booking_id ?? null;
+        let row: { id: string; payment_status: string | null } | null = null;
+        if (bookingId) {
+          const found = await admin
+            .from('bookings')
+            .select('id, payment_status')
+            .eq('id', bookingId)
+            .maybeSingle();
+          row = found.data;
+        }
+        if (!row && session.id) {
+          const found = await admin
+            .from('bookings')
+            .select('id, payment_status')
+            .eq('checkout_session_id', session.id)
+            .maybeSingle();
+          row = found.data;
+        }
+        if (!row) {
+          await markProcessed('ignored', 'Expired session had no matching pending booking');
+          return json({ success: true, ignored: true, reason: 'no booking for expired session' });
+        }
+        if ((row.payment_status ?? '').toLowerCase() === 'paid') {
+          await markProcessed('processed');
+          return json({ success: true, ignored: true, alreadyPaid: true, bookingId: row.id });
+        }
+        if ((row.payment_status ?? '').toLowerCase() !== 'pending') {
+          await markProcessed('processed');
+          return json({ success: true, duplicate: true, bookingId: row.id, status: row.payment_status });
+        }
+        const { error: expireErr } = await admin
+          .from('bookings')
+          .update({ payment_status: 'failed' })
+          .eq('id', row.id)
+          .eq('payment_status', 'pending');
+        if (expireErr) throw new Error(expireErr.message);
+        await admin.from('booking_payment_events').insert({
+          booking_id: row.id,
+          event_id: event.id,
+          event_type: event.type,
+          checkout_session_id: session.id,
+          payload: event as unknown as Record<string, unknown>,
+        });
+        await markProcessed('processed');
+        return json({ success: true, eventId: event.id, bookingId: row.id, status: 'expired' });
+      }
+
+      if (event.type === 'charge.refunded') {
+        const charge = event.data.object as Stripe.Charge;
+        const paymentIntentId =
+          typeof charge.payment_intent === 'string'
+            ? charge.payment_intent
+            : charge.payment_intent?.id ?? null;
+        if (!paymentIntentId) {
+          await markProcessed('ignored', 'Refunded charge missing payment_intent');
+          return json({ success: true, ignored: true, reason: 'no payment intent' });
+        }
+        const { data: booking } = await admin
+          .from('bookings')
+          .select('id, payment_status, listing_id, booking_date, check_out, guests')
+          .eq('payment_intent_id', paymentIntentId)
+          .maybeSingle();
+        if (!booking) {
+          await markProcessed('ignored', 'Refunded charge had no matching booking');
+          return json({ success: true, ignored: true, reason: 'no booking' });
+        }
+        if ((booking.payment_status ?? '').toLowerCase() === 'refunded') {
+          await markProcessed('processed');
+          return json({ success: true, duplicate: true, alreadyRefunded: true, bookingId: booking.id });
+        }
+        if ((booking.payment_status ?? '').toLowerCase() !== 'paid') {
+          await markProcessed('processed');
+          return json({ success: true, ignored: true, reason: 'booking was not paid', bookingId: booking.id });
+        }
+        const { data: refundedRows, error: refundErr } = await admin
+          .from('bookings')
+          .update({ payment_status: 'refunded' })
+          .eq('id', booking.id)
+          .eq('payment_status', 'paid')
+          .select('id');
+        if (refundErr) throw new Error(refundErr.message);
+        if ((refundedRows ?? []).length > 0) {
+          await decrementAvailabilityBookedAdmin(
+            admin,
+            String(booking.listing_id),
+            typeof booking.booking_date === 'string' ? booking.booking_date : null,
+            Number(booking.guests ?? 1),
+            typeof booking.check_out === 'string' ? booking.check_out : null
+          );
+        }
+        await admin.from('booking_payment_events').insert({
+          booking_id: booking.id,
+          event_id: event.id,
+          event_type: event.type,
+          payment_intent_id: paymentIntentId,
+          amount: amountToMajor(charge.amount_refunded ?? charge.amount ?? null),
+          currency: (charge.currency ?? 'eur').toUpperCase(),
+          payload: event as unknown as Record<string, unknown>,
+        });
+        await markProcessed('processed');
+        return json({ success: true, eventId: event.id, bookingId: booking.id, status: 'refunded' });
       }
 
       await markProcessed('ignored', `Unhandled event type: ${event.type}`);

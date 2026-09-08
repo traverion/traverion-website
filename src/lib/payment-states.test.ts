@@ -32,12 +32,21 @@ describe('payment states', () => {
     expect(sumCollectedAmount(rows)).toBe(634);
   });
 
-  it('excludes cancelled and failed rows from collected totals', () => {
+  it('does not count refunded payments as collected revenue', () => {
+    expect(
+      isCollectedBooking({
+        status: 'confirmed',
+        payment_status: 'refunded',
+        amount_paid: 189,
+      })
+    ).toBe(false);
+    expect(travelerPaymentLabel({ status: 'confirmed', payment_status: 'refunded', amount_paid: 189 })).toBe(
+      'Refunded'
+    );
     expect(
       sumCollectedAmount([
         { status: 'confirmed', payment_status: 'paid', amount_paid: 189 },
-        { status: 'cancelled', payment_status: 'paid', amount_paid: 445 },
-        { status: 'pending', payment_status: 'failed', amount_paid: 0 },
+        { status: 'confirmed', payment_status: 'refunded', amount_paid: 445 },
       ])
     ).toBe(189);
   });

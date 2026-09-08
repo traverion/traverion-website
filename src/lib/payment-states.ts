@@ -23,9 +23,11 @@ export function isPaidPaymentStatus(raw: string | null | undefined): boolean {
   return pay === 'paid' || pay === 'complete' || pay === 'succeeded';
 }
 
-/** Collected for Money / Today totals: paid, not cancelled, amount > 0. */
+/** Collected for Money: paid, not cancelled, not refunded, amount > 0. */
 export function isCollectedBooking(b: MoneyBookingRow): boolean {
   if ((b.status ?? '').trim().toLowerCase() === 'cancelled') return false;
+  const pay = normalizePaymentStatus(b.payment_status);
+  if (pay === 'refunded') return false;
   if (!isPaidPaymentStatus(b.payment_status)) return false;
   const amount = Number(b.amount_paid ?? 0);
   return Number.isFinite(amount) && amount > 0;

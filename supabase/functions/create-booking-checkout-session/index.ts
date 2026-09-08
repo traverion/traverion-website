@@ -36,11 +36,31 @@ function sanitizePath(path: string | undefined, fallback: string): string {
   const raw = (path ?? '').trim();
   if (!raw.startsWith('/')) return fallback;
   if (raw.startsWith('//')) return fallback;
+  if (raw.startsWith('/\\')) return fallback;
+  if (/^[a-z][a-z0-9+.-]*:/i.test(raw.slice(1))) return fallback;
   return raw;
 }
 
-function optionIdFromNotes(notes: string | null | undefined): string | null {
-  const line = (notes ?? '')
+function occupiesInventory(row: {
+  status?: unknown;
+  payment_status?: unknown;
+  hold_expires_at?: unknown;
+  created_at?: unknown;
+}): boolean {
+  const status = String(row.status ?? '');
+  if (status === 'cancelled') return false;
+  const pay = String(row.payment_status ?? 'pending').toLowerCase();
+  if (pay === 'paid') return true;
+  if (pay !== 'pending') return false;
+  const hold = typeof row.hold_expires_at === 'string' ? Date.parse(row.hold_expires_at) : NaN;
+  if (Number.isFinite(hold)) return hold > Date.now();
+  const created = typeof row.created_at === 'string' ? Date.parse(row.created_at) : Date.now();
+  return Number.isFinite(created) && created > Date.now() - 30 * 60 * 1000;
+}
+
+function optionIdFromNotes(notes: unknown): string | null {
+  if (typeof notes !== 'string') return null;
+  const line = notes
     .split(/\n+/)
     .map((l) => l.trim())
     .find((l) => /^booking_option_id:/i.test(l));
@@ -174,7 +194,12 @@ serve(async (req) => {
       .maybeSingle();
     if (listingError) return json({ success: false, error: listingError.message }, 500);
     if (!listingRow) return json({ success: false, error: 'Listing not found' }, 404);
+    const listingStatus = String(listingRow.status ?? '').trim();
+    if (listingStatus && listingStatus !== 'published') {
+      return json({ success: false, error: 'This listing is not available to book.' }, 400);
+    }
     if (listingRow.title?.trim()) listingTitle = listingRow.title.trim();
+    await admin.rpc('expire_stale_checkout_holds', { p_listing_id: listingId });
 
     const { data: discountRows } = await admin
       .from('listing_discounts')
@@ -210,7 +235,7 @@ serve(async (req) => {
     if (extrasFamily === 'stay' && checkoutDate) {
       const { data: existingStayBookings, error: stayBusyErr } = await admin
         .from('bookings')
-        .select('id, booking_date, check_out, special_requests, status')
+        .select('id, booking_date, check_out, special_requests, status, payment_status, hold_expires_at, created_at')
         .eq('listing_id', listingId)
         .neq('status', 'cancelled');
       const stayRows = stayBusyErr && /check_out/i.test(stayBusyErr.message)
@@ -227,6 +252,7 @@ serve(async (req) => {
       }
       for (const row of stayRows ?? []) {
         if (targetBookingId && String(row.id) === targetBookingId) continue;
+        if (!occupiesInventory(row as Record<string, unknown>)) continue;
         const range = stayRangeFromBooking({
           booking_date: typeof row.booking_date === 'string' ? row.booking_date : null,
           check_out: typeof (row as { check_out?: unknown }).check_out === 'string' ? (row as { check_out: string }).check_out : null,
@@ -251,23 +277,10 @@ serve(async (req) => {
       }
     }
 
-    const { error: inventoryErr } = await admin.rpc('assert_checkout_inventory', {
-      p_listing_id: listingId,
-      p_check_in: bookingDate,
-      p_guests: guests,
-      p_check_out: extrasFamily === 'stay' && checkoutDate ? checkoutDate : null,
-      p_exclude_booking_id: targetBookingId || null,
-    });
-    if (inventoryErr) {
-      const missingFn = /could not find the function|schema cache/i.test(inventoryErr.message);
-      if (!missingFn) {
-        const conflict = /already booked|not enough capacity|occupied/i.test(inventoryErr.message);
-        return json({ success: false, error: inventoryErr.message }, conflict ? 409 : 500);
-      }
-    }
-
     const totalAmount = quote.totalAmount;
     const currency = quote.currency;
+    const holdExpiresAtUnix = Math.floor(Date.now() / 1000) + 30 * 60;
+    const holdExpiresAtIso = new Date(holdExpiresAtUnix * 1000).toISOString();
     const notesParts = [
       customerPhone ? `Guest phone: ${customerPhone}` : '',
       specialRequests,
@@ -276,75 +289,104 @@ serve(async (req) => {
     ].filter(Boolean);
 
     if (!targetBookingId) {
-      const insertBase: Record<string, unknown> = {
-        listing_id: listingId,
-        guest_email: email,
-        guest_name: customerName || null,
-        guests,
-        booking_date: bookingDate,
-        status: 'pending',
-        special_requests: notesParts.join('\n\n') || null,
-        total_amount: totalAmount,
-        currency,
-        guest_user_id: user.id,
-        payment_status: 'pending',
-        payment_provider: 'stripe',
-        booking_option_id: quote.optionId,
+      const stayNights =
+        extrasFamily === 'stay' && checkoutDate
+          ? Math.round(
+              (Date.parse(`${checkoutDate}T12:00:00Z`) - Date.parse(`${bookingDate}T12:00:00Z`)) / 86400000
+            )
+          : null;
+      const claimArgs = {
+        p_listing_id: listingId,
+        p_guest_email: email,
+        p_guest_name: customerName || null,
+        p_guests: guests,
+        p_booking_date: bookingDate,
+        p_check_out: extrasFamily === 'stay' && checkoutDate ? checkoutDate : null,
+        p_special_requests: notesParts.join('\n\n') || null,
+        p_total_amount: totalAmount,
+        p_currency: currency,
+        p_guest_user_id: user.id,
+        p_booking_option_id: quote.optionId,
+        p_nights: stayNights != null && stayNights >= 1 ? stayNights : null,
+        p_nightly_amount: stayNights != null && stayNights >= 1 ? quote.unitPrice : null,
+        p_cleaning_fee:
+          stayNights != null && stayNights >= 1
+            ? Math.round((quote.totalAmount - quote.unitPrice * stayNights) * 100) / 100
+            : null,
+        p_hold_expires_at: holdExpiresAtIso,
       };
-      if (extrasFamily === 'stay' && checkoutDate) {
-        const nights =
-          Math.round(
-            (Date.parse(`${checkoutDate}T12:00:00Z`) - Date.parse(`${bookingDate}T12:00:00Z`)) / 86400000
-          );
-        insertBase.check_out = checkoutDate;
-        if (nights >= 1) {
-          insertBase.nights = nights;
-          insertBase.nightly_amount = quote.unitPrice;
-          insertBase.cleaning_fee = Math.round((quote.totalAmount - quote.unitPrice * nights) * 100) / 100;
+      const claimed = await admin.rpc('claim_pending_checkout_booking', claimArgs);
+      if (claimed.error) {
+        const conflict = /already booked|not enough capacity|occupied/i.test(claimed.error.message);
+        if (conflict) return json({ success: false, error: claimed.error.message }, 409);
+        const missingFn = /could not find the function|schema cache/i.test(claimed.error.message);
+        if (!missingFn) return json({ success: false, error: claimed.error.message }, 500);
+        const { error: inventoryErr } = await admin.rpc('assert_checkout_inventory', {
+          p_listing_id: listingId,
+          p_check_in: bookingDate,
+          p_guests: guests,
+          p_check_out: extrasFamily === 'stay' && checkoutDate ? checkoutDate : null,
+          p_exclude_booking_id: null,
+        });
+        if (inventoryErr && !/could not find the function|schema cache/i.test(inventoryErr.message)) {
+          const invConflict = /already booked|not enough capacity|occupied/i.test(inventoryErr.message);
+          return json({ success: false, error: inventoryErr.message }, invConflict ? 409 : 500);
         }
-      }
-      let inserted: { id: string } | null = null;
-      let insertError: { message: string } | null = null;
-      {
+        const insertBase: Record<string, unknown> = {
+          listing_id: listingId,
+          guest_email: email,
+          guest_name: customerName || null,
+          guests,
+          booking_date: bookingDate,
+          status: 'pending',
+          special_requests: notesParts.join('\n\n') || null,
+          total_amount: totalAmount,
+          currency,
+          guest_user_id: user.id,
+          payment_status: 'pending',
+          payment_provider: 'stripe',
+          booking_option_id: quote.optionId,
+          hold_expires_at: holdExpiresAtIso,
+        };
+        if (extrasFamily === 'stay' && checkoutDate) {
+          insertBase.check_out = checkoutDate;
+          if (stayNights != null && stayNights >= 1) {
+            insertBase.nights = stayNights;
+            insertBase.nightly_amount = quote.unitPrice;
+            insertBase.cleaning_fee = Math.round((quote.totalAmount - quote.unitPrice * stayNights) * 100) / 100;
+          }
+        }
         const res = await admin.from('bookings').insert(insertBase).select('id').single();
-        inserted = res.data;
-        insertError = res.error;
+        if (res.error || !res.data?.id) {
+          return json({ success: false, error: res.error?.message ?? 'Could not create booking' }, 500);
+        }
+        targetBookingId = res.data.id;
+      } else {
+        const id = claimed.data as string | null;
+        if (!id) return json({ success: false, error: 'Could not create booking' }, 500);
+        targetBookingId = id;
       }
-      if (insertError && /booking_option_id/i.test(insertError.message)) {
-        delete insertBase.booking_option_id;
-        const res = await admin.from('bookings').insert(insertBase).select('id').single();
-        inserted = res.data;
-        insertError = res.error;
-      }
-      if (insertError && /check_out|nights|nightly_amount|cleaning_fee/i.test(insertError.message)) {
-        delete insertBase.check_out;
-        delete insertBase.nights;
-        delete insertBase.nightly_amount;
-        delete insertBase.cleaning_fee;
-        const res = await admin.from('bookings').insert(insertBase).select('id').single();
-        inserted = res.data;
-        insertError = res.error;
-      }
-      if (insertError || !inserted?.id) {
-        return json({ success: false, error: insertError?.message ?? 'Could not create booking' }, 500);
-      }
-      targetBookingId = inserted.id;
     } else {
+      const { error: inventoryErr } = await admin.rpc('assert_checkout_inventory', {
+        p_listing_id: listingId,
+        p_check_in: bookingDate,
+        p_guests: guests,
+        p_check_out: extrasFamily === 'stay' && checkoutDate ? checkoutDate : null,
+        p_exclude_booking_id: targetBookingId,
+      });
+      if (inventoryErr && !/could not find the function|schema cache/i.test(inventoryErr.message)) {
+        const conflict = /already booked|not enough capacity|occupied/i.test(inventoryErr.message);
+        return json({ success: false, error: inventoryErr.message }, conflict ? 409 : 500);
+      }
       const updatePayload: Record<string, unknown> = {
         total_amount: totalAmount,
         currency,
+        hold_expires_at: holdExpiresAtIso,
       };
       if (quote.optionId) updatePayload.booking_option_id = quote.optionId;
       const { error: priceSyncErr } = await admin.from('bookings').update(updatePayload).eq('id', targetBookingId);
-      if (priceSyncErr && !/booking_option_id/i.test(priceSyncErr.message)) {
+      if (priceSyncErr && !/booking_option_id|hold_expires_at/i.test(priceSyncErr.message)) {
         return json({ success: false, error: priceSyncErr.message }, 500);
-      }
-      if (priceSyncErr) {
-        const { error: retryErr } = await admin
-          .from('bookings')
-          .update({ total_amount: totalAmount, currency })
-          .eq('id', targetBookingId);
-        if (retryErr) return json({ success: false, error: retryErr.message }, 500);
       }
     }
 
@@ -357,6 +399,7 @@ serve(async (req) => {
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       customer_email: email,
+      expires_at: holdExpiresAtUnix,
       success_url: `${publicSiteUrl}${successPath}${successPath.includes('?') ? '&' : '?'}session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${publicSiteUrl}${cancelPath}`,
       payment_method_types: ['card'],
@@ -393,7 +436,12 @@ serve(async (req) => {
 
     const { error: updateError } = await admin
       .from('bookings')
-      .update({ checkout_session_id: session.id })
+      .update({
+        checkout_session_id: session.id,
+        hold_expires_at: session.expires_at
+          ? new Date(session.expires_at * 1000).toISOString()
+          : holdExpiresAtIso,
+      })
       .eq('id', targetBookingId);
     if (updateError) {
       return json({ success: false, error: 'Checkout created but booking update failed' }, 500);

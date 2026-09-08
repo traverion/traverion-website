@@ -144,11 +144,14 @@ export default function SupplierEarnings() {
               {formatMoney(pending, primaryCurrency)}
             </p>
             <p className="mt-4 text-sm text-ink-muted">
-              Gross collected{' '}
+              Collected{' '}
               <span className="tabular-nums font-semibold text-ink">
                 {formatMoney(gross, primaryCurrency)}
               </span>
-              <span className="text-ink-faint"> · paid traveler bookings. Payouts are manual.</span>
+              <span className="text-ink-faint">
+                {' '}
+                · paid traveler bookings only. Refunded payments are excluded. Payouts are manual.
+              </span>
             </p>
             {payoutProgressPct !== null ? (
               <p className="mt-3 text-sm text-ink-muted">{payoutProgressPct}% of your payout minimum</p>
