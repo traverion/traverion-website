@@ -603,8 +603,18 @@ function App() {
             <div className="max-w-lg mx-auto px-4 py-16">
               <ErrorState
                 title="Page not found"
-                body="This address is not a Traverion page. Check the link, or open Tours."
-                back={{ onClick: () => handleNavigate('packages'), label: 'Browse tours' }}
+                body="This address is not a Traverion page. Check the link, or continue from Home, Tours, or Stays."
+                back={{ onClick: () => handleNavigate('home'), label: 'Go home' }}
+                extra={
+                  <div className="flex flex-wrap justify-center gap-2">
+                    <button type="button" className="tv-btn-secondary" onClick={() => handleNavigate('packages')}>
+                      Browse tours
+                    </button>
+                    <button type="button" className="tv-btn-ghost" onClick={() => handleNavigate('stays')}>
+                      Browse stays
+                    </button>
+                  </div>
+                }
               />
             </div>
           </div>

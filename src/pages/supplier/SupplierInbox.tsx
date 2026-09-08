@@ -62,6 +62,11 @@ export default function SupplierInbox() {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('booking');
+    if (id) setOpenId(id);
+  }, []);
+
   const threads = useMemo(() => {
     return [...bookings].sort((a, b) => {
       const ta = lastByBooking[a.id]?.created_at ?? a.created_at;
@@ -102,7 +107,17 @@ export default function SupplierInbox() {
             const unread = last && last.sender_role === 'traveler' && !last.read_by_supplier_at;
             return (
               <li key={b.id} className="border-b border-black/[0.06] pb-4">
-                <button type="button" className="lux-flat w-full text-left" onClick={() => setOpenId(open ? null : b.id)}>
+                <button
+                  type="button"
+                  className="lux-flat w-full text-left"
+                  onClick={() => {
+                    setOpenId(open ? null : b.id);
+                    const url = new URL(window.location.href);
+                    if (open) url.searchParams.delete('booking');
+                    else url.searchParams.set('booking', b.id);
+                    window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+                  }}
+                >
                   <div className="flex items-baseline justify-between gap-3">
                     <p className="font-semibold text-ink truncate">
                       {b.guest_name?.trim() || 'Traveler'} · {titles[b.listing_id] ?? 'Listing'}
@@ -114,12 +129,28 @@ export default function SupplierInbox() {
                       ) : null}
                     </div>
                   </div>
+                  <p className="mt-0.5 text-xs text-ink-faint">
+                    {b.booking_date
+                      ? new Date(`${b.booking_date}T12:00:00`).toLocaleDateString(undefined, {
+                          weekday: 'short',
+                          day: 'numeric',
+                          month: 'short',
+                        })
+                      : 'Date TBC'}
+                    {last?.created_at
+                      ? ` · ${new Date(last.created_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}`
+                      : ''}
+                  </p>
                   <p className="mt-1 text-sm text-ink-muted line-clamp-2">
                     {last?.body ?? 'No messages yet — open to write about this booking.'}
                   </p>
                 </button>
                 {open ? (
                   <div className="mt-4 motion-safe:animate-fade-in">
+                    <p className="mb-3 text-sm text-ink">
+                      Booking {typeof b.booking_number === 'number' ? `#${b.booking_number}` : ''} ·{' '}
+                      {titles[b.listing_id] ?? 'Listing'} · {b.guest_name?.trim() || 'Traveler'}
+                    </p>
                     <BookingMessageThread
                       bookingId={b.id}
                       canCompose={bookingAllowsMessaging({

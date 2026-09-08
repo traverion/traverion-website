@@ -57,6 +57,7 @@ import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { inventoryFamilyFromListing } from '../../lib/inventory';
 import { parseStayCheckOutFromNotes, nightsOccupiedByStay, stayRangeFromBooking } from '../../lib/stayOccupancy';
+import { formatStayNightHuman } from '../../lib/stay-calendar';
 
 const BOOKINGS_PAGE_SIZE = 10;
 
@@ -108,6 +109,7 @@ const REFUND_CHOICES = [
 
 type RefundChoice = (typeof REFUND_CHOICES)[number]['id'];
 type BookingView = 'today' | 'upcoming' | 'past' | 'all';
+type OpsFilter = 'all' | 'unpaid' | 'pickup' | 'cancel';
 
 function bookingPaginationRange(totalPages: number, current: number): (number | 'ellipsis')[] {
   if (totalPages <= 1) return [];
@@ -207,6 +209,7 @@ export default function SupplierBookings() {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   const [view, setView] = useState<BookingView>('all');
+  const [opsFilter, setOpsFilter] = useState<OpsFilter>('all');
   const [filterListingId, setFilterListingId] = useState('');
   const [filterDateFrom, setFilterDateFrom] = useState('');
   const [filterDateTo, setFilterDateTo] = useState('');
@@ -308,6 +311,15 @@ export default function SupplierBookings() {
           return false;
         }
       }
+      if (opsFilter === 'unpaid') {
+        if ((b.payment_status ?? 'pending').trim().toLowerCase() !== 'pending' || b.status === 'cancelled') return false;
+      }
+      if (opsFilter === 'pickup') {
+        if (isStay || b.status === 'cancelled' || !isPaidPaymentStatus(b.payment_status) || b.pickup_time) return false;
+      }
+      if (opsFilter === 'cancel') {
+        if (!openCancels[b.id]) return false;
+      }
       if (filterListingId && b.listing_id !== filterListingId) return false;
       if (filterDateFrom && (!b.booking_date || b.booking_date < filterDateFrom)) return false;
       if (filterDateTo && (!b.booking_date || b.booking_date > filterDateTo)) return false;
@@ -324,7 +336,7 @@ export default function SupplierBookings() {
         guestEmail.includes(q)
       );
     });
-  }, [bookings, filterDateFrom, filterDateTo, filterListingId, filterQuery, listingMeta, todayIso, view]);
+  }, [bookings, filterDateFrom, filterDateTo, filterListingId, filterQuery, listingMeta, todayIso, view, opsFilter, openCancels]);
 
   const totalPages = Math.max(1, Math.ceil(filteredBookings.length / BOOKINGS_PAGE_SIZE));
   const safePage = Math.min(Math.max(bookingsListPage, 1), totalPages);
@@ -340,7 +352,7 @@ export default function SupplierBookings() {
 
   useEffect(() => {
     setBookingsListPage(1);
-  }, [view, filterListingId, filterDateFrom, filterDateTo, filterQuery]);
+  }, [view, filterListingId, filterDateFrom, filterDateTo, filterQuery, opsFilter]);
 
   useEffect(() => {
     if (!highlightBookingId) return;
@@ -512,6 +524,27 @@ export default function SupplierBookings() {
             ))}
           </div>
         )}
+        {bookings.length > 0 && (
+          <div className="mt-3 flex gap-1 rounded-full bg-black/[0.04] p-1 w-fit max-w-full overflow-x-auto">
+            {([
+              ['all', 'All states'],
+              ['unpaid', 'Unpaid'],
+              ['pickup', 'Pickup missing'],
+              ['cancel', 'Cancellation'],
+            ] as const).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setOpsFilter(id)}
+                className={`lux-flat rounded-full px-3.5 py-2 min-h-11 text-sm font-medium shrink-0 ${
+                  opsFilter === id ? 'bg-paper-raised text-ink shadow-sm' : 'text-ink-muted'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
       </SupplierPageHero>
 
       {bookings.length > 0 && (
@@ -649,10 +682,17 @@ export default function SupplierBookings() {
                   ? booking.check_out
                   : parseStayCheckOutFromNotes(booking.special_requests);
               const dateLine = stayOut
-                ? `${booking.booking_date ?? ''} → ${stayOut}`
+                ? `${formatStayNightHuman(booking.booking_date ?? '')} → ${formatStayNightHuman(stayOut)}`
                 : formatActivityDateLong(booking.booking_date, startHm);
               const paidLabel = formatBookingMoney(booking.amount_paid, booking.currency);
               const needsAck = !booking.acknowledged_at && booking.status !== 'cancelled';
+              const pickupGap =
+                meta?.family !== 'stay' &&
+                !stayOut &&
+                isPaidPaymentStatus(booking.payment_status) &&
+                booking.status !== 'cancelled' &&
+                !booking.pickup_time;
+              const openCancel = openCancels[booking.id];
               return (
                 <article
                   key={booking.id}
@@ -688,6 +728,12 @@ export default function SupplierBookings() {
                       </p>
                       {needsAck ? (
                         <p className="mt-1 text-xs font-medium text-finland">Needs a look</p>
+                      ) : null}
+                      {pickupGap ? (
+                        <p className="mt-1 text-xs font-medium text-amber-800">Pickup missing</p>
+                      ) : null}
+                      {openCancel ? (
+                        <p className="mt-1 text-xs font-medium text-red-800">Awaiting traveler cancellation response</p>
                       ) : null}
                     </div>
                   </button>

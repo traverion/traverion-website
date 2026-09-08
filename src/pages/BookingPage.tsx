@@ -923,6 +923,15 @@ export default function BookingPage({
               <p className="text-sm text-ink-muted leading-relaxed">{cancellationText}</p>
             </div>
 
+            <div className="mb-6">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint mb-1.5">After you pay</p>
+              <p className="text-sm text-ink-muted leading-relaxed">
+                Stripe confirms the payment, then Traverion shows Booking confirmed with your reference. Manage the trip from
+                Trips. If you leave Stripe without paying, the hold expires after {CHECKOUT_HOLD_MINUTES} minutes and nothing is
+                charged.
+              </p>
+            </div>
+
             <div
               className="mb-4 min-h-[1.25rem]"
               role="status"

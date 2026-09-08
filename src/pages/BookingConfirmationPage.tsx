@@ -198,7 +198,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
           <ErrorState
             title="No checkout in this link"
             body={userFacingError(error, 'This page needs the return link from payment. Open Trips if you already booked.')}
-            back={{ onClick: goToBookings, label: 'Check my trips' }}
+            back={{ onClick: goToBookings, label: 'Manage booking' }}
           />
         </div>
       </div>
@@ -238,7 +238,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
             title="Could not load this booking"
             body={userFacingError(error, USER_ERROR.booking)}
             retry={{ onClick: () => void load() }}
-            back={{ onClick: goToBookings, label: 'Check my trips' }}
+            back={{ onClick: goToBookings, label: 'Manage booking' }}
             extra={
               <button type="button" onClick={() => onNavigate('contact')} className="tv-btn-ghost">
                 Contact support
@@ -362,7 +362,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                 onClick={goToBookings}
                 className="tv-btn-primary w-full"
               >
-                Check my trips
+                Manage booking
               </button>
               <button
                 type="button"
