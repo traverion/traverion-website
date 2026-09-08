@@ -475,6 +475,7 @@ export default function BookingPage({
   };
 
   const handleConfirmBooking = async () => {
+    if (submitting) return;
     if (isSupabaseConfigured() && !user) return;
     if (!isListingVisibleToTravelers(tour.status)) {
       setError('This tour is not available to book.');

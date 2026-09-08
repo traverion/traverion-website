@@ -263,6 +263,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   useEffect(() => {
     if (!tour) {
       clearTourJsonLd();
+      setPageMetaWithOg('Tour', 'Book this tour from an independent operator.');
       return;
     }
     const desc = (tour.description || '').slice(0, 160);
@@ -283,10 +284,12 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       duration: tour.duration,
       rating: review.score != null ? Number(review.score) : undefined,
       reviews: review.count > 0 ? review.count : undefined,
-      price: tour.price ? { startingFrom: tour.price.startingFrom, currency: tour.price.currency } : undefined,
+      price: tour.price
+        ? { startingFrom: getDisplayPriceForTour(tour, discountsByListing).price, currency: tour.price.currency }
+        : undefined,
     });
     return () => clearTourJsonLd();
-  }, [tour, reviewAggregate]);
+  }, [tour, reviewAggregate, discountsByListing]);
 
   const closeBookingModal = () => {
     setBookingModalOpen(false);
@@ -587,13 +590,16 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                     </span>
                   ) : null}
                   {(() => {
-                    const { price, originalPrice, label } = getDisplayPriceForTour(tour, discountsByListing);
-                    const hasDiscount = Boolean(label && price < originalPrice);
+                    const { price, qualifier, summary } = getDisplayPriceForTour(tour, discountsByListing);
                     const currency = normalizeCurrency(tour.price?.currency);
-                    const shown = hasDiscount ? price : tour.price.startingFrom;
+                    const unit = qualifier ? `/ ${qualifier}` : '';
                     return (
                       <span className="text-ink font-semibold tabular-nums">
-                        From {formatMoney(Number(shown), currency)}
+                        From {formatMoney(Number(price), currency)}
+                        {unit ? <span className="font-medium text-ink-muted"> {unit}</span> : null}
+                        {summary ? (
+                          <span className="ml-2 font-medium text-ink-muted">{summary}</span>
+                        ) : null}
                       </span>
                     );
                   })()}
@@ -921,14 +927,14 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                 ) : (
                 <>
                 {(() => {
-                  const { price, originalPrice, label } = getDisplayPriceForTour(tour, discountsByListing);
+                  const { price, originalPrice, label, qualifier, summary } = getDisplayPriceForTour(tour, discountsByListing);
                   const hasDiscount = label && price < originalPrice;
                   const currency = normalizeCurrency(tour.price?.currency);
-                  const shown = hasDiscount ? price : tour.price.startingFrom;
+                  const unit = qualifier ? `/ ${qualifier}` : 'per person';
                   return (
                     <>
                       <div className="text-2xl font-bold text-ink mb-1">
-                        From {formatMoney(Number(shown), currency)}
+                        From {formatMoney(Number(price), currency)}
                         {hasDiscount && (
                           <span className="text-base font-normal text-ink-faint ml-1 line-through">
                             {formatMoney(originalPrice, currency)}
@@ -936,7 +942,8 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                         )}
                       </div>
                       {hasDiscount && <p className="text-sm text-finland mb-1">{label}</p>}
-                      <p className="text-sm text-ink-muted mb-4">per person</p>
+                      <p className="text-sm text-ink-muted mb-1">{unit}</p>
+                      {summary ? <p className="text-sm text-ink-muted mb-4">{summary}</p> : <div className="mb-4" />}
                     </>
                   );
                 })()}
@@ -1189,15 +1196,14 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
         <div className="lg:hidden fixed inset-x-0 bottom-0 z-40 border-t border-black/[0.06] bg-paper-raised/95 backdrop-blur-md px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] motion-safe:animate-slide-up">
           <div className="flex items-center justify-between gap-3">
             {(() => {
-              const { price, originalPrice, label } = getDisplayPriceForTour(tour, discountsByListing);
-              const hasDiscount = Boolean(label && price < originalPrice);
+              const { price, qualifier } = getDisplayPriceForTour(tour, discountsByListing);
               const currency = normalizeCurrency(tour.price?.currency);
-              const shown = hasDiscount ? price : tour.price.startingFrom;
+              const unit = qualifier ? `/ ${qualifier}` : 'per person';
               return (
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-ink">
-                    From {formatMoney(Number(shown), currency)}
-                    <span className="font-normal text-ink-muted"> · per person</span>
+                    From {formatMoney(Number(price), currency)}
+                    <span className="font-normal text-ink-muted"> · {unit}</span>
                   </p>
                   <p className="text-xs text-ink-muted">
                     {listingShowsFreeCancellation(tour) ? 'Free cancellation' : 'Pay via Stripe to confirm'}

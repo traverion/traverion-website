@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, MapPin, Users } from 'lucide-react';
 import { getListingById, getListingByIdAsync } from '../data/listings';
 import { parseListingExtras } from '../types/listingExtras';
@@ -42,6 +42,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
   const [checkOut, setCheckOut] = useState(() => readStayPrefill().checkOut);
   const [guests, setGuests] = useState(() => readStayPrefill().guests);
   const [paying, setPaying] = useState(false);
+  const checkoutLockRef = useRef(false);
   const [payError, setPayError] = useState<string | null>(null);
   const [hostName, setHostName] = useState<string | null>(null);
   const [occupiedRanges, setOccupiedRanges] = useState<{ checkIn: string; checkOut: string }[]>([]);
@@ -65,7 +66,10 @@ export default function StayDetails({ stayId, onBack }: Props) {
   }, [stayId]);
 
   useEffect(() => {
-    if (!stay) return;
+    if (!stay) {
+      setPageMetaWithOg('Stay', 'Apartment or room from an independent operator.');
+      return;
+    }
     const desc = stay.description?.trim().slice(0, 160) || `${stay.title} in ${[stay.city, stay.country].filter(Boolean).join(', ')}`;
     setPageMetaWithOg(stay.title, desc, {
       title: stay.title,
@@ -127,6 +131,8 @@ export default function StayDetails({ stayId, onBack }: Props) {
       setPayError('Those nights are already booked.');
       return;
     }
+    if (checkoutLockRef.current || paying) return;
+    checkoutLockRef.current = true;
     setPaying(true);
     setPayError(null);
     void createBookingCheckoutSession({
@@ -140,6 +146,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
       cancelPath: '/stays?payment=cancelled',
     }).then((res) => {
       setPaying(false);
+      checkoutLockRef.current = false;
       if (!res.success || !res.checkoutUrl) {
         setPayError(res.error ?? 'Checkout could not start. You were not charged.');
         return;

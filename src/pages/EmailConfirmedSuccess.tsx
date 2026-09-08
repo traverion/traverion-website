@@ -14,21 +14,17 @@ import { supplierPortalPublicBaseUrl } from '../lib/partnerHost';
 import { PARTNER_LOGIN_PATH } from '../lib/partnerPortalPaths';
 import { BRAND_LOGO_SRC } from '../lib/brandAssets';
 
+import { sanitizeTravelerAuthNext } from '../lib/travelerAuthLinks';
+
 const REDIRECT_MS = 3000;
 
 type Phase = 'loading' | 'success' | 'wrong_account' | 'invalid';
-
-function readNextParam(): string {
-  const allowed = new Set(['home', 'packages', 'cart', 'bookings', 'account', 'wishlist', 'contact']);
-  const raw = new URLSearchParams(window.location.search).get('next') ?? 'account';
-  return allowed.has(raw) ? raw : 'account';
-}
 
 export default function EmailConfirmedSuccess() {
   const { user, loading, signOut } = useAuth();
   const [phase, setPhase] = useState<Phase>('loading');
   const [secondsLeft, setSecondsLeft] = useState(Math.ceil(REDIRECT_MS / 1000));
-  const next = useMemo(() => readNextParam(), []);
+  const next = useMemo(() => sanitizeTravelerAuthNext(new URLSearchParams(window.location.search).get('next')), []);
 
   useEffect(() => {
     if (loading) return;

@@ -1,6 +1,8 @@
--- Anonymous and logged-in travelers: only published listings (null status = legacy published).
--- Partner session (auth.uid() = supplier_id): can still read own drafts in the portal.
+-- Unique version of the listings SELECT policy (043 was already used by listing_images_bucket).
+-- Idempotent.
+
 drop policy if exists "Listings are viewable by everyone" on public.listings;
+drop policy if exists "Listings readable when published or owner" on public.listings;
 
 create policy "Listings readable when published or owner"
   on public.listings for select

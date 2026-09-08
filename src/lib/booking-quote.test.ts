@@ -98,6 +98,30 @@ describe('quoteBooking', () => {
     expect(clientAmountConflictsWithQuote(q.totalAmount, q.totalAmount)).toBe(false);
   });
 
+  it('keeps a non-EUR listing currency on the quote (GBP fixture)', () => {
+    const q = quoteBooking({
+      tour: tour({
+        price: {
+          startingFrom: 99,
+          currency: 'GBP',
+          perPerson: true,
+          twinOccupancy: false,
+          customQuote: false,
+          singleSupplement: 0,
+          validity: 'Year round',
+        },
+      }),
+      discounts: [],
+      bookingDate: '2026-09-10',
+      guests: 1,
+      bookingOptionId: 'opt-small',
+      todayIso: today,
+    });
+    expect(q.ok).toBe(true);
+    if (!q.ok) return;
+    expect(q.currency).toBe('GBP');
+  });
+
   it('rejects a manipulated cheaper total conceptually (client amount ignored)', () => {
     const honest = quoteBooking({
       tour: tour(),

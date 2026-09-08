@@ -6,7 +6,16 @@
 
 export const DEFAULT_CURRENCY = 'EUR';
 
+/** Stripe-supported codes Traverion will charge. Do not expose arbitrary ISO codes in Partner UI. */
+export const SUPPORTED_CURRENCIES = ['EUR', 'USD', 'GBP', 'SEK', 'NOK', 'DKK', 'CHF', 'CAD', 'AUD'] as const;
+export type SupportedCurrency = (typeof SUPPORTED_CURRENCIES)[number];
+
 const ISO4217 = /^[A-Z]{3}$/;
+
+export function isSupportedCurrency(raw: string | null | undefined): raw is SupportedCurrency {
+  const c = (raw ?? '').trim().toUpperCase();
+  return (SUPPORTED_CURRENCIES as readonly string[]).includes(c);
+}
 
 export function normalizeCurrency(raw: string | null | undefined): string {
   const c = (raw ?? '').trim().toUpperCase();

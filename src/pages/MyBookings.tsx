@@ -22,6 +22,7 @@ import {
 import { fetchListingTitlesByIds, pgTimeToHm } from '../data/supabase-listings';
 import { parseStayCheckOutFromNotes } from '../lib/stayOccupancy';
 import { formatMoney, isStripeTestCheckoutSession } from '../lib/money';
+import { travelerPaymentLabel } from '../lib/payment-states';
 import { decrementAvailabilityBooked } from '../data/supabase-availability';
 import { clearBookingsUnread } from '../lib/customerBookingNotifications';
 
@@ -409,7 +410,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                     <h3 className="font-semibold text-ink truncate">
                       {titles[b.listing_id] ?? (((b.check_out && /^\d{4}-\d{2}-\d{2}$/.test(b.check_out)) || parseStayCheckOutFromNotes(b.special_requests)) ? 'Stay' : 'Tour')}
                     </h3>
-                    <span className="text-xs font-medium capitalize text-ink-muted shrink-0">{b.status}</span>
+                    <span className="text-xs font-medium text-ink-muted shrink-0">{travelerPaymentLabel(b)}</span>
                   </div>
                   <p className="mt-1 text-sm text-ink-muted">
                     {(() => {
@@ -428,7 +429,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                     {b.guests} {b.guests === 1 ? 'guest' : 'guests'}
                     {b.start_time && !b.check_out ? ` · ${pgTimeToHm(b.start_time) ?? ''}` : ''}
                     {b.nights ? ` · ${b.nights} night${b.nights === 1 ? '' : 's'}` : ''}
-                    {b.amount_paid != null && Number(b.amount_paid) > 0
+                    {b.amount_paid != null && Number(b.amount_paid) > 0 && (b.payment_status ?? '').toLowerCase() === 'paid'
                       ? ` · ${formatMoney(Number(b.amount_paid), b.currency)}${isStripeTestCheckoutSession(b.checkout_session_id) ? ' TEST' : ''}`
                       : ''}
                   </p>

@@ -374,7 +374,7 @@ export async function updateSupplierCompanyProfile(
   return { success: true };
 }
 
-/** Public fields for listing/booking UIs (RLS allows select for all). */
+/** Public operator name/legal text for listing pages. Does not expose payout or KYC fields. */
 export async function fetchSupplierPublicLegal(
   supplierId: string
 ): Promise<{
@@ -386,15 +386,10 @@ export async function fetchSupplierPublicLegal(
   terms_conditions_text: string | null;
 } | null> {
   if (!supabase) return null;
-  const { data, error } = await supabase
-    .from('supplier_profiles')
-    .select(
-      'display_name, company_legal_name, business_address, business_logo_url, privacy_policy_text, terms_conditions_text'
-    )
-    .eq('id', supplierId)
-    .maybeSingle();
-  if (error || !data) return null;
-  return data as {
+  const { data, error } = await supabase.rpc('supplier_public_legal', { p_id: supplierId });
+  const row = Array.isArray(data) ? data[0] : data;
+  if (error || !row) return null;
+  return row as {
     display_name: string | null;
     company_legal_name: string | null;
     business_address: string | null;

@@ -10,7 +10,7 @@ import { TAG_OPTIONS, getDestinationsFromListings, SEED_DESTINATION_OPTIONS } fr
 import { TourPackage } from '../types/tour';
 import { fetchDiscountsByListingIds } from '../data/supabase-discounts';
 import { getReviewAggregatesForListingIds } from '../data/supabase-reviews';
-import { isSupabaseListingId } from '../lib/discount-display';
+import { isSupabaseListingId, catalogHeadlineAmount } from '../lib/discount-display';
 import { setListingsJsonLd } from '../lib/seo';
 import { listingRunsOnDate } from '../lib/booking-quote';
 import { getPartySizeBounds } from '../lib/booking-flow';
@@ -25,10 +25,10 @@ type SortOption = 'recommended' | 'price-asc' | 'price-desc' | 'rating' | 'durat
 
 const PRICE_CHIPS = [
   { id: 'all', label: 'Any price' },
-  { id: 'under100', label: 'Under $100' },
-  { id: '100-500', label: '$100 – $500' },
-  { id: '500-1000', label: '$500 – $1k' },
-  { id: '1000plus', label: '$1k+' },
+  { id: 'under100', label: 'Under €100' },
+  { id: '100-500', label: '€100 – €500' },
+  { id: '500-1000', label: '€500 – €1k' },
+  { id: '1000plus', label: '€1k+' },
 ] as const;
 
 const TAG_LABELS: Record<string, string> = {
@@ -262,10 +262,11 @@ export default function Packages({ onTourSelect }: PackagesProps) {
       const matchesTag =
         selectedTags.length === 0 || (tour.tags && selectedTags.every((tagId) => tour.tags!.includes(tagId)));
       let matchesPrice = true;
-      if (priceRange === 'under100') matchesPrice = tour.price.startingFrom < 100;
-      else if (priceRange === '100-500') matchesPrice = tour.price.startingFrom >= 100 && tour.price.startingFrom < 500;
-      else if (priceRange === '500-1000') matchesPrice = tour.price.startingFrom >= 500 && tour.price.startingFrom <= 1000;
-      else if (priceRange === '1000plus') matchesPrice = tour.price.startingFrom > 1000;
+      const headline = catalogHeadlineAmount(tour);
+      if (priceRange === 'under100') matchesPrice = headline < 100;
+      else if (priceRange === '100-500') matchesPrice = headline >= 100 && headline < 500;
+      else if (priceRange === '500-1000') matchesPrice = headline >= 500 && headline <= 1000;
+      else if (priceRange === '1000plus') matchesPrice = headline > 1000;
       const matchesDate = !filterDate || listingRunsOnDate(tour, filterDate);
       const guestCount = Number.parseInt(filterGuests, 10);
       const matchesGuests =
@@ -276,8 +277,8 @@ export default function Packages({ onTourSelect }: PackagesProps) {
       return matchesSearch && matchesDest && matchesTag && matchesPrice && matchesDate && matchesGuests;
     });
 
-    if (sortBy === 'price-asc') list = [...list].sort((a, b) => a.price.startingFrom - b.price.startingFrom);
-    else if (sortBy === 'price-desc') list = [...list].sort((a, b) => b.price.startingFrom - a.price.startingFrom);
+    if (sortBy === 'price-asc') list = [...list].sort((a, b) => catalogHeadlineAmount(a) - catalogHeadlineAmount(b));
+    else if (sortBy === 'price-desc') list = [...list].sort((a, b) => catalogHeadlineAmount(b) - catalogHeadlineAmount(a));
     else if (sortBy === 'rating')
       list = [...list].sort((a, b) => ratingSortScore(b) - ratingSortScore(a));
     else if (sortBy === 'duration') list = [...list].sort((a, b) => durationToMinutes(a.duration) - durationToMinutes(b.duration));

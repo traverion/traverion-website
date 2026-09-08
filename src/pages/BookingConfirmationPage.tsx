@@ -41,12 +41,13 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
   const [sessionId] = useState(() => readStoredSessionId());
 
   useEffect(() => {
+    if (!sessionId) return;
     try {
-      sessionStorage.removeItem(SESSION_RETURN_KEY);
+      sessionStorage.setItem(SESSION_RETURN_KEY, sessionId);
     } catch {
       /* ignore */
     }
-  }, []);
+  }, [sessionId]);
   const [booking, setBooking] = useState<BookingWithPaymentRow | null>(null);
   const [listingTitle, setListingTitle] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -136,6 +137,15 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
 
   const paid = Boolean(booking && (booking.payment_status ?? '') === 'paid');
   const confirming = Boolean(booking && (booking.payment_status ?? 'pending') !== 'paid');
+
+  useEffect(() => {
+    if (!paid) return;
+    try {
+      sessionStorage.removeItem(SESSION_RETURN_KEY);
+    } catch {
+      /* ignore */
+    }
+  }, [paid]);
 
   useEffect(() => {
     if (paid && user?.id) clearBookingsUnread(user.id);

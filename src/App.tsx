@@ -360,8 +360,27 @@ function App() {
       return;
     }
 
+    const deepLinkTitle =
+      currentPage === 'tour-details' || currentPage === 'booking'
+        ? selectedTour?.title || 'Tour'
+        : currentPage === 'stay-details'
+          ? selectedTour?.title || 'Stay'
+          : null;
+    if (deepLinkTitle) {
+      const desc =
+        currentPage === 'stay-details'
+          ? 'Apartment or room from an independent operator.'
+          : 'Book this tour from an independent operator.';
+      setPageMetaWithOg(deepLinkTitle, desc);
+      setRobotsNoIndex(false);
+      const path = currentPage === 'stay-details' ? '/stays' : '/packages';
+      const qs = window.location.search.replace(/^\?/, '');
+      setCanonicalUrl(path, qs || undefined);
+      return;
+    }
+
     const metaByPage: Record<string, { title: string; description?: string }> = {
-      home: { title: 'Traverion', description: 'Book tours and activities worldwide. Find and reserve experiences with free cancellation.' },
+      home: { title: '', description: 'Book tours and activities worldwide. Find and reserve experiences with free cancellation.' },
       packages: { title: 'Tours', description: 'Browse and book tours worldwide. Filter by destination, price, and more.' },
       stays: { title: 'Stays', description: 'Apartments and rooms from independent operators.' },
       auth: { title: 'Sign in', description: 'Sign in or create an account to manage your bookings and cart.' },
@@ -413,7 +432,7 @@ function App() {
             ? window.location.pathname
           : (pathMap[currentPage] ?? '/');
     setCanonicalUrl(path);
-  }, [currentPage, destinationSlug, isSupplierArea]);
+  }, [currentPage, destinationSlug, isSupplierArea, selectedTour]);
 
   const handleNavigate = useCallback((page: string) => {
     if (isStaticConsumerPage(page) && !isStaticConsumerPage(currentPage)) {
@@ -474,14 +493,18 @@ function App() {
         return <Packages onTourSelect={handleTourSelect} onNavigate={handleNavigate} />;
       case 'stays':
         return <Stays onStaySelect={handleTourSelect} onNavigate={handleNavigate} />;
-      case 'stay-details':
-        return selectedTour ? (
-          <StayDetails stayId={selectedTour.id} onBack={handleBackToStays} />
-        ) : (
+      case 'stay-details': {
+        const stayId =
+          selectedTour?.id ?? new URLSearchParams(window.location.search).get('stay') ?? '';
+        if (/^[0-9a-f-]{36}$/i.test(stayId)) {
+          return <StayDetails stayId={stayId} onBack={handleBackToStays} />;
+        }
+        return (
           <div className="min-h-[50vh] bg-paper" aria-busy="true" aria-label="Loading stay">
             <RouteFallback />
           </div>
         );
+      }
       case 'inventory-reserved':
         return (
           <ReservedInventoryPage
@@ -501,21 +524,18 @@ function App() {
       case 'blog':
         return <Blog onNavigate={handleNavigate} />;
       case 'tour-details':
-        return selectedTour ? (
-          <TourDetails tourId={selectedTour.id} onBack={handleBackToTours} />
-        ) : (
+      case 'booking': {
+        const tourId =
+          selectedTour?.id ?? new URLSearchParams(window.location.search).get('tour') ?? '';
+        if (/^[0-9a-f-]{36}$/i.test(tourId)) {
+          return <TourDetails tourId={tourId} onBack={handleBackToTours} />;
+        }
+        return (
           <div className="min-h-[50vh] bg-paper" aria-busy="true" aria-label="Loading tour">
             <RouteFallback />
           </div>
         );
-      case 'booking':
-        return selectedTour ? (
-          <TourDetails tourId={selectedTour.id} onBack={handleBackToTours} />
-        ) : (
-          <div className="min-h-[50vh] bg-paper" aria-busy="true" aria-label="Loading tour">
-            <RouteFallback />
-          </div>
-        );
+      }
       case 'cart':
         return (
           <CartPage

@@ -35,6 +35,9 @@ import { publicStayListingUrl, publicTourListingUrl } from '../../lib/publicSite
 import { getListingPublishBlockers } from '../../lib/listingPublishGate';
 import { listingHeroImageSrc } from '../../lib/listingPhotoGrid';
 import { formatMoney } from '../../lib/money';
+import { catalogHeadlineAmount } from '../../lib/discount-display';
+import { pickHeadlineOption } from '../../lib/headline-price';
+import { materializedBookingOptions, parseListingExtras } from '../../types/listingExtras';
 import { inventoryFamilyFromListing, PARTNER_CREATE_INVENTORY } from '../../lib/inventory';
 import { normalizeListingForDraftSave } from '../../lib/listingDraftUtils';
 import { SkeletonListItem } from '../../components/ui/Skeleton';
@@ -895,8 +898,10 @@ export default function SupplierListings() {
                   ? 'Live tour'
                   : 'Draft tour';
               const currency = listing.price?.currency ?? 'EUR';
-              const from = listing.price?.startingFrom;
+              const from = catalogHeadlineAmount(listing);
               const money = from == null ? null : formatMoney(from, currency);
+              const opts = materializedBookingOptions(parseListingExtras(listing.listingExtras).bookingOptions);
+              const qualifier = pickHeadlineOption(opts).qualifier;
               const place = [listing.city, listing.country ?? listing.destination].filter(Boolean).join(', ');
               const heroSrc = listingHeroImageSrc(listing.image);
               return (
@@ -925,7 +930,12 @@ export default function SupplierListings() {
                     <div className="pt-3">
                       <h2 className="font-sans text-base font-semibold text-ink leading-snug">{listing.title}</h2>
                       <p className="mt-1 text-sm text-ink-muted">{place || listing.duration}</p>
-                      {money ? <p className="mt-1 text-sm text-ink">From {money}</p> : null}
+                      {money ? (
+                        <p className="mt-1 text-sm text-ink">
+                          From {money}
+                          {qualifier && !isStay ? ` / ${qualifier}` : isStay ? ' / night' : ''}
+                        </p>
+                      ) : null}
                     </div>
                   </button>
                   <div className="mt-3 flex flex-wrap items-center gap-2">

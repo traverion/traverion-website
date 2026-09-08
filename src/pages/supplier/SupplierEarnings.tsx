@@ -10,16 +10,8 @@ import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { formatMoney, isStripeTestCheckoutSession, normalizeCurrency } from '../../lib/money';
+import { isCollectedBooking, sumCollectedAmount } from '../../lib/payment-states';
 import { fetchMyListings } from '../../data/supabase-listings';
-
-function isCollectedBooking(b: BookingRow): boolean {
-  if (b.status === 'cancelled') return false;
-  const pay = (b.payment_status ?? '').trim().toLowerCase();
-  const amount = Number(b.amount_paid ?? 0);
-  if (amount <= 0) return false;
-  if (pay === 'paid' || pay === 'complete' || pay === 'succeeded') return true;
-  return Boolean(b.checkout_session_id);
-}
 
 export default function SupplierEarnings() {
   const { user, isSupabase } = useSupplierAuth();
@@ -73,7 +65,7 @@ export default function SupplierEarnings() {
     const nonCancelled = earnings.filter((e) => e.status !== 'cancelled');
     const paidOut = nonCancelled.filter((e) => e.status === 'paid').reduce((sum, e) => sum + Number(e.amount), 0);
     const pendingRows = nonCancelled.filter((e) => e.status === 'pending').reduce((sum, e) => sum + Number(e.amount), 0);
-    const collected = paidBookings.reduce((sum, b) => sum + Number(b.amount_paid ?? 0), 0);
+    const collected = sumCollectedAmount(paidBookings);
     const pendingPayout = pendingRows > 0 ? pendingRows : Math.max(0, collected - paidOut);
     const filtered =
       statusFilter === 'all'

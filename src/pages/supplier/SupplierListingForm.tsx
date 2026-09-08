@@ -31,6 +31,8 @@ import { isSupabaseConfigured } from '../../lib/supabase';
 import { userFacingError } from '../../lib/userFacingError';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
 import { MIN_LISTING_DESCRIPTION_LENGTH } from '../../lib/listingQualityScore';
+import { headlineStartingAmount } from '../../lib/headline-price';
+import { DEFAULT_CURRENCY } from '../../lib/money';
 
 const TAG_OPTIONS = [
   { id: 'free-cancellation', label: 'Free cancellation' },
@@ -94,6 +96,44 @@ function clearWizardStepStorage(editingId: string | null) {
     sessionStorage.removeItem(wizardStepStorageKey(editingId));
   } catch {
     // ignore
+  }
+}
+
+function listingDraftBackupKey(editingId: string | null) {
+  return `traverion_listing_form_v1_${editingId ?? 'new'}`;
+}
+
+function readListingDraftBackup(editingId: string | null): ListingFormState | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = sessionStorage.getItem(listingDraftBackupKey(editingId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { form?: ListingFormState; savedAt?: string };
+    if (!parsed?.form || typeof parsed.form !== 'object') return null;
+    return parsed.form;
+  } catch {
+    return null;
+  }
+}
+
+function writeListingDraftBackup(editingId: string | null, form: ListingFormState) {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.setItem(
+      listingDraftBackupKey(editingId),
+      JSON.stringify({ savedAt: new Date().toISOString(), form })
+    );
+  } catch {
+    /* quota / private mode */
+  }
+}
+
+function clearListingDraftBackup(editingId: string | null) {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.removeItem(listingDraftBackupKey(editingId));
+  } catch {
+    /* ignore */
   }
 }
 
@@ -180,7 +220,7 @@ function isBookingOptionOkForStep(o: ListingBookingOption): boolean {
 function getBookingOptionValidationMessages(o: ListingBookingOption): string[] {
   const msg: string[] = [];
   if (!o.name.trim()) msg.push('Add an option name (e.g. Small group tour).');
-  if (o.priceUsd <= 0) msg.push('Set a price greater than zero (USD).');
+    if (o.priceUsd <= 0) msg.push('Set a price greater than zero.');
   const durIssue = getListingBookingOptionDurationIssue(o.duration);
   if (durIssue) msg.push(durIssue);
   if (o.pickupPlace.trim().length < 8) {
@@ -352,13 +392,10 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
   const stayBeds = Number.parseInt(form.stayBeds, 10);
   const stayBaths = Number.parseFloat(form.stayBathrooms);
   const stayCleaning = Number.parseFloat(form.stayCleaningFee);
-  const positivePrices = activeOpts.map((o) => o.priceUsd).filter((p) => p > 0);
   const derivedStarting =
     isStay && Number.isFinite(stayNightly) && stayNightly > 0
       ? stayNightly
-      : positivePrices.length > 0
-        ? Math.min(...positivePrices)
-        : 0;
+      : headlineStartingAmount(activeOpts, 0);
   const groupSizeStr = isStay
     ? Number.isFinite(stayMaxGuests) && stayMaxGuests >= 1
       ? `Up to ${stayMaxGuests} guests`
@@ -439,7 +476,7 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
     endLocation: endLoc,
     price: {
       startingFrom: derivedStarting,
-      currency: 'EUR',
+      currency: DEFAULT_CURRENCY,
       perPerson: true,
       twinOccupancy: false,
       customQuote: false,
@@ -800,7 +837,10 @@ export default function SupplierListingForm({
           stayCleaningFee: extras.stay?.cleaningFeeUsd != null ? String(extras.stay.cleaningFeeUsd) : '',
         };
         initialFormSnapshotRef.current = serializeListingFormState(next);
-        setForm(next);
+        const backup = readListingDraftBackup(editingId);
+        setForm(
+          backup && serializeListingFormState(backup) !== serializeListingFormState(next) ? backup : next
+        );
       }
     } else {
       // Only clear edit hydration when we're genuinely in a create session (not a transient editingId=null during edit).
@@ -822,7 +862,12 @@ export default function SupplierListingForm({
             : {}),
         };
         initialFormSnapshotRef.current = serializeListingFormState(seeded);
-        setForm(seeded);
+        const backup = readListingDraftBackup(null);
+        setForm(
+          backup && backup.inventoryFamily === createFamily && serializeListingFormState(backup) !== serializeListingFormState(seeded)
+            ? backup
+            : seeded
+        );
       }
     }
   }, [editingId, existingListings, createFamily]);
@@ -948,6 +993,35 @@ export default function SupplierListingForm({
     return serializeListingFormState(form) !== initialFormSnapshotRef.current;
   }, [form]);
 
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      if (serializeListingFormState(form) !== initialFormSnapshotRef.current) {
+        writeListingDraftBackup(editingId, form);
+      }
+    }, 700);
+    return () => window.clearTimeout(t);
+  }, [form, editingId]);
+
+  useEffect(() => {
+    const persist = () => {
+      if (serializeListingFormState(form) === initialFormSnapshotRef.current) return;
+      writeListingDraftBackup(editingId, form);
+      if (enableDraftOnClose && onSaveDraft) {
+        const listing = buildListingFromForm({ ...form, status: 'draft' }, editingId ?? undefined);
+        void onSaveDraft(listing);
+      }
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') persist();
+    };
+    window.addEventListener('pagehide', persist);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('pagehide', persist);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [form, editingId, enableDraftOnClose, onSaveDraft]);
+
   const publishBlockersPreview = useMemo(() => {
     const asPublished = buildListingFromForm({ ...form, status: 'published' }, editingId ?? undefined);
     return getListingPublishBlockers(asPublished);
@@ -976,6 +1050,7 @@ export default function SupplierListingForm({
           setDraftCloseError('Could not save your draft. Check your connection and try again.');
           return;
         }
+        clearListingDraftBackup(editingId);
       } finally {
         setDraftCloseBusy(false);
         closeIntentRunningRef.current = false;
@@ -1042,6 +1117,7 @@ export default function SupplierListingForm({
             setSubmitError(userFacingError(result.error, 'Could not save your listing. Please try again.'));
             return;
           }
+          clearListingDraftBackup(editingId);
           clearWizardStepStorage(editingId);
         } finally {
           setSubmitting(false);
@@ -1192,7 +1268,7 @@ export default function SupplierListingForm({
                 />
               </div>
               <div id="supplier-listing-field-price">
-                <label className="block text-sm font-medium text-ink mb-1">Price (EUR) *</label>
+                <label className="block text-sm font-medium text-ink mb-1">Price ({DEFAULT_CURRENCY}) *</label>
                 <input
                   type="number"
                   min={0}
@@ -2062,7 +2138,7 @@ export default function SupplierListingForm({
               <p className="text-sm text-ink-muted">Nightly rate for the property, not per person.</p>
               <div className="grid sm:grid-cols-2 gap-3">
                 <label className="block text-sm">
-                  Nightly price (EUR)
+                  Nightly price ({DEFAULT_CURRENCY})
                   <input
                     type="number"
                     min={1}
@@ -2142,7 +2218,7 @@ export default function SupplierListingForm({
                 </label>
               </div>
               <label className="block text-sm">
-                Cleaning fee (EUR, optional)
+                Cleaning fee ({DEFAULT_CURRENCY}, optional)
                 <input
                   type="number"
                   min={0}

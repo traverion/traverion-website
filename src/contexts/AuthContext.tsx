@@ -16,6 +16,8 @@ import { customerSignInPartnerOnlyMessage, travelerSignUpDuplicateEmailMessage }
 import { supplierPortalPublicBaseUrl } from '../lib/partnerHost';
 import { PARTNER_LOGIN_PATH } from '../lib/partnerPortalPaths';
 import { clearSupabaseAuthStorage } from '../lib/clearSupabaseAuthStorage';
+import { sanitizeAuthRedirectTo } from '../lib/authRedirect';
+import { sanitizeTravelerAuthNext } from '../lib/travelerAuthLinks';
 
 type AuthContextValue = {
   user: User | null;
@@ -106,9 +108,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (availability.error) return { error: availability.error };
     if (!availability.available) return { error: 'An account with this phone number already exists. Try signing in instead.' };
 
-    const next = (options?.afterConfirmNext ?? 'account').trim() || 'account';
+    const next = sanitizeTravelerAuthNext(options?.afterConfirmNext ?? 'account');
     const confirmQs = new URLSearchParams({ next }).toString();
-    const redirectTo = options?.redirectTo ?? `${publicSiteBaseUrl()}/email-confirmed?${confirmQs}`;
+    const fallbackRedirect = `${publicSiteBaseUrl()}/email-confirmed?${confirmQs}`;
+    const redirectTo = sanitizeAuthRedirectTo(options?.redirectTo ?? fallbackRedirect, publicSiteBaseUrl(), fallbackRedirect);
     const { data, error } = await supabase.auth.signUp({
       email: normalizedEmail,
       password,

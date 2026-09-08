@@ -255,7 +255,18 @@ serve(async (req) => {
             ? session.payment_intent
             : session.payment_intent?.id ?? null;
         const amountPaid = amountToMajor(session.amount_total ?? null);
-        const currency = (session.currency ?? 'usd').toUpperCase();
+
+        const { data: existingBooking } = await admin
+          .from('bookings')
+          .select('id, payment_status, currency')
+          .eq('id', bookingId)
+          .maybeSingle();
+        if ((existingBooking?.payment_status ?? '').toLowerCase() === 'paid') {
+          await markProcessed('processed');
+          return json({ success: true, duplicate: true, alreadyPaid: true, eventId: event.id, bookingId });
+        }
+
+        const currency = String(existingBooking?.currency || session.currency || 'eur').toUpperCase();
 
         const { error: bookingErr } = await admin
           .from('bookings')
@@ -336,6 +347,14 @@ serve(async (req) => {
       return json({ success: true, ignored: true, eventType: event.type });
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Unknown processing error';
+      console.error(
+        JSON.stringify({
+          source: 'stripe-webhook',
+          eventId: event.id,
+          eventType: event.type,
+          error: msg,
+        })
+      );
       await markProcessed('failed', msg);
       return json({ success: false, error: msg }, 500);
     }

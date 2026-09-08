@@ -6,6 +6,8 @@ import {
   discountsApplicableToOption,
   getValidDiscount,
 } from '../data/supabase-discounts';
+import { participantPriceSummary, pickHeadlineOption } from './headline-price';
+import { formatMoney, normalizeCurrency } from './money';
 
 export function isSupabaseListingId(id: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
@@ -42,24 +44,67 @@ function bestDiscountedPrice(
   return { price: min, label: min < base ? label : undefined };
 }
 
+export type TourDisplayPrice = {
+  price: number;
+  originalPrice: number;
+  label?: string;
+  /** e.g. “adult” when the headline is a participant type, not the cheapest child fare. */
+  qualifier: string | null;
+  /** “Adult €189 · Child €149” when that mix exists. */
+  summary: string | null;
+};
+
+function discountedHeadline(
+  tour: TourPackage,
+  opt: { id: string; name: string; priceUsd: number },
+  discounts: ListingDiscount[],
+  at: Date,
+  fallbackBase: number
+): TourDisplayPrice {
+  const currency = normalizeCurrency(tour.price?.currency);
+  const extras = parseListingExtras(tour.listingExtras as unknown);
+  const allOpts = materializedBookingOptions(extras.bookingOptions);
+  const base = typeof opt.priceUsd === 'number' && opt.priceUsd > 0 ? opt.priceUsd : fallbackBase;
+  const applicable = discountsApplicableToOption(discounts, opt.id, at);
+  const { price, label } = bestDiscountedPrice(base, applicable);
+  const picked = pickHeadlineOption(allOpts);
+  return {
+    price,
+    originalPrice: base,
+    label,
+    qualifier: picked.qualifier,
+    summary: participantPriceSummary(allOpts, (n) => formatMoney(n, currency)),
+  };
+}
+
 /**
- * “From” price for cards and tour header: minimum across bookable options after applying
- * listing-wide and option-scoped discounts that are valid on `at`.
+ * Catalog / header price. When options are participant types (Adult / Child), this is the
+ * adult/standard fare — never the cheapest child price without context.
  */
 export function getDisplayPriceForTour(
   tour: TourPackage,
   discountsByListing: Map<string, ListingDiscount[]>,
   at: Date = new Date()
-): { price: number; originalPrice: number; label?: string } {
+): TourDisplayPrice {
   const discounts = discountsByListing.get(tour.id) ?? [];
   const extras = parseListingExtras(tour.listingExtras as unknown);
   const opts = materializedBookingOptions(extras.bookingOptions);
   const fallbackBase = tour.price?.startingFrom ?? 0;
+  const currency = normalizeCurrency(tour.price?.currency);
+  const emptyMeta = {
+    qualifier: null as string | null,
+    summary: participantPriceSummary(opts, (n) => formatMoney(n, currency)),
+  };
 
   if (opts.length === 0) {
     const applicable = listingWideActiveDiscounts(discounts, at);
     const { price, label } = bestDiscountedPrice(fallbackBase, applicable);
-    return { price, originalPrice: fallbackBase, label };
+    return { price, originalPrice: fallbackBase, label, ...emptyMeta };
+  }
+
+  const picked = pickHeadlineOption(opts);
+  if (picked.option && (picked.mode === 'participant-standard' || picked.mode === 'single')) {
+    return discountedHeadline(tour, picked.option, discounts, at, fallbackBase);
   }
 
   let bestPrice = Infinity;
@@ -78,9 +123,24 @@ export function getDisplayPriceForTour(
   }
 
   if (bestPrice === Infinity || !Number.isFinite(bestPrice)) {
-    return { price: fallbackBase, originalPrice: fallbackBase };
+    return { price: fallbackBase, originalPrice: fallbackBase, ...emptyMeta };
   }
-  return { price: bestPrice, originalPrice: bestOriginal, label: bestLabel };
+  return {
+    price: bestPrice,
+    originalPrice: bestOriginal,
+    label: bestLabel,
+    qualifier: picked.qualifier,
+    summary: emptyMeta.summary,
+  };
+}
+
+/** Amount used for catalog filters/sort when stored `startingFrom` may still be a child min. */
+export function catalogHeadlineAmount(tour: TourPackage): number {
+  const extras = parseListingExtras(tour.listingExtras as unknown);
+  const opts = materializedBookingOptions(extras.bookingOptions);
+  const picked = pickHeadlineOption(opts);
+  if (picked.option && picked.option.priceUsd > 0) return picked.option.priceUsd;
+  return tour.price?.startingFrom ?? 0;
 }
 
 /** Per-person price for a chosen booking variant (option-scoped or listing-wide discounts). */

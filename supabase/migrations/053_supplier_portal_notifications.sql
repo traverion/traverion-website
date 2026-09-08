@@ -1,4 +1,5 @@
--- In-app notices shown on the supplier dashboard (global or per-supplier). Managed by Traverion panel admins.
+-- Unique version: 045 was already used by booking Stripe payment columns.
+-- Idempotent.
 
 CREATE TABLE IF NOT EXISTS public.supplier_portal_notifications (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -25,7 +26,9 @@ COMMENT ON TABLE public.supplier_portal_notifications IS 'Dashboard banners for 
 
 ALTER TABLE public.supplier_portal_notifications ENABLE ROW LEVEL SECURITY;
 
--- Suppliers: global rows + rows addressed to them
+DROP POLICY IF EXISTS supplier_portal_notifications_select_own ON public.supplier_portal_notifications;
+DROP POLICY IF EXISTS supplier_portal_notifications_admin_all ON public.supplier_portal_notifications;
+
 CREATE POLICY supplier_portal_notifications_select_own
   ON public.supplier_portal_notifications
   FOR SELECT
@@ -35,7 +38,6 @@ CREATE POLICY supplier_portal_notifications_select_own
     OR (audience = 'supplier' AND supplier_user_id = auth.uid())
   );
 
--- Traverion panel (same allowlist as other staff tools)
 CREATE POLICY supplier_portal_notifications_admin_all
   ON public.supplier_portal_notifications
   FOR ALL

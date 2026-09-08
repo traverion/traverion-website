@@ -45,7 +45,7 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
 }: PublicListingBrowseCardProps) {
   const imgClass = size === 'compact' ? 'h-44' : 'h-56 sm:h-64';
   const padClass = size === 'compact' ? 'p-3' : 'p-4';
-  const { price, originalPrice, label } = getDisplayPriceForTour(tour, discountsByListing);
+  const { price, originalPrice, label, qualifier, summary } = getDisplayPriceForTour(tour, discountsByListing);
   const hasDiscount = Boolean(label && price < originalPrice);
   const fromAmount = hasDiscount ? price : originalPrice;
   const showStrikethrough = hasDiscount && originalPrice > fromAmount;
@@ -53,6 +53,7 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
   const isStay = listingIsFamily(tour, 'stay');
   const stay = isStay ? parseListingExtras(tour.listingExtras).stay : undefined;
   const stayNightly = stay?.nightlyPriceUsd && stay.nightlyPriceUsd > 0 ? stay.nightlyPriceUsd : fromAmount;
+  const unitLabel = isStay ? 'per night' : qualifier ? `/ ${qualifier}` : 'per person';
   const locationLine =
     [tour.city, tour.country].filter(Boolean).join(', ') || tour.destination || 'Various locations';
   const durationLine = isStay
@@ -130,8 +131,8 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
                 ? `${formatMoney(stayStayTotal.total, stayStayTotal.currency)} for ${stayStayTotal.nights} nights`
                 : `${formatMoney(stayNightly, currency)} per night`
               : hasDiscount
-                ? `From ${formatMoney(fromAmount, currency)} per person, ${label}`
-                : `From ${formatMoney(originalPrice, currency)} per person`
+                ? `From ${formatMoney(fromAmount, currency)} ${unitLabel}, ${label}`
+                : `From ${formatMoney(originalPrice, currency)} ${unitLabel}`
           }
         >
           {isStay ? null : (
@@ -143,7 +144,10 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
           <span className={`font-bold tracking-tight ${hasDiscount && !isStay ? 'text-finland' : 'text-ink'}`}>
             {formatMoney(isStay ? stayNightly : fromAmount, currency)}
           </span>
-          <span className="text-sm font-medium text-ink-muted">{isStay ? 'per night' : 'per person'}</span>
+          <span className="text-sm font-medium text-ink-muted">{unitLabel}</span>
+          {!isStay && summary ? (
+            <span className="w-full text-xs font-medium text-ink-muted">{summary}</span>
+          ) : null}
           {isStay && stayStayTotal ? (
             <span className="w-full text-sm font-medium text-ink">
               {stayStayTotal.nights} night{stayStayTotal.nights === 1 ? '' : 's'} ·{' '}

@@ -4,6 +4,7 @@ import {
   formatMoney,
   isStripeTestCheckoutSession,
   isStripeTestPublishableKey,
+  isSupportedCurrency,
   normalizeCurrency,
 } from './money';
 
@@ -21,6 +22,13 @@ describe('money', () => {
     expect(formatMoney(189, 'USD')).toMatch(/189/);
     expect(formatMoney(189, 'USD')).toMatch(/\$/);
     expect(formatMoney(445.5, 'EUR')).toMatch(/445/);
+  });
+
+  it('formats a non-EUR supported Stripe currency without assuming euro', () => {
+    expect(isSupportedCurrency('GBP')).toBe(true);
+    expect(isSupportedCurrency('XYZ')).toBe(false);
+    expect(formatMoney(99, 'GBP')).toMatch(/99/);
+    expect(formatMoney(99, 'GBP')).not.toMatch(/€/);
   });
 
   it('detects Stripe TEST checkout sessions', () => {

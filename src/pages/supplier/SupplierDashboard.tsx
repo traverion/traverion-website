@@ -291,7 +291,12 @@ export default function SupplierDashboard({ onNavigateToBookings }: SupplierDash
           <h2 className="text-[11px] uppercase tracking-[0.18em] text-ink-faint mb-4">Recent</h2>
           <ul className="space-y-4">
             {recentBookings.map((b) => {
-              const paid = b.amount_paid != null && Number.isFinite(Number(b.amount_paid)) ? Number(b.amount_paid) : null;
+              const paid =
+                b.amount_paid != null &&
+                Number.isFinite(Number(b.amount_paid)) &&
+                (b.payment_status ?? '').trim().toLowerCase() === 'paid'
+                  ? Number(b.amount_paid)
+                  : null;
               const money = paid == null ? null : formatMoney(paid, b.currency);
               return (
                 <li key={b.id} className="flex items-baseline justify-between gap-3">

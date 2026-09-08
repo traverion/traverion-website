@@ -251,6 +251,21 @@ serve(async (req) => {
       }
     }
 
+    const { error: inventoryErr } = await admin.rpc('assert_checkout_inventory', {
+      p_listing_id: listingId,
+      p_check_in: bookingDate,
+      p_guests: guests,
+      p_check_out: extrasFamily === 'stay' && checkoutDate ? checkoutDate : null,
+      p_exclude_booking_id: targetBookingId || null,
+    });
+    if (inventoryErr) {
+      const missingFn = /could not find the function|schema cache/i.test(inventoryErr.message);
+      if (!missingFn) {
+        const conflict = /already booked|not enough capacity|occupied/i.test(inventoryErr.message);
+        return json({ success: false, error: inventoryErr.message }, conflict ? 409 : 500);
+      }
+    }
+
     const totalAmount = quote.totalAmount;
     const currency = quote.currency;
     const notesParts = [
