@@ -7,6 +7,7 @@ import {
   type FieldDiff,
 } from '../_shared/transactional-html.ts';
 import { buildReceiptPdfBytes, uint8ToBase64 } from '../_shared/receipt-pdf.ts';
+import { clientErrorForEmailProvider } from '../_shared/email-provider-error.ts';
 
 type EmailKind =
   | 'booking_request'
@@ -331,7 +332,15 @@ serve(async (req) => {
       body: JSON.stringify(resendPayload),
     });
     const resendJson: any = await resendResp.json();
-    if (!resendResp.ok) return json({ success: false, error: resendJson?.message ?? 'Resend error' }, 500);
+    if (!resendResp.ok) {
+      console.error('notify-customer-booking: email provider rejected request', {
+        status: resendResp.status,
+      });
+      return json(
+        { success: false, error: clientErrorForEmailProvider(resendResp.status, resendJson?.message) },
+        500,
+      );
+    }
     return json({ success: true, providerMessageId: resendJson?.id ?? null });
   } catch (e) {
     return json({ success: false, error: e instanceof Error ? e.message : 'Unknown error' }, 500);
