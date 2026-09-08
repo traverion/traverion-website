@@ -42,6 +42,39 @@ const TAG_OPTIONS = [
   { id: 'bestseller', label: 'Bestseller' },
 ];
 
+const STAY_AMENITY_PRESETS = [
+  'Wifi',
+  'Kitchen',
+  'Parking',
+  'Washer',
+  'Heating',
+  'Workspace',
+  'TV',
+  'Hair dryer',
+  'Self check-in',
+] as const;
+
+function stayAmenityTokens(raw: string): string[] {
+  return raw
+    .split(',')
+    .map((x) => x.trim())
+    .filter(Boolean);
+}
+
+function stayAmenityHas(raw: string, label: string): boolean {
+  const key = label.toLowerCase();
+  return stayAmenityTokens(raw).some((x) => x.toLowerCase() === key);
+}
+
+function toggleStayAmenity(raw: string, label: string): string {
+  const cur = stayAmenityTokens(raw);
+  const key = label.toLowerCase();
+  const next = stayAmenityHas(raw, label)
+    ? cur.filter((x) => x.toLowerCase() !== key)
+    : [...cur, label];
+  return next.join(', ');
+}
+
 const EXPERIENCE_START_OPTIONS: {
   value: 'unspecified' | 'fixed_meeting_place' | 'operator_pickup' | 'either_available';
   label: string;
@@ -756,6 +789,7 @@ export default function SupplierListingForm({
       return stay
         ? [
             { id: 'supplier-listing-field-stay-price', label: 'Nightly price' },
+            { id: 'supplier-listing-field-stay-amenities', label: 'Amenities' },
             { id: 'supplier-listing-field-stay-rules', label: 'House rules' },
           ]
         : [
@@ -2348,15 +2382,45 @@ export default function SupplierListingForm({
                   . Guests see this breakdown before they pay.
                 </p>
               ) : null}
-              <label className="block text-sm">
-                Amenities (comma separated)
-                <input
-                  value={form.stayAmenities}
-                  onChange={(e) => setForm((f) => ({ ...f, stayAmenities: e.target.value }))}
-                  className="tv-input mt-1 w-full"
-                  placeholder="Wifi, kitchen, parking"
-                />
-              </label>
+              <div id="supplier-listing-field-stay-amenities">
+                <p className="text-sm font-medium text-ink">Amenities</p>
+                <p className="text-xs text-ink-muted mt-0.5 mb-2">Travelers see these on the stay page. Tick what is actually there.</p>
+                <div className="flex flex-wrap gap-2">
+                  {STAY_AMENITY_PRESETS.map((label) => {
+                    const on = stayAmenityHas(form.stayAmenities, label);
+                    return (
+                      <button
+                        key={label}
+                        type="button"
+                        aria-pressed={on}
+                        onClick={() => setForm((f) => ({ ...f, stayAmenities: toggleStayAmenity(f.stayAmenities, label) }))}
+                        className={`lux-flat rounded-full px-3 py-1.5 text-sm ${
+                          on ? 'bg-ink text-paper-raised' : 'text-ink-muted ring-1 ring-black/[0.08]'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <label className="block text-sm mt-3">
+                  Other (comma separated)
+                  <input
+                    value={stayAmenityTokens(form.stayAmenities)
+                      .filter((a) => !STAY_AMENITY_PRESETS.some((p) => p.toLowerCase() === a.toLowerCase()))
+                      .join(', ')}
+                    onChange={(e) => {
+                      const extras = stayAmenityTokens(e.target.value);
+                      const presets = stayAmenityTokens(form.stayAmenities).filter((a) =>
+                        STAY_AMENITY_PRESETS.some((p) => p.toLowerCase() === a.toLowerCase())
+                      );
+                      setForm((f) => ({ ...f, stayAmenities: [...presets, ...extras].join(', ') }));
+                    }}
+                    className="tv-input mt-1 w-full"
+                    placeholder="Sauna, river view"
+                  />
+                </label>
+              </div>
               <label id="supplier-listing-field-stay-rules" className="block text-sm">
                 House rules
                 <textarea
