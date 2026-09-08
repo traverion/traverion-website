@@ -11,6 +11,7 @@ import SupplierPortalNoticePanel from '../../components/supplier/SupplierPortalN
 import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { formatMoney } from '../../lib/money';
+import { bookingOccupiesInventory } from '../../lib/booking-hold';
 
 interface SupplierDashboardProps {
   onNavigateToBookings?: () => void;
@@ -104,7 +105,7 @@ export default function SupplierDashboard({ onNavigateToBookings }: SupplierDash
 
   const todayScheduleRows = useMemo(() => {
     const active = supplierBookings.filter(
-      (b) => b.booking_date === todayYmd && b.status !== 'cancelled'
+      (b) => b.booking_date === todayYmd && bookingOccupiesInventory(b)
     );
     const byListing = new Map<string, { bookings: number; guests: number }>();
     for (const b of active) {
@@ -122,7 +123,11 @@ export default function SupplierDashboard({ onNavigateToBookings }: SupplierDash
   }, [supplierBookings, listingTitlesById, todayYmd]);
 
   const pendingBookings = useMemo(
-    () => supplierBookings.filter((b) => b.status === 'pending'),
+    () =>
+      supplierBookings.filter(
+        (b) =>
+          b.status !== 'cancelled' && (b.payment_status ?? 'pending').trim().toLowerCase() === 'pending'
+      ),
     [supplierBookings]
   );
 
@@ -152,7 +157,7 @@ export default function SupplierDashboard({ onNavigateToBookings }: SupplierDash
   });
 
   const upcoming = supplierBookings
-    .filter((b) => b.status !== 'cancelled' && b.booking_date && b.booking_date > todayYmd)
+    .filter((b) => bookingOccupiesInventory(b) && b.booking_date && b.booking_date > todayYmd)
     .sort((a, b) => (a.booking_date ?? '').localeCompare(b.booking_date ?? ''))
     .slice(0, 4);
 

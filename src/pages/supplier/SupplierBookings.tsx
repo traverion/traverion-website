@@ -15,6 +15,7 @@ import {
 import type { TourPackage } from '../../types/tour';
 import { listingHeroImageSrc, orderedPhotoUrls, photoSlotsFromTourPackage } from '../../lib/listingPhotoGrid';
 import { formatMoney } from '../../lib/money';
+import { partnerPaymentLabel } from '../../lib/payment-states';
 import { SkeletonListItem } from '../../components/ui/Skeleton';
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
@@ -619,7 +620,7 @@ export default function SupplierBookings() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-baseline justify-between gap-3">
                         <p className="font-semibold text-ink truncate">{booking.guest_name || 'Guest'}</p>
-                        <span className="text-xs font-medium capitalize text-ink-muted shrink-0">{booking.status}</span>
+                        <span className="text-xs font-medium capitalize text-ink-muted shrink-0">{partnerPaymentLabel(booking)}</span>
                       </div>
                       <p className="mt-0.5 text-sm text-ink-muted truncate">{listingTitle}</p>
                       <p className="mt-1 text-sm text-ink-muted">
@@ -735,7 +736,7 @@ export default function SupplierBookings() {
                     )}
                     <div className="min-w-0 flex-1">
                       <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize ring-1 ${bookingStatusClass(booking.status)}`}>
-                        {booking.status}
+                        {partnerPaymentLabel(booking)}
                       </span>
                       <p className="mt-2 font-sans text-base font-semibold text-ink">{listingTitle}</p>
                       {meta ? (

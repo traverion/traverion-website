@@ -15,6 +15,7 @@ import type { TourPackage } from '../../types/tour';
 import { optionRunsOnDate } from '../../lib/booking-quote';
 import { inventoryFamilyFromListing } from '../../lib/inventory';
 import { nightsOccupiedByStay, stayRangeFromBooking } from '../../lib/stayOccupancy';
+import { bookingOccupiesInventory } from '../../lib/booking-hold';
 import {
   buildMonthCells,
   defaultCapacityForOpenDay,
@@ -111,7 +112,7 @@ export default function SupplierAvailability() {
         fetchBookingsForSupplier(user.id).catch(() => [] as BookingRow[]),
       ]);
       setListings(mine);
-      setBookings(mineBookings.filter((b) => b.status !== 'cancelled'));
+      setBookings(mineBookings.filter((b) => bookingOccupiesInventory(b)));
       setListingId((prev) => {
         if (prev && mine.some((l) => l.id === prev)) return prev;
         return '';

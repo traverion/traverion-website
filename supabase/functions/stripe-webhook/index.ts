@@ -299,14 +299,22 @@ serve(async (req) => {
           .select('id, payment_status, currency')
           .eq('id', bookingId)
           .maybeSingle();
-        if ((existingBooking?.payment_status ?? '').toLowerCase() === 'paid') {
+        const existingPay = (existingBooking?.payment_status ?? '').toLowerCase();
+        if (existingPay === 'paid' || existingPay === 'refunded') {
           await markProcessed('processed');
-          return json({ success: true, duplicate: true, alreadyPaid: true, eventId: event.id, bookingId });
+          return json({
+            success: true,
+            duplicate: true,
+            alreadyPaid: existingPay === 'paid',
+            alreadyRefunded: existingPay === 'refunded',
+            eventId: event.id,
+            bookingId,
+          });
         }
 
         const currency = String(existingBooking?.currency || session.currency || 'eur').toUpperCase();
 
-        const { error: bookingErr } = await admin
+        const { data: paidRows, error: bookingErr } = await admin
           .from('bookings')
           .update({
             status: 'confirmed',
@@ -318,8 +326,14 @@ serve(async (req) => {
             currency,
             paid_at: new Date().toISOString(),
           })
-          .eq('id', bookingId);
+          .eq('id', bookingId)
+          .eq('payment_status', 'pending')
+          .select('id');
         if (bookingErr) throw new Error(bookingErr.message);
+        if ((paidRows ?? []).length === 0) {
+          await markProcessed('processed');
+          return json({ success: true, ignored: true, reason: 'booking was not pending', eventId: event.id, bookingId });
+        }
 
         await admin.from('booking_payment_events').insert({
           booking_id: bookingId,
