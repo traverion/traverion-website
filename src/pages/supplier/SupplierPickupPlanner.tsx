@@ -28,6 +28,8 @@ import { SUPPLIER_PAGE_CLASS, SupplierEmptyState, SupplierPageHero } from '../..
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import { partnerBookingIsLiveTrip, partnerBookingIsOperatingTrip } from '../../lib/trip-views';
+import { bookingIsStayNight, bookingNeedsPickupCopy } from '../../lib/pickup-completeness';
+import { inventoryFamilyFromListing } from '../../lib/inventory';
 
 function toYmd(d: Date): string {
   const y = d.getFullYear();
@@ -169,6 +171,7 @@ export default function SupplierPickupPlanner() {
   const [meetingPoints, setMeetingPoints] = useState<Record<string, string>>({});
   const [pickupInstructions, setPickupInstructions] = useState<Record<string, string>>({});
   const [listingGuideMeta, setListingGuideMeta] = useState<Record<string, ListingGuideMeta>>({});
+  const [stayListingIds, setStayListingIds] = useState<Set<string>>(() => new Set());
   const [loading, setLoading] = useState(true);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -198,11 +201,11 @@ export default function SupplierPickupPlanner() {
         fetchBookingsForSupplier(uid),
         fetchMyListings(uid),
       ]);
-      setBookings(bookingsList.filter(partnerBookingIsLiveTrip));
       const titles: Record<string, string> = {};
       const points: Record<string, string> = {};
       const instructions: Record<string, string> = {};
       const guideMeta: Record<string, ListingGuideMeta> = {};
+      const stayIds = new Set<string>();
       listings.forEach((l) => {
         titles[l.id] = l.title;
         points[l.id] = l.meetingPoint?.trim() ?? '';
@@ -215,6 +218,7 @@ export default function SupplierPickupPlanner() {
           pickupWindowMin: l.pickupWindowMinutesBeforeMin ?? 0,
           pickupWindowMax: l.pickupWindowMinutesBeforeMax ?? 30,
         };
+        if (inventoryFamilyFromListing(l) === 'stay') stayIds.add(l.id);
       });
       const listingIds = [...new Set(bookingsList.map((b) => b.listing_id))];
       for (const lid of listingIds) {
@@ -232,8 +236,16 @@ export default function SupplierPickupPlanner() {
             pickupWindowMin: listing.pickupWindowMinutesBeforeMin ?? 0,
             pickupWindowMax: listing.pickupWindowMinutesBeforeMax ?? 30,
           };
+          if (inventoryFamilyFromListing(listing) === 'stay') stayIds.add(lid);
         }
       }
+      setStayListingIds(stayIds);
+      setBookings(
+        bookingsList.filter(
+          (b) =>
+            partnerBookingIsLiveTrip(b) && !bookingIsStayNight(b) && !stayIds.has(b.listing_id)
+        )
+      );
       setListingTitles(titles);
       setMeetingPoints(points);
       setPickupInstructions(instructions);
@@ -249,10 +261,11 @@ export default function SupplierPickupPlanner() {
     load();
   }, [load]);
 
-  /** Active pickup work only: hide cancelled, refunded, and failed checkouts. */
+  /** Tour pickup work only: hide stays, cancelled, refunded, and failed checkouts. */
   const filtered = useMemo(() => {
     return bookings.filter((b) => {
       if (!partnerBookingIsOperatingTrip(b)) return false;
+      if (bookingIsStayNight(b) || stayListingIds.has(b.listing_id)) return false;
 
       const bd = b.booking_date;
       if (dateFrom && bd && bd < dateFrom) return false;
@@ -260,7 +273,7 @@ export default function SupplierPickupPlanner() {
       if ((dateFrom || dateTo) && !bd) return false;
       return true;
     });
-  }, [bookings, dateFrom, dateTo]);
+  }, [bookings, dateFrom, dateTo, stayListingIds]);
 
   const sorted = useMemo(
     () =>
@@ -271,16 +284,16 @@ export default function SupplierPickupPlanner() {
     [filtered]
   );
 
-  const needsPickupInfo = useCallback((listingId: string) => {
-    const m = (meetingPoints[listingId] ?? '').trim();
-    const p = (pickupInstructions[listingId] ?? '').trim();
-    return m.length + p.length < 20;
-  }, [meetingPoints, pickupInstructions]);
+  const needsPickupInfo = useCallback(
+    (b: BookingRow) =>
+      bookingNeedsPickupCopy(b, meetingPoints[b.listing_id], pickupInstructions[b.listing_id]),
+    [meetingPoints, pickupInstructions]
+  );
 
   const listBookings = useMemo(() => {
     let rows = sorted;
     if (listingFilterId) rows = rows.filter((b) => b.listing_id === listingFilterId);
-    if (needsPickupOnly) rows = rows.filter((b) => needsPickupInfo(b.listing_id));
+    if (needsPickupOnly) rows = rows.filter((b) => needsPickupInfo(b));
     const cmp = (a: BookingRow, b: BookingRow) =>
       (a.booking_date ?? '').localeCompare(b.booking_date ?? '') || a.created_at.localeCompare(b.created_at);
     return sortDate === 'asc' ? [...rows].sort(cmp) : [...rows].sort((a, b) => cmp(b, a));
@@ -307,9 +320,10 @@ export default function SupplierPickupPlanner() {
   const listingSelectOptions = useMemo(
     () =>
       Object.entries(listingTitles)
+        .filter(([id]) => !stayListingIds.has(id))
         .map(([id, title]) => ({ id, title }))
         .sort((a, b) => a.title.localeCompare(b.title)),
-    [listingTitles]
+    [listingTitles, stayListingIds]
   );
 
   const selectedBooking = useMemo(
@@ -506,7 +520,7 @@ export default function SupplierPickupPlanner() {
 
   const plannerStats = useMemo(() => {
     const guestTotal = listBookings.reduce((sum, b) => sum + Number(b.guests ?? 0), 0);
-    const needsPickup = listBookings.filter((b) => needsPickupInfo(b.listing_id)).length;
+    const needsPickup = listBookings.filter((b) => needsPickupInfo(b)).length;
     return { bookings: listBookings.length, guests: guestTotal, needsPickup };
   }, [listBookings, needsPickupInfo]);
 
@@ -888,13 +902,13 @@ export default function SupplierPickupPlanner() {
         <SupplierEmptyState
           icon={CalendarDays}
           title="No bookings yet"
-          body="Pickup times show up after a traveler books. You have none yet — that is normal until a tour is live and booked."
+          body="Pickup times show up after a traveler books a tour. Stay nights are on Bookings."
         />
       ) : listBookings.length === 0 ? (
         <SupplierEmptyState
           icon={CalendarDays}
           title="Nothing in this view"
-          body="You have bookings, but none match these dates, listing, or pickup filter. Cancelled bookings stay hidden. Clear filters to see the rest."
+          body="You have tour bookings, but none match these dates, listing, or pickup filter. Stay nights, cancelled, and refunded trips stay hidden. Clear filters to see the rest."
           action={
             <button
               type="button"
@@ -917,7 +931,7 @@ export default function SupplierPickupPlanner() {
             const sectionOpen = dateSectionOpen[ymd] !== false;
             const dayRows = bookingsGroupedByDate.byDay.get(ymd) ?? [];
             const dayGuestTotal = dayRows.reduce((sum, b) => sum + Number(b.guests ?? 0), 0);
-            const dayNeedsPickup = dayRows.filter((b) => needsPickupInfo(b.listing_id)).length;
+            const dayNeedsPickup = dayRows.filter((b) => needsPickupInfo(b)).length;
             return (
               <section key={ymd}>
                 <button
@@ -955,7 +969,7 @@ export default function SupplierPickupPlanner() {
                   <div className="overflow-hidden">
                     <div className="divide-y divide-black/[0.06]">
                       {dayRows.map((b) => {
-                        const missing = needsPickupInfo(b.listing_id);
+                        const missing = needsPickupInfo(b);
                         const hrs = hoursUntilBookingDayStart(b.booking_date);
                         const urgentSoon = hrs !== null && hrs > 0 && hrs <= 24 && missing;
                         return (
@@ -1016,7 +1030,7 @@ export default function SupplierPickupPlanner() {
                         booking={b}
                         listingTitle={listingTitles[b.listing_id] ?? 'Listing'}
                         guideMeta={listingGuideMeta[b.listing_id]}
-                        missingPickup={needsPickupInfo(b.listing_id)}
+                        missingPickup={needsPickupInfo(b)}
                         onOpen={() => setSelectedBookingId(b.id)}
                       />
                     ))}

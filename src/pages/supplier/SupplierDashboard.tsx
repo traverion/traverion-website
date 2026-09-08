@@ -10,7 +10,7 @@ import { fetchSupplierProfile } from '../../data/supabase-supplier-profile';
 import {
   fetchCancellationRequestsForBookings,
 } from '../../data/supabase-booking-ops';
-import { listingPickupCopyIncomplete } from '../../lib/pickup-completeness';
+import { listingPickupCopyIncomplete, bookingIsStayNight } from '../../lib/pickup-completeness';
 import { isPaidPaymentStatus } from '../../lib/payment-states';
 import type { TourPackage } from '../../types/tour';
 import SupplierPortalNoticePanel from '../../components/supplier/SupplierPortalNoticePanel';
@@ -161,7 +161,7 @@ export default function SupplierDashboard({ onNavigateToBookings }: SupplierDash
       supplierBookings.filter((b) => {
         if (!bookingOccupiesInventory(b) || !isPaidPaymentStatus(b.payment_status)) return false;
         if (!b.booking_date || b.booking_date < todayYmd) return false;
-        if (b.check_out) return false;
+        if (bookingIsStayNight(b)) return false;
         if (b.pickup_time) return false;
         const listing = listingsById[b.listing_id];
         return listingPickupCopyIncomplete(listing?.meetingPoint, listing?.pickupInstructions);
