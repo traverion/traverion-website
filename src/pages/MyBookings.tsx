@@ -39,6 +39,7 @@ import { listingPickupCopyIncomplete } from '../lib/pickup-completeness';
 import { decrementAvailabilityBooked } from '../data/supabase-availability';
 import { clearBookingsUnread } from '../lib/customerBookingNotifications';
 import { guestFacingBookingNotes } from '../lib/booking-notes';
+import { bookingIsCancelledTrip, bookingMatchesTripView } from '../lib/trip-views';
 
 interface MyBookingsProps {
   onNavigate: (page: string) => void;
@@ -224,7 +225,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
     const b = bookings.find((row) => row.id === openTripId);
     if (!b) return;
     const today = new Date().toISOString().slice(0, 10);
-    if (b.status === 'cancelled') setTripView('cancelled');
+    if (bookingIsCancelledTrip(b)) setTripView('cancelled');
     else if (b.booking_date && b.booking_date < today) setTripView('past');
     else setTripView('upcoming');
   }, [openTripId, bookings]);
@@ -252,13 +253,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
 
   const todayIso = new Date().toISOString().slice(0, 10);
   const visibleBookings = useMemo(() => {
-    return bookings.filter((b) => {
-      if (tripView === 'cancelled') return b.status === 'cancelled';
-      if (tripView === 'past') {
-        return b.status !== 'cancelled' && !!b.booking_date && b.booking_date < todayIso;
-      }
-      return b.status !== 'cancelled' && (!b.booking_date || b.booking_date >= todayIso);
-    });
+    return bookings.filter((b) => bookingMatchesTripView(b, tripView, todayIso));
   }, [bookings, todayIso, tripView]);
 
   if (!isSupabaseConfigured()) {
