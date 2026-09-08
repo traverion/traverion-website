@@ -16,6 +16,11 @@ export function bookingIsFailedCheckout(b: { payment_status?: string | null }): 
   return normalizePaymentStatus(b.payment_status) === 'failed';
 }
 
+/** Partner live trips: paid, pending hold, cancelled, refunded — not abandoned Stripe checkouts. */
+export function partnerBookingIsLiveTrip(b: { payment_status?: string | null }): boolean {
+  return !bookingIsFailedCheckout(b);
+}
+
 /** Upcoming and Past are for active trips only. Refunded money belongs with Cancelled. */
 export function bookingMatchesTripView(
   b: { status?: string | null; payment_status?: string | null; booking_date?: string | null },

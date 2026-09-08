@@ -18,6 +18,7 @@ import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { formatMoney } from '../../lib/money';
 import { bookingOccupiesInventory } from '../../lib/booking-hold';
+import { partnerBookingIsLiveTrip } from '../../lib/trip-views';
 
 interface SupplierDashboardProps {
   onNavigateToBookings?: () => void;
@@ -179,7 +180,7 @@ export default function SupplierDashboard({ onNavigateToBookings }: SupplierDash
   const recentBookings = useMemo(
     () =>
       [...supplierBookings]
-        .filter((b) => b.status !== 'cancelled')
+        .filter((b) => partnerBookingIsLiveTrip(b) && b.status !== 'cancelled')
         .sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? ''))
         .slice(0, 3),
     [supplierBookings]

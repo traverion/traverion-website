@@ -58,6 +58,7 @@ import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { inventoryFamilyFromListing } from '../../lib/inventory';
 import { parseStayCheckOutFromNotes, nightsOccupiedByStay, stayRangeFromBooking } from '../../lib/stayOccupancy';
+import { partnerBookingIsLiveTrip } from '../../lib/trip-views';
 import { formatStayNightHuman } from '../../lib/stay-calendar';
 
 const BOOKINGS_PAGE_SIZE = 10;
@@ -244,7 +245,7 @@ export default function SupplierBookings() {
       myListings.forEach((listing) => {
         meta[listing.id] = buildListingMeta(listing);
       });
-      setBookings(bookingsList);
+      setBookings(bookingsList.filter(partnerBookingIsLiveTrip));
       setListingMeta(meta);
       const reqs = await fetchCancellationRequestsForBookings(bookingsList.map((b) => b.id));
       const open: Record<string, CancellationRequestRow> = {};
@@ -286,6 +287,7 @@ export default function SupplierBookings() {
   const filteredBookings = useMemo(() => {
     const q = filterQuery.trim().toLowerCase();
     return bookings.filter((b) => {
+      if (!partnerBookingIsLiveTrip(b)) return false;
       const meta = listingMeta[b.listing_id];
       const isStay = meta?.family === 'stay' || Boolean(b.check_out);
       const stayRange = isStay ? stayRangeFromBooking(b) : null;

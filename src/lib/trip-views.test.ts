@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bookingIsCancelledTrip, bookingMatchesTripView } from './trip-views';
+import { bookingIsCancelledTrip, bookingMatchesTripView, partnerBookingIsLiveTrip } from './trip-views';
 
 const today = '2026-09-08';
 
@@ -31,5 +31,11 @@ describe('trip list views', () => {
     expect(bookingMatchesTripView(failed, 'upcoming', today)).toBe(false);
     expect(bookingMatchesTripView(failed, 'past', today)).toBe(false);
     expect(bookingMatchesTripView(failed, 'cancelled', today)).toBe(false);
+  });
+
+  it('does not treat payment-failed checkouts as live partner trips', () => {
+    expect(partnerBookingIsLiveTrip({ payment_status: 'failed' })).toBe(false);
+    expect(partnerBookingIsLiveTrip({ payment_status: 'pending' })).toBe(true);
+    expect(partnerBookingIsLiveTrip({ payment_status: 'paid' })).toBe(true);
   });
 });
