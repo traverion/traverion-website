@@ -16,6 +16,7 @@ import type { TourPackage } from '../../types/tour';
 import { listingHeroImageSrc, orderedPhotoUrls, photoSlotsFromTourPackage } from '../../lib/listingPhotoGrid';
 import { formatMoney } from '../../lib/money';
 import { isPaidPaymentStatus, partnerPaymentLabel } from '../../lib/payment-states';
+import { guestFacingBookingNotes } from '../../lib/booking-notes';
 import {
   SUPPLIER_CANCELLATION_REASON_CODES,
   isForceMajeureReason,
@@ -894,10 +895,10 @@ export default function SupplierBookings() {
                         </dd>
                       </div>
                     ) : null}
-                    {booking.special_requests?.trim() ? (
+                    {guestFacingBookingNotes(booking.special_requests) ? (
                       <div className="sm:col-span-2">
                         <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Notes</dt>
-                        <dd className="mt-0.5 whitespace-pre-wrap text-ink">{booking.special_requests.trim()}</dd>
+                        <dd className="mt-0.5 whitespace-pre-wrap text-ink">{guestFacingBookingNotes(booking.special_requests)}</dd>
                       </div>
                     ) : null}
                   </dl>

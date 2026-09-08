@@ -38,6 +38,7 @@ import NoticeCallout from '../components/NoticeCallout';
 import { listingPickupCopyIncomplete } from '../lib/pickup-completeness';
 import { decrementAvailabilityBooked } from '../data/supabase-availability';
 import { clearBookingsUnread } from '../lib/customerBookingNotifications';
+import { guestFacingBookingNotes } from '../lib/booking-notes';
 
 interface MyBookingsProps {
   onNavigate: (page: string) => void;
@@ -468,6 +469,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
               const open = openTripId === b.id;
               const lifecycle = bookingLifecycleLabel(b.status, b.payment_status);
               const payLabel = travelerPaymentLabel(b);
+              const guestNotes = guestFacingBookingNotes(b.special_requests);
               const openCancel = cancelRequests[b.id];
               const isStay = Boolean(
                 (b.check_out && /^\d{4}-\d{2}-\d{2}$/.test(b.check_out)) || parseStayCheckOutFromNotes(b.special_requests)
@@ -580,9 +582,9 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                       {REFUND_DUE_MANUAL_COPY}
                     </NoticeCallout>
                   ) : null}
-                  {b.status === 'cancelled' && b.special_requests && (
-                    <p className="text-sm text-ink-muted">{b.special_requests}</p>
-                  )}
+                  {b.status === 'cancelled' && guestNotes ? (
+                    <p className="text-sm text-ink-muted whitespace-pre-wrap">{guestNotes}</p>
+                  ) : null}
                   {(b.status === 'pending' || b.status === 'confirmed') &&
                     !b.check_out &&
                     !parseStayCheckOutFromNotes(b.special_requests) && (
