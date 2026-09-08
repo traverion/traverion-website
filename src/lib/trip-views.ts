@@ -11,6 +11,11 @@ export function bookingIsCancelledTrip(b: {
   return st === 'cancelled' || pay === 'refunded';
 }
 
+/** Failed Stripe checkout is not a booked trip. */
+export function bookingIsFailedCheckout(b: { payment_status?: string | null }): boolean {
+  return normalizePaymentStatus(b.payment_status) === 'failed';
+}
+
 /** Upcoming and Past are for active trips only. Refunded money belongs with Cancelled. */
 export function bookingMatchesTripView(
   b: { status?: string | null; payment_status?: string | null; booking_date?: string | null },
@@ -20,7 +25,9 @@ export function bookingMatchesTripView(
   const cancelled = bookingIsCancelledTrip(b);
   if (view === 'cancelled') return cancelled;
   if (cancelled) return false;
+  if (bookingIsFailedCheckout(b)) return false;
   const date = (b.booking_date ?? '').trim();
   if (view === 'past') return Boolean(date) && date < todayIso;
   return !date || date >= todayIso;
 }
+

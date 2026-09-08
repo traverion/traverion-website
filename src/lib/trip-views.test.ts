@@ -20,4 +20,16 @@ describe('trip list views', () => {
     expect(bookingMatchesTripView(paid, 'upcoming', today)).toBe(true);
     expect(bookingMatchesTripView(paid, 'cancelled', today)).toBe(false);
   });
+
+  it('still lists unpaid checkout that is pending, not failed', () => {
+    const pending = { status: 'pending', payment_status: 'pending', booking_date: '2026-10-10' };
+    expect(bookingMatchesTripView(pending, 'upcoming', today)).toBe(true);
+  });
+
+  it('does not list payment-failed checkouts as Upcoming or Cancelled trips', () => {
+    const failed = { status: 'pending', payment_status: 'failed', booking_date: '2026-10-10' };
+    expect(bookingMatchesTripView(failed, 'upcoming', today)).toBe(false);
+    expect(bookingMatchesTripView(failed, 'past', today)).toBe(false);
+    expect(bookingMatchesTripView(failed, 'cancelled', today)).toBe(false);
+  });
 });
