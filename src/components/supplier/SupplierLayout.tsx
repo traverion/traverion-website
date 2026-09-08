@@ -56,9 +56,14 @@ import { setPartnerAuthFlash } from '../../lib/partnerAuthFlash';
 import { publicSiteBaseUrl } from '../../lib/publicSiteUrl';
 import ErrorState from '../ErrorState';
 import SkipLink from '../SkipLink';
-import { replacePathIfChanged } from '../../lib/authNavigation';
+import { pathEquals, replaceHrefIfChanged, replacePathIfChanged } from '../../lib/authNavigation';
 import { partnerRedirectForSession } from '../../lib/partnerAuthState';
 import { appStripeIsTestMode } from '../../lib/money';
+import {
+  consumePartnerReturnPath,
+  peekPartnerReturnPath,
+  rememberPartnerReturnPath,
+} from '../../lib/partnerReturnPath';
 
 const SupplierEarnings = lazy(() => import('../../pages/supplier/SupplierEarnings'));
 const SupplierInbox = lazy(() => import('../../pages/supplier/SupplierInbox'));
@@ -204,6 +209,7 @@ export default function SupplierLayout() {
   const [partnerProfileGate, setPartnerProfileGate] = useState<PartnerProfileGate | null>(null);
   const [partnerGateRetryKey, setPartnerGateRetryKey] = useState(0);
   const blockedRedirectStarted = useRef(false);
+  const hadPartnerSessionRef = useRef(false);
   const partnerGateEpochRef = useRef(0);
   const [section, setSection] = useState<SupplierSection>(() => getSectionFromPath(window.location.pathname) ?? 'dashboard');
   const [payoutIban, setPayoutIban] = useState('');
@@ -391,6 +397,10 @@ export default function SupplierLayout() {
   })();
 
   useEffect(() => {
+    if (user && partnerGateView === 'allowed') hadPartnerSessionRef.current = true;
+  }, [user, partnerGateView]);
+
+  useEffect(() => {
     if (loading || signingOut) return;
     if (partnerGateView === 'blocked') return;
     const kind =
@@ -399,12 +409,28 @@ export default function SupplierLayout() {
       : partnerGateView === 'error' ? 'error'
       : partnerGateView === 'allowed' ? 'partner'
       : 'unknown';
+    const pathname = window.location.pathname;
+    const returnPath = peekPartnerReturnPath();
+    if (kind === 'anon' && isSupplierPortalPath(pathname)) {
+      rememberPartnerReturnPath(pathname, window.location.search);
+      if (hadPartnerSessionRef.current) {
+        setPartnerAuthFlash({
+          message: 'Your session ended. Sign in to continue where you left off.',
+          tab: 'signin',
+        });
+      }
+    }
     const dest = partnerRedirectForSession({
       kind,
-      pathname: window.location.pathname,
+      pathname,
       hostname: window.location.hostname,
+      returnPath,
     });
-    if (dest) replacePathIfChanged(dest);
+    if (kind === 'partner' && returnPath) {
+      const returnPathname = returnPath.split('?')[0] ?? returnPath;
+      if (pathEquals(pathname, returnPathname)) consumePartnerReturnPath();
+    }
+    if (dest) replaceHrefIfChanged(dest);
   }, [loading, user, partnerGateView, signingOut]);
 
   useEffect(() => {
@@ -648,12 +674,21 @@ export default function SupplierLayout() {
   };
 
   const handleAuthenticated = () => {
+    const ret = peekPartnerReturnPath();
+    if (ret) {
+      const pathOnly = ret.split('?')[0] ?? PARTNER_APP_BASE;
+      setSection(getSectionFromPath(pathOnly) ?? 'dashboard');
+      replaceHrefIfChanged(ret);
+      return;
+    }
     setSection('dashboard');
     replacePathIfChanged(PARTNER_APP_BASE);
   };
 
   const handlePartnerSignOut = () => {
     if (signingOut) return;
+    hadPartnerSessionRef.current = false;
+    consumePartnerReturnPath();
     setSigningOut(true);
     setAccountMenuOpen(false);
     setMobileAccountOpen(false);

@@ -966,6 +966,44 @@ export default function SupplierBookings() {
                       not respond.
                     </NoticeCallout>
                   ) : null}
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint mb-2">History</p>
+                    <ol className="space-y-1.5 text-sm text-ink-muted">
+                      <li>
+                        Booked{' '}
+                        {booking.created_at
+                          ? new Date(booking.created_at).toLocaleString(undefined, {
+                              dateStyle: 'medium',
+                              timeStyle: 'short',
+                            })
+                          : ''}
+                      </li>
+                      {isPaidPaymentStatus(booking.payment_status) && booking.payment_status !== 'refunded' ? (
+                        <li>Paid</li>
+                      ) : null}
+                      {booking.acknowledged_at ? (
+                        <li>
+                          Acknowledged{' '}
+                          {new Date(booking.acknowledged_at).toLocaleString(undefined, {
+                            dateStyle: 'medium',
+                            timeStyle: 'short',
+                          })}
+                        </li>
+                      ) : null}
+                      {pickupHm ? <li>Pickup set · {pickupHm}</li> : null}
+                      {openCancels[booking.id] ? (
+                        <li>
+                          Cancellation requested{' '}
+                          {new Date(openCancels[booking.id]!.created_at).toLocaleString(undefined, {
+                            dateStyle: 'medium',
+                            timeStyle: 'short',
+                          })}
+                        </li>
+                      ) : null}
+                      {booking.status === 'cancelled' ? <li>Cancelled</li> : null}
+                      {booking.payment_status === 'refunded' ? <li>Refunded</li> : null}
+                    </ol>
+                  </div>
                   <BookingMessageThread
                     bookingId={booking.id}
                     canCompose={bookingAllowsMessaging({

@@ -16,7 +16,7 @@ describe('userFacingError', () => {
     expect(userFacingError('new row violates row-level security policy for table bookings', USER_ERROR.trips)).toBe(
       USER_ERROR.trips
     );
-    expect(userFacingError('JWT expired', USER_ERROR.auth)).toBe(USER_ERROR.auth);
+    expect(userFacingError('JWT expired', USER_ERROR.auth)).toBe('Your session ended. Sign in again to continue.');
     expect(userFacingError('Failed to fetch', USER_ERROR.generic)).toBe(USER_ERROR.generic);
     expect(userFacingError('TypeError: Failed to fetch', USER_ERROR.generic)).toBe(USER_ERROR.generic);
     expect(userFacingError('duplicate key value violates unique constraint "listings_pkey"', USER_ERROR.listingSave)).toBe(

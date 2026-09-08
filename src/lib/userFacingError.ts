@@ -39,6 +39,10 @@ const KNOWN_HUMAN: Array<{ test: RegExp; copy: string }> = [
     copy: 'This checkout expired and the hold was released. Start checkout again to continue.',
   },
   {
+    test: /jwt expired|invalid jwt|auth session missing|refresh_token_not_found/i,
+    copy: 'Your session ended. Sign in again to continue.',
+  },
+  {
     test: /not enough capacity|no capacity left/i,
     copy: 'That departure just filled up. Choose another time or date.',
   },

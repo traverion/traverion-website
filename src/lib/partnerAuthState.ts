@@ -4,6 +4,7 @@
  */
 
 import { pathEquals } from './authNavigation';
+import { sanitizePartnerReturnPath } from './partnerReturnPath';
 import {
   PARTNER_APP_BASE,
   PARTNER_LANDING_DEV_PATH,
@@ -38,6 +39,8 @@ export function partnerRedirectForSession(input: {
   kind: PartnerSessionKind;
   pathname: string;
   hostname: string;
+  /** Safe /partner… path to reopen after login (session expiry or deep link). */
+  returnPath?: string | null;
 }): string | null {
   const p = input.pathname.replace(/\/$/, '') || '/';
   let dest: string | null = null;
@@ -49,7 +52,9 @@ export function partnerRedirectForSession(input: {
   if (input.kind === 'anon') {
     if (isPartnerAppPath(p)) dest = PARTNER_LOGIN_PATH;
   } else if (input.kind === 'partner') {
-    if (AUTH_PAGES.has(p) || isLandingPath(p, input.hostname)) dest = PARTNER_APP_BASE;
+    if (AUTH_PAGES.has(p) || isLandingPath(p, input.hostname)) {
+      dest = sanitizePartnerReturnPath(input.returnPath) ?? PARTNER_APP_BASE;
+    }
   } else if (input.kind === 'traveler-blocked') {
     if (!AUTH_PAGES.has(p)) dest = PARTNER_LOGIN_PATH;
   }

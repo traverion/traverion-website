@@ -727,6 +727,53 @@ export default function SupplierListingForm({
     []
   );
 
+  const editorSectionLinks = useMemo(() => {
+    const stay = form.inventoryFamily === 'stay';
+    if (stepIdx === 0) {
+      return stay
+        ? [
+            { id: 'supplier-listing-field-title', label: 'Name' },
+            { id: 'supplier-listing-field-description', label: 'Description' },
+          ]
+        : [
+            { id: 'supplier-listing-field-title', label: 'Title' },
+            { id: 'supplier-listing-field-description', label: 'Description' },
+            { id: 'supplier-listing-field-highlights', label: 'Highlights' },
+          ];
+    }
+    if (stepIdx === 1) {
+      return stay
+        ? [{ id: 'supplier-listing-field-location', label: 'Location' }]
+        : [
+            { id: 'supplier-listing-field-location', label: 'Location' },
+            { id: 'supplier-listing-field-includes', label: 'Included' },
+            { id: 'supplier-listing-field-excludes', label: 'Not included' },
+            { id: 'supplier-listing-field-schedule', label: 'Itinerary' },
+            { id: 'supplier-listing-field-accessibility', label: 'Important info' },
+          ];
+    }
+    if (stepIdx === 2) {
+      return stay
+        ? [
+            { id: 'supplier-listing-field-stay-price', label: 'Nightly price' },
+            { id: 'supplier-listing-field-stay-rules', label: 'House rules' },
+          ]
+        : [
+            { id: 'supplier-listing-field-options', label: 'Options' },
+            { id: 'supplier-listing-field-tags', label: 'Tags' },
+          ];
+    }
+    return [{ id: 'supplier-listing-field-photos', label: 'Photos' }];
+  }, [stepIdx, form.inventoryFamily]);
+
+  const jumpToEditorSection = useCallback((id: string) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const reduce =
+      typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+  }, []);
+
   useEffect(() => {
     const last = steps.length - 1;
     if (stepIdx !== last) {
@@ -1440,7 +1487,7 @@ export default function SupplierListingForm({
                 <p className="text-xs text-ink-muted mt-1">Capacity for one departure or time slot.</p>
               </div>
               <div className="sm:col-span-2" id="supplier-listing-field-pickup">
-                <label className="block text-sm font-medium text-ink mb-1">About this option *</label>
+                <label className="block text-sm font-medium text-ink mb-1">Why choose this option *</label>
                 <textarea
                   value={optionDraft.optionInfo}
                   onChange={(e) => patchOptionDraft({ optionInfo: e.target.value })}
@@ -1448,6 +1495,7 @@ export default function SupplierListingForm({
                   className="tv-input"
                   placeholder="e.g. Private vehicle · English-speaking guide · shared bus · family-friendly"
                 />
+                <p className="text-xs text-ink-muted mt-1">Travelers see this under the option name. Say what is different from the other options.</p>
               </div>
               <div className="sm:col-span-2">
                 <p className="text-sm font-medium text-ink mb-2">Runs on these weekdays *</p>
@@ -1665,6 +1713,20 @@ export default function SupplierListingForm({
               );
             })}
           </nav>
+          {editorSectionLinks.length > 1 ? (
+            <div className="mt-2 flex flex-wrap gap-1" aria-label="Jump to section">
+              {editorSectionLinks.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  className="lux-flat rounded-full px-2.5 py-1 text-[11px] text-ink-muted hover:text-ink"
+                  onClick={() => jumpToEditorSection(s.id)}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
           <p className="mt-3 text-xs text-ink-muted">
             {publishBlockersPreview.length === 0
               ? 'Ready to publish — finish Photos, then publish from this last step.'
@@ -2172,7 +2234,9 @@ export default function SupplierListingForm({
 
           {stepIdx === 2 && form.inventoryFamily === 'stay' && (
             <div className="space-y-4">
-              <h3 className="font-display text-xl text-ink">Stay price and rooms</h3>
+              <h3 id="supplier-listing-field-stay-price" className="font-display text-xl text-ink">
+                Stay price and rooms
+              </h3>
               <p className="text-sm text-ink-muted">Nightly rate for the property, not per person.</p>
               <div className="grid sm:grid-cols-2 gap-3">
                 <label className="block text-sm">
@@ -2293,7 +2357,7 @@ export default function SupplierListingForm({
                   placeholder="Wifi, kitchen, parking"
                 />
               </label>
-              <label className="block text-sm">
+              <label id="supplier-listing-field-stay-rules" className="block text-sm">
                 House rules
                 <textarea
                   value={form.stayHouseRules}
@@ -2304,9 +2368,9 @@ export default function SupplierListingForm({
             </div>
           )}
           {stepIdx === 2 && form.inventoryFamily !== 'stay' && (
-            <div className="space-y-4 transition-all duration-300 ease-out opacity-100 translate-y-0">
+            <div id="supplier-listing-field-options" className="space-y-4 transition-all duration-300 ease-out opacity-100 translate-y-0">
               <div>
-                <h3 className="font-display text-xl text-ink">Cost &amp; bookable options</h3>
+                <h3 className="font-display text-xl text-ink">Options &amp; price</h3>
                 <p className="mt-1 text-sm text-ink-muted leading-relaxed">
                   Add each price and schedule as its own option. Meeting, pickup, and capacity are filled in when you create or
                   edit an option.
@@ -2418,7 +2482,7 @@ export default function SupplierListingForm({
           )}
 
           {stepIdx === 3 && (
-            <div className="space-y-6">
+            <div id="supplier-listing-field-photos" className="space-y-6">
                 <div>
                   <h3 className="font-display text-xl text-ink">
                     {form.inventoryFamily === 'stay' || createFamily === 'stay' ? 'Stay photos' : 'Tour photos'} ({LISTING_PHOTO_MIN}–{LISTING_PHOTO_MAX} required to publish)

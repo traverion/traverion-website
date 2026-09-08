@@ -42,19 +42,22 @@ export default function SupplierPortalTravelerNotice({ email, onSignOut }: Props
       </header>
       <main className="flex-1 flex items-center justify-center px-5 pb-16">
         <div className="max-w-md w-full">
-          <h1 className="font-display text-3xl text-ink tracking-tight">Traveler account</h1>
+          <h1 className="font-display text-3xl text-ink tracking-tight">Partner workspace</h1>
           <p className="mt-3 text-sm text-ink-muted">
-            You’re signed in as {email?.trim() ? email : 'this account'}.
+            You’re signed in as {email?.trim() ? email : 'this account'} — a traveler account.
           </p>
           <p className="mt-2 text-sm text-ink-muted leading-relaxed">
-            This area is for tour partners with a Traverion partner profile. Bookings and your traveler profile are on
-            the main site.
+            This area is only for operators with a Traverion partner profile. Manage bookings and your traveler
+            profile on the main site.
           </p>
           <div className="flex flex-col gap-2 mt-8">
-            <a href={travelerHome} className="tv-btn-primary inline-flex justify-center">
+            <a href={`${travelerSite}/trips`} className="tv-btn-primary inline-flex justify-center">
+              Open your trips
+            </a>
+            <a href={travelerHome} className="tv-btn-secondary inline-flex justify-center">
               Go to Traverion home
             </a>
-            <a href={travelerPackages} className="tv-btn-secondary inline-flex justify-center">
+            <a href={travelerPackages} className="tv-btn-ghost inline-flex justify-center">
               Browse tours
             </a>
             <button

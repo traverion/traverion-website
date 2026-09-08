@@ -51,8 +51,21 @@ describe('partner signup reload loop', () => {
       partnerRedirectForSession({ kind: 'partner', pathname: '/login', hostname: 'partner.traverion.com' })
     ).toBe('/partner');
     expect(
-      partnerRedirectForSession({ kind: 'partner', pathname: '/partner', hostname: 'partner.traverion.com' })
-    ).toBeNull();
+      partnerRedirectForSession({
+        kind: 'partner',
+        pathname: '/login',
+        hostname: 'partner.traverion.com',
+        returnPath: '/partner/bookings?booking=abc',
+      })
+    ).toBe('/partner/bookings?booking=abc');
+    expect(
+      partnerRedirectForSession({
+        kind: 'partner',
+        pathname: '/login',
+        hostname: 'partner.traverion.com',
+        returnPath: '/trips',
+      })
+    ).toBe('/partner');
     expect(
       partnerRedirectForSession({ kind: 'partner', pathname: '/', hostname: 'partner.traverion.com' })
     ).toBe('/partner');

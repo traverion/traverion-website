@@ -27,3 +27,20 @@ export function replacePathIfChanged(path: string): boolean {
   window.location.replace(next);
   return true;
 }
+
+/** Same-origin href replace that keeps `?query` (session return, booking deep links). */
+export function replaceHrefIfChanged(href: string): boolean {
+  if (typeof window === 'undefined') return false;
+  let url: URL;
+  try {
+    url = new URL(href, window.location.origin);
+  } catch {
+    return false;
+  }
+  if (url.origin !== window.location.origin) return false;
+  const next = `${url.pathname}${url.search}`;
+  const cur = `${window.location.pathname}${window.location.search}`;
+  if (cur === next) return false;
+  window.location.replace(next);
+  return true;
+}
