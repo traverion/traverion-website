@@ -12,6 +12,7 @@ export type MoneyBookingRow = {
   amount_paid?: number | string | null;
   checkout_session_id?: string | null;
   currency?: string | null;
+  refund_choice?: string | null;
 };
 
 export function normalizePaymentStatus(raw: string | null | undefined): string {
@@ -37,7 +38,11 @@ export function travelerPaymentLabel(b: MoneyBookingRow): string {
   const pay = normalizePaymentStatus(b.payment_status);
   const cancelled = (b.status ?? '').trim().toLowerCase() === 'cancelled';
   if (pay === 'refunded') return 'Refunded';
-  if (cancelled && isPaidPaymentStatus(pay)) return 'Refund pending';
+  if (cancelled && isPaidPaymentStatus(pay)) {
+    const choice = (b.refund_choice ?? '').trim().toLowerCase();
+    if (choice === 'no_refund') return 'No refund';
+    return 'Refund due';
+  }
   if (cancelled) return 'Cancelled';
   if (pay === 'failed') return 'Payment failed';
   if (isPaidPaymentStatus(pay)) return 'Paid';
@@ -48,6 +53,10 @@ export function travelerPaymentLabel(b: MoneyBookingRow): string {
 export function partnerPaymentLabel(b: MoneyBookingRow): string {
   return travelerPaymentLabel(b);
 }
+
+/** Traveler/partner copy when a refund is owed but auto-refund is off. */
+export const REFUND_DUE_MANUAL_COPY =
+  'A refund is due. Traverion does not send Stripe refunds automatically. This stays Refund due until a refund is issued in Stripe.';
 
 /** Sum collected amounts in one currency. Callers must not mix currencies without converting. */
 export function sumCollectedAmount(rows: MoneyBookingRow[]): number {

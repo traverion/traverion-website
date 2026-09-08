@@ -45,7 +45,15 @@ describe('payment states', () => {
     );
     expect(
       travelerPaymentLabel({ status: 'cancelled', payment_status: 'paid', amount_paid: 189 })
-    ).toBe('Refund pending');
+    ).toBe('Refund due');
+    expect(
+      travelerPaymentLabel({
+        status: 'cancelled',
+        payment_status: 'paid',
+        amount_paid: 189,
+        refund_choice: 'no_refund',
+      })
+    ).toBe('No refund');
     expect(
       travelerPaymentLabel({ status: 'cancelled', payment_status: 'refunded', amount_paid: 189 })
     ).toBe('Refunded');

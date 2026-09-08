@@ -22,7 +22,7 @@ import {
 import { fetchListingOpsByIds, pgTimeToHm, type ListingOpsMeta } from '../data/supabase-listings';
 import { parseStayCheckOutFromNotes } from '../lib/stayOccupancy';
 import { formatMoney, isStripeTestCheckoutSession } from '../lib/money';
-import { travelerPaymentLabel } from '../lib/payment-states';
+import { travelerPaymentLabel, REFUND_DUE_MANUAL_COPY } from '../lib/payment-states';
 import { bookingLifecycleLabel } from '../lib/status-language';
 import { travelerSelfCancelRefundChoice, supplierCancellationReasonLabel } from '../lib/cancellation-policy';
 import {
@@ -575,6 +575,11 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                       </p>
                     </NoticeCallout>
                   ) : null}
+                  {b.status === 'cancelled' && payLabel === 'Refund due' ? (
+                    <NoticeCallout title="Refund due" tone="warn">
+                      {REFUND_DUE_MANUAL_COPY}
+                    </NoticeCallout>
+                  ) : null}
                   {b.status === 'cancelled' && b.special_requests && (
                     <p className="text-sm text-ink-muted">{b.special_requests}</p>
                   )}
@@ -681,7 +686,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                       cancelConfirm.check_out || parseStayCheckOutFromNotes(cancelConfirm.special_requests)
                         ? 'check-in'
                         : 'start'
-                    }. You should receive a full refund. The booking will show Refund pending until Stripe records the refund — Traverion does not mark it refunded early.`
+                    }. You should receive a full refund. ${REFUND_DUE_MANUAL_COPY}`
                   : `This ${
                       cancelConfirm.check_out || parseStayCheckOutFromNotes(cancelConfirm.special_requests)
                         ? 'check-in is'

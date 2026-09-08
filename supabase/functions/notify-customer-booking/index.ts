@@ -231,7 +231,7 @@ serve(async (req) => {
     } else if (kind === 'cancellation_accepted') {
       headline = 'Cancellation confirmed';
       intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">You accepted the host’s cancellation request. This booking is cancelled. A refund is due; it is recorded when Stripe processes it — Traverion does not refund automatically.</p>`;
-      footerNote = 'Watch Trips for Refund pending, then Refunded. Timing depends on your bank.';
+      footerNote = 'Watch Trips for Refund due, then Refunded. Traverion does not refund automatically. Timing depends on your bank.';
     } else if (kind === 'cancellation_declined') {
       headline = 'Your booking stays confirmed';
       intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">You declined the host’s cancellation request. The booking remains active.</p>`;

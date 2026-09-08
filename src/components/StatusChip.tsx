@@ -25,8 +25,11 @@ export default function StatusChip({
 export function toneForPaymentLabel(label: string): Tone {
   const l = label.toLowerCase();
   if (l === 'paid' || l === 'confirmed') return 'good';
+  if (l === 'refunded') return 'info';
+  if (l === 'refund due') return 'warn';
+  if (l === 'no refund') return 'neutral';
   if (l.includes('pending')) return 'warn';
-  if (l.includes('fail') || l.includes('cancel') && !l.includes('none')) return 'bad';
+  if (l.includes('fail') || (l.includes('cancel') && !l.includes('none'))) return 'bad';
   if (l.includes('refund')) return 'info';
   return 'neutral';
 }
