@@ -55,3 +55,13 @@ export function defaultCapacityForOpenDay(maxSpotsPerSlot: number | undefined): 
   const n = typeof maxSpotsPerSlot === 'number' && maxSpotsPerSlot >= 1 ? Math.floor(maxSpotsPerSlot) : 8;
   return Math.min(99, n);
 }
+
+/** Listing-wide tour cap when listing_availability has no row for the departure. */
+export function listingTourCapacityFromOptions(spots: Array<number | undefined | null>): number {
+  let max = 0;
+  for (const raw of spots) {
+    if (typeof raw !== 'number' || !Number.isFinite(raw) || raw < 1) continue;
+    max = Math.max(max, Math.floor(raw));
+  }
+  return Math.min(99, max >= 1 ? max : 8);
+}

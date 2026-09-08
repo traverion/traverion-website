@@ -1,4 +1,4 @@
-import { nextBookedCount, previousBookedCount, remainingCapacity } from '../lib/availability-ops';
+import { listingTourCapacityFromOptions, nextBookedCount, previousBookedCount, remainingCapacity } from '../lib/availability-ops';
 import { supabase } from '../lib/supabase';
 
 export type AvailabilityRow = {
@@ -39,6 +39,16 @@ export async function fetchPublishedTourPaidGuests(
   return out;
 }
 
+async function fetchTourOptionCapacity(listingId: string): Promise<number> {
+  if (!supabase) return listingTourCapacityFromOptions([]);
+  const { data } = await supabase.from('listings').select('listing_extras').eq('id', listingId).maybeSingle();
+  const extras = data?.listing_extras as { bookingOptions?: Array<{ maxSpotsPerSlot?: unknown }> } | null;
+  const spots = (extras?.bookingOptions ?? []).map((o) =>
+    typeof o.maxSpotsPerSlot === 'number' ? o.maxSpotsPerSlot : null
+  );
+  return listingTourCapacityFromOptions(spots);
+}
+
 export type AvailabilityCheckOption = {
   id: string;
   title: string;
@@ -46,7 +56,7 @@ export type AvailabilityCheckOption = {
   selectable: boolean;
 };
 
-/** Check if a date has capacity (if listing uses availability; otherwise treat as available). Always returns at least one `options` row for the booking UI. */
+/** Check if a date has capacity. Public remaining uses paid guests; checkout still holds live pending sessions. */
 export async function checkAvailability(
   listingId: string,
   date: string,
@@ -90,21 +100,11 @@ export async function checkAvailability(
       ],
     };
   }
-  if (!data) {
-    return {
-      available: true,
-      options: [
-        {
-          id: 'open',
-          title: 'This date is available',
-          description: 'The operator accepts bookings on this date.',
-          selectable: true,
-        },
-      ],
-    };
-  }
   const paidByDay = await fetchPublishedTourPaidGuests(listingId);
-  const remaining = remainingCapacity(data.capacity ?? 0, paidByDay[date] ?? 0);
+  const capacity = data
+    ? Number(data.capacity ?? 0)
+    : await fetchTourOptionCapacity(listingId);
+  const remaining = remainingCapacity(capacity, paidByDay[date] ?? 0);
   const available = remaining >= guests;
   if (!available) {
     const spotsWord = remaining === 1 ? 'spot' : 'spots';

@@ -12,7 +12,7 @@ export type InventoryHoldRow = {
 export function bookingOccupiesInventory(row: InventoryHoldRow, nowMs: number = Date.now()): boolean {
   if ((row.status ?? '').trim().toLowerCase() === 'cancelled') return false;
   const pay = (row.payment_status ?? 'pending').trim().toLowerCase();
-  if (pay === 'paid') return true;
+  if (pay === 'paid' || pay === 'complete' || pay === 'succeeded') return true;
   if (pay !== 'pending') return false;
   if (row.hold_expires_at) {
     const exp = Date.parse(row.hold_expires_at);

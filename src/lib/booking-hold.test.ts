@@ -9,6 +9,12 @@ describe('booking inventory holds', () => {
       bookingOccupiesInventory({ status: 'confirmed', payment_status: 'paid' }, now)
     ).toBe(true);
     expect(
+      bookingOccupiesInventory({ status: 'confirmed', payment_status: 'complete' }, now)
+    ).toBe(true);
+    expect(
+      bookingOccupiesInventory({ status: 'confirmed', payment_status: 'succeeded' }, now)
+    ).toBe(true);
+    expect(
       bookingOccupiesInventory({ status: 'cancelled', payment_status: 'paid' }, now)
     ).toBe(false);
     expect(

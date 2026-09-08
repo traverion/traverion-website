@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { marketplaceLoopAssertions, runMarketplaceLoop, sampleNorthernLightsExperience } from './marketplace-loop';
 import { getListingPublishBlockers } from './listingPublishGate';
-import { buildMonthCells, nextBookedCount, previousBookedCount, remainingCapacity } from './availability-ops';
+import {
+  buildMonthCells,
+  listingTourCapacityFromOptions,
+  nextBookedCount,
+  previousBookedCount,
+  remainingCapacity,
+} from './availability-ops';
 import { quoteBooking } from './booking-quote';
 import { isListingVisibleToTravelers } from './product-workflows';
 
@@ -46,6 +52,14 @@ describe('availability ops', () => {
     expect(nextBookedCount(2, 4)).toBe(6);
     expect(previousBookedCount(6, 4)).toBe(2);
     expect(remainingCapacity(8, 6)).toBe(2);
+  });
+
+  it('falls back to option spots when a tour has no availability row', () => {
+    expect(listingTourCapacityFromOptions([8, 12])).toBe(12);
+    expect(listingTourCapacityFromOptions([])).toBe(8);
+    expect(remainingCapacity(listingTourCapacityFromOptions([8, 12]), 1)).toBe(11);
+    expect(remainingCapacity(listingTourCapacityFromOptions([8, 12]), 1) >= 12).toBe(false);
+    expect(remainingCapacity(listingTourCapacityFromOptions([8, 12]), 0) >= 12).toBe(true);
   });
 
   it('builds a Monday-first month grid', () => {
