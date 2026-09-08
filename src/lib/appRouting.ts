@@ -77,7 +77,33 @@ export function normalizePublicTourDeepLinkPathname(pathname: string): string {
   return '/packages';
 }
 
-/** Retired saved-cart URL — travelers book from the listing, so send old links to Trips. */
+/** `/stay/<uuid>` or `/stays/<uuid>` catalog-style deep link. */
+const STAY_LISTING_DEEP_LINK = /^\/stays?\/([0-9a-f-]{36})$/i;
+
+export function isStayListingDeepLinkPath(pathname: string): boolean {
+  const normalized =
+    pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
+  return STAY_LISTING_DEEP_LINK.test(normalized);
+}
+
+/**
+ * Canonical stay URL is `/stays?stay=<uuid>`.
+ * `/stay/<uuid>` and `/stays/<uuid>` rewrite in-place so StayDetails opens.
+ */
+export function normalizePublicStayDeepLinkPathname(pathname: string): string {
+  const normalized =
+    pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
+  const m = STAY_LISTING_DEEP_LINK.exec(normalized);
+  if (!m || typeof window === 'undefined') return pathname;
+  const qs = new URLSearchParams({ stay: m[1] }).toString();
+  window.history.replaceState(window.history.state, '', `/stays?${qs}`);
+  return '/stays';
+}
+
+export function normalizePublicListingDeepLinkPathname(pathname: string): string {
+  return normalizePublicStayDeepLinkPathname(normalizePublicTourDeepLinkPathname(pathname));
+}
+
 export function normalizeRetiredCartPathname(pathname: string): string {
   const normalized =
     pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
@@ -122,6 +148,9 @@ export function parsePathname(pathname: string, options?: ParsePathnameOptions):
   }
   if (TOUR_LISTING_DEEP_LINK.test(normalized)) {
     return { page: 'packages', destinationSlug: null };
+  }
+  if (STAY_LISTING_DEEP_LINK.test(normalized)) {
+    return { page: 'stays', destinationSlug: null };
   }
   const mapped = PATH_TO_PAGE[normalized];
   if (mapped) {

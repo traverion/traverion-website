@@ -18,7 +18,7 @@ import {
   clearOrganizationJsonLd,
 } from './lib/seo';
 import {
-  normalizePublicTourDeepLinkPathname,
+  normalizePublicListingDeepLinkPathname,
   normalizeLegacyBrochurePathname,
   normalizeRetiredCartPathname,
   parsePathname,
@@ -97,7 +97,7 @@ function readInitialRoute(): { page: string; destinationSlug: string | null } {
     return parsePathname(window.location.pathname, { adminHost: true });
   }
   const path = normalizeRetiredCartPathname(
-    normalizeLegacyBrochurePathname(normalizePublicTourDeepLinkPathname(window.location.pathname))
+    normalizeLegacyBrochurePathname(normalizePublicListingDeepLinkPathname(window.location.pathname))
   );
   const parsed = parsePathname(path);
   let page = parsed.page;
@@ -138,7 +138,7 @@ function App() {
     const pathForParse = adminHost
       ? window.location.pathname
       : normalizeRetiredCartPathname(
-          normalizeLegacyBrochurePathname(normalizePublicTourDeepLinkPathname(window.location.pathname))
+          normalizeLegacyBrochurePathname(normalizePublicListingDeepLinkPathname(window.location.pathname))
         );
     const parsed = parsePathname(pathForParse, { adminHost });
     let page = parsed.page;
@@ -173,7 +173,7 @@ function App() {
     if (isTraverionAdminHost()) return;
     let cancelled = false;
     const run = () => {
-      normalizePublicTourDeepLinkPathname(window.location.pathname);
+      normalizePublicListingDeepLinkPathname(window.location.pathname);
       const path = window.location.pathname.replace(/\/$/, '') || '/';
       const stayParam = new URLSearchParams(window.location.search).get('stay');
       if (path === '/stays' && stayParam && /^[0-9a-f-]{36}$/i.test(stayParam)) {
@@ -275,7 +275,7 @@ function App() {
       return;
     }
     if (currentPage === 'packages') {
-      normalizePublicTourDeepLinkPathname(window.location.pathname);
+      normalizePublicListingDeepLinkPathname(window.location.pathname);
       const current = `${window.location.pathname}${window.location.search}`;
       const qs = new URLSearchParams(window.location.search).toString();
       const next = qs ? `/packages?${qs}` : '/packages';
@@ -285,6 +285,7 @@ function App() {
       return;
     }
     if (currentPage === 'stays') {
+      normalizePublicListingDeepLinkPathname(window.location.pathname);
       if (window.location.pathname !== '/stays') {
         window.history.replaceState({}, '', `/stays${window.location.search}`);
       }
