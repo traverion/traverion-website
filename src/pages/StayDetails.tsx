@@ -258,7 +258,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
             <div>
               <h2 className="font-display text-2xl mb-3">Availability</h2>
               <p className="text-ink-muted leading-relaxed">
-                Minimum stay {minNights} night{minNights === 1 ? '' : 's'}
+                Minimum stay {minNights === 1 ? '1 night' : `${minNights} nights`}
                 {typeof s?.maxGuests === 'number' ? ` · up to ${s.maxGuests} guests` : ''}.
                 Checkout night is not occupied. If you pick nights that are already taken, booking is refused.
               </p>
