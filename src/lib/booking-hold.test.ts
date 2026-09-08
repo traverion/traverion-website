@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bookingOccupiesInventory, CHECKOUT_HOLD_MINUTES } from './booking-hold';
+import { bookingOccupiesInventory, bookingOccupiesPublicStayCalendar, CHECKOUT_HOLD_MINUTES } from './booking-hold';
 
 describe('booking inventory holds', () => {
   const now = Date.parse('2026-09-08T12:00:00.000Z');
@@ -54,6 +54,24 @@ describe('booking inventory holds', () => {
         },
         now
       )
+    ).toBe(false);
+  });
+
+  it('does not paint unpaid or failed checkouts on the public stay calendar', () => {
+    expect(
+      bookingOccupiesPublicStayCalendar({ status: 'pending', payment_status: 'pending' })
+    ).toBe(false);
+    expect(
+      bookingOccupiesPublicStayCalendar({ status: 'pending', payment_status: 'failed' })
+    ).toBe(false);
+    expect(
+      bookingOccupiesPublicStayCalendar({ status: 'confirmed', payment_status: 'paid' })
+    ).toBe(true);
+    expect(
+      bookingOccupiesPublicStayCalendar({ status: 'cancelled', payment_status: 'paid' })
+    ).toBe(false);
+    expect(
+      bookingOccupiesPublicStayCalendar({ status: 'confirmed', payment_status: 'refunded' })
     ).toBe(false);
   });
 });
