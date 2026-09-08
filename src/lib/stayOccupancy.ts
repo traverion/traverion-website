@@ -57,3 +57,15 @@ export function stayRangeFromBooking(booking: {
 export function stayNightIsOperatorBlocked(capacity: number): boolean {
   return !Number.isFinite(capacity) || capacity <= 0;
 }
+
+export type PartnerStayDayKind = 'occupied' | 'blocked' | 'available';
+
+/** Partner stay cell: occupying bookings first, then operator block (capacity 0). */
+export function partnerStayDayKind(params: {
+  occupying: boolean;
+  capacity: number | null | undefined;
+}): PartnerStayDayKind {
+  if (params.occupying) return 'occupied';
+  if (params.capacity != null && stayNightIsOperatorBlocked(params.capacity)) return 'blocked';
+  return 'available';
+}

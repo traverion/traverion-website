@@ -14,7 +14,7 @@ import { materializedBookingOptions } from '../../types/listingExtras';
 import type { TourPackage } from '../../types/tour';
 import { optionRunsOnDate } from '../../lib/booking-quote';
 import { inventoryFamilyFromListing } from '../../lib/inventory';
-import { nightsOccupiedByStay, stayRangeFromBooking } from '../../lib/stayOccupancy';
+import { nightsOccupiedByStay, stayRangeFromBooking, partnerStayDayKind } from '../../lib/stayOccupancy';
 import { bookingOccupiesInventory } from '../../lib/booking-hold';
 import {
   buildMonthCells,
@@ -348,8 +348,13 @@ export default function SupplierAvailability() {
             {cells.map((cell) => {
               const open = cell.inMonth && weekdayOpen(cell.iso);
               const cap = rowByDate.get(cell.iso);
-              const remaining = cap ? remainingCapacity(cap.capacity, cap.booked) : null;
-              const booked = guestsByDate.get(cell.iso);
+              const occupying = guestsByDate.get(cell.iso);
+              const stayKind = stayCalendar
+                ? partnerStayDayKind({ occupying: Boolean(occupying), capacity: cap?.capacity })
+                : null;
+              const remaining = cap && !stayCalendar
+                ? remainingCapacity(cap.capacity, occupying?.guests ?? 0)
+                : null;
               const isToday = cell.iso === localTodayIso;
               const isEditing = editing?.iso === cell.iso;
               const busy = savingIso === cell.iso;
@@ -360,13 +365,13 @@ export default function SupplierAvailability() {
               });
               const statusLabel = !cell.inMonth
                 ? undefined
-                : stayCalendar && booked
+                : stayKind === 'occupied'
                   ? `${dateLabel}, occupied`
-                  : stayCalendar && cap && remaining === 0
+                  : stayKind === 'blocked'
                     ? `${dateLabel}, blocked`
-                    : booked
-                      ? `${dateLabel}, ${booked.guests} guest${booked.guests === 1 ? '' : 's'}`
-                      : cap
+                    : occupying
+                      ? `${dateLabel}, ${occupying.guests} guest${occupying.guests === 1 ? '' : 's'}`
+                      : cap && remaining !== null
                         ? `${dateLabel}, ${remaining} of ${cap.capacity} spots left`
                         : open
                           ? `${dateLabel}, ${stayCalendar ? 'available' : 'open'}`
@@ -380,7 +385,7 @@ export default function SupplierAvailability() {
                   aria-current={isToday ? 'date' : undefined}
                   aria-pressed={isEditing}
                   onClick={() => {
-                    if (!open && !cap && !booked) return;
+                    if (!open && !cap && !occupying) return;
                     setEditing({
                       iso: cell.iso,
                       capacity: String(cap?.capacity ?? defaultSpots(listing)),
@@ -393,25 +398,27 @@ export default function SupplierAvailability() {
                         ? 'bg-paper-raised ring-2 ring-finland/30'
                         : isToday
                           ? 'bg-paper-raised'
-                          : booked
+                          : occupying || stayKind === 'occupied'
                             ? 'bg-finland/10'
-                        : cap
-                        ? remaining === 0
+                        : stayKind === 'blocked' || remaining === 0
                           ? 'bg-rose-50'
-                          : 'bg-finland/8'
-                        : open
+                          : cap
+                          ? 'bg-finland/8'
+                          : open
                           ? 'hover:bg-paper-raised'
                           : 'text-ink-faint'
                   }`}
                 >
                   <span className="block text-sm font-semibold text-ink">{cell.day}</span>
-                  {cell.inMonth && booked ? (
+                  {cell.inMonth && (stayKind === 'occupied' || occupying) ? (
                     <span className="mt-0.5 block text-[10px] font-medium leading-tight text-finland">
-                      {stayCalendar ? 'Occupied' : `${booked.guests} guest${booked.guests === 1 ? '' : 's'}`}
+                      {stayCalendar ? 'Occupied' : `${occupying?.guests} guest${occupying?.guests === 1 ? '' : 's'}`}
                     </span>
-                  ) : cell.inMonth && cap ? (
+                  ) : cell.inMonth && stayKind === 'blocked' ? (
+                    <span className="mt-0.5 block text-[10px] font-semibold leading-tight text-rose-700">Blocked</span>
+                  ) : cell.inMonth && cap && remaining !== null ? (
                     <span className={`mt-0.5 block text-[10px] leading-tight ${remaining === 0 ? 'font-semibold text-rose-700' : 'text-ink-muted'}`}>
-                      {remaining === 0 ? (stayCalendar ? 'Blocked' : 'Full') : stayCalendar ? 'Open' : `${remaining}/${cap.capacity} left`}
+                      {remaining === 0 ? 'Full' : `${remaining}/${cap.capacity} left`}
                     </span>
                   ) : cell.inMonth && open ? (
                     <span className="mt-0.5 block text-[10px] leading-tight text-ink-faint">{stayCalendar ? 'Available' : 'Open'}</span>

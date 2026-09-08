@@ -5,6 +5,7 @@ import {
   stayDateRangesOverlap,
   stayNightIsOperatorBlocked,
   stayRangeFromBooking,
+  partnerStayDayKind,
 } from './stayOccupancy';
 import { stayNightIsOperatorBlocked as checkoutStayNightIsOperatorBlocked } from '../../supabase/functions/_shared/booking-quote';
 
@@ -50,5 +51,13 @@ describe('stay occupancy', () => {
     expect(stayNightIsOperatorBlocked(8)).toBe(false);
     expect(checkoutStayNightIsOperatorBlocked(0)).toBe(stayNightIsOperatorBlocked(0));
     expect(checkoutStayNightIsOperatorBlocked(1)).toBe(stayNightIsOperatorBlocked(1));
+  });
+
+  it('marks partner stay days from occupying bookings, not the booked column', () => {
+    expect(partnerStayDayKind({ occupying: true, capacity: 1 })).toBe('occupied');
+    expect(partnerStayDayKind({ occupying: true, capacity: 0 })).toBe('occupied');
+    expect(partnerStayDayKind({ occupying: false, capacity: 0 })).toBe('blocked');
+    expect(partnerStayDayKind({ occupying: false, capacity: 1 })).toBe('available');
+    expect(partnerStayDayKind({ occupying: false, capacity: null })).toBe('available');
   });
 });
