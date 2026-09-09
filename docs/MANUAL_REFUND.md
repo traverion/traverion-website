@@ -32,8 +32,8 @@ There is no separate gross-sales ledger. **Collected** = sum of **paid, not refu
 
 ## 6. Availability
 
-- Stay nights: refunded/cancelled/expired pending no longer occupy.  
-- Tour `listing_availability.booked`: webhook decrement on `charge.refunded`. If a row was never incremented (no availability calendar), there is nothing to decrement.
+- Stay nights and tour capacity: refunded/cancelled/expired pending no longer occupy (paid + live holds).
+- `listing_availability.booked` is **not** used for occupancy and is no longer incremented/decremented by Traverion (capacity column still used for partner caps).
 
 ## 7. Evidence
 

@@ -20,81 +20,6 @@ function amountToMajor(amountMinor: number | null | undefined): number | null {
   return Math.round((amountMinor / 100) * 100) / 100;
 }
 
-async function incrementAvailabilityBookedAdmin(
-  admin: SupabaseClient,
-  listingId: string,
-  bookingDate: string | null,
-  guests: number,
-  checkOut?: string | null
-) {
-  const nights: string[] = [];
-  if (bookingDate && checkOut && checkOut > bookingDate) {
-    let cur = bookingDate;
-    while (cur < checkOut) {
-      nights.push(cur);
-      const [y, m, d] = cur.split('-').map(Number);
-      const dt = new Date(Date.UTC(y, m - 1, d + 1));
-      cur = dt.toISOString().slice(0, 10);
-      if (nights.length > 400) break;
-    }
-  } else if (bookingDate) {
-    nights.push(bookingDate);
-  }
-  const party = Number.isFinite(guests) ? Math.max(1, Math.floor(guests)) : 1;
-  for (const day of nights) {
-    const { data: row } = await admin
-      .from('listing_availability')
-      .select('booked')
-      .eq('listing_id', listingId)
-      .eq('available_date', day)
-      .maybeSingle();
-    if (!row) continue;
-    await admin
-      .from('listing_availability')
-      .update({ booked: (row.booked ?? 0) + party })
-      .eq('listing_id', listingId)
-      .eq('available_date', day);
-  }
-}
-
-async function decrementAvailabilityBookedAdmin(
-  admin: SupabaseClient,
-  listingId: string,
-  bookingDate: string | null,
-  guests: number,
-  checkOut?: string | null
-) {
-  const nights: string[] = [];
-  if (bookingDate && checkOut && checkOut > bookingDate) {
-    let cur = bookingDate;
-    while (cur < checkOut) {
-      nights.push(cur);
-      const [y, m, d] = cur.split('-').map(Number);
-      const dt = new Date(Date.UTC(y, m - 1, d + 1));
-      cur = dt.toISOString().slice(0, 10);
-      if (nights.length > 400) break;
-    }
-  } else if (bookingDate) {
-    nights.push(bookingDate);
-  }
-  const party = Number.isFinite(guests) ? Math.max(1, Math.floor(guests)) : 1;
-  for (const day of nights) {
-    const { data: row } = await admin
-      .from('listing_availability')
-      .select('booked')
-      .eq('listing_id', listingId)
-      .eq('available_date', day)
-      .maybeSingle();
-    if (!row) continue;
-    const next = Math.max(0, (row.booked ?? 0) - party);
-    await admin
-      .from('listing_availability')
-      .update({ booked: next })
-      .eq('listing_id', listingId)
-      .eq('available_date', day);
-  }
-}
-
 /** Supplier + traveler emails after paid checkout (same as legacy submitBooking flow). */
 async function notifyPaidBookingSideEffects(params: {
   admin: SupabaseClient;
@@ -144,13 +69,7 @@ async function notifyPaidBookingSideEffects(params: {
     }
   }
 
-  await incrementAvailabilityBookedAdmin(
-    admin,
-    booking.listing_id as string,
-    typeof booking.booking_date === 'string' ? booking.booking_date : null,
-    Number(booking.guests ?? 1),
-    typeof booking.check_out === 'string' ? booking.check_out : null
-  );
+  // Occupancy is paid + live holds — do not mutate listing_availability.booked.
 
   const { data: listing } = await admin
     .from('listings')
@@ -621,13 +540,7 @@ serve(async (req) => {
           .select('id');
         if (refundErr) throw new Error(refundErr.message);
         if ((refundedRows ?? []).length > 0) {
-          await decrementAvailabilityBookedAdmin(
-            admin,
-            String(booking.listing_id),
-            typeof booking.booking_date === 'string' ? booking.booking_date : null,
-            Number(booking.guests ?? 1),
-            typeof booking.check_out === 'string' ? booking.check_out : null
-          );
+          // Occupancy releases via payment_status=refunded (paid+holds rules). Do not mutate .booked.
           const { error: reverseErr } = await admin.rpc('reverse_paid_booking_earnings', {
             p_booking_id: booking.id,
           });

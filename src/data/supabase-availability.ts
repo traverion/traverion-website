@@ -1,4 +1,4 @@
-import { listingTourCapacityFromOptions, nextBookedCount, previousBookedCount, remainingCapacity } from '../lib/availability-ops';
+import { listingTourCapacityFromOptions, remainingCapacity } from '../lib/availability-ops';
 import { supabase } from '../lib/supabase';
 
 export type AvailabilityRow = {
@@ -139,50 +139,22 @@ export async function checkAvailability(
   };
 }
 
-/** Increment booked count when a booking is confirmed. Call after status → confirmed. */
+/** Occupancy is paid + live holds. Do not mutate listing_availability.booked (stale footgun). */
 export async function incrementAvailabilityBooked(
-  listingId: string,
-  date: string,
-  guests = 1
+  _listingId: string,
+  _date: string,
+  _guests = 1
 ): Promise<boolean> {
-  if (!supabase) return false;
-  const { data: row } = await supabase
-    .from('listing_availability')
-    .select('booked')
-    .eq('listing_id', listingId)
-    .eq('available_date', date)
-    .single();
-  if (!row) return true;
-  const newBooked = nextBookedCount(row.booked ?? 0, guests);
-  const { error } = await supabase
-    .from('listing_availability')
-    .update({ booked: newBooked })
-    .eq('listing_id', listingId)
-    .eq('available_date', date);
-  return !error;
+  return true;
 }
 
-/** Decrement booked when a booking is cancelled. Releases guest count, not a flat −1. */
+/** Occupancy is paid + live holds. Do not mutate listing_availability.booked (stale footgun). */
 export async function decrementAvailabilityBooked(
-  listingId: string,
-  date: string,
-  guests = 1
+  _listingId: string,
+  _date: string,
+  _guests = 1
 ): Promise<boolean> {
-  if (!supabase) return false;
-  const { data: row } = await supabase
-    .from('listing_availability')
-    .select('booked')
-    .eq('listing_id', listingId)
-    .eq('available_date', date)
-    .single();
-  if (!row) return true;
-  const newBooked = previousBookedCount(row.booked ?? 0, guests);
-  const { error } = await supabase
-    .from('listing_availability')
-    .update({ booked: newBooked })
-    .eq('listing_id', listingId)
-    .eq('available_date', date);
-  return !error;
+  return true;
 }
 
 /** Supplier: upsert availability for a listing (set capacity for dates). */
