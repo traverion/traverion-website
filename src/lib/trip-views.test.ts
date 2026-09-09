@@ -7,6 +7,7 @@ import {
   partnerBookingNeedsLook,
   partnerBookingIsTodaySchedule,
   partnerBookingIsUpcomingSchedule,
+  travelerTripIsLive,
 } from './trip-views';
 
 const today = '2026-09-08';
@@ -21,6 +22,9 @@ describe('trip list views', () => {
     expect(bookingIsCancelledTrip(refundedStay)).toBe(true);
     expect(bookingMatchesTripView(refundedStay, 'upcoming', today)).toBe(false);
     expect(bookingMatchesTripView(refundedStay, 'cancelled', today)).toBe(true);
+    expect(travelerTripIsLive(refundedStay)).toBe(false);
+    expect(travelerTripIsLive({ status: 'pending', payment_status: 'pending' })).toBe(true);
+    expect(travelerTripIsLive({ status: 'confirmed', payment_status: 'paid' })).toBe(true);
   });
 
   it('keeps confirmed paid future trips in Upcoming', () => {

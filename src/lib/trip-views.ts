@@ -30,6 +30,14 @@ export function partnerBookingIsOperatingTrip(b: {
   return partnerBookingIsLiveTrip(b) && !bookingIsCancelledTrip(b);
 }
 
+/** Traveler trip still needs pay, stay, pickup, or cancel — not refunded, cancelled, or failed. */
+export function travelerTripIsLive(b: {
+  status?: string | null;
+  payment_status?: string | null;
+}): boolean {
+  return partnerBookingIsOperatingTrip(b);
+}
+
 /** Unacknowledged operating trips only — not cancelled, refunded, or failed checkouts. */
 export function partnerBookingNeedsLook(b: {
   acknowledged_at?: string | null;

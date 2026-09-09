@@ -22,7 +22,7 @@ import {
 import { fetchListingOpsByIds, pgTimeToHm, type ListingOpsMeta } from '../data/supabase-listings';
 import { parseStayCheckOutFromNotes } from '../lib/stayOccupancy';
 import { formatMoney, isStripeTestCheckoutSession } from '../lib/money';
-import { travelerPaymentLabel, REFUND_DUE_MANUAL_COPY } from '../lib/payment-states';
+import { travelerPaymentLabel, REFUND_DUE_MANUAL_COPY, bookingPaymentWasCollected } from '../lib/payment-states';
 import { bookingLifecycleLabel } from '../lib/status-language';
 import { travelerSelfCancelRefundChoice, supplierCancellationReasonLabel, travelerSelfCancelBlock, travelerSelfCancelError } from '../lib/cancellation-policy';
 import {
@@ -39,7 +39,7 @@ import { listingPickupCopyIncomplete } from '../lib/pickup-completeness';
 import { decrementAvailabilityBooked } from '../data/supabase-availability';
 import { clearBookingsUnread } from '../lib/customerBookingNotifications';
 import { guestFacingBookingNotes } from '../lib/booking-notes';
-import { bookingIsCancelledTrip, bookingMatchesTripView } from '../lib/trip-views';
+import { bookingIsCancelledTrip, bookingMatchesTripView, travelerTripIsLive } from '../lib/trip-views';
 
 interface MyBookingsProps {
   onNavigate: (page: string) => void;
@@ -455,7 +455,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                     ? 'Nothing is scheduled. If you have trips, they may be under Past. Book a tour to add one here.'
                     : tripView === 'past'
                       ? 'You have no completed trips in this list yet. That is normal until a booked date has passed.'
-                      : 'You have not cancelled a booking. That is a good sign — this tab stays empty until you do.'
+                      : 'You have not cancelled or been refunded. This tab stays empty until a trip is closed that way.'
                 }
                 action={
                   tripView === 'upcoming' ? (
@@ -477,8 +477,12 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                 (b.check_out && /^\d{4}-\d{2}-\d{2}$/.test(b.check_out)) || parseStayCheckOutFromNotes(b.special_requests)
               );
               const ops = listingOps[b.listing_id];
+              const liveTrip = travelerTripIsLive(b);
               const pickupMissing =
-                !isStay && listingPickupCopyIncomplete(ops?.meeting_point, ops?.pickup_instructions) && !b.pickup_time;
+                liveTrip &&
+                !isStay &&
+                listingPickupCopyIncomplete(ops?.meeting_point, ops?.pickup_instructions) &&
+                !b.pickup_time;
               return (
               <article key={b.id} className="py-5">
                 <button
@@ -523,7 +527,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                   <p className="mt-1 text-sm text-ink-muted">
                     {b.guests} {b.guests === 1 ? 'guest' : 'guests'}
                     {b.nights ? ` · ${b.nights === 1 ? '1 night' : `${b.nights} nights`}` : ''}
-                    {b.amount_paid != null && Number(b.amount_paid) > 0 && (b.payment_status ?? '').toLowerCase() === 'paid'
+                    {b.amount_paid != null && Number(b.amount_paid) > 0 && bookingPaymentWasCollected(b.payment_status)
                       ? ` · ${formatMoney(Number(b.amount_paid), b.currency)}${isStripeTestCheckoutSession(b.checkout_session_id) ? ' TEST' : ''}`
                       : ''}
                     {pickupMissing ? ' · Pickup still needed' : ''}
@@ -587,7 +591,8 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                   {b.status === 'cancelled' && guestNotes ? (
                     <p className="text-sm text-ink-muted whitespace-pre-wrap">{guestNotes}</p>
                   ) : null}
-                  {(b.status === 'pending' || b.status === 'confirmed') &&
+                  {liveTrip &&
+                    (b.status === 'pending' || b.status === 'confirmed') &&
                     !b.check_out &&
                     !parseStayCheckOutFromNotes(b.special_requests) && (
                     <div className="max-w-lg">
@@ -627,7 +632,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         {b.check_out || parseStayCheckOutFromNotes(b.special_requests) ? 'View stay' : 'View tour'}
                       </button>
                     )}
-                    {b.status === 'pending' && (
+                    {liveTrip && b.status === 'pending' && (
                       <button
                         type="button"
                         onClick={() => void handlePayNow(b)}
@@ -637,7 +642,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         {payingId === b.id ? 'Opening checkout…' : 'Pay now'}
                       </button>
                     )}
-                    {b.status === 'confirmed' && !bookingIsCancelledTrip(b) && !openCancel && (
+                    {liveTrip && b.status === 'confirmed' && !openCancel && (
                       <button
                         type="button"
                         onClick={() => setCancelConfirm(b)}
