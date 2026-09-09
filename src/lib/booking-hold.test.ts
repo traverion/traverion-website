@@ -78,7 +78,7 @@ describe('booking inventory holds', () => {
     ).toBe(false);
   });
 
-  it('does not paint unpaid or failed checkouts on the public stay calendar', () => {
+  it('does not paint unpaid, failed, or refunded bookings on the public stay calendar', () => {
     expect(
       bookingOccupiesPublicStayCalendar({ status: 'pending', payment_status: 'pending' })
     ).toBe(false);

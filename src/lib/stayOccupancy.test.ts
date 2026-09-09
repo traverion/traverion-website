@@ -5,6 +5,7 @@ import {
   stayDateRangesOverlap,
   stayNightIsOperatorBlocked,
   stayRangeFromBooking,
+  occupiedNightsFromStayRanges,
   partnerStayDayKind,
   partnerStayCalendarOccupiesNight,
 } from './stayOccupancy';
@@ -76,5 +77,13 @@ describe('stay occupancy', () => {
     expect(
       partnerStayCalendarOccupiesNight({ status: 'confirmed', payment_status: 'paid' })
     ).toBe(true);
+  });
+
+  it('does not paint refunded stay nights on the public calendar ranges', () => {
+    const publicRanges = [{ checkIn: '2026-09-20', checkOut: '2026-09-22' }];
+    const nights = occupiedNightsFromStayRanges(publicRanges);
+    expect(nights).toEqual(['2026-09-20', '2026-09-21']);
+    expect(nights).not.toContain('2026-10-10');
+    expect(nights).not.toContain('2026-10-11');
   });
 });

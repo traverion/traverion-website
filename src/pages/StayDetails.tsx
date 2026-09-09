@@ -7,7 +7,7 @@ import { listingIsFamily } from '../lib/inventory';
 import { useAuth } from '../contexts/AuthContext';
 import { rememberTravelerReturnStay, travelerLoginHref } from '../lib/travelerAuthLinks';
 import { quoteStayNights, stayQuotePriceLines } from '../lib/booking-quote';
-import { stayDateRangesOverlap, nightsOccupiedByStay } from '../lib/stayOccupancy';
+import { stayDateRangesOverlap, occupiedNightsFromStayRanges } from '../lib/stayOccupancy';
 import { createBookingCheckoutSession, fetchPublishedStayOccupiedRanges } from '../data/supabase-bookings';
 import { fetchSupplierPublicLegal } from '../data/supabase-supplier-profile';
 import type { TourPackage } from '../types/tour';
@@ -121,7 +121,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
   const quoteOk = stayQuote?.ok === true;
   const total = stayQuote?.ok ? stayQuote.totalAmount : 0;
   const currency = normalizeCurrency(stay?.price.currency);
-  const occupiedNights = occupiedRanges.flatMap((r) => nightsOccupiedByStay(r.checkIn, r.checkOut));
+  const occupiedNights = occupiedNightsFromStayRanges(occupiedRanges);
   const selectionOccupied =
     checkIn && checkOut ? occupiedRanges.some((r) => stayDateRangesOverlap(checkIn, checkOut, r.checkIn, r.checkOut)) : false;
   const hero = stay ? listingHeroImageSrc(stay.image) : undefined;

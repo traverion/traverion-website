@@ -55,6 +55,13 @@ export function stayRangeFromBooking(booking: {
   return { checkIn, checkOut };
 }
 
+/** Flatten half-open stay ranges into occupied night ISO dates. */
+export function occupiedNightsFromStayRanges(
+  ranges: { checkIn: string; checkOut: string }[]
+): string[] {
+  return ranges.flatMap((r) => nightsOccupiedByStay(r.checkIn, r.checkOut));
+}
+
 /** Partner closed this night. Occupancy is paid + live holds, not listing_availability.booked. */
 export function stayNightIsOperatorBlocked(capacity: number): boolean {
   return !Number.isFinite(capacity) || capacity <= 0;
