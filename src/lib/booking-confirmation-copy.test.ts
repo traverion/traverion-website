@@ -33,7 +33,9 @@ import {
   PARTNER_MONEY_COLLECTED_TO_DATE_NOTE,
   PARTNER_ONBOARDING_INTRO_NOTE,
   PARTNER_ONBOARDING_PAYOUT_STEP_NOTE,
+  PARTNER_FIRST_LISTING_STEP_NOTE,
   PARTNER_PAYOUT_THRESHOLD_HINT,
+  SUPPLIER_WELCOME_LISTING_STEP_NOTE,
   BOOKING_REQUEST_EMAIL_FOLLOWUP_NOTE,
   TRAVELER_NEW_BOOKING_MESSAGE_EMAIL_NOTE,
   TRAVELER_HOST_SCHEDULE_UPDATED_EMAIL_NOTE,
@@ -152,6 +154,10 @@ describe('booking confirmation copy', () => {
     expect(PARTNER_ONBOARDING_PAYOUT_STEP_NOTE.toLowerCase()).not.toContain('sends money after a booking');
     expect(PARTNER_ONBOARDING_INTRO_NOTE.toLowerCase()).toContain('verify business and payout');
     expect(PARTNER_ONBOARDING_INTRO_NOTE.toLowerCase()).not.toContain('then you are live');
+    expect(PARTNER_FIRST_LISTING_STEP_NOTE.toLowerCase()).toContain('business and payout verification');
+    expect(PARTNER_FIRST_LISTING_STEP_NOTE.toLowerCase()).not.toContain('publish when you are ready');
+    expect(SUPPLIER_WELCOME_LISTING_STEP_NOTE.toLowerCase()).toContain('business and payout verification');
+    expect(SUPPLIER_WELCOME_LISTING_STEP_NOTE.toLowerCase()).not.toContain('publish when you are ready');
     expect(PARTNER_PAYOUT_THRESHOLD_HINT.toLowerCase()).toContain('once payouts are enabled');
     expect(PARTNER_PAYOUT_THRESHOLD_HINT.toLowerCase()).not.toContain('before a payout is sent');
   });

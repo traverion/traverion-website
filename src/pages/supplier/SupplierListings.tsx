@@ -48,6 +48,7 @@ import { SkeletonListItem } from '../../components/ui/Skeleton';
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import { SUPPLIER_PAGE_CLASS, SupplierEmptyState, SupplierModalHeader, SupplierPageHero } from '../../components/supplier/supplierUi';
+import { PARTNER_FIRST_LISTING_STEP_NOTE } from '../../lib/booking-confirmation-copy';
 
 function verificationStatusLabel(status: string): string {
   const s = status.toLowerCase();
@@ -853,7 +854,7 @@ export default function SupplierListings() {
         <SupplierEmptyState
           icon={Map}
           title="No listings yet"
-          body="You have not created a tour or stay. Photos, price, and the details guests need first; publish when you are ready."
+          body={PARTNER_FIRST_LISTING_STEP_NOTE}
           action={
             <button
               type="button"

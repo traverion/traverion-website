@@ -116,6 +116,17 @@ export const PARTNER_ONBOARDING_PAYOUT_STEP_NOTE =
 export const PARTNER_ONBOARDING_INTRO_NOTE =
   'Complete business details, payout details, and a first listing. Traverion must verify business and payout before you can publish. Nothing goes live until you publish and both verifications pass.';
 
+/** Partner onboarding step 03 / Listings empty — draft anytime; publish needs verification. */
+export const PARTNER_FIRST_LISTING_STEP_NOTE =
+  'A tour or a stay. Photos, price, and guest details first. You can draft anytime; publishing needs Traverion business and payout verification.';
+
+/**
+ * Supplier welcome email step 2 — keep in sync with notify-supplier-event supplier_welcome body.
+ * Do not say “publish when you are ready” as if verification were optional.
+ */
+export const SUPPLIER_WELCOME_LISTING_STEP_NOTE =
+  'Create your first listing (draft anytime). Publishing needs Traverion business and payout verification.';
+
 /** Partner Settings — threshold applies only once payouts are enabled; do not imply automatic sends today. */
 export const PARTNER_PAYOUT_THRESHOLD_HINT =
   'Minimum balance before Traverion will consider a payout once payouts are enabled (e.g. 50).';

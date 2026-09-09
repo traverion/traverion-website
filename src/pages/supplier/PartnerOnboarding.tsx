@@ -4,6 +4,7 @@ import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import {
   PARTNER_ONBOARDING_INTRO_NOTE,
   PARTNER_ONBOARDING_PAYOUT_STEP_NOTE,
+  PARTNER_FIRST_LISTING_STEP_NOTE,
 } from '../../lib/booking-confirmation-copy';
 
 type PartnerOnboardingProps = {
@@ -45,7 +46,7 @@ export default function PartnerOnboarding({
     {
       n: '03',
       title: 'First listing',
-      body: 'A tour or a stay. Photos, price, then publish when you are ready.',
+      body: PARTNER_FIRST_LISTING_STEP_NOTE,
       done: hasTour,
       action: onTours,
       cta: hasTour ? 'Open listings' : 'Create listing',

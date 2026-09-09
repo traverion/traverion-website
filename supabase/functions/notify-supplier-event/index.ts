@@ -88,7 +88,8 @@ function eventBody(payload: Payload): string {
       '',
       'Next steps:',
       '1. Complete your business profile and payout details in Settings.',
-      '2. Create and publish your first listing when you are ready.',
+      // Keep in sync with SUPPLIER_WELCOME_LISTING_STEP_NOTE in booking-confirmation-copy.ts
+      '2. Create your first listing (draft anytime). Publishing needs Traverion business and payout verification.',
       '',
       `Open your supplier portal: ${base}/partner`,
       '',
