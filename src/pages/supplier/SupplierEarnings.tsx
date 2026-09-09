@@ -14,7 +14,7 @@ import { isCollectedBooking, sumCollectedAmount, isRefundDueBooking, sumRefundDu
 import { ledgerAdjustmentTotal } from '../../lib/supplier-ledger-balance';
 import { fetchMyListings } from '../../data/supabase-listings';
 import { fetchSupplierLedger, type SupplierLedgerEntry } from '../../data/supabase-booking-ops';
-import { PARTNER_MONEY_PAYOUT_STATUS_NOTE, PARTNER_MONEY_PAID_OUT_TO_DATE_NOTE, PARTNER_MONEY_EMPTY_TITLE, PARTNER_MONEY_EMPTY_BODY } from '../../lib/booking-confirmation-copy';
+import { PARTNER_MONEY_PAYOUT_STATUS_NOTE, PARTNER_MONEY_PAID_OUT_TO_DATE_NOTE, PARTNER_MONEY_EMPTY_TITLE, PARTNER_MONEY_EMPTY_BODY, PARTNER_MONEY_LOAD_ERROR_TITLE, PARTNER_MONEY_FILTER_EMPTY_BODY } from '../../lib/booking-confirmation-copy';
 import NoticeCallout from '../../components/NoticeCallout';
 import {
   PARTNER_MONEY_CSV_HEADER,
@@ -180,7 +180,7 @@ export default function SupplierEarnings() {
       {error && (
         <ErrorState
           className="py-6"
-          title="Payouts unavailable"
+          title={PARTNER_MONEY_LOAD_ERROR_TITLE}
           body={userFacingError(error, USER_ERROR.money)}
           retry={{ onClick: () => void load() }}
         />
@@ -268,7 +268,7 @@ export default function SupplierEarnings() {
           <section>
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <h2 className="text-[11px] uppercase tracking-[0.18em] text-ink-faint">
-                {filteredEarnings.length > 0 ? 'Payout history' : 'Collected'}
+                {filteredEarnings.length > 0 ? 'Payout periods' : 'Collected'}
               </h2>
               <div className="flex flex-wrap items-center gap-1">
                 {(['all', 'pending', 'paid'] as const).map((s) => (
@@ -346,7 +346,7 @@ export default function SupplierEarnings() {
                 icon={Wallet}
                 className="py-6"
                 title="No rows for this filter"
-                body="Payout history exists, but nothing matches this status. Switch to All to see every period."
+                body={PARTNER_MONEY_FILTER_EMPTY_BODY}
               />
               )
             ) : (

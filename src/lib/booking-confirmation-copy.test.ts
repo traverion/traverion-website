@@ -35,6 +35,10 @@ import {
   PARTNER_MONEY_PAID_OUT_TO_DATE_NOTE,
   PARTNER_MONEY_EMPTY_TITLE,
   PARTNER_MONEY_EMPTY_BODY,
+  PARTNER_MONEY_LOAD_ERROR_TITLE,
+  PARTNER_MONEY_LOAD_ERROR_BODY,
+  PARTNER_MONEY_FILTER_EMPTY_BODY,
+  TRAVELER_PICKUP_PENDING_UI_NOTE,
   PARTNER_ONBOARDING_INTRO_NOTE,
   PARTNER_ONBOARDING_PAYOUT_STEP_NOTE,
   PARTNER_FIRST_LISTING_STEP_NOTE,
@@ -310,6 +314,13 @@ describe('booking confirmation copy', () => {
     expect(PARTNER_MONEY_EMPTY_TITLE.toLowerCase()).not.toContain('payout');
     expect(PARTNER_MONEY_EMPTY_BODY.toLowerCase()).toContain('collected amount');
     expect(PARTNER_MONEY_EMPTY_BODY.toLowerCase()).toContain('payouts stay manual');
+    expect(PARTNER_MONEY_LOAD_ERROR_TITLE.toLowerCase()).toBe('money unavailable');
+    expect(PARTNER_MONEY_LOAD_ERROR_TITLE.toLowerCase()).not.toContain('payout');
+    expect(PARTNER_MONEY_LOAD_ERROR_BODY.toLowerCase()).toContain('load money');
+    expect(PARTNER_MONEY_LOAD_ERROR_BODY.toLowerCase()).not.toContain('load payouts');
+    expect(PARTNER_MONEY_FILTER_EMPTY_BODY.toLowerCase()).not.toContain('payout history exists');
+    expect(TRAVELER_PICKUP_PENDING_UI_NOTE.toLowerCase()).toContain('when the host updates them');
+    expect(TRAVELER_PICKUP_PENDING_UI_NOTE.toLowerCase()).not.toContain('when ready');
     expect(bookingConfirmationPromisesEmailSent(BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE)).toBe(false);
     expect(BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE.toLowerCase()).toContain('trips');
     expect(BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE.toLowerCase()).not.toContain('may follow up');

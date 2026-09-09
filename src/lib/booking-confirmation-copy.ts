@@ -291,6 +291,20 @@ export const PARTNER_MONEY_EMPTY_TITLE = 'Nothing collected yet';
 export const PARTNER_MONEY_EMPTY_BODY =
   'When a traveler completes checkout, the collected amount appears here. Payouts stay manual — Traverion does not invent a transfer.';
 
+/** Money load failure — page is Money (collected + ledger), not “payouts only”. */
+export const PARTNER_MONEY_LOAD_ERROR_TITLE = 'Money unavailable';
+
+export const PARTNER_MONEY_LOAD_ERROR_BODY =
+  'We could not load Money. Check your connection and try again.';
+
+/** Money status filter empty — do not claim payout history exists. */
+export const PARTNER_MONEY_FILTER_EMPTY_BODY =
+  'Nothing matches this status. Switch to All to see every period on Money.';
+
+/** Traveler Trips — pickup pending until host confirms on the booking. */
+export const TRAVELER_PICKUP_PENDING_UI_NOTE =
+  'Your host still needs to confirm meeting or pickup details. They appear here when the host updates them on this booking.';
+
 /**
  * Legacy booking_request email footer — do not promise a later confirmation email.
  * Keep in sync with notify-customer-booking booking_request footerNote.

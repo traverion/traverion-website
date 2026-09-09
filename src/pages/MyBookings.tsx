@@ -48,6 +48,7 @@ import {
   TRAVELER_SELF_CANCEL_DELIVERY_NOTE,
   TRAVELER_SELF_CANCEL_FULL_REFUND_POLICY,
   TRAVELER_ACCEPT_HOST_CANCEL_REFUND_POLICY,
+  TRAVELER_PICKUP_PENDING_UI_NOTE,
   readStripeCheckoutReturnBanner,
 } from '../lib/booking-confirmation-copy';
 
@@ -560,7 +561,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                     <p className="text-sm text-ink-muted">Pickup {pgTimeToHm(b.pickup_time)}</p>
                   ) : pickupMissing ? (
                     <NoticeCallout title="Pickup details pending" tone="warn">
-                      Your host still needs to confirm meeting or pickup details. They will appear here when ready.
+                      {TRAVELER_PICKUP_PENDING_UI_NOTE}
                     </NoticeCallout>
                   ) : null}
                   {openCancel ? (

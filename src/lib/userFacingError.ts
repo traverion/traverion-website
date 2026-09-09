@@ -2,6 +2,8 @@
  * User-visible errors: human language only. Never pass through provider/database/stack text.
  */
 
+import { PARTNER_MONEY_LOAD_ERROR_BODY } from './booking-confirmation-copy';
+
 export const USER_ERROR = {
   generic: 'Something went wrong. Check your connection and try again.',
   auth: 'Something went wrong. Check your details and try again.',
@@ -14,7 +16,7 @@ export const USER_ERROR = {
   booking: 'We could not load this booking. Check your connection and try again.',
   listings: 'We could not load listings. Check your connection and try again.',
   bookings: 'We could not load bookings. Check your connection and try again.',
-  money: 'We could not load payouts. Check your connection and try again.',
+  money: PARTNER_MONEY_LOAD_ERROR_BODY,
   reviews: 'We could not load reviews. Check your connection and try again.',
   offers: 'We could not load offers. Check your connection and try again.',
   calendar: 'We could not load the calendar. Check your connection and try again.',
