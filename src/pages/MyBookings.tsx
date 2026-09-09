@@ -22,7 +22,7 @@ import {
 import { fetchListingOpsByIds, pgTimeToHm, type ListingOpsMeta } from '../data/supabase-listings';
 import { parseStayCheckOutFromNotes } from '../lib/stayOccupancy';
 import { formatMoney, isStripeTestCheckoutSession } from '../lib/money';
-import { travelerPaymentLabel, REFUND_DUE_MANUAL_COPY, bookingPaymentWasCollected } from '../lib/payment-states';
+import { travelerPaymentLabel, REFUND_DUE_MANUAL_COPY, bookingPaymentWasCollected, isRefundDueBooking } from '../lib/payment-states';
 import { bookingLifecycleLabel } from '../lib/status-language';
 import { travelerSelfCancelRefundChoice, supplierCancellationReasonLabel, travelerSelfCancelBlock, travelerSelfCancelError } from '../lib/cancellation-policy';
 import {
@@ -39,7 +39,7 @@ import { listingPickupCopyIncomplete } from '../lib/pickup-completeness';
 import { decrementAvailabilityBooked } from '../data/supabase-availability';
 import { clearBookingsUnread } from '../lib/customerBookingNotifications';
 import { guestFacingBookingNotes } from '../lib/booking-notes';
-import { bookingIsCancelledTrip, bookingMatchesTripView, travelerTripIsLive } from '../lib/trip-views';
+import { bookingIsCancelledTrip, bookingMatchesTripView, travelerTripIsLive, sortTravelerCancelledTrips } from '../lib/trip-views';
 import {
   BOOKING_CONFIRMATION_EMAIL_DISCLAIMER,
   STRIPE_CHECKOUT_CANCELLED_TOUR_COPY,
@@ -263,8 +263,11 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   }, []);
 
   const todayIso = new Date().toISOString().slice(0, 10);
+  const refundDueCount = useMemo(() => bookings.filter(isRefundDueBooking).length, [bookings]);
   const visibleBookings = useMemo(() => {
-    return bookings.filter((b) => bookingMatchesTripView(b, tripView, todayIso));
+    const rows = bookings.filter((b) => bookingMatchesTripView(b, tripView, todayIso));
+    if (tripView !== 'cancelled') return rows;
+    return sortTravelerCancelledTrips(rows);
   }, [bookings, todayIso, tripView]);
 
   if (!isSupabaseConfigured()) {
@@ -460,7 +463,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                     ? 'Nothing is scheduled. If you have trips, they may be under Past. Book a tour to add one here.'
                     : tripView === 'past'
                       ? 'You have no completed trips in this list yet. That is normal until a booked date has passed.'
-                      : 'You have not cancelled or been refunded. This tab stays empty until a trip is closed that way.'
+                      : 'You have no cancelled or refunded trips. Trips that still show Refund due appear here until Stripe records a refund.'
                 }
                 action={
                   tripView === 'upcoming' ? (
@@ -471,6 +474,13 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                 }
               />
             ) : (
+          <div className="space-y-4">
+            {tripView === 'cancelled' && refundDueCount > 0 ? (
+              <NoticeCallout title="Refund due" tone="warn">
+                {refundDueCount} trip{refundDueCount === 1 ? '' : 's'} still show Refund due. {REFUND_DUE_MANUAL_COPY}{' '}
+                Open a trip below for the details.
+              </NoticeCallout>
+            ) : null}
           <div className="divide-y divide-black/[0.06]">
             {visibleBookings.map((b) => {
               const open = openTripId === b.id;
@@ -688,6 +698,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
               </article>
             );
             })}
+          </div>
           </div>
             )}
           </div>

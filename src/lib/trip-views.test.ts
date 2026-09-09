@@ -9,6 +9,7 @@ import {
   partnerBookingIsUpcomingSchedule,
   travelerTripIsLive,
   partnerBookingIsUnpaidCheckout,
+  sortTravelerCancelledTrips,
 } from './trip-views';
 
 const today = '2026-09-08';
@@ -115,5 +116,25 @@ describe('trip list views', () => {
         '2026-09-11'
       )
     ).toBe(true);
+  });
+
+  it('sorts Refund due cancelled trips before other cancelled rows', () => {
+    const sorted = sortTravelerCancelledTrips([
+      { status: 'cancelled', payment_status: 'refunded', booking_date: '2026-12-01' },
+      { status: 'cancelled', payment_status: 'paid', booking_date: '2026-11-11' },
+      { status: 'cancelled', payment_status: 'paid', booking_date: '2026-11-18' },
+      {
+        status: 'cancelled',
+        payment_status: 'paid',
+        booking_date: '2026-10-01',
+        refund_choice: 'no_refund',
+      },
+    ]);
+    expect(sorted.map((r) => r.booking_date)).toEqual([
+      '2026-11-18',
+      '2026-11-11',
+      '2026-12-01',
+      '2026-10-01',
+    ]);
   });
 });

@@ -1,4 +1,4 @@
-import { normalizePaymentStatus } from './payment-states';
+import { normalizePaymentStatus, isRefundDueBooking } from './payment-states';
 import { bookingOccupiesInventory } from './booking-hold';
 
 export type TripListView = 'upcoming' | 'past' | 'cancelled';
@@ -105,5 +105,17 @@ export function bookingMatchesTripView(
   const date = (b.booking_date ?? '').trim();
   if (view === 'past') return Boolean(date) && date < todayIso;
   return !date || date >= todayIso;
+}
+
+/** Cancelled tab: Refund due first, then newest booking date. */
+export function sortTravelerCancelledTrips<
+  T extends { status?: string | null; payment_status?: string | null; booking_date?: string | null; refund_choice?: string | null },
+>(rows: T[]): T[] {
+  return [...rows].sort((a, b) => {
+    const aDue = isRefundDueBooking(a) ? 0 : 1;
+    const bDue = isRefundDueBooking(b) ? 0 : 1;
+    if (aDue !== bDue) return aDue - bDue;
+    return (b.booking_date ?? '').localeCompare(a.booking_date ?? '');
+  });
 }
 
