@@ -60,6 +60,16 @@ export function partnerPaymentLabel(b: MoneyBookingRow): string {
   return travelerPaymentLabel(b);
 }
 
+/**
+ * Partner Bookings detail: caption for the collected-amount row.
+ * Must not say “Paid” when the trip is Refund due / Refunded / No refund.
+ */
+export function partnerCollectedAmountCaption(b: MoneyBookingRow): string {
+  const label = partnerPaymentLabel(b);
+  if (label === 'Refunded' || label === 'Refund due' || label === 'No refund') return label;
+  return 'Paid';
+}
+
 /** Traveler/partner copy when a refund is owed but auto-refund is off. */
 export const REFUND_DUE_MANUAL_COPY =
   'A refund is due. Traverion does not send Stripe refunds automatically. This stays Refund due until a refund is issued in Stripe.';

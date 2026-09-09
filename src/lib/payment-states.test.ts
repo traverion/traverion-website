@@ -3,7 +3,9 @@ import {
   isCollectedBooking,
   sumCollectedAmount,
   travelerPaymentLabel,
+  partnerCollectedAmountCaption,
   bookingPaymentWasCollected,
+  REFUND_DUE_MANUAL_COPY,
 } from './payment-states';
 
 describe('payment states', () => {
@@ -79,5 +81,26 @@ describe('payment states', () => {
         { status: 'confirmed', payment_status: 'paid', amount_paid: 189 },
       ])
     ).toBe(823);
+  });
+
+  it('partner amount caption must not say Paid when refund is due', () => {
+    expect(
+      partnerCollectedAmountCaption({ status: 'cancelled', payment_status: 'paid', amount_paid: 189 })
+    ).toBe('Refund due');
+    expect(
+      partnerCollectedAmountCaption({
+        status: 'cancelled',
+        payment_status: 'paid',
+        amount_paid: 189,
+        refund_choice: 'no_refund',
+      })
+    ).toBe('No refund');
+    expect(
+      partnerCollectedAmountCaption({ status: 'cancelled', payment_status: 'refunded', amount_paid: 189 })
+    ).toBe('Refunded');
+    expect(
+      partnerCollectedAmountCaption({ status: 'confirmed', payment_status: 'paid', amount_paid: 189 })
+    ).toBe('Paid');
+    expect(REFUND_DUE_MANUAL_COPY.toLowerCase()).toContain('does not send stripe refunds automatically');
   });
 });

@@ -15,7 +15,13 @@ import {
 import type { TourPackage } from '../../types/tour';
 import { listingHeroImageSrc, orderedPhotoUrls, photoSlotsFromTourPackage } from '../../lib/listingPhotoGrid';
 import { formatMoney } from '../../lib/money';
-import { isPaidPaymentStatus, partnerPaymentLabel, bookingPaymentWasCollected } from '../../lib/payment-states';
+import {
+  isPaidPaymentStatus,
+  partnerPaymentLabel,
+  partnerCollectedAmountCaption,
+  bookingPaymentWasCollected,
+  REFUND_DUE_MANUAL_COPY,
+} from '../../lib/payment-states';
 import { guestFacingBookingNotes } from '../../lib/booking-notes';
 import {
   SUPPLIER_CANCELLATION_REASON_CODES,
@@ -885,7 +891,7 @@ export default function SupplierBookings() {
                     {paidLabel ? (
                       <div>
                         <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">
-                          {partnerPaymentLabel(booking) === 'Refunded' ? 'Refunded' : 'Paid'}
+                          {partnerCollectedAmountCaption(booking)}
                         </dt>
                         <dd className="mt-0.5 text-ink">{paidLabel}</dd>
                       </div>
@@ -976,6 +982,11 @@ export default function SupplierBookings() {
                       not respond. {PARTNER_CANCELLATION_REQUEST_DELIVERY_NOTE}
                     </NoticeCallout>
                   ) : null}
+                  {partnerPaymentLabel(booking) === 'Refund due' ? (
+                    <NoticeCallout title="Refund due" tone="warn">
+                      {REFUND_DUE_MANUAL_COPY}
+                    </NoticeCallout>
+                  ) : null}
                   <div>
                     <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint mb-2">History</p>
                     <ol className="space-y-1.5 text-sm text-ink-muted">
@@ -1011,6 +1022,8 @@ export default function SupplierBookings() {
                         </li>
                       ) : null}
                       {booking.status === 'cancelled' ? <li>Cancelled</li> : null}
+                      {partnerPaymentLabel(booking) === 'Refund due' ? <li>Refund due</li> : null}
+                      {partnerPaymentLabel(booking) === 'No refund' ? <li>No refund</li> : null}
                       {booking.payment_status === 'refunded' ? <li>Refunded</li> : null}
                     </ol>
                   </div>
