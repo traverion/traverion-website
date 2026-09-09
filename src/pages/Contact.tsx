@@ -4,7 +4,7 @@ import { submitContactInquiry, ContactInquiry } from '../data/supabase-contact';
 import { required, validateEmail, maxLength } from '../lib/validation';
 import { CONTACT_PREFILL_KEY } from '../lib/contactPrefill';
 import { buildInquiryEmailSubject } from '../lib/contactEmailSubject';
-import { CONTACT_FORM_THANK_YOU } from '../lib/booking-confirmation-copy';
+import { CONTACT_FORM_SUCCESS_HEADING, CONTACT_FORM_THANK_YOU } from '../lib/booking-confirmation-copy';
 
 type ContactProps = {
   onNavigate?: (page: string) => void;
@@ -123,7 +123,7 @@ export default function Contact({ onNavigate }: ContactProps) {
 
       {isSubmitted ? (
         <div>
-          <h2>Message sent</h2>
+          <h2>{CONTACT_FORM_SUCCESS_HEADING}</h2>
           <p>{CONTACT_FORM_THANK_YOU}</p>
         </div>
       ) : (

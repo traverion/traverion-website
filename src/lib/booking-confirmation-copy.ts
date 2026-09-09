@@ -265,6 +265,12 @@ export const PARTNER_MONEY_COLLECTED_TO_DATE_NOTE =
   'Guest checkout totals — not a Stripe payout. Payouts stay manual until Traverion enables them.';
 
 /**
+ * Money page paid-out ledger caption — do not label ledger “paid” as guest Collected.
+ */
+export const PARTNER_MONEY_PAID_OUT_TO_DATE_NOTE =
+  'Traverion payouts recorded on this ledger — not guest checkout totals. Payouts stay manual until enabled.';
+
+/**
  * Legacy booking_request email footer — do not promise a later confirmation email.
  * Keep in sync with notify-customer-booking booking_request footerNote.
  */
@@ -305,6 +311,9 @@ export const TRAVELER_CANCELLATION_DECLINED_EMAIL_NOTE =
  */
 export const TRAVELER_PICKUP_ACTION_EMAIL_NOTE =
   'Pickup and meeting details appear in Trips when the host confirms them. Traverion does not treat email delivery as proof you received an update.';
+
+/** Contact form success heading — saved, not email-sent proof. */
+export const CONTACT_FORM_SUCCESS_HEADING = 'Message received';
 
 /** Contact form success: inquiry is saved; do not promise a reply email. */
 export const CONTACT_FORM_THANK_YOU =

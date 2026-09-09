@@ -42,8 +42,10 @@ import {
   TRAVELER_DETAILS_UPDATED_EMAIL_NOTE,
   TRAVELER_CANCELLATION_DECLINED_EMAIL_NOTE,
   TRAVELER_PICKUP_ACTION_EMAIL_NOTE,
+  CONTACT_FORM_SUCCESS_HEADING,
   CONTACT_FORM_THANK_YOU,
   PARTNERSHIP_FORM_THANK_YOU,
+  PARTNER_MONEY_PAID_OUT_TO_DATE_NOTE,
   TERMS_MATERIAL_CHANGES_NOTE,
   TERMS_LAST_MINUTE_CHANGES_NOTE,
   PARTNER_TERMS_MATERIAL_CHANGES_NOTE,
@@ -276,6 +278,9 @@ describe('booking confirmation copy', () => {
     expect(BOOKING_CONFIRMED_PAID_RECEIPT_LINE.toLowerCase()).not.toContain('keep this email for your records');
     expect(PARTNER_MONEY_COLLECTED_TO_DATE_NOTE.toLowerCase()).toContain('not a stripe payout');
     expect(PARTNER_MONEY_COLLECTED_TO_DATE_NOTE.toLowerCase()).toContain('payouts stay manual');
+    expect(PARTNER_MONEY_PAID_OUT_TO_DATE_NOTE.toLowerCase()).toContain('payouts recorded on this ledger');
+    expect(PARTNER_MONEY_PAID_OUT_TO_DATE_NOTE.toLowerCase()).not.toContain('guest checkout totals — not a stripe');
+    expect(PARTNER_MONEY_PAID_OUT_TO_DATE_NOTE.toLowerCase()).toContain('not guest checkout');
     expect(bookingConfirmationPromisesEmailSent(BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE)).toBe(false);
     expect(BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE.toLowerCase()).toContain('trips');
     expect(BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE.toLowerCase()).not.toContain('may follow up');
@@ -318,6 +323,8 @@ describe('booking confirmation copy', () => {
   });
 
   it('marketing contact thank-you copy does not promise a reply email', () => {
+    expect(CONTACT_FORM_SUCCESS_HEADING.toLowerCase()).toBe('message received');
+    expect(CONTACT_FORM_SUCCESS_HEADING.toLowerCase()).not.toContain('sent');
     expect(bookingConfirmationPromisesEmailSent(CONTACT_FORM_THANK_YOU)).toBe(false);
     expect(bookingConfirmationPromisesEmailSent(PARTNERSHIP_FORM_THANK_YOU)).toBe(false);
     expect(bookingConfirmationPromisesEmailSent('Thank you. We will review your details and reply by email.')).toBe(true);
