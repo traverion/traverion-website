@@ -410,7 +410,14 @@ export default function StayDetails({ stayId, onBack }: Props) {
               <a
                 href={travelerLoginHref('stays')}
                 className="tv-btn-primary w-full mt-4"
-                onClick={() => rememberTravelerReturnStay(stay.id)}
+                onClick={() =>
+                  rememberTravelerReturnStay({
+                    id: stay.id,
+                    checkIn,
+                    checkOut,
+                    guests,
+                  })
+                }
               >
                 Log in to continue
               </a>
@@ -442,7 +449,14 @@ export default function StayDetails({ stayId, onBack }: Props) {
             <a
               href={travelerLoginHref('stays')}
               className="tv-btn-primary shrink-0"
-              onClick={() => rememberTravelerReturnStay(stay.id)}
+              onClick={() =>
+                rememberTravelerReturnStay({
+                  id: stay.id,
+                  checkIn,
+                  checkOut,
+                  guests,
+                })
+              }
             >
               Log in
             </a>

@@ -447,9 +447,15 @@ function App() {
       rememberProductReturn(currentPage, `${window.location.pathname}${window.location.search}`);
     }
     if (page === 'stays') {
-      const stayId = takeTravelerReturnStay();
-      if (stayId) {
-        void getListingByIdAsync(stayId).then((t) => {
+      const returnStay = takeTravelerReturnStay();
+      if (returnStay) {
+        const params = new URLSearchParams();
+        params.set('stay', returnStay.id);
+        if (returnStay.checkIn) params.set('date', returnStay.checkIn);
+        if (returnStay.checkOut) params.set('checkout', returnStay.checkOut);
+        if (returnStay.guests) params.set('guests', String(returnStay.guests));
+        window.history.replaceState({}, '', `/stays?${params.toString()}`);
+        void getListingByIdAsync(returnStay.id).then((t) => {
           if (!t || !listingIsFamily(t, 'stay')) {
             setCurrentPage('stays');
             return;

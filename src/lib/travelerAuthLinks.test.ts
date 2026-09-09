@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parsePathname } from './appRouting';
-import { sanitizeTravelerAuthNext, travelerLoginHref } from './travelerAuthLinks';
+import { sanitizeTravelerAuthNext, travelerLoginHref, parseTravelerReturnStay, serializeTravelerReturnStay } from './travelerAuthLinks';
 
 describe('consumer path aliases', () => {
   it('sends /tours to the live catalog and /trips to bookings', () => {
@@ -29,5 +29,25 @@ describe('travelerLoginHref', () => {
     expect(sanitizeTravelerAuthNext('admin')).toBe('home');
     expect(sanitizeTravelerAuthNext('')).toBe('home');
     expect(travelerLoginHref('../login')).toBe('/log-in?next=home');
+  });
+});
+
+describe('traveler return stay nights', () => {
+  it('round-trips nights and guests, and accepts legacy plain uuid', () => {
+    const id = '83f88255-63ef-4824-93a2-89cc13244567';
+    expect(parseTravelerReturnStay(id)).toEqual({ id });
+    const raw = serializeTravelerReturnStay({
+      id,
+      checkIn: '2026-09-20',
+      checkOut: '2026-09-22',
+      guests: 2,
+    });
+    expect(parseTravelerReturnStay(raw)).toEqual({
+      id,
+      checkIn: '2026-09-20',
+      checkOut: '2026-09-22',
+      guests: 2,
+    });
+    expect(parseTravelerReturnStay('{"id":"not-a-uuid"}')).toBe(null);
   });
 });
