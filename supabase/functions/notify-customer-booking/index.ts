@@ -218,7 +218,9 @@ serve(async (req) => {
       headline = 'Your host updated meeting times';
       intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">The tour operator updated the schedule for your booking. Compare the previous and new times below.</p>`;
       extraHtml = fieldDiffTableHtml(diffs);
-      footerNote = 'Please arrive on time for the updated pickup or start time. Reply to the provider if you need help.';
+      footerNote =
+        // Keep in sync with TRAVELER_HOST_SCHEDULE_UPDATED_EMAIL_NOTE in booking-confirmation-copy.ts
+        'Updated times appear in Trips. Traverion does not treat email delivery as proof you received this update. Reply to the host in Trips if you need help.';
     } else if (kind === 'booking_cancelled') {
       headline = 'Your booking was cancelled';
       intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your reservation has been cancelled as requested. Summary below.</p>`;

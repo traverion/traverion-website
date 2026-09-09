@@ -207,6 +207,13 @@ export const BOOKING_REQUEST_EMAIL_FOLLOWUP_NOTE =
 export const TRAVELER_NEW_BOOKING_MESSAGE_EMAIL_NOTE =
   'Open Trips for the durable message thread. Traverion does not treat email delivery as proof you saw the message.';
 
+/**
+ * Host schedule update email footer — Trips is durable for meeting times.
+ * Keep in sync with notify-customer-booking host_updated_schedule footerNote.
+ */
+export const TRAVELER_HOST_SCHEDULE_UPDATED_EMAIL_NOTE =
+  'Updated times appear in Trips. Traverion does not treat email delivery as proof you received this update. Reply to the host in Trips if you need help.';
+
 /** Contact form success: inquiry is saved; do not promise a reply email. */
 export const CONTACT_FORM_THANK_YOU =
   'Thank you. Your message is saved with Traverion. We do not treat email delivery as proof of a reply.';

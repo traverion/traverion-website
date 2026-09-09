@@ -26,6 +26,7 @@ import {
   BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE,
   BOOKING_REQUEST_EMAIL_FOLLOWUP_NOTE,
   TRAVELER_NEW_BOOKING_MESSAGE_EMAIL_NOTE,
+  TRAVELER_HOST_SCHEDULE_UPDATED_EMAIL_NOTE,
   CONTACT_FORM_THANK_YOU,
   PARTNERSHIP_FORM_THANK_YOU,
   TERMS_MATERIAL_CHANGES_NOTE,
@@ -230,6 +231,14 @@ describe('booking confirmation copy', () => {
     expect(TRAVELER_NEW_BOOKING_MESSAGE_EMAIL_NOTE.toLowerCase()).toContain('trips');
     expect(TRAVELER_NEW_BOOKING_MESSAGE_EMAIL_NOTE.toLowerCase()).toContain(
       'does not treat email delivery as proof'
+    );
+    expect(bookingConfirmationPromisesEmailSent(TRAVELER_HOST_SCHEDULE_UPDATED_EMAIL_NOTE)).toBe(false);
+    expect(TRAVELER_HOST_SCHEDULE_UPDATED_EMAIL_NOTE.toLowerCase()).toContain('trips');
+    expect(TRAVELER_HOST_SCHEDULE_UPDATED_EMAIL_NOTE.toLowerCase()).toContain(
+      'does not treat email delivery as proof'
+    );
+    expect(TRAVELER_HOST_SCHEDULE_UPDATED_EMAIL_NOTE.toLowerCase()).not.toContain(
+      'reply to the provider if you need help'
     );
   });
 
