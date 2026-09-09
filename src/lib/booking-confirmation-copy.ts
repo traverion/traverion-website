@@ -200,6 +200,13 @@ export const BOOKING_CONFIRMED_PAID_FOLLOWUP_NOTE =
 export const BOOKING_REQUEST_EMAIL_FOLLOWUP_NOTE =
   'Watch Trips for payment and confirmation status. Traverion does not treat email delivery as proof of a later confirmation.';
 
+/**
+ * Host → traveler new_booking_message email footer — Trips thread is durable.
+ * Keep in sync with notify-customer-booking new_booking_message footerNote.
+ */
+export const TRAVELER_NEW_BOOKING_MESSAGE_EMAIL_NOTE =
+  'Open Trips for the durable message thread. Traverion does not treat email delivery as proof you saw the message.';
+
 /** Contact form success: inquiry is saved; do not promise a reply email. */
 export const CONTACT_FORM_THANK_YOU =
   'Thank you. Your message is saved with Traverion. We do not treat email delivery as proof of a reply.';
@@ -251,6 +258,7 @@ export function bookingConfirmationPromisesEmailSent(copy: string): boolean {
     t.includes('email has been sent') ||
     t.includes('we will email') ||
     t.includes('will email you') ||
+    t.includes('you will receive another email') ||
     t.includes('reply by email') ||
     t.includes('get back to you by email') ||
     t.includes('via email') ||

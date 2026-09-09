@@ -242,6 +242,9 @@ serve(async (req) => {
       headline = 'New message about your booking';
       intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">You have a new message about this booking. Open Trips to read and reply.</p>`;
       if (diffs.length) extraHtml = fieldDiffTableHtml(diffs);
+      footerNote =
+        // Keep in sync with TRAVELER_NEW_BOOKING_MESSAGE_EMAIL_NOTE in booking-confirmation-copy.ts
+        'Open Trips for the durable message thread. Traverion does not treat email delivery as proof you saw the message.';
     } else if (kind === 'pickup_action_required') {
       headline = 'Pickup details still needed';
       intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your booking is confirmed. The host still needs to confirm pickup or meeting details — they will appear in Trips when ready.</p>`;

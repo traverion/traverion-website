@@ -25,6 +25,7 @@ import {
   BOOKING_CONFIRMED_PAID_FOLLOWUP_NOTE,
   BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE,
   BOOKING_REQUEST_EMAIL_FOLLOWUP_NOTE,
+  TRAVELER_NEW_BOOKING_MESSAGE_EMAIL_NOTE,
   CONTACT_FORM_THANK_YOU,
   PARTNERSHIP_FORM_THANK_YOU,
   TERMS_MATERIAL_CHANGES_NOTE,
@@ -224,6 +225,11 @@ describe('booking confirmation copy', () => {
       'does not treat email delivery as proof'
     );
     expect(BOOKING_REQUEST_EMAIL_FOLLOWUP_NOTE.toLowerCase()).not.toContain('you will receive another email');
+    expect(bookingConfirmationPromisesEmailSent(TRAVELER_NEW_BOOKING_MESSAGE_EMAIL_NOTE)).toBe(false);
+    expect(TRAVELER_NEW_BOOKING_MESSAGE_EMAIL_NOTE.toLowerCase()).toContain('trips');
+    expect(TRAVELER_NEW_BOOKING_MESSAGE_EMAIL_NOTE.toLowerCase()).toContain(
+      'does not treat email delivery as proof'
+    );
   });
 
   it('marketing contact thank-you copy does not promise a reply email', () => {
