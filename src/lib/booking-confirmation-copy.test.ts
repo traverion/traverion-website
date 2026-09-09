@@ -11,6 +11,8 @@ import {
   PARTNER_CANCELLATION_REQUEST_DELIVERY_NOTE,
   TRAVELER_CANCELLATION_RESPONSE_DELIVERY_NOTE,
   TRAVELER_SELF_CANCEL_DELIVERY_NOTE,
+  TRAVELER_SELF_CANCEL_FULL_REFUND_POLICY,
+  TRAVELER_ACCEPT_HOST_CANCEL_REFUND_POLICY,
   CONTACT_FORM_THANK_YOU,
   PARTNERSHIP_FORM_THANK_YOU,
   TERMS_MATERIAL_CHANGES_NOTE,
@@ -132,6 +134,17 @@ describe('booking confirmation copy', () => {
     expect(bookingConfirmationPromisesEmailSent(TRAVELER_SELF_CANCEL_DELIVERY_NOTE)).toBe(false);
     expect(TRAVELER_SELF_CANCEL_DELIVERY_NOTE.toLowerCase()).toContain('bookings');
     expect(TRAVELER_SELF_CANCEL_DELIVERY_NOTE.toLowerCase()).toContain('does not treat email delivery as proof');
+  });
+
+  it('traveler cancel refund copy does not promise money already moved', () => {
+    expect(TRAVELER_SELF_CANCEL_FULL_REFUND_POLICY.toLowerCase()).toContain('refund is due');
+    expect(TRAVELER_SELF_CANCEL_FULL_REFUND_POLICY.toLowerCase()).toContain('does not send stripe refunds automatically');
+    expect(TRAVELER_SELF_CANCEL_FULL_REFUND_POLICY.toLowerCase()).not.toContain('you should receive');
+    expect(TRAVELER_ACCEPT_HOST_CANCEL_REFUND_POLICY.toLowerCase()).toContain('full refund is due');
+    expect(TRAVELER_ACCEPT_HOST_CANCEL_REFUND_POLICY.toLowerCase()).toContain('does not send stripe refunds automatically');
+    expect(TRAVELER_ACCEPT_HOST_CANCEL_REFUND_POLICY.toLowerCase()).not.toContain('full refund is expected');
+    expect(bookingConfirmationPromisesEmailSent(TRAVELER_SELF_CANCEL_FULL_REFUND_POLICY)).toBe(false);
+    expect(bookingConfirmationPromisesEmailSent(TRAVELER_ACCEPT_HOST_CANCEL_REFUND_POLICY)).toBe(false);
   });
 
   it('marketing contact thank-you copy does not promise a reply email', () => {

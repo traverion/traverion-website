@@ -120,6 +120,20 @@ export const TRAVELER_CANCELLATION_RESPONSE_DELIVERY_NOTE =
 export const TRAVELER_SELF_CANCEL_DELIVERY_NOTE =
   'If you cancel, the host sees it on their Bookings. Traverion does not treat email delivery as proof they saw it.';
 
+/**
+ * Traveler self-cancel when inside free-cancel window — refund is due, not already paid out.
+ * Do not say “you should receive a full refund” as if Stripe already moved money.
+ */
+export const TRAVELER_SELF_CANCEL_FULL_REFUND_POLICY =
+  'A full refund is due under the cancellation window. Status becomes Refund due until Stripe records the refund. Traverion does not send Stripe refunds automatically.';
+
+/**
+ * Traveler accepting a host cancellation request — same Refund due honesty.
+ * Do not promise an automatic payout as if money already moved.
+ */
+export const TRAVELER_ACCEPT_HOST_CANCEL_REFUND_POLICY =
+  'If you accept, this booking is cancelled and a full refund is due. Status becomes Refunded only after Stripe records it. Traverion does not send Stripe refunds automatically, and does not cancel automatically if you do nothing';
+
 /** Contact form success: inquiry is saved; do not promise a reply email. */
 export const CONTACT_FORM_THANK_YOU =
   'Thank you. Your message is saved with Traverion. We do not treat email delivery as proof of a reply.';

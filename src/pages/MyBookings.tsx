@@ -45,6 +45,8 @@ import {
   STRIPE_CHECKOUT_CANCELLED_TOUR_COPY,
   TRAVELER_CANCELLATION_RESPONSE_DELIVERY_NOTE,
   TRAVELER_SELF_CANCEL_DELIVERY_NOTE,
+  TRAVELER_SELF_CANCEL_FULL_REFUND_POLICY,
+  TRAVELER_ACCEPT_HOST_CANCEL_REFUND_POLICY,
   readStripeCheckoutReturnBanner,
 } from '../lib/booking-confirmation-copy';
 
@@ -590,8 +592,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         {openCancel.reason_text ? ` — ${openCancel.reason_text}` : ''}
                       </p>
                       <p className="mt-1">
-                        If you accept, this booking is cancelled and a full refund is expected. Refund status becomes
-                        Refunded only after Stripe records it. Traverion does not cancel automatically if you do nothing
+                        {TRAVELER_ACCEPT_HOST_CANCEL_REFUND_POLICY}
                         {openCancel.expires_at
                           ? ` (request noted until ${new Date(openCancel.expires_at).toLocaleString()}).`
                           : '.'}{' '}
@@ -718,7 +719,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                       cancelConfirm.check_out || parseStayCheckOutFromNotes(cancelConfirm.special_requests)
                         ? 'check-in'
                         : 'start'
-                    }. You should receive a full refund. ${REFUND_DUE_MANUAL_COPY}`
+                    }. ${TRAVELER_SELF_CANCEL_FULL_REFUND_POLICY}`
                   : `This ${
                       cancelConfirm.check_out || parseStayCheckOutFromNotes(cancelConfirm.special_requests)
                         ? 'check-in is'
