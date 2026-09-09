@@ -24,6 +24,8 @@ import {
   PARTNER_PAYOUT_REVIEW_STATUS_NOTE,
   TRAVELER_BOOKING_THREAD_DELIVERY_NOTE,
   bookingConfirmationPromisesEmailSent,
+  bookingConfirmationPhase,
+  bookingConfirmationCancelledBody,
   bookingContactIntroCopy,
   bookingPayConfirmAfterPayCopy,
   readStripeCheckoutReturnBanner,
@@ -177,5 +179,27 @@ describe('booking confirmation copy', () => {
     expect(bookingConfirmationPromisesEmailSent(COOKIES_PREFERENCES_NOTE)).toBe(false);
     expect(COOKIES_PREFERENCES_NOTE.toLowerCase()).toContain('saved on this website');
     expect(COOKIES_PREFERENCES_NOTE.toLowerCase()).toContain('does not treat email delivery as proof');
+  });
+
+  it('confirmation page phase must not treat cancelled+paid as Booking confirmed', () => {
+    expect(
+      bookingConfirmationPhase({ status: 'cancelled', payment_status: 'paid', amount_paid: 189 })
+    ).toBe('cancelled');
+    expect(
+      bookingConfirmationPhase({ status: 'confirmed', payment_status: 'refunded', amount_paid: 189 })
+    ).toBe('cancelled');
+    expect(
+      bookingConfirmationPhase({ status: 'confirmed', payment_status: 'paid', amount_paid: 189 })
+    ).toBe('confirmed');
+    expect(
+      bookingConfirmationPhase({ status: 'pending', payment_status: 'pending' })
+    ).toBe('confirming');
+    const due = bookingConfirmationCancelledBody({
+      status: 'cancelled',
+      payment_status: 'paid',
+      amount_paid: 189,
+    });
+    expect(due.toLowerCase()).toContain('refund due');
+    expect(bookingConfirmationPromisesEmailSent(due)).toBe(false);
   });
 });

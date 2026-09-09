@@ -3,8 +3,42 @@
  * Resend is blocked until a valid key exists — never claim an email was sent.
  */
 
+import { bookingIsCancelledTrip } from './trip-views';
+import {
+  isPaidPaymentStatus,
+  normalizePaymentStatus,
+  travelerPaymentLabel,
+  REFUND_DUE_MANUAL_COPY,
+  type MoneyBookingRow,
+} from './payment-states';
+
 export const BOOKING_CONFIRMATION_EMAIL_DISCLAIMER =
   'Trips is your confirmation. If an email arrives, keep it for your records — Traverion does not treat email delivery as booking proof.';
+
+export type BookingConfirmationPhase = 'cancelled' | 'confirmed' | 'confirming' | 'received';
+
+/** Post-checkout screen phase — cancelled must never read as Booking confirmed. */
+export function bookingConfirmationPhase(b: MoneyBookingRow): BookingConfirmationPhase {
+  if (bookingIsCancelledTrip(b)) return 'cancelled';
+  if (isPaidPaymentStatus(b.payment_status)) return 'confirmed';
+  const pay = normalizePaymentStatus(b.payment_status);
+  if (pay === 'pending' || pay === '') return 'confirming';
+  return 'received';
+}
+
+export function bookingConfirmationCancelledBody(b: MoneyBookingRow): string {
+  const pay = travelerPaymentLabel(b);
+  if (pay === 'Refund due') {
+    return `This booking is cancelled. Status: Refund due. ${REFUND_DUE_MANUAL_COPY}`;
+  }
+  if (pay === 'Refunded') {
+    return 'This booking is cancelled and marked Refunded in Stripe.';
+  }
+  if (pay === 'No refund') {
+    return 'This booking is cancelled. No refund applies for this cancellation.';
+  }
+  return 'This booking is cancelled. Open Trips for the current status.';
+}
 
 /** Stay listing / checkout panel: confirmation is Trips, not mail. */
 export const STAY_LISTING_CONFIRMATION_NOTE =

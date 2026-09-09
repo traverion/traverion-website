@@ -20,7 +20,8 @@ import { formatMoney, isStripeTestCheckoutSession } from '../lib/money';
 import NoticeCallout from '../components/NoticeCallout';
 import { listingPickupCopyIncomplete } from '../lib/pickup-completeness';
 import { clearBookingsUnread } from '../lib/customerBookingNotifications';
-import { BOOKING_CONFIRMATION_EMAIL_DISCLAIMER } from '../lib/booking-confirmation-copy';
+import { BOOKING_CONFIRMATION_EMAIL_DISCLAIMER, bookingConfirmationPhase, bookingConfirmationCancelledBody } from '../lib/booking-confirmation-copy';
+import { travelerPaymentLabel, bookingPaymentWasCollected } from '../lib/payment-states';
 
 const SESSION_RETURN_KEY = 'traverion_checkout_return_session_id';
 
@@ -103,10 +104,10 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
     void load();
   }, [canQuery, load]);
 
-  /** Webhook may lag behind the browser redirect — poll until paid or cap. */
+  /** Webhook may lag behind the browser redirect — poll until paid or cancelled, or cap. */
   useEffect(() => {
     if (!canQuery || !booking) return;
-    if ((booking.payment_status ?? '') === 'paid') return;
+    if (bookingConfirmationPhase(booking) !== 'confirming') return;
     if (pollCount >= 18) return;
     const t = window.setTimeout(() => {
       setPollCount((c) => c + 1);
@@ -145,21 +146,25 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
     }
   }, [booking?.booking_date, stayCheckOut]);
 
-  const paid = Boolean(booking && (booking.payment_status ?? '') === 'paid');
-  const confirming = Boolean(booking && (booking.payment_status ?? 'pending') !== 'paid');
+  const phase = booking ? bookingConfirmationPhase(booking) : null;
+  const paidActive = phase === 'confirmed';
+  const confirming = phase === 'confirming';
+  const cancelled = phase === 'cancelled';
+  const payLabel = booking ? travelerPaymentLabel(booking) : '';
+  const collected = booking ? bookingPaymentWasCollected(booking.payment_status) : false;
 
   useEffect(() => {
-    if (!paid) return;
+    if (!paidActive && !cancelled) return;
     try {
       sessionStorage.removeItem(SESSION_RETURN_KEY);
     } catch {
       /* ignore */
     }
-  }, [paid]);
+  }, [paidActive, cancelled]);
 
   useEffect(() => {
-    if (paid && user?.id) clearBookingsUnread(user.id);
-  }, [paid, user?.id]);
+    if (paidActive && user?.id) clearBookingsUnread(user.id);
+  }, [paidActive, user?.id]);
 
   const startHm = booking?.start_time ? pgTimeToHm(booking.start_time) : '';
 
@@ -265,7 +270,14 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
         {booking && (
           <div className="overflow-hidden">
             <div className="pb-5 text-center">
-              {paid ? (
+              {cancelled ? (
+                <>
+                  <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Booking cancelled</h1>
+                  <p className="mt-2 text-sm text-ink-muted leading-relaxed">
+                    {bookingConfirmationCancelledBody(booking)} {BOOKING_CONFIRMATION_EMAIL_DISCLAIMER}
+                  </p>
+                </>
+              ) : paidActive ? (
                 <>
                   <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-green-100 text-green-600">
                     <CheckCircle className="w-8 h-8 tv-pop" aria-hidden />
@@ -329,9 +341,9 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                   </p>
                 </div>
               </div>
-              {paid && booking.amount_paid != null && (
+              {collected && booking.amount_paid != null && (
                 <div className="pt-1 border-t border-black/[0.06] space-y-1">
-                  {stayCheckOut && booking.nights && booking.nightly_amount != null ? (
+                  {stayCheckOut && booking.nights && booking.nightly_amount != null && paidActive ? (
                     <p>
                       {booking.nights} night{booking.nights === 1 ? '' : 's'} × {formatMoney(Number(booking.nightly_amount), booking.currency)}
                       {booking.cleaning_fee != null && Number(booking.cleaning_fee) > 0
@@ -340,20 +352,29 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                     </p>
                   ) : null}
                   <p className="text-ink font-medium">
-                    Paid {formatMoney(Number(booking.amount_paid), booking.currency)}
+                    {cancelled ? payLabel : 'Paid'}{' '}
+                    {formatMoney(Number(booking.amount_paid), booking.currency)}
                     {isStripeTestCheckoutSession(booking.checkout_session_id) ? ' · Stripe TEST' : ''}
                   </p>
                 </div>
               )}
-              <p className="text-xs text-ink-faint leading-relaxed pt-2">
-                {stayCheckOut
-                  ? 'Next: the host may send arrival instructions. Manage this stay from Trips.'
-                  : 'Next: the operator may follow up about meeting or pickup. Manage this booking from Trips.'}{' '}
-                Free cancellation up to 24 hours before {stayCheckOut ? 'check-in' : 'start'}, unless the listing says otherwise.
-              </p>
-              {paid && pickupPending ? (
+              {cancelled ? (
+                <p className="text-xs text-ink-faint leading-relaxed pt-2">
+                  Manage this booking from Trips — Cancelled shows Refund due until Stripe records a refund.
+                </p>
+              ) : (
+                <p className="text-xs text-ink-faint leading-relaxed pt-2">
+                  {stayCheckOut
+                    ? 'Next: the host may send arrival instructions. Manage this stay from Trips.'
+                    : 'Next: the operator may follow up about meeting or pickup. Manage this booking from Trips.'}{' '}
+                  Free cancellation up to 24 hours before {stayCheckOut ? 'check-in' : 'start'}, unless the listing says
+                  otherwise.
+                </p>
+              )}
+              {paidActive && pickupPending ? (
                 <NoticeCallout title="Pickup details pending" tone="warn">
-                  Your booking is confirmed. Meeting or pickup details are not complete yet — they will appear in Trips when the host updates them.
+                  Your booking is confirmed. Meeting or pickup details are not complete yet — they will appear in Trips when
+                  the host updates them.
                 </NoticeCallout>
               ) : null}
             </div>
