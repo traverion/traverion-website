@@ -18,6 +18,8 @@ Search the Checkout Session (`cs_test_…` / `cs_live_…`) or Payment Intent. C
 Payments → the charge → **Refund**.  
 **Partial refunds:** Traverion records the Stripe `charge.refunded` event in `booking_payment_events` but keeps `payment_status = paid` and **does not** release inventory until the charge is **fully** refunded (`charge.refunded === true` or `amount_refunded >= amount`). Prefer a full refund for cancelled trips. If you must partial-refund, adjust the booking/ledger manually afterward — Money still counts the booking as collected while paid.
 
+**Full refunds:** After Stripe fully refunds, the webhook sets `payment_status = refunded`, releases occupancy, and posts an idempotent supplier ledger `refund` row that reverses `booking_earnings` (same unique key as cancel-accept reversal — no double reverse).
+
 ## 4. Record the booking in Traverion
 
 If the webhook is configured, `payment_status` becomes `refunded` and occupancy is released.  

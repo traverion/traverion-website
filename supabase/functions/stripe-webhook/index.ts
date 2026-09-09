@@ -628,6 +628,10 @@ serve(async (req) => {
             Number(booking.guests ?? 1),
             typeof booking.check_out === 'string' ? booking.check_out : null
           );
+          const { error: reverseErr } = await admin.rpc('reverse_paid_booking_earnings', {
+            p_booking_id: booking.id,
+          });
+          if (reverseErr) throw new Error(reverseErr.message);
         }
         await admin.from('booking_payment_events').insert({
           booking_id: booking.id,
