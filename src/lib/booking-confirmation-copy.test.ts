@@ -116,6 +116,7 @@ describe('booking confirmation copy', () => {
     expect(bookingConfirmationPromisesEmailSent(PARTNER_BUSINESS_REVIEW_STATUS_NOTE)).toBe(false);
     expect(bookingConfirmationPromisesEmailSent(PARTNER_PAYOUT_REVIEW_STATUS_NOTE)).toBe(false);
     expect(bookingConfirmationPromisesEmailSent('We will email you when there is an update.')).toBe(true);
+    expect(bookingConfirmationPromisesEmailSent('You will receive another email when confirmed.')).toBe(true);
     expect(PARTNER_BUSINESS_REVIEW_STATUS_NOTE.toLowerCase()).toContain('status updates appear on this page');
     expect(PARTNER_PAYOUT_REVIEW_STATUS_NOTE.toLowerCase()).toContain('status updates appear on this page');
     expect(PARTNER_BUSINESS_REVIEW_STATUS_NOTE.toLowerCase()).toContain('does not treat email as the decision');
