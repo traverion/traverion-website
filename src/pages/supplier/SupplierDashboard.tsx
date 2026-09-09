@@ -11,7 +11,7 @@ import {
   fetchCancellationRequestsForBookings,
 } from '../../data/supabase-booking-ops';
 import { listingPickupCopyIncomplete, bookingIsStayNight } from '../../lib/pickup-completeness';
-import { isPaidPaymentStatus } from '../../lib/payment-states';
+import { isPaidPaymentStatus, isRefundDueBooking } from '../../lib/payment-states';
 import type { TourPackage } from '../../types/tour';
 import SupplierPortalNoticePanel from '../../components/supplier/SupplierPortalNoticePanel';
 import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
@@ -172,8 +172,18 @@ export default function SupplierDashboard({ onNavigateToBookings }: SupplierDash
     (r) => r.expires_at && new Date(r.expires_at).getTime() < Date.now()
   ).length;
 
+  const refundDueCount = useMemo(
+    () => supplierBookings.filter(isRefundDueBooking).length,
+    [supplierBookings]
+  );
+
   const attentionCount =
-    pendingBookings.length + draftListingsCount + (verificationNeedsAction ? 1 : 0) + pickupGaps.length + openCancelCount;
+    pendingBookings.length +
+    draftListingsCount +
+    (verificationNeedsAction ? 1 : 0) +
+    pickupGaps.length +
+    openCancelCount +
+    refundDueCount;
 
   const recentBookings = useMemo(
     () =>
@@ -308,6 +318,17 @@ export default function SupplierDashboard({ onNavigateToBookings }: SupplierDash
                 </button>
               </li>
             )}
+            {refundDueCount > 0 && (
+              <li>
+                <button
+                  type="button"
+                  onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings?ops=refund_due`)}
+                  className="lux-flat min-h-11 w-full text-left py-2 text-finland font-medium"
+                >
+                  {refundDueCount} booking{refundDueCount === 1 ? '' : 's'} still Refund due (manual Stripe refund)
+                </button>
+              </li>
+            )}
             {pickupGaps.length > 0 && (
               <li>
                 <button type="button" onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/pickup`)} className="lux-flat min-h-11 w-full text-left py-2 text-finland font-medium">
@@ -344,7 +365,8 @@ export default function SupplierDashboard({ onNavigateToBookings }: SupplierDash
         <section className="mb-12">
           <h2 className="text-[11px] uppercase tracking-[0.18em] text-ink-faint mb-4">Needs attention</h2>
           <p className="text-ink-muted max-w-lg leading-relaxed">
-            Nothing needs you right now. Pickup gaps, cancellation requests, drafts, and verification will show up here when they do.
+            Nothing needs you right now. Pickup gaps, cancellation requests, Refund due, drafts, and verification will
+            show up here when they do.
           </p>
         </section>
       )}
