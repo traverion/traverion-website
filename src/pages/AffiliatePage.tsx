@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import LegalPageShell from '../components/LegalPageShell';
 import { submitContactInquiry, type ContactInquiry } from '../data/supabase-contact';
 import { buildInquiryEmailSubject } from '../lib/contactEmailSubject';
+import { PARTNERSHIP_FORM_THANK_YOU } from '../lib/booking-confirmation-copy';
 import { CONTACT_PRESETS, takeContactPrefill } from '../lib/contactPrefill';
 import { required, validateEmail, maxLength } from '../lib/validation';
 
@@ -98,7 +99,7 @@ export default function AffiliatePage({ onNavigate }: AffiliatePageProps) {
       {isSubmitted ? (
         <div>
           <h2>Application received</h2>
-          <p>Thank you. We will review your details and get back to you by email.</p>
+          <p>{PARTNERSHIP_FORM_THANK_YOU}</p>
         </div>
       ) : (
         <>

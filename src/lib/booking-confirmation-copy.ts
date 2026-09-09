@@ -86,6 +86,14 @@ export const TRAVELER_CANCELLATION_RESPONSE_DELIVERY_NOTE =
 export const TRAVELER_SELF_CANCEL_DELIVERY_NOTE =
   'If you cancel, the host sees it on their Bookings. Traverion does not treat email delivery as proof they saw it.';
 
+/** Contact form success: inquiry is saved; do not promise a reply email. */
+export const CONTACT_FORM_THANK_YOU =
+  'Thank you. Your message is saved with Traverion. We do not treat email delivery as proof of a reply.';
+
+/** Affiliate / content-creator application success: saved; do not promise a reply email. */
+export const PARTNERSHIP_FORM_THANK_YOU =
+  'Thank you. Your application is saved with Traverion. We do not treat email delivery as proof of a reply.';
+
 export function readStripeCheckoutReturnBanner(search: string): 'success' | 'cancelled' | null {
   const raw = search.startsWith('?') ? search.slice(1) : search;
   const payment = (new URLSearchParams(raw).get('payment') ?? '').trim().toLowerCase();
@@ -104,6 +112,8 @@ export function bookingConfirmationPromisesEmailSent(copy: string): boolean {
     t.includes('confirmation email has been sent') ||
     t.includes('email has been sent') ||
     t.includes('we will email') ||
-    t.includes('will email you')
+    t.includes('will email you') ||
+    t.includes('reply by email') ||
+    t.includes('get back to you by email')
   );
 }

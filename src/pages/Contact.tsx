@@ -4,6 +4,7 @@ import { submitContactInquiry, ContactInquiry } from '../data/supabase-contact';
 import { required, validateEmail, maxLength } from '../lib/validation';
 import { CONTACT_PREFILL_KEY } from '../lib/contactPrefill';
 import { buildInquiryEmailSubject } from '../lib/contactEmailSubject';
+import { CONTACT_FORM_THANK_YOU } from '../lib/booking-confirmation-copy';
 
 type ContactProps = {
   onNavigate?: (page: string) => void;
@@ -123,7 +124,7 @@ export default function Contact({ onNavigate }: ContactProps) {
       {isSubmitted ? (
         <div>
           <h2>Message sent</h2>
-          <p>Thank you. We will get back to you soon.</p>
+          <p>{CONTACT_FORM_THANK_YOU}</p>
         </div>
       ) : (
         <form noValidate onSubmit={(e) => void handleSubmit(e)} className="space-y-4 max-w-lg">
