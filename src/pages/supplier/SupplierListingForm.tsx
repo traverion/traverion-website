@@ -31,6 +31,10 @@ import { isSupabaseConfigured } from '../../lib/supabase';
 import { userFacingError } from '../../lib/userFacingError';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
 import { MIN_LISTING_DESCRIPTION_LENGTH } from '../../lib/listingQualityScore';
+import {
+  PARTNER_LISTING_PUBLISH_STEP_NOTE,
+  PARTNER_LISTING_PUBLISH_STEP_TITLE,
+} from '../../lib/booking-confirmation-copy';
 import { headlineStartingAmount } from '../../lib/headline-price';
 import { DEFAULT_CURRENCY, formatMoney, normalizeCurrency } from '../../lib/money';
 import { STAY_AMENITY_PRESETS } from '../../lib/stay-amenities';
@@ -2578,13 +2582,10 @@ export default function SupplierListingForm({
               )}
               <div>
                 <p className="font-medium text-ink">
-                  {form.status === 'published' ? 'Update your live listing' : 'Go live or keep a draft'}
+                  {form.status === 'published' ? 'Update your live listing' : PARTNER_LISTING_PUBLISH_STEP_TITLE}
                 </p>
                 <p className="mt-2 text-sm text-ink-muted leading-relaxed">
-                  <span className="font-medium text-ink">Publish</span> runs a final check and lists this{' '}
-                  {form.inventoryFamily === 'stay' || createFamily === 'stay' ? 'stay' : 'tour'} on Traverion for
-                  travelers. <span className="font-medium text-ink">Save as draft</span> stores progress without going live.
-                  Promotional discounts are under <span className="font-medium text-ink">Offers</span> in Account.
+                  {PARTNER_LISTING_PUBLISH_STEP_NOTE}
                 </p>
               </div>
             </div>

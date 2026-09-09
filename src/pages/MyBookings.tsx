@@ -49,6 +49,7 @@ import {
   TRAVELER_SELF_CANCEL_FULL_REFUND_POLICY,
   TRAVELER_ACCEPT_HOST_CANCEL_REFUND_POLICY,
   TRAVELER_PICKUP_PENDING_UI_NOTE,
+  TRAVELER_SELF_CANCEL_CTA,
   readStripeCheckoutReturnBanner,
 } from '../lib/booking-confirmation-copy';
 
@@ -668,7 +669,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         disabled={cancellingId !== null}
                         className="tv-btn-ghost text-red-700"
                       >
-                        Request cancellation
+                        {TRAVELER_SELF_CANCEL_CTA}
                       </button>
                     )}
                   </div>

@@ -12,6 +12,7 @@ import {
   PARTNER_CANCEL_REQUEST_REFUND_POLICY,
   TRAVELER_CANCELLATION_RESPONSE_DELIVERY_NOTE,
   TRAVELER_SELF_CANCEL_DELIVERY_NOTE,
+  TRAVELER_SELF_CANCEL_CTA,
   TRAVELER_SELF_CANCEL_FULL_REFUND_POLICY,
   TRAVELER_ACCEPT_HOST_CANCEL_REFUND_POLICY,
   TRAVELER_SELF_CANCEL_EMAIL_DIFF_FULL_REFUND,
@@ -50,6 +51,8 @@ import {
   PARTNER_ONBOARDING_PAYOUT_STEP_NOTE,
   PARTNER_FIRST_LISTING_STEP_NOTE,
   PARTNER_LANDING_LIST_NOTE,
+  PARTNER_LISTING_PUBLISH_STEP_NOTE,
+  PARTNER_LISTING_PUBLISH_STEP_TITLE,
   LISTING_QUALITY_PUBLISH_TIP,
   PARTNER_PAYOUT_THRESHOLD_HINT,
   SUPPLIER_WELCOME_LISTING_STEP_NOTE,
@@ -186,6 +189,9 @@ describe('booking confirmation copy', () => {
     expect(PARTNER_FIRST_LISTING_STEP_NOTE.toLowerCase()).not.toContain('publish when you are ready');
     expect(PARTNER_LANDING_LIST_NOTE.toLowerCase()).toContain('business and payout verification');
     expect(PARTNER_LANDING_LIST_NOTE.toLowerCase()).not.toContain('publish when it is ready');
+    expect(PARTNER_LISTING_PUBLISH_STEP_TITLE.toLowerCase()).not.toContain('go live');
+    expect(PARTNER_LISTING_PUBLISH_STEP_NOTE.toLowerCase()).toContain('business and payout verification');
+    expect(PARTNER_LISTING_PUBLISH_STEP_NOTE.toLowerCase()).toContain('save as draft');
     expect(LISTING_QUALITY_PUBLISH_TIP.toLowerCase()).toContain('business and payout verification');
     expect(LISTING_QUALITY_PUBLISH_TIP.toLowerCase()).not.toContain('publish when ready');
     expect(SUPPLIER_WELCOME_LISTING_STEP_NOTE.toLowerCase()).toContain('business and payout verification');
@@ -217,6 +223,8 @@ describe('booking confirmation copy', () => {
     expect(bookingConfirmationPromisesEmailSent(TRAVELER_SELF_CANCEL_DELIVERY_NOTE)).toBe(false);
     expect(TRAVELER_SELF_CANCEL_DELIVERY_NOTE.toLowerCase()).toContain('bookings');
     expect(TRAVELER_SELF_CANCEL_DELIVERY_NOTE.toLowerCase()).toContain('does not treat email delivery as proof');
+    expect(TRAVELER_SELF_CANCEL_CTA.toLowerCase()).toBe('cancel booking');
+    expect(TRAVELER_SELF_CANCEL_CTA.toLowerCase()).not.toContain('request');
   });
 
   it('traveler cancel refund copy does not promise money already moved', () => {

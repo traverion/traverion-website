@@ -139,6 +139,16 @@ export const SUPPLIER_WELCOME_LISTING_STEP_NOTE =
 export const PARTNER_PAYOUT_THRESHOLD_HINT =
   'Minimum balance before Traverion will consider a payout once payouts are enabled (e.g. 50).';
 
+/** Traveler Trips — self-cancel is immediate, not a host-approval “request”. */
+export const TRAVELER_SELF_CANCEL_CTA = 'Cancel booking';
+
+/** Partner listing editor final step — publish needs verification; draft anytime. */
+export const PARTNER_LISTING_PUBLISH_STEP_NOTE =
+  'Publish runs a final check. Going live needs Traverion business and payout verification. Save as draft stores progress without going live. Promotional discounts are under Offers in Account.';
+
+/** Partner listing editor final step title when still draft. */
+export const PARTNER_LISTING_PUBLISH_STEP_TITLE = 'Publish or keep a draft';
+
 /** Partner cancellation request: Resend is blocked — do not claim the traveler was emailed. */
 export const PARTNER_CANCELLATION_REQUEST_DELIVERY_NOTE =
   'The request appears on the traveler’s Trips. Traverion does not treat email delivery as proof they saw it.';
