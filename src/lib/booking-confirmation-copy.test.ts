@@ -17,6 +17,8 @@ import {
   TRAVELER_SELF_CANCEL_EMAIL_DIFF_FULL_REFUND,
   TRAVELER_SELF_CANCEL_EMAIL_DIFF_NO_REFUND,
   TRAVELER_ACCEPT_CANCEL_SYSTEM_MESSAGE,
+  TRAVELER_SELF_CANCEL_SYSTEM_MESSAGE_FULL_REFUND,
+  TRAVELER_SELF_CANCEL_SYSTEM_MESSAGE_NO_REFUND,
   SUPPLIER_BOOKING_CANCELLED_NOTIFY_SUB,
   SUPPLIER_HOST_SCHEDULE_UPDATED_NOTIFY_SUB,
   BOOKING_CONFIRMED_PAID_FOLLOWUP_NOTE,
@@ -170,6 +172,18 @@ describe('booking confirmation copy', () => {
     expect(TRAVELER_ACCEPT_CANCEL_SYSTEM_MESSAGE).toContain('Traveler accepted the cancellation');
     expect(TRAVELER_ACCEPT_CANCEL_SYSTEM_MESSAGE.length).toBeGreaterThan(
       'Traveler accepted the cancellation. This booking is cancelled.'.length
+    );
+    expect(TRAVELER_SELF_CANCEL_SYSTEM_MESSAGE_FULL_REFUND.toLowerCase()).toContain('refund due');
+    expect(TRAVELER_SELF_CANCEL_SYSTEM_MESSAGE_FULL_REFUND.toLowerCase()).toContain(
+      'does not send stripe refunds automatically'
+    );
+    expect(TRAVELER_SELF_CANCEL_SYSTEM_MESSAGE_FULL_REFUND).toContain('Traveler cancelled this booking');
+    expect(TRAVELER_SELF_CANCEL_SYSTEM_MESSAGE_NO_REFUND.toLowerCase()).toContain('no refund');
+    expect(TRAVELER_SELF_CANCEL_SYSTEM_MESSAGE_NO_REFUND.toLowerCase()).not.toContain('refund due');
+    expect(bookingConfirmationPromisesEmailSent(TRAVELER_SELF_CANCEL_SYSTEM_MESSAGE_FULL_REFUND)).toBe(false);
+    // Keep SQL cancel_booking_as_traveler bodies in sync with these constants.
+    expect(TRAVELER_SELF_CANCEL_SYSTEM_MESSAGE_FULL_REFUND).toContain(
+      'Status: Refund due until Stripe records a refund'
     );
     expect(SUPPLIER_BOOKING_CANCELLED_NOTIFY_SUB.toLowerCase()).toContain('traveler cancelled');
     expect(SUPPLIER_BOOKING_CANCELLED_NOTIFY_SUB.toLowerCase()).toContain('refund due');

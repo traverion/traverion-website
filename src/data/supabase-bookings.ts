@@ -669,15 +669,17 @@ export async function cancelBookingAsCustomer(
   if (closed !== 'none') {
     return { success: false, error: travelerSelfCancelError(closed) };
   }
-  const { error } = await supabase
-    .from('bookings')
-    .update({
-      status: 'cancelled',
-      cancelled_at: new Date().toISOString(),
-      refund_choice: refundChoice,
-    })
-    .eq('id', bookingId);
-  if (error) return { success: false, error: error.message };
+  const { data: rpcData, error: rpcError } = await supabase.rpc('cancel_booking_as_traveler', {
+    p_booking_id: bookingId,
+    p_refund_choice: refundChoice,
+  });
+  if (rpcError) return { success: false, error: rpcError.message };
+  if (rpcData && typeof rpcData === 'object' && (rpcData as { ok?: boolean }).ok === false) {
+    return {
+      success: false,
+      error: String((rpcData as { error?: string }).error ?? 'Could not cancel this booking.'),
+    };
+  }
   const { data: bookingMeta } = await supabase
     .from('bookings')
     .select('id, listing_id, booking_date, guests, guest_name, guest_email, refund_choice, booking_number')

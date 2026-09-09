@@ -153,6 +153,14 @@ export const TRAVELER_ACCEPT_HOST_CANCEL_REFUND_POLICY =
 export const TRAVELER_ACCEPT_CANCEL_SYSTEM_MESSAGE =
   'Traveler accepted the cancellation. This booking is cancelled. Status: Refund due until Stripe records a refund. Traverion does not send Stripe refunds automatically.';
 
+/** System thread after traveler self-cancel with refund due — keep in sync with cancel_booking_as_traveler. */
+export const TRAVELER_SELF_CANCEL_SYSTEM_MESSAGE_FULL_REFUND =
+  'Traveler cancelled this booking. Status: Refund due until Stripe records a refund. Traverion does not send Stripe refunds automatically.';
+
+/** System thread after traveler self-cancel with no refund — keep in sync with cancel_booking_as_traveler. */
+export const TRAVELER_SELF_CANCEL_SYSTEM_MESSAGE_NO_REFUND =
+  'Traveler cancelled this booking. No refund applies for this traveler-initiated cancellation.';
+
 /**
  * Partner notify-supplier-event for traveler self-cancel (booking_cancelled).
  * Keep in sync with supabase/functions/notify-supplier-event HTML subcopy.
