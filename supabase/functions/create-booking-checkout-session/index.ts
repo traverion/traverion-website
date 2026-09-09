@@ -4,6 +4,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 import Stripe from 'https://esm.sh/stripe@16.12.0?target=deno';
 import { quoteListingBooking, stayCheckoutNightsAlreadyBooked, stayNightIsOperatorBlocked, type DiscountRow, type ListingQuoteRow, type StayCheckoutOccupancyRow } from '../_shared/booking-quote.ts';
 import { tourCheckoutOccupiedGuests, type TourCheckoutOccupancyRow } from '../_shared/booking-hold.ts';
+import { checkoutPaymentStatusCanResume } from '../_shared/checkout-resume.ts';
 
 type RequestBody = {
   bookingId?: string;
@@ -151,6 +152,9 @@ serve(async (req) => {
       }
       if ((row.payment_status ?? 'pending') === 'paid') {
         return json({ success: false, error: 'This booking is already paid' }, 400);
+      }
+      if (!checkoutPaymentStatusCanResume(row.payment_status)) {
+        return json({ success: false, error: 'This booking cannot be paid' }, 400);
       }
       listingId = String(row.listing_id ?? '').trim();
       bookingDate = String(row.booking_date ?? '').trim();
@@ -401,6 +405,8 @@ serve(async (req) => {
       const updatePayload: Record<string, unknown> = {
         total_amount: totalAmount,
         currency,
+        // Revive holds that expire_stale_checkout_holds just flipped to failed mid-Pay-now.
+        payment_status: 'pending',
         hold_expires_at: holdExpiresAtIso,
       };
       if (quote.optionId) updatePayload.booking_option_id = quote.optionId;

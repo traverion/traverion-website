@@ -4,6 +4,7 @@ import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supa
 import Stripe from 'https://esm.sh/stripe@16.12.0?target=deno';
 import { stripeWebhookReplayDecision } from '../_shared/stripe-webhook-replay.ts';
 import { isStripeChargeFullyRefunded } from '../_shared/stripe-charge-refund.ts';
+import { stripeWebhookCanMarkPaidFrom } from '../_shared/checkout-resume.ts';
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -347,12 +348,20 @@ serve(async (req) => {
             paid_at: new Date().toISOString(),
           })
           .eq('id', bookingId)
-          .eq('payment_status', 'pending')
+          .in('payment_status', ['pending', 'failed'])
           .select('id');
         if (bookingErr) throw new Error(bookingErr.message);
         if ((paidRows ?? []).length === 0) {
           await markProcessed('processed');
-          return json({ success: true, ignored: true, reason: 'booking was not pending', eventId: event.id, bookingId });
+          return json({
+            success: true,
+            ignored: true,
+            reason: stripeWebhookCanMarkPaidFrom(existingPay)
+              ? 'booking was not pending or failed'
+              : 'booking was not pending',
+            eventId: event.id,
+            bookingId,
+          });
         }
 
         await admin.from('booking_payment_events').insert({
