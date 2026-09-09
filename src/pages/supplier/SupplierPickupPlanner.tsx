@@ -483,7 +483,7 @@ export default function SupplierPickupPlanner() {
 
   const handleCancelSelected = async () => {
     if (!canEditBookings) return;
-    if (!selectedBooking || selectedBooking.status === 'cancelled' || !cancelReason) return;
+    if (!selectedBooking || !partnerBookingIsOperatingTrip(selectedBooking) || !cancelReason) return;
     setUpdatingId(selectedBooking.id);
     const previousStatus = selectedBooking.status;
     const ok = await updateBookingStatus(selectedBooking.id, 'cancelled', {
@@ -697,7 +697,7 @@ export default function SupplierPickupPlanner() {
         </div>
 
         <div className="mt-10 flex flex-wrap gap-2">
-          {selectedBooking.status !== 'cancelled' && (
+          {partnerBookingIsOperatingTrip(selectedBooking) && (
             <>
               {partnerBookingNeedsLook(selectedBooking) && (
                 <button

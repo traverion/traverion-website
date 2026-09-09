@@ -415,7 +415,7 @@ export default function SupplierBookings() {
   );
 
   const handleRequestSupplierCancel = useCallback(async () => {
-    if (!cancelModal || !canEditBookings) return;
+    if (!cancelModal || !canEditBookings || !partnerBookingIsOperatingTrip(cancelModal)) return;
     setCancelError(null);
     setUpdatingId(cancelModal.id);
     const res = await requestSupplierCancellation({
@@ -905,7 +905,7 @@ export default function SupplierBookings() {
                     ) : null}
                   </dl>
 
-                  {canEditBookings && booking.status !== 'cancelled' ? (
+                  {canEditBookings && partnerBookingIsOperatingTrip(booking) ? (
                     <div className="flex flex-wrap gap-2 pt-1">
                       {booking.status === 'pending' ? (
                         <button
@@ -1030,7 +1030,7 @@ export default function SupplierBookings() {
         </SupplierModalShell>
       )}
 
-      {cancelModal && (
+      {cancelModal && partnerBookingIsOperatingTrip(cancelModal) && (
         <SupplierModalShell onClose={() => setCancelModal(null)} maxWidth="md">
           <SupplierModalHeader
             icon={Trash2}

@@ -630,7 +630,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         {payingId === b.id ? 'Opening checkout…' : 'Pay now'}
                       </button>
                     )}
-                    {b.status === 'confirmed' && !openCancel && (
+                    {b.status === 'confirmed' && !bookingIsCancelledTrip(b) && !openCancel && (
                       <button
                         type="button"
                         onClick={() => setCancelConfirm(b)}

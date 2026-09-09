@@ -45,7 +45,7 @@ describe('trip list views', () => {
     expect(partnerBookingIsLiveTrip({ payment_status: 'paid' })).toBe(true);
   });
 
-  it('does not treat refunded bookings as partner operating work', () => {
+  it('does not treat refunded or cancelled bookings as partner operating work', () => {
     expect(
       partnerBookingIsOperatingTrip({ status: 'confirmed', payment_status: 'refunded' })
     ).toBe(false);
