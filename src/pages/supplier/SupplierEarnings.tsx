@@ -14,7 +14,7 @@ import { isCollectedBooking, sumCollectedAmount, isRefundDueBooking, sumRefundDu
 import { ledgerAdjustmentTotal } from '../../lib/supplier-ledger-balance';
 import { fetchMyListings } from '../../data/supabase-listings';
 import { fetchSupplierLedger, type SupplierLedgerEntry } from '../../data/supabase-booking-ops';
-import { PARTNER_MONEY_PAYOUT_STATUS_NOTE, PARTNER_MONEY_PAID_OUT_TO_DATE_NOTE, PARTNER_MONEY_EMPTY_TITLE, PARTNER_MONEY_EMPTY_BODY, PARTNER_MONEY_LOAD_ERROR_TITLE, PARTNER_MONEY_FILTER_EMPTY_BODY, PARTNER_MONEY_AVAILABLE_BALANCE_LABEL, PARTNER_MONEY_NEGATIVE_BALANCE_LABEL, PARTNER_MONEY_PERIOD_NOT_PAID_OUT_LABEL, PARTNER_MONEY_THRESHOLD_PROGRESS_SUFFIX } from '../../lib/booking-confirmation-copy';
+import { PARTNER_MONEY_PAYOUT_STATUS_NOTE, PARTNER_MONEY_PAID_OUT_TO_DATE_NOTE, PARTNER_MONEY_EMPTY_TITLE, PARTNER_MONEY_EMPTY_BODY, PARTNER_MONEY_LOAD_ERROR_TITLE, PARTNER_MONEY_FILTER_EMPTY_BODY, PARTNER_MONEY_AVAILABLE_BALANCE_LABEL, PARTNER_MONEY_NEGATIVE_BALANCE_LABEL, PARTNER_MONEY_NEGATIVE_BALANCE_NOTE, PARTNER_MONEY_PERIOD_NOT_PAID_OUT_LABEL, PARTNER_MONEY_THRESHOLD_PROGRESS_SUFFIX } from '../../lib/booking-confirmation-copy';
 import NoticeCallout from '../../components/NoticeCallout';
 import {
   PARTNER_MONEY_CSV_HEADER,
@@ -216,7 +216,7 @@ export default function SupplierEarnings() {
             </p>
             {available < 0 ? (
               <p className="mt-3 text-sm text-red-800 max-w-lg">
-                This account has a negative balance. Future collected earnings offset it before the next payout.
+                {PARTNER_MONEY_NEGATIVE_BALANCE_NOTE}
               </p>
             ) : null}
             {payoutProgressPct !== null ? (

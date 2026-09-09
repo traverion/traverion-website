@@ -1,4 +1,5 @@
 import { partnerPaymentLabel, type MoneyBookingRow } from './payment-states';
+import { PARTNER_MONEY_PERIOD_NOT_PAID_OUT_LABEL } from './booking-confirmation-copy';
 
 export const PARTNER_MONEY_CSV_HEADER = [
   'row_kind',
@@ -46,6 +47,12 @@ export function buildPartnerMoneyCsvRows(input: {
 }): string[][] {
   const rows: string[][] = [];
   for (const e of input.payouts) {
+    const statusLabel =
+      e.status === 'pending'
+        ? PARTNER_MONEY_PERIOD_NOT_PAID_OUT_LABEL
+        : e.status === 'paid'
+          ? 'Paid'
+          : e.status;
     rows.push([
       'payout_period',
       e.period_start,
@@ -54,7 +61,7 @@ export function buildPartnerMoneyCsvRows(input: {
       '',
       String(e.amount),
       e.currency,
-      e.status,
+      statusLabel,
       [e.invoice_number, e.payment_reference].filter(Boolean).join(' · '),
       '',
     ]);

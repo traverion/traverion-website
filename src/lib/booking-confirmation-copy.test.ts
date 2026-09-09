@@ -40,6 +40,7 @@ import {
   PARTNER_MONEY_FILTER_EMPTY_BODY,
   PARTNER_MONEY_AVAILABLE_BALANCE_LABEL,
   PARTNER_MONEY_NEGATIVE_BALANCE_LABEL,
+  PARTNER_MONEY_NEGATIVE_BALANCE_NOTE,
   PARTNER_MONEY_PERIOD_NOT_PAID_OUT_LABEL,
   PARTNER_MONEY_THRESHOLD_PROGRESS_SUFFIX,
   PARTNER_BUSINESS_READY_TO_SUBMIT_NOTE,
@@ -327,6 +328,9 @@ describe('booking confirmation copy', () => {
     expect(PARTNER_MONEY_FILTER_EMPTY_BODY.toLowerCase()).not.toContain('payout history exists');
     expect(PARTNER_MONEY_AVAILABLE_BALANCE_LABEL.toLowerCase()).toBe('collected balance');
     expect(PARTNER_MONEY_AVAILABLE_BALANCE_LABEL.toLowerCase()).not.toContain('pending payout');
+    expect(PARTNER_MONEY_NEGATIVE_BALANCE_NOTE.toLowerCase()).toContain('payouts stay manual');
+    expect(PARTNER_MONEY_NEGATIVE_BALANCE_NOTE.toLowerCase()).toContain('no queued next payout');
+    expect(PARTNER_MONEY_NEGATIVE_BALANCE_NOTE.toLowerCase()).not.toContain('before the next payout');
     expect(PARTNER_MONEY_PERIOD_NOT_PAID_OUT_LABEL.toLowerCase()).toBe('not paid out');
     expect(PARTNER_MONEY_THRESHOLD_PROGRESS_SUFFIX.toLowerCase()).toContain('once payouts are enabled');
     expect(PARTNER_MONEY_THRESHOLD_PROGRESS_SUFFIX.toLowerCase()).toContain('not a queued transfer');

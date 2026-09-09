@@ -307,6 +307,10 @@ export const PARTNER_MONEY_AVAILABLE_BALANCE_LABEL = 'Collected balance';
 /** Money hero when balance < 0. */
 export const PARTNER_MONEY_NEGATIVE_BALANCE_LABEL = 'Balance';
 
+/** Money hero when balance < 0 — offsets future collected; do not imply a queued next payout. */
+export const PARTNER_MONEY_NEGATIVE_BALANCE_NOTE =
+  'This account has a negative balance. Future collected earnings offset it. Payouts stay manual until Traverion enables them — there is no queued next payout.';
+
 /** Money period row status when not yet paid out — not a queued Stripe transfer. */
 export const PARTNER_MONEY_PERIOD_NOT_PAID_OUT_LABEL = 'Not paid out';
 

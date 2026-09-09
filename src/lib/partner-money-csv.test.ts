@@ -9,7 +9,15 @@ describe('partner money CSV', () => {
   it('includes Refund due rows so export matches Money UI honesty', () => {
     expect(PARTNER_MONEY_CSV_HEADER).toContain('row_kind');
     const rows = buildPartnerMoneyCsvRows({
-      payouts: [],
+      payouts: [
+        {
+          period_start: '2026-09-01',
+          period_end: '2026-09-07',
+          amount: 100,
+          currency: 'EUR',
+          status: 'pending',
+        },
+      ],
       refundDue: [
         {
           id: 'b19',
@@ -33,11 +41,14 @@ describe('partner money CSV', () => {
       ledgerKindLabel: (k) => (k === 'cancellation_penalty' ? 'Cancellation fee' : k),
     });
     expect(partnerMoneyCsvHasExportableRows({ payouts: [], refundDue: [{}], ledger: [] })).toBe(true);
-    expect(rows).toHaveLength(2);
-    expect(rows[0]![0]).toBe('refund_due');
-    expect(rows[0]![7]).toBe('Refund due');
-    expect(rows[0]![8].toLowerCase()).toContain('does not send stripe refunds automatically');
-    expect(rows[1]![0]).toBe('ledger');
-    expect(rows[1]![7]).toBe('Cancellation fee');
+    expect(rows).toHaveLength(3);
+    expect(rows[0]![0]).toBe('payout_period');
+    expect(rows[0]![7]).toBe('Not paid out');
+    expect(rows[0]![7].toLowerCase()).not.toBe('pending');
+    expect(rows[1]![0]).toBe('refund_due');
+    expect(rows[1]![7]).toBe('Refund due');
+    expect(rows[1]![8].toLowerCase()).toContain('does not send stripe refunds automatically');
+    expect(rows[2]![0]).toBe('ledger');
+    expect(rows[2]![7]).toBe('Cancellation fee');
   });
 });
