@@ -172,7 +172,8 @@ ${bodyText}
     sub = 'A booking was cancelled.';
   } else if (payload.eventType === 'cancellation_accepted') {
     headline = 'Cancellation accepted';
-    sub = 'The traveler accepted your cancellation request. The booking is cancelled and inventory is released. Any supplier fee is on Money.';
+    sub =
+      'The traveler accepted your cancellation request. The booking is cancelled. Traveler status is Refund due until Stripe records a refund — Traverion does not send refunds automatically. Inventory is released; any supplier fee is on Money.';
   } else if (payload.eventType === 'cancellation_declined') {
     headline = 'Traveler declined cancellation';
     sub = 'The traveler declined your cancellation request. The booking stays active.';

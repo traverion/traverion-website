@@ -16,6 +16,7 @@ import {
   TRAVELER_ACCEPT_HOST_CANCEL_REFUND_POLICY,
   TRAVELER_SELF_CANCEL_EMAIL_DIFF_FULL_REFUND,
   TRAVELER_SELF_CANCEL_EMAIL_DIFF_NO_REFUND,
+  TRAVELER_ACCEPT_CANCEL_SYSTEM_MESSAGE,
   CONTACT_FORM_THANK_YOU,
   PARTNERSHIP_FORM_THANK_YOU,
   TERMS_MATERIAL_CHANGES_NOTE,
@@ -159,6 +160,14 @@ describe('booking confirmation copy', () => {
     expect(TRAVELER_SELF_CANCEL_EMAIL_DIFF_FULL_REFUND.toLowerCase()).not.toContain('per policy where applicable');
     expect(TRAVELER_SELF_CANCEL_EMAIL_DIFF_NO_REFUND.toLowerCase()).toContain('no refund');
     expect(bookingConfirmationPromisesEmailSent(TRAVELER_SELF_CANCEL_EMAIL_DIFF_FULL_REFUND)).toBe(false);
+    expect(TRAVELER_ACCEPT_CANCEL_SYSTEM_MESSAGE.toLowerCase()).toContain('refund due');
+    expect(TRAVELER_ACCEPT_CANCEL_SYSTEM_MESSAGE.toLowerCase()).toContain(
+      'does not send stripe refunds automatically'
+    );
+    expect(TRAVELER_ACCEPT_CANCEL_SYSTEM_MESSAGE).toContain('Traveler accepted the cancellation');
+    expect(TRAVELER_ACCEPT_CANCEL_SYSTEM_MESSAGE.length).toBeGreaterThan(
+      'Traveler accepted the cancellation. This booking is cancelled.'.length
+    );
   });
 
   it('marketing contact thank-you copy does not promise a reply email', () => {

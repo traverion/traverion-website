@@ -149,6 +149,10 @@ export const TRAVELER_SELF_CANCEL_EMAIL_DIFF_NO_REFUND =
 export const TRAVELER_ACCEPT_HOST_CANCEL_REFUND_POLICY =
   'If you accept, this booking is cancelled and a full refund is due. Status becomes Refunded only after Stripe records it. Traverion does not send Stripe refunds automatically, and does not cancel automatically if you do nothing';
 
+/** System thread after traveler accepts host cancel — Refund due honesty. */
+export const TRAVELER_ACCEPT_CANCEL_SYSTEM_MESSAGE =
+  'Traveler accepted the cancellation. This booking is cancelled. Status: Refund due until Stripe records a refund. Traverion does not send Stripe refunds automatically.';
+
 /** Contact form success: inquiry is saved; do not promise a reply email. */
 export const CONTACT_FORM_THANK_YOU =
   'Thank you. Your message is saved with Traverion. We do not treat email delivery as proof of a reply.';
