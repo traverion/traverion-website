@@ -47,6 +47,11 @@ describe('userFacingError', () => {
     expect(userFacingError(new Error('supabase from().select() failed'), USER_ERROR.listings)).toBe(USER_ERROR.listings);
   });
 
+  it('does not ask travelers to sign in when a checkout hold expired', () => {
+    expect(humanizeBookingSubmitError('checkout session has expired')).toMatch(/hold was released/i);
+    expect(humanizeBookingSubmitError('JWT expired')).toBe('Your session ended. Sign in again to continue.');
+  });
+
   it('maps booking-thread RPC send wording to post', () => {
     expect(userFacingError('Write a message before sending.')).toBe('Write a message before posting.');
     expect(userFacingError('Sign in to send a message.')).toBe('Sign in to post a message.');
