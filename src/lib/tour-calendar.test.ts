@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ListingBookingOption } from '../types/listingExtras';
-import { tourDayState, publicTourPaidGuestsByDeparture, bookingCountsTowardPublicTourSoldOut, tourSoldOutDates } from './tour-calendar';
+import { tourDayState, publicTourPaidGuestsByDeparture, bookingCountsTowardPublicTourSoldOut, tourSoldOutDates, tourDateLacksCapacityForParty } from './tour-calendar';
 
 function option(weekdays: boolean[], from = '', to = ''): ListingBookingOption {
   return {
@@ -134,6 +134,33 @@ describe('tour calendar states', () => {
         capByDay: new Map([['2026-10-15', 8]]),
         fallbackCapacity: 8,
       }).has('2026-10-15')
+    ).toBe(true);
+  });
+
+  it('catalog date filter hides tours without remaining capacity for the party', () => {
+    expect(
+      tourDateLacksCapacityForParty({
+        paidGuestsThatDay: 11,
+        dayCapacity: 12,
+        fallbackCapacity: 12,
+        partySize: 2,
+      })
+    ).toBe(true);
+    expect(
+      tourDateLacksCapacityForParty({
+        paidGuestsThatDay: 11,
+        dayCapacity: undefined,
+        fallbackCapacity: 12,
+        partySize: 1,
+      })
+    ).toBe(false);
+    expect(
+      tourDateLacksCapacityForParty({
+        paidGuestsThatDay: 0,
+        dayCapacity: 0,
+        fallbackCapacity: 12,
+        partySize: 1,
+      })
     ).toBe(true);
   });
 });

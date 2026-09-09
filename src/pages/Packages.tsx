@@ -14,6 +14,10 @@ import { isSupabaseListingId, catalogHeadlineAmount } from '../lib/discount-disp
 import { setListingsJsonLd } from '../lib/seo';
 import { listingRunsOnDate } from '../lib/booking-quote';
 import { getPartySizeBounds } from '../lib/booking-flow';
+import { tourDateLacksCapacityForParty } from '../lib/tour-calendar';
+import { listingTourCapacityFromOptions } from '../lib/availability-ops';
+import { fetchAvailabilityByListingId, fetchPublishedTourPaidGuests } from '../data/supabase-availability';
+import { parseListingExtras } from '../types/listingExtras';
 import { SkeletonCardGrid } from '../components/ui/Skeleton';
 import { PublicListingBrowseCard } from '../components/PublicListingBrowseCard';
 import { supplierPortalLandingHref } from '../lib/partnerHost';
@@ -124,6 +128,11 @@ export default function Packages({ onTourSelect }: PackagesProps) {
   const [reviewAggregates, setReviewAggregates] = useState<Map<string, { rating: number; count: number }>>(
     () => new Map()
   );
+  const [dateCapacityByListing, setDateCapacityByListing] = useState<Record<
+    string,
+    { paid: number; dayCap?: number; fallbackCap: number }
+  > | null>(null);
+  const [dateCapacityLoading, setDateCapacityLoading] = useState(false);
 
   const deferredSearch = useDeferredValue(searchTerm);
 
@@ -196,6 +205,14 @@ export default function Packages({ onTourSelect }: PackagesProps) {
     return filterCatalogByFamily(base, 'tour');
   }, [supplierListings]);
 
+  const waitingOnDateCapacity =
+    Boolean(filterDate) &&
+    /^\d{4}-\d{2}-\d{2}$/.test(filterDate) &&
+    isSupabaseConfigured() &&
+    allListings.length > 0 &&
+    (dateCapacityLoading || dateCapacityByListing === null);
+  const showCatalogLoading = catalogLoading || waitingOnDateCapacity;
+
   const supabaseListingIds = useMemo(
     () => allListings.map((t) => t.id).filter(isSupabaseListingId),
     [allListings]
@@ -221,6 +238,44 @@ export default function Packages({ onTourSelect }: PackagesProps) {
       cancelled = true;
     };
   }, [supabaseListingIdsKey]);
+
+  useEffect(() => {
+    if (!filterDate || !/^\d{4}-\d{2}-\d{2}$/.test(filterDate) || !isSupabaseConfigured() || allListings.length === 0) {
+      setDateCapacityByListing(null);
+      setDateCapacityLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setDateCapacityLoading(true);
+    void Promise.all(
+      allListings.map(async (tour) => {
+        const extras = parseListingExtras(tour.listingExtras);
+        const fallbackCap = listingTourCapacityFromOptions(
+          (extras.bookingOptions ?? []).map((o) => o.maxSpotsPerSlot)
+        );
+        const [caps, paidByDay] = await Promise.all([
+          fetchAvailabilityByListingId(tour.id),
+          fetchPublishedTourPaidGuests(tour.id),
+        ]);
+        const dayRow = caps.find((r) => String(r.available_date ?? '').slice(0, 10) === filterDate);
+        return [
+          tour.id,
+          {
+            paid: paidByDay[filterDate] ?? 0,
+            dayCap: dayRow ? dayRow.capacity : undefined,
+            fallbackCap,
+          },
+        ] as const;
+      })
+    ).then((entries) => {
+      if (cancelled) return;
+      setDateCapacityByListing(Object.fromEntries(entries));
+      setDateCapacityLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [filterDate, allListings]);
 
   // SEO: JSON-LD for listings (helps search engines understand tour offerings)
   useEffect(() => {
@@ -274,7 +329,19 @@ export default function Packages({ onTourSelect }: PackagesProps) {
         !Number.isFinite(guestCount) ||
         guestCount < 1 ||
         guestCount <= getPartySizeBounds(tour).max;
-      return matchesSearch && matchesDest && matchesTag && matchesPrice && matchesDate && matchesGuests;
+      let matchesCapacity = true;
+      if (filterDate && dateCapacityByListing) {
+        const cap = dateCapacityByListing[tour.id];
+        if (cap) {
+          matchesCapacity = !tourDateLacksCapacityForParty({
+            paidGuestsThatDay: cap.paid,
+            dayCapacity: cap.dayCap,
+            fallbackCapacity: cap.fallbackCap,
+            partySize: Number.isFinite(guestCount) && guestCount > 0 ? guestCount : 1,
+          });
+        }
+      }
+      return matchesSearch && matchesDest && matchesTag && matchesPrice && matchesDate && matchesGuests && matchesCapacity;
     });
 
     if (sortBy === 'price-asc') list = [...list].sort((a, b) => catalogHeadlineAmount(a) - catalogHeadlineAmount(b));
@@ -294,6 +361,7 @@ export default function Packages({ onTourSelect }: PackagesProps) {
     filterDate,
     filterGuests,
     ratingSortScore,
+    dateCapacityByListing,
   ]);
 
   const hasActiveFilters =
@@ -342,7 +410,7 @@ export default function Packages({ onTourSelect }: PackagesProps) {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-12 pb-16 motion-safe:animate-fade-in">
         <h1 className="font-display text-4xl sm:text-5xl text-ink tracking-tight">Tours</h1>
         <p className="mt-2 text-ink-muted">
-          {catalogLoading ? (
+          {showCatalogLoading ? (
             <span className="inline-block h-4 w-24 rounded bg-black/[0.06] animate-pulse align-middle" aria-hidden />
           ) : (
             <>
@@ -617,7 +685,7 @@ export default function Packages({ onTourSelect }: PackagesProps) {
               />
         ) : null}
 
-        {catalogLoading ? (
+        {showCatalogLoading ? (
           <div className="py-8">
             <SkeletonCardGrid count={6} />
           </div>

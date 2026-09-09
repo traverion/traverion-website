@@ -69,3 +69,19 @@ export function tourSoldOutDates(params: {
   }
   return next;
 }
+
+/** Catalog date filter: hide tours with no remaining paid capacity for the party. */
+export function tourDateLacksCapacityForParty(params: {
+  paidGuestsThatDay: number;
+  dayCapacity: number | undefined;
+  fallbackCapacity: number;
+  partySize?: number;
+}): boolean {
+  const cap =
+    typeof params.dayCapacity === 'number' && Number.isFinite(params.dayCapacity)
+      ? params.dayCapacity
+      : params.fallbackCapacity;
+  const remaining = remainingCapacity(cap, params.paidGuestsThatDay);
+  const need = Math.max(1, Math.floor(params.partySize ?? 1));
+  return remaining < need;
+}
