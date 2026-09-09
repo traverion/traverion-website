@@ -101,6 +101,12 @@ function eventBody(payload: Payload): string {
     lines.push('Schedule update confirmation (saved by you)');
     lines.push(`Listing: ${listing}`);
     lines.push('The guest was sent the same previous → new summary by email.');
+  } else if (payload.eventType === 'booking_cancelled') {
+    lines.push('Booking cancelled (traveler)');
+    lines.push(`Listing: ${listing}`);
+    lines.push(
+      'When a refund applies, traveler status is Refund due until Stripe records a refund — Traverion does not send refunds automatically.',
+    );
   } else {
     lines.push(`Event: ${payload.eventType}`);
     lines.push(`Listing: ${listing}`);
@@ -169,7 +175,9 @@ ${bodyText}
     }
   } else if (payload.eventType === 'booking_cancelled') {
     headline = 'Booking cancelled';
-    sub = 'A booking was cancelled.';
+    // Keep in sync with SUPPLIER_BOOKING_CANCELLED_NOTIFY_SUB in booking-confirmation-copy.ts
+    sub =
+      'The traveler cancelled this booking. When a refund applies, traveler status is Refund due until Stripe records a refund — Traverion does not send refunds automatically. Inventory is released; check Bookings and Money.';
   } else if (payload.eventType === 'cancellation_accepted') {
     headline = 'Cancellation accepted';
     sub =

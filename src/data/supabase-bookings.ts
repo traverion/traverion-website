@@ -708,6 +708,16 @@ export async function cancelBookingAsCustomer(
         guestName: bookingMeta.guest_name ?? undefined,
         portalBaseUrl: supplierPortalPublicBaseUrl(),
         bookingNumber: cancelOrd,
+        fieldDiffs: [
+          {
+            label: 'Cancellation & refund',
+            before: 'Active booking',
+            after:
+              refundChoice === 'full_refund'
+                ? TRAVELER_SELF_CANCEL_EMAIL_DIFF_FULL_REFUND
+                : TRAVELER_SELF_CANCEL_EMAIL_DIFF_NO_REFUND,
+          },
+        ],
       });
     }
   }

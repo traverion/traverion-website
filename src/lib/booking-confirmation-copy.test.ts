@@ -17,6 +17,7 @@ import {
   TRAVELER_SELF_CANCEL_EMAIL_DIFF_FULL_REFUND,
   TRAVELER_SELF_CANCEL_EMAIL_DIFF_NO_REFUND,
   TRAVELER_ACCEPT_CANCEL_SYSTEM_MESSAGE,
+  SUPPLIER_BOOKING_CANCELLED_NOTIFY_SUB,
   CONTACT_FORM_THANK_YOU,
   PARTNERSHIP_FORM_THANK_YOU,
   TERMS_MATERIAL_CHANGES_NOTE,
@@ -168,6 +169,13 @@ describe('booking confirmation copy', () => {
     expect(TRAVELER_ACCEPT_CANCEL_SYSTEM_MESSAGE.length).toBeGreaterThan(
       'Traveler accepted the cancellation. This booking is cancelled.'.length
     );
+    expect(SUPPLIER_BOOKING_CANCELLED_NOTIFY_SUB.toLowerCase()).toContain('traveler cancelled');
+    expect(SUPPLIER_BOOKING_CANCELLED_NOTIFY_SUB.toLowerCase()).toContain('refund due');
+    expect(SUPPLIER_BOOKING_CANCELLED_NOTIFY_SUB.toLowerCase()).toContain(
+      'does not send refunds automatically'
+    );
+    expect(SUPPLIER_BOOKING_CANCELLED_NOTIFY_SUB.toLowerCase()).not.toBe('a booking was cancelled.');
+    expect(bookingConfirmationPromisesEmailSent(SUPPLIER_BOOKING_CANCELLED_NOTIFY_SUB)).toBe(false);
   });
 
   it('marketing contact thank-you copy does not promise a reply email', () => {

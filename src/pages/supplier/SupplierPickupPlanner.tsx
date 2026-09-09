@@ -336,7 +336,6 @@ export default function SupplierPickupPlanner() {
   useEffect(() => {
     if (!selectedBookingId) {
       setCancelReason('');
-      setCancelRefund('');
     }
   }, [selectedBookingId]);
 
