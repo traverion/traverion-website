@@ -33,6 +33,10 @@ import { canManageBookings } from '../../lib/supplierTeamRoles';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { publicStayListingUrl, publicTourListingUrl } from '../../lib/publicSiteUrl';
 import { getListingPublishBlockers } from '../../lib/listingPublishGate';
+import {
+  PARTNER_LISTINGS_BUSINESS_REVIEW_NOTE,
+  PARTNER_LISTINGS_PAYOUT_REVIEW_NOTE,
+} from '../../lib/booking-confirmation-copy';
 import { listingHeroImageSrc } from '../../lib/listingPhotoGrid';
 import { formatMoney } from '../../lib/money';
 import { catalogHeadlineAmount } from '../../lib/discount-display';
@@ -415,9 +419,7 @@ export default function SupplierListings() {
           'Business verification was not approved. Update your business details in Settings and save again. Your payout section is separate—fix bank details there if needed.'
         );
       } else if (!businessVerified) {
-        setProfileGateMessage(
-          'Your business details are under review. You can still add or update IBAN and BIC under Payment & payouts in Settings. Publishing requires both business verification and payout verification.'
-        );
+        setProfileGateMessage(PARTNER_LISTINGS_BUSINESS_REVIEW_NOTE);
       } else if (!payoutConfigured) {
         setProfileGateMessage(
           'Business is verified. Add IBAN and BIC under Payment & payouts in Settings and save to submit your bank details for verification.'
@@ -427,9 +429,7 @@ export default function SupplierListings() {
           'Payout verification was not approved. Update IBAN and BIC in Settings and save again to resubmit.'
         );
       } else if (!payoutVerified) {
-        setProfileGateMessage(
-          'Your bank details are under review. After Traverion verifies your payout, you can publish (business must already be verified).'
-        );
+        setProfileGateMessage(PARTNER_LISTINGS_PAYOUT_REVIEW_NOTE);
       } else {
         setProfileGateMessage(null);
       }

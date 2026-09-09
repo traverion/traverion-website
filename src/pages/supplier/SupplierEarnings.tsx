@@ -14,6 +14,7 @@ import { isCollectedBooking, sumCollectedAmount } from '../../lib/payment-states
 import { ledgerAdjustmentTotal } from '../../lib/supplier-ledger-balance';
 import { fetchMyListings } from '../../data/supabase-listings';
 import { fetchSupplierLedger, type SupplierLedgerEntry } from '../../data/supabase-booking-ops';
+import { PARTNER_MONEY_PAYOUT_STATUS_NOTE } from '../../lib/booking-confirmation-copy';
 
 function ledgerKindLabel(kind: string): string {
   const k = kind.trim().toLowerCase();
@@ -105,8 +106,7 @@ export default function SupplierEarnings() {
   );
 
   const threshold = profile?.payout_threshold_min ?? 0;
-  const nextPayoutLabel =
-    'Payouts are reviewed by Traverion. There is no automatic transfer date until payouts are enabled for your account.';
+  const nextPayoutLabel = PARTNER_MONEY_PAYOUT_STATUS_NOTE;
 
   const payoutProgressPct =
     threshold > 0 && pending > 0 ? Math.min(100, Math.round((pending / threshold) * 100)) : null;

@@ -8,6 +8,9 @@ import {
   STRIPE_CHECKOUT_CANCELLED_TOUR_COPY,
   PARTNER_INBOX_MESSAGE_DELIVERY_NOTE,
   PARTNER_BUSINESS_REVIEW_STATUS_NOTE,
+  PARTNER_LISTINGS_BUSINESS_REVIEW_NOTE,
+  PARTNER_LISTINGS_PAYOUT_REVIEW_NOTE,
+  PARTNER_MONEY_PAYOUT_STATUS_NOTE,
   PARTNER_PAYOUT_REVIEW_STATUS_NOTE,
   TRAVELER_BOOKING_THREAD_DELIVERY_NOTE,
   bookingConfirmationPromisesEmailSent,
@@ -89,5 +92,15 @@ describe('booking confirmation copy', () => {
     expect(PARTNER_PAYOUT_REVIEW_STATUS_NOTE.toLowerCase()).toContain('status updates appear on this page');
     expect(PARTNER_BUSINESS_REVIEW_STATUS_NOTE.toLowerCase()).toContain('does not treat email as the decision');
     expect(PARTNER_PAYOUT_REVIEW_STATUS_NOTE.toLowerCase()).toContain('does not treat email as the decision');
+  });
+
+  it('partner Listings and Money copy does not promise Traverion will email updates', () => {
+    expect(bookingConfirmationPromisesEmailSent(PARTNER_LISTINGS_BUSINESS_REVIEW_NOTE)).toBe(false);
+    expect(bookingConfirmationPromisesEmailSent(PARTNER_LISTINGS_PAYOUT_REVIEW_NOTE)).toBe(false);
+    expect(bookingConfirmationPromisesEmailSent(PARTNER_MONEY_PAYOUT_STATUS_NOTE)).toBe(false);
+    expect(PARTNER_LISTINGS_BUSINESS_REVIEW_NOTE.toLowerCase()).toContain('status updates appear in settings');
+    expect(PARTNER_LISTINGS_PAYOUT_REVIEW_NOTE.toLowerCase()).toContain('status updates appear in settings');
+    expect(PARTNER_MONEY_PAYOUT_STATUS_NOTE.toLowerCase()).toContain('status appears on this page');
+    expect(PARTNER_MONEY_PAYOUT_STATUS_NOTE.toLowerCase()).toContain('does not treat email as proof of transfer');
   });
 });

@@ -62,6 +62,18 @@ export const PARTNER_BUSINESS_REVIEW_STATUS_NOTE =
 export const PARTNER_PAYOUT_REVIEW_STATUS_NOTE =
   'Traverion is reviewing your bank details. Status updates appear on this page — Traverion does not treat email as the decision.';
 
+/** Partner Listings gate when business is under review — status in Settings, not mail. */
+export const PARTNER_LISTINGS_BUSINESS_REVIEW_NOTE =
+  'Your business details are under review. You can still add or update IBAN and BIC under Payment & payouts in Settings. Publishing requires both business verification and payout verification. Status updates appear in Settings — Traverion does not treat email as the decision.';
+
+/** Partner Listings gate when payout is under review — status in Settings, not mail. */
+export const PARTNER_LISTINGS_PAYOUT_REVIEW_NOTE =
+  'Your bank details are under review. After Traverion verifies your payout, you can publish (business must already be verified). Status updates appear in Settings — Traverion does not treat email as the decision.';
+
+/** Partner Money page — payouts are manual; status here, not mail. */
+export const PARTNER_MONEY_PAYOUT_STATUS_NOTE =
+  'Payouts are reviewed by Traverion. There is no automatic transfer date until payouts are enabled for your account. Status appears on this page and in Settings — Traverion does not treat email as proof of transfer.';
+
 export function readStripeCheckoutReturnBanner(search: string): 'success' | 'cancelled' | null {
   const raw = search.startsWith('?') ? search.slice(1) : search;
   const payment = (new URLSearchParams(raw).get('payment') ?? '').trim().toLowerCase();
