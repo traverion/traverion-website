@@ -19,6 +19,7 @@ import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { formatMoney } from '../../lib/money';
 import { bookingOccupiesInventory } from '../../lib/booking-hold';
 import { partnerBookingIsOperatingTrip, partnerBookingIsTodaySchedule, partnerBookingIsUpcomingSchedule } from '../../lib/trip-views';
+import { partnerTodayEmptyScheduleCopy } from '../../lib/partner-today-copy';
 
 interface SupplierDashboardProps {
   onNavigateToBookings?: () => void;
@@ -185,6 +186,8 @@ export default function SupplierDashboard({ onNavigateToBookings }: SupplierDash
     openCancelCount +
     refundDueCount;
 
+  const todayEmptyCopy = partnerTodayEmptyScheduleCopy(attentionCount);
+
   const recentBookings = useMemo(
     () =>
       [...supplierBookings]
@@ -245,9 +248,10 @@ export default function SupplierDashboard({ onNavigateToBookings }: SupplierDash
           <SupplierEmptyState
             icon={CalendarDays}
             className="py-4"
-            title="You're set for today"
-            body="Nothing needs you right now. Guests and stay arrivals appear here when they are booked for today."
+            title={todayEmptyCopy.title}
+            body={todayEmptyCopy.body}
             action={
+              attentionCount > 0 ? undefined : (
               <button
                 type="button"
                 onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/calendar`)}
@@ -255,6 +259,7 @@ export default function SupplierDashboard({ onNavigateToBookings }: SupplierDash
               >
                 Open calendar
               </button>
+              )
             }
           />
         ) : (
