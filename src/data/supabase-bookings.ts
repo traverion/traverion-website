@@ -314,7 +314,8 @@ export async function submitBooking(
 }
 
 /**
- * Guest updates the note / special requests on their booking. Notifies the supplier by email (guest_message).
+ * Guest updates the note / special requests on their booking.
+ * Attempts supplier notify (guest_message); Bookings is the durable record.
  */
 export async function updateGuestBookingSpecialRequests(
   bookingId: string,

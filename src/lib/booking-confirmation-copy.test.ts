@@ -23,6 +23,7 @@ import {
   SUPPLIER_HOST_SCHEDULE_UPDATED_NOTIFY_SUB,
   BOOKING_CONFIRMED_PAID_FOLLOWUP_NOTE,
   BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE,
+  BOOKING_REQUEST_EMAIL_FOLLOWUP_NOTE,
   CONTACT_FORM_THANK_YOU,
   PARTNERSHIP_FORM_THANK_YOU,
   TERMS_MATERIAL_CHANGES_NOTE,
@@ -211,6 +212,12 @@ describe('booking confirmation copy', () => {
     expect(BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE.toLowerCase()).toContain('trips');
     expect(BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE.toLowerCase()).not.toContain('may follow up');
     expect(BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE.toLowerCase()).not.toContain('may send arrival');
+    expect(bookingConfirmationPromisesEmailSent(BOOKING_REQUEST_EMAIL_FOLLOWUP_NOTE)).toBe(false);
+    expect(BOOKING_REQUEST_EMAIL_FOLLOWUP_NOTE.toLowerCase()).toContain('trips');
+    expect(BOOKING_REQUEST_EMAIL_FOLLOWUP_NOTE.toLowerCase()).toContain(
+      'does not treat email delivery as proof'
+    );
+    expect(BOOKING_REQUEST_EMAIL_FOLLOWUP_NOTE.toLowerCase()).not.toContain('you will receive another email');
   });
 
   it('marketing contact thank-you copy does not promise a reply email', () => {

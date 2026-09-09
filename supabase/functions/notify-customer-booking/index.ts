@@ -251,7 +251,9 @@ serve(async (req) => {
       if (typeof amount === 'number') {
         extraHtml = `<p style="margin:0;font-size:14px;color:#374151;"><strong>Quoted total:</strong> ${escapeHtml(currency)} ${amount.toFixed(2)}</p>`;
       }
-      footerNote = 'You will receive another email when your booking is confirmed and paid (if applicable).';
+      footerNote =
+        // Keep in sync with BOOKING_REQUEST_EMAIL_FOLLOWUP_NOTE in booking-confirmation-copy.ts
+        'Watch Trips for payment and confirmation status. Traverion does not treat email delivery as proof of a later confirmation.';
     }
 
     const bookingCta = body.bookingId

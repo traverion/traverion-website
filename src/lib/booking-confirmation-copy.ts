@@ -186,6 +186,13 @@ export const BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE =
 export const BOOKING_CONFIRMED_PAID_FOLLOWUP_NOTE =
   'Watch Trips for schedule or meeting updates from the host. Traverion does not treat email delivery as proof you received a notice.';
 
+/**
+ * Legacy booking_request email footer — do not promise a later confirmation email.
+ * Keep in sync with notify-customer-booking booking_request footerNote.
+ */
+export const BOOKING_REQUEST_EMAIL_FOLLOWUP_NOTE =
+  'Watch Trips for payment and confirmation status. Traverion does not treat email delivery as proof of a later confirmation.';
+
 /** Contact form success: inquiry is saved; do not promise a reply email. */
 export const CONTACT_FORM_THANK_YOU =
   'Thank you. Your message is saved with Traverion. We do not treat email delivery as proof of a reply.';
