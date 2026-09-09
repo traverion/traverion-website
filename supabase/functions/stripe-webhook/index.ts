@@ -2,6 +2,7 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 import Stripe from 'https://esm.sh/stripe@16.12.0?target=deno';
+import { stripeWebhookReplayDecision } from '../_shared/stripe-webhook-replay.ts';
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -255,17 +256,110 @@ serve(async (req) => {
 
     const admin = createClient(supabaseUrl, serviceRoleKey);
 
-    // Idempotency guard: if event id already exists, ignore safely.
+    // Idempotency: first delivery inserts; retries must not 200-ack failed/stale rows
+    // or Stripe stops retrying and paid/refund side-effects never finish.
     const { error: lockErr } = await admin.from('stripe_webhook_events').insert({
       id: event.id,
       event_type: event.type,
       status: 'received',
     });
     if (lockErr) {
-      if ((lockErr as any).code === '23505') {
-        return json({ success: true, duplicate: true, eventId: event.id });
+      if ((lockErr as any).code !== '23505') {
+        return json({ success: false, error: lockErr.message }, 500);
       }
-      return json({ success: false, error: lockErr.message }, 500);
+
+      const { data: existing, error: existingErr } = await admin
+        .from('stripe_webhook_events')
+        .select('id, status, received_at')
+        .eq('id', event.id)
+        .maybeSingle();
+      if (existingErr) {
+        return json({ success: false, error: existingErr.message }, 500);
+      }
+
+      const decision = stripeWebhookReplayDecision({
+        status: existing?.status,
+        receivedAt: existing?.received_at ?? null,
+      });
+
+      if (decision === 'terminal') {
+        return json({
+          success: true,
+          duplicate: true,
+          eventId: event.id,
+          status: existing?.status ?? null,
+        });
+      }
+
+      if (decision === 'in_flight') {
+        // Still being processed by the first delivery — ask Stripe to retry later.
+        return json(
+          {
+            success: false,
+            error: 'Webhook event still processing',
+            eventId: event.id,
+            status: existing?.status ?? null,
+          },
+          503
+        );
+      }
+
+      if (decision !== 'claim') {
+        return json(
+          {
+            success: false,
+            error: `Unexpected webhook event status: ${existing?.status ?? 'missing'}`,
+            eventId: event.id,
+          },
+          500
+        );
+      }
+
+      const claimFilter =
+        String(existing?.status ?? '').toLowerCase() === 'failed'
+          ? { column: 'status' as const, value: 'failed' }
+          : { column: 'status' as const, value: 'received' };
+
+      const { data: claimed, error: claimErr } = await admin
+        .from('stripe_webhook_events')
+        .update({
+          status: 'received',
+          error_message: null,
+          processed_at: null,
+          received_at: new Date().toISOString(),
+          event_type: event.type,
+        })
+        .eq('id', event.id)
+        .eq(claimFilter.column, claimFilter.value)
+        .select('id');
+      if (claimErr) {
+        return json({ success: false, error: claimErr.message }, 500);
+      }
+      if ((claimed ?? []).length === 0) {
+        const { data: again } = await admin
+          .from('stripe_webhook_events')
+          .select('status')
+          .eq('id', event.id)
+          .maybeSingle();
+        if (stripeWebhookReplayDecision({ status: again?.status, receivedAt: null }) === 'terminal') {
+          return json({
+            success: true,
+            duplicate: true,
+            eventId: event.id,
+            status: again?.status ?? null,
+          });
+        }
+        return json(
+          {
+            success: false,
+            error: 'Could not claim webhook event for replay',
+            eventId: event.id,
+            status: again?.status ?? null,
+          },
+          503
+        );
+      }
+      // Claimed failed/stale row — fall through and re-run handlers (booking updates stay idempotent).
     }
 
     const markProcessed = async (status: 'processed' | 'ignored' | 'failed', errorMessage?: string) => {
