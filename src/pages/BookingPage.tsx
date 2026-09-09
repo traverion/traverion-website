@@ -57,6 +57,7 @@ import {
   type TourBookingVariant,
 } from '../lib/booking-flow';
 import { markBookingsUnread } from '../lib/customerBookingNotifications';
+import { BOOKING_CONFIRMATION_EMAIL_DISCLAIMER } from '../lib/booking-confirmation-copy';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 
 interface BookingPageProps {
@@ -707,8 +708,8 @@ export default function BookingPage({
                 {user?.email ? (
                   <>
                     {' '}
-                    <strong className="text-ink">Email is fixed to your account</strong> so confirmations reach the
-                    right inbox.
+                    <strong className="text-ink">Email is fixed to your account</strong> so this booking stays on your
+                    trips. {BOOKING_CONFIRMATION_EMAIL_DISCLAIMER}
                   </>
                 ) : null}
               </span>

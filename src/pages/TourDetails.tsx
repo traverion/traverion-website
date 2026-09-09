@@ -663,11 +663,11 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                   const x = tour.listingExtras;
                   const scheduleLabel =
                     x?.scheduleStyle === 'fixed_slots'
-                      ? 'Usually runs at set start times (see logistics in your confirmation).'
+                      ? 'Usually runs at set start times (see logistics on your booking in Trips).'
                       : x?.scheduleStyle === 'on_request'
                         ? 'Timing is arranged directly with the host after booking.'
                         : x?.scheduleStyle === 'flexible'
-                          ? 'Timing is flexible unless your confirmation says otherwise.'
+                          ? 'Timing is flexible unless your booking in Trips says otherwise.'
                           : null;
                   const venueLabel =
                     x?.venueSetting === 'indoor'
@@ -853,7 +853,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                     <h2 className="font-display text-2xl text-ink mb-4">Pickup / meeting</h2>
                     <div className="space-y-3 text-ink-muted leading-relaxed">
                       {tour.experienceStartStyle === 'operator_pickup' ? (
-                        <p>The operator picks you up. Details arrive with your confirmation.</p>
+                        <p>The operator picks you up. Pickup details appear on your booking in Trips after you pay.</p>
                       ) : tour.experienceStartStyle === 'fixed_meeting_place' ? (
                         <p>Meet at the place given below. Arrive a few minutes early.</p>
                       ) : tour.experienceStartStyle === 'either_available' ? (

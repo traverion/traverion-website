@@ -40,6 +40,7 @@ import { decrementAvailabilityBooked } from '../data/supabase-availability';
 import { clearBookingsUnread } from '../lib/customerBookingNotifications';
 import { guestFacingBookingNotes } from '../lib/booking-notes';
 import { bookingIsCancelledTrip, bookingMatchesTripView, travelerTripIsLive } from '../lib/trip-views';
+import { BOOKING_CONFIRMATION_EMAIL_DISCLAIMER } from '../lib/booking-confirmation-copy';
 
 interface MyBookingsProps {
   onNavigate: (page: string) => void;
@@ -373,7 +374,8 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
           <div className="mb-8 max-w-lg">
             <h2 className="font-display text-2xl text-ink">Payment received</h2>
             <p className="mt-2 text-sm text-ink-muted">
-              Your booking is confirmed. Open this page anytime for details. The operator may follow up about pickup. If an email confirmation arrives, keep it for your records — Traverion does not treat email delivery as booking proof.
+              Your booking is confirmed. Open this page anytime for details. The operator may follow up about pickup.{' '}
+              {BOOKING_CONFIRMATION_EMAIL_DISCLAIMER}
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
               <button type="button" onClick={() => onNavigate('home')} className="tv-btn-primary">

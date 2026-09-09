@@ -20,6 +20,7 @@ import { formatMoney, isStripeTestCheckoutSession } from '../lib/money';
 import NoticeCallout from '../components/NoticeCallout';
 import { listingPickupCopyIncomplete } from '../lib/pickup-completeness';
 import { clearBookingsUnread } from '../lib/customerBookingNotifications';
+import { BOOKING_CONFIRMATION_EMAIL_DISCLAIMER } from '../lib/booking-confirmation-copy';
 
 const SESSION_RETURN_KEY = 'traverion_checkout_return_session_id';
 
@@ -274,7 +275,8 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                     Thank you — your payment went through.{' '}
                     {stayCheckOut
                       ? 'The host may follow up with arrival instructions.'
-                      : 'The operator may follow up about meeting or pickup details.'}
+                      : 'The operator may follow up about meeting or pickup details.'}{' '}
+                    {BOOKING_CONFIRMATION_EMAIL_DISCLAIMER}
                   </p>
                 </>
               ) : confirming ? (
