@@ -30,6 +30,9 @@ import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import { partnerBookingIsLiveTrip, partnerBookingIsOperatingTrip, partnerBookingNeedsLook } from '../../lib/trip-views';
 import { bookingIsStayNight, bookingNeedsPickupCopy } from '../../lib/pickup-completeness';
 import { inventoryFamilyFromListing } from '../../lib/inventory';
+import { partnerPickupAllowsForceCancel } from '../../lib/cancellation-policy';
+import { PARTNER_CANCEL_REQUEST_REFUND_POLICY } from '../../lib/booking-confirmation-copy';
+import NoticeCallout from '../../components/NoticeCallout';
 
 function toYmd(d: Date): string {
   const y = d.getFullYear();
@@ -46,20 +49,12 @@ type ListingGuideMeta = {
   pickupWindowMin: number;
   pickupWindowMax: number;
 };
-type RefundChoice = 'full_refund' | 'no_refund' | 'reschedule';
 
 const CANCELLATION_REASONS = [
   { id: 'customer_request', label: 'Customer requested cancellation' },
   { id: 'force_majeure', label: 'Force majeure' },
   { id: 'operational', label: 'Operational reasons' },
 ];
-
-const REFUND_CHOICES: { id: RefundChoice; label: string }[] = [
-  { id: 'full_refund', label: 'Full refund' },
-  { id: 'no_refund', label: 'No refund' },
-  { id: 'reschedule', label: 'Offer reschedule' },
-];
-
 function parseYmdLocal(ymd: string): Date | null {
   if (!ymd) return null;
   const [y, m, d] = ymd.split('-').map(Number);
@@ -178,7 +173,6 @@ export default function SupplierPickupPlanner() {
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState('');
-  const [cancelRefund, setCancelRefund] = useState<RefundChoice | ''>('');
   const [error, setError] = useState<string | null>(null);
   const [listingFilterId, setListingFilterId] = useState('');
   const [needsPickupOnly, setNeedsPickupOnly] = useState(false);
@@ -484,11 +478,17 @@ export default function SupplierPickupPlanner() {
   const handleCancelSelected = async () => {
     if (!canEditBookings) return;
     if (!selectedBooking || !partnerBookingIsOperatingTrip(selectedBooking) || !cancelReason) return;
+    if (!partnerPickupAllowsForceCancel(selectedBooking)) {
+      showActionFeedback(
+        'error',
+        'Paid bookings must use Request cancellation in Bookings. Traverion does not force-cancel paid trips from Pickup.'
+      );
+      return;
+    }
     setUpdatingId(selectedBooking.id);
     const previousStatus = selectedBooking.status;
     const res = await updateBookingStatus(selectedBooking.id, 'cancelled', {
       cancellation_reason: cancelReason,
-      refund_choice: cancelRefund || undefined,
     });
     if (res.ok) {
       if (previousStatus === 'confirmed' && selectedBooking.booking_date) {
@@ -506,12 +506,13 @@ export default function SupplierPickupPlanner() {
                 status: 'cancelled',
                 cancelled_at: new Date().toISOString(),
                 cancellation_reason: cancelReason,
-                refund_choice: cancelRefund || b.refund_choice,
               }
             : b
         )
       );
-      showActionFeedback('success', 'Booking cancelled.');
+      showActionFeedback('success', 'Unpaid booking cancelled. The hold is released.');
+      setCancelReason('');
+      setSelectedBookingId(null);
     } else {
       showActionFeedback('error', res.error || 'Could not cancel booking. Try again.');
     }
@@ -660,9 +661,11 @@ export default function SupplierPickupPlanner() {
           {partnerBookingIsOperatingTrip(selectedBooking) && (
             <div>
               <h2 className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">Cancel booking</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xl">
-                <div>
-                  <label className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">Reason</label>
+              {partnerPickupAllowsForceCancel(selectedBooking) ? (
+                <div className="max-w-xl">
+                  <label className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">
+                    Reason
+                  </label>
                   <select
                     value={cancelReason}
                     onChange={(e) => setCancelReason(e.target.value)}
@@ -675,23 +678,25 @@ export default function SupplierPickupPlanner() {
                       </option>
                     ))}
                   </select>
+                  <p className="mt-2 text-xs text-ink-muted">
+                    This checkout is unpaid. Cancelling releases the hold immediately — no Stripe refund applies.
+                  </p>
                 </div>
-                <div>
-                  <label className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">Refund option</label>
-                  <select
-                    value={cancelRefund}
-                    onChange={(e) => setCancelRefund(e.target.value as RefundChoice | '')}
-                    className={plannerInputClass()}
+              ) : (
+                <NoticeCallout title="Paid bookings need traveler acceptance" tone="warn">
+                  <p>{PARTNER_CANCEL_REQUEST_REFUND_POLICY}</p>
+                  <p className="mt-2">
+                    Pickup does not force-cancel paid trips. Open Bookings to request cancellation.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => openSupplierBooking(selectedBooking.id)}
+                    className="tv-btn-ghost mt-3 -ml-2"
                   >
-                    <option value="">Choose refund option</option>
-                    {REFUND_CHOICES.map((r) => (
-                      <option key={r.id} value={r.id}>
-                        {r.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+                    Open in Bookings
+                  </button>
+                </NoticeCallout>
+              )}
             </div>
           )}
         </div>
@@ -719,14 +724,16 @@ export default function SupplierPickupPlanner() {
                   Confirm
                 </button>
               )}
-              <button
-                type="button"
-                disabled={!canEditBookings || updatingId === selectedBooking.id || !cancelReason}
-                onClick={handleCancelSelected}
-                className="tv-btn-ghost disabled:opacity-60"
-              >
-                Cancel booking
-              </button>
+              {partnerPickupAllowsForceCancel(selectedBooking) ? (
+                <button
+                  type="button"
+                  disabled={!canEditBookings || updatingId === selectedBooking.id || !cancelReason}
+                  onClick={handleCancelSelected}
+                  className="tv-btn-ghost disabled:opacity-60"
+                >
+                  Cancel unpaid booking
+                </button>
+              ) : null}
             </>
           )}
           <button

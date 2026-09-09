@@ -9,6 +9,7 @@ import {
   supplierCancellationFeeEur,
   supplierPaidCancellationBlock,
   supplierPaidCancellationError,
+  partnerPickupAllowsForceCancel,
   travelerSelfCancelBlock,
   travelerSelfCancelError,
   travelerSelfCancelRefundChoice,
@@ -67,6 +68,8 @@ describe('supplier cancellation policy', () => {
     expect(supplierPaidCancellationBlock({ status: 'confirmed', payment_status: 'paid' })).toBe(
       'none'
     );
+    expect(partnerPickupAllowsForceCancel({ status: 'confirmed', payment_status: 'paid' })).toBe(false);
+    expect(partnerPickupAllowsForceCancel({ status: 'pending', payment_status: 'pending' })).toBe(true);
   });
 
   it('rejects traveler self-cancel on refunded bookings as already refunded', () => {

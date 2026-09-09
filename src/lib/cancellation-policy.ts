@@ -133,6 +133,17 @@ export function supplierPaidCancellationError(block: SupplierPaidCancellationBlo
   return '';
 }
 
+/**
+ * Pickup planner may force-cancel unpaid holds only.
+ * Paid trips must use Request cancellation in Bookings (traveler accept + Refund due).
+ */
+export function partnerPickupAllowsForceCancel(row: {
+  status?: string | null;
+  payment_status?: string | null;
+}): boolean {
+  return supplierPaidCancellationBlock(row) === 'unpaid';
+}
+
 export type TravelerSelfCancelBlock = 'none' | 'refunded' | 'cancelled';
 
 export function travelerSelfCancelBlock(row: {
