@@ -23,6 +23,7 @@ import { publicSiteBaseUrl } from '../../lib/publicSiteUrl';
 import { fetchConsumerProfile } from '../../data/supabase-consumer-profile';
 import { isValidEmailFormat } from '../../lib/authFormValidation';
 import ForgotPasswordInline, { type ForgotPasswordSendResult } from '../../components/auth/ForgotPasswordInline';
+import { AUTH_CONFIRMATION_EMAIL_REQUESTED } from '../../lib/booking-confirmation-copy';
 
 /** Fire-and-forget welcome email (Edge Function dedupes via welcome_email_sent_at). */
 function sendSupplierWelcomeEmail(userId: string): void {
@@ -238,7 +239,7 @@ export default function SupplierAuth({
           if (data.session) {
             if (!data.user?.email_confirmed_at) {
               await supabase.auth.signOut();
-              setSuccessMessage('Check your email to confirm your account. After you confirm, you’ll continue signed in.');
+              setSuccessMessage(AUTH_CONFIRMATION_EMAIL_REQUESTED);
               setMode('signin');
               return;
             }
@@ -256,7 +257,7 @@ export default function SupplierAuth({
             onAuthenticated();
             return;
           }
-          setSuccessMessage('Check your email to confirm your account. After you confirm, you’ll continue signed in.');
+          setSuccessMessage(AUTH_CONFIRMATION_EMAIL_REQUESTED);
           setMode('signin');
         } else {
           const { data, error: err } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
@@ -398,7 +399,7 @@ export default function SupplierAuth({
       setFieldErrors(serverMessageToFields(err.message));
       return;
     }
-    setSuccessMessage('Confirmation email resent. Check inbox/spam.');
+    setSuccessMessage(AUTH_CONFIRMATION_EMAIL_REQUESTED);
   };
 
   return (

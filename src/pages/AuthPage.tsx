@@ -12,6 +12,7 @@ import { authInputErrorClasses, isValidEmailFormat } from '../lib/authFormValida
 import ForgotPasswordInline, { type ForgotPasswordSendResult } from '../components/auth/ForgotPasswordInline';
 import { TRAVELER_RESET_PASSWORD_PATH } from '../lib/partnerPortalPaths';
 import { sanitizeTravelerAuthNext } from '../lib/travelerAuthLinks';
+import { AUTH_CONFIRMATION_EMAIL_REQUESTED } from '../lib/booking-confirmation-copy';
 
 type AuthTab = 'signin' | 'signup';
 
@@ -203,7 +204,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
         if (hasSession) {
           onNavigate(nextPage);
         } else {
-          setSuccessMessage('Check your email to confirm your account, then sign in.');
+          setSuccessMessage(AUTH_CONFIRMATION_EMAIL_REQUESTED);
           setTab('signin');
         }
       }
@@ -239,7 +240,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
       setFieldErrors(serverMessageToFields(err.message));
       return;
     }
-    setSuccessMessage('Confirmation email sent. Check your inbox and use the new link.');
+    setSuccessMessage(AUTH_CONFIRMATION_EMAIL_REQUESTED);
   }, [email, nextPage]);
 
   const sendPasswordResetEmail = async (normalizedEmail: string): Promise<ForgotPasswordSendResult> => {

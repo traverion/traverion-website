@@ -42,6 +42,7 @@ import {
   PARTNER_PAYOUT_REVIEW_STATUS_NOTE,
   PARTNER_PAYOUT_THRESHOLD_HINT,
   PARTNER_BUSINESS_READY_TO_SUBMIT_NOTE,
+  PARTNER_VERIFICATION_EMAIL_REQUESTED,
 } from '../../lib/booking-confirmation-copy';
 
 type BusinessProfileTab = 'company' | 'legal';
@@ -297,7 +298,7 @@ function AccountSettingsPage(p: Props) {
                   {p.verificationSending ? 'Sending…' : 'Resend verification email'}
                 </button>
                 {p.verificationMessage === 'sent' && (
-                  <p className="text-xs text-emerald-800 font-medium">Verification email sent. Check inbox and spam.</p>
+                  <p className="text-xs text-emerald-800 font-medium">{PARTNER_VERIFICATION_EMAIL_REQUESTED}</p>
                 )}
                 {p.verificationMessage === 'error' && (
                   <p className="text-xs text-red-700 font-medium">Could not resend right now. Try again shortly.</p>
