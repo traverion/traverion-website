@@ -2,7 +2,7 @@
  * Supplier: view all reviews for my listings and reply.
  */
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Star, MessageSquare, Send } from 'lucide-react';
+import { Star, MessageSquare, Check } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import {
   SUPPLIER_PAGE_CLASS,
@@ -328,8 +328,8 @@ export default function SupplierReviews() {
                     onClick={() => handleSubmitReply(r.id)}
                     className="tv-btn-primary mt-2 inline-flex items-center gap-1.5 disabled:opacity-50"
                   >
-                    <Send className="w-3.5 h-3.5" />
-                    {replyingId === r.id ? 'Sending…' : 'Send reply'}
+                    <Check className="w-3.5 h-3.5" />
+                    {replyingId === r.id ? 'Saving…' : 'Save reply'}
                   </button>
                 </div>
               )}

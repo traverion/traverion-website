@@ -188,7 +188,9 @@ ${bodyText}
     sub = 'The traveler declined your cancellation request. The booking stays active.';
   } else if (payload.eventType === 'new_review') {
     headline = 'New review';
-    sub = 'Someone left a review on your tour.';
+    // Keep in sync with SUPPLIER_NEW_REVIEW_NOTIFY_SUB in booking-confirmation-copy.ts
+    sub =
+      'Someone left a review on your tour. Open Reviews in the partner portal — Traverion does not treat email delivery as proof you saw it.';
   } else if (payload.eventType === 'guest_message') {
     headline = 'Guest updated their booking details';
     // Keep in sync with SUPPLIER_GUEST_DETAILS_UPDATED_NOTIFY_SUB in booking-confirmation-copy.ts

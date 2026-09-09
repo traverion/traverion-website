@@ -189,6 +189,13 @@ export const SUPPLIER_GUEST_DETAILS_UPDATED_NOTIFY_SUB =
 export const SUPPLIER_BOOKING_DETAIL_CHANGED_NOTIFY_SUB =
   'Details changed for a booking — review in Bookings. Traverion does not treat email delivery as proof you saw the update.';
 
+/**
+ * Partner notify for a new review — Reviews is durable.
+ * Keep in sync with notify-supplier-event new_review subcopy.
+ */
+export const SUPPLIER_NEW_REVIEW_NOTIFY_SUB =
+  'Someone left a review on your tour. Open Reviews in the partner portal — Traverion does not treat email delivery as proof you saw it.';
+
 /** Paid confirmation UI — Trips is durable; do not imply host follow-up arrives by email. */
 export const BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE =
   'Watch Trips for schedule, meeting, or arrival updates from the host.';
