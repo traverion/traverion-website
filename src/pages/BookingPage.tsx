@@ -60,6 +60,7 @@ import { markBookingsUnread } from '../lib/customerBookingNotifications';
 import {
   BOOKING_CONTACT_EMAIL_FIELD_NOTE,
   bookingContactIntroCopy,
+  bookingPayConfirmAfterPayCopy,
 } from '../lib/booking-confirmation-copy';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 
@@ -886,6 +887,7 @@ export default function BookingPage({
               <p>
                 <span className="font-medium text-ink">Email</span> — {email}
               </p>
+              <p className="text-xs text-ink-muted">{BOOKING_CONTACT_EMAIL_FIELD_NOTE}</p>
               {specialRequests.trim() && (
                 <p>
                   <span className="font-medium text-ink">Special requests</span> — {specialRequests.trim()}
@@ -931,9 +933,7 @@ export default function BookingPage({
             <div className="mb-6">
               <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint mb-1.5">After you pay</p>
               <p className="text-sm text-ink-muted leading-relaxed">
-                Stripe confirms the payment, then Traverion shows Booking confirmed with your reference. Manage the trip from
-                Trips. If you leave Stripe without paying, the hold expires after {CHECKOUT_HOLD_MINUTES} minutes and nothing is
-                charged.
+                {bookingPayConfirmAfterPayCopy(CHECKOUT_HOLD_MINUTES)}
               </p>
             </div>
 

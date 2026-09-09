@@ -6,6 +6,7 @@ import {
   TOUR_LISTING_CONFIRMATION_NOTE,
   bookingConfirmationPromisesEmailSent,
   bookingContactIntroCopy,
+  bookingPayConfirmAfterPayCopy,
 } from './booking-confirmation-copy';
 
 describe('booking confirmation copy', () => {
@@ -38,5 +39,14 @@ describe('booking confirmation copy', () => {
     expect(signedIn.toLowerCase()).toContain('email is fixed to your account');
     expect(bookingConfirmationPromisesEmailSent(BOOKING_CONTACT_EMAIL_FIELD_NOTE)).toBe(false);
     expect(BOOKING_CONTACT_EMAIL_FIELD_NOTE.toLowerCase()).toContain('do not send a confirmation email');
+  });
+
+  it('pay-to-confirm copy does not promise a confirmation email', () => {
+    const copy = bookingPayConfirmAfterPayCopy(15);
+    expect(bookingConfirmationPromisesEmailSent(copy)).toBe(false);
+    expect(copy.toLowerCase()).toContain('do not send a confirmation email');
+    expect(copy.toLowerCase()).toContain('trips');
+    expect(copy.toLowerCase()).toContain('does not treat email delivery as booking proof');
+    expect(copy).toContain('15 minutes');
   });
 });

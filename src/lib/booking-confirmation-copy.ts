@@ -27,6 +27,15 @@ export function bookingContactIntroCopy(signedInWithEmail: boolean): string {
 export const BOOKING_CONTACT_EMAIL_FIELD_NOTE =
   'This email is for the booking record. We do not send a confirmation email from this checkout.';
 
+/** Checkout pay step: confirmation is Trips / Booking confirmed, not mail. */
+export function bookingPayConfirmAfterPayCopy(holdMinutes: number): string {
+  return (
+    `After Stripe confirms payment, Traverion shows Booking confirmed with your reference. Manage the trip from Trips. ` +
+    `We do not send a confirmation email from this checkout. ${BOOKING_CONFIRMATION_EMAIL_DISCLAIMER} ` +
+    `If you leave Stripe without paying, the hold expires after ${holdMinutes} minutes and nothing is charged.`
+  );
+}
+
 export function bookingConfirmationPromisesEmailSent(copy: string): boolean {
   const t = copy.trim().toLowerCase();
   return (
