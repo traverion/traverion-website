@@ -120,6 +120,14 @@ export const PARTNER_ONBOARDING_INTRO_NOTE =
 export const PARTNER_FIRST_LISTING_STEP_NOTE =
   'A tour or a stay. Photos, price, and guest details first. You can draft anytime; publishing needs Traverion business and payout verification.';
 
+/** Partner marketing landing — List step; same verification gate as onboarding. */
+export const PARTNER_LANDING_LIST_NOTE =
+  'Create a tour or a stay with photos, price, and the rules guests need. Draft anytime; publishing needs Traverion business and payout verification.';
+
+/** Listing quality tip when still draft — do not say “publish when ready” alone. */
+export const LISTING_QUALITY_PUBLISH_TIP =
+  'Publishing needs Traverion business and payout verification, then travelers can book on the main site.';
+
 /**
  * Supplier welcome email step 2 — keep in sync with notify-supplier-event supplier_welcome body.
  * Do not say “publish when you are ready” as if verification were optional.
@@ -200,10 +208,17 @@ export const SUPPLIER_HOST_SCHEDULE_UPDATED_NOTIFY_SUB =
 
 /**
  * Partner notify after guest updates notes — Bookings is durable; do not treat email as proof.
- * Keep in sync with supabase/functions/notify-supplier-event guest_message subcopy.
+ * Keep in sync with notify-supplier-event guest_message when fieldDiffs are present.
  */
 export const SUPPLIER_GUEST_DETAILS_UPDATED_NOTIFY_SUB =
   'A guest changed notes or meeting / place-of-stay information. Compare previous vs new values below. Bookings is the durable record; Traverion does not treat email delivery as proof you saw the update.';
+
+/**
+ * Partner notify for Inbox guest → host message — Inbox/Bookings durable.
+ * Keep in sync with notify-supplier-event guest_message when fieldDiffs are absent.
+ */
+export const SUPPLIER_GUEST_INBOX_MESSAGE_NOTIFY_SUB =
+  'A guest posted a message on this booking. Open Inbox or Bookings — Traverion does not treat email delivery as proof you saw it.';
 
 /**
  * Partner notify when booking details change — Bookings is durable.

@@ -1,5 +1,6 @@
 import type { TourPackage } from '../types/tour';
 import { materializedBookingOptions, TRAVERION_STANDARD_CANCELLATION_POLICY } from '../types/listingExtras';
+import { LISTING_QUALITY_PUBLISH_TIP } from './booking-confirmation-copy';
 
 /** Default image used when none set — replacing it improves trust. */
 export const LISTING_PLACEHOLDER_IMAGE =
@@ -324,7 +325,7 @@ export function computeListingQuality(listing: TourPackage): {
       label: 'Published on site',
       max,
       earned: pub ? max : 0,
-      tip: pub ? '' : 'Publish when ready so travelers can book on the main site.',
+      tip: pub ? '' : LISTING_QUALITY_PUBLISH_TIP,
     });
   }
 

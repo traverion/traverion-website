@@ -6,6 +6,7 @@ import { publicSiteBaseUrl } from '../../lib/publicSiteUrl';
 import { HERO_IMG } from '../../lib/heroImages';
 import { PARTNER_LOGIN_PATH, PARTNER_SIGNUP_PATH } from '../../lib/partnerPortalPaths';
 import { supplierPortalLandingHref } from '../../lib/partnerHost';
+import { PARTNER_LANDING_LIST_NOTE } from '../../lib/booking-confirmation-copy';
 import PartnerPortalFooter from './PartnerPortalFooter';
 import SkipLink from '../SkipLink';
 
@@ -69,7 +70,7 @@ export default function PartnerLandingPage() {
             <div>
               <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">List</p>
               <p className="text-lg text-ink leading-relaxed">
-                Create a tour or a stay with photos, price, and the rules guests need. Save a draft. Publish when it is ready.
+                {PARTNER_LANDING_LIST_NOTE}
               </p>
             </div>
             <div>

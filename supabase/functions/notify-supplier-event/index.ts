@@ -74,7 +74,10 @@ function eventSubject(payload: Payload): string {
   if (payload.eventType === 'booking_cancelled') return `${refTag}Booking cancelled: ${listing}`;
   if (payload.eventType === 'cancellation_accepted') return `${refTag}Cancellation accepted: ${listing}`;
   if (payload.eventType === 'cancellation_declined') return `${refTag}Traveler declined cancellation: ${listing}`;
-  if (payload.eventType === 'guest_message') return `${refTag}Message from a guest: ${listing}`;
+  if (payload.eventType === 'guest_message') {
+    if (payload.fieldDiffs?.length) return `${refTag}Guest updated booking details: ${listing}`;
+    return `${refTag}Message from a guest: ${listing}`;
+  }
   if (payload.eventType === 'booking_detail_changed') return `${refTag}Booking updated: ${listing}`;
   if (payload.eventType === 'host_schedule_updated') return `${refTag}Schedule saved (your update): ${listing}`;
   return `New review received: ${listing}`;
@@ -130,7 +133,13 @@ function eventBody(payload: Payload): string {
   if (payload.guestName) lines.push(`Guest: ${payload.guestName}`);
   if (typeof payload.reviewRating === 'number' && payload.reviewRating > 0) lines.push(`Rating: ${payload.reviewRating}/5`);
   if (payload.reviewTitle) lines.push(`Review: ${payload.reviewTitle}`);
-  if (payload.messagePreview) lines.push(`Latest note: ${payload.messagePreview}`);
+  if (payload.messagePreview) {
+    const previewLabel =
+      payload.eventType === 'guest_message' && !(payload.fieldDiffs?.length)
+        ? 'Message'
+        : 'Latest note';
+    lines.push(`${previewLabel}: ${payload.messagePreview}`);
+  }
   if (payload.changeSummary) lines.push(`Changes: ${payload.changeSummary}`);
   if (payload.fieldDiffs?.length) lines.push('', fieldDiffPlainText(payload.fieldDiffs));
   lines.push('');
@@ -199,10 +208,17 @@ ${bodyText}
     sub =
       'Someone left a review on your tour. Open Reviews in the partner portal — Traverion does not treat email delivery as proof you saw it.';
   } else if (payload.eventType === 'guest_message') {
-    headline = 'Guest updated their booking details';
-    // Keep in sync with SUPPLIER_GUEST_DETAILS_UPDATED_NOTIFY_SUB in booking-confirmation-copy.ts
-    sub =
-      'A guest changed notes or meeting / place-of-stay information. Compare previous vs new values below. Bookings is the durable record; Traverion does not treat email delivery as proof you saw the update.';
+    if (payload.fieldDiffs?.length) {
+      headline = 'Guest updated their booking details';
+      // Keep in sync with SUPPLIER_GUEST_DETAILS_UPDATED_NOTIFY_SUB
+      sub =
+        'A guest changed notes or meeting / place-of-stay information. Compare previous vs new values below. Bookings is the durable record; Traverion does not treat email delivery as proof you saw the update.';
+    } else {
+      headline = 'Message from a guest';
+      // Keep in sync with SUPPLIER_GUEST_INBOX_MESSAGE_NOTIFY_SUB
+      sub =
+        'A guest posted a message on this booking. Open Inbox or Bookings — Traverion does not treat email delivery as proof you saw it.';
+    }
   } else if (payload.eventType === 'booking_detail_changed') {
     headline = 'Booking details updated';
     // Keep in sync with SUPPLIER_BOOKING_DETAIL_CHANGED_NOTIFY_SUB in booking-confirmation-copy.ts
@@ -253,8 +269,12 @@ ${bodyText}
     );
   }
   if (payload.messagePreview) {
+    const previewLabel =
+      payload.eventType === 'guest_message' && !(payload.fieldDiffs?.length)
+        ? 'Message'
+        : 'Latest note';
     rows.push(
-      `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;vertical-align:top;">Latest note</td><td style="padding:6px 0;font-size:14px;color:#111827;line-height:1.5;">${escapeHtml(payload.messagePreview)}</td></tr>`,
+      `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;vertical-align:top;">${previewLabel}</td><td style="padding:6px 0;font-size:14px;color:#111827;line-height:1.5;">${escapeHtml(payload.messagePreview)}</td></tr>`,
     );
   }
   if (payload.changeSummary) {

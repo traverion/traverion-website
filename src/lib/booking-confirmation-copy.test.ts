@@ -22,6 +22,7 @@ import {
   SUPPLIER_BOOKING_CANCELLED_NOTIFY_SUB,
   SUPPLIER_HOST_SCHEDULE_UPDATED_NOTIFY_SUB,
   SUPPLIER_GUEST_DETAILS_UPDATED_NOTIFY_SUB,
+  SUPPLIER_GUEST_INBOX_MESSAGE_NOTIFY_SUB,
   SUPPLIER_BOOKING_DETAIL_CHANGED_NOTIFY_SUB,
   SUPPLIER_NEW_REVIEW_NOTIFY_SUB,
   SUPPLIER_NEW_BOOKING_PAID_NOTIFY_SUB,
@@ -37,6 +38,8 @@ import {
   PARTNER_ONBOARDING_INTRO_NOTE,
   PARTNER_ONBOARDING_PAYOUT_STEP_NOTE,
   PARTNER_FIRST_LISTING_STEP_NOTE,
+  PARTNER_LANDING_LIST_NOTE,
+  LISTING_QUALITY_PUBLISH_TIP,
   PARTNER_PAYOUT_THRESHOLD_HINT,
   SUPPLIER_WELCOME_LISTING_STEP_NOTE,
   BOOKING_REQUEST_EMAIL_FOLLOWUP_NOTE,
@@ -164,6 +167,10 @@ describe('booking confirmation copy', () => {
     expect(PARTNER_ONBOARDING_INTRO_NOTE.toLowerCase()).not.toContain('then you are live');
     expect(PARTNER_FIRST_LISTING_STEP_NOTE.toLowerCase()).toContain('business and payout verification');
     expect(PARTNER_FIRST_LISTING_STEP_NOTE.toLowerCase()).not.toContain('publish when you are ready');
+    expect(PARTNER_LANDING_LIST_NOTE.toLowerCase()).toContain('business and payout verification');
+    expect(PARTNER_LANDING_LIST_NOTE.toLowerCase()).not.toContain('publish when it is ready');
+    expect(LISTING_QUALITY_PUBLISH_TIP.toLowerCase()).toContain('business and payout verification');
+    expect(LISTING_QUALITY_PUBLISH_TIP.toLowerCase()).not.toContain('publish when ready');
     expect(SUPPLIER_WELCOME_LISTING_STEP_NOTE.toLowerCase()).toContain('business and payout verification');
     expect(SUPPLIER_WELCOME_LISTING_STEP_NOTE.toLowerCase()).not.toContain('publish when you are ready');
     expect(PARTNER_PAYOUT_THRESHOLD_HINT.toLowerCase()).toContain('once payouts are enabled');
@@ -247,6 +254,12 @@ describe('booking confirmation copy', () => {
     expect(SUPPLIER_GUEST_DETAILS_UPDATED_NOTIFY_SUB.toLowerCase()).toContain(
       'does not treat email delivery as proof'
     );
+    expect(bookingConfirmationPromisesEmailSent(SUPPLIER_GUEST_INBOX_MESSAGE_NOTIFY_SUB)).toBe(false);
+    expect(SUPPLIER_GUEST_INBOX_MESSAGE_NOTIFY_SUB.toLowerCase()).toContain('inbox');
+    expect(SUPPLIER_GUEST_INBOX_MESSAGE_NOTIFY_SUB.toLowerCase()).toContain(
+      'does not treat email delivery as proof'
+    );
+    expect(SUPPLIER_GUEST_INBOX_MESSAGE_NOTIFY_SUB.toLowerCase()).not.toContain('place-of-stay');
     expect(bookingConfirmationPromisesEmailSent(SUPPLIER_BOOKING_DETAIL_CHANGED_NOTIFY_SUB)).toBe(false);
     expect(SUPPLIER_BOOKING_DETAIL_CHANGED_NOTIFY_SUB.toLowerCase()).toContain('bookings');
     expect(SUPPLIER_BOOKING_DETAIL_CHANGED_NOTIFY_SUB.toLowerCase()).toContain(
