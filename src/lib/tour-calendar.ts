@@ -1,5 +1,7 @@
 import type { ListingBookingOption } from '../types/listingExtras';
 import { optionRunsOnDate } from './booking-quote';
+import { remainingCapacity } from './availability-ops';
+import { bookingOccupiesPublicStayCalendar, type InventoryHoldRow } from './booking-hold';
 
 export type TourDayState = 'past' | 'closed' | 'full' | 'available' | 'selected';
 
@@ -29,4 +31,41 @@ export function formatTourDayAria(iso: string, state: TourDayState): string {
   if (state === 'full') return `${human}, fully booked`;
   if (state === 'selected') return `${human}, selected`;
   return `${human}, available`;
+}
+
+/** Public tour sold-out counts collected paid guests only. Refunded, failed, and cancelled do not fill a day. */
+export function bookingCountsTowardPublicTourSoldOut(row: InventoryHoldRow): boolean {
+  return bookingOccupiesPublicStayCalendar(row);
+}
+
+export function publicTourPaidGuestsByDeparture(
+  rows: Array<InventoryHoldRow & { booking_date?: string | null; guests?: number | null }>
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const row of rows) {
+    if (!bookingCountsTowardPublicTourSoldOut(row)) continue;
+    const day = String(row.booking_date ?? '').slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) continue;
+    const n = Math.floor(Number(row.guests ?? 0));
+    if (!Number.isFinite(n) || n < 1) continue;
+    out[day] = (out[day] ?? 0) + n;
+  }
+  return out;
+}
+
+export function tourSoldOutDates(params: {
+  paidByDay: Record<string, number>;
+  capByDay: Map<string, number>;
+  fallbackCapacity: number;
+}): Set<string> {
+  const next = new Set<string>();
+  for (const [day, cap] of params.capByDay) {
+    if (remainingCapacity(cap, params.paidByDay[day] ?? 0) < 1) next.add(day);
+  }
+  for (const [day, paid] of Object.entries(params.paidByDay)) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) continue;
+    const cap = params.capByDay.get(day) ?? params.fallbackCapacity;
+    if (remainingCapacity(cap, paid) < 1) next.add(day);
+  }
+  return next;
 }

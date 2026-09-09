@@ -21,7 +21,7 @@ export async function fetchAvailabilityByListingId(listingId: string): Promise<A
   return (data ?? []) as AvailabilityRow[];
 }
 
-/** Paid guest counts per departure. Failed checkouts are omitted. */
+/** Paid guest counts per departure. Failed, unpaid, and refunded bookings are omitted. */
 export async function fetchPublishedTourPaidGuests(
   listingId: string
 ): Promise<Record<string, number>> {

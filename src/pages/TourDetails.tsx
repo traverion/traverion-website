@@ -43,7 +43,8 @@ import { isListingVisibleToTravelers } from '../lib/product-workflows';
 import { listingIsOnTravelerCatalog } from '../lib/inventory';
 import { listingShowsFreeCancellation, publicReviewLabel } from '../lib/listingTruth';
 import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
-import { listingTourCapacityFromOptions, remainingCapacity } from '../lib/availability-ops';
+import { listingTourCapacityFromOptions } from '../lib/availability-ops';
+import { tourSoldOutDates } from '../lib/tour-calendar';
 import BookingPage from './BookingPage';
 import {
   getPartySizeBounds,
@@ -160,22 +161,13 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       ([caps, paidByDay]) => {
         if (cancelled) return;
         const fallbackCap = listingTourCapacityFromOptions(calendarOptions.map((o) => o.maxSpotsPerSlot));
-        const next = new Set<string>();
         const capByDay = new Map<string, number>();
         for (const row of caps) {
           const day = String(row.available_date ?? '').slice(0, 10);
           if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) continue;
           capByDay.set(day, row.capacity);
         }
-        for (const [day, cap] of capByDay) {
-          if (remainingCapacity(cap, paidByDay[day] ?? 0) < 1) next.add(day);
-        }
-        for (const [day, paid] of Object.entries(paidByDay)) {
-          if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) continue;
-          const cap = capByDay.get(day) ?? fallbackCap;
-          if (remainingCapacity(cap, paid) < 1) next.add(day);
-        }
-        setSoldOutDates(next);
+        setSoldOutDates(tourSoldOutDates({ paidByDay, capByDay, fallbackCapacity: fallbackCap }));
       }
     );
     return () => {

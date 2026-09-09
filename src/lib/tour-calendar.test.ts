@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ListingBookingOption } from '../types/listingExtras';
-import { tourDayState } from './tour-calendar';
+import { tourDayState, publicTourPaidGuestsByDeparture, bookingCountsTowardPublicTourSoldOut, tourSoldOutDates } from './tour-calendar';
 
 function option(weekdays: boolean[], from = '', to = ''): ListingBookingOption {
   return {
@@ -108,5 +108,32 @@ describe('tour calendar states', () => {
         soldOut: false,
       })
     ).toBe('available');
+  });
+
+  it('does not sell out a departure with refunded, failed, or cancelled guests', () => {
+    const paidByDay = publicTourPaidGuestsByDeparture([
+      { status: 'confirmed', payment_status: 'paid', booking_date: '2026-09-11', guests: 1 },
+      { status: 'confirmed', payment_status: 'refunded', booking_date: '2026-10-15', guests: 8 },
+      { status: 'pending', payment_status: 'failed', booking_date: '2026-10-15', guests: 8 },
+      { status: 'cancelled', payment_status: 'paid', booking_date: '2026-11-04', guests: 1 },
+    ]);
+    expect(paidByDay).toEqual({ '2026-09-11': 1 });
+    expect(bookingCountsTowardPublicTourSoldOut({ status: 'confirmed', payment_status: 'refunded' })).toBe(
+      false
+    );
+    const sold = tourSoldOutDates({
+      paidByDay,
+      capByDay: new Map([['2026-10-15', 8]]),
+      fallbackCapacity: 8,
+    });
+    expect(sold.has('2026-10-15')).toBe(false);
+    expect(sold.has('2026-09-11')).toBe(false);
+    expect(
+      tourSoldOutDates({
+        paidByDay: { '2026-10-15': 8 },
+        capByDay: new Map([['2026-10-15', 8]]),
+        fallbackCapacity: 8,
+      }).has('2026-10-15')
+    ).toBe(true);
   });
 });
