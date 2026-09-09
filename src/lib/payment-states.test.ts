@@ -5,6 +5,8 @@ import {
   travelerPaymentLabel,
   partnerCollectedAmountCaption,
   bookingPaymentWasCollected,
+  isRefundDueBooking,
+  sumRefundDueAmount,
   REFUND_DUE_MANUAL_COPY,
 } from './payment-states';
 
@@ -102,5 +104,24 @@ describe('payment states', () => {
       partnerCollectedAmountCaption({ status: 'confirmed', payment_status: 'paid', amount_paid: 189 })
     ).toBe('Paid');
     expect(REFUND_DUE_MANUAL_COPY.toLowerCase()).toContain('does not send stripe refunds automatically');
+  });
+
+  it('sums outstanding Refund due separately from collected revenue', () => {
+    const rows = [
+      { status: 'confirmed', payment_status: 'paid', amount_paid: 189 },
+      { status: 'cancelled', payment_status: 'paid', amount_paid: 189 },
+      { status: 'cancelled', payment_status: 'paid', amount_paid: 189 },
+      { status: 'cancelled', payment_status: 'refunded', amount_paid: 445 },
+      {
+        status: 'cancelled',
+        payment_status: 'paid',
+        amount_paid: 100,
+        refund_choice: 'no_refund',
+      },
+    ];
+    expect(rows.filter(isRefundDueBooking)).toHaveLength(2);
+    expect(sumRefundDueAmount(rows)).toBe(378);
+    expect(sumCollectedAmount(rows)).toBe(189);
+    expect(isRefundDueBooking({ status: 'confirmed', payment_status: 'paid', amount_paid: 189 })).toBe(false);
   });
 });

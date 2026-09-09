@@ -74,6 +74,19 @@ export function partnerCollectedAmountCaption(b: MoneyBookingRow): string {
 export const REFUND_DUE_MANUAL_COPY =
   'A refund is due. Traverion does not send Stripe refunds automatically. This stays Refund due until a refund is issued in Stripe.';
 
+/** Cancelled + still paid (not no_refund) — money collected but refund not issued in Stripe. */
+export function isRefundDueBooking(b: MoneyBookingRow): boolean {
+  return travelerPaymentLabel(b) === 'Refund due';
+}
+
+/** Sum of amount_paid on Refund due rows (same currency assumed by caller). */
+export function sumRefundDueAmount(rows: MoneyBookingRow[]): number {
+  return rows.filter(isRefundDueBooking).reduce((sum, b) => {
+    const n = Number(b.amount_paid ?? 0);
+    return sum + (Number.isFinite(n) ? n : 0);
+  }, 0);
+}
+
 /** Sum collected amounts in one currency. Callers must not mix currencies without converting. */
 export function sumCollectedAmount(rows: MoneyBookingRow[]): number {
   return rows.filter(isCollectedBooking).reduce((sum, b) => sum + Number(b.amount_paid ?? 0), 0);

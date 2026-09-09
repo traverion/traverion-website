@@ -15,13 +15,7 @@ import {
 import type { TourPackage } from '../../types/tour';
 import { listingHeroImageSrc, orderedPhotoUrls, photoSlotsFromTourPackage } from '../../lib/listingPhotoGrid';
 import { formatMoney } from '../../lib/money';
-import {
-  isPaidPaymentStatus,
-  partnerPaymentLabel,
-  partnerCollectedAmountCaption,
-  bookingPaymentWasCollected,
-  REFUND_DUE_MANUAL_COPY,
-} from '../../lib/payment-states';
+import { isPaidPaymentStatus, partnerPaymentLabel, partnerCollectedAmountCaption, bookingPaymentWasCollected, isRefundDueBooking, REFUND_DUE_MANUAL_COPY } from '../../lib/payment-states';
 import { guestFacingBookingNotes } from '../../lib/booking-notes';
 import {
   SUPPLIER_CANCELLATION_REASON_CODES,
@@ -120,7 +114,7 @@ const REFUND_CHOICES = [
 
 type RefundChoice = (typeof REFUND_CHOICES)[number]['id'];
 type BookingView = 'today' | 'upcoming' | 'past' | 'all';
-type OpsFilter = 'all' | 'unpaid' | 'pickup' | 'cancel';
+type OpsFilter = 'all' | 'unpaid' | 'pickup' | 'cancel' | 'refund_due';
 
 function bookingPaginationRange(totalPages: number, current: number): (number | 'ellipsis')[] {
   if (totalPages <= 1) return [];
@@ -274,13 +268,21 @@ export default function SupplierBookings() {
   }, [load]);
 
   useEffect(() => {
-    const syncHighlightFromUrl = () => {
-      const id = new URLSearchParams(window.location.search).get('booking');
+    const syncFromUrl = () => {
+      const params = new URLSearchParams(window.location.search);
+      const id = params.get('booking');
       setHighlightBookingId(id && id.length > 0 ? id : null);
+      const ops = params.get('ops');
+      if (ops === 'refund_due' || ops === 'unpaid' || ops === 'pickup' || ops === 'cancel') {
+        setOpsFilter(ops);
+        if (ops === 'refund_due') setView('all');
+      } else if (ops === 'all' || ops === null) {
+        if (ops === 'all') setOpsFilter('all');
+      }
     };
-    syncHighlightFromUrl();
-    window.addEventListener('popstate', syncHighlightFromUrl);
-    return () => window.removeEventListener('popstate', syncHighlightFromUrl);
+    syncFromUrl();
+    window.addEventListener('popstate', syncFromUrl);
+    return () => window.removeEventListener('popstate', syncFromUrl);
   }, []);
 
   const setSelectedBookingId = useCallback((id: string | null) => {
@@ -289,6 +291,15 @@ export default function SupplierBookings() {
     else url.searchParams.delete('booking');
     window.history.pushState({}, '', `${url.pathname}${url.search}`);
     setHighlightBookingId(id);
+  }, []);
+
+  const setOpsFilterAndUrl = useCallback((next: OpsFilter) => {
+    setOpsFilter(next);
+    if (next === 'refund_due') setView('all');
+    const url = new URL(window.location.href);
+    if (next === 'all') url.searchParams.delete('ops');
+    else url.searchParams.set('ops', next);
+    window.history.replaceState({}, '', `${url.pathname}${url.search}`);
   }, []);
 
   const todayIso = new Date().toISOString().slice(0, 10);
@@ -301,23 +312,31 @@ export default function SupplierBookings() {
       const isStay = meta?.family === 'stay' || Boolean(b.check_out);
       const stayRange = isStay ? stayRangeFromBooking(b) : null;
       if (view === 'today') {
-        if (!partnerBookingIsOperatingTrip(b)) return false;
-        if (stayRange) {
+        if (opsFilter === 'refund_due') {
+          /* Refund due is money ops, not schedule — still list regardless of date. */
+        } else if (!partnerBookingIsOperatingTrip(b)) {
+          return false;
+        } else if (stayRange) {
           if (!nightsOccupiedByStay(stayRange.checkIn, stayRange.checkOut).includes(todayIso)) return false;
         } else if (b.booking_date !== todayIso) {
           return false;
         }
       }
       if (view === 'upcoming') {
-        if (!partnerBookingIsOperatingTrip(b)) return false;
-        if (stayRange) {
+        if (opsFilter === 'refund_due') {
+          /* keep */
+        } else if (!partnerBookingIsOperatingTrip(b)) {
+          return false;
+        } else if (stayRange) {
           if (stayRange.checkIn <= todayIso) return false;
         } else if (!b.booking_date || b.booking_date <= todayIso) {
           return false;
         }
       }
       if (view === 'past') {
-        if (stayRange) {
+        if (opsFilter === 'refund_due') {
+          /* keep */
+        } else if (stayRange) {
           if (stayRange.checkOut > todayIso && partnerBookingIsOperatingTrip(b)) return false;
         } else if (!b.booking_date || b.booking_date >= todayIso) {
           return false;
@@ -331,6 +350,9 @@ export default function SupplierBookings() {
       }
       if (opsFilter === 'cancel') {
         if (!openCancels[b.id]) return false;
+      }
+      if (opsFilter === 'refund_due') {
+        if (!isRefundDueBooking(b)) return false;
       }
       if (filterListingId && b.listing_id !== filterListingId) return false;
       if (filterDateFrom && (!b.booking_date || b.booking_date < filterDateFrom)) return false;
@@ -545,11 +567,12 @@ export default function SupplierBookings() {
               ['unpaid', 'Unpaid'],
               ['pickup', 'Pickup missing'],
               ['cancel', 'Cancellation'],
+              ['refund_due', 'Refund due'],
             ] as const).map(([id, label]) => (
               <button
                 key={id}
                 type="button"
-                onClick={() => setOpsFilter(id)}
+                onClick={() => setOpsFilterAndUrl(id)}
                 className={`lux-flat rounded-full px-3.5 py-2 min-h-11 text-sm font-medium shrink-0 ${
                   opsFilter === id ? 'bg-paper-raised text-ink shadow-sm' : 'text-ink-muted'
                 }`}

@@ -10,11 +10,12 @@ import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { formatMoney, isStripeTestCheckoutSession, normalizeCurrency } from '../../lib/money';
-import { isCollectedBooking, sumCollectedAmount } from '../../lib/payment-states';
+import { isCollectedBooking, sumCollectedAmount, isRefundDueBooking, sumRefundDueAmount, REFUND_DUE_MANUAL_COPY } from '../../lib/payment-states';
 import { ledgerAdjustmentTotal } from '../../lib/supplier-ledger-balance';
 import { fetchMyListings } from '../../data/supabase-listings';
 import { fetchSupplierLedger, type SupplierLedgerEntry } from '../../data/supabase-booking-ops';
 import { PARTNER_MONEY_PAYOUT_STATUS_NOTE } from '../../lib/booking-confirmation-copy';
+import NoticeCallout from '../../components/NoticeCallout';
 
 function ledgerKindLabel(kind: string): string {
   const k = kind.trim().toLowerCase();
@@ -32,6 +33,7 @@ export default function SupplierEarnings() {
   const { user, isSupabase } = useSupplierAuth();
   const [earnings, setEarnings] = useState<SupplierEarning[]>([]);
   const [paidBookings, setPaidBookings] = useState<BookingRow[]>([]);
+  const [refundDueBookings, setRefundDueBookings] = useState<BookingRow[]>([]);
   const [ledger, setLedger] = useState<SupplierLedgerEntry[]>([]);
   const [listingTitles, setListingTitles] = useState<Record<string, string>>({});
   const [profile, setProfile] = useState<Awaited<ReturnType<typeof fetchSupplierProfile>>>(null);
@@ -52,6 +54,7 @@ export default function SupplierEarnings() {
         setEarnings(data);
         setListingTitles(Object.fromEntries(listings.map((l) => [l.id, l.title])));
         setPaidBookings(bookings.filter(isCollectedBooking));
+        setRefundDueBookings(bookings.filter(isRefundDueBooking));
         setLedger(ledgerRows);
         setLoading(false);
       })
@@ -134,7 +137,15 @@ export default function SupplierEarnings() {
     URL.revokeObjectURL(url);
   };
 
-  const hasMoney = gross > 0 || pending !== 0 || paid > 0 || earningsForInvoices.length > 0 || ledger.length > 0;
+  const refundDueTotal = useMemo(() => sumRefundDueAmount(refundDueBookings), [refundDueBookings]);
+
+  const hasMoney =
+    gross > 0 ||
+    pending !== 0 ||
+    paid > 0 ||
+    earningsForInvoices.length > 0 ||
+    ledger.length > 0 ||
+    refundDueBookings.length > 0;
 
   return (
     <div className={SUPPLIER_PAGE_CLASS}>
@@ -191,6 +202,27 @@ export default function SupplierEarnings() {
               <p className="mt-3 text-sm text-ink-muted">{payoutProgressPct}% of your payout minimum</p>
             ) : null}
             <p className="mt-4 text-sm text-ink-muted max-w-lg">{nextPayoutLabel}</p>
+            {refundDueBookings.length > 0 ? (
+              <div className="mt-6 max-w-lg">
+                <NoticeCallout title="Refund due" tone="warn">
+                  <p>
+                    {refundDueBookings.length} cancelled booking
+                    {refundDueBookings.length === 1 ? '' : 's'} still show Refund due (
+                    <span className="tabular-nums font-semibold">
+                      {formatMoney(refundDueTotal, primaryCurrency)}
+                    </span>
+                    ). That money is not in Collected. {REFUND_DUE_MANUAL_COPY}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings?ops=refund_due`)}
+                    className="tv-btn-ghost mt-3 -ml-2"
+                  >
+                    Open Refund due in Bookings
+                  </button>
+                </NoticeCallout>
+              </div>
+            ) : null}
             <p className="mt-6 text-sm text-ink-muted">
               Paid to date <span className="tabular-nums font-semibold text-ink">{formatMoney(paid, primaryCurrency)}</span>
             </p>
