@@ -3,6 +3,7 @@ import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 import Stripe from 'https://esm.sh/stripe@16.12.0?target=deno';
 import { quoteListingBooking, stayCheckoutNightsAlreadyBooked, stayNightIsOperatorBlocked, type DiscountRow, type ListingQuoteRow, type StayCheckoutOccupancyRow } from '../_shared/booking-quote.ts';
+import { tourCheckoutOccupiedGuests, type TourCheckoutOccupancyRow } from '../_shared/booking-hold.ts';
 
 type RequestBody = {
   bookingId?: string;
@@ -261,6 +262,38 @@ serve(async (req) => {
         if (stayNightIsOperatorBlocked(Number(row.capacity ?? 0))) {
           return json({ success: false, error: 'Those nights are blocked.' }, 409);
         }
+      }
+    } else {
+      const { data: tourRows, error: tourBusyErr } = await admin
+        .from('bookings')
+        .select('id, booking_date, guests, status, payment_status, hold_expires_at, created_at')
+        .eq('listing_id', listingId)
+        .eq('booking_date', bookingDate);
+      if (tourBusyErr) return json({ success: false, error: tourBusyErr.message }, 500);
+      const occupied = tourCheckoutOccupiedGuests(
+        (tourRows ?? []) as TourCheckoutOccupancyRow[],
+        bookingDate,
+        targetBookingId
+      );
+      const { data: capRow } = await admin
+        .from('listing_availability')
+        .select('capacity')
+        .eq('listing_id', listingId)
+        .eq('available_date', bookingDate)
+        .maybeSingle();
+      let capacity = Number(capRow?.capacity ?? NaN);
+      if (!Number.isFinite(capacity) || capacity < 1) {
+        const extras = listingRow.listing_extras as { bookingOptions?: Array<{ maxSpotsPerSlot?: unknown }> } | null;
+        let max = 0;
+        for (const opt of extras?.bookingOptions ?? []) {
+          const spots = opt.maxSpotsPerSlot;
+          if (typeof spots !== 'number' || !Number.isFinite(spots) || spots < 1) continue;
+          max = Math.max(max, Math.floor(spots));
+        }
+        capacity = Math.min(99, max >= 1 ? max : 8);
+      }
+      if (Math.max(0, capacity - occupied) < guests) {
+        return json({ success: false, error: 'Not enough capacity left for this date.' }, 409);
       }
     }
 

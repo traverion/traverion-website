@@ -25,3 +25,30 @@ export function bookingOccupiesInventory(row: InventoryHoldRow, nowMs: number = 
   const created = row.created_at ? Date.parse(row.created_at) : nowMs;
   return Number.isFinite(created) && created > nowMs - CHECKOUT_HOLD_MINUTES * 60 * 1000;
 }
+
+export type TourCheckoutOccupancyRow = InventoryHoldRow & {
+  id?: string | null;
+  booking_date?: string | null;
+  guests?: number | null;
+};
+
+/**
+ * Checkout tour occupancy: paid + live holds.
+ * Refunded, cancelled, and failed bookings must not fill capacity.
+ */
+export function tourCheckoutOccupiedGuests(
+  rows: TourCheckoutOccupancyRow[],
+  departure: string,
+  excludeBookingId?: string | null,
+  nowMs: number = Date.now()
+): number {
+  let n = 0;
+  for (const row of rows) {
+    if (excludeBookingId && String(row.id ?? '') === excludeBookingId) continue;
+    if (!bookingOccupiesInventory(row, nowMs)) continue;
+    if (String(row.booking_date ?? '').slice(0, 10) !== departure) continue;
+    const g = Math.floor(Number(row.guests ?? 0));
+    if (Number.isFinite(g) && g >= 1) n += g;
+  }
+  return n;
+}

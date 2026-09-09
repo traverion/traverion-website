@@ -29,6 +29,33 @@ export function bookingOccupiesPublicStayCalendar(row: InventoryHoldRow): boolea
   return pay === 'paid' || pay === 'complete' || pay === 'succeeded';
 }
 
+export type TourCheckoutOccupancyRow = InventoryHoldRow & {
+  id?: string | null;
+  booking_date?: string | null;
+  guests?: number | null;
+};
+
+/**
+ * Checkout tour occupancy: paid + live holds.
+ * Refunded, cancelled, and failed bookings must not fill capacity.
+ */
+export function tourCheckoutOccupiedGuests(
+  rows: TourCheckoutOccupancyRow[],
+  departure: string,
+  excludeBookingId?: string | null,
+  nowMs: number = Date.now()
+): number {
+  let n = 0;
+  for (const row of rows) {
+    if (excludeBookingId && String(row.id ?? '') === excludeBookingId) continue;
+    if (!bookingOccupiesInventory(row, nowMs)) continue;
+    if (String(row.booking_date ?? '').slice(0, 10) !== departure) continue;
+    const g = Math.floor(Number(row.guests ?? 0));
+    if (Number.isFinite(g) && g >= 1) n += g;
+  }
+  return n;
+}
+
 export function checkoutHoldExpiresAtIso(fromMs: number = Date.now()): string {
   return new Date(fromMs + CHECKOUT_HOLD_MINUTES * 60 * 1000).toISOString();
 }
