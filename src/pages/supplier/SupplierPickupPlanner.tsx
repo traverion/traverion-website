@@ -28,6 +28,7 @@ import { SUPPLIER_PAGE_CLASS, SupplierEmptyState, SupplierPageHero } from '../..
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import { partnerBookingIsLiveTrip, partnerBookingIsOperatingTrip, partnerBookingNeedsLook } from '../../lib/trip-views';
+import { PARTNER_PICKUP_CSV_HEADER, partnerPickupCsvValues } from '../../lib/partner-pickup-csv';
 import { bookingIsStayNight, bookingNeedsPickupCopy } from '../../lib/pickup-completeness';
 import { inventoryFamilyFromListing } from '../../lib/inventory';
 import { partnerPickupAllowsForceCancel } from '../../lib/cancellation-policy';
@@ -405,32 +406,20 @@ export default function SupplierPickupPlanner() {
   };
 
   const exportCsv = () => {
-    const headers = [
-      'Date',
-      'Status',
-      'Listing',
-      'Guest',
-      'Guests',
-      'Start time',
-      'Pickup time',
-      'Meeting point',
-      'Pickup instructions',
-    ];
-    const escape = (s: string) => `"${s.replace(/"/g, '""')}"`;
+    const escape = (s: string) => `"${String(s).replace(/"/g, '""')}"`;
     const rows = listBookings.map((b) =>
-      [
-        b.booking_date ?? '',
-        b.status,
+      partnerPickupCsvValues(
+        b,
         listingTitles[b.listing_id] ?? '',
-        b.guest_name ?? b.guest_email ?? '',
-        String(b.guests ?? ''),
         b.start_time ? pgTimeToHm(b.start_time) ?? '' : '',
         b.pickup_time ? pgTimeToHm(b.pickup_time) ?? '' : '',
         meetingPoints[b.listing_id] ?? '',
-        pickupInstructions[b.listing_id] ?? '',
-      ].map((c) => escape(String(c))).join(',')
+        pickupInstructions[b.listing_id] ?? ''
+      )
+        .map((c) => escape(c))
+        .join(',')
     );
-    const csv = [headers.join(','), ...rows].join('\n');
+    const csv = [PARTNER_PICKUP_CSV_HEADER.join(','), ...rows].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
