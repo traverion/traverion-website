@@ -18,7 +18,7 @@ import { nightsOccupiedByStay, stayRangeFromBooking, partnerStayDayKind, partner
 import {
   buildMonthCells,
   defaultCapacityForOpenDay,
-  remainingCapacity,
+  partnerTourRemainingSpots,
 } from '../../lib/availability-ops';
 import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
@@ -84,6 +84,7 @@ export default function SupplierAvailability() {
     () =>
       editing
         ? bookings.filter((b) => {
+            if (!partnerStayCalendarOccupiesNight(b)) return false;
             if (!viewingAll && b.listing_id !== listingId) return false;
             const item = listings.find((l) => l.id === b.listing_id);
             const isStay = item ? inventoryFamilyFromListing(item) === 'stay' : false;
@@ -352,8 +353,11 @@ export default function SupplierAvailability() {
               const stayKind = stayCalendar
                 ? partnerStayDayKind({ occupying: Boolean(occupying), capacity: cap?.capacity })
                 : null;
-              const remaining = cap && !stayCalendar
-                ? remainingCapacity(cap.capacity, occupying?.guests ?? 0)
+              const tourCapacity = !stayCalendar && listing
+                ? (cap?.capacity ?? (open ? defaultSpots(listing) : null))
+                : null;
+              const remaining = tourCapacity != null
+                ? partnerTourRemainingSpots(tourCapacity, occupying?.guests ?? 0)
                 : null;
               const isToday = cell.iso === localTodayIso;
               const isEditing = editing?.iso === cell.iso;
@@ -371,8 +375,8 @@ export default function SupplierAvailability() {
                     ? `${dateLabel}, blocked`
                     : occupying
                       ? `${dateLabel}, ${occupying.guests} guest${occupying.guests === 1 ? '' : 's'}`
-                      : cap && remaining !== null
-                        ? `${dateLabel}, ${remaining} of ${cap.capacity} spots left`
+                      : remaining !== null && tourCapacity != null
+                        ? `${dateLabel}, ${remaining} of ${tourCapacity} spots left`
                         : open
                           ? `${dateLabel}, ${stayCalendar ? 'available' : 'open'}`
                           : dateLabel;
@@ -416,9 +420,9 @@ export default function SupplierAvailability() {
                     </span>
                   ) : cell.inMonth && stayKind === 'blocked' ? (
                     <span className="mt-0.5 block text-[10px] font-semibold leading-tight text-rose-700">Blocked</span>
-                  ) : cell.inMonth && cap && remaining !== null ? (
+                  ) : cell.inMonth && remaining !== null && tourCapacity != null ? (
                     <span className={`mt-0.5 block text-[10px] leading-tight ${remaining === 0 ? 'font-semibold text-rose-700' : 'text-ink-muted'}`}>
-                      {remaining === 0 ? 'Full' : `${remaining}/${cap.capacity} left`}
+                      {remaining === 0 ? 'Full' : `${remaining}/${tourCapacity} left`}
                     </span>
                   ) : cell.inMonth && open ? (
                     <span className="mt-0.5 block text-[10px] leading-tight text-ink-faint">{stayCalendar ? 'Available' : 'Open'}</span>

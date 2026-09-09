@@ -23,6 +23,14 @@ export function remainingCapacity(capacity: number, booked: number): number {
   return Math.max(0, (capacity ?? 0) - (booked ?? 0));
 }
 
+/**
+ * Partner tour remaining spots: occupying guests (paid + live holds).
+ * Do not pass listing_availability.booked — refunded/failed can leave that column stale.
+ */
+export function partnerTourRemainingSpots(capacity: number, occupyingGuests: number): number {
+  return remainingCapacity(capacity, occupyingGuests);
+}
+
 export type MonthCell = {
   iso: string;
   day: number;

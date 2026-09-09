@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { bookingOccupiesInventory, bookingOccupiesPublicStayCalendar, CHECKOUT_HOLD_MINUTES, tourCheckoutOccupiedGuests } from './booking-hold';
+import { partnerTourRemainingSpots } from './availability-ops';
 import { bookingOccupiesInventory as checkoutSessionOccupiesInventory, tourCheckoutOccupiedGuests as checkoutTourOccupiedGuests } from '../../supabase/functions/_shared/booking-hold';
 
 describe('booking inventory holds', () => {
@@ -36,6 +37,9 @@ describe('booking inventory holds', () => {
     expect(checkoutTourOccupiedGuests(rows, '2026-10-15', null, now)).toBe(
       tourCheckoutOccupiedGuests(rows, '2026-10-15', null, now)
     );
+    expect(partnerTourRemainingSpots(8, tourCheckoutOccupiedGuests(rows, '2026-10-15', null, now))).toBe(8);
+    expect(partnerTourRemainingSpots(8, tourCheckoutOccupiedGuests(rows, '2026-11-04', null, now))).toBe(8);
+    expect(partnerTourRemainingSpots(8, tourCheckoutOccupiedGuests(rows, '2026-09-11', null, now))).toBe(7);
   });
 
   it('keeps checkout-session occupancy in sync with the app helper', () => {

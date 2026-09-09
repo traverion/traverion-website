@@ -7,6 +7,7 @@ import {
   nextBookedCount,
   previousBookedCount,
   remainingCapacity,
+  partnerTourRemainingSpots,
 } from './availability-ops';
 import { quoteBooking } from './booking-quote';
 import { isListingVisibleToTravelers } from './product-workflows';
@@ -60,6 +61,15 @@ describe('availability ops', () => {
     expect(remainingCapacity(listingTourCapacityFromOptions([8, 12]), 1)).toBe(11);
     expect(remainingCapacity(listingTourCapacityFromOptions([8, 12]), 1) >= 12).toBe(false);
     expect(remainingCapacity(listingTourCapacityFromOptions([8, 12]), 0) >= 12).toBe(true);
+  });
+
+  it('does not let refunded or failed guests reduce partner remaining spots', () => {
+    expect(partnerTourRemainingSpots(8, 0)).toBe(8);
+    expect(partnerTourRemainingSpots(8, 1)).toBe(7);
+    expect(partnerTourRemainingSpots(8, 8)).toBe(0);
+    const staleBookedColumn = 8;
+    expect(partnerTourRemainingSpots(8, staleBookedColumn)).toBe(0);
+    expect(partnerTourRemainingSpots(8, 0)).not.toBe(partnerTourRemainingSpots(8, staleBookedColumn));
   });
 
   it('builds a Monday-first month grid', () => {
