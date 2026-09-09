@@ -75,10 +75,10 @@ export const STRIPE_CHECKOUT_CANCELLED_NO_EMAIL =
   'No confirmation email is sent for an unfinished checkout.';
 
 export const STRIPE_CHECKOUT_CANCELLED_TOUR_COPY =
-  `Checkout was cancelled. You were not charged. ${STRIPE_CHECKOUT_CANCELLED_NO_EMAIL} Open the tour again when you are ready.`;
+  `Checkout was cancelled. You were not charged. ${STRIPE_CHECKOUT_CANCELLED_NO_EMAIL} If a hold is still open on Trips, use Pay now to finish — you do not need to start over.`;
 
 export const STRIPE_CHECKOUT_CANCELLED_STAY_COPY =
-  `Checkout was cancelled and no payment was taken. Any date hold is released. ${STRIPE_CHECKOUT_CANCELLED_NO_EMAIL} Choose dates again when you are ready.`;
+  `Checkout was cancelled and no payment was taken. ${STRIPE_CHECKOUT_CANCELLED_NO_EMAIL} If a hold is still open on Trips, use Pay now to finish — you do not need to choose dates again unless the hold already expired.`;
 
 /** Partner Inbox / booking thread: Resend is blocked — do not claim the traveler was emailed. */
 export const PARTNER_INBOX_MESSAGE_DELIVERY_NOTE =

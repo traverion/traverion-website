@@ -153,7 +153,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
       guests: stayQuote.guests,
       currency: stayQuote.currency,
       successPath: '/booking-confirmed',
-      cancelPath: '/stays?payment=cancelled',
+      cancelPath: '/bookings?payment=cancelled',
     }).then((res) => {
       setPaying(false);
       checkoutLockRef.current = false;

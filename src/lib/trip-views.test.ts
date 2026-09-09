@@ -8,6 +8,7 @@ import {
   partnerBookingIsTodaySchedule,
   partnerBookingIsUpcomingSchedule,
   travelerTripIsLive,
+  travelerBookingNeedsPayNow,
   partnerBookingIsUnpaidCheckout,
   sortTravelerCancelledTrips,
 } from './trip-views';
@@ -30,6 +31,9 @@ describe('trip list views', () => {
     expect(partnerBookingIsUnpaidCheckout({ status: 'cancelled', payment_status: 'pending' })).toBe(false);
     expect(travelerTripIsLive({ status: 'pending', payment_status: 'pending' })).toBe(true);
     expect(travelerTripIsLive({ status: 'confirmed', payment_status: 'paid' })).toBe(true);
+    expect(travelerBookingNeedsPayNow({ status: 'pending', payment_status: 'pending' })).toBe(true);
+    expect(travelerBookingNeedsPayNow({ status: 'confirmed', payment_status: 'paid' })).toBe(false);
+    expect(travelerBookingNeedsPayNow({ status: 'pending', payment_status: 'failed' })).toBe(false);
   });
 
   it('keeps confirmed paid future trips in Upcoming', () => {

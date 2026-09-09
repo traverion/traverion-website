@@ -146,6 +146,11 @@ describe('booking confirmation copy', () => {
     expect(STRIPE_CHECKOUT_CANCELLED_STAY_COPY.toLowerCase()).toContain('no confirmation email is sent');
     expect(STRIPE_CHECKOUT_CANCELLED_TOUR_COPY.toLowerCase()).toContain('you were not charged');
     expect(STRIPE_CHECKOUT_CANCELLED_STAY_COPY.toLowerCase()).toContain('no payment was taken');
+    expect(STRIPE_CHECKOUT_CANCELLED_TOUR_COPY.toLowerCase()).toContain('pay now');
+    expect(STRIPE_CHECKOUT_CANCELLED_STAY_COPY.toLowerCase()).toContain('pay now');
+    expect(STRIPE_CHECKOUT_CANCELLED_TOUR_COPY.toLowerCase()).toContain('trips');
+    expect(STRIPE_CHECKOUT_CANCELLED_STAY_COPY.toLowerCase()).toContain('trips');
+    expect(STRIPE_CHECKOUT_CANCELLED_TOUR_COPY.toLowerCase()).not.toContain('open the tour again');
     expect(readStripeCheckoutReturnBanner('?payment=cancelled')).toBe('cancelled');
     expect(readStripeCheckoutReturnBanner('?payment=success')).toBe('success');
     expect(readStripeCheckoutReturnBanner('')).toBe(null);

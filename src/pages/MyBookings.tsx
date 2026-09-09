@@ -39,11 +39,12 @@ import { listingPickupCopyIncomplete } from '../lib/pickup-completeness';
 import { decrementAvailabilityBooked } from '../data/supabase-availability';
 import { clearBookingsUnread } from '../lib/customerBookingNotifications';
 import { guestFacingBookingNotes } from '../lib/booking-notes';
-import { bookingIsCancelledTrip, bookingMatchesTripView, travelerTripIsLive, sortTravelerCancelledTrips } from '../lib/trip-views';
+import { bookingIsCancelledTrip, bookingMatchesTripView, travelerTripIsLive, travelerBookingNeedsPayNow, sortTravelerCancelledTrips } from '../lib/trip-views';
 import {
   BOOKING_CONFIRMATION_EMAIL_DISCLAIMER,
   BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE,
   STRIPE_CHECKOUT_CANCELLED_TOUR_COPY,
+  STRIPE_CHECKOUT_CANCELLED_STAY_COPY,
   TRAVELER_CANCELLATION_RESPONSE_DELIVERY_NOTE,
   TRAVELER_SELF_CANCEL_DELIVERY_NOTE,
   TRAVELER_SELF_CANCEL_FULL_REFUND_POLICY,
@@ -280,6 +281,23 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
     return () => window.clearTimeout(id);
   }, [paymentBanner, load]);
 
+  const pendingPayBookings = useMemo(
+    () => bookings.filter((b) => travelerBookingNeedsPayNow(b)),
+    [bookings]
+  );
+
+  useEffect(() => {
+    if (paymentBanner !== 'cancelled' || pendingPayBookings.length === 0) return;
+    if (openTripId) return;
+    const first = pendingPayBookings[0];
+    setOpenTripId(first.id);
+    setTripView('upcoming');
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    url.searchParams.set('booking', first.id);
+    window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+  }, [paymentBanner, pendingPayBookings, openTripId]);
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const url = new URL(window.location.href);
@@ -444,12 +462,25 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
           <div className="mb-8 max-w-lg">
             <h2 className="font-display text-2xl text-ink">Payment not completed</h2>
             <p className="mt-2 text-sm text-ink-muted">
-              {STRIPE_CHECKOUT_CANCELLED_TOUR_COPY}
+              {pendingPayBookings.some((b) => Boolean(b.check_out))
+                ? STRIPE_CHECKOUT_CANCELLED_STAY_COPY
+                : STRIPE_CHECKOUT_CANCELLED_TOUR_COPY}
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
-              <button type="button" onClick={() => onNavigate('packages')} className="tv-btn-primary">
-                Browse tours
-              </button>
+              {pendingPayBookings[0] ? (
+                <button
+                  type="button"
+                  onClick={() => void handlePayNow(pendingPayBookings[0])}
+                  disabled={payingId === pendingPayBookings[0].id}
+                  className="tv-btn-primary"
+                >
+                  {payingId === pendingPayBookings[0].id ? 'Opening checkout…' : 'Pay now'}
+                </button>
+              ) : (
+                <button type="button" onClick={() => onNavigate('packages')} className="tv-btn-primary">
+                  Browse tours
+                </button>
+              )}
               <button type="button" onClick={() => setPaymentBanner(null)} className="tv-btn-ghost">
                 Dismiss
               </button>
@@ -595,6 +626,18 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                     {pickupMissing ? ' · Pickup still needed' : ''}
                   </p>
                 </button>
+                {travelerBookingNeedsPayNow(b) && !open ? (
+                  <div className="mt-3">
+                    <button
+                      type="button"
+                      onClick={() => void handlePayNow(b)}
+                      disabled={payingId === b.id}
+                      className="tv-btn-primary"
+                    >
+                      {payingId === b.id ? 'Opening checkout…' : 'Pay now'}
+                    </button>
+                  </div>
+                ) : null}
                 {open ? (
                 <div className="mt-4 space-y-3 motion-safe:animate-fade-in">
                   {typeof b.booking_number === 'number' && b.booking_number > 0 ? (
@@ -694,7 +737,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         {b.check_out || parseStayCheckOutFromNotes(b.special_requests) ? 'View stay' : 'View tour'}
                       </button>
                     )}
-                    {liveTrip && b.status === 'pending' && (
+                    {liveTrip && travelerBookingNeedsPayNow(b) && (
                       <button
                         type="button"
                         onClick={() => void handlePayNow(b)}

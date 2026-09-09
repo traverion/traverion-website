@@ -47,6 +47,14 @@ export function travelerTripIsLive(b: {
   return partnerBookingIsOperatingTrip(b);
 }
 
+/** Traveler can resume Stripe checkout for a live unpaid hold. */
+export function travelerBookingNeedsPayNow(b: {
+  status?: string | null;
+  payment_status?: string | null;
+}): boolean {
+  return travelerTripIsLive(b) && normalizePaymentStatus(b.payment_status) === 'pending';
+}
+
 /** Unacknowledged operating trips only — not cancelled, refunded, or failed checkouts. */
 export function partnerBookingNeedsLook(b: {
   acknowledged_at?: string | null;
