@@ -52,6 +52,8 @@ import {
   TRAVELER_SELF_CANCEL_CTA,
   TRAVELER_SELF_CANCEL_SUCCESS_REFUND_DUE,
   TRAVELER_SELF_CANCEL_SUCCESS_NO_REFUND,
+  TRAVELER_ACCEPT_CANCEL_SUCCESS,
+  TRAVELER_DECLINE_CANCEL_SUCCESS,
   readStripeCheckoutReturnBanner,
 } from '../lib/booking-confirmation-copy';
 
@@ -90,7 +92,8 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   const [cancelRequests, setCancelRequests] = useState<Record<string, CancellationRequestRow>>({});
   const [respondingId, setRespondingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [payingId, setPayingId] = useState<string | null>(null);
   const [cancelConfirm, setCancelConfirm] = useState<BookingRow | null>(null);
@@ -104,7 +107,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   );
   const [tripView, setTripView] = useState<'upcoming' | 'past' | 'cancelled'>('upcoming');
   const [openTripId, setOpenTripId] = useState<string | null>(null);
-  const [cancelSuccess, setCancelSuccess] = useState<string | null>(null);
+  const [actionSuccess, setActionSuccess] = useState<{ title: string; body: string } | null>(null);
 
   const getRefundChoiceForCancel = useCallback((b: BookingRow): 'full_refund' | 'no_refund' => {
     return travelerSelfCancelRefundChoice({
@@ -119,7 +122,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
       return;
     }
     setLoading(true);
-    setError(null);
+    setLoadError(null);
     try {
       const list = await fetchMyBookings();
       setBookings(list);
@@ -134,7 +137,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
       }
       setCancelRequests(open);
     } catch (e) {
-      setError(userFacingError(e, USER_ERROR.trips));
+      setLoadError(userFacingError(e, USER_ERROR.trips));
     } finally {
       setLoading(false);
     }
@@ -150,7 +153,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
 
   const handleSaveStay = useCallback(
     async (b: BookingRow) => {
-      setError(null);
+      setActionError(null);
       const place = (stayDrafts[b.id] ?? '').trim();
       const nextNotes = mergePlaceOfStayIntoNotes(b.special_requests, place);
       if (nextNotes.trim() === (b.special_requests ?? '').trim()) {
@@ -160,20 +163,20 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
       const res = await updateGuestBookingSpecialRequests(b.id, nextNotes);
       setStaySavingId(null);
       if (res.success) await load();
-      else setError(userFacingError(res.error, 'Could not save place of stay.'));
+      else setActionError(userFacingError(res.error, 'Could not save place of stay.'));
     },
     [stayDrafts, load]
   );
 
   const handleCancelBooking = useCallback(async (b: BookingRow) => {
     setCancellingId(b.id);
-    setError(null);
-    setCancelSuccess(null);
+    setActionError(null);
+    setActionSuccess(null);
     const closed = travelerSelfCancelBlock(b);
     if (closed !== 'none') {
       setCancellingId(null);
       setCancelConfirm(null);
-      setError(travelerSelfCancelError(closed));
+      setActionError(travelerSelfCancelError(closed));
       return;
     }
     const refundChoice = getRefundChoiceForCancel(b);
@@ -182,26 +185,29 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
     setCancelConfirm(null);
     if (res.success) {
       if (b.booking_date) await decrementAvailabilityBooked(b.listing_id, b.booking_date, b.guests ?? 1);
-      setCancelSuccess(
-        refundChoice === 'full_refund'
-          ? TRAVELER_SELF_CANCEL_SUCCESS_REFUND_DUE
-          : TRAVELER_SELF_CANCEL_SUCCESS_NO_REFUND
-      );
+      setActionSuccess({
+        title: 'Booking cancelled',
+        body:
+          refundChoice === 'full_refund'
+            ? TRAVELER_SELF_CANCEL_SUCCESS_REFUND_DUE
+            : TRAVELER_SELF_CANCEL_SUCCESS_NO_REFUND,
+      });
       setTripView('cancelled');
       load();
     } else {
-      setError(userFacingError(res.error, 'Could not cancel this booking. Try again.'));
+      setActionError(userFacingError(res.error, 'Could not cancel this booking. Try again.'));
     }
   }, [getRefundChoiceForCancel, load]);
 
   const handleRespondCancellation = useCallback(
     async (b: BookingRow, req: CancellationRequestRow, accept: boolean) => {
       setRespondingId(req.id);
-      setError(null);
+      setActionError(null);
+      setActionSuccess(null);
       const res = await respondToCancellationRequest(req.id, accept);
       setRespondingId(null);
       if (!res.ok) {
-        setError(userFacingError(res.error, 'Could not update this cancellation request.'));
+        setActionError(userFacingError(res.error, 'Could not update this cancellation request.'));
         return;
       }
       const ops = listingOps[b.listing_id];
@@ -219,18 +225,24 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
           guests: b.guests,
         });
       }
+      if (accept) {
+        setActionSuccess({ title: 'Cancellation accepted', body: TRAVELER_ACCEPT_CANCEL_SUCCESS });
+        setTripView('cancelled');
+      } else {
+        setActionSuccess({ title: 'Cancellation declined', body: TRAVELER_DECLINE_CANCEL_SUCCESS });
+      }
       await load();
     },
     [listingOps, titles, load]
   );
 
   const handlePayNow = useCallback(async (b: BookingRow) => {
-    setError(null);
+    setActionError(null);
     setPayingId(b.id);
     const res = await resumePendingBookingCheckout({ bookingId: b.id });
     setPayingId(null);
     if (!res.success || !res.checkoutUrl) {
-      setError(userFacingError(res.error, USER_ERROR.checkout));
+      setActionError(userFacingError(res.error, USER_ERROR.checkout));
       return;
     }
     window.location.assign(res.checkoutUrl);
@@ -378,11 +390,11 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
           </div>
         </div>
 
-        {error && (
+        {loadError && (
           <ErrorState
             className="py-6"
             title="Trips unavailable"
-            body={userFacingError(error, USER_ERROR.trips)}
+            body={userFacingError(loadError, USER_ERROR.trips)}
             retry={{ onClick: () => void load() }}
             extra={
               <button type="button" onClick={() => onNavigate('contact')} className="tv-btn-ghost">
@@ -391,11 +403,21 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
             }
           />
         )}
-        {cancelSuccess ? (
+        {actionError ? (
           <div className="mb-8 max-w-lg">
-            <NoticeCallout title="Booking cancelled" tone="warn">
-              <p>{cancelSuccess}</p>
-              <button type="button" onClick={() => setCancelSuccess(null)} className="tv-btn-ghost mt-3 -ml-2">
+            <NoticeCallout title="Could not complete that action" tone="danger">
+              <p>{actionError}</p>
+              <button type="button" onClick={() => setActionError(null)} className="tv-btn-ghost mt-3 -ml-2">
+                Dismiss
+              </button>
+            </NoticeCallout>
+          </div>
+        ) : null}
+        {actionSuccess ? (
+          <div className="mb-8 max-w-lg">
+            <NoticeCallout title={actionSuccess.title} tone="warn">
+              <p>{actionSuccess.body}</p>
+              <button type="button" onClick={() => setActionSuccess(null)} className="tv-btn-ghost mt-3 -ml-2">
                 Dismiss
               </button>
             </NoticeCallout>

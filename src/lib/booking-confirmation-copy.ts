@@ -150,6 +150,14 @@ export const TRAVELER_SELF_CANCEL_SUCCESS_REFUND_DUE =
 export const TRAVELER_SELF_CANCEL_SUCCESS_NO_REFUND =
   'Booking cancelled. No refund applies for this cancellation. Open Cancelled to see it.';
 
+/** Traveler Trips — success after accepting host cancel request. */
+export const TRAVELER_ACCEPT_CANCEL_SUCCESS =
+  'You accepted the cancellation. Status: Refund due until Stripe records a refund. Traverion does not send refunds automatically. Open Cancelled to follow status.';
+
+/** Traveler Trips — success after declining host cancel request. */
+export const TRAVELER_DECLINE_CANCEL_SUCCESS =
+  'You declined the cancellation. This booking stays active on Trips.';
+
 /** Partner listing editor final step — publish needs verification; draft anytime. */
 export const PARTNER_LISTING_PUBLISH_STEP_NOTE =
   'Publish runs a final check. Going live needs Traverion business and payout verification. Save as draft stores progress without going live. Promotional discounts are under Offers in Account.';
