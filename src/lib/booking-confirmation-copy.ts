@@ -14,6 +14,19 @@ export const STAY_LISTING_CONFIRMATION_NOTE =
 export const TOUR_LISTING_CONFIRMATION_NOTE =
   'After you pay, the tour appears in Trips. We do not send a confirmation email from this checkout.';
 
+/** Checkout contact step: always honest about email, including when not signed in. */
+export function bookingContactIntroCopy(signedInWithEmail: boolean): string {
+  const details =
+    'Your details are stored on the booking. You are not charged on this page — payment happens on the next step.';
+  const account = signedInWithEmail
+    ? ' Email is fixed to your account so this booking stays on your trips.'
+    : '';
+  return `${details}${account} ${BOOKING_CONFIRMATION_EMAIL_DISCLAIMER}`;
+}
+
+export const BOOKING_CONTACT_EMAIL_FIELD_NOTE =
+  'This email is for the booking record. We do not send a confirmation email from this checkout.';
+
 export function bookingConfirmationPromisesEmailSent(copy: string): boolean {
   const t = copy.trim().toLowerCase();
   return (

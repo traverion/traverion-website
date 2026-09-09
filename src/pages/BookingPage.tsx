@@ -57,7 +57,10 @@ import {
   type TourBookingVariant,
 } from '../lib/booking-flow';
 import { markBookingsUnread } from '../lib/customerBookingNotifications';
-import { BOOKING_CONFIRMATION_EMAIL_DISCLAIMER } from '../lib/booking-confirmation-copy';
+import {
+  BOOKING_CONTACT_EMAIL_FIELD_NOTE,
+  bookingContactIntroCopy,
+} from '../lib/booking-confirmation-copy';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 
 interface BookingPageProps {
@@ -702,17 +705,7 @@ export default function BookingPage({
             <h2 className="text-xl font-semibold text-ink mb-2">Your details</h2>
             <p className="text-sm text-ink-muted mb-6 flex items-start gap-2">
               <Shield className="w-4 h-4 text-finland shrink-0 mt-0.5" aria-hidden />
-              <span>
-                Your details are used for the booking confirmation. You are not charged on this page — payment happens
-                on the next step.
-                {user?.email ? (
-                  <>
-                    {' '}
-                    <strong className="text-ink">Email is fixed to your account</strong> so this booking stays on your
-                    trips. {BOOKING_CONFIRMATION_EMAIL_DISCLAIMER}
-                  </>
-                ) : null}
-              </span>
+              <span>{bookingContactIntroCopy(Boolean(user?.email))}</span>
             </p>
             <div className="space-y-4">
               <div className="rounded-xl bg-black/[0.03] ring-1 ring-black/[0.06] p-3.5 text-sm text-ink-muted">
@@ -804,7 +797,9 @@ export default function BookingPage({
                 </div>
                 {user?.email ? (
                   <p className="mt-1 text-xs text-ink-muted">This must match your signed-in account.</p>
-                ) : null}
+                ) : (
+                  <p className="mt-1 text-xs text-ink-muted">{BOOKING_CONTACT_EMAIL_FIELD_NOTE}</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-ink mb-1">Special requests (optional)</label>
