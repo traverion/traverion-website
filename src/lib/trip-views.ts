@@ -1,5 +1,6 @@
 import { normalizePaymentStatus, isRefundDueBooking } from './payment-states';
 import { bookingOccupiesInventory } from './booking-hold';
+import { checkoutPaymentStatusCanResume } from './checkout-resume';
 
 export type TripListView = 'upcoming' | 'past' | 'cancelled';
 
@@ -12,7 +13,7 @@ export function bookingIsCancelledTrip(b: {
   return st === 'cancelled' || pay === 'refunded';
 }
 
-/** Failed Stripe checkout is not a booked trip. */
+/** Failed Stripe checkout is not a booked trip for partners / occupancy. */
 export function bookingIsFailedCheckout(b: { payment_status?: string | null }): boolean {
   return normalizePaymentStatus(b.payment_status) === 'failed';
 }
@@ -39,20 +40,26 @@ export function partnerBookingIsOperatingTrip(b: {
   return partnerBookingIsLiveTrip(b) && !bookingIsCancelledTrip(b);
 }
 
-/** Traveler trip still needs pay, stay, pickup, or cancel — not refunded, cancelled, or failed. */
+/** Traveler trip still needs pay, stay, pickup, or cancel — not refunded or cancelled. */
 export function travelerTripIsLive(b: {
   status?: string | null;
   payment_status?: string | null;
 }): boolean {
+  if (bookingIsCancelledTrip(b)) return false;
+  // Recoverable failed holds stay visible for Pay now; other failed are dead.
+  if (bookingIsFailedCheckout(b)) return travelerBookingNeedsPayNow(b);
   return partnerBookingIsOperatingTrip(b);
 }
 
-/** Traveler can resume Stripe checkout for a live unpaid hold. */
+/** Traveler can resume Stripe for an unpaid hold (live pending or expired→failed). */
 export function travelerBookingNeedsPayNow(b: {
   status?: string | null;
   payment_status?: string | null;
 }): boolean {
-  return travelerTripIsLive(b) && normalizePaymentStatus(b.payment_status) === 'pending';
+  if (bookingIsCancelledTrip(b)) return false;
+  const st = (b.status ?? '').trim().toLowerCase();
+  if (st !== 'pending') return false;
+  return checkoutPaymentStatusCanResume(b.payment_status);
 }
 
 /** Unacknowledged operating trips only — not cancelled, refunded, or failed checkouts. */
@@ -100,7 +107,7 @@ export function partnerBookingIsUpcomingSchedule(
   return Boolean(date) && date > todayIso;
 }
 
-/** Upcoming and Past are for active trips only. Refunded money belongs with Cancelled. */
+/** Upcoming and Past are for active trips + traveler-recoverable failed holds. Refunded → Cancelled. */
 export function bookingMatchesTripView(
   b: { status?: string | null; payment_status?: string | null; booking_date?: string | null },
   view: TripListView,
@@ -109,7 +116,7 @@ export function bookingMatchesTripView(
   const cancelled = bookingIsCancelledTrip(b);
   if (view === 'cancelled') return cancelled;
   if (cancelled) return false;
-  if (bookingIsFailedCheckout(b)) return false;
+  if (bookingIsFailedCheckout(b) && !travelerBookingNeedsPayNow(b)) return false;
   const date = (b.booking_date ?? '').trim();
   if (view === 'past') return Boolean(date) && date < todayIso;
   return !date || date >= todayIso;
@@ -126,4 +133,3 @@ export function sortTravelerCancelledTrips<
     return (b.booking_date ?? '').localeCompare(a.booking_date ?? '');
   });
 }
-

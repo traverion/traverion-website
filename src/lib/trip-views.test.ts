@@ -33,7 +33,7 @@ describe('trip list views', () => {
     expect(travelerTripIsLive({ status: 'confirmed', payment_status: 'paid' })).toBe(true);
     expect(travelerBookingNeedsPayNow({ status: 'pending', payment_status: 'pending' })).toBe(true);
     expect(travelerBookingNeedsPayNow({ status: 'confirmed', payment_status: 'paid' })).toBe(false);
-    expect(travelerBookingNeedsPayNow({ status: 'pending', payment_status: 'failed' })).toBe(false);
+    expect(travelerBookingNeedsPayNow({ status: 'pending', payment_status: 'failed' })).toBe(true);
   });
 
   it('keeps confirmed paid future trips in Upcoming', () => {
@@ -47,11 +47,19 @@ describe('trip list views', () => {
     expect(bookingMatchesTripView(pending, 'upcoming', today)).toBe(true);
   });
 
-  it('does not list payment-failed checkouts as Upcoming or Cancelled trips', () => {
+  it('lists recoverable payment-failed holds in Upcoming for Pay now', () => {
     const failed = { status: 'pending', payment_status: 'failed', booking_date: '2026-10-10' };
-    expect(bookingMatchesTripView(failed, 'upcoming', today)).toBe(false);
-    expect(bookingMatchesTripView(failed, 'past', today)).toBe(false);
+    expect(bookingMatchesTripView(failed, 'upcoming', today)).toBe(true);
     expect(bookingMatchesTripView(failed, 'cancelled', today)).toBe(false);
+    expect(travelerBookingNeedsPayNow(failed)).toBe(true);
+    expect(travelerTripIsLive(failed)).toBe(true);
+    expect(partnerBookingIsLiveTrip(failed)).toBe(false);
+  });
+
+  it('does not list non-pending payment-failed rows as trips', () => {
+    const failedConfirmed = { status: 'confirmed', payment_status: 'failed', booking_date: '2026-10-10' };
+    expect(bookingMatchesTripView(failedConfirmed, 'upcoming', today)).toBe(false);
+    expect(travelerBookingNeedsPayNow(failedConfirmed)).toBe(false);
   });
 
   it('does not treat payment-failed checkouts as live partner trips', () => {
