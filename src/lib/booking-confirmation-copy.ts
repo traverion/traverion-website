@@ -359,6 +359,21 @@ export const PARTNERSHIP_FORM_SUBMIT_ERROR =
 export const PARTNER_CANCEL_REQUEST_SUBMIT_ERROR =
   'Could not submit the cancellation request.';
 
+/** Partner cancel modal callout — submit, not email send. */
+export const PARTNER_CANCEL_REQUEST_CONSEQUENCES_TITLE = 'Consequences before you submit';
+
+/** Partner cancel modal — fee timing on traveler accept, not on submit/email. */
+export const PARTNER_CANCEL_REQUEST_FEE_TIMING_NOTE =
+  'Fee is recorded when the traveler accepts, not when you submit this request.';
+
+/** Partner marketing landing — Get paid / Money plainly; payouts stay manual. */
+export const PARTNER_LANDING_GET_PAID_NOTE =
+  'Travelers pay with Stripe. Money shows pending and paid as they actually are — never a fake payout date. Payouts stay manual until Traverion enables them.';
+
+/** Partner marketing how-it-works step 3 — publish needs verification. */
+export const PARTNER_LANDING_HOW_PUBLISH_NOTE =
+  'Create a tour or stay (draft anytime). Publishing needs Traverion business and payout verification — then travelers book on traverion.com.';
+
 /** Booking thread post failure — thread save, not email send. */
 export const BOOKING_MESSAGE_SUBMIT_ERROR = 'Could not post that message. Try again.';
 

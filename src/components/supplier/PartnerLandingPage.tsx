@@ -6,7 +6,7 @@ import { publicSiteBaseUrl } from '../../lib/publicSiteUrl';
 import { HERO_IMG } from '../../lib/heroImages';
 import { PARTNER_LOGIN_PATH, PARTNER_SIGNUP_PATH } from '../../lib/partnerPortalPaths';
 import { supplierPortalLandingHref } from '../../lib/partnerHost';
-import { PARTNER_LANDING_LIST_NOTE } from '../../lib/booking-confirmation-copy';
+import { PARTNER_LANDING_LIST_NOTE, PARTNER_LANDING_GET_PAID_NOTE, PARTNER_LANDING_HOW_PUBLISH_NOTE } from '../../lib/booking-confirmation-copy';
 import PartnerPortalFooter from './PartnerPortalFooter';
 import SkipLink from '../SkipLink';
 
@@ -88,7 +88,7 @@ export default function PartnerLandingPage() {
             <div>
               <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">Get paid</p>
               <p className="text-lg text-ink leading-relaxed">
-                Travelers pay with Stripe. Money shows pending and paid as they actually are — never a fake payout date.
+                {PARTNER_LANDING_GET_PAID_NOTE}
               </p>
             </div>
           </div>
@@ -114,7 +114,7 @@ export default function PartnerLandingPage() {
         <section className="max-w-5xl mx-auto px-5 sm:px-8 py-16 sm:py-20">
           <h2 className="font-display text-3xl sm:text-4xl tracking-tight mb-4">Money, plainly</h2>
           <p className="text-ink-muted leading-relaxed max-w-2xl mb-8">
-            Travelers pay with Stripe. Pending and paid are real ledger states. Payouts are reviewed by Traverion — there is no invented transfer date.
+            {PARTNER_LANDING_GET_PAID_NOTE}
           </p>
           <h2 className="font-display text-3xl sm:text-4xl tracking-tight mb-4">A business product</h2>
           <p className="text-ink-muted leading-relaxed max-w-2xl">
@@ -135,7 +135,7 @@ export default function PartnerLandingPage() {
             </li>
             <li className="flex gap-4">
               <span className="font-display text-2xl text-finland w-8 shrink-0">3</span>
-              <p className="pt-1 leading-relaxed">Publish a tour or stay. Travelers book on traverion.com.</p>
+              <p className="pt-1 leading-relaxed">{PARTNER_LANDING_HOW_PUBLISH_NOTE}</p>
             </li>
           </ol>
           <a href={PARTNER_SIGNUP_PATH} className="tv-btn-primary mt-10 inline-flex">

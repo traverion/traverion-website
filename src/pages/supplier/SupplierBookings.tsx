@@ -35,7 +35,7 @@ import {
 } from '../../data/supabase-booking-ops';
 import BookingMessageThread from '../../components/BookingMessageThread';
 import NoticeCallout from '../../components/NoticeCallout';
-import { PARTNER_CANCELLATION_REQUEST_DELIVERY_NOTE, PARTNER_CANCEL_REQUEST_REFUND_POLICY, PARTNER_CANCEL_REQUEST_SUBMIT_ERROR } from '../../lib/booking-confirmation-copy';
+import { PARTNER_CANCELLATION_REQUEST_DELIVERY_NOTE, PARTNER_CANCEL_REQUEST_REFUND_POLICY, PARTNER_CANCEL_REQUEST_SUBMIT_ERROR, PARTNER_CANCEL_REQUEST_CONSEQUENCES_TITLE, PARTNER_CANCEL_REQUEST_FEE_TIMING_NOTE } from '../../lib/booking-confirmation-copy';
 import { SkeletonListItem } from '../../components/ui/Skeleton';
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
@@ -1063,7 +1063,7 @@ export default function SupplierBookings() {
           <div className="space-y-4 p-4 sm:p-5">
             {isPaidPaymentStatus(cancelModal.payment_status) ? (
               <>
-                <NoticeCallout title="Consequences before you send" tone="danger">
+                <NoticeCallout title={PARTNER_CANCEL_REQUEST_CONSEQUENCES_TITLE} tone="danger">
                   <p>{PARTNER_CANCEL_REQUEST_REFUND_POLICY}</p>
                   <p className="mt-1">
                     Supplier cancellation fee:{' '}
@@ -1072,8 +1072,7 @@ export default function SupplierBookings() {
                       : `€${supplierCancellationFeeEur(cancelReason).toFixed(0)} (supplier-responsibility)`}
                   </p>
                   <p className="mt-1">
-                    Reason: {supplierCancellationReasonLabel(cancelReason)}. Fee is recorded when the traveler accepts,
-                    not when you send this request.
+                    Reason: {supplierCancellationReasonLabel(cancelReason)}. {PARTNER_CANCEL_REQUEST_FEE_TIMING_NOTE}
                   </p>
                   {isForceMajeureReason(cancelReason) ? (
                     <p className="mt-1">Force majeure is audited. Explain clearly — this is not an automatic fee waiver button.</p>
