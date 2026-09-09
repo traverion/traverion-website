@@ -414,10 +414,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
         setSelectedBookingVariant(variant);
         setBookingModalOpen(true);
       };
-      if (isSupabaseConfigured() && !user) {
-        requestAuth({ onSuccess: openBooking });
-        return;
-      }
+      // Auth is required at checkout contact/pay — not when opening the booking sheet after capacity OK.
       openBooking();
     } catch {
       setBookingCardError('Could not verify availability. Check your connection and try again.');

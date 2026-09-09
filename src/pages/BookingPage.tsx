@@ -141,6 +141,8 @@ export default function BookingPage({
   onModalClose,
 }: BookingPageProps) {
   const { user, requestAuth } = useAuth();
+  const userRef = useRef(user);
+  userRef.current = user;
   const flowMode = presentation === 'modal' ? 'modal' : 'page';
   const [step, setStep] = useState<Step>(
     presentation === 'modal' || selectedVariant ? 'review' : 'date-guests'
@@ -389,15 +391,7 @@ export default function BookingPage({
       placeOfStay: placeOfStay.trim(),
       specialRequests,
     });
-    if (isSupabaseConfigured() && !user) {
-      setError(null);
-      requestAuth({
-        onSuccess: () => {
-          setStep('contact');
-        },
-      });
-      return;
-    }
+    // Sign-in is required when starting Stripe — not when opening the contact step.
     setError(null);
     setStep('contact');
   };
@@ -492,7 +486,16 @@ export default function BookingPage({
 
   const handleConfirmBooking = async () => {
     if (submitting) return;
-    if (isSupabaseConfigured() && !user) return;
+    if (isSupabaseConfigured() && !userRef.current) {
+      requestAuth({
+        onSuccess: () => {
+          window.setTimeout(() => {
+            void handleConfirmBooking();
+          }, 0);
+        },
+      });
+      return;
+    }
     if (!isListingVisibleToTravelers(tour.status)) {
       setError('This tour is not available to book.');
       return;
@@ -627,10 +630,6 @@ export default function BookingPage({
                   setError(null);
                   if (priceInfo.quote && !priceInfo.quote.ok) {
                     setError(priceInfo.quote.error);
-                    return;
-                  }
-                  if (isSupabaseConfigured() && !user) {
-                    requestAuth({ onSuccess: () => setStep('contact') });
                     return;
                   }
                   setStep('contact');

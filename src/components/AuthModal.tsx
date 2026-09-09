@@ -11,6 +11,7 @@ import { supplierPortalLandingHref } from '../lib/partnerHost';
 import { authInputErrorClasses, isValidEmailFormat } from '../lib/authFormValidation';
 import ForgotPasswordInline, { type ForgotPasswordSendResult } from './auth/ForgotPasswordInline';
 import { TRAVELER_RESET_PASSWORD_PATH } from '../lib/partnerPortalPaths';
+import { AUTH_CONFIRMATION_EMAIL_REQUESTED } from '../lib/booking-confirmation-copy';
 
 type Tab = 'signin' | 'signup';
 
@@ -151,7 +152,7 @@ export default function AuthModal() {
           return;
         }
         if (hasSession) triggerAuthSuccess();
-        else setSuccessMessage('Check your email to confirm your account, then log in.');
+        else setSuccessMessage(AUTH_CONFIRMATION_EMAIL_REQUESTED);
       }
     } finally {
       setSubmitting(false);
