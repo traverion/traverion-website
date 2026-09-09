@@ -6,6 +6,7 @@ import {
   TOUR_LISTING_CONFIRMATION_NOTE,
   STRIPE_CHECKOUT_CANCELLED_STAY_COPY,
   STRIPE_CHECKOUT_CANCELLED_TOUR_COPY,
+  PARTNER_INBOX_MESSAGE_DELIVERY_NOTE,
   bookingConfirmationPromisesEmailSent,
   bookingContactIntroCopy,
   bookingPayConfirmAfterPayCopy,
@@ -63,5 +64,11 @@ describe('booking confirmation copy', () => {
     expect(readStripeCheckoutReturnBanner('?payment=cancelled')).toBe('cancelled');
     expect(readStripeCheckoutReturnBanner('?payment=success')).toBe('success');
     expect(readStripeCheckoutReturnBanner('')).toBe(null);
+  });
+
+  it('partner Inbox copy does not promise the traveler was emailed', () => {
+    expect(bookingConfirmationPromisesEmailSent(PARTNER_INBOX_MESSAGE_DELIVERY_NOTE)).toBe(false);
+    expect(PARTNER_INBOX_MESSAGE_DELIVERY_NOTE.toLowerCase()).toContain('do not treat email delivery as proof');
+    expect(PARTNER_INBOX_MESSAGE_DELIVERY_NOTE.toLowerCase()).toContain('traveler');
   });
 });

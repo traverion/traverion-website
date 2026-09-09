@@ -46,6 +46,10 @@ export const STRIPE_CHECKOUT_CANCELLED_TOUR_COPY =
 export const STRIPE_CHECKOUT_CANCELLED_STAY_COPY =
   `Checkout was cancelled and no payment was taken. Any date hold is released. ${STRIPE_CHECKOUT_CANCELLED_NO_EMAIL} Choose dates again when you are ready.`;
 
+/** Partner Inbox / booking thread: Resend is blocked — do not claim the traveler was emailed. */
+export const PARTNER_INBOX_MESSAGE_DELIVERY_NOTE =
+  'Messages are saved on this booking in Traverion. We do not treat email delivery as proof the traveler saw them.';
+
 export function readStripeCheckoutReturnBanner(search: string): 'success' | 'cancelled' | null {
   const raw = search.startsWith('?') ? search.slice(1) : search;
   const payment = (new URLSearchParams(raw).get('payment') ?? '').trim().toLowerCase();

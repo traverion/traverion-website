@@ -16,6 +16,7 @@ import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import BookingMessageThread from '../../components/BookingMessageThread';
+import { PARTNER_INBOX_MESSAGE_DELIVERY_NOTE } from '../../lib/booking-confirmation-copy';
 import { bookingPaymentWasCollected } from '../../lib/payment-states';
 import { partnerInboxListsBooking } from '../../lib/messaging-authorization';
 import StatusChip from '../../components/StatusChip';
@@ -94,7 +95,8 @@ export default function SupplierInbox() {
       <header className="pt-2 sm:pt-8 mb-10">
         <h1 className="font-display text-4xl sm:text-5xl text-ink tracking-tight">Inbox</h1>
         <p className="mt-2 text-ink-muted max-w-xl">
-          Messages about paid bookings. Closed trips stay here if they already have a thread.
+          Messages about paid bookings. Closed trips stay here if they already have a thread.{' '}
+          {PARTNER_INBOX_MESSAGE_DELIVERY_NOTE}
         </p>
       </header>
       {error ? (
