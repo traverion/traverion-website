@@ -3,6 +3,7 @@ import { publicSiteBaseUrl } from '../lib/publicSiteUrl';
 import { supplierPortalPublicBaseUrl } from '../lib/partnerHost';
 import { notifySupplierEvent } from './supabase-supplier-messaging';
 import { hmToPgTime, pgTimeToHm } from './supabase-listings';
+import { travelerSelfCancelBlock, travelerSelfCancelError } from '../lib/cancellation-policy';
 
 /** Shape used by BookingForm (legacy). Mapped to public.bookings in DB. */
 export type Booking = {
@@ -618,6 +619,17 @@ export async function cancelBookingAsCustomer(
   refundChoice: 'full_refund' | 'no_refund'
 ): Promise<{ success: boolean; error?: string }> {
   if (!supabase) return { success: false, error: 'Supabase not configured' };
+  const { data: current, error: loadError } = await supabase
+    .from('bookings')
+    .select('id, status, payment_status')
+    .eq('id', bookingId)
+    .maybeSingle();
+  if (loadError) return { success: false, error: loadError.message };
+  if (!current) return { success: false, error: 'This booking is not available.' };
+  const closed = travelerSelfCancelBlock(current);
+  if (closed !== 'none') {
+    return { success: false, error: travelerSelfCancelError(closed) };
+  }
   const { error } = await supabase
     .from('bookings')
     .update({

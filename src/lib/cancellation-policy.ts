@@ -132,3 +132,22 @@ export function supplierPaidCancellationError(block: SupplierPaidCancellationBlo
   if (block === 'unpaid') return SUPPLIER_CANCEL_UNPAID;
   return '';
 }
+
+export type TravelerSelfCancelBlock = 'none' | 'refunded' | 'cancelled';
+
+export function travelerSelfCancelBlock(row: {
+  status?: string | null;
+  payment_status?: string | null;
+}): TravelerSelfCancelBlock {
+  const pay = normalizePaymentStatus(row.payment_status);
+  const status = (row.status ?? '').trim().toLowerCase();
+  if (pay === 'refunded') return 'refunded';
+  if (status === 'cancelled') return 'cancelled';
+  return 'none';
+}
+
+export function travelerSelfCancelError(block: TravelerSelfCancelBlock): string {
+  if (block === 'refunded') return SUPPLIER_CANCEL_ALREADY_REFUNDED;
+  if (block === 'cancelled') return SUPPLIER_CANCEL_ALREADY_CANCELLED;
+  return '';
+}

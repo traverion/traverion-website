@@ -24,7 +24,7 @@ import { parseStayCheckOutFromNotes } from '../lib/stayOccupancy';
 import { formatMoney, isStripeTestCheckoutSession } from '../lib/money';
 import { travelerPaymentLabel, REFUND_DUE_MANUAL_COPY } from '../lib/payment-states';
 import { bookingLifecycleLabel } from '../lib/status-language';
-import { travelerSelfCancelRefundChoice, supplierCancellationReasonLabel } from '../lib/cancellation-policy';
+import { travelerSelfCancelRefundChoice, supplierCancellationReasonLabel, travelerSelfCancelBlock, travelerSelfCancelError } from '../lib/cancellation-policy';
 import {
   messagingComposeBlock,
   fetchCancellationRequestsForBookings,
@@ -151,6 +151,13 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   const handleCancelBooking = useCallback(async (b: BookingRow) => {
     setCancellingId(b.id);
     setError(null);
+    const closed = travelerSelfCancelBlock(b);
+    if (closed !== 'none') {
+      setCancellingId(null);
+      setCancelConfirm(null);
+      setError(travelerSelfCancelError(closed));
+      return;
+    }
     const refundChoice = getRefundChoiceForCancel(b);
     const res = await cancelBookingAsCustomer(b.id, refundChoice);
     setCancellingId(null);
