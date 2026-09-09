@@ -17,9 +17,9 @@ import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import BookingMessageThread from '../../components/BookingMessageThread';
 import { PARTNER_INBOX_MESSAGE_DELIVERY_NOTE } from '../../lib/booking-confirmation-copy';
-import { bookingPaymentWasCollected } from '../../lib/payment-states';
+import { bookingPaymentWasCollected, partnerPaymentLabel } from '../../lib/payment-states';
 import { partnerInboxListsBooking } from '../../lib/messaging-authorization';
-import StatusChip from '../../components/StatusChip';
+import StatusChip, { toneForPaymentLabel } from '../../components/StatusChip';
 
 export default function SupplierInbox() {
   const { user, isSupabase } = useSupplierAuth();
@@ -95,7 +95,7 @@ export default function SupplierInbox() {
       <header className="pt-2 sm:pt-8 mb-10">
         <h1 className="font-display text-4xl sm:text-5xl text-ink tracking-tight">Inbox</h1>
         <p className="mt-2 text-ink-muted max-w-xl">
-          Messages about paid bookings. Closed trips stay here if they already have a thread.{' '}
+          Messages about paid bookings. Closed and Refund due trips stay here if they already have a thread.{' '}
           {PARTNER_INBOX_MESSAGE_DELIVERY_NOTE}
         </p>
       </header>
@@ -121,6 +121,9 @@ export default function SupplierInbox() {
             const open = openId === b.id;
             const last = lastByBooking[b.id];
             const unread = last && last.sender_role === 'traveler' && !last.read_by_supplier_at;
+            const payLabel = partnerPaymentLabel(b);
+            const showMoneyChip =
+              payLabel === 'Refund due' || payLabel === 'Refunded' || payLabel === 'No refund';
             return (
               <li key={b.id} className="border-b border-black/[0.06] pb-4">
                 <button
@@ -140,6 +143,9 @@ export default function SupplierInbox() {
                     </p>
                     <div className="flex items-center gap-2 shrink-0">
                       {unread ? <StatusChip tone="warn">Unread</StatusChip> : null}
+                      {showMoneyChip ? (
+                        <StatusChip tone={toneForPaymentLabel(payLabel)}>{payLabel}</StatusChip>
+                      ) : null}
                       {messagingComposeBlock({
                         status: b.status,
                         payment_status: b.payment_status,
