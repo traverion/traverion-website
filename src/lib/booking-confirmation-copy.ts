@@ -88,6 +88,10 @@ export const AUTH_CONFIRMATION_EMAIL_REQUESTED =
 export const PARTNER_VERIFICATION_EMAIL_REQUESTED =
   'Verification link requested. Look for mail from Traverion if delivery succeeds. This message is not proof the email arrived.';
 
+/** Password reset request — Auth SMTP may deliver; UI must not claim inbox proof. */
+export const AUTH_PASSWORD_RESET_REQUESTED = (email: string) =>
+  `If an account exists for ${email}, a password-reset link was requested. Look for mail from Traverion if delivery succeeds. This message is not proof the email arrived.`;
+
 /** Partner Inbox / booking thread: Resend is blocked — do not claim the traveler was emailed. */
 export const PARTNER_INBOX_MESSAGE_DELIVERY_NOTE =
   'Messages are saved on this booking in Traverion. We do not treat email delivery as proof the traveler saw them.';

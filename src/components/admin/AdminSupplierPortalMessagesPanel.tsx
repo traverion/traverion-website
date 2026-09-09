@@ -90,8 +90,9 @@ export default function AdminSupplierPortalMessagesPanel() {
             Supplier portal messages
           </h2>
           <p className="text-sm text-gray-600 mt-1 max-w-2xl">
-            Banners appear on each supplier&apos;s <strong>Dashboard</strong> under Quick start. Send to everyone or to
-            one supplier using their <strong>user id</strong> (same as profile id in the verification queue).
+            Banners appear on each supplier&apos;s <strong>Dashboard</strong> under Quick start. Publish for everyone or
+            for one supplier using their <strong>user id</strong> (same as profile id in the verification queue). These
+            are portal banners — not emails.
           </p>
         </div>
         <LuxuryButton variant="outline" size="sm" onClick={() => void load()} disabled={loading} className="inline-flex items-center gap-2">

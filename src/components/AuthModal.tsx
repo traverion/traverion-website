@@ -11,7 +11,7 @@ import { supplierPortalLandingHref } from '../lib/partnerHost';
 import { authInputErrorClasses, isValidEmailFormat } from '../lib/authFormValidation';
 import ForgotPasswordInline, { type ForgotPasswordSendResult } from './auth/ForgotPasswordInline';
 import { TRAVELER_RESET_PASSWORD_PATH } from '../lib/partnerPortalPaths';
-import { AUTH_CONFIRMATION_EMAIL_REQUESTED } from '../lib/booking-confirmation-copy';
+import { AUTH_CONFIRMATION_EMAIL_REQUESTED, AUTH_PASSWORD_RESET_REQUESTED } from '../lib/booking-confirmation-copy';
 
 type Tab = 'signin' | 'signup';
 
@@ -197,7 +197,7 @@ export default function AuthModal() {
       return;
     }
     setResetPasswordSuccess(
-      `If an account exists for ${normalized}, you will get an email with a link to reset your password. Check spam too.`
+      AUTH_PASSWORD_RESET_REQUESTED(normalized)
     );
   };
 

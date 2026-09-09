@@ -12,7 +12,7 @@ import { authInputErrorClasses, isValidEmailFormat } from '../lib/authFormValida
 import ForgotPasswordInline, { type ForgotPasswordSendResult } from '../components/auth/ForgotPasswordInline';
 import { TRAVELER_RESET_PASSWORD_PATH } from '../lib/partnerPortalPaths';
 import { sanitizeTravelerAuthNext } from '../lib/travelerAuthLinks';
-import { AUTH_CONFIRMATION_EMAIL_REQUESTED } from '../lib/booking-confirmation-copy';
+import { AUTH_CONFIRMATION_EMAIL_REQUESTED, AUTH_PASSWORD_RESET_REQUESTED } from '../lib/booking-confirmation-copy';
 
 type AuthTab = 'signin' | 'signup';
 
@@ -281,7 +281,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
       return;
     }
     setResetPasswordSuccess(
-      `If an account exists for ${normalized}, you will get an email with a link to reset your password. Check spam too.`
+      AUTH_PASSWORD_RESET_REQUESTED(normalized)
     );
   };
 

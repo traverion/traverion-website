@@ -8,6 +8,7 @@ import {
   STRIPE_CHECKOUT_CANCELLED_TOUR_COPY,
   AUTH_CONFIRMATION_EMAIL_REQUESTED,
   PARTNER_VERIFICATION_EMAIL_REQUESTED,
+  AUTH_PASSWORD_RESET_REQUESTED,
   PARTNER_INBOX_MESSAGE_DELIVERY_NOTE,
   PARTNER_BUSINESS_REVIEW_STATUS_NOTE,
   PARTNER_CANCELLATION_REQUEST_DELIVERY_NOTE,
@@ -161,8 +162,10 @@ describe('booking confirmation copy', () => {
   it('Auth and partner verification copy does not claim inbox delivery', () => {
     expect(bookingConfirmationPromisesEmailSent(AUTH_CONFIRMATION_EMAIL_REQUESTED)).toBe(false);
     expect(bookingConfirmationPromisesEmailSent(PARTNER_VERIFICATION_EMAIL_REQUESTED)).toBe(false);
+    expect(bookingConfirmationPromisesEmailSent(AUTH_PASSWORD_RESET_REQUESTED('a@b.com'))).toBe(false);
     expect(AUTH_CONFIRMATION_EMAIL_REQUESTED.toLowerCase()).toContain('not proof');
     expect(PARTNER_VERIFICATION_EMAIL_REQUESTED.toLowerCase()).toContain('not proof');
+    expect(AUTH_PASSWORD_RESET_REQUESTED('a@b.com').toLowerCase()).toContain('not proof');
     expect(AUTH_CONFIRMATION_EMAIL_REQUESTED.toLowerCase()).not.toContain('email sent');
     expect(PARTNER_VERIFICATION_EMAIL_REQUESTED.toLowerCase()).not.toContain('email sent');
   });
