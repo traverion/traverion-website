@@ -16,7 +16,7 @@ Search the Checkout Session (`cs_test_…` / `cs_live_…`) or Payment Intent. C
 ## 3. Refund in Stripe Dashboard
 
 Payments → the charge → **Refund**.  
-Partial refunds: Traverion currently treats `charge.refunded` as **fully refunded** for inventory and Money. Prefer a full refund unless you will also adjust the booking manually.
+**Partial refunds:** Traverion records the Stripe `charge.refunded` event in `booking_payment_events` but keeps `payment_status = paid` and **does not** release inventory until the charge is **fully** refunded (`charge.refunded === true` or `amount_refunded >= amount`). Prefer a full refund for cancelled trips. If you must partial-refund, adjust the booking/ledger manually afterward — Money still counts the booking as collected while paid.
 
 ## 4. Record the booking in Traverion
 

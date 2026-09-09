@@ -3,6 +3,7 @@ import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 import Stripe from 'https://esm.sh/stripe@16.12.0?target=deno';
 import { stripeWebhookReplayDecision } from '../_shared/stripe-webhook-replay.ts';
+import { isStripeChargeFullyRefunded } from '../_shared/stripe-charge-refund.ts';
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -586,6 +587,32 @@ serve(async (req) => {
           await markProcessed('processed');
           return json({ success: true, ignored: true, reason: 'booking was not paid', bookingId: booking.id });
         }
+
+        const refundAmount = amountToMajor(charge.amount_refunded ?? charge.amount ?? null);
+        const currency = (charge.currency ?? 'eur').toUpperCase();
+
+        // Partial refunds must not flip payment_status or release inventory.
+        if (!isStripeChargeFullyRefunded(charge)) {
+          await admin.from('booking_payment_events').insert({
+            booking_id: booking.id,
+            event_id: event.id,
+            event_type: event.type,
+            payment_intent_id: paymentIntentId,
+            amount: refundAmount,
+            currency,
+            payload: event as unknown as Record<string, unknown>,
+          });
+          await markProcessed('processed');
+          return json({
+            success: true,
+            eventId: event.id,
+            bookingId: booking.id,
+            status: 'partial_refund_recorded',
+            fullyRefunded: false,
+            amountRefunded: refundAmount,
+          });
+        }
+
         const { data: refundedRows, error: refundErr } = await admin
           .from('bookings')
           .update({ payment_status: 'refunded' })
@@ -607,12 +634,18 @@ serve(async (req) => {
           event_id: event.id,
           event_type: event.type,
           payment_intent_id: paymentIntentId,
-          amount: amountToMajor(charge.amount_refunded ?? charge.amount ?? null),
-          currency: (charge.currency ?? 'eur').toUpperCase(),
+          amount: refundAmount,
+          currency,
           payload: event as unknown as Record<string, unknown>,
         });
         await markProcessed('processed');
-        return json({ success: true, eventId: event.id, bookingId: booking.id, status: 'refunded' });
+        return json({
+          success: true,
+          eventId: event.id,
+          bookingId: booking.id,
+          status: 'refunded',
+          fullyRefunded: true,
+        });
       }
 
       await markProcessed('ignored', `Unhandled event type: ${event.type}`);
