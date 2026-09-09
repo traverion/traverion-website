@@ -13,6 +13,8 @@ import { SkeletonCardGrid } from '../components/ui/Skeleton';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 import { supplierPortalLandingHref } from '../lib/partnerHost';
 import { STRIPE_CHECKOUT_CANCELLED_STAY_COPY, readStripeCheckoutReturnBanner } from '../lib/booking-confirmation-copy';
+import { stayAvailableForRequestedNights } from '../lib/stayOccupancy';
+import { fetchPublishedStayOccupiedRanges } from '../data/supabase-bookings';
 import type { TourPackage } from '../types/tour';
 
 type Props = {
@@ -41,6 +43,11 @@ export default function Stays({ onStaySelect }: Props) {
   const [checkIn, setCheckIn] = useState(() => new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search).get('date') ?? '');
   const [checkOut, setCheckOut] = useState(() => new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search).get('checkout') ?? '');
   const [guests, setGuests] = useState(() => new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search).get('guests') ?? '');
+  const [occupiedByListing, setOccupiedByListing] = useState<Record<
+    string,
+    { checkIn: string; checkOut: string }[]
+  > | null>(null);
+  const [occupancyLoading, setOccupancyLoading] = useState(false);
 
   useEffect(() => {
     const p = new URLSearchParams();
@@ -62,6 +69,31 @@ export default function Stays({ onStaySelect }: Props) {
     return filterCatalogByFamily(base, 'stay');
   }, [supplierListings]);
 
+  const dateFilterActive = Boolean(checkIn && checkOut && checkOut > checkIn);
+
+  useEffect(() => {
+    if (!dateFilterActive || stays.length === 0 || !isSupabaseConfigured()) {
+      setOccupiedByListing(null);
+      setOccupancyLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setOccupancyLoading(true);
+    void Promise.all(
+      stays.map(async (s) => {
+        const ranges = await fetchPublishedStayOccupiedRanges(s.id);
+        return [s.id, ranges] as const;
+      })
+    ).then((entries) => {
+      if (cancelled) return;
+      setOccupiedByListing(Object.fromEntries(entries));
+      setOccupancyLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [dateFilterActive, stays]);
+
   const filtered = useMemo(() => {
     const query = q.trim().toLowerCase();
     const guestN = Number.parseInt(guests, 10);
@@ -73,9 +105,15 @@ export default function Stays({ onStaySelect }: Props) {
         if (!hay.includes(query)) return false;
       }
       if (Number.isFinite(guestN) && guestN > 0 && typeof maxG === 'number' && guestN > maxG) return false;
+      if (dateFilterActive && occupiedByListing) {
+        const ranges = occupiedByListing[s.id] ?? [];
+        if (!stayAvailableForRequestedNights(checkIn, checkOut, ranges)) return false;
+      }
       return true;
     });
-  }, [stays, q, guests]);
+  }, [stays, q, guests, dateFilterActive, occupiedByListing, checkIn, checkOut]);
+
+  const waitingOnOccupancy = dateFilterActive && isSupabaseConfigured() && (occupancyLoading || occupiedByListing === null);
 
   return (
     <div className="min-h-screen bg-paper tv-page">
@@ -84,6 +122,9 @@ export default function Stays({ onStaySelect }: Props) {
         <h1 className="font-display text-4xl sm:text-5xl text-ink tracking-tight mb-2">Places to stay</h1>
         <p className="text-ink-muted max-w-xl mb-8 leading-relaxed">
           Apartments and rooms from operators — not mixed into Tours. Dates are nights, not departures.
+          {dateFilterActive
+            ? ' Results hide stays whose nights are already booked for your dates.'
+            : ''}
         </p>
         {paymentBanner === 'cancelled' ? (
           <p className="mb-8 max-w-xl rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-950 ring-1 ring-amber-200/70">
@@ -144,7 +185,9 @@ export default function Stays({ onStaySelect }: Props) {
             className="h-12 px-3 rounded-xl bg-transparent text-ink"
           />
           <p className="col-span-2 sm:col-span-1 self-center text-sm text-ink-muted px-2">
-            {catalogLoading ? 'Loading' : `${filtered.length} stay${filtered.length === 1 ? '' : 's'}`}
+            {catalogLoading || waitingOnOccupancy
+              ? 'Loading'
+              : `${filtered.length} stay${filtered.length === 1 ? '' : 's'}`}
           </p>
         </form>
 
@@ -154,7 +197,7 @@ export default function Stays({ onStaySelect }: Props) {
             body={userFacingError(error, USER_ERROR.tours)}
             retry={{ onClick: () => reload() }}
           />
-        ) : catalogLoading ? (
+        ) : catalogLoading || waitingOnOccupancy ? (
           <SkeletonCardGrid count={3} />
         ) : filtered.length === 0 ? (
           <EmptyState
@@ -163,7 +206,9 @@ export default function Stays({ onStaySelect }: Props) {
             body={
               stays.length === 0
                 ? 'Traverion does not fill this page with sample apartments. When an operator publishes a stay, it appears here.'
-                : 'Try another place, dates, or guest count.'
+                : dateFilterActive
+                  ? 'No stays are free for those nights. Try other dates or clear check-out to browse all stays.'
+                  : 'Try another place, dates, or guest count.'
             }
             action={
               stays.length === 0 ? (

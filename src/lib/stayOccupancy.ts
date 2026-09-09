@@ -37,6 +37,16 @@ export function stayDateRangesOverlap(aIn: string, aOut: string, bIn: string, bO
   return aIn < bOut && bIn < aOut;
 }
 
+/** Catalog filter: stay is bookable for [checkIn, checkOut) when no occupied range overlaps. */
+export function stayAvailableForRequestedNights(
+  checkIn: string,
+  checkOut: string,
+  occupiedRanges: { checkIn: string; checkOut: string }[]
+): boolean {
+  if (!ISO_DATE.test(checkIn) || !ISO_DATE.test(checkOut) || checkOut <= checkIn) return false;
+  return !occupiedRanges.some((r) => stayDateRangesOverlap(checkIn, checkOut, r.checkIn, r.checkOut));
+}
+
 export function stayRangeFromBooking(booking: {
   booking_date: string | null;
   check_out?: string | null;

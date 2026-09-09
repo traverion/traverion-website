@@ -9,6 +9,7 @@ import {
   partnerStayDayKind,
   partnerStayCalendarOccupiesNight,
   stayCheckoutNightsAlreadyBooked,
+  stayAvailableForRequestedNights,
 } from './stayOccupancy';
 import { bookingOccupiesInventory } from './booking-hold';
 import { stayNightIsOperatorBlocked as checkoutStayNightIsOperatorBlocked, stayCheckoutNightsAlreadyBooked as checkoutStayNightsAlreadyBooked } from '../../supabase/functions/_shared/booking-quote';
@@ -86,6 +87,15 @@ describe('stay occupancy', () => {
     expect(nights).toEqual(['2026-09-20', '2026-09-21']);
     expect(nights).not.toContain('2026-10-10');
     expect(nights).not.toContain('2026-10-11');
+  });
+
+  it('filters catalog stays that overlap occupied nights for requested dates', () => {
+    const occupied = [{ checkIn: '2026-09-20', checkOut: '2026-09-22' }];
+    expect(stayAvailableForRequestedNights('2026-09-20', '2026-09-22', occupied)).toBe(false);
+    expect(stayAvailableForRequestedNights('2026-09-21', '2026-09-23', occupied)).toBe(false);
+    expect(stayAvailableForRequestedNights('2026-09-22', '2026-09-24', occupied)).toBe(true);
+    expect(stayAvailableForRequestedNights('2026-09-18', '2026-09-20', occupied)).toBe(true);
+    expect(stayAvailableForRequestedNights('2026-09-20', '2026-09-20', occupied)).toBe(false);
   });
 
   it('lets stay checkout reuse nights after a refund, not after a live paid stay', () => {

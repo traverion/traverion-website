@@ -20,6 +20,7 @@ import { TRAVERION_STANDARD_CANCELLATION_POLICY } from '../types/listingExtras';
 import { HERO_IMG } from '../lib/heroImages';
 import { prefetchPackagesPage } from '../lib/routePrefetch';
 import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
+import { addCalendarDays } from '../lib/stayOccupancy';
 
 const TAG_LABELS: Record<string, string> = {
   'free-cancellation': 'Free cancellation',
@@ -127,7 +128,11 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
     const date = (extra?.date ?? when).trim();
     const guests = (extra?.guests ?? who).trim();
     if (q) params.set('q', q);
-    if (date) params.set('date', date);
+    if (date) {
+      params.set('date', date);
+      // Home has one date field; default one night so Stays can filter occupancy honestly.
+      params.set('checkout', addCalendarDays(date, 1));
+    }
     if (guests) params.set('guests', guests);
     const query = params.toString();
     window.history.pushState({}, '', query ? `/stays?${query}` : '/stays');
