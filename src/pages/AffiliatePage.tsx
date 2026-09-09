@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import LegalPageShell from '../components/LegalPageShell';
 import { submitContactInquiry, type ContactInquiry } from '../data/supabase-contact';
 import { buildInquiryEmailSubject } from '../lib/contactEmailSubject';
-import { PARTNERSHIP_FORM_THANK_YOU } from '../lib/booking-confirmation-copy';
+import { PARTNERSHIP_FORM_THANK_YOU, PARTNERSHIP_FORM_SUCCESS_HEADING, PARTNERSHIP_FORM_SUBMIT_ERROR } from '../lib/booking-confirmation-copy';
 import { CONTACT_PRESETS, takeContactPrefill } from '../lib/contactPrefill';
 import { required, validateEmail, maxLength } from '../lib/validation';
 
@@ -81,10 +81,10 @@ export default function AffiliatePage({ onNavigate }: AffiliatePageProps) {
           message: CONTACT_PRESETS.affiliate.message,
         });
       } else {
-        setFieldErrors({ form: 'Could not send your application. Try again in a moment.' });
+        setFieldErrors({ form: PARTNERSHIP_FORM_SUBMIT_ERROR });
       }
     } catch {
-      setFieldErrors({ form: 'Could not send your application. Try again in a moment.' });
+      setFieldErrors({ form: PARTNERSHIP_FORM_SUBMIT_ERROR });
     } finally {
       setIsSubmitting(false);
     }
@@ -98,7 +98,7 @@ export default function AffiliatePage({ onNavigate }: AffiliatePageProps) {
     >
       {isSubmitted ? (
         <div>
-          <h2>Application received</h2>
+          <h2>{PARTNERSHIP_FORM_SUCCESS_HEADING}</h2>
           <p>{PARTNERSHIP_FORM_THANK_YOU}</p>
         </div>
       ) : (

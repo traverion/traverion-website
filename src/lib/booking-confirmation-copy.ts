@@ -270,6 +270,12 @@ export const PARTNER_MONEY_COLLECTED_TO_DATE_NOTE =
 export const PARTNER_MONEY_PAID_OUT_TO_DATE_NOTE =
   'Traverion payouts recorded on this ledger — not guest checkout totals. Payouts stay manual until enabled.';
 
+/** Money empty state — no activity yet; do not title this “No payouts yet”. */
+export const PARTNER_MONEY_EMPTY_TITLE = 'Nothing collected yet';
+
+export const PARTNER_MONEY_EMPTY_BODY =
+  'When a traveler completes checkout, the collected amount appears here. Payouts stay manual — Traverion does not invent a transfer.';
+
 /**
  * Legacy booking_request email footer — do not promise a later confirmation email.
  * Keep in sync with notify-customer-booking booking_request footerNote.
@@ -319,9 +325,24 @@ export const CONTACT_FORM_SUCCESS_HEADING = 'Message received';
 export const CONTACT_FORM_THANK_YOU =
   'Thank you. Your message is saved with Traverion. We do not treat email delivery as proof of a reply.';
 
+/** Contact form save failure — submit/save, not email send. */
+export const CONTACT_FORM_SUBMIT_ERROR =
+  'Could not submit your message. Try again, or email us directly.';
+
+/** Affiliate / creator success heading — received, not sent. */
+export const PARTNERSHIP_FORM_SUCCESS_HEADING = 'Application received';
+
 /** Affiliate / content-creator application success: saved; do not promise a reply email. */
 export const PARTNERSHIP_FORM_THANK_YOU =
   'Thank you. Your application is saved with Traverion. We do not treat email delivery as proof of a reply.';
+
+/** Affiliate / creator save failure — submit/save, not email send. */
+export const PARTNERSHIP_FORM_SUBMIT_ERROR =
+  'Could not submit your application. Try again in a moment.';
+
+/** Partner cancel-request failure — Bookings save, not email send. */
+export const PARTNER_CANCEL_REQUEST_SUBMIT_ERROR =
+  'Could not submit the cancellation request.';
 
 /** Traveler Terms — material changes: website notice, not email-as-sole-proof. */
 export const TERMS_MATERIAL_CHANGES_NOTE =

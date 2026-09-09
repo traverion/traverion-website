@@ -4,7 +4,7 @@ import { submitContactInquiry, ContactInquiry } from '../data/supabase-contact';
 import { required, validateEmail, maxLength } from '../lib/validation';
 import { CONTACT_PREFILL_KEY } from '../lib/contactPrefill';
 import { buildInquiryEmailSubject } from '../lib/contactEmailSubject';
-import { CONTACT_FORM_SUCCESS_HEADING, CONTACT_FORM_THANK_YOU } from '../lib/booking-confirmation-copy';
+import { CONTACT_FORM_SUCCESS_HEADING, CONTACT_FORM_THANK_YOU, CONTACT_FORM_SUBMIT_ERROR } from '../lib/booking-confirmation-copy';
 
 type ContactProps = {
   onNavigate?: (page: string) => void;
@@ -91,10 +91,10 @@ export default function Contact({ onNavigate }: ContactProps) {
         setIsSubmitted(true);
         setFormData({ name: '', email: '', phone: '', message: '' });
       } else {
-        setFieldErrors({ form: 'Could not send your message. Try again, or email us directly.' });
+        setFieldErrors({ form: CONTACT_FORM_SUBMIT_ERROR });
       }
     } catch {
-      setFieldErrors({ form: 'Could not send your message. Try again, or email us directly.' });
+      setFieldErrors({ form: CONTACT_FORM_SUBMIT_ERROR });
     } finally {
       setIsSubmitting(false);
     }

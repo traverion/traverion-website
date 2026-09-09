@@ -31,6 +31,9 @@ import {
   BOOKING_CONFIRMED_PAID_RECEIPT_LINE,
   BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE,
   PARTNER_MONEY_COLLECTED_TO_DATE_NOTE,
+  PARTNER_MONEY_PAID_OUT_TO_DATE_NOTE,
+  PARTNER_MONEY_EMPTY_TITLE,
+  PARTNER_MONEY_EMPTY_BODY,
   PARTNER_ONBOARDING_INTRO_NOTE,
   PARTNER_ONBOARDING_PAYOUT_STEP_NOTE,
   PARTNER_FIRST_LISTING_STEP_NOTE,
@@ -44,8 +47,11 @@ import {
   TRAVELER_PICKUP_ACTION_EMAIL_NOTE,
   CONTACT_FORM_SUCCESS_HEADING,
   CONTACT_FORM_THANK_YOU,
+  CONTACT_FORM_SUBMIT_ERROR,
+  PARTNERSHIP_FORM_SUCCESS_HEADING,
   PARTNERSHIP_FORM_THANK_YOU,
-  PARTNER_MONEY_PAID_OUT_TO_DATE_NOTE,
+  PARTNERSHIP_FORM_SUBMIT_ERROR,
+  PARTNER_CANCEL_REQUEST_SUBMIT_ERROR,
   TERMS_MATERIAL_CHANGES_NOTE,
   TERMS_LAST_MINUTE_CHANGES_NOTE,
   PARTNER_TERMS_MATERIAL_CHANGES_NOTE,
@@ -281,6 +287,10 @@ describe('booking confirmation copy', () => {
     expect(PARTNER_MONEY_PAID_OUT_TO_DATE_NOTE.toLowerCase()).toContain('payouts recorded on this ledger');
     expect(PARTNER_MONEY_PAID_OUT_TO_DATE_NOTE.toLowerCase()).not.toContain('guest checkout totals — not a stripe');
     expect(PARTNER_MONEY_PAID_OUT_TO_DATE_NOTE.toLowerCase()).toContain('not guest checkout');
+    expect(PARTNER_MONEY_EMPTY_TITLE.toLowerCase()).toContain('nothing collected');
+    expect(PARTNER_MONEY_EMPTY_TITLE.toLowerCase()).not.toContain('payout');
+    expect(PARTNER_MONEY_EMPTY_BODY.toLowerCase()).toContain('collected amount');
+    expect(PARTNER_MONEY_EMPTY_BODY.toLowerCase()).toContain('payouts stay manual');
     expect(bookingConfirmationPromisesEmailSent(BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE)).toBe(false);
     expect(BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE.toLowerCase()).toContain('trips');
     expect(BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE.toLowerCase()).not.toContain('may follow up');
@@ -325,6 +335,14 @@ describe('booking confirmation copy', () => {
   it('marketing contact thank-you copy does not promise a reply email', () => {
     expect(CONTACT_FORM_SUCCESS_HEADING.toLowerCase()).toBe('message received');
     expect(CONTACT_FORM_SUCCESS_HEADING.toLowerCase()).not.toContain('sent');
+    expect(PARTNERSHIP_FORM_SUCCESS_HEADING.toLowerCase()).toBe('application received');
+    expect(PARTNERSHIP_FORM_SUCCESS_HEADING.toLowerCase()).not.toContain('sent');
+    expect(CONTACT_FORM_SUBMIT_ERROR.toLowerCase()).toContain('submit');
+    expect(CONTACT_FORM_SUBMIT_ERROR.toLowerCase()).not.toContain('send');
+    expect(PARTNERSHIP_FORM_SUBMIT_ERROR.toLowerCase()).toContain('submit');
+    expect(PARTNERSHIP_FORM_SUBMIT_ERROR.toLowerCase()).not.toContain('send');
+    expect(PARTNER_CANCEL_REQUEST_SUBMIT_ERROR.toLowerCase()).toContain('submit');
+    expect(PARTNER_CANCEL_REQUEST_SUBMIT_ERROR.toLowerCase()).not.toContain('send');
     expect(bookingConfirmationPromisesEmailSent(CONTACT_FORM_THANK_YOU)).toBe(false);
     expect(bookingConfirmationPromisesEmailSent(PARTNERSHIP_FORM_THANK_YOU)).toBe(false);
     expect(bookingConfirmationPromisesEmailSent('Thank you. We will review your details and reply by email.')).toBe(true);

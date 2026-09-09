@@ -14,7 +14,7 @@ import { isCollectedBooking, sumCollectedAmount, isRefundDueBooking, sumRefundDu
 import { ledgerAdjustmentTotal } from '../../lib/supplier-ledger-balance';
 import { fetchMyListings } from '../../data/supabase-listings';
 import { fetchSupplierLedger, type SupplierLedgerEntry } from '../../data/supabase-booking-ops';
-import { PARTNER_MONEY_PAYOUT_STATUS_NOTE, PARTNER_MONEY_PAID_OUT_TO_DATE_NOTE } from '../../lib/booking-confirmation-copy';
+import { PARTNER_MONEY_PAYOUT_STATUS_NOTE, PARTNER_MONEY_PAID_OUT_TO_DATE_NOTE, PARTNER_MONEY_EMPTY_TITLE, PARTNER_MONEY_EMPTY_BODY } from '../../lib/booking-confirmation-copy';
 import NoticeCallout from '../../components/NoticeCallout';
 import {
   PARTNER_MONEY_CSV_HEADER,
@@ -261,8 +261,8 @@ export default function SupplierEarnings() {
           {!hasMoney ? (
             <SupplierEmptyState
               icon={Wallet}
-              title="No payouts yet"
-              body="When a traveler completes checkout, the collected amount appears here. Payouts stay manual — Traverion does not invent a transfer."
+              title={PARTNER_MONEY_EMPTY_TITLE}
+              body={PARTNER_MONEY_EMPTY_BODY}
             />
           ) : (
           <section>

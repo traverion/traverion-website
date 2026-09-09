@@ -35,7 +35,7 @@ import {
 } from '../../data/supabase-booking-ops';
 import BookingMessageThread from '../../components/BookingMessageThread';
 import NoticeCallout from '../../components/NoticeCallout';
-import { PARTNER_CANCELLATION_REQUEST_DELIVERY_NOTE, PARTNER_CANCEL_REQUEST_REFUND_POLICY } from '../../lib/booking-confirmation-copy';
+import { PARTNER_CANCELLATION_REQUEST_DELIVERY_NOTE, PARTNER_CANCEL_REQUEST_REFUND_POLICY, PARTNER_CANCEL_REQUEST_SUBMIT_ERROR } from '../../lib/booking-confirmation-copy';
 import { SkeletonListItem } from '../../components/ui/Skeleton';
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
@@ -425,7 +425,7 @@ export default function SupplierBookings() {
     });
     setUpdatingId(null);
     if (!res.ok) {
-      setCancelError(userFacingError(res.error, 'Could not send the cancellation request.'));
+      setCancelError(userFacingError(res.error, PARTNER_CANCEL_REQUEST_SUBMIT_ERROR));
       return;
     }
     const email = (cancelModal.guest_email ?? '').trim();
