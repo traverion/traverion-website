@@ -97,6 +97,15 @@ export function clearOrganizationJsonLd() {
   document.getElementById('traverion-org-jsonld')?.remove();
 }
 
+/** Canonical shareable listing path (matches appRouting deep links). */
+export function publicTourPath(listingId: string): string {
+  return `/tours/${listingId}`;
+}
+
+export function publicStayPath(listingId: string): string {
+  return `/stays/${listingId}`;
+}
+
 /** Inject JSON-LD for a single tour (Product schema). Call from tour detail page. */
 export function setTourJsonLd(tour: {
   id: string;
@@ -119,11 +128,12 @@ export function setTourJsonLd(tour: {
     document.head.appendChild(script);
   }
   const baseUrl = getBaseUrl();
-  const url = `${baseUrl}/packages`;
+  const path = publicTourPath(tour.id);
+  const url = `${baseUrl}${path}`;
   script.textContent = JSON.stringify({
     '@context': 'https://schema.org',
     '@type': 'Product',
-    '@id': `${baseUrl}/#/tour/${tour.id}`,
+    '@id': url,
     name: tour.title,
     description: (tour.description || '').slice(0, 500),
     image: tour.image || `${baseUrl}${BRAND_LOGO_SRC}`,
@@ -144,6 +154,46 @@ export function setTourJsonLd(tour: {
   });
 }
 
+/** Inject JSON-LD for a single stay (Product / LodgingBusiness-friendly Product). */
+export function setStayJsonLd(stay: {
+  id: string;
+  title: string;
+  description: string;
+  image?: string;
+  destination?: string;
+  price?: { startingFrom?: number; currency?: string };
+}) {
+  if (typeof document === 'undefined') return;
+  const scriptId = 'traverion-stay-jsonld';
+  let script = document.getElementById(scriptId) as HTMLScriptElement | null;
+  if (!script) {
+    script = document.createElement('script');
+    script.id = scriptId;
+    script.type = 'application/ld+json';
+    document.head.appendChild(script);
+  }
+  const baseUrl = getBaseUrl();
+  const path = publicStayPath(stay.id);
+  const url = `${baseUrl}${path}`;
+  script.textContent = JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    '@id': url,
+    name: stay.title,
+    description: (stay.description || '').slice(0, 500),
+    image: stay.image || `${baseUrl}${BRAND_LOGO_SRC}`,
+    url,
+    ...(stay.destination && { destination: stay.destination }),
+    ...(stay.price?.startingFrom != null && {
+      offers: {
+        '@type': 'Offer',
+        price: stay.price.startingFrom,
+        priceCurrency: stay.price.currency ?? 'EUR',
+      },
+    }),
+  });
+}
+
 /** Inject JSON-LD for a list of tours (schema.org Product). */
 export function setListingsJsonLd(listings: { id: string; name: string; description: string; image?: string; url?: string }[]) {
   if (typeof document === 'undefined' || !listings.length) return;
@@ -156,14 +206,17 @@ export function setListingsJsonLd(listings: { id: string; name: string; descript
     document.head.appendChild(script);
   }
   const baseUrl = getBaseUrl();
-  const items = listings.slice(0, 20).map((item) => ({
-    '@type': 'Product',
-    '@id': `${baseUrl}/#/tour/${item.id}`,
-    name: item.name,
-    description: (item.description || '').slice(0, 500),
-    image: item.image || `${baseUrl}${BRAND_LOGO_SRC}`,
-    url: item.url ?? `${baseUrl}/packages`,
-  }));
+  const items = listings.slice(0, 20).map((item) => {
+    const path = publicTourPath(item.id);
+    return {
+      '@type': 'Product',
+      '@id': item.url ?? `${baseUrl}${path}`,
+      name: item.name,
+      description: (item.description || '').slice(0, 500),
+      image: item.image || `${baseUrl}${BRAND_LOGO_SRC}`,
+      url: item.url ?? `${baseUrl}${path}`,
+    };
+  });
   script.textContent = JSON.stringify({
     '@context': 'https://schema.org',
     '@graph': items,
@@ -173,6 +226,11 @@ export function setListingsJsonLd(listings: { id: string; name: string; descript
 /** Remove tour JSON-LD (e.g. when leaving tour detail page). */
 export function clearTourJsonLd() {
   const script = document.getElementById('traverion-tour-jsonld');
+  if (script) script.remove();
+}
+
+export function clearStayJsonLd() {
+  const script = document.getElementById('traverion-stay-jsonld');
   if (script) script.remove();
 }
 

@@ -2,6 +2,9 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://traverion.com/</loc><changefreq>weekly</changefreq><priority>1</priority></url>
   <url><loc>https://traverion.com/packages</loc><changefreq>daily</changefreq><priority>0.9</priority></url>
+  <url><loc>https://traverion.com/stays</loc><changefreq>daily</changefreq><priority>0.9</priority></url>
+  <url><loc>https://traverion.com/tours/c2d25217-84f0-46d4-8eaa-83949143fa06</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://traverion.com/stays/83f88255-63ef-4824-93a2-89cc13244567</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
   <url><loc>https://traverion.com/about</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
   <url><loc>https://traverion.com/blog</loc><changefreq>weekly</changefreq><priority>0.6</priority></url>
   <url><loc>https://traverion.com/contact</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>

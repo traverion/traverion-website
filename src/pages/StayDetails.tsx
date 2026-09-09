@@ -13,7 +13,7 @@ import { fetchSupplierPublicLegal } from '../data/supabase-supplier-profile';
 import type { TourPackage } from '../types/tour';
 import ErrorState from '../components/ErrorState';
 import { Skeleton } from '../components/ui/Skeleton';
-import { setPageMetaWithOg } from '../lib/seo';
+import { setPageMetaWithOg, setStayJsonLd, clearStayJsonLd } from '../lib/seo';
 import { formatMoney, normalizeCurrency } from '../lib/money';
 import PriceBreakdown, { PriceHero } from '../components/PriceBreakdown';
 import StayNightPicker from '../components/StayNightPicker';
@@ -79,6 +79,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
   useEffect(() => {
     if (!stay) {
       setPageMetaWithOg('Stay', 'Apartment or room from an independent operator.');
+      clearStayJsonLd();
       return;
     }
     const desc = stay.description?.trim().slice(0, 160) || `${stay.title} in ${[stay.city, stay.country].filter(Boolean).join(', ')}`;
@@ -87,6 +88,15 @@ export default function StayDetails({ stayId, onBack }: Props) {
       image: stay.image,
       type: 'website',
     });
+    setStayJsonLd({
+      id: stay.id,
+      title: stay.title,
+      description: stay.description ?? desc,
+      image: stay.image,
+      destination: [stay.city, stay.country].filter(Boolean).join(', ') || stay.destination,
+      price: stay.price?.startingFrom != null ? { startingFrom: stay.price.startingFrom, currency: stay.price.currency } : undefined,
+    });
+    return () => clearStayJsonLd();
   }, [stay]);
 
   useEffect(() => {

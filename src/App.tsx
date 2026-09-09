@@ -377,9 +377,14 @@ function App() {
           : 'Book this tour from an independent operator.';
       setPageMetaWithOg(deepLinkTitle, desc);
       setRobotsNoIndex(false);
-      const path = currentPage === 'stay-details' ? '/stays' : '/packages';
-      const qs = window.location.search.replace(/^\?/, '');
-      setCanonicalUrl(path, qs || undefined);
+      if (selectedTour?.id) {
+        const path = currentPage === 'stay-details' ? `/stays/${selectedTour.id}` : `/tours/${selectedTour.id}`;
+        setCanonicalUrl(path);
+      } else {
+        const path = currentPage === 'stay-details' ? '/stays' : '/packages';
+        const qs = window.location.search.replace(/^\?/, '');
+        setCanonicalUrl(path, qs || undefined);
+      }
       return;
     }
 
