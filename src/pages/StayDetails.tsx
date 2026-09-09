@@ -22,6 +22,10 @@ import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 import { CHECKOUT_HOLD_MINUTES } from '../lib/booking-hold';
 import { formatOccupiedNightRanges, formatStayNightHuman } from '../lib/stay-calendar';
 import { stayAmenityDisplayList } from '../lib/stay-amenities';
+import {
+  BOOKING_CONFIRMATION_EMAIL_DISCLAIMER,
+  STAY_LISTING_CONFIRMATION_NOTE,
+} from '../lib/booking-confirmation-copy';
 
 type Props = {
   stayId: string;
@@ -280,15 +284,14 @@ export default function StayDetails({ stayId, onBack }: Props) {
                 </p>
               )}
             </div>
-            {s?.checkInTime || s?.checkOutTime ? (
-              <div>
-                <h2 className="font-display text-2xl mb-3">Check-in & check-out</h2>
-                <ul className="space-y-2 text-ink-muted">
-                  {s?.checkInTime ? <li>Check-in from {s.checkInTime}</li> : null}
-                  {s?.checkOutTime ? <li>Check-out by {s.checkOutTime}</li> : null}
-                </ul>
-              </div>
-            ) : null}
+            <div>
+              <h2 className="font-display text-2xl mb-3">Check-in & check-out</h2>
+              <ul className="space-y-2 text-ink-muted">
+                {s?.checkInTime ? <li>Check-in from {s.checkInTime}</li> : null}
+                {s?.checkOutTime ? <li>Check-out by {s.checkOutTime}</li> : null}
+                <li>{STAY_LISTING_CONFIRMATION_NOTE}</li>
+              </ul>
+            </div>
             {s?.houseRules ? (
               <div>
                 <h2 className="font-display text-2xl mb-2">House rules</h2>
@@ -402,6 +405,9 @@ export default function StayDetails({ stayId, onBack }: Props) {
                 Log in to continue
               </a>
             )}
+            <p className="mt-3 text-xs text-ink-muted leading-relaxed">
+              {STAY_LISTING_CONFIRMATION_NOTE} {BOOKING_CONFIRMATION_EMAIL_DISCLAIMER}
+            </p>
           </aside>
         </div>
       </div>

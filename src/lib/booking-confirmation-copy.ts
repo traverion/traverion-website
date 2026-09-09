@@ -6,6 +6,10 @@
 export const BOOKING_CONFIRMATION_EMAIL_DISCLAIMER =
   'Trips is your confirmation. If an email arrives, keep it for your records — Traverion does not treat email delivery as booking proof.';
 
+/** Stay listing / checkout panel: confirmation is Trips, not mail. */
+export const STAY_LISTING_CONFIRMATION_NOTE =
+  'After you pay, the stay appears in Trips. We do not send a confirmation email from this checkout.';
+
 export function bookingConfirmationPromisesEmailSent(copy: string): boolean {
   const t = copy.trim().toLowerCase();
   return (
