@@ -1,3 +1,5 @@
+import { isPaidPaymentStatus, normalizePaymentStatus } from './payment-states';
+
 /**
  * Snapshot-able supplier cancellation fee policy.
  * Amounts are major currency units. Do not scatter €20 through UI.
@@ -103,4 +105,30 @@ export function travelerSelfCancelRefundChoice(params: {
   if (!Number.isFinite(startMs)) return 'no_refund';
   const now = params.nowMs ?? Date.now();
   return startMs - now > 24 * 60 * 60 * 1000 ? 'full_refund' : 'no_refund';
+}
+
+/** SQL is the authority; these strings match request_supplier_cancellation. */
+export const SUPPLIER_CANCEL_ALREADY_REFUNDED = 'This booking is already refunded.';
+export const SUPPLIER_CANCEL_ALREADY_CANCELLED = 'This booking is already cancelled.';
+export const SUPPLIER_CANCEL_UNPAID = 'Only paid bookings can go through this cancellation request.';
+
+export type SupplierPaidCancellationBlock = 'none' | 'refunded' | 'cancelled' | 'unpaid';
+
+export function supplierPaidCancellationBlock(row: {
+  status?: string | null;
+  payment_status?: string | null;
+}): SupplierPaidCancellationBlock {
+  const pay = normalizePaymentStatus(row.payment_status);
+  const status = (row.status ?? '').trim().toLowerCase();
+  if (pay === 'refunded') return 'refunded';
+  if (status === 'cancelled') return 'cancelled';
+  if (!isPaidPaymentStatus(pay)) return 'unpaid';
+  return 'none';
+}
+
+export function supplierPaidCancellationError(block: SupplierPaidCancellationBlock): string {
+  if (block === 'refunded') return SUPPLIER_CANCEL_ALREADY_REFUNDED;
+  if (block === 'cancelled') return SUPPLIER_CANCEL_ALREADY_CANCELLED;
+  if (block === 'unpaid') return SUPPLIER_CANCEL_UNPAID;
+  return '';
 }

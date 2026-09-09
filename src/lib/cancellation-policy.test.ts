@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   FORCE_MAJEURE_FEE_EUR,
+  SUPPLIER_CANCEL_ALREADY_REFUNDED,
+  SUPPLIER_CANCEL_UNPAID,
   SUPPLIER_RESPONSIBILITY_FEE_EUR,
   isForceMajeureReason,
   snapshotSupplierCancellationPolicy,
   supplierCancellationFeeEur,
+  supplierPaidCancellationBlock,
+  supplierPaidCancellationError,
   travelerSelfCancelRefundChoice,
 } from './cancellation-policy';
 
@@ -38,5 +42,27 @@ describe('supplier cancellation policy', () => {
         nowMs: start - 2 * 60 * 60 * 1000,
       })
     ).toBe('no_refund');
+  });
+
+  it('rejects refunded bookings as already refunded, not unpaid', () => {
+    expect(supplierPaidCancellationBlock({ status: 'confirmed', payment_status: 'refunded' })).toBe(
+      'refunded'
+    );
+    expect(
+      supplierPaidCancellationError(
+        supplierPaidCancellationBlock({ status: 'confirmed', payment_status: 'refunded' })
+      )
+    ).toBe(SUPPLIER_CANCEL_ALREADY_REFUNDED);
+    expect(supplierPaidCancellationBlock({ status: 'pending', payment_status: 'pending' })).toBe(
+      'unpaid'
+    );
+    expect(
+      supplierPaidCancellationError(
+        supplierPaidCancellationBlock({ status: 'pending', payment_status: 'failed' })
+      )
+    ).toBe(SUPPLIER_CANCEL_UNPAID);
+    expect(supplierPaidCancellationBlock({ status: 'confirmed', payment_status: 'paid' })).toBe(
+      'none'
+    );
   });
 });
