@@ -16,6 +16,11 @@ import { fetchMyListings } from '../../data/supabase-listings';
 import { fetchSupplierLedger, type SupplierLedgerEntry } from '../../data/supabase-booking-ops';
 import { PARTNER_MONEY_PAYOUT_STATUS_NOTE } from '../../lib/booking-confirmation-copy';
 import NoticeCallout from '../../components/NoticeCallout';
+import {
+  PARTNER_MONEY_CSV_HEADER,
+  buildPartnerMoneyCsvRows,
+  partnerMoneyCsvHasExportableRows,
+} from '../../lib/partner-money-csv';
 
 function ledgerKindLabel(kind: string): string {
   const k = kind.trim().toLowerCase();
@@ -115,27 +120,43 @@ export default function SupplierEarnings() {
     threshold > 0 && pending > 0 ? Math.min(100, Math.round((pending / threshold) * 100)) : null;
 
   const exportCsv = () => {
-    const rows = filteredEarnings;
+    if (
+      !partnerMoneyCsvHasExportableRows({
+        payouts: filteredEarnings,
+        refundDue: refundDueBookings,
+        ledger,
+      })
+    ) {
+      return;
+    }
     const escape = (v: string | number | null | undefined) => {
       const s = String(v ?? '');
       if (s.includes(',') || s.includes('"') || s.includes('\n')) return `"${s.replace(/"/g, '""')}"`;
       return s;
     };
-    const header = ['period_start', 'period_end', 'amount', 'currency', 'status', 'invoice_number', 'payment_reference'];
-    const lines = rows.map((e) =>
-      [e.period_start, e.period_end, e.amount, e.currency, e.status, e.invoice_number ?? '', e.payment_reference ?? '']
-        .map(escape)
-        .join(',')
+    const body = buildPartnerMoneyCsvRows({
+      payouts: filteredEarnings,
+      refundDue: refundDueBookings,
+      ledger,
+      ledgerKindLabel,
+    });
+    const csv = [PARTNER_MONEY_CSV_HEADER.join(','), ...body.map((cols) => cols.map(escape).join(','))].join(
+      '\n'
     );
-    const csv = [header.join(','), ...lines].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `supplier-earnings-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `supplier-money-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
+
+  const canExportMoney = partnerMoneyCsvHasExportableRows({
+    payouts: filteredEarnings,
+    refundDue: refundDueBookings,
+    ledger,
+  });
 
   const refundDueTotal = useMemo(() => sumRefundDueAmount(refundDueBookings), [refundDueBookings]);
 
@@ -263,7 +284,7 @@ export default function SupplierEarnings() {
                 <button
                   type="button"
                   onClick={exportCsv}
-                  disabled={filteredEarnings.length === 0}
+                  disabled={!canExportMoney}
                   className="tv-btn-ghost text-sm disabled:opacity-40"
                 >
                   Export
