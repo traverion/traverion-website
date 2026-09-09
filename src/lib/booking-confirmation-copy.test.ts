@@ -7,6 +7,7 @@ import {
   STRIPE_CHECKOUT_CANCELLED_STAY_COPY,
   STRIPE_CHECKOUT_CANCELLED_TOUR_COPY,
   PARTNER_INBOX_MESSAGE_DELIVERY_NOTE,
+  TRAVELER_BOOKING_THREAD_DELIVERY_NOTE,
   bookingConfirmationPromisesEmailSent,
   bookingContactIntroCopy,
   bookingPayConfirmAfterPayCopy,
@@ -70,5 +71,11 @@ describe('booking confirmation copy', () => {
     expect(bookingConfirmationPromisesEmailSent(PARTNER_INBOX_MESSAGE_DELIVERY_NOTE)).toBe(false);
     expect(PARTNER_INBOX_MESSAGE_DELIVERY_NOTE.toLowerCase()).toContain('do not treat email delivery as proof');
     expect(PARTNER_INBOX_MESSAGE_DELIVERY_NOTE.toLowerCase()).toContain('traveler');
+  });
+
+  it('traveler booking-thread copy does not promise the host was emailed', () => {
+    expect(bookingConfirmationPromisesEmailSent(TRAVELER_BOOKING_THREAD_DELIVERY_NOTE)).toBe(false);
+    expect(TRAVELER_BOOKING_THREAD_DELIVERY_NOTE.toLowerCase()).toContain('do not treat email delivery as proof');
+    expect(TRAVELER_BOOKING_THREAD_DELIVERY_NOTE.toLowerCase()).toContain('host');
   });
 });

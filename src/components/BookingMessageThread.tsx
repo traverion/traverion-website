@@ -8,7 +8,10 @@ import {
 } from '../data/supabase-booking-ops';
 import { userFacingError } from '../lib/userFacingError';
 import NoticeCallout from './NoticeCallout';
-import { PARTNER_INBOX_MESSAGE_DELIVERY_NOTE } from '../lib/booking-confirmation-copy';
+import {
+  PARTNER_INBOX_MESSAGE_DELIVERY_NOTE,
+  TRAVELER_BOOKING_THREAD_DELIVERY_NOTE,
+} from '../lib/booking-confirmation-copy';
 
 type Props = {
   bookingId: string;
@@ -150,7 +153,9 @@ export default function BookingMessageThread({
           </button>
           {viewerRole === 'supplier' ? (
             <p className="mt-2 text-xs text-ink-muted leading-relaxed">{PARTNER_INBOX_MESSAGE_DELIVERY_NOTE}</p>
-          ) : null}
+          ) : (
+            <p className="mt-2 text-xs text-ink-muted leading-relaxed">{TRAVELER_BOOKING_THREAD_DELIVERY_NOTE}</p>
+          )}
         </div>
       ) : (
         <p className="text-xs text-ink-faint">

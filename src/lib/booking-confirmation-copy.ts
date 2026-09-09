@@ -50,6 +50,10 @@ export const STRIPE_CHECKOUT_CANCELLED_STAY_COPY =
 export const PARTNER_INBOX_MESSAGE_DELIVERY_NOTE =
   'Messages are saved on this booking in Traverion. We do not treat email delivery as proof the traveler saw them.';
 
+/** Traveler Trips thread: Resend is blocked — do not claim the host was emailed. */
+export const TRAVELER_BOOKING_THREAD_DELIVERY_NOTE =
+  'Messages are saved on this booking in Traverion. We do not treat email delivery as proof the host saw them.';
+
 export function readStripeCheckoutReturnBanner(search: string): 'success' | 'cancelled' | null {
   const raw = search.startsWith('?') ? search.slice(1) : search;
   const payment = (new URLSearchParams(raw).get('payment') ?? '').trim().toLowerCase();
