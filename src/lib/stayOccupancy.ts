@@ -83,3 +83,34 @@ export function partnerStayDayKind(params: {
 export function partnerStayCalendarOccupiesNight(row: InventoryHoldRow): boolean {
   return bookingOccupiesInventory(row);
 }
+
+export type StayCheckoutOccupancyRow = InventoryHoldRow & {
+  id?: string | null;
+  booking_date?: string | null;
+  check_out?: string | null;
+  special_requests?: string | null;
+};
+
+/**
+ * Checkout stay overlap: paid + live holds only.
+ * Refunded, cancelled, and failed bookings must not block a new checkout.
+ */
+export function stayCheckoutNightsAlreadyBooked(
+  rows: StayCheckoutOccupancyRow[],
+  checkIn: string,
+  checkOut: string,
+  excludeBookingId?: string | null,
+  nowMs: number = Date.now()
+): boolean {
+  for (const row of rows) {
+    if (excludeBookingId && String(row.id ?? '') === excludeBookingId) continue;
+    if (!bookingOccupiesInventory(row, nowMs)) continue;
+    const range = stayRangeFromBooking({
+      booking_date: typeof row.booking_date === 'string' ? row.booking_date : null,
+      check_out: typeof row.check_out === 'string' ? row.check_out : null,
+      special_requests: typeof row.special_requests === 'string' ? row.special_requests : null,
+    });
+    if (range && stayDateRangesOverlap(checkIn, checkOut, range.checkIn, range.checkOut)) return true;
+  }
+  return false;
+}

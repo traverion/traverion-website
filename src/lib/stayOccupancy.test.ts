@@ -8,9 +8,10 @@ import {
   occupiedNightsFromStayRanges,
   partnerStayDayKind,
   partnerStayCalendarOccupiesNight,
+  stayCheckoutNightsAlreadyBooked,
 } from './stayOccupancy';
 import { bookingOccupiesInventory } from './booking-hold';
-import { stayNightIsOperatorBlocked as checkoutStayNightIsOperatorBlocked } from '../../supabase/functions/_shared/booking-quote';
+import { stayNightIsOperatorBlocked as checkoutStayNightIsOperatorBlocked, stayCheckoutNightsAlreadyBooked as checkoutStayNightsAlreadyBooked } from '../../supabase/functions/_shared/booking-quote';
 
 describe('stay occupancy', () => {
   it('occupies nights exclusive of check-out', () => {
@@ -85,5 +86,40 @@ describe('stay occupancy', () => {
     expect(nights).toEqual(['2026-09-20', '2026-09-21']);
     expect(nights).not.toContain('2026-10-10');
     expect(nights).not.toContain('2026-10-11');
+  });
+
+  it('lets stay checkout reuse nights after a refund, not after a live paid stay', () => {
+    const now = Date.parse('2026-09-09T12:00:00.000Z');
+    const stayBookings = [
+      {
+        id: '6',
+        status: 'confirmed',
+        payment_status: 'paid',
+        booking_date: '2026-09-20',
+        check_out: '2026-09-22',
+      },
+      {
+        id: '13',
+        status: 'confirmed',
+        payment_status: 'refunded',
+        booking_date: '2026-10-10',
+        check_out: '2026-10-12',
+      },
+      {
+        id: '12',
+        status: 'pending',
+        payment_status: 'failed',
+        booking_date: '2026-10-10',
+        check_out: '2026-10-12',
+      },
+    ];
+    expect(stayCheckoutNightsAlreadyBooked(stayBookings, '2026-10-10', '2026-10-12', null, now)).toBe(false);
+    expect(stayCheckoutNightsAlreadyBooked(stayBookings, '2026-09-20', '2026-09-22', null, now)).toBe(true);
+    expect(checkoutStayNightsAlreadyBooked(stayBookings, '2026-10-10', '2026-10-12', null, now)).toBe(
+      stayCheckoutNightsAlreadyBooked(stayBookings, '2026-10-10', '2026-10-12', null, now)
+    );
+    expect(checkoutStayNightsAlreadyBooked(stayBookings, '2026-09-20', '2026-09-22', null, now)).toBe(
+      stayCheckoutNightsAlreadyBooked(stayBookings, '2026-09-20', '2026-09-22', null, now)
+    );
   });
 });

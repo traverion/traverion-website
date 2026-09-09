@@ -2,8 +2,7 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 import Stripe from 'https://esm.sh/stripe@16.12.0?target=deno';
-import { quoteListingBooking, stayDateRangesOverlap, stayNightIsOperatorBlocked, stayRangeFromBooking, type DiscountRow, type ListingQuoteRow } from '../_shared/booking-quote.ts';
-import { bookingOccupiesInventory, type InventoryHoldRow } from '../_shared/booking-hold.ts';
+import { quoteListingBooking, stayCheckoutNightsAlreadyBooked, stayNightIsOperatorBlocked, type DiscountRow, type ListingQuoteRow, type StayCheckoutOccupancyRow } from '../_shared/booking-quote.ts';
 
 type RequestBody = {
   bookingId?: string;
@@ -241,17 +240,15 @@ serve(async (req) => {
       if (stayBusyErr && !/check_out/i.test(stayBusyErr.message)) {
         return json({ success: false, error: stayBusyErr.message }, 500);
       }
-      for (const row of stayRows ?? []) {
-        if (targetBookingId && String(row.id) === targetBookingId) continue;
-        if (!bookingOccupiesInventory(row as InventoryHoldRow)) continue;
-        const range = stayRangeFromBooking({
-          booking_date: typeof row.booking_date === 'string' ? row.booking_date : null,
-          check_out: typeof (row as { check_out?: unknown }).check_out === 'string' ? (row as { check_out: string }).check_out : null,
-          special_requests: typeof row.special_requests === 'string' ? row.special_requests : null,
-        });
-        if (range && stayDateRangesOverlap(bookingDate, checkoutDate, range.checkIn, range.checkOut)) {
-          return json({ success: false, error: 'Those nights are already booked.' }, 409);
-        }
+      if (
+        stayCheckoutNightsAlreadyBooked(
+          (stayRows ?? []) as StayCheckoutOccupancyRow[],
+          bookingDate,
+          checkoutDate,
+          targetBookingId
+        )
+      ) {
+        return json({ success: false, error: 'Those nights are already booked.' }, 409);
       }
 
       const { data: blockedRows } = await admin
