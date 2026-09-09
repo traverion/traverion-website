@@ -1,6 +1,7 @@
 import type { MouseEvent } from 'react';
 import LegalPageShell from '../components/LegalPageShell';
 import { TRAVERION_STANDARD_CANCELLATION_POLICY } from '../types/listingExtras';
+import { TERMS_MATERIAL_CHANGES_NOTE } from '../lib/booking-confirmation-copy';
 
 type TermsProps = {
   onNavigate?: (page: string) => void;
@@ -219,10 +220,7 @@ export default function Terms({ onNavigate }: TermsProps) {
 
       <section>
         <h2>Modifications</h2>
-        <p>
-          TRAVERION reserves the right to modify these terms at any time. We will notify users of any material changes
-          via email or through our website.
-        </p>
+        <p>{TERMS_MATERIAL_CHANGES_NOTE}</p>
         <p>
           Your continued use of our services after such modifications constitutes acceptance of the updated terms.
         </p>

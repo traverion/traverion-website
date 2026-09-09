@@ -10,6 +10,7 @@ import {
   PARTNER_TERMS_OF_SERVICE_PATH,
   PARTNER_LOGIN_PATH,
 } from '../../lib/partnerPortalPaths';
+import { PARTNER_TERMS_MATERIAL_CHANGES_NOTE } from '../../lib/booking-confirmation-copy';
 
 const LAST_UPDATED = '6 April 2026';
 const SUPPORT_EMAIL = 'info@traverion.com';
@@ -100,8 +101,7 @@ function PartnerTermsContent() {
         <p>
           Traverion provides an online marketplace where Partners publish listings for tours and activities. Traverion
           may display your content, process bookings in line with platform rules, and facilitate communication between
-          you and travelers. Features, fees, and payout schedules may evolve; material changes will be communicated
-          through the portal or by email where appropriate.
+          you and travelers. {PARTNER_TERMS_MATERIAL_CHANGES_NOTE}
         </p>
       </Section>
       <Section title="Your obligations">

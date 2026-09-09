@@ -94,6 +94,14 @@ export const CONTACT_FORM_THANK_YOU =
 export const PARTNERSHIP_FORM_THANK_YOU =
   'Thank you. Your application is saved with Traverion. We do not treat email delivery as proof of a reply.';
 
+/** Traveler Terms — material changes: website notice, not email-as-sole-proof. */
+export const TERMS_MATERIAL_CHANGES_NOTE =
+  'TRAVERION reserves the right to modify these terms at any time. Material changes are posted on this website. Traverion does not treat email delivery as the only notice of a change.';
+
+/** Partner marketing terms — material changes: portal first, not email-as-sole-proof. */
+export const PARTNER_TERMS_MATERIAL_CHANGES_NOTE =
+  'Features, fees, and payout schedules may evolve; material changes are shown in the partner portal. Traverion does not treat email delivery as the only notice of a change.';
+
 export function readStripeCheckoutReturnBanner(search: string): 'success' | 'cancelled' | null {
   const raw = search.startsWith('?') ? search.slice(1) : search;
   const payment = (new URLSearchParams(raw).get('payment') ?? '').trim().toLowerCase();
@@ -114,6 +122,8 @@ export function bookingConfirmationPromisesEmailSent(copy: string): boolean {
     t.includes('we will email') ||
     t.includes('will email you') ||
     t.includes('reply by email') ||
-    t.includes('get back to you by email')
+    t.includes('get back to you by email') ||
+    t.includes('via email') ||
+    t.includes('by email where appropriate')
   );
 }

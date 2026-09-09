@@ -13,6 +13,8 @@ import {
   TRAVELER_SELF_CANCEL_DELIVERY_NOTE,
   CONTACT_FORM_THANK_YOU,
   PARTNERSHIP_FORM_THANK_YOU,
+  TERMS_MATERIAL_CHANGES_NOTE,
+  PARTNER_TERMS_MATERIAL_CHANGES_NOTE,
   PARTNER_LISTINGS_BUSINESS_REVIEW_NOTE,
   PARTNER_LISTINGS_PAYOUT_REVIEW_NOTE,
   PARTNER_MONEY_PAYOUT_STATUS_NOTE,
@@ -136,5 +138,24 @@ describe('booking confirmation copy', () => {
     expect(PARTNERSHIP_FORM_THANK_YOU.toLowerCase()).toContain('application is saved');
     expect(CONTACT_FORM_THANK_YOU.toLowerCase()).toContain('do not treat email delivery as proof of a reply');
     expect(PARTNERSHIP_FORM_THANK_YOU.toLowerCase()).toContain('do not treat email delivery as proof of a reply');
+  });
+
+  it('Terms and partner marketing copy do not promise email as the only notice of changes', () => {
+    expect(bookingConfirmationPromisesEmailSent(TERMS_MATERIAL_CHANGES_NOTE)).toBe(false);
+    expect(bookingConfirmationPromisesEmailSent(PARTNER_TERMS_MATERIAL_CHANGES_NOTE)).toBe(false);
+    expect(
+      bookingConfirmationPromisesEmailSent(
+        'We will notify users of any material changes via email or through our website.'
+      )
+    ).toBe(true);
+    expect(
+      bookingConfirmationPromisesEmailSent(
+        'material changes will be communicated through the portal or by email where appropriate.'
+      )
+    ).toBe(true);
+    expect(TERMS_MATERIAL_CHANGES_NOTE.toLowerCase()).toContain('posted on this website');
+    expect(PARTNER_TERMS_MATERIAL_CHANGES_NOTE.toLowerCase()).toContain('partner portal');
+    expect(TERMS_MATERIAL_CHANGES_NOTE.toLowerCase()).toContain('does not treat email delivery as the only notice');
+    expect(PARTNER_TERMS_MATERIAL_CHANGES_NOTE.toLowerCase()).toContain('does not treat email delivery as the only notice');
   });
 });
