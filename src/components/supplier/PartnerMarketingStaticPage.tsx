@@ -10,7 +10,7 @@ import {
   PARTNER_TERMS_OF_SERVICE_PATH,
   PARTNER_LOGIN_PATH,
 } from '../../lib/partnerPortalPaths';
-import { PARTNER_TERMS_MATERIAL_CHANGES_NOTE } from '../../lib/booking-confirmation-copy';
+import { PARTNER_TERMS_MATERIAL_CHANGES_NOTE, PARTNER_PRIVACY_COMMUNICATIONS_NOTE } from '../../lib/booking-confirmation-copy';
 
 const LAST_UPDATED = '6 April 2026';
 const SUPPORT_EMAIL = 'info@traverion.com';
@@ -201,7 +201,7 @@ function PartnerPrivacyContent() {
         <p>
           We process partner data to operate the marketplace, authenticate users, pay you, prevent fraud, comply with
           law, improve the service, and communicate about your account. Legal bases include contract, legitimate
-          interests (e.g. securing the platform), and legal obligation where applicable.
+          interests (e.g. securing the platform), and legal obligation where applicable. {PARTNER_PRIVACY_COMMUNICATIONS_NOTE}
         </p>
       </Section>
       <Section title="Processors and transfers">

@@ -102,6 +102,18 @@ export const TERMS_MATERIAL_CHANGES_NOTE =
 export const PARTNER_TERMS_MATERIAL_CHANGES_NOTE =
   'Features, fees, and payout schedules may evolve; material changes are shown in the partner portal. Traverion does not treat email delivery as the only notice of a change.';
 
+/** Traveler Privacy — notices may be attempted by email; Trips/site are the durable record. */
+export const PRIVACY_COMMUNICATIONS_NOTE =
+  'Account and booking notices may be attempted by email, but Trips and this website are the durable record. Traverion does not treat email delivery as proof you received a notice.';
+
+/** Partner Privacy — account notices may be attempted by email; the portal is the durable record. */
+export const PARTNER_PRIVACY_COMMUNICATIONS_NOTE =
+  'We may attempt to contact you about your partner account by email, but the partner portal is the durable record. Traverion does not treat email delivery as proof you received a notice.';
+
+/** Cookies / marketing preferences — changes are on-site; email is not proof. */
+export const COOKIES_PREFERENCES_NOTE =
+  'Marketing preference changes are saved on this website. Traverion does not treat email delivery as proof of a preference update.';
+
 export function readStripeCheckoutReturnBanner(search: string): 'success' | 'cancelled' | null {
   const raw = search.startsWith('?') ? search.slice(1) : search;
   const payment = (new URLSearchParams(raw).get('payment') ?? '').trim().toLowerCase();

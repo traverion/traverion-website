@@ -1,4 +1,5 @@
 import LegalPageShell from '../components/LegalPageShell';
+import { PRIVACY_COMMUNICATIONS_NOTE } from '../lib/booking-confirmation-copy';
 
 type PrivacyProps = {
   onNavigate?: (page: string) => void;
@@ -31,11 +32,12 @@ export default function Privacy({ onNavigate }: PrivacyProps) {
         <p>We use the information we collect to:</p>
         <ul>
           <li>Provide, maintain, and improve our services</li>
-          <li>Process transactions and send related information</li>
-          <li>Send technical notices and support messages</li>
+          <li>Process transactions and show related status in Trips</li>
+          <li>Attempt technical notices and support messages when delivery channels allow</li>
           <li>Respond to your comments and questions</li>
           <li>Provide personalized travel recommendations</li>
         </ul>
+        <p>{PRIVACY_COMMUNICATIONS_NOTE}</p>
       </section>
 
       <section>

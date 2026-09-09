@@ -15,6 +15,9 @@ import {
   PARTNERSHIP_FORM_THANK_YOU,
   TERMS_MATERIAL_CHANGES_NOTE,
   PARTNER_TERMS_MATERIAL_CHANGES_NOTE,
+  PRIVACY_COMMUNICATIONS_NOTE,
+  PARTNER_PRIVACY_COMMUNICATIONS_NOTE,
+  COOKIES_PREFERENCES_NOTE,
   PARTNER_LISTINGS_BUSINESS_REVIEW_NOTE,
   PARTNER_LISTINGS_PAYOUT_REVIEW_NOTE,
   PARTNER_MONEY_PAYOUT_STATUS_NOTE,
@@ -157,5 +160,22 @@ describe('booking confirmation copy', () => {
     expect(PARTNER_TERMS_MATERIAL_CHANGES_NOTE.toLowerCase()).toContain('partner portal');
     expect(TERMS_MATERIAL_CHANGES_NOTE.toLowerCase()).toContain('does not treat email delivery as the only notice');
     expect(PARTNER_TERMS_MATERIAL_CHANGES_NOTE.toLowerCase()).toContain('does not treat email delivery as the only notice');
+  });
+
+  it('Privacy copy does not treat email delivery as proof of a notice', () => {
+    expect(bookingConfirmationPromisesEmailSent(PRIVACY_COMMUNICATIONS_NOTE)).toBe(false);
+    expect(bookingConfirmationPromisesEmailSent(PARTNER_PRIVACY_COMMUNICATIONS_NOTE)).toBe(false);
+    expect(PRIVACY_COMMUNICATIONS_NOTE.toLowerCase()).toContain('trips');
+    expect(PARTNER_PRIVACY_COMMUNICATIONS_NOTE.toLowerCase()).toContain('partner portal');
+    expect(PRIVACY_COMMUNICATIONS_NOTE.toLowerCase()).toContain('does not treat email delivery as proof you received');
+    expect(PARTNER_PRIVACY_COMMUNICATIONS_NOTE.toLowerCase()).toContain(
+      'does not treat email delivery as proof you received'
+    );
+  });
+
+  it('Cookies copy does not treat email delivery as proof of a preference update', () => {
+    expect(bookingConfirmationPromisesEmailSent(COOKIES_PREFERENCES_NOTE)).toBe(false);
+    expect(COOKIES_PREFERENCES_NOTE.toLowerCase()).toContain('saved on this website');
+    expect(COOKIES_PREFERENCES_NOTE.toLowerCase()).toContain('does not treat email delivery as proof');
   });
 });

@@ -1,4 +1,5 @@
 import LegalPageShell from '../components/LegalPageShell';
+import { COOKIES_PREFERENCES_NOTE } from '../lib/booking-confirmation-copy';
 
 type CookiesProps = {
   onNavigate?: (page: string) => void;
@@ -40,6 +41,7 @@ export default function Cookies({ onNavigate }: CookiesProps) {
             <strong>Marketing cookies:</strong> Used to deliver relevant advertisements
           </li>
         </ul>
+        <p>{COOKIES_PREFERENCES_NOTE}</p>
       </section>
 
       <section>
