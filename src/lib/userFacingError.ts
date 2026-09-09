@@ -2,7 +2,7 @@
  * User-visible errors: human language only. Never pass through provider/database/stack text.
  */
 
-import { PARTNER_MONEY_LOAD_ERROR_BODY } from './booking-confirmation-copy';
+import { PARTNER_MONEY_LOAD_ERROR_BODY, BOOKING_MESSAGE_EMPTY_BODY_ERROR } from './booking-confirmation-copy';
 
 export const USER_ERROR = {
   generic: 'Something went wrong. Check your connection and try again.',
@@ -57,8 +57,12 @@ const KNOWN_HUMAN: Array<{ test: RegExp; copy: string }> = [
     copy: "We couldn't update your booking. Nothing was changed. Try again.",
   },
   {
-    test: /inventory (lock|hold) (lost|expired)|hold expired/i,
-    copy: 'Those spots were released while you were checking out. Start checkout again to continue.',
+    test: /write a message before sending/i,
+    copy: BOOKING_MESSAGE_EMPTY_BODY_ERROR,
+  },
+  {
+    test: /sign in to send a message/i,
+    copy: 'Sign in to post a message.',
   },
 ];
 

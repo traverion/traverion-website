@@ -14,7 +14,7 @@ import { isCollectedBooking, sumCollectedAmount, isRefundDueBooking, sumRefundDu
 import { ledgerAdjustmentTotal } from '../../lib/supplier-ledger-balance';
 import { fetchMyListings } from '../../data/supabase-listings';
 import { fetchSupplierLedger, type SupplierLedgerEntry } from '../../data/supabase-booking-ops';
-import { PARTNER_MONEY_PAYOUT_STATUS_NOTE, PARTNER_MONEY_PAID_OUT_TO_DATE_NOTE, PARTNER_MONEY_EMPTY_TITLE, PARTNER_MONEY_EMPTY_BODY, PARTNER_MONEY_LOAD_ERROR_TITLE, PARTNER_MONEY_FILTER_EMPTY_BODY, PARTNER_MONEY_AVAILABLE_BALANCE_LABEL, PARTNER_MONEY_NEGATIVE_BALANCE_LABEL, PARTNER_MONEY_PERIOD_NOT_PAID_OUT_LABEL } from '../../lib/booking-confirmation-copy';
+import { PARTNER_MONEY_PAYOUT_STATUS_NOTE, PARTNER_MONEY_PAID_OUT_TO_DATE_NOTE, PARTNER_MONEY_EMPTY_TITLE, PARTNER_MONEY_EMPTY_BODY, PARTNER_MONEY_LOAD_ERROR_TITLE, PARTNER_MONEY_FILTER_EMPTY_BODY, PARTNER_MONEY_AVAILABLE_BALANCE_LABEL, PARTNER_MONEY_NEGATIVE_BALANCE_LABEL, PARTNER_MONEY_PERIOD_NOT_PAID_OUT_LABEL, PARTNER_MONEY_THRESHOLD_PROGRESS_SUFFIX } from '../../lib/booking-confirmation-copy';
 import NoticeCallout from '../../components/NoticeCallout';
 import {
   PARTNER_MONEY_CSV_HEADER,
@@ -220,7 +220,9 @@ export default function SupplierEarnings() {
               </p>
             ) : null}
             {payoutProgressPct !== null ? (
-              <p className="mt-3 text-sm text-ink-muted">{payoutProgressPct}% of your payout minimum</p>
+              <p className="mt-3 text-sm text-ink-muted">
+                {payoutProgressPct}% {PARTNER_MONEY_THRESHOLD_PROGRESS_SUFFIX}
+              </p>
             ) : null}
             <p className="mt-4 text-sm text-ink-muted max-w-lg">{nextPayoutLabel}</p>
             {refundDueBookings.length > 0 ? (
@@ -280,7 +282,7 @@ export default function SupplierEarnings() {
                       statusFilter === s ? 'bg-ink text-paper-raised' : 'text-ink-muted hover:text-ink'
                     }`}
                   >
-                    {s === 'all' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}
+                    {s === 'all' ? 'All' : s === 'pending' ? PARTNER_MONEY_PERIOD_NOT_PAID_OUT_LABEL : s.charAt(0).toUpperCase() + s.slice(1)}
                   </button>
                 ))}
                 <button

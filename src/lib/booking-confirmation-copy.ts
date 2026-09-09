@@ -310,6 +310,16 @@ export const PARTNER_MONEY_NEGATIVE_BALANCE_LABEL = 'Balance';
 /** Money period row status when not yet paid out — not a queued Stripe transfer. */
 export const PARTNER_MONEY_PERIOD_NOT_PAID_OUT_LABEL = 'Not paid out';
 
+/**
+ * Money hero threshold progress suffix — informational only once payouts are enabled.
+ * Display as `{pct}% {PARTNER_MONEY_THRESHOLD_PROGRESS_SUFFIX}`.
+ */
+export const PARTNER_MONEY_THRESHOLD_PROGRESS_SUFFIX =
+  'of your saved minimum (applies once payouts are enabled — not a queued transfer)';
+
+/** Booking thread empty body — post, not email send (maps RPC “before sending”). */
+export const BOOKING_MESSAGE_EMPTY_BODY_ERROR = 'Write a message before posting.';
+
 /** Partner business draft complete — save/submit for review, not email send. */
 export const PARTNER_BUSINESS_READY_TO_SUBMIT_NOTE =
   'Required fields look complete. Save company details to submit them to Traverion for review.';
