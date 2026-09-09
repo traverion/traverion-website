@@ -213,7 +213,9 @@ serve(async (req) => {
       headline = 'Your booking details were saved';
       intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">We updated the notes on your booking. Here is what changed (previous value → new value):</p>`;
       extraHtml = fieldDiffTableHtml(diffs);
-      footerNote = 'If you did not make this change, contact the provider or Traverion support immediately.';
+      footerNote =
+        // Keep in sync with TRAVELER_DETAILS_UPDATED_EMAIL_NOTE in booking-confirmation-copy.ts
+        'Your updates are saved on this booking in Trips. Traverion does not treat email delivery as proof of the change. If you did not make this change, contact the host or Traverion support immediately.';
     } else if (kind === 'host_updated_schedule') {
       headline = 'Your host updated meeting times';
       intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">The tour operator updated the schedule for your booking. Compare the previous and new times below.</p>`;

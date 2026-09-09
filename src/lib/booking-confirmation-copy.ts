@@ -214,6 +214,13 @@ export const TRAVELER_NEW_BOOKING_MESSAGE_EMAIL_NOTE =
 export const TRAVELER_HOST_SCHEDULE_UPDATED_EMAIL_NOTE =
   'Updated times appear in Trips. Traverion does not treat email delivery as proof you received this update. Reply to the host in Trips if you need help.';
 
+/**
+ * Traveler details-saved email footer — Trips is durable for booking notes.
+ * Keep in sync with notify-customer-booking your_details_updated footerNote.
+ */
+export const TRAVELER_DETAILS_UPDATED_EMAIL_NOTE =
+  'Your updates are saved on this booking in Trips. Traverion does not treat email delivery as proof of the change. If you did not make this change, contact the host or Traverion support immediately.';
+
 /** Contact form success: inquiry is saved; do not promise a reply email. */
 export const CONTACT_FORM_THANK_YOU =
   'Thank you. Your message is saved with Traverion. We do not treat email delivery as proof of a reply.';
