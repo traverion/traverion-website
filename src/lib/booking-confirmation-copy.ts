@@ -82,6 +82,10 @@ export const PARTNER_CANCELLATION_REQUEST_DELIVERY_NOTE =
 export const TRAVELER_CANCELLATION_RESPONSE_DELIVERY_NOTE =
   'Your response is saved on this booking. Traverion does not treat email delivery as proof the host saw it.';
 
+/** Traveler self-cancel sheet: Resend is blocked — do not claim the host was emailed. */
+export const TRAVELER_SELF_CANCEL_DELIVERY_NOTE =
+  'If you cancel, the host sees it on their Bookings. Traverion does not treat email delivery as proof they saw it.';
+
 export function readStripeCheckoutReturnBanner(search: string): 'success' | 'cancelled' | null {
   const raw = search.startsWith('?') ? search.slice(1) : search;
   const payment = (new URLSearchParams(raw).get('payment') ?? '').trim().toLowerCase();

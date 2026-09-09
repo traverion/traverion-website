@@ -44,6 +44,7 @@ import {
   BOOKING_CONFIRMATION_EMAIL_DISCLAIMER,
   STRIPE_CHECKOUT_CANCELLED_TOUR_COPY,
   TRAVELER_CANCELLATION_RESPONSE_DELIVERY_NOTE,
+  TRAVELER_SELF_CANCEL_DELIVERY_NOTE,
   readStripeCheckoutReturnBanner,
 } from '../lib/booking-confirmation-copy';
 
@@ -713,6 +714,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         : 'start is'
                     } within 24 hours. No refund applies for a traveler-initiated cancellation.`}
               </p>
+              <p className="mt-2 text-xs text-ink-muted leading-relaxed">{TRAVELER_SELF_CANCEL_DELIVERY_NOTE}</p>
               <div className="mt-6 flex flex-wrap gap-2">
                 <button
                   type="button"
