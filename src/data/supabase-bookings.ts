@@ -3,7 +3,7 @@ import { publicSiteBaseUrl } from '../lib/publicSiteUrl';
 import { supplierPortalPublicBaseUrl } from '../lib/partnerHost';
 import { notifySupplierEvent } from './supabase-supplier-messaging';
 import { hmToPgTime, pgTimeToHm } from './supabase-listings';
-import { travelerSelfCancelBlock, travelerSelfCancelError } from '../lib/cancellation-policy';
+import { travelerSelfCancelBlock, travelerSelfCancelError, partnerBookingStatusRewriteBlock } from '../lib/cancellation-policy';
 
 /** Shape used by BookingForm (legacy). Mapped to public.bookings in DB. */
 export type Booking = {
@@ -449,8 +449,19 @@ export async function updateBookingStatus(
   bookingId: string,
   status: 'pending' | 'confirmed' | 'cancelled',
   options?: { cancellation_reason?: string; refund_choice?: 'full_refund' | 'no_refund' | 'reschedule' }
-): Promise<boolean> {
-  if (!supabase) return false;
+): Promise<{ ok: boolean; error?: string }> {
+  if (!supabase) return { ok: false, error: 'Supabase not configured' };
+  const { data: current, error: loadError } = await supabase
+    .from('bookings')
+    .select('id, status, payment_status')
+    .eq('id', bookingId)
+    .maybeSingle();
+  if (loadError) return { ok: false, error: loadError.message };
+  if (!current) return { ok: false, error: 'This booking is not available.' };
+  const locked = partnerBookingStatusRewriteBlock(current, status);
+  if (locked !== 'none') {
+    return { ok: false, error: travelerSelfCancelError(locked) };
+  }
   const payload: Record<string, unknown> = { status };
   if (status === 'cancelled') {
     payload.cancelled_at = new Date().toISOString();
@@ -461,7 +472,14 @@ export async function updateBookingStatus(
     .from('bookings')
     .update(payload)
     .eq('id', bookingId);
-  return !error;
+  if (error) {
+    const message = error.message || '';
+    if (/already refunded/i.test(message)) {
+      return { ok: false, error: travelerSelfCancelError('refunded') };
+    }
+    return { ok: false, error: message };
+  }
+  return { ok: true };
 }
 
 /** Set per-booking start and pickup times (supplier; RLS: own listing’s bookings). Times are HH:MM or empty to clear. */
@@ -598,19 +616,26 @@ export async function batchCancelBookings(
   if (ids.length === 0) return { count: 0 };
   const { data: toCancel } = await supabase
     .from('bookings')
-    .select('id')
+    .select('id, status, payment_status')
     .in('listing_id', ids)
     .gte('booking_date', params.dateFrom)
     .lte('booking_date', params.dateTo)
     .neq('status', 'cancelled');
-  const bookingIds = (toCancel ?? []).map((b: { id: string }) => b.id);
-  for (const id of bookingIds) {
-    await updateBookingStatus(id, 'cancelled', {
+  const rows = (toCancel ?? []) as { id: string; status?: string | null; payment_status?: string | null }[];
+  const actionable = rows.filter((row) => partnerBookingStatusRewriteBlock(row, 'cancelled') === 'none');
+  const skippedRefunded = rows.length - actionable.length;
+  let count = 0;
+  for (const row of actionable) {
+    const res = await updateBookingStatus(row.id, 'cancelled', {
       cancellation_reason: params.cancellation_reason,
       refund_choice: params.refund_choice,
     });
+    if (res.ok) count += 1;
   }
-  return { count: bookingIds.length };
+  if (count === 0 && skippedRefunded > 0) {
+    return { count: 0, error: travelerSelfCancelError('refunded') };
+  }
+  return { count };
 }
 
 /** Consumer cancels own booking. RLS allows update only when guest_email = auth user. Sets refund_choice to full_refund if tour start is >24h away, else no_refund. */

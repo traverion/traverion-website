@@ -151,3 +151,18 @@ export function travelerSelfCancelError(block: TravelerSelfCancelBlock): string 
   if (block === 'cancelled') return SUPPLIER_CANCEL_ALREADY_CANCELLED;
   return '';
 }
+
+/** Partner status rewrite: refunded trips are closed even if status is still confirmed. */
+export function partnerBookingStatusRewriteBlock(
+  row: {
+    status?: string | null;
+    payment_status?: string | null;
+  },
+  nextStatus: string
+): TravelerSelfCancelBlock {
+  const pay = normalizePaymentStatus(row.payment_status);
+  if (pay === 'refunded') return 'refunded';
+  const status = (row.status ?? '').trim().toLowerCase();
+  if (status === 'cancelled' && nextStatus.trim().toLowerCase() === 'cancelled') return 'cancelled';
+  return 'none';
+}

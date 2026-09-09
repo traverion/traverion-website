@@ -388,8 +388,8 @@ export default function SupplierBookings() {
       if (!canEditBookings) return;
       setUpdatingId(booking.id);
       const previousStatus = booking.status;
-      const ok = await updateBookingStatus(booking.id, status, options);
-      if (ok) {
+      const res = await updateBookingStatus(booking.id, status, options);
+      if (res.ok) {
         if (status === 'cancelled' && previousStatus === 'confirmed' && booking.booking_date) {
           await decrementAvailabilityBooked(booking.listing_id, booking.booking_date, booking.guests ?? 1);
         }
@@ -406,9 +406,11 @@ export default function SupplierBookings() {
               : b
           )
         );
+      } else {
+        setCancelError(userFacingError(res.error, 'Could not update this booking.'));
       }
       setUpdatingId(null);
-      if (status === 'cancelled') {
+      if (res.ok && status === 'cancelled') {
         setCancelModal(null);
       }
     },

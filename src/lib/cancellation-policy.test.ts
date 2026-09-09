@@ -12,6 +12,7 @@ import {
   travelerSelfCancelBlock,
   travelerSelfCancelError,
   travelerSelfCancelRefundChoice,
+  partnerBookingStatusRewriteBlock,
 } from './cancellation-policy';
 
 describe('supplier cancellation policy', () => {
@@ -77,5 +78,22 @@ describe('supplier cancellation policy', () => {
     ).toBe(SUPPLIER_CANCEL_ALREADY_REFUNDED);
     expect(travelerSelfCancelBlock({ status: 'cancelled', payment_status: 'paid' })).toBe('cancelled');
     expect(travelerSelfCancelBlock({ status: 'confirmed', payment_status: 'paid' })).toBe('none');
+  });
+
+  it('skips partner status rewrite on refunded bookings as already refunded', () => {
+    expect(
+      partnerBookingStatusRewriteBlock({ status: 'confirmed', payment_status: 'refunded' }, 'cancelled')
+    ).toBe('refunded');
+    expect(
+      travelerSelfCancelError(
+        partnerBookingStatusRewriteBlock({ status: 'confirmed', payment_status: 'refunded' }, 'cancelled')
+      )
+    ).toBe(SUPPLIER_CANCEL_ALREADY_REFUNDED);
+    expect(
+      partnerBookingStatusRewriteBlock({ status: 'confirmed', payment_status: 'refunded' }, 'confirmed')
+    ).toBe('refunded');
+    expect(
+      partnerBookingStatusRewriteBlock({ status: 'confirmed', payment_status: 'paid' }, 'cancelled')
+    ).toBe('none');
   });
 });

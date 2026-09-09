@@ -469,14 +469,14 @@ export default function SupplierPickupPlanner() {
     if (!canEditBookings) return;
     if (!selectedBooking || selectedBooking.status === 'confirmed' || selectedBooking.status === 'cancelled') return;
     setUpdatingId(selectedBooking.id);
-    const ok = await updateBookingStatus(selectedBooking.id, 'confirmed');
-    if (ok) {
+    const res = await updateBookingStatus(selectedBooking.id, 'confirmed');
+    if (res.ok) {
       setBookings((prev) =>
         prev.map((b) => (b.id === selectedBooking.id ? { ...b, status: 'confirmed' } : b))
       );
       showActionFeedback('success', 'Booking confirmed.');
     } else {
-      showActionFeedback('error', 'Could not confirm booking. Try again.');
+      showActionFeedback('error', res.error || 'Could not confirm booking. Try again.');
     }
     setUpdatingId(null);
   };
@@ -486,11 +486,11 @@ export default function SupplierPickupPlanner() {
     if (!selectedBooking || !partnerBookingIsOperatingTrip(selectedBooking) || !cancelReason) return;
     setUpdatingId(selectedBooking.id);
     const previousStatus = selectedBooking.status;
-    const ok = await updateBookingStatus(selectedBooking.id, 'cancelled', {
+    const res = await updateBookingStatus(selectedBooking.id, 'cancelled', {
       cancellation_reason: cancelReason,
       refund_choice: cancelRefund || undefined,
     });
-    if (ok) {
+    if (res.ok) {
       if (previousStatus === 'confirmed' && selectedBooking.booking_date) {
         await decrementAvailabilityBooked(
           selectedBooking.listing_id,
@@ -513,7 +513,7 @@ export default function SupplierPickupPlanner() {
       );
       showActionFeedback('success', 'Booking cancelled.');
     } else {
-      showActionFeedback('error', 'Could not cancel booking. Try again.');
+      showActionFeedback('error', res.error || 'Could not cancel booking. Try again.');
     }
     setUpdatingId(null);
   };
