@@ -95,5 +95,8 @@ describe('supplier cancellation policy', () => {
     expect(
       partnerBookingStatusRewriteBlock({ status: 'confirmed', payment_status: 'paid' }, 'cancelled')
     ).toBe('none');
+    expect(travelerSelfCancelBlock({ status: 'confirmed', payment_status: 'refunded' })).toBe(
+      'refunded'
+    );
   });
 });

@@ -384,15 +384,15 @@ export default function SupplierPickupPlanner() {
   ) : null;
 
   const handleSaveScheduleTimes = async () => {
-    if (!canEditBookings || !selectedBooking || selectedBooking.status === 'cancelled') return;
+    if (!canEditBookings || !selectedBooking || !partnerBookingIsOperatingTrip(selectedBooking)) return;
     setUpdatingId(selectedBooking.id);
     const startTrim = scheduleDraft.start.trim();
     const pickupTrim = scheduleDraft.pickup.trim();
-    const ok = await updateBookingSchedule(selectedBooking.id, {
+    const res = await updateBookingSchedule(selectedBooking.id, {
       start_time: startTrim || null,
       pickup_time: pickupTrim || null,
     });
-    if (ok) {
+    if (res.ok) {
       setBookings((prev) =>
         prev.map((b) =>
           b.id === selectedBooking.id
@@ -406,7 +406,7 @@ export default function SupplierPickupPlanner() {
       );
       showActionFeedback('success', 'Times saved for this booking.');
     } else {
-      showActionFeedback('error', 'Could not save times. Try again.');
+      showActionFeedback('error', res.error || 'Could not save times. Try again.');
     }
     setUpdatingId(null);
   };
@@ -599,7 +599,7 @@ export default function SupplierPickupPlanner() {
             </div>
           ) : null}
 
-          {selectedBooking.status !== 'cancelled' && (
+          {partnerBookingIsOperatingTrip(selectedBooking) && (
             <div>
               <h2 className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">Times for this booking</h2>
               <p className="text-sm text-ink-muted mb-4">
@@ -657,7 +657,7 @@ export default function SupplierPickupPlanner() {
             </div>
           </div>
 
-          {selectedBooking.status !== 'cancelled' && (
+          {partnerBookingIsOperatingTrip(selectedBooking) && (
             <div>
               <h2 className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">Cancel booking</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xl">

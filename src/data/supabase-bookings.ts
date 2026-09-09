@@ -486,15 +486,19 @@ export async function updateBookingStatus(
 export async function updateBookingSchedule(
   bookingId: string,
   params: { start_time?: string | null; pickup_time?: string | null }
-): Promise<boolean> {
-  if (!supabase) return false;
+): Promise<{ ok: boolean; error?: string }> {
+  if (!supabase) return { ok: false, error: 'Supabase not configured' };
 
   const { data: prior, error: priorErr } = await supabase
     .from('bookings')
-    .select('start_time, pickup_time, guest_email, guest_name, booking_date, listing_id, guests, booking_number')
+    .select('start_time, pickup_time, guest_email, guest_name, booking_date, listing_id, guests, booking_number, status, payment_status')
     .eq('id', bookingId)
     .maybeSingle();
-  if (priorErr || !prior) return false;
+  if (priorErr || !prior) return { ok: false, error: priorErr?.message || 'This booking is not available.' };
+  const closed = travelerSelfCancelBlock(prior);
+  if (closed !== 'none') {
+    return { ok: false, error: travelerSelfCancelError(closed) };
+  }
 
   const nextStartPg = 'start_time' in params ? hmToPgTime(params.start_time ?? null) : prior.start_time;
   const nextPickupPg = 'pickup_time' in params ? hmToPgTime(params.pickup_time ?? null) : prior.pickup_time;
@@ -507,12 +511,18 @@ export async function updateBookingSchedule(
   const payload: Record<string, unknown> = {};
   if ('start_time' in params) payload.start_time = nextStartPg;
   if ('pickup_time' in params) payload.pickup_time = nextPickupPg;
-  if (Object.keys(payload).length === 0) return true;
+  if (Object.keys(payload).length === 0) return { ok: true };
 
   const { error } = await supabase.from('bookings').update(payload).eq('id', bookingId);
-  if (error) return false;
+  if (error) {
+    const message = error.message || '';
+    if (/already refunded/i.test(message)) {
+      return { ok: false, error: travelerSelfCancelError('refunded') };
+    }
+    return { ok: false, error: message };
+  }
 
-  if (!startChanged && !pickupChanged) return true;
+  if (!startChanged && !pickupChanged) return { ok: true };
 
   const fieldDiffs: { label: string; before: string; after: string }[] = [];
   if (startChanged) {
@@ -530,7 +540,7 @@ export async function updateBookingSchedule(
     });
   }
 
-  if (fieldDiffs.length === 0) return true;
+  if (fieldDiffs.length === 0) return { ok: true };
 
   let listingTitle = 'Your experience';
   let supplierId: string | null = null;
@@ -582,7 +592,7 @@ export async function updateBookingSchedule(
     });
   }
 
-  return true;
+  return { ok: true };
 }
 
 /** Acknowledge a booking (supplier confirms receipt). */
