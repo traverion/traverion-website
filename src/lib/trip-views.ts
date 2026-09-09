@@ -17,6 +17,15 @@ export function bookingIsFailedCheckout(b: { payment_status?: string | null }): 
   return normalizePaymentStatus(b.payment_status) === 'failed';
 }
 
+/** Partner Unpaid filter: pending checkout only. Refunded was paid; cancelled is closed. */
+export function partnerBookingIsUnpaidCheckout(b: {
+  status?: string | null;
+  payment_status?: string | null;
+}): boolean {
+  if (bookingIsCancelledTrip(b) || bookingIsFailedCheckout(b)) return false;
+  return normalizePaymentStatus(b.payment_status) === 'pending';
+}
+
 /** Partner live trips: paid, pending hold, cancelled, refunded — not abandoned Stripe checkouts. */
 export function partnerBookingIsLiveTrip(b: { payment_status?: string | null }): boolean {
   return !bookingIsFailedCheckout(b);

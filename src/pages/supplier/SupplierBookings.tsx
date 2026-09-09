@@ -15,7 +15,7 @@ import {
 import type { TourPackage } from '../../types/tour';
 import { listingHeroImageSrc, orderedPhotoUrls, photoSlotsFromTourPackage } from '../../lib/listingPhotoGrid';
 import { formatMoney } from '../../lib/money';
-import { isPaidPaymentStatus, partnerPaymentLabel } from '../../lib/payment-states';
+import { isPaidPaymentStatus, partnerPaymentLabel, bookingPaymentWasCollected } from '../../lib/payment-states';
 import { guestFacingBookingNotes } from '../../lib/booking-notes';
 import {
   SUPPLIER_CANCELLATION_REASON_CODES,
@@ -59,7 +59,7 @@ import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { inventoryFamilyFromListing } from '../../lib/inventory';
 import { parseStayCheckOutFromNotes, nightsOccupiedByStay, stayRangeFromBooking } from '../../lib/stayOccupancy';
-import { partnerBookingIsLiveTrip, bookingIsCancelledTrip, partnerBookingIsOperatingTrip, partnerBookingNeedsLook } from '../../lib/trip-views';
+import { partnerBookingIsLiveTrip, bookingIsCancelledTrip, partnerBookingIsOperatingTrip, partnerBookingNeedsLook, partnerBookingIsUnpaidCheckout } from '../../lib/trip-views';
 import { formatStayNightHuman } from '../../lib/stay-calendar';
 
 const BOOKINGS_PAGE_SIZE = 10;
@@ -93,9 +93,10 @@ function formatBookingMoney(amount: number | null | undefined, currency: string 
   return formatMoney(Number(amount), currency);
 }
 
-function bookingStatusClass(status: string): string {
+function bookingStatusClass(status: string, paymentStatus?: string | null): string {
+  const pay = (paymentStatus ?? '').trim().toLowerCase();
+  if (status === 'cancelled' || pay === 'refunded') return 'bg-slate-100 text-slate-600 ring-slate-200/80';
   if (status === 'confirmed') return 'bg-emerald-50 text-emerald-800 ring-emerald-200/80';
-  if (status === 'cancelled') return 'bg-slate-100 text-slate-600 ring-slate-200/80';
   return 'bg-amber-50 text-amber-900 ring-amber-200/80';
 }
 
@@ -316,7 +317,7 @@ export default function SupplierBookings() {
         }
       }
       if (opsFilter === 'unpaid') {
-        if ((b.payment_status ?? 'pending').trim().toLowerCase() !== 'pending' || bookingIsCancelledTrip(b)) return false;
+        if (!partnerBookingIsUnpaidCheckout(b)) return false;
       }
       if (opsFilter === 'pickup') {
         if (isStay || bookingIsCancelledTrip(b) || !isPaidPaymentStatus(b.payment_status) || b.pickup_time) return false;
@@ -844,7 +845,7 @@ export default function SupplierBookings() {
                       <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-2xl bg-black/[0.04] shrink-0" aria-hidden />
                     )}
                     <div className="min-w-0 flex-1">
-                      <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize ring-1 ${bookingStatusClass(booking.status)}`}>
+                      <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize ring-1 ${bookingStatusClass(booking.status, booking.payment_status)}`}>
                         {partnerPaymentLabel(booking)}
                       </span>
                       <p className="mt-2 font-sans text-base font-semibold text-ink">{listingTitle}</p>
@@ -882,7 +883,9 @@ export default function SupplierBookings() {
                     ) : null}
                     {paidLabel ? (
                       <div>
-                        <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Paid</dt>
+                        <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">
+                          {partnerPaymentLabel(booking) === 'Refunded' ? 'Refunded' : 'Paid'}
+                        </dt>
                         <dd className="mt-0.5 text-ink">{paidLabel}</dd>
                       </div>
                     ) : null}
@@ -984,7 +987,7 @@ export default function SupplierBookings() {
                             })
                           : ''}
                       </li>
-                      {isPaidPaymentStatus(booking.payment_status) && booking.payment_status !== 'refunded' ? (
+                      {bookingPaymentWasCollected(booking.payment_status) ? (
                         <li>Paid</li>
                       ) : null}
                       {booking.acknowledged_at ? (
