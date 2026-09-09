@@ -4,6 +4,10 @@ import { supplierPortalPublicBaseUrl } from '../lib/partnerHost';
 import { notifySupplierEvent } from './supabase-supplier-messaging';
 import { hmToPgTime, pgTimeToHm } from './supabase-listings';
 import { travelerSelfCancelBlock, travelerSelfCancelError, partnerBookingStatusRewriteBlock } from '../lib/cancellation-policy';
+import {
+  TRAVELER_SELF_CANCEL_EMAIL_DIFF_FULL_REFUND,
+  TRAVELER_SELF_CANCEL_EMAIL_DIFF_NO_REFUND,
+} from '../lib/booking-confirmation-copy';
 
 /** Shape used by BookingForm (legacy). Mapped to public.bookings in DB. */
 export type Booking = {
@@ -726,8 +730,8 @@ export async function cancelBookingAsCustomer(
             before: 'Active booking',
             after:
               refundChoice === 'full_refund'
-                ? 'Cancelled — full refund per policy where applicable'
-                : 'Cancelled — no refund per policy for this date',
+                ? TRAVELER_SELF_CANCEL_EMAIL_DIFF_FULL_REFUND
+                : TRAVELER_SELF_CANCEL_EMAIL_DIFF_NO_REFUND,
           },
         ],
         publicSiteUrl: publicSiteBaseUrl(),

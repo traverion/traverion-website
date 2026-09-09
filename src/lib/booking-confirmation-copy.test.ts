@@ -14,6 +14,8 @@ import {
   TRAVELER_SELF_CANCEL_DELIVERY_NOTE,
   TRAVELER_SELF_CANCEL_FULL_REFUND_POLICY,
   TRAVELER_ACCEPT_HOST_CANCEL_REFUND_POLICY,
+  TRAVELER_SELF_CANCEL_EMAIL_DIFF_FULL_REFUND,
+  TRAVELER_SELF_CANCEL_EMAIL_DIFF_NO_REFUND,
   CONTACT_FORM_THANK_YOU,
   PARTNERSHIP_FORM_THANK_YOU,
   TERMS_MATERIAL_CHANGES_NOTE,
@@ -153,6 +155,10 @@ describe('booking confirmation copy', () => {
     expect(TRAVELER_ACCEPT_HOST_CANCEL_REFUND_POLICY.toLowerCase()).not.toContain('full refund is expected');
     expect(bookingConfirmationPromisesEmailSent(TRAVELER_SELF_CANCEL_FULL_REFUND_POLICY)).toBe(false);
     expect(bookingConfirmationPromisesEmailSent(TRAVELER_ACCEPT_HOST_CANCEL_REFUND_POLICY)).toBe(false);
+    expect(TRAVELER_SELF_CANCEL_EMAIL_DIFF_FULL_REFUND.toLowerCase()).toContain('refund due until stripe');
+    expect(TRAVELER_SELF_CANCEL_EMAIL_DIFF_FULL_REFUND.toLowerCase()).not.toContain('per policy where applicable');
+    expect(TRAVELER_SELF_CANCEL_EMAIL_DIFF_NO_REFUND.toLowerCase()).toContain('no refund');
+    expect(bookingConfirmationPromisesEmailSent(TRAVELER_SELF_CANCEL_EMAIL_DIFF_FULL_REFUND)).toBe(false);
   });
 
   it('marketing contact thank-you copy does not promise a reply email', () => {

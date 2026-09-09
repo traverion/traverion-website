@@ -222,12 +222,14 @@ serve(async (req) => {
       headline = 'Your booking was cancelled';
       intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your reservation has been cancelled as requested. Summary below.</p>`;
       if (diffs.length) extraHtml = fieldDiffTableHtml(diffs);
-      footerNote = 'Refund timing depends on your payment method and bank. If you paid by card, look for a reversal from Traverion or your card statement.';
+      footerNote =
+        'When a refund applies, Trips shows Refund due until Stripe records Refunded. Traverion does not send Stripe refunds automatically. Timing then depends on your bank.';
     } else if (kind === 'cancellation_requested_by_supplier') {
       headline = 'Action needed: cancellation request';
       intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">The host requested to cancel this booking. Open Trips to review the reason and accept or decline. Traverion will not cancel automatically if you do not respond.</p>`;
       if (diffs.length) extraHtml = fieldDiffTableHtml(diffs);
-      footerNote = 'If you accept, a full refund is expected. Traverion does not send the refund automatically; it is recorded after Stripe processes it.';
+      footerNote =
+        'If you accept, a full refund is due. Status becomes Refunded only after Stripe records it. Traverion does not send refunds automatically.';
     } else if (kind === 'cancellation_accepted') {
       headline = 'Cancellation confirmed';
       intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">You accepted the host’s cancellation request. This booking is cancelled. A refund is due; it is recorded when Stripe processes it — Traverion does not refund automatically.</p>`;

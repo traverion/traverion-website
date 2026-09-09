@@ -134,6 +134,14 @@ export const TRAVELER_SELF_CANCEL_DELIVERY_NOTE =
 export const TRAVELER_SELF_CANCEL_FULL_REFUND_POLICY =
   'A full refund is due under the cancellation window. Status becomes Refund due until Stripe records the refund. Traverion does not send Stripe refunds automatically.';
 
+/** Email / notify fieldDiff after traveler self-cancel with a refund due. */
+export const TRAVELER_SELF_CANCEL_EMAIL_DIFF_FULL_REFUND =
+  'Cancelled — full refund due until Stripe records it (not automatic)';
+
+/** Email / notify fieldDiff after traveler self-cancel with no refund. */
+export const TRAVELER_SELF_CANCEL_EMAIL_DIFF_NO_REFUND =
+  'Cancelled — no refund for this traveler-initiated cancellation';
+
 /**
  * Traveler accepting a host cancellation request — same Refund due honesty.
  * Do not promise an automatic payout as if money already moved.
