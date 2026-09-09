@@ -207,7 +207,8 @@ serve(async (req) => {
 </table>`;
       }
       footerNote =
-        'The tour operator may follow up by email about meeting point, pickup, or what to bring.';
+        // Keep in sync with BOOKING_CONFIRMED_PAID_FOLLOWUP_NOTE in booking-confirmation-copy.ts
+        'Watch Trips for schedule or meeting updates from the host. Traverion does not treat email delivery as proof you received a notice.';
     } else if (kind === 'your_details_updated') {
       headline = 'Your booking details were saved';
       intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">We updated the notes on your booking. Here is what changed (previous value → new value):</p>`;

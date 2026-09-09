@@ -167,6 +167,13 @@ export const SUPPLIER_BOOKING_CANCELLED_NOTIFY_SUB =
 export const SUPPLIER_HOST_SCHEDULE_UPDATED_NOTIFY_SUB =
   'You just updated start or pickup times for this booking. Below is a record of what changed. The guest sees the update on Trips; Traverion does not treat email delivery as proof they saw it.';
 
+/**
+ * Paid confirmation email footer — Trips is durable; do not imply host follow-up is by email.
+ * Keep in sync with notify-customer-booking booking_confirmed_paid footerNote.
+ */
+export const BOOKING_CONFIRMED_PAID_FOLLOWUP_NOTE =
+  'Watch Trips for schedule or meeting updates from the host. Traverion does not treat email delivery as proof you received a notice.';
+
 /** Contact form success: inquiry is saved; do not promise a reply email. */
 export const CONTACT_FORM_THANK_YOU =
   'Thank you. Your message is saved with Traverion. We do not treat email delivery as proof of a reply.';
