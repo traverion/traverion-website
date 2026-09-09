@@ -91,6 +91,13 @@ function businessVerified(profile: SupplierProfileRow | null | undefined): boole
   return (profile?.verification_status ?? '').trim().toLowerCase() === 'verified';
 }
 
+/** Payout-approved footnote: do not claim business is still required when it is already verified. */
+export function partnerPayoutVerifiedStatusNote(businessIsVerified: boolean): string {
+  return businessIsVerified
+    ? 'Bank details approved.'
+    : 'Bank details approved. Business verification is still required to publish listings.';
+}
+
 /**
  * Can create/publish listings: Traverion has verified business and payout (IBAN/BIC) independently,
  * and required fields are still complete.

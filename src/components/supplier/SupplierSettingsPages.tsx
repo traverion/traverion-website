@@ -25,7 +25,10 @@ import {
   verificationDocumentBasename,
 } from '../../data/supabase-supplier-profile';
 import { formatSupplierBusinessAddressFromParts } from '../../lib/supplierAddress';
-import { getSupplierBusinessProfileMissingReasons } from '../../lib/supplierOnboarding';
+import {
+  getSupplierBusinessProfileMissingReasons,
+  partnerPayoutVerifiedStatusNote,
+} from '../../lib/supplierOnboarding';
 import {
   isSupplierBusinessIdentityLocked,
   isSupplierPayoutDetailsLocked,
@@ -1095,9 +1098,7 @@ function BusinessProfilePage(p: Props) {
             </div>
 
             {p.payoutIban.trim() && p.payoutBic.trim() && vPay === 'verified' && (
-              <p className="text-sm text-ink-muted">
-                Bank details approved. Business verification is still required to publish listings.
-              </p>
+              <p className="text-sm text-ink-muted">{partnerPayoutVerifiedStatusNote(vBus === 'verified')}</p>
             )}
             {p.payoutIban.trim() && p.payoutBic.trim() && vPay === 'rejected' && (
               <div className="space-y-2">
