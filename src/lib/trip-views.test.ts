@@ -5,6 +5,8 @@ import {
   partnerBookingIsLiveTrip,
   partnerBookingIsOperatingTrip,
   partnerBookingNeedsLook,
+  partnerBookingIsTodaySchedule,
+  partnerBookingIsUpcomingSchedule,
 } from './trip-views';
 
 const today = '2026-09-08';
@@ -89,5 +91,21 @@ describe('trip list views', () => {
         payment_status: 'paid',
       })
     ).toBe(false);
+  });
+
+  it('does not put refunded bookings on Today or the upcoming strip', () => {
+    const refundedToday = {
+      status: 'confirmed',
+      payment_status: 'refunded',
+      booking_date: '2026-10-10',
+    };
+    expect(partnerBookingIsTodaySchedule(refundedToday, '2026-10-10')).toBe(false);
+    expect(partnerBookingIsUpcomingSchedule(refundedToday, '2026-09-09')).toBe(false);
+    expect(
+      partnerBookingIsTodaySchedule(
+        { status: 'confirmed', payment_status: 'paid', booking_date: '2026-09-11' },
+        '2026-09-11'
+      )
+    ).toBe(true);
   });
 });

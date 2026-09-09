@@ -18,7 +18,7 @@ import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { formatMoney } from '../../lib/money';
 import { bookingOccupiesInventory } from '../../lib/booking-hold';
-import { partnerBookingIsOperatingTrip } from '../../lib/trip-views';
+import { partnerBookingIsOperatingTrip, partnerBookingIsTodaySchedule, partnerBookingIsUpcomingSchedule } from '../../lib/trip-views';
 
 interface SupplierDashboardProps {
   onNavigateToBookings?: () => void;
@@ -123,9 +123,7 @@ export default function SupplierDashboard({ onNavigateToBookings }: SupplierDash
   const todayYmd = localYmd(now);
 
   const todayScheduleRows = useMemo(() => {
-    const active = supplierBookings.filter(
-      (b) => b.booking_date === todayYmd && bookingOccupiesInventory(b)
-    );
+    const active = supplierBookings.filter((b) => partnerBookingIsTodaySchedule(b, todayYmd));
     const byListing = new Map<string, { bookings: number; guests: number }>();
     for (const b of active) {
       const cur = byListing.get(b.listing_id) ?? { bookings: 0, guests: 0 };
@@ -195,7 +193,7 @@ export default function SupplierDashboard({ onNavigateToBookings }: SupplierDash
   });
 
   const upcoming = supplierBookings
-    .filter((b) => bookingOccupiesInventory(b) && b.booking_date && b.booking_date > todayYmd)
+    .filter((b) => partnerBookingIsUpcomingSchedule(b, todayYmd))
     .sort((a, b) => (a.booking_date ?? '').localeCompare(b.booking_date ?? ''))
     .slice(0, 4);
 
