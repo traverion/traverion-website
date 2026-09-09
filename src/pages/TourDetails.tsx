@@ -47,6 +47,10 @@ import { listingTourCapacityFromOptions } from '../lib/availability-ops';
 import { tourSoldOutDates } from '../lib/tour-calendar';
 import BookingPage from './BookingPage';
 import {
+  BOOKING_CONFIRMATION_EMAIL_DISCLAIMER,
+  TOUR_LISTING_CONFIRMATION_NOTE,
+} from '../lib/booking-confirmation-copy';
+import {
   getPartySizeBounds,
   getPartySizeBoundsForVariant,
   guestCountValidationError,
@@ -1050,6 +1054,9 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                     </p>
                     <p className="flex items-center gap-2">
                       <Shield className="w-3.5 h-3.5 text-finland flex-shrink-0" /> Pay via Stripe to confirm
+                    </p>
+                    <p className="leading-relaxed">
+                      {TOUR_LISTING_CONFIRMATION_NOTE} {BOOKING_CONFIRMATION_EMAIL_DISCLAIMER}
                     </p>
                   </div>
                 </div>

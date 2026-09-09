@@ -10,6 +10,10 @@ export const BOOKING_CONFIRMATION_EMAIL_DISCLAIMER =
 export const STAY_LISTING_CONFIRMATION_NOTE =
   'After you pay, the stay appears in Trips. We do not send a confirmation email from this checkout.';
 
+/** Tour listing booking panel: confirmation is Trips, not mail. */
+export const TOUR_LISTING_CONFIRMATION_NOTE =
+  'After you pay, the tour appears in Trips. We do not send a confirmation email from this checkout.';
+
 export function bookingConfirmationPromisesEmailSent(copy: string): boolean {
   const t = copy.trim().toLowerCase();
   return (
