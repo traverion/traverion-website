@@ -22,6 +22,7 @@ import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 import { CHECKOUT_HOLD_MINUTES } from '../lib/booking-hold';
 import { formatOccupiedNightRanges, formatStayNightHuman } from '../lib/stay-calendar';
 import { stayAmenityDisplayList } from '../lib/stay-amenities';
+import { stayCheckoutLeadGuestNameReady } from '../lib/stay-checkout-guest';
 import {
   BOOKING_CONFIRMATION_EMAIL_DISCLAIMER,
   STAY_LISTING_CONFIRMATION_NOTE,
@@ -55,6 +56,8 @@ export default function StayDetails({ stayId, onBack }: Props) {
   const [paying, setPaying] = useState(false);
   const checkoutLockRef = useRef(false);
   const [payError, setPayError] = useState<string | null>(null);
+  const [guestName, setGuestName] = useState('');
+  const [guestPhone, setGuestPhone] = useState('');
   const [hostName, setHostName] = useState<string | null>(null);
   const [occupiedRanges, setOccupiedRanges] = useState<{ checkIn: string; checkOut: string }[]>([]);
 
@@ -140,6 +143,16 @@ export default function StayDetails({ stayId, onBack }: Props) {
     checkIn && checkOut ? occupiedRanges.some((r) => stayDateRangesOverlap(checkIn, checkOut, r.checkIn, r.checkOut)) : false;
   const hero = stay ? listingHeroImageSrc(stay.image) : undefined;
 
+  useEffect(() => {
+    if (!user) return;
+    const meta = user.user_metadata as { full_name?: string; name?: string; phone?: string } | undefined;
+    const fromMeta = (meta?.full_name || meta?.name || '').trim();
+    const fromEmail = (user.email ?? '').split('@')[0]?.trim() ?? '';
+    setGuestName((prev) => prev.trim() || fromMeta || fromEmail);
+    const ph = typeof meta?.phone === 'string' ? meta.phone.trim() : '';
+    if (ph) setGuestPhone((prev) => prev.trim() || ph);
+  }, [user]);
+
   const amenities = useMemo(() => stayAmenityDisplayList(s?.amenities), [s?.amenities]);
 
   const startStayCheckout = () => {
@@ -149,6 +162,12 @@ export default function StayDetails({ stayId, onBack }: Props) {
     }
     if (selectionOccupied) {
       setPayError('Those dates were just booked by another traveler. Choose different dates to continue.');
+      return;
+    }
+    const name = guestName.trim();
+    if (!stayCheckoutLeadGuestNameReady(name)) {
+      setPayError('Enter the lead guest name so the host knows who is arriving.');
+      document.getElementById('stay-guest-name')?.focus();
       return;
     }
     if (checkoutLockRef.current || paying) return;
@@ -161,6 +180,8 @@ export default function StayDetails({ stayId, onBack }: Props) {
       bookingDate: stayQuote.checkIn,
       checkoutDate: stayQuote.checkOut,
       guests: stayQuote.guests,
+      customerName: name,
+      customerPhone: guestPhone.trim() || undefined,
       currency: stayQuote.currency,
       successPath: '/booking-confirmed',
       cancelPath: '/bookings?payment=cancelled',
@@ -393,6 +414,33 @@ export default function StayDetails({ stayId, onBack }: Props) {
             ) : null}
             {user ? (
               <>
+                <label className="mt-4 block text-sm font-medium text-ink" htmlFor="stay-guest-name">
+                  Lead guest name
+                </label>
+                <input
+                  id="stay-guest-name"
+                  type="text"
+                  autoComplete="name"
+                  value={guestName}
+                  onChange={(e) => {
+                    setGuestName(e.target.value);
+                    setPayError(null);
+                  }}
+                  className="tv-input mt-1 w-full"
+                  placeholder="Name on the booking"
+                />
+                <label className="mt-3 block text-sm font-medium text-ink" htmlFor="stay-guest-phone">
+                  Phone <span className="font-normal text-ink-muted">(optional)</span>
+                </label>
+                <input
+                  id="stay-guest-phone"
+                  type="tel"
+                  autoComplete="tel"
+                  value={guestPhone}
+                  onChange={(e) => setGuestPhone(e.target.value)}
+                  className="tv-input mt-1 w-full"
+                  placeholder="Arrival contact"
+                />
                 {payError ? <p className="mt-3 text-sm text-red-700">{payError}</p> : null}
                 <button
                   type="button"
