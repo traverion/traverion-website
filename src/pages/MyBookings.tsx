@@ -638,6 +638,26 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                     </button>
                   </div>
                 ) : null}
+                {openCancel && !open ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      className="tv-btn-primary bg-red-700 hover:bg-red-800"
+                      disabled={respondingId === openCancel.id}
+                      onClick={() => void handleRespondCancellation(b, openCancel, true)}
+                    >
+                      {respondingId === openCancel.id ? 'Saving…' : 'Accept cancellation'}
+                    </button>
+                    <button
+                      type="button"
+                      className="tv-btn-secondary"
+                      disabled={respondingId === openCancel.id}
+                      onClick={() => void handleRespondCancellation(b, openCancel, false)}
+                    >
+                      Decline
+                    </button>
+                  </div>
+                ) : null}
                 {open ? (
                 <div className="mt-4 space-y-3 motion-safe:animate-fade-in">
                   {typeof b.booking_number === 'number' && b.booking_number > 0 ? (
