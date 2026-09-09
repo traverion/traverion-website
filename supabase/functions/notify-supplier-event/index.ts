@@ -100,7 +100,8 @@ function eventBody(payload: Payload): string {
   if (payload.eventType === 'host_schedule_updated') {
     lines.push('Schedule update confirmation (saved by you)');
     lines.push(`Listing: ${listing}`);
-    lines.push('The guest was sent the same previous → new summary by email.');
+    // Keep in sync with SUPPLIER_HOST_SCHEDULE_UPDATED_NOTIFY_SUB
+    lines.push('The guest sees the update on Trips; Traverion does not treat email delivery as proof they saw it.');
   } else if (payload.eventType === 'booking_cancelled') {
     lines.push('Booking cancelled (traveler)');
     lines.push(`Listing: ${listing}`);
@@ -196,8 +197,9 @@ ${bodyText}
     sub = 'Details changed for a booking — review in your dashboard.';
   } else if (payload.eventType === 'host_schedule_updated') {
     headline = 'Schedule update saved';
+    // Keep in sync with SUPPLIER_HOST_SCHEDULE_UPDATED_NOTIFY_SUB in booking-confirmation-copy.ts
     sub =
-      'You just updated start or pickup times for this booking. Below is a record of what changed. The guest receives the same summary by email.';
+      'You just updated start or pickup times for this booking. Below is a record of what changed. The guest sees the update on Trips; Traverion does not treat email delivery as proof they saw it.';
   }
 
   const rows: string[] = [];

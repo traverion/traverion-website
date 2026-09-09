@@ -160,6 +160,13 @@ export const TRAVELER_ACCEPT_CANCEL_SYSTEM_MESSAGE =
 export const SUPPLIER_BOOKING_CANCELLED_NOTIFY_SUB =
   'The traveler cancelled this booking. When a refund applies, traveler status is Refund due until Stripe records a refund — Traverion does not send refunds automatically. Inventory is released; check Bookings and Money.';
 
+/**
+ * Partner notify after host saves schedule — do not claim the guest was emailed.
+ * Keep in sync with supabase/functions/notify-supplier-event host_schedule_updated copy.
+ */
+export const SUPPLIER_HOST_SCHEDULE_UPDATED_NOTIFY_SUB =
+  'You just updated start or pickup times for this booking. Below is a record of what changed. The guest sees the update on Trips; Traverion does not treat email delivery as proof they saw it.';
+
 /** Contact form success: inquiry is saved; do not promise a reply email. */
 export const CONTACT_FORM_THANK_YOU =
   'Thank you. Your message is saved with Traverion. We do not treat email delivery as proof of a reply.';

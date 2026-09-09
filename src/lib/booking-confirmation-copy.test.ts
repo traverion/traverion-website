@@ -18,6 +18,7 @@ import {
   TRAVELER_SELF_CANCEL_EMAIL_DIFF_NO_REFUND,
   TRAVELER_ACCEPT_CANCEL_SYSTEM_MESSAGE,
   SUPPLIER_BOOKING_CANCELLED_NOTIFY_SUB,
+  SUPPLIER_HOST_SCHEDULE_UPDATED_NOTIFY_SUB,
   CONTACT_FORM_THANK_YOU,
   PARTNERSHIP_FORM_THANK_YOU,
   TERMS_MATERIAL_CHANGES_NOTE,
@@ -176,6 +177,13 @@ describe('booking confirmation copy', () => {
     );
     expect(SUPPLIER_BOOKING_CANCELLED_NOTIFY_SUB.toLowerCase()).not.toBe('a booking was cancelled.');
     expect(bookingConfirmationPromisesEmailSent(SUPPLIER_BOOKING_CANCELLED_NOTIFY_SUB)).toBe(false);
+    expect(bookingConfirmationPromisesEmailSent(SUPPLIER_HOST_SCHEDULE_UPDATED_NOTIFY_SUB)).toBe(false);
+    expect(SUPPLIER_HOST_SCHEDULE_UPDATED_NOTIFY_SUB.toLowerCase()).toContain('trips');
+    expect(SUPPLIER_HOST_SCHEDULE_UPDATED_NOTIFY_SUB.toLowerCase()).toContain(
+      'does not treat email delivery as proof'
+    );
+    expect(SUPPLIER_HOST_SCHEDULE_UPDATED_NOTIFY_SUB.toLowerCase()).not.toContain('receives the same summary by email');
+    expect(SUPPLIER_HOST_SCHEDULE_UPDATED_NOTIFY_SUB.toLowerCase()).not.toContain('was sent the same');
   });
 
   it('marketing contact thank-you copy does not promise a reply email', () => {
