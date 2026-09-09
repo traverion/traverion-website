@@ -4,7 +4,7 @@ import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supa
 import Stripe from 'https://esm.sh/stripe@16.12.0?target=deno';
 import { stripeWebhookReplayDecision } from '../_shared/stripe-webhook-replay.ts';
 import { isStripeChargeFullyRefunded } from '../_shared/stripe-charge-refund.ts';
-import { stripeWebhookCanMarkPaidFrom } from '../_shared/checkout-resume.ts';
+import { staleCheckoutFailureShouldApply, stripeWebhookCanMarkPaidFrom } from '../_shared/checkout-resume.ts';
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -407,12 +407,28 @@ serve(async (req) => {
 
         const { data: failedBooking } = await admin
           .from('bookings')
-          .select('id, payment_status')
+          .select('id, payment_status, checkout_session_id, payment_intent_id')
           .eq('id', bookingId)
           .maybeSingle();
         if ((failedBooking?.payment_status ?? '').toLowerCase() === 'paid') {
           await markProcessed('processed');
           return json({ success: true, ignored: true, alreadyPaid: true, bookingId });
+        }
+        if (
+          !staleCheckoutFailureShouldApply({
+            eventPaymentIntentId: paymentIntentId,
+            bookingCheckoutSessionId: failedBooking?.checkout_session_id ?? null,
+            bookingPaymentIntentId: failedBooking?.payment_intent_id ?? null,
+          })
+        ) {
+          await markProcessed('processed');
+          return json({
+            success: true,
+            ignored: true,
+            reason: 'stale payment_intent failure for superseded checkout',
+            eventId: event.id,
+            bookingId,
+          });
         }
         const { error: bookingErr } = await admin
           .from('bookings')
@@ -442,11 +458,16 @@ serve(async (req) => {
       if (event.type === 'checkout.session.expired') {
         const session = event.data.object as Stripe.Checkout.Session;
         const bookingId = session.metadata?.booking_id ?? null;
-        let row: { id: string; payment_status: string | null } | null = null;
+        let row: {
+          id: string;
+          payment_status: string | null;
+          checkout_session_id?: string | null;
+          payment_intent_id?: string | null;
+        } | null = null;
         if (bookingId) {
           const found = await admin
             .from('bookings')
-            .select('id, payment_status')
+            .select('id, payment_status, checkout_session_id, payment_intent_id')
             .eq('id', bookingId)
             .maybeSingle();
           row = found.data;
@@ -454,7 +475,7 @@ serve(async (req) => {
         if (!row && session.id) {
           const found = await admin
             .from('bookings')
-            .select('id, payment_status')
+            .select('id, payment_status, checkout_session_id, payment_intent_id')
             .eq('checkout_session_id', session.id)
             .maybeSingle();
           row = found.data;
@@ -470,6 +491,22 @@ serve(async (req) => {
         if ((row.payment_status ?? '').toLowerCase() !== 'pending') {
           await markProcessed('processed');
           return json({ success: true, duplicate: true, bookingId: row.id, status: row.payment_status });
+        }
+        if (
+          !staleCheckoutFailureShouldApply({
+            eventCheckoutSessionId: session.id,
+            bookingCheckoutSessionId: row.checkout_session_id ?? null,
+            bookingPaymentIntentId: row.payment_intent_id ?? null,
+          })
+        ) {
+          await markProcessed('processed');
+          return json({
+            success: true,
+            ignored: true,
+            reason: 'stale checkout.session.expired for superseded session',
+            eventId: event.id,
+            bookingId: row.id,
+          });
         }
         const { error: expireErr } = await admin
           .from('bookings')

@@ -464,6 +464,8 @@ serve(async (req) => {
       .from('bookings')
       .update({
         checkout_session_id: session.id,
+        // Clear prior PI so stale payment_intent.payment_failed cannot kill this session.
+        payment_intent_id: null,
         hold_expires_at: session.expires_at
           ? new Date(session.expires_at * 1000).toISOString()
           : holdExpiresAtIso,
