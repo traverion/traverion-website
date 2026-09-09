@@ -3,7 +3,6 @@ import {
   LayoutDashboard,
   MapPin,
   Calendar,
-  CalendarDays,
   X,
   UserCircle2,
   MessageSquare,
