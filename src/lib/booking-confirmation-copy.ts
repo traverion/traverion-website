@@ -112,6 +112,13 @@ export const PARTNER_MONEY_PAYOUT_STATUS_NOTE =
 export const PARTNER_CANCELLATION_REQUEST_DELIVERY_NOTE =
   'The request appears on the traveler’s Trips. Traverion does not treat email delivery as proof they saw it.';
 
+/**
+ * Partner cancel-request modal — traveler refund is due, not already paid out.
+ * Do not say “a full refund is expected” as if Stripe already moved money.
+ */
+export const PARTNER_CANCEL_REQUEST_REFUND_POLICY =
+  'Traveler refund: a full refund is due. Traverion does not send the Stripe refund automatically; status becomes Refund due until Stripe records Refunded.';
+
 /** Traveler cancellation response: Resend is blocked — do not claim the host was emailed. */
 export const TRAVELER_CANCELLATION_RESPONSE_DELIVERY_NOTE =
   'Your response is saved on this booking. Traverion does not treat email delivery as proof the host saw it.';

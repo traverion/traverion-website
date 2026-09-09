@@ -9,6 +9,7 @@ import {
   PARTNER_INBOX_MESSAGE_DELIVERY_NOTE,
   PARTNER_BUSINESS_REVIEW_STATUS_NOTE,
   PARTNER_CANCELLATION_REQUEST_DELIVERY_NOTE,
+  PARTNER_CANCEL_REQUEST_REFUND_POLICY,
   TRAVELER_CANCELLATION_RESPONSE_DELIVERY_NOTE,
   TRAVELER_SELF_CANCEL_DELIVERY_NOTE,
   TRAVELER_SELF_CANCEL_FULL_REFUND_POLICY,
@@ -122,6 +123,13 @@ describe('booking confirmation copy', () => {
     expect(bookingConfirmationPromisesEmailSent(PARTNER_CANCELLATION_REQUEST_DELIVERY_NOTE)).toBe(false);
     expect(PARTNER_CANCELLATION_REQUEST_DELIVERY_NOTE.toLowerCase()).toContain('trips');
     expect(PARTNER_CANCELLATION_REQUEST_DELIVERY_NOTE.toLowerCase()).toContain('does not treat email delivery as proof');
+  });
+
+  it('partner cancel-request refund copy does not say a full refund is expected', () => {
+    expect(PARTNER_CANCEL_REQUEST_REFUND_POLICY.toLowerCase()).toContain('full refund is due');
+    expect(PARTNER_CANCEL_REQUEST_REFUND_POLICY.toLowerCase()).toContain('refund due');
+    expect(PARTNER_CANCEL_REQUEST_REFUND_POLICY.toLowerCase()).not.toContain('full refund is expected');
+    expect(bookingConfirmationPromisesEmailSent(PARTNER_CANCEL_REQUEST_REFUND_POLICY)).toBe(false);
   });
 
   it('traveler cancellation response copy does not promise the host was emailed', () => {

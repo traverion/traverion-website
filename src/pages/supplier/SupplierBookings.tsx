@@ -34,7 +34,7 @@ import {
 } from '../../data/supabase-booking-ops';
 import BookingMessageThread from '../../components/BookingMessageThread';
 import NoticeCallout from '../../components/NoticeCallout';
-import { PARTNER_CANCELLATION_REQUEST_DELIVERY_NOTE } from '../../lib/booking-confirmation-copy';
+import { PARTNER_CANCELLATION_REQUEST_DELIVERY_NOTE, PARTNER_CANCEL_REQUEST_REFUND_POLICY } from '../../lib/booking-confirmation-copy';
 import { SkeletonListItem } from '../../components/ui/Skeleton';
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
@@ -1098,10 +1098,7 @@ export default function SupplierBookings() {
             {isPaidPaymentStatus(cancelModal.payment_status) ? (
               <>
                 <NoticeCallout title="Consequences before you send" tone="danger">
-                  <p>
-                    Traveler refund: a full refund is expected. Traverion does not send the Stripe refund
-                    automatically; refund status becomes Refunded only after Stripe records it.
-                  </p>
+                  <p>{PARTNER_CANCEL_REQUEST_REFUND_POLICY}</p>
                   <p className="mt-1">
                     Supplier cancellation fee:{' '}
                     {supplierCancellationFeeEur(cancelReason) === 0
