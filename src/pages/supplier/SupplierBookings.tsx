@@ -16,6 +16,7 @@ import type { TourPackage } from '../../types/tour';
 import { listingHeroImageSrc, orderedPhotoUrls, photoSlotsFromTourPackage } from '../../lib/listingPhotoGrid';
 import { formatMoney } from '../../lib/money';
 import { isPaidPaymentStatus, partnerPaymentLabel, partnerCollectedAmountCaption, bookingPaymentWasCollected, isRefundDueBooking, REFUND_DUE_MANUAL_COPY } from '../../lib/payment-states';
+import { PARTNER_BOOKINGS_CSV_HEADER, partnerBookingCsvValues } from '../../lib/partner-bookings-csv';
 import { guestFacingBookingNotes } from '../../lib/booking-notes';
 import {
   SUPPLIER_CANCELLATION_REASON_CODES,
@@ -150,47 +151,17 @@ function csvEscape(value: unknown): string {
 }
 
 function downloadBookingsCsv(rows: BookingRow[], listingTitles: Record<string, string>): void {
-  const header = [
-    'booking_id',
-    'booking_number',
-    'listing_id',
-    'listing_title',
-    'guest_name',
-    'guest_email',
-    'guests',
-    'booking_date',
-    'start_time',
-    'pickup_time',
-    'status',
-    'acknowledged_at',
-    'created_at',
-    'special_requests',
-    'cancellation_reason',
-    'refund_choice',
-  ];
   const lines = rows.map((b) =>
-    [
-      b.id,
-      typeof b.booking_number === 'number' ? b.booking_number : '',
-      b.listing_id,
+    partnerBookingCsvValues(
+      b,
       listingTitles[b.listing_id] ?? '',
-      b.guest_name ?? '',
-      b.guest_email ?? '',
-      b.guests ?? '',
-      b.booking_date ?? '',
       b.start_time ? pgTimeToHm(b.start_time) ?? '' : '',
-      b.pickup_time ? pgTimeToHm(b.pickup_time) ?? '' : '',
-      b.status,
-      b.acknowledged_at ?? '',
-      b.created_at,
-      b.special_requests ?? '',
-      b.cancellation_reason ?? '',
-      b.refund_choice ?? '',
-    ]
+      b.pickup_time ? pgTimeToHm(b.pickup_time) ?? '' : ''
+    )
       .map(csvEscape)
       .join(',')
   );
-  const csv = [header.join(','), ...lines].join('\n');
+  const csv = [PARTNER_BOOKINGS_CSV_HEADER.join(','), ...lines].join('\n');
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
