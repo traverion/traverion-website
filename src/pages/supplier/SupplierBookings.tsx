@@ -34,6 +34,7 @@ import {
 } from '../../data/supabase-booking-ops';
 import BookingMessageThread from '../../components/BookingMessageThread';
 import NoticeCallout from '../../components/NoticeCallout';
+import { PARTNER_CANCELLATION_REQUEST_DELIVERY_NOTE } from '../../lib/booking-confirmation-copy';
 import { SkeletonListItem } from '../../components/ui/Skeleton';
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
@@ -972,7 +973,7 @@ export default function SupplierBookings() {
                           })}`
                         : ''}
                       . The booking stays active until the traveler accepts. Traverion does not auto-cancel if they do
-                      not respond.
+                      not respond. {PARTNER_CANCELLATION_REQUEST_DELIVERY_NOTE}
                     </NoticeCallout>
                   ) : null}
                   <div>
@@ -1127,7 +1128,7 @@ export default function SupplierBookings() {
                 {cancelError ? <p className="text-sm text-red-700">{cancelError}</p> : null}
                 <p className="text-xs text-ink-faint">
                   Policy {snapshotSupplierCancellationPolicy(cancelReason).policy_id}. Traverion does not auto-accept if
-                  the traveler does not respond.
+                  the traveler does not respond. {PARTNER_CANCELLATION_REQUEST_DELIVERY_NOTE}
                 </p>
                 <div className="flex items-center justify-end gap-2">
                   <button type="button" onClick={() => setCancelModal(null)} className="tv-btn-ghost">

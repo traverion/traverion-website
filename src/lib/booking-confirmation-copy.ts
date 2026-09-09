@@ -74,6 +74,10 @@ export const PARTNER_LISTINGS_PAYOUT_REVIEW_NOTE =
 export const PARTNER_MONEY_PAYOUT_STATUS_NOTE =
   'Payouts are reviewed by Traverion. There is no automatic transfer date until payouts are enabled for your account. Status appears on this page and in Settings — Traverion does not treat email as proof of transfer.';
 
+/** Partner cancellation request: Resend is blocked — do not claim the traveler was emailed. */
+export const PARTNER_CANCELLATION_REQUEST_DELIVERY_NOTE =
+  'The request appears on the traveler’s Trips. Traverion does not treat email delivery as proof they saw it.';
+
 export function readStripeCheckoutReturnBanner(search: string): 'success' | 'cancelled' | null {
   const raw = search.startsWith('?') ? search.slice(1) : search;
   const payment = (new URLSearchParams(raw).get('payment') ?? '').trim().toLowerCase();

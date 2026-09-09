@@ -8,6 +8,7 @@ import {
   STRIPE_CHECKOUT_CANCELLED_TOUR_COPY,
   PARTNER_INBOX_MESSAGE_DELIVERY_NOTE,
   PARTNER_BUSINESS_REVIEW_STATUS_NOTE,
+  PARTNER_CANCELLATION_REQUEST_DELIVERY_NOTE,
   PARTNER_LISTINGS_BUSINESS_REVIEW_NOTE,
   PARTNER_LISTINGS_PAYOUT_REVIEW_NOTE,
   PARTNER_MONEY_PAYOUT_STATUS_NOTE,
@@ -102,5 +103,11 @@ describe('booking confirmation copy', () => {
     expect(PARTNER_LISTINGS_PAYOUT_REVIEW_NOTE.toLowerCase()).toContain('status updates appear in settings');
     expect(PARTNER_MONEY_PAYOUT_STATUS_NOTE.toLowerCase()).toContain('status appears on this page');
     expect(PARTNER_MONEY_PAYOUT_STATUS_NOTE.toLowerCase()).toContain('does not treat email as proof of transfer');
+  });
+
+  it('partner cancellation request copy does not promise the traveler was emailed', () => {
+    expect(bookingConfirmationPromisesEmailSent(PARTNER_CANCELLATION_REQUEST_DELIVERY_NOTE)).toBe(false);
+    expect(PARTNER_CANCELLATION_REQUEST_DELIVERY_NOTE.toLowerCase()).toContain('trips');
+    expect(PARTNER_CANCELLATION_REQUEST_DELIVERY_NOTE.toLowerCase()).toContain('does not treat email delivery as proof');
   });
 });
