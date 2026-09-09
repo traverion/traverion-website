@@ -40,7 +40,12 @@ import { decrementAvailabilityBooked } from '../data/supabase-availability';
 import { clearBookingsUnread } from '../lib/customerBookingNotifications';
 import { guestFacingBookingNotes } from '../lib/booking-notes';
 import { bookingIsCancelledTrip, bookingMatchesTripView, travelerTripIsLive } from '../lib/trip-views';
-import { BOOKING_CONFIRMATION_EMAIL_DISCLAIMER, STRIPE_CHECKOUT_CANCELLED_TOUR_COPY, readStripeCheckoutReturnBanner } from '../lib/booking-confirmation-copy';
+import {
+  BOOKING_CONFIRMATION_EMAIL_DISCLAIMER,
+  STRIPE_CHECKOUT_CANCELLED_TOUR_COPY,
+  TRAVELER_CANCELLATION_RESPONSE_DELIVERY_NOTE,
+  readStripeCheckoutReturnBanner,
+} from '../lib/booking-confirmation-copy';
 
 interface MyBookingsProps {
   onNavigate: (page: string) => void;
@@ -578,7 +583,8 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         Refunded only after Stripe records it. Traverion does not cancel automatically if you do nothing
                         {openCancel.expires_at
                           ? ` (request noted until ${new Date(openCancel.expires_at).toLocaleString()}).`
-                          : '.'}
+                          : '.'}{' '}
+                        {TRAVELER_CANCELLATION_RESPONSE_DELIVERY_NOTE}
                       </p>
                     </NoticeCallout>
                   ) : null}
