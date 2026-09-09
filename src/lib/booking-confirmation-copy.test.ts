@@ -22,12 +22,15 @@ import {
   SUPPLIER_BOOKING_CANCELLED_NOTIFY_SUB,
   SUPPLIER_HOST_SCHEDULE_UPDATED_NOTIFY_SUB,
   SUPPLIER_GUEST_DETAILS_UPDATED_NOTIFY_SUB,
+  SUPPLIER_BOOKING_DETAIL_CHANGED_NOTIFY_SUB,
   BOOKING_CONFIRMED_PAID_FOLLOWUP_NOTE,
   BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE,
   BOOKING_REQUEST_EMAIL_FOLLOWUP_NOTE,
   TRAVELER_NEW_BOOKING_MESSAGE_EMAIL_NOTE,
   TRAVELER_HOST_SCHEDULE_UPDATED_EMAIL_NOTE,
   TRAVELER_DETAILS_UPDATED_EMAIL_NOTE,
+  TRAVELER_CANCELLATION_DECLINED_EMAIL_NOTE,
+  TRAVELER_PICKUP_ACTION_EMAIL_NOTE,
   CONTACT_FORM_THANK_YOU,
   PARTNERSHIP_FORM_THANK_YOU,
   TERMS_MATERIAL_CHANGES_NOTE,
@@ -212,6 +215,11 @@ describe('booking confirmation copy', () => {
     expect(SUPPLIER_GUEST_DETAILS_UPDATED_NOTIFY_SUB.toLowerCase()).toContain(
       'does not treat email delivery as proof'
     );
+    expect(bookingConfirmationPromisesEmailSent(SUPPLIER_BOOKING_DETAIL_CHANGED_NOTIFY_SUB)).toBe(false);
+    expect(SUPPLIER_BOOKING_DETAIL_CHANGED_NOTIFY_SUB.toLowerCase()).toContain('bookings');
+    expect(SUPPLIER_BOOKING_DETAIL_CHANGED_NOTIFY_SUB.toLowerCase()).toContain(
+      'does not treat email delivery as proof'
+    );
     expect(bookingConfirmationPromisesEmailSent(BOOKING_CONFIRMED_PAID_FOLLOWUP_NOTE)).toBe(false);
     expect(BOOKING_CONFIRMED_PAID_FOLLOWUP_NOTE.toLowerCase()).toContain('trips');
     expect(BOOKING_CONFIRMED_PAID_FOLLOWUP_NOTE.toLowerCase()).toContain(
@@ -247,6 +255,16 @@ describe('booking confirmation copy', () => {
       'does not treat email delivery as proof'
     );
     expect(TRAVELER_DETAILS_UPDATED_EMAIL_NOTE.toLowerCase()).toContain('if you did not make this change');
+    expect(bookingConfirmationPromisesEmailSent(TRAVELER_CANCELLATION_DECLINED_EMAIL_NOTE)).toBe(false);
+    expect(TRAVELER_CANCELLATION_DECLINED_EMAIL_NOTE.toLowerCase()).toContain('trips');
+    expect(TRAVELER_CANCELLATION_DECLINED_EMAIL_NOTE.toLowerCase()).toContain(
+      'does not treat email delivery as proof'
+    );
+    expect(bookingConfirmationPromisesEmailSent(TRAVELER_PICKUP_ACTION_EMAIL_NOTE)).toBe(false);
+    expect(TRAVELER_PICKUP_ACTION_EMAIL_NOTE.toLowerCase()).toContain('trips');
+    expect(TRAVELER_PICKUP_ACTION_EMAIL_NOTE.toLowerCase()).toContain(
+      'does not treat email delivery as proof'
+    );
   });
 
   it('marketing contact thank-you copy does not promise a reply email', () => {

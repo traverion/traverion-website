@@ -242,6 +242,9 @@ serve(async (req) => {
     } else if (kind === 'cancellation_declined') {
       headline = 'Your booking stays confirmed';
       intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">You declined the host’s cancellation request. The booking remains active.</p>`;
+      footerNote =
+        // Keep in sync with TRAVELER_CANCELLATION_DECLINED_EMAIL_NOTE in booking-confirmation-copy.ts
+        'Your booking stays active in Trips. Traverion does not treat email delivery as proof of this update.';
     } else if (kind === 'new_booking_message') {
       headline = 'New message about your booking';
       intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">You have a new message about this booking. Open Trips to read and reply.</p>`;
@@ -252,6 +255,9 @@ serve(async (req) => {
     } else if (kind === 'pickup_action_required') {
       headline = 'Pickup details still needed';
       intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your booking is confirmed. The host still needs to confirm pickup or meeting details — they will appear in Trips when ready.</p>`;
+      footerNote =
+        // Keep in sync with TRAVELER_PICKUP_ACTION_EMAIL_NOTE in booking-confirmation-copy.ts
+        'Pickup and meeting details appear in Trips when the host confirms them. Traverion does not treat email delivery as proof you received an update.';
     } else {
       headline = 'We received your booking request';
       intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your request is recorded for <strong>${escapeHtml(title)}</strong>. Complete payment when prompted in the app, or wait for confirmation if no payment is required.</p>`;

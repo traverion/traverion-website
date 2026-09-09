@@ -196,7 +196,9 @@ ${bodyText}
       'A guest changed notes or meeting / place-of-stay information. Compare previous vs new values below. Bookings is the durable record; Traverion does not treat email delivery as proof you saw the update.';
   } else if (payload.eventType === 'booking_detail_changed') {
     headline = 'Booking details updated';
-    sub = 'Details changed for a booking — review in your dashboard.';
+    // Keep in sync with SUPPLIER_BOOKING_DETAIL_CHANGED_NOTIFY_SUB in booking-confirmation-copy.ts
+    sub =
+      'Details changed for a booking — review in Bookings. Traverion does not treat email delivery as proof you saw the update.';
   } else if (payload.eventType === 'host_schedule_updated') {
     headline = 'Schedule update saved';
     // Keep in sync with SUPPLIER_HOST_SCHEDULE_UPDATED_NOTIFY_SUB in booking-confirmation-copy.ts

@@ -182,6 +182,13 @@ export const SUPPLIER_HOST_SCHEDULE_UPDATED_NOTIFY_SUB =
 export const SUPPLIER_GUEST_DETAILS_UPDATED_NOTIFY_SUB =
   'A guest changed notes or meeting / place-of-stay information. Compare previous vs new values below. Bookings is the durable record; Traverion does not treat email delivery as proof you saw the update.';
 
+/**
+ * Partner notify when booking details change — Bookings is durable.
+ * Keep in sync with notify-supplier-event booking_detail_changed subcopy.
+ */
+export const SUPPLIER_BOOKING_DETAIL_CHANGED_NOTIFY_SUB =
+  'Details changed for a booking — review in Bookings. Traverion does not treat email delivery as proof you saw the update.';
+
 /** Paid confirmation UI — Trips is durable; do not imply host follow-up arrives by email. */
 export const BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE =
   'Watch Trips for schedule, meeting, or arrival updates from the host.';
@@ -220,6 +227,20 @@ export const TRAVELER_HOST_SCHEDULE_UPDATED_EMAIL_NOTE =
  */
 export const TRAVELER_DETAILS_UPDATED_EMAIL_NOTE =
   'Your updates are saved on this booking in Trips. Traverion does not treat email delivery as proof of the change. If you did not make this change, contact the host or Traverion support immediately.';
+
+/**
+ * Traveler declined host cancel — Trips is durable for the active booking.
+ * Keep in sync with notify-customer-booking cancellation_declined footerNote.
+ */
+export const TRAVELER_CANCELLATION_DECLINED_EMAIL_NOTE =
+  'Your booking stays active in Trips. Traverion does not treat email delivery as proof of this update.';
+
+/**
+ * Pickup still needed — Trips is durable when host fills meeting details.
+ * Keep in sync with notify-customer-booking pickup_action_required footerNote.
+ */
+export const TRAVELER_PICKUP_ACTION_EMAIL_NOTE =
+  'Pickup and meeting details appear in Trips when the host confirms them. Traverion does not treat email delivery as proof you received an update.';
 
 /** Contact form success: inquiry is saved; do not promise a reply email. */
 export const CONTACT_FORM_THANK_YOU =
