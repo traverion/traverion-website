@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ledgerAdjustmentTotal, ledgerNetTotal, supplierAvailableBalance } from './supplier-ledger-balance';
+import { sumCollectedAmount } from './payment-states';
 
 describe('supplier ledger balance', () => {
   const penalty = { kind: 'cancellation_penalty', amount: -20 };
@@ -16,5 +17,18 @@ describe('supplier ledger balance', () => {
     expect(ledgerNetTotal(ledger)).toBe(169);
     expect(ledgerAdjustmentTotal(ledger)).toBe(-20);
     expect(supplierAvailableBalance({ collected: 823, ledger })).toBe(803);
+  });
+
+  it('does not let a refunded stay inflate available collected', () => {
+    const collected = sumCollectedAmount([
+      { status: 'confirmed', payment_status: 'paid', amount_paid: 189 },
+      { status: 'confirmed', payment_status: 'paid', amount_paid: 445 },
+      { status: 'confirmed', payment_status: 'refunded', amount_paid: 445 },
+      { status: 'cancelled', payment_status: 'paid', amount_paid: 189 },
+      { status: 'confirmed', payment_status: 'paid', amount_paid: 189 },
+    ]);
+    expect(collected).toBe(823);
+    expect(collected).not.toBe(1268);
+    expect(supplierAvailableBalance({ collected, ledger: [penalty, earning] })).toBe(803);
   });
 });

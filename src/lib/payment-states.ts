@@ -30,7 +30,7 @@ export function bookingPaymentWasCollected(raw: string | null | undefined): bool
   return isPaidPaymentStatus(pay) || pay === 'refunded';
 }
 
-/** Collected for Money: paid, not cancelled, not refunded, amount > 0. */
+/** Collected for Money: currently paid. Cancelled and refunded amounts are not supplier revenue. */
 export function isCollectedBooking(b: MoneyBookingRow): boolean {
   if ((b.status ?? '').trim().toLowerCase() === 'cancelled') return false;
   const pay = normalizePaymentStatus(b.payment_status);
