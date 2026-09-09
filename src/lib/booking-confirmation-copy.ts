@@ -175,6 +175,13 @@ export const SUPPLIER_BOOKING_CANCELLED_NOTIFY_SUB =
 export const SUPPLIER_HOST_SCHEDULE_UPDATED_NOTIFY_SUB =
   'You just updated start or pickup times for this booking. Below is a record of what changed. The guest sees the update on Trips; Traverion does not treat email delivery as proof they saw it.';
 
+/**
+ * Partner notify after guest updates notes — Bookings is durable; do not treat email as proof.
+ * Keep in sync with supabase/functions/notify-supplier-event guest_message subcopy.
+ */
+export const SUPPLIER_GUEST_DETAILS_UPDATED_NOTIFY_SUB =
+  'A guest changed notes or meeting / place-of-stay information. Compare previous vs new values below. Bookings is the durable record; Traverion does not treat email delivery as proof you saw the update.';
+
 /** Paid confirmation UI — Trips is durable; do not imply host follow-up arrives by email. */
 export const BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE =
   'Watch Trips for schedule, meeting, or arrival updates from the host.';

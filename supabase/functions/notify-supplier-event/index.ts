@@ -191,7 +191,9 @@ ${bodyText}
     sub = 'Someone left a review on your tour.';
   } else if (payload.eventType === 'guest_message') {
     headline = 'Guest updated their booking details';
-    sub = 'A guest changed notes or meeting / place-of-stay information. Compare previous vs new values below.';
+    // Keep in sync with SUPPLIER_GUEST_DETAILS_UPDATED_NOTIFY_SUB in booking-confirmation-copy.ts
+    sub =
+      'A guest changed notes or meeting / place-of-stay information. Compare previous vs new values below. Bookings is the durable record; Traverion does not treat email delivery as proof you saw the update.';
   } else if (payload.eventType === 'booking_detail_changed') {
     headline = 'Booking details updated';
     sub = 'Details changed for a booking — review in your dashboard.';

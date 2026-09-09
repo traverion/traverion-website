@@ -107,13 +107,8 @@ const CANCELLATION_REASONS = SUPPLIER_CANCELLATION_REASON_CODES.map((id) => ({
   label: supplierCancellationReasonLabel(id),
 }));
 
-const REFUND_CHOICES = [
-  { id: 'full_refund', label: 'Full refund' },
-  { id: 'no_refund', label: 'No refund' },
-  { id: 'reschedule', label: 'Offer reschedule' },
-] as const;
-
-type RefundChoice = (typeof REFUND_CHOICES)[number]['id'];
+/** refund_choice values only — never label these “Full refund” as if Stripe already paid out. */
+type RefundChoice = 'full_refund' | 'no_refund' | 'reschedule';
 type BookingView = 'today' | 'upcoming' | 'past' | 'all';
 type OpsFilter = 'all' | 'unpaid' | 'pickup' | 'cancel' | 'refund_due';
 

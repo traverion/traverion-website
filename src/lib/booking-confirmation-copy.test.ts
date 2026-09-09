@@ -21,6 +21,7 @@ import {
   TRAVELER_SELF_CANCEL_SYSTEM_MESSAGE_NO_REFUND,
   SUPPLIER_BOOKING_CANCELLED_NOTIFY_SUB,
   SUPPLIER_HOST_SCHEDULE_UPDATED_NOTIFY_SUB,
+  SUPPLIER_GUEST_DETAILS_UPDATED_NOTIFY_SUB,
   BOOKING_CONFIRMED_PAID_FOLLOWUP_NOTE,
   BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE,
   BOOKING_REQUEST_EMAIL_FOLLOWUP_NOTE,
@@ -202,6 +203,11 @@ describe('booking confirmation copy', () => {
     );
     expect(SUPPLIER_HOST_SCHEDULE_UPDATED_NOTIFY_SUB.toLowerCase()).not.toContain('receives the same summary by email');
     expect(SUPPLIER_HOST_SCHEDULE_UPDATED_NOTIFY_SUB.toLowerCase()).not.toContain('was sent the same');
+    expect(bookingConfirmationPromisesEmailSent(SUPPLIER_GUEST_DETAILS_UPDATED_NOTIFY_SUB)).toBe(false);
+    expect(SUPPLIER_GUEST_DETAILS_UPDATED_NOTIFY_SUB.toLowerCase()).toContain('bookings is the durable record');
+    expect(SUPPLIER_GUEST_DETAILS_UPDATED_NOTIFY_SUB.toLowerCase()).toContain(
+      'does not treat email delivery as proof'
+    );
     expect(bookingConfirmationPromisesEmailSent(BOOKING_CONFIRMED_PAID_FOLLOWUP_NOTE)).toBe(false);
     expect(BOOKING_CONFIRMED_PAID_FOLLOWUP_NOTE.toLowerCase()).toContain('trips');
     expect(BOOKING_CONFIRMED_PAID_FOLLOWUP_NOTE.toLowerCase()).toContain(
