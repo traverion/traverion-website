@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canAccessBookingThread, canPostBookingMessage, bookingAllowsMessaging, messagingComposeBlock, partnerInboxListsBooking } from './messaging-authorization';
+import { canAccessBookingThread, canPostBookingMessage, bookingAllowsMessaging, messagingComposeBlock, partnerInboxListsBooking, BOOKING_MESSAGE_CLOSED } from './messaging-authorization';
 
 describe('messaging authorization', () => {
   it('blocks anonymous and pre-booking contact', () => {
@@ -103,5 +103,19 @@ describe('messaging authorization', () => {
     expect(
       partnerInboxListsBooking({ status: 'cancelled', payment_status: 'paid' }, true)
     ).toBe(true);
+  });
+
+  it('matches the SQL closed-thread copy for refunded bookings', () => {
+    // paymentPaid means collected (bookingPaymentWasCollected). Refunded is closed, not unpaid.
+    expect(
+      canPostBookingMessage({
+        authenticated: true,
+        isGuestOnBooking: true,
+        isSupplierOnListing: false,
+        paymentPaid: true,
+        bookingCancelled: true,
+        openCancellationRequest: false,
+      }).reason
+    ).toBe(BOOKING_MESSAGE_CLOSED);
   });
 });

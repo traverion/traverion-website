@@ -14,6 +14,9 @@ export function canAccessBookingThread(params: {
   return params.isGuestOnBooking || params.isSupplierOnListing;
 }
 
+export const BOOKING_MESSAGE_UNPAID = 'Messaging opens after this booking is paid.';
+export const BOOKING_MESSAGE_CLOSED = 'This booking is closed. You can still read earlier messages.';
+
 export function canPostBookingMessage(params: {
   authenticated: boolean;
   isGuestOnBooking: boolean;
@@ -26,10 +29,10 @@ export function canPostBookingMessage(params: {
     return { ok: false, reason: 'You can only message about a booking you are part of.' };
   }
   if (!params.paymentPaid) {
-    return { ok: false, reason: 'Messaging opens after this booking is paid.' };
+    return { ok: false, reason: BOOKING_MESSAGE_UNPAID };
   }
   if (params.bookingCancelled && !params.openCancellationRequest) {
-    return { ok: false, reason: 'This booking is closed. You can still read earlier messages.' };
+    return { ok: false, reason: BOOKING_MESSAGE_CLOSED };
   }
   return { ok: true, reason: '' };
 }
