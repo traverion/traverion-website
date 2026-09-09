@@ -24,6 +24,8 @@ import {
   SUPPLIER_GUEST_DETAILS_UPDATED_NOTIFY_SUB,
   SUPPLIER_BOOKING_DETAIL_CHANGED_NOTIFY_SUB,
   SUPPLIER_NEW_REVIEW_NOTIFY_SUB,
+  SUPPLIER_NEW_BOOKING_PAID_NOTIFY_SUB,
+  SUPPLIER_NEW_BOOKING_PENDING_NOTIFY_SUB,
   BOOKING_CONFIRMED_PAID_FOLLOWUP_NOTE,
   BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE,
   BOOKING_REQUEST_EMAIL_FOLLOWUP_NOTE,
@@ -224,6 +226,17 @@ describe('booking confirmation copy', () => {
     expect(bookingConfirmationPromisesEmailSent(SUPPLIER_NEW_REVIEW_NOTIFY_SUB)).toBe(false);
     expect(SUPPLIER_NEW_REVIEW_NOTIFY_SUB.toLowerCase()).toContain('reviews');
     expect(SUPPLIER_NEW_REVIEW_NOTIFY_SUB.toLowerCase()).toContain(
+      'does not treat email delivery as proof'
+    );
+    expect(bookingConfirmationPromisesEmailSent(SUPPLIER_NEW_BOOKING_PAID_NOTIFY_SUB)).toBe(false);
+    expect(SUPPLIER_NEW_BOOKING_PAID_NOTIFY_SUB.toLowerCase()).toContain('bookings');
+    expect(SUPPLIER_NEW_BOOKING_PAID_NOTIFY_SUB.toLowerCase()).toContain(
+      'does not treat email delivery as proof'
+    );
+    expect(bookingConfirmationPromisesEmailSent(SUPPLIER_NEW_BOOKING_PENDING_NOTIFY_SUB)).toBe(false);
+    expect(SUPPLIER_NEW_BOOKING_PENDING_NOTIFY_SUB.toLowerCase()).toContain('traveler completes checkout');
+    expect(SUPPLIER_NEW_BOOKING_PENDING_NOTIFY_SUB.toLowerCase()).not.toContain('collect payment');
+    expect(SUPPLIER_NEW_BOOKING_PENDING_NOTIFY_SUB.toLowerCase()).toContain(
       'does not treat email delivery as proof'
     );
     expect(bookingConfirmationPromisesEmailSent(BOOKING_CONFIRMED_PAID_FOLLOWUP_NOTE)).toBe(false);

@@ -169,10 +169,14 @@ ${bodyText}
   if (payload.eventType === 'new_booking') {
     if (payload.bookingPaymentStatus === 'paid') {
       headline = 'New paid booking';
-      sub = 'A traveler completed payment online. The booking is confirmed — review details in your dashboard.';
+      // Keep in sync with SUPPLIER_NEW_BOOKING_PAID_NOTIFY_SUB
+      sub =
+        'A traveler completed payment online. The booking is confirmed — review details in Bookings. Traverion does not treat email delivery as proof you saw this booking.';
     } else {
       headline = 'New booking';
-      sub = 'A traveler has a booking on your listing. Open your dashboard to confirm details or collect payment if still pending.';
+      // Keep in sync with SUPPLIER_NEW_BOOKING_PENDING_NOTIFY_SUB
+      sub =
+        'A traveler has a booking on your listing. Open Bookings to review details. If payment is still pending, the traveler completes checkout on Traverion — Traverion does not treat email delivery as proof you saw this booking.';
     }
   } else if (payload.eventType === 'booking_cancelled') {
     headline = 'Booking cancelled';

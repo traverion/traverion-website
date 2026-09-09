@@ -149,7 +149,7 @@ export default function BookingMessageThread({
             disabled={sending || !draft.trim()}
             className="tv-btn-secondary mt-2"
           >
-            {sending ? 'Sending…' : 'Send message'}
+            {sending ? 'Posting…' : 'Post message'}
           </button>
           {viewerRole === 'supplier' ? (
             <p className="mt-2 text-xs text-ink-muted leading-relaxed">{PARTNER_INBOX_MESSAGE_DELIVERY_NOTE}</p>

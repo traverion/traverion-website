@@ -1139,7 +1139,7 @@ export default function SupplierBookings() {
                     disabled={updatingId === cancelModal.id || !canEditBookings}
                     className="rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
                   >
-                    {updatingId === cancelModal.id ? 'Sending…' : 'Send request to traveler'}
+                    {updatingId === cancelModal.id ? 'Submitting…' : 'Submit request to traveler'}
                   </button>
                 </div>
               </>

@@ -196,6 +196,20 @@ export const SUPPLIER_BOOKING_DETAIL_CHANGED_NOTIFY_SUB =
 export const SUPPLIER_NEW_REVIEW_NOTIFY_SUB =
   'Someone left a review on your tour. Open Reviews in the partner portal — Traverion does not treat email delivery as proof you saw it.';
 
+/**
+ * Partner notify for a new paid booking — Bookings is durable.
+ * Keep in sync with notify-supplier-event new_booking (paid) subcopy.
+ */
+export const SUPPLIER_NEW_BOOKING_PAID_NOTIFY_SUB =
+  'A traveler completed payment online. The booking is confirmed — review details in Bookings. Traverion does not treat email delivery as proof you saw this booking.';
+
+/**
+ * Partner notify for a new unpaid/pending booking — do not imply the partner collects Stripe.
+ * Keep in sync with notify-supplier-event new_booking (non-paid) subcopy.
+ */
+export const SUPPLIER_NEW_BOOKING_PENDING_NOTIFY_SUB =
+  'A traveler has a booking on your listing. Open Bookings to review details. If payment is still pending, the traveler completes checkout on Traverion — Traverion does not treat email delivery as proof you saw this booking.';
+
 /** Paid confirmation UI — Trips is durable; do not imply host follow-up arrives by email. */
 export const BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE =
   'Watch Trips for schedule, meeting, or arrival updates from the host.';
