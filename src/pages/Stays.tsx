@@ -12,6 +12,7 @@ import ErrorState from '../components/ErrorState';
 import { SkeletonCardGrid } from '../components/ui/Skeleton';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 import { supplierPortalLandingHref } from '../lib/partnerHost';
+import { STRIPE_CHECKOUT_CANCELLED_STAY_COPY, readStripeCheckoutReturnBanner } from '../lib/booking-confirmation-copy';
 import type { TourPackage } from '../types/tour';
 
 type Props = {
@@ -21,16 +22,19 @@ type Props = {
 
 export default function Stays({ onStaySelect }: Props) {
   const { listings: supplierListings, error, reload } = usePublishedSupplierListings();
-  const [paymentBanner, setPaymentBanner] = useState<'cancelled' | null>(null);
+  const [paymentBanner] = useState<'cancelled' | null>(() =>
+    typeof window === 'undefined'
+      ? null
+      : readStripeCheckoutReturnBanner(window.location.search) === 'cancelled'
+        ? 'cancelled'
+        : null
+  );
 
   useEffect(() => {
-    const payment = new URLSearchParams(window.location.search).get('payment');
-    if ((payment ?? '').toLowerCase() === 'cancelled') {
-      setPaymentBanner('cancelled');
-      const url = new URL(window.location.href);
-      url.searchParams.delete('payment');
-      window.history.replaceState({}, '', `${url.pathname}${url.search}`);
-    }
+    if (readStripeCheckoutReturnBanner(window.location.search) !== 'cancelled') return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete('payment');
+    window.history.replaceState({}, '', `${url.pathname}${url.search}`);
   }, []);
   const catalogLoading = isSupabaseConfigured() && supplierListings === null;
   const [q, setQ] = useState(() => new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search).get('q') ?? '');
@@ -83,7 +87,7 @@ export default function Stays({ onStaySelect }: Props) {
         </p>
         {paymentBanner === 'cancelled' ? (
           <p className="mb-8 max-w-xl rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-950 ring-1 ring-amber-200/70">
-            Checkout was cancelled and no payment was taken. Any date hold is released. Choose dates again when you are ready.
+            {STRIPE_CHECKOUT_CANCELLED_STAY_COPY}
           </p>
         ) : null}
 

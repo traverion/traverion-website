@@ -4,9 +4,12 @@ import {
   BOOKING_CONTACT_EMAIL_FIELD_NOTE,
   STAY_LISTING_CONFIRMATION_NOTE,
   TOUR_LISTING_CONFIRMATION_NOTE,
+  STRIPE_CHECKOUT_CANCELLED_STAY_COPY,
+  STRIPE_CHECKOUT_CANCELLED_TOUR_COPY,
   bookingConfirmationPromisesEmailSent,
   bookingContactIntroCopy,
   bookingPayConfirmAfterPayCopy,
+  readStripeCheckoutReturnBanner,
 } from './booking-confirmation-copy';
 
 describe('booking confirmation copy', () => {
@@ -48,5 +51,17 @@ describe('booking confirmation copy', () => {
     expect(copy.toLowerCase()).toContain('trips');
     expect(copy.toLowerCase()).toContain('does not treat email delivery as booking proof');
     expect(copy).toContain('15 minutes');
+  });
+
+  it('Stripe cancel return copy does not promise a confirmation email', () => {
+    expect(bookingConfirmationPromisesEmailSent(STRIPE_CHECKOUT_CANCELLED_TOUR_COPY)).toBe(false);
+    expect(bookingConfirmationPromisesEmailSent(STRIPE_CHECKOUT_CANCELLED_STAY_COPY)).toBe(false);
+    expect(STRIPE_CHECKOUT_CANCELLED_TOUR_COPY.toLowerCase()).toContain('no confirmation email is sent');
+    expect(STRIPE_CHECKOUT_CANCELLED_STAY_COPY.toLowerCase()).toContain('no confirmation email is sent');
+    expect(STRIPE_CHECKOUT_CANCELLED_TOUR_COPY.toLowerCase()).toContain('you were not charged');
+    expect(STRIPE_CHECKOUT_CANCELLED_STAY_COPY.toLowerCase()).toContain('no payment was taken');
+    expect(readStripeCheckoutReturnBanner('?payment=cancelled')).toBe('cancelled');
+    expect(readStripeCheckoutReturnBanner('?payment=success')).toBe('success');
+    expect(readStripeCheckoutReturnBanner('')).toBe(null);
   });
 });

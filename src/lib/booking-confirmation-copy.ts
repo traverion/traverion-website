@@ -36,6 +36,23 @@ export function bookingPayConfirmAfterPayCopy(holdMinutes: number): string {
   );
 }
 
+/** Returned from Stripe without paying — nothing was booked, so nothing was emailed. */
+export const STRIPE_CHECKOUT_CANCELLED_NO_EMAIL =
+  'No confirmation email is sent for an unfinished checkout.';
+
+export const STRIPE_CHECKOUT_CANCELLED_TOUR_COPY =
+  `Checkout was cancelled. You were not charged. ${STRIPE_CHECKOUT_CANCELLED_NO_EMAIL} Open the tour again when you are ready.`;
+
+export const STRIPE_CHECKOUT_CANCELLED_STAY_COPY =
+  `Checkout was cancelled and no payment was taken. Any date hold is released. ${STRIPE_CHECKOUT_CANCELLED_NO_EMAIL} Choose dates again when you are ready.`;
+
+export function readStripeCheckoutReturnBanner(search: string): 'success' | 'cancelled' | null {
+  const raw = search.startsWith('?') ? search.slice(1) : search;
+  const payment = (new URLSearchParams(raw).get('payment') ?? '').trim().toLowerCase();
+  if (payment === 'success' || payment === 'cancelled') return payment;
+  return null;
+}
+
 export function bookingConfirmationPromisesEmailSent(copy: string): boolean {
   const t = copy.trim().toLowerCase();
   return (

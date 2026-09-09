@@ -40,7 +40,7 @@ import { decrementAvailabilityBooked } from '../data/supabase-availability';
 import { clearBookingsUnread } from '../lib/customerBookingNotifications';
 import { guestFacingBookingNotes } from '../lib/booking-notes';
 import { bookingIsCancelledTrip, bookingMatchesTripView, travelerTripIsLive } from '../lib/trip-views';
-import { BOOKING_CONFIRMATION_EMAIL_DISCLAIMER } from '../lib/booking-confirmation-copy';
+import { BOOKING_CONFIRMATION_EMAIL_DISCLAIMER, STRIPE_CHECKOUT_CANCELLED_TOUR_COPY, readStripeCheckoutReturnBanner } from '../lib/booking-confirmation-copy';
 
 interface MyBookingsProps {
   onNavigate: (page: string) => void;
@@ -86,7 +86,9 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   useDialogFocus(cancelConfirm !== null, cancelSheetRef, closeCancelConfirm);
   const [stayDrafts, setStayDrafts] = useState<Record<string, string>>({});
   const [staySavingId, setStaySavingId] = useState<string | null>(null);
-  const [paymentBanner, setPaymentBanner] = useState<'success' | 'cancelled' | null>(null);
+  const [paymentBanner, setPaymentBanner] = useState<'success' | 'cancelled' | null>(() =>
+    typeof window === 'undefined' ? null : readStripeCheckoutReturnBanner(window.location.search)
+  );
   const [tripView, setTripView] = useState<'upcoming' | 'past' | 'cancelled'>('upcoming');
   const [openTripId, setOpenTripId] = useState<string | null>(null);
 
@@ -248,15 +250,10 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const url = new URL(window.location.href);
-    const payment = (url.searchParams.get('payment') ?? '').trim().toLowerCase();
-    if (payment === 'success' || payment === 'cancelled') {
-      setPaymentBanner(payment);
-      url.searchParams.delete('payment');
-      const next = `${url.pathname}${url.search}${url.hash}`;
-      window.history.replaceState({}, '', next);
-    } else {
-      setPaymentBanner(null);
-    }
+    if (!readStripeCheckoutReturnBanner(url.search)) return;
+    url.searchParams.delete('payment');
+    const next = `${url.pathname}${url.search}${url.hash}`;
+    window.history.replaceState({}, '', next);
   }, []);
 
   const todayIso = new Date().toISOString().slice(0, 10);
@@ -391,7 +388,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
           <div className="mb-8 max-w-lg">
             <h2 className="font-display text-2xl text-ink">Payment not completed</h2>
             <p className="mt-2 text-sm text-ink-muted">
-              Checkout was cancelled. You were not charged. Open the tour again when you are ready.
+              {STRIPE_CHECKOUT_CANCELLED_TOUR_COPY}
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
               <button type="button" onClick={() => onNavigate('packages')} className="tv-btn-primary">
