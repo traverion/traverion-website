@@ -11,6 +11,8 @@ import NoticeCallout from './NoticeCallout';
 import {
   PARTNER_INBOX_MESSAGE_DELIVERY_NOTE,
   TRAVELER_BOOKING_THREAD_DELIVERY_NOTE,
+  BOOKING_MESSAGE_SUBMIT_ERROR,
+  BOOKING_MESSAGE_SUBMIT_ERROR_TITLE,
 } from '../lib/booking-confirmation-copy';
 
 type Props = {
@@ -70,7 +72,7 @@ export default function BookingMessageThread({
     const res = await postBookingMessage(bookingId, body);
     setSending(false);
     if (!res.ok) {
-      setError(userFacingError(res.error, 'Could not send that message.'));
+      setError(userFacingError(res.error, BOOKING_MESSAGE_SUBMIT_ERROR));
       return;
     }
     setDraft('');
@@ -125,7 +127,7 @@ export default function BookingMessageThread({
         </ul>
       )}
       {error ? (
-        <NoticeCallout title="Message not sent" tone="danger">
+        <NoticeCallout title={BOOKING_MESSAGE_SUBMIT_ERROR_TITLE} tone="danger">
           {error}
         </NoticeCallout>
       ) : null}

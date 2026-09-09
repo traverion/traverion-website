@@ -4,6 +4,10 @@ import { snapshotSupplierCancellationPolicy } from '../lib/cancellation-policy';
 import { publicSiteBaseUrl } from '../lib/publicSiteUrl';
 import { supplierPortalPublicBaseUrl } from '../lib/partnerHost';
 import { notifySupplierEvent } from './supabase-supplier-messaging';
+import {
+  BOOKING_MESSAGE_SUBMIT_ERROR,
+  PARTNER_CANCEL_REQUEST_SUBMIT_ERROR,
+} from '../lib/booking-confirmation-copy';
 
 export type BookingMessageRow = {
   id: string;
@@ -104,12 +108,12 @@ export async function fetchSupplierLedger(supplierId: string): Promise<SupplierL
 }
 
 export async function postBookingMessage(bookingId: string, body: string): Promise<{ ok: boolean; error?: string }> {
-  if (!supabase) return { ok: false, error: 'Could not send that message.' };
+  if (!supabase) return { ok: false, error: BOOKING_MESSAGE_SUBMIT_ERROR };
   const { data, error } = await supabase.rpc('post_booking_message', {
     p_booking_id: bookingId,
     p_body: body,
   });
-  return parseRpc(data, error?.message, 'Could not send that message.');
+  return parseRpc(data, error?.message, BOOKING_MESSAGE_SUBMIT_ERROR);
 }
 
 export async function markBookingMessagesRead(bookingId: string): Promise<void> {
@@ -123,7 +127,7 @@ export async function requestSupplierCancellation(params: {
   reasonText: string;
   evidenceNote?: string;
 }): Promise<{ ok: boolean; error?: string; id?: string }> {
-  if (!supabase) return { ok: false, error: 'Could not send the cancellation request.' };
+  if (!supabase) return { ok: false, error: PARTNER_CANCEL_REQUEST_SUBMIT_ERROR };
   const snap = snapshotSupplierCancellationPolicy(params.reasonCode);
   const { data, error } = await supabase.rpc('request_supplier_cancellation', {
     p_booking_id: params.bookingId,
@@ -134,7 +138,7 @@ export async function requestSupplierCancellation(params: {
     p_applied_fee: snap.applied_fee,
     p_fee_currency: snap.currency,
   });
-  return parseRpc(data, error?.message, 'Could not send the cancellation request.');
+  return parseRpc(data, error?.message, PARTNER_CANCEL_REQUEST_SUBMIT_ERROR);
 }
 
 export async function respondToCancellationRequest(

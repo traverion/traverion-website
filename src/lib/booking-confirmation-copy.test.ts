@@ -55,6 +55,8 @@ import {
   PARTNERSHIP_FORM_THANK_YOU,
   PARTNERSHIP_FORM_SUBMIT_ERROR,
   PARTNER_CANCEL_REQUEST_SUBMIT_ERROR,
+  BOOKING_MESSAGE_SUBMIT_ERROR,
+  BOOKING_MESSAGE_SUBMIT_ERROR_TITLE,
   TERMS_MATERIAL_CHANGES_NOTE,
   TERMS_LAST_MINUTE_CHANGES_NOTE,
   PARTNER_TERMS_MATERIAL_CHANGES_NOTE,
@@ -356,6 +358,10 @@ describe('booking confirmation copy', () => {
     expect(PARTNERSHIP_FORM_SUBMIT_ERROR.toLowerCase()).not.toContain('send');
     expect(PARTNER_CANCEL_REQUEST_SUBMIT_ERROR.toLowerCase()).toContain('submit');
     expect(PARTNER_CANCEL_REQUEST_SUBMIT_ERROR.toLowerCase()).not.toContain('send');
+    expect(BOOKING_MESSAGE_SUBMIT_ERROR.toLowerCase()).toContain('post');
+    expect(BOOKING_MESSAGE_SUBMIT_ERROR.toLowerCase()).not.toContain('send');
+    expect(BOOKING_MESSAGE_SUBMIT_ERROR_TITLE.toLowerCase()).toBe('message not posted');
+    expect(BOOKING_MESSAGE_SUBMIT_ERROR_TITLE.toLowerCase()).not.toContain('sent');
     expect(bookingConfirmationPromisesEmailSent(CONTACT_FORM_THANK_YOU)).toBe(false);
     expect(bookingConfirmationPromisesEmailSent(PARTNERSHIP_FORM_THANK_YOU)).toBe(false);
     expect(bookingConfirmationPromisesEmailSent('Thank you. We will review your details and reply by email.')).toBe(true);

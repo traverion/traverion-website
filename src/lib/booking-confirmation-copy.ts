@@ -359,6 +359,12 @@ export const PARTNERSHIP_FORM_SUBMIT_ERROR =
 export const PARTNER_CANCEL_REQUEST_SUBMIT_ERROR =
   'Could not submit the cancellation request.';
 
+/** Booking thread post failure — thread save, not email send. */
+export const BOOKING_MESSAGE_SUBMIT_ERROR = 'Could not post that message. Try again.';
+
+/** Booking thread error callout title — not “Message not sent”. */
+export const BOOKING_MESSAGE_SUBMIT_ERROR_TITLE = 'Message not posted';
+
 /** Traveler Terms — material changes: website notice, not email-as-sole-proof. */
 export const TERMS_MATERIAL_CHANGES_NOTE =
   'TRAVERION reserves the right to modify these terms at any time. Material changes are posted on this website. Traverion does not treat email delivery as the only notice of a change.';
