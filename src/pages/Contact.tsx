@@ -213,7 +213,7 @@ export default function Contact({ onNavigate }: ContactProps) {
             )}
           </div>
           <button type="submit" disabled={isSubmitting} className="tv-btn-primary disabled:opacity-50">
-            {isSubmitting ? 'Sending…' : 'Send message'}
+            {isSubmitting ? 'Submitting…' : 'Submit message'}
           </button>
         </form>
       )}

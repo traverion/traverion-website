@@ -210,6 +210,13 @@ export const SUPPLIER_NEW_BOOKING_PAID_NOTIFY_SUB =
 export const SUPPLIER_NEW_BOOKING_PENDING_NOTIFY_SUB =
   'A traveler has a booking on your listing. Open Bookings to review details. If payment is still pending, the traveler completes checkout on Traverion — Traverion does not treat email delivery as proof you saw this booking.';
 
+/**
+ * Partner notify when traveler declines cancel — Bookings is durable.
+ * Keep in sync with notify-supplier-event cancellation_declined subcopy.
+ */
+export const SUPPLIER_CANCELLATION_DECLINED_NOTIFY_SUB =
+  'The traveler declined your cancellation request. The booking stays active. Open Bookings — Traverion does not treat email delivery as proof you saw this update.';
+
 /** Paid confirmation UI — Trips is durable; do not imply host follow-up arrives by email. */
 export const BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE =
   'Watch Trips for schedule, meeting, or arrival updates from the host.';

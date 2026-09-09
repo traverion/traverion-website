@@ -189,7 +189,9 @@ ${bodyText}
       'The traveler accepted your cancellation request. The booking is cancelled. Traveler status is Refund due until Stripe records a refund — Traverion does not send refunds automatically. Inventory is released; any supplier fee is on Money.';
   } else if (payload.eventType === 'cancellation_declined') {
     headline = 'Traveler declined cancellation';
-    sub = 'The traveler declined your cancellation request. The booking stays active.';
+    // Keep in sync with SUPPLIER_CANCELLATION_DECLINED_NOTIFY_SUB
+    sub =
+      'The traveler declined your cancellation request. The booking stays active. Open Bookings — Traverion does not treat email delivery as proof you saw this update.';
   } else if (payload.eventType === 'new_review') {
     headline = 'New review';
     // Keep in sync with SUPPLIER_NEW_REVIEW_NOTIFY_SUB in booking-confirmation-copy.ts

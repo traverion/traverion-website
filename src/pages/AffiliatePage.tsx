@@ -211,7 +211,7 @@ export default function AffiliatePage({ onNavigate }: AffiliatePageProps) {
               )}
             </div>
             <button type="submit" disabled={isSubmitting} className="tv-btn-primary disabled:opacity-50">
-              {isSubmitting ? 'Sending…' : 'Submit application'}
+              {isSubmitting ? 'Submitting…' : 'Submit application'}
             </button>
           </form>
         </>
