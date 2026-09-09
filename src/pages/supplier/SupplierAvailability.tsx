@@ -14,8 +14,7 @@ import { materializedBookingOptions } from '../../types/listingExtras';
 import type { TourPackage } from '../../types/tour';
 import { optionRunsOnDate } from '../../lib/booking-quote';
 import { inventoryFamilyFromListing } from '../../lib/inventory';
-import { nightsOccupiedByStay, stayRangeFromBooking, partnerStayDayKind } from '../../lib/stayOccupancy';
-import { bookingOccupiesInventory } from '../../lib/booking-hold';
+import { nightsOccupiedByStay, stayRangeFromBooking, partnerStayDayKind, partnerStayCalendarOccupiesNight } from '../../lib/stayOccupancy';
 import {
   buildMonthCells,
   defaultCapacityForOpenDay,
@@ -61,6 +60,7 @@ export default function SupplierAvailability() {
     const map = new Map<string, { guests: number; count: number }>();
     const listingById = new Map(listings.map((l) => [l.id, l]));
     for (const b of bookings) {
+      if (!partnerStayCalendarOccupiesNight(b)) continue;
       if (!viewingAll && b.listing_id !== listingId) continue;
       if (!b.booking_date) continue;
       const item = listingById.get(b.listing_id);
@@ -112,7 +112,7 @@ export default function SupplierAvailability() {
         fetchBookingsForSupplier(user.id).catch(() => [] as BookingRow[]),
       ]);
       setListings(mine);
-      setBookings(mineBookings.filter((b) => bookingOccupiesInventory(b)));
+      setBookings(mineBookings.filter((b) => partnerStayCalendarOccupiesNight(b)));
       setListingId((prev) => {
         if (prev && mine.some((l) => l.id === prev)) return prev;
         return '';

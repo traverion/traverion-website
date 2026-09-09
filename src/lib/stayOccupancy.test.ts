@@ -6,7 +6,9 @@ import {
   stayNightIsOperatorBlocked,
   stayRangeFromBooking,
   partnerStayDayKind,
+  partnerStayCalendarOccupiesNight,
 } from './stayOccupancy';
+import { bookingOccupiesInventory } from './booking-hold';
 import { stayNightIsOperatorBlocked as checkoutStayNightIsOperatorBlocked } from '../../supabase/functions/_shared/booking-quote';
 
 describe('stay occupancy', () => {
@@ -59,5 +61,20 @@ describe('stay occupancy', () => {
     expect(partnerStayDayKind({ occupying: false, capacity: 0 })).toBe('blocked');
     expect(partnerStayDayKind({ occupying: false, capacity: 1 })).toBe('available');
     expect(partnerStayDayKind({ occupying: false, capacity: null })).toBe('available');
+  });
+
+  it('does not occupy partner stay nights after a refund', () => {
+    const refunded = { status: 'confirmed', payment_status: 'refunded' };
+    expect(partnerStayCalendarOccupiesNight(refunded)).toBe(false);
+    expect(bookingOccupiesInventory(refunded)).toBe(false);
+    expect(
+      partnerStayDayKind({
+        occupying: partnerStayCalendarOccupiesNight(refunded),
+        capacity: 1,
+      })
+    ).toBe('available');
+    expect(
+      partnerStayCalendarOccupiesNight({ status: 'confirmed', payment_status: 'paid' })
+    ).toBe(true);
   });
 });

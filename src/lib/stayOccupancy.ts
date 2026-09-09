@@ -1,3 +1,5 @@
+import { bookingOccupiesInventory, type InventoryHoldRow } from './booking-hold';
+
 /** Stay nights are [check-in, check-out) — checkout night is not occupied. */
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -68,4 +70,9 @@ export function partnerStayDayKind(params: {
   if (params.occupying) return 'occupied';
   if (params.capacity != null && stayNightIsOperatorBlocked(params.capacity)) return 'blocked';
   return 'available';
+}
+
+/** Partner calendar occupancy: paid + live holds. Refunded, cancelled, and failed do not occupy. */
+export function partnerStayCalendarOccupiesNight(row: InventoryHoldRow): boolean {
+  return bookingOccupiesInventory(row);
 }
