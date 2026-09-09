@@ -7,6 +7,7 @@ import {
   fetchBookingMessages,
   fetchCancellationRequestsForBookings,
   bookingAllowsMessaging,
+  messagingComposeBlock,
   type BookingMessageRow,
 } from '../../data/supabase-booking-ops';
 import { SUPPLIER_PAGE_CLASS, SupplierEmptyState, SupplierListSkeleton } from '../../components/supplier/supplierUi';
@@ -158,6 +159,15 @@ export default function SupplierInbox() {
                         payment_status: b.payment_status,
                         openCancellation: openCancelIds.has(b.id),
                       })}
+                      composeBlock={
+                        messagingComposeBlock({
+                          status: b.status,
+                          payment_status: b.payment_status,
+                          openCancellation: openCancelIds.has(b.id),
+                        }) === 'closed'
+                          ? 'closed'
+                          : 'unpaid'
+                      }
                       viewerRole="supplier"
                       listingTitle={titles[b.listing_id] ?? 'Listing'}
                       listingId={b.listing_id}

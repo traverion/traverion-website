@@ -12,6 +12,7 @@ import NoticeCallout from './NoticeCallout';
 type Props = {
   bookingId: string;
   canCompose: boolean;
+  composeBlock?: 'unpaid' | 'closed';
   viewerRole: 'traveler' | 'supplier';
   listingTitle: string;
   listingId: string;
@@ -32,6 +33,7 @@ function roleLabel(role: string, viewer: 'traveler' | 'supplier'): string {
 export default function BookingMessageThread({
   bookingId,
   canCompose,
+  composeBlock = 'unpaid',
   viewerRole,
   listingTitle,
   listingId,
@@ -90,7 +92,9 @@ export default function BookingMessageThread({
         <p className="text-sm text-ink-muted">
           {canCompose
             ? 'No messages yet. Use this thread for this booking only — contact details stay in Traverion.'
-            : 'Messages appear here after a paid booking.'}
+            : composeBlock === 'closed'
+              ? 'This booking is closed. Earlier messages stay here.'
+              : 'Messages appear here after a paid booking.'}
         </p>
       ) : (
         <ul className="space-y-2 max-h-72 overflow-y-auto">
@@ -145,7 +149,11 @@ export default function BookingMessageThread({
           </button>
         </div>
       ) : (
-        <p className="text-xs text-ink-faint">Chat is limited to paid bookings you are part of.</p>
+        <p className="text-xs text-ink-faint">
+          {composeBlock === 'closed'
+            ? 'This booking is closed. You can still read earlier messages.'
+            : 'Chat is limited to paid bookings you are part of.'}
+        </p>
       )}
     </div>
   );

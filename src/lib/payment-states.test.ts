@@ -3,6 +3,7 @@ import {
   isCollectedBooking,
   sumCollectedAmount,
   travelerPaymentLabel,
+  bookingPaymentWasCollected,
 } from './payment-states';
 
 describe('payment states', () => {
@@ -57,5 +58,9 @@ describe('payment states', () => {
     expect(
       travelerPaymentLabel({ status: 'cancelled', payment_status: 'refunded', amount_paid: 189 })
     ).toBe('Refunded');
+    expect(bookingPaymentWasCollected('refunded')).toBe(true);
+    expect(bookingPaymentWasCollected('paid')).toBe(true);
+    expect(bookingPaymentWasCollected('pending')).toBe(false);
+    expect(bookingPaymentWasCollected('failed')).toBe(false);
   });
 });

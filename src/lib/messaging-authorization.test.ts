@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canAccessBookingThread, canPostBookingMessage } from './messaging-authorization';
+import { canAccessBookingThread, canPostBookingMessage, bookingAllowsMessaging, messagingComposeBlock } from './messaging-authorization';
 
 describe('messaging authorization', () => {
   it('blocks anonymous and pre-booking contact', () => {
@@ -73,5 +73,22 @@ describe('messaging authorization', () => {
         openCancellationRequest: false,
       }).ok
     ).toBe(false);
+  });
+
+  it('treats refunded bookings as closed, not unpaid', () => {
+    const refunded = { status: 'confirmed', payment_status: 'refunded' };
+    expect(bookingAllowsMessaging(refunded)).toBe(false);
+    expect(messagingComposeBlock(refunded)).toBe('closed');
+    expect(messagingComposeBlock({ status: 'pending', payment_status: 'pending' })).toBe('unpaid');
+    expect(
+      bookingAllowsMessaging({ status: 'confirmed', payment_status: 'paid' })
+    ).toBe(true);
+    expect(
+      bookingAllowsMessaging({
+        status: 'cancelled',
+        payment_status: 'paid',
+        openCancellation: true,
+      })
+    ).toBe(true);
   });
 });

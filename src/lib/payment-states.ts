@@ -24,6 +24,12 @@ export function isPaidPaymentStatus(raw: string | null | undefined): boolean {
   return pay === 'paid' || pay === 'complete' || pay === 'succeeded';
 }
 
+/** Money was collected at some point — including refunded. Failed and pending never were. */
+export function bookingPaymentWasCollected(raw: string | null | undefined): boolean {
+  const pay = normalizePaymentStatus(raw);
+  return isPaidPaymentStatus(pay) || pay === 'refunded';
+}
+
 /** Collected for Money: paid, not cancelled, not refunded, amount > 0. */
 export function isCollectedBooking(b: MoneyBookingRow): boolean {
   if ((b.status ?? '').trim().toLowerCase() === 'cancelled') return false;

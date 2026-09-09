@@ -26,6 +26,7 @@ import {
 } from '../../lib/cancellation-policy';
 import {
   bookingAllowsMessaging,
+  messagingComposeBlock,
   fetchCancellationRequestsForBookings,
   notifyTravelerCancellationRequest,
   requestSupplierCancellation,
@@ -1014,6 +1015,15 @@ export default function SupplierBookings() {
                       payment_status: booking.payment_status,
                       openCancellation: Boolean(openCancels[booking.id]),
                     })}
+                    composeBlock={
+                      messagingComposeBlock({
+                        status: booking.status,
+                        payment_status: booking.payment_status,
+                        openCancellation: Boolean(openCancels[booking.id]),
+                      }) === 'closed'
+                        ? 'closed'
+                        : 'unpaid'
+                    }
                     viewerRole="supplier"
                     listingTitle={listingMeta[booking.listing_id]?.title ?? 'Listing'}
                     listingId={booking.listing_id}

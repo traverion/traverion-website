@@ -26,7 +26,7 @@ import { travelerPaymentLabel, REFUND_DUE_MANUAL_COPY } from '../lib/payment-sta
 import { bookingLifecycleLabel } from '../lib/status-language';
 import { travelerSelfCancelRefundChoice, supplierCancellationReasonLabel } from '../lib/cancellation-policy';
 import {
-  bookingAllowsMessaging,
+  messagingComposeBlock,
   fetchCancellationRequestsForBookings,
   notifyCancellationResolved,
   respondToCancellationRequest,
@@ -641,14 +641,19 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                       </button>
                     )}
                   </div>
-                  {bookingAllowsMessaging({
-                    status: b.status,
-                    payment_status: b.payment_status,
-                    openCancellation: Boolean(openCancel),
-                  }) ? (
+                  {(() => {
+                    const msg = {
+                      status: b.status,
+                      payment_status: b.payment_status,
+                      openCancellation: Boolean(openCancel),
+                    };
+                    const block = messagingComposeBlock(msg);
+                    if (block === 'unpaid') return null;
+                    return (
                     <BookingMessageThread
                       bookingId={b.id}
-                      canCompose
+                      canCompose={block === 'none'}
+                      composeBlock={block === 'closed' ? 'closed' : 'unpaid'}
                       viewerRole="traveler"
                       listingTitle={titles[b.listing_id] ?? 'Booking'}
                       listingId={b.listing_id}
@@ -658,7 +663,8 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                       bookingNumber={typeof b.booking_number === 'number' ? b.booking_number : undefined}
                       bookingDate={b.booking_date}
                     />
-                  ) : null}
+                    );
+                  })()}
                 </div>
                 ) : null}
               </article>

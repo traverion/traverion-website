@@ -1,6 +1,5 @@
 import { supabase } from '../lib/supabase';
 import { userFacingError } from '../lib/userFacingError';
-import { isPaidPaymentStatus } from '../lib/payment-states';
 import { snapshotSupplierCancellationPolicy } from '../lib/cancellation-policy';
 import { publicSiteBaseUrl } from '../lib/publicSiteUrl';
 import { supplierPortalPublicBaseUrl } from '../lib/partnerHost';
@@ -150,17 +149,7 @@ export async function respondToCancellationRequest(
   return parseRpc(data, error?.message, 'Could not update this cancellation request.');
 }
 
-export function bookingAllowsMessaging(row: {
-  status?: string | null;
-  payment_status?: string | null;
-  openCancellation?: boolean;
-}): boolean {
-  const paid = isPaidPaymentStatus(row.payment_status);
-  const cancelled = (row.status ?? '').trim().toLowerCase() === 'cancelled';
-  if (!paid) return false;
-  if (cancelled && !row.openCancellation) return false;
-  return true;
-}
+export { bookingAllowsMessaging, messagingComposeBlock } from '../lib/messaging-authorization';
 
 export async function notifyTravelerCancellationRequest(params: {
   customerEmail: string;

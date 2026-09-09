@@ -1,3 +1,6 @@
+import { bookingPaymentWasCollected } from './payment-states';
+import { bookingIsCancelledTrip } from './trip-views';
+
 /**
  * Product rule for traveler↔supplier chat. SQL RPCs are the authority;
  * this module documents the same rule for tests and UI gating.
@@ -29,4 +32,26 @@ export function canPostBookingMessage(params: {
     return { ok: false, reason: 'This booking is closed. You can still read earlier messages.' };
   }
   return { ok: true, reason: '' };
+}
+
+export function bookingAllowsMessaging(row: {
+  status?: string | null;
+  payment_status?: string | null;
+  openCancellation?: boolean;
+}): boolean {
+  if (!bookingPaymentWasCollected(row.payment_status)) return false;
+  if (bookingIsCancelledTrip(row) && !row.openCancellation) return false;
+  return true;
+}
+
+export type MessagingComposeBlock = 'none' | 'unpaid' | 'closed';
+
+export function messagingComposeBlock(row: {
+  status?: string | null;
+  payment_status?: string | null;
+  openCancellation?: boolean;
+}): MessagingComposeBlock {
+  if (bookingAllowsMessaging(row)) return 'none';
+  if (bookingPaymentWasCollected(row.payment_status)) return 'closed';
+  return 'unpaid';
 }
