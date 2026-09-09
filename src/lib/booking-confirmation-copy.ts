@@ -54,6 +54,14 @@ export const PARTNER_INBOX_MESSAGE_DELIVERY_NOTE =
 export const TRAVELER_BOOKING_THREAD_DELIVERY_NOTE =
   'Messages are saved on this booking in Traverion. We do not treat email delivery as proof the host saw them.';
 
+/** Partner business verification while Resend is blocked — status is this page, not mail. */
+export const PARTNER_BUSINESS_REVIEW_STATUS_NOTE =
+  'Traverion is reviewing your submission. Payout bank details are verified separately. Status updates appear on this page — Traverion does not treat email as the decision.';
+
+/** Partner payout verification while Resend is blocked — status is this page, not mail. */
+export const PARTNER_PAYOUT_REVIEW_STATUS_NOTE =
+  'Traverion is reviewing your bank details. Status updates appear on this page — Traverion does not treat email as the decision.';
+
 export function readStripeCheckoutReturnBanner(search: string): 'success' | 'cancelled' | null {
   const raw = search.startsWith('?') ? search.slice(1) : search;
   const payment = (new URLSearchParams(raw).get('payment') ?? '').trim().toLowerCase();
@@ -70,6 +78,8 @@ export function bookingConfirmationPromisesEmailSent(copy: string): boolean {
     t.includes('check your email') ||
     t.includes('check your inbox') ||
     t.includes('confirmation email has been sent') ||
-    t.includes('email has been sent')
+    t.includes('email has been sent') ||
+    t.includes('we will email') ||
+    t.includes('will email you')
   );
 }

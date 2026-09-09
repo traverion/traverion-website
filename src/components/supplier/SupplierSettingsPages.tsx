@@ -34,6 +34,10 @@ import {
 import { supplierPortalPublicBaseUrl } from '../../lib/partnerHost';
 import { PARTNER_EMAIL_VERIFIED_PATH } from '../../lib/partnerPortalPaths';
 import { SUPPLIER_PAGE_CLASS, SupplierPageHero } from './supplierUi';
+import {
+  PARTNER_BUSINESS_REVIEW_STATUS_NOTE,
+  PARTNER_PAYOUT_REVIEW_STATUS_NOTE,
+} from '../../lib/booking-confirmation-copy';
 
 type BusinessProfileTab = 'company' | 'legal';
 
@@ -920,10 +924,7 @@ function BusinessProfilePage(p: Props) {
               </div>
             )}
             {vBus !== 'verified' && vBus !== 'rejected' && businessInReviewQueue && (
-              <p className="text-sm text-ink-muted leading-relaxed">
-                Traverion is reviewing your submission. Payout bank details are verified separately — we will email you
-                when there is an update.
-              </p>
+              <p className="text-sm text-ink-muted leading-relaxed">{PARTNER_BUSINESS_REVIEW_STATUS_NOTE}</p>
             )}
             {vBus !== 'verified' && vBus !== 'rejected' && !businessInReviewQueue && !draftBusinessComplete && (
               <div className="space-y-2">
@@ -1111,9 +1112,7 @@ function BusinessProfilePage(p: Props) {
               vPay !== 'verified' &&
               vPay !== 'rejected' &&
               (p.payoutVerificationSubmittedAt ?? '').trim() !== '' && (
-                <p className="text-sm text-ink-muted">
-                  Traverion is reviewing your bank details. We will email you when there is an update.
-                </p>
+                <p className="text-sm text-ink-muted">{PARTNER_PAYOUT_REVIEW_STATUS_NOTE}</p>
               )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
