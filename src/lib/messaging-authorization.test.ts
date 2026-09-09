@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canAccessBookingThread, canPostBookingMessage, bookingAllowsMessaging, messagingComposeBlock } from './messaging-authorization';
+import { canAccessBookingThread, canPostBookingMessage, bookingAllowsMessaging, messagingComposeBlock, partnerInboxListsBooking } from './messaging-authorization';
 
 describe('messaging authorization', () => {
   it('blocks anonymous and pre-booking contact', () => {
@@ -89,6 +89,19 @@ describe('messaging authorization', () => {
         payment_status: 'paid',
         openCancellation: true,
       })
+    ).toBe(true);
+  });
+
+  it('keeps closed paid threads in Inbox only when they have message history', () => {
+    const refunded = { status: 'confirmed', payment_status: 'refunded' };
+    const paid = { status: 'confirmed', payment_status: 'paid' };
+    const pending = { status: 'pending', payment_status: 'pending' };
+    expect(partnerInboxListsBooking(paid, false)).toBe(true);
+    expect(partnerInboxListsBooking(refunded, false)).toBe(false);
+    expect(partnerInboxListsBooking(refunded, true)).toBe(true);
+    expect(partnerInboxListsBooking(pending, true)).toBe(false);
+    expect(
+      partnerInboxListsBooking({ status: 'cancelled', payment_status: 'paid' }, true)
     ).toBe(true);
   });
 });

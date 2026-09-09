@@ -55,3 +55,17 @@ export function messagingComposeBlock(row: {
   if (bookingPaymentWasCollected(row.payment_status)) return 'closed';
   return 'unpaid';
 }
+
+/** Inbox: live paid threads always; closed collected threads only if they already have messages. */
+export function partnerInboxListsBooking(
+  row: {
+    status?: string | null;
+    payment_status?: string | null;
+    openCancellation?: boolean;
+  },
+  hasMessageHistory: boolean
+): boolean {
+  if (!bookingPaymentWasCollected(row.payment_status)) return false;
+  if (bookingAllowsMessaging(row)) return true;
+  return hasMessageHistory;
+}

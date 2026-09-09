@@ -16,7 +16,8 @@ import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import BookingMessageThread from '../../components/BookingMessageThread';
-import { isPaidPaymentStatus } from '../../lib/payment-states';
+import { bookingPaymentWasCollected } from '../../lib/payment-states';
+import { partnerInboxListsBooking } from '../../lib/messaging-authorization';
 import StatusChip from '../../components/StatusChip';
 
 export default function SupplierInbox() {
@@ -39,19 +40,31 @@ export default function SupplierInbox() {
     setError(null);
     try {
       const [rows, listings] = await Promise.all([fetchBookingsForSupplier(uid), fetchMyListings(uid)]);
-      const paid = rows.filter((b) => isPaidPaymentStatus(b.payment_status));
-      setBookings(paid);
+      const collected = rows.filter((b) => bookingPaymentWasCollected(b.payment_status));
       setTitles(Object.fromEntries(listings.map((l) => [l.id, l.title])));
-      const cancels = await fetchCancellationRequestsForBookings(paid.map((b) => b.id));
-      setOpenCancelIds(new Set(cancels.filter((c) => c.status === 'requested').map((c) => c.booking_id)));
+      const cancels = await fetchCancellationRequestsForBookings(collected.map((b) => b.id));
+      const openIds = new Set(cancels.filter((c) => c.status === 'requested').map((c) => c.booking_id));
+      setOpenCancelIds(openIds);
       const lasts: Record<string, BookingMessageRow> = {};
       await Promise.all(
-        paid.slice(0, 40).map(async (b) => {
+        collected.slice(0, 80).map(async (b) => {
           const msgs = await fetchBookingMessages(b.id);
           if (msgs.length) lasts[b.id] = msgs[msgs.length - 1]!;
         })
       );
       setLastByBooking(lasts);
+      setBookings(
+        collected.filter((b) =>
+          partnerInboxListsBooking(
+            {
+              status: b.status,
+              payment_status: b.payment_status,
+              openCancellation: openIds.has(b.id),
+            },
+            Boolean(lasts[b.id])
+          )
+        )
+      );
     } catch (e) {
       setError(userFacingError(e, USER_ERROR.bookings));
     } finally {
@@ -81,7 +94,7 @@ export default function SupplierInbox() {
       <header className="pt-2 sm:pt-8 mb-10">
         <h1 className="font-display text-4xl sm:text-5xl text-ink tracking-tight">Inbox</h1>
         <p className="mt-2 text-ink-muted max-w-xl">
-          Messages about paid bookings. Travelers cannot contact you before they book.
+          Messages about paid bookings. Closed trips stay here if they already have a thread.
         </p>
       </header>
       {error ? (
@@ -125,6 +138,13 @@ export default function SupplierInbox() {
                     </p>
                     <div className="flex items-center gap-2 shrink-0">
                       {unread ? <StatusChip tone="warn">Unread</StatusChip> : null}
+                      {messagingComposeBlock({
+                        status: b.status,
+                        payment_status: b.payment_status,
+                        openCancellation: openCancelIds.has(b.id),
+                      }) === 'closed' ? (
+                        <StatusChip tone="neutral">Closed</StatusChip>
+                      ) : null}
                       {typeof b.booking_number === 'number' ? (
                         <span className="text-xs text-ink-muted">#{b.booking_number}</span>
                       ) : null}
