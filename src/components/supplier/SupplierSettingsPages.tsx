@@ -40,6 +40,7 @@ import { SUPPLIER_PAGE_CLASS, SupplierPageHero } from './supplierUi';
 import {
   PARTNER_BUSINESS_REVIEW_STATUS_NOTE,
   PARTNER_PAYOUT_REVIEW_STATUS_NOTE,
+  PARTNER_PAYOUT_THRESHOLD_HINT,
 } from '../../lib/booking-confirmation-copy';
 
 type BusinessProfileTab = 'company' | 'legal';
@@ -1132,7 +1133,7 @@ function BusinessProfilePage(p: Props) {
               </div>
               <div>
                 <label className="block text-sm font-medium text-ink mb-1.5">Minimum payout threshold</label>
-                <p className="text-xs text-ink-muted mb-2">Minimum balance before a payout is sent (e.g. 50).</p>
+                <p className="text-xs text-ink-muted mb-2">{PARTNER_PAYOUT_THRESHOLD_HINT}</p>
                 <input
                   type="number"
                   min={0}

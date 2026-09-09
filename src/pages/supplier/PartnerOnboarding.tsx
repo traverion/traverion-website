@@ -1,6 +1,10 @@
 import { ArrowRight } from 'lucide-react';
 import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
+import {
+  PARTNER_ONBOARDING_INTRO_NOTE,
+  PARTNER_ONBOARDING_PAYOUT_STEP_NOTE,
+} from '../../lib/booking-confirmation-copy';
 
 type PartnerOnboardingProps = {
   onSkip: () => void;
@@ -33,7 +37,7 @@ export default function PartnerOnboarding({
     {
       n: '02',
       title: 'Payout',
-      body: 'Where Traverion sends money after a booking is confirmed.',
+      body: PARTNER_ONBOARDING_PAYOUT_STEP_NOTE,
       done: payoutDone,
       action: onPayout,
       cta: payoutDone ? 'Review' : 'Add payout',
@@ -53,7 +57,7 @@ export default function PartnerOnboarding({
       <p className="text-xs uppercase tracking-[0.2em] text-ink-muted mb-3">Welcome</p>
       <h1 className="font-display text-4xl sm:text-5xl text-ink mb-4">Set up your operation.</h1>
       <p className="text-ink-muted text-base leading-relaxed mb-10 max-w-lg">
-        Three things, then you are live. You can skip and come back — nothing is published until you choose.
+        {PARTNER_ONBOARDING_INTRO_NOTE}
       </p>
       <ol className="space-y-6">
         {steps.map((s) => (

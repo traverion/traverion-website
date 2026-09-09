@@ -108,6 +108,18 @@ export const PARTNER_LISTINGS_PAYOUT_REVIEW_NOTE =
 export const PARTNER_MONEY_PAYOUT_STATUS_NOTE =
   'Payouts are reviewed by Traverion. There is no automatic transfer date until payouts are enabled for your account. Status appears on this page and in Settings — Traverion does not treat email as proof of transfer.';
 
+/** Partner onboarding — bank details are for future payouts, not an automatic post-booking transfer. */
+export const PARTNER_ONBOARDING_PAYOUT_STEP_NOTE =
+  'Bank details for when Traverion enables payouts. Saving them does not mean Traverion sends money after each booking — payouts stay manual until enabled.';
+
+/** Partner onboarding intro — verification gates publish; filling steps alone is not “live”. */
+export const PARTNER_ONBOARDING_INTRO_NOTE =
+  'Complete business details, payout details, and a first listing. Traverion must verify business and payout before you can publish. Nothing goes live until you publish and both verifications pass.';
+
+/** Partner Settings — threshold applies only once payouts are enabled; do not imply automatic sends today. */
+export const PARTNER_PAYOUT_THRESHOLD_HINT =
+  'Minimum balance before Traverion will consider a payout once payouts are enabled (e.g. 50).';
+
 /** Partner cancellation request: Resend is blocked — do not claim the traveler was emailed. */
 export const PARTNER_CANCELLATION_REQUEST_DELIVERY_NOTE =
   'The request appears on the traveler’s Trips. Traverion does not treat email delivery as proof they saw it.';

@@ -31,6 +31,9 @@ import {
   BOOKING_CONFIRMED_PAID_RECEIPT_LINE,
   BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE,
   PARTNER_MONEY_COLLECTED_TO_DATE_NOTE,
+  PARTNER_ONBOARDING_INTRO_NOTE,
+  PARTNER_ONBOARDING_PAYOUT_STEP_NOTE,
+  PARTNER_PAYOUT_THRESHOLD_HINT,
   BOOKING_REQUEST_EMAIL_FOLLOWUP_NOTE,
   TRAVELER_NEW_BOOKING_MESSAGE_EMAIL_NOTE,
   TRAVELER_HOST_SCHEDULE_UPDATED_EMAIL_NOTE,
@@ -142,6 +145,15 @@ describe('booking confirmation copy', () => {
     expect(PARTNER_LISTINGS_PAYOUT_REVIEW_NOTE.toLowerCase()).toContain('status updates appear in settings');
     expect(PARTNER_MONEY_PAYOUT_STATUS_NOTE.toLowerCase()).toContain('status appears on this page');
     expect(PARTNER_MONEY_PAYOUT_STATUS_NOTE.toLowerCase()).toContain('does not treat email as proof of transfer');
+  });
+
+  it('partner onboarding and payout-threshold copy does not imply automatic payouts or instant live', () => {
+    expect(PARTNER_ONBOARDING_PAYOUT_STEP_NOTE.toLowerCase()).toContain('payouts stay manual');
+    expect(PARTNER_ONBOARDING_PAYOUT_STEP_NOTE.toLowerCase()).not.toContain('sends money after a booking');
+    expect(PARTNER_ONBOARDING_INTRO_NOTE.toLowerCase()).toContain('verify business and payout');
+    expect(PARTNER_ONBOARDING_INTRO_NOTE.toLowerCase()).not.toContain('then you are live');
+    expect(PARTNER_PAYOUT_THRESHOLD_HINT.toLowerCase()).toContain('once payouts are enabled');
+    expect(PARTNER_PAYOUT_THRESHOLD_HINT.toLowerCase()).not.toContain('before a payout is sent');
   });
 
   it('partner cancellation request copy does not promise the traveler was emailed', () => {
