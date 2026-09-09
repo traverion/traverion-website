@@ -948,6 +948,11 @@ export default function SupplierListings() {
                         type="button"
                         onClick={() => handleStatusChange(listing, 'published')}
                         disabled={!canPostNewListing}
+                        title={
+                          !canPostNewListing
+                            ? 'Business verification and payout verification (IBAN + BIC) required.'
+                            : 'Publish this listing on Traverion for travelers to book.'
+                        }
                         className="text-xs font-semibold text-finland hover:underline disabled:opacity-40"
                       >
                         Publish

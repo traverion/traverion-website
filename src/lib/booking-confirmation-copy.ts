@@ -142,6 +142,14 @@ export const PARTNER_PAYOUT_THRESHOLD_HINT =
 /** Traveler Trips — self-cancel is immediate, not a host-approval “request”. */
 export const TRAVELER_SELF_CANCEL_CTA = 'Cancel booking';
 
+/** Traveler Trips — success after self-cancel with refund due. */
+export const TRAVELER_SELF_CANCEL_SUCCESS_REFUND_DUE =
+  'Booking cancelled. Status: Refund due until Stripe records a refund. Traverion does not send refunds automatically. Open Cancelled to follow status.';
+
+/** Traveler Trips — success after self-cancel with no refund. */
+export const TRAVELER_SELF_CANCEL_SUCCESS_NO_REFUND =
+  'Booking cancelled. No refund applies for this cancellation. Open Cancelled to see it.';
+
 /** Partner listing editor final step — publish needs verification; draft anytime. */
 export const PARTNER_LISTING_PUBLISH_STEP_NOTE =
   'Publish runs a final check. Going live needs Traverion business and payout verification. Save as draft stores progress without going live. Promotional discounts are under Offers in Account.';

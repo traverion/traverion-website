@@ -13,6 +13,8 @@ import {
   TRAVELER_CANCELLATION_RESPONSE_DELIVERY_NOTE,
   TRAVELER_SELF_CANCEL_DELIVERY_NOTE,
   TRAVELER_SELF_CANCEL_CTA,
+  TRAVELER_SELF_CANCEL_SUCCESS_REFUND_DUE,
+  TRAVELER_SELF_CANCEL_SUCCESS_NO_REFUND,
   TRAVELER_SELF_CANCEL_FULL_REFUND_POLICY,
   TRAVELER_ACCEPT_HOST_CANCEL_REFUND_POLICY,
   TRAVELER_SELF_CANCEL_EMAIL_DIFF_FULL_REFUND,
@@ -225,6 +227,13 @@ describe('booking confirmation copy', () => {
     expect(TRAVELER_SELF_CANCEL_DELIVERY_NOTE.toLowerCase()).toContain('does not treat email delivery as proof');
     expect(TRAVELER_SELF_CANCEL_CTA.toLowerCase()).toBe('cancel booking');
     expect(TRAVELER_SELF_CANCEL_CTA.toLowerCase()).not.toContain('request');
+    expect(TRAVELER_SELF_CANCEL_SUCCESS_REFUND_DUE.toLowerCase()).toContain('refund due');
+    expect(TRAVELER_SELF_CANCEL_SUCCESS_REFUND_DUE.toLowerCase()).toContain('does not send refunds automatically');
+    expect(TRAVELER_SELF_CANCEL_SUCCESS_REFUND_DUE.toLowerCase()).toContain('cancelled');
+    expect(bookingConfirmationPromisesEmailSent(TRAVELER_SELF_CANCEL_SUCCESS_REFUND_DUE)).toBe(false);
+    expect(TRAVELER_SELF_CANCEL_SUCCESS_NO_REFUND.toLowerCase()).toContain('no refund applies');
+    expect(TRAVELER_SELF_CANCEL_SUCCESS_NO_REFUND.toLowerCase()).toContain('cancelled');
+    expect(bookingConfirmationPromisesEmailSent(TRAVELER_SELF_CANCEL_SUCCESS_NO_REFUND)).toBe(false);
   });
 
   it('traveler cancel refund copy does not promise money already moved', () => {

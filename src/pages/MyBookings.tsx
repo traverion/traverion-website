@@ -50,6 +50,8 @@ import {
   TRAVELER_ACCEPT_HOST_CANCEL_REFUND_POLICY,
   TRAVELER_PICKUP_PENDING_UI_NOTE,
   TRAVELER_SELF_CANCEL_CTA,
+  TRAVELER_SELF_CANCEL_SUCCESS_REFUND_DUE,
+  TRAVELER_SELF_CANCEL_SUCCESS_NO_REFUND,
   readStripeCheckoutReturnBanner,
 } from '../lib/booking-confirmation-copy';
 
@@ -102,6 +104,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   );
   const [tripView, setTripView] = useState<'upcoming' | 'past' | 'cancelled'>('upcoming');
   const [openTripId, setOpenTripId] = useState<string | null>(null);
+  const [cancelSuccess, setCancelSuccess] = useState<string | null>(null);
 
   const getRefundChoiceForCancel = useCallback((b: BookingRow): 'full_refund' | 'no_refund' => {
     return travelerSelfCancelRefundChoice({
@@ -165,6 +168,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   const handleCancelBooking = useCallback(async (b: BookingRow) => {
     setCancellingId(b.id);
     setError(null);
+    setCancelSuccess(null);
     const closed = travelerSelfCancelBlock(b);
     if (closed !== 'none') {
       setCancellingId(null);
@@ -178,6 +182,12 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
     setCancelConfirm(null);
     if (res.success) {
       if (b.booking_date) await decrementAvailabilityBooked(b.listing_id, b.booking_date, b.guests ?? 1);
+      setCancelSuccess(
+        refundChoice === 'full_refund'
+          ? TRAVELER_SELF_CANCEL_SUCCESS_REFUND_DUE
+          : TRAVELER_SELF_CANCEL_SUCCESS_NO_REFUND
+      );
+      setTripView('cancelled');
       load();
     } else {
       setError(userFacingError(res.error, 'Could not cancel this booking. Try again.'));
@@ -381,6 +391,16 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
             }
           />
         )}
+        {cancelSuccess ? (
+          <div className="mb-8 max-w-lg">
+            <NoticeCallout title="Booking cancelled" tone="warn">
+              <p>{cancelSuccess}</p>
+              <button type="button" onClick={() => setCancelSuccess(null)} className="tv-btn-ghost mt-3 -ml-2">
+                Dismiss
+              </button>
+            </NoticeCallout>
+          </div>
+        ) : null}
         {paymentBanner === 'success' && (
           <div className="mb-8 max-w-lg">
             <h2 className="font-display text-2xl text-ink">Payment received</h2>
