@@ -22,9 +22,11 @@ import {
   SUPPLIER_BOOKING_CANCELLED_NOTIFY_SUB,
   SUPPLIER_HOST_SCHEDULE_UPDATED_NOTIFY_SUB,
   BOOKING_CONFIRMED_PAID_FOLLOWUP_NOTE,
+  BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE,
   CONTACT_FORM_THANK_YOU,
   PARTNERSHIP_FORM_THANK_YOU,
   TERMS_MATERIAL_CHANGES_NOTE,
+  TERMS_LAST_MINUTE_CHANGES_NOTE,
   PARTNER_TERMS_MATERIAL_CHANGES_NOTE,
   PRIVACY_COMMUNICATIONS_NOTE,
   PARTNER_PRIVACY_COMMUNICATIONS_NOTE,
@@ -205,6 +207,10 @@ describe('booking confirmation copy', () => {
       'does not treat email delivery as proof'
     );
     expect(BOOKING_CONFIRMED_PAID_FOLLOWUP_NOTE.toLowerCase()).not.toContain('follow up by email');
+    expect(bookingConfirmationPromisesEmailSent(BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE)).toBe(false);
+    expect(BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE.toLowerCase()).toContain('trips');
+    expect(BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE.toLowerCase()).not.toContain('may follow up');
+    expect(BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE.toLowerCase()).not.toContain('may send arrival');
   });
 
   it('marketing contact thank-you copy does not promise a reply email', () => {
@@ -220,6 +226,7 @@ describe('booking confirmation copy', () => {
 
   it('Terms and partner marketing copy do not promise email as the only notice of changes', () => {
     expect(bookingConfirmationPromisesEmailSent(TERMS_MATERIAL_CHANGES_NOTE)).toBe(false);
+    expect(bookingConfirmationPromisesEmailSent(TERMS_LAST_MINUTE_CHANGES_NOTE)).toBe(false);
     expect(bookingConfirmationPromisesEmailSent(PARTNER_TERMS_MATERIAL_CHANGES_NOTE)).toBe(false);
     expect(
       bookingConfirmationPromisesEmailSent(
@@ -235,6 +242,13 @@ describe('booking confirmation copy', () => {
     expect(PARTNER_TERMS_MATERIAL_CHANGES_NOTE.toLowerCase()).toContain('partner portal');
     expect(TERMS_MATERIAL_CHANGES_NOTE.toLowerCase()).toContain('does not treat email delivery as the only notice');
     expect(PARTNER_TERMS_MATERIAL_CHANGES_NOTE.toLowerCase()).toContain('does not treat email delivery as the only notice');
+    expect(TERMS_LAST_MINUTE_CHANGES_NOTE.toLowerCase()).toContain('trips is the durable record');
+    expect(TERMS_LAST_MINUTE_CHANGES_NOTE.toLowerCase()).toContain(
+      'does not treat email delivery as proof'
+    );
+    expect(TERMS_LAST_MINUTE_CHANGES_NOTE.toLowerCase()).not.toContain(
+      'using the email or phone number you provided'
+    );
   });
 
   it('Privacy copy does not treat email delivery as proof of a notice', () => {

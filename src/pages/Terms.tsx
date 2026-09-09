@@ -1,7 +1,7 @@
 import type { MouseEvent } from 'react';
 import LegalPageShell from '../components/LegalPageShell';
 import { TRAVERION_STANDARD_CANCELLATION_POLICY } from '../types/listingExtras';
-import { TERMS_MATERIAL_CHANGES_NOTE } from '../lib/booking-confirmation-copy';
+import { TERMS_MATERIAL_CHANGES_NOTE, TERMS_LAST_MINUTE_CHANGES_NOTE } from '../lib/booking-confirmation-copy';
 
 type TermsProps = {
   onNavigate?: (page: string) => void;
@@ -127,8 +127,7 @@ export default function Terms({ onNavigate }: TermsProps) {
             contact
           </a>{' '}
           page—within any deadline in your confirmation or supplier terms. What counts as “in time” is usually based on
-          when we receive your request, not when you send an informal message elsewhere. Suppliers may contact you about
-          last-minute changes using the email or phone number you provided.
+          when we receive your request, not when you send an informal message elsewhere. {TERMS_LAST_MINUTE_CHANGES_NOTE}
         </p>
       </section>
 

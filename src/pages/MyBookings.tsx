@@ -42,6 +42,7 @@ import { guestFacingBookingNotes } from '../lib/booking-notes';
 import { bookingIsCancelledTrip, bookingMatchesTripView, travelerTripIsLive, sortTravelerCancelledTrips } from '../lib/trip-views';
 import {
   BOOKING_CONFIRMATION_EMAIL_DISCLAIMER,
+  BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE,
   STRIPE_CHECKOUT_CANCELLED_TOUR_COPY,
   TRAVELER_CANCELLATION_RESPONSE_DELIVERY_NOTE,
   TRAVELER_SELF_CANCEL_DELIVERY_NOTE,
@@ -382,7 +383,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
           <div className="mb-8 max-w-lg">
             <h2 className="font-display text-2xl text-ink">Payment received</h2>
             <p className="mt-2 text-sm text-ink-muted">
-              Your booking is confirmed. Open this page anytime for details. The operator may follow up about pickup.{' '}
+              Your booking is confirmed. Open this page anytime for details. {BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE}{' '}
               {BOOKING_CONFIRMATION_EMAIL_DISCLAIMER}
             </p>
             <div className="mt-4 flex flex-wrap gap-2">

@@ -175,6 +175,10 @@ export const SUPPLIER_BOOKING_CANCELLED_NOTIFY_SUB =
 export const SUPPLIER_HOST_SCHEDULE_UPDATED_NOTIFY_SUB =
   'You just updated start or pickup times for this booking. Below is a record of what changed. The guest sees the update on Trips; Traverion does not treat email delivery as proof they saw it.';
 
+/** Paid confirmation UI — Trips is durable; do not imply host follow-up arrives by email. */
+export const BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE =
+  'Watch Trips for schedule, meeting, or arrival updates from the host.';
+
 /**
  * Paid confirmation email footer — Trips is durable; do not imply host follow-up is by email.
  * Keep in sync with notify-customer-booking booking_confirmed_paid footerNote.
@@ -193,6 +197,10 @@ export const PARTNERSHIP_FORM_THANK_YOU =
 /** Traveler Terms — material changes: website notice, not email-as-sole-proof. */
 export const TERMS_MATERIAL_CHANGES_NOTE =
   'TRAVERION reserves the right to modify these terms at any time. Material changes are posted on this website. Traverion does not treat email delivery as the only notice of a change.';
+
+/** Traveler Terms — last-minute supplier contact: Trips is durable, not email delivery. */
+export const TERMS_LAST_MINUTE_CHANGES_NOTE =
+  'Suppliers may attempt to reach you about last-minute changes using the contact details on your booking, but Trips is the durable record. Traverion does not treat email delivery as proof you received a notice.';
 
 /** Partner marketing terms — material changes: portal first, not email-as-sole-proof. */
 export const PARTNER_TERMS_MATERIAL_CHANGES_NOTE =

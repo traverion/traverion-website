@@ -20,7 +20,7 @@ import { formatMoney, isStripeTestCheckoutSession } from '../lib/money';
 import NoticeCallout from '../components/NoticeCallout';
 import { listingPickupCopyIncomplete } from '../lib/pickup-completeness';
 import { clearBookingsUnread } from '../lib/customerBookingNotifications';
-import { BOOKING_CONFIRMATION_EMAIL_DISCLAIMER, bookingConfirmationPhase, bookingConfirmationCancelledBody } from '../lib/booking-confirmation-copy';
+import { BOOKING_CONFIRMATION_EMAIL_DISCLAIMER, bookingConfirmationPhase, bookingConfirmationCancelledBody, BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE } from '../lib/booking-confirmation-copy';
 import { travelerPaymentLabel, bookingPaymentWasCollected } from '../lib/payment-states';
 
 const SESSION_RETURN_KEY = 'traverion_checkout_return_session_id';
@@ -284,10 +284,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                   </div>
                   <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Booking confirmed</h1>
                   <p className="mt-2 text-sm text-ink-muted leading-relaxed">
-                    Thank you — your payment went through.{' '}
-                    {stayCheckOut
-                      ? 'The host may follow up with arrival instructions.'
-                      : 'The operator may follow up about meeting or pickup details.'}{' '}
+                    Thank you — your payment went through. {BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE}{' '}
                     {BOOKING_CONFIRMATION_EMAIL_DISCLAIMER}
                   </p>
                 </>
@@ -364,9 +361,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                 </p>
               ) : (
                 <p className="text-xs text-ink-faint leading-relaxed pt-2">
-                  {stayCheckOut
-                    ? 'Next: the host may send arrival instructions. Manage this stay from Trips.'
-                    : 'Next: the operator may follow up about meeting or pickup. Manage this booking from Trips.'}{' '}
+                  Next: {BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE} Manage this {stayCheckOut ? 'stay' : 'booking'} from Trips.
                   Free cancellation up to 24 hours before {stayCheckOut ? 'check-in' : 'start'}, unless the listing says
                   otherwise.
                 </p>
