@@ -301,6 +301,19 @@ export const PARTNER_MONEY_LOAD_ERROR_BODY =
 export const PARTNER_MONEY_FILTER_EMPTY_BODY =
   'Nothing matches this status. Switch to All to see every period on Money.';
 
+/** Money hero when balance ≥ 0 — collected not yet paid out; do not say “Pending payout”. */
+export const PARTNER_MONEY_AVAILABLE_BALANCE_LABEL = 'Collected balance';
+
+/** Money hero when balance < 0. */
+export const PARTNER_MONEY_NEGATIVE_BALANCE_LABEL = 'Balance';
+
+/** Money period row status when not yet paid out — not a queued Stripe transfer. */
+export const PARTNER_MONEY_PERIOD_NOT_PAID_OUT_LABEL = 'Not paid out';
+
+/** Partner business draft complete — save/submit for review, not email send. */
+export const PARTNER_BUSINESS_READY_TO_SUBMIT_NOTE =
+  'Required fields look complete. Save company details to submit them to Traverion for review.';
+
 /** Traveler Trips — pickup pending until host confirms on the booking. */
 export const TRAVELER_PICKUP_PENDING_UI_NOTE =
   'Your host still needs to confirm meeting or pickup details. They appear here when the host updates them on this booking.';

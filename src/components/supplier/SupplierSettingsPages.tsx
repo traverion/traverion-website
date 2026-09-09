@@ -41,6 +41,7 @@ import {
   PARTNER_BUSINESS_REVIEW_STATUS_NOTE,
   PARTNER_PAYOUT_REVIEW_STATUS_NOTE,
   PARTNER_PAYOUT_THRESHOLD_HINT,
+  PARTNER_BUSINESS_READY_TO_SUBMIT_NOTE,
 } from '../../lib/booking-confirmation-copy';
 
 type BusinessProfileTab = 'company' | 'legal';
@@ -942,7 +943,7 @@ function BusinessProfilePage(p: Props) {
             )}
             {vBus !== 'verified' && vBus !== 'rejected' && !businessInReviewQueue && draftBusinessComplete && (
               <p className="text-sm text-ink-muted leading-relaxed">
-                Required fields look complete. Save company details to send them to Traverion for review.
+                {PARTNER_BUSINESS_READY_TO_SUBMIT_NOTE}
               </p>
             )}
           </section>

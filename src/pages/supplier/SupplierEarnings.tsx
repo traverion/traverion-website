@@ -14,7 +14,7 @@ import { isCollectedBooking, sumCollectedAmount, isRefundDueBooking, sumRefundDu
 import { ledgerAdjustmentTotal } from '../../lib/supplier-ledger-balance';
 import { fetchMyListings } from '../../data/supabase-listings';
 import { fetchSupplierLedger, type SupplierLedgerEntry } from '../../data/supabase-booking-ops';
-import { PARTNER_MONEY_PAYOUT_STATUS_NOTE, PARTNER_MONEY_PAID_OUT_TO_DATE_NOTE, PARTNER_MONEY_EMPTY_TITLE, PARTNER_MONEY_EMPTY_BODY, PARTNER_MONEY_LOAD_ERROR_TITLE, PARTNER_MONEY_FILTER_EMPTY_BODY } from '../../lib/booking-confirmation-copy';
+import { PARTNER_MONEY_PAYOUT_STATUS_NOTE, PARTNER_MONEY_PAID_OUT_TO_DATE_NOTE, PARTNER_MONEY_EMPTY_TITLE, PARTNER_MONEY_EMPTY_BODY, PARTNER_MONEY_LOAD_ERROR_TITLE, PARTNER_MONEY_FILTER_EMPTY_BODY, PARTNER_MONEY_AVAILABLE_BALANCE_LABEL, PARTNER_MONEY_NEGATIVE_BALANCE_LABEL, PARTNER_MONEY_PERIOD_NOT_PAID_OUT_LABEL } from '../../lib/booking-confirmation-copy';
 import NoticeCallout from '../../components/NoticeCallout';
 import {
   PARTNER_MONEY_CSV_HEADER,
@@ -192,7 +192,7 @@ export default function SupplierEarnings() {
         <>
           <section className="mb-12">
             <p className="text-[11px] uppercase tracking-[0.18em] text-ink-faint mb-2">
-              {available < 0 ? 'Balance' : 'Pending payout'}
+              {available < 0 ? PARTNER_MONEY_NEGATIVE_BALANCE_LABEL : PARTNER_MONEY_AVAILABLE_BALANCE_LABEL}
             </p>
             <p className={`font-display text-5xl sm:text-6xl tabular-nums tracking-tight ${available < 0 ? 'text-red-800' : 'text-ink'}`}>
               {formatMoney(available, primaryCurrency)}
@@ -358,7 +358,7 @@ export default function SupplierEarnings() {
                         {e.period_start} – {e.period_end}
                       </p>
                       <p className="mt-0.5 text-xs text-ink-muted">
-                        {e.status === 'paid' ? 'Paid' : e.status === 'pending' ? 'Pending' : e.status}
+                        {e.status === 'paid' ? 'Paid' : e.status === 'pending' ? PARTNER_MONEY_PERIOD_NOT_PAID_OUT_LABEL : e.status}
                         {e.invoice_number ? ` · ${e.invoice_number}` : ''}
                         {e.status === 'paid' && e.payment_reference ? ` · ${e.payment_reference}` : ''}
                       </p>

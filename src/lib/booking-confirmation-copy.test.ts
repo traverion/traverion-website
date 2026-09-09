@@ -38,6 +38,10 @@ import {
   PARTNER_MONEY_LOAD_ERROR_TITLE,
   PARTNER_MONEY_LOAD_ERROR_BODY,
   PARTNER_MONEY_FILTER_EMPTY_BODY,
+  PARTNER_MONEY_AVAILABLE_BALANCE_LABEL,
+  PARTNER_MONEY_NEGATIVE_BALANCE_LABEL,
+  PARTNER_MONEY_PERIOD_NOT_PAID_OUT_LABEL,
+  PARTNER_BUSINESS_READY_TO_SUBMIT_NOTE,
   TRAVELER_PICKUP_PENDING_UI_NOTE,
   PARTNER_ONBOARDING_INTRO_NOTE,
   PARTNER_ONBOARDING_PAYOUT_STEP_NOTE,
@@ -319,6 +323,11 @@ describe('booking confirmation copy', () => {
     expect(PARTNER_MONEY_LOAD_ERROR_BODY.toLowerCase()).toContain('load money');
     expect(PARTNER_MONEY_LOAD_ERROR_BODY.toLowerCase()).not.toContain('load payouts');
     expect(PARTNER_MONEY_FILTER_EMPTY_BODY.toLowerCase()).not.toContain('payout history exists');
+    expect(PARTNER_MONEY_AVAILABLE_BALANCE_LABEL.toLowerCase()).toBe('collected balance');
+    expect(PARTNER_MONEY_AVAILABLE_BALANCE_LABEL.toLowerCase()).not.toContain('pending payout');
+    expect(PARTNER_MONEY_PERIOD_NOT_PAID_OUT_LABEL.toLowerCase()).toBe('not paid out');
+    expect(PARTNER_BUSINESS_READY_TO_SUBMIT_NOTE.toLowerCase()).toContain('submit them to traverion');
+    expect(PARTNER_BUSINESS_READY_TO_SUBMIT_NOTE.toLowerCase()).not.toContain('send them to traverion');
     expect(TRAVELER_PICKUP_PENDING_UI_NOTE.toLowerCase()).toContain('when the host updates them');
     expect(TRAVELER_PICKUP_PENDING_UI_NOTE.toLowerCase()).not.toContain('when ready');
     expect(bookingConfirmationPromisesEmailSent(BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE)).toBe(false);
