@@ -14,7 +14,7 @@ import { isCollectedBooking, sumCollectedAmount, isRefundDueBooking, sumRefundDu
 import { ledgerAdjustmentTotal } from '../../lib/supplier-ledger-balance';
 import { fetchMyListings } from '../../data/supabase-listings';
 import { fetchSupplierLedger, type SupplierLedgerEntry } from '../../data/supabase-booking-ops';
-import { PARTNER_MONEY_PAYOUT_STATUS_NOTE } from '../../lib/booking-confirmation-copy';
+import { PARTNER_MONEY_PAYOUT_STATUS_NOTE, PARTNER_MONEY_COLLECTED_TO_DATE_NOTE } from '../../lib/booking-confirmation-copy';
 import NoticeCallout from '../../components/NoticeCallout';
 import {
   PARTNER_MONEY_CSV_HEADER,
@@ -245,7 +245,9 @@ export default function SupplierEarnings() {
               </div>
             ) : null}
             <p className="mt-6 text-sm text-ink-muted">
-              Paid to date <span className="tabular-nums font-semibold text-ink">{formatMoney(paid, primaryCurrency)}</span>
+              Collected to date{' '}
+              <span className="tabular-nums font-semibold text-ink">{formatMoney(paid, primaryCurrency)}</span>
+              <span className="block text-xs text-ink-faint mt-1">{PARTNER_MONEY_COLLECTED_TO_DATE_NOTE}</span>
             </p>
             <button
               type="button"

@@ -200,10 +200,11 @@ serve(async (req) => {
         intro += `<p style="margin:12px 0 0;font-size:14px;color:#111827;">Booking number: <strong>#${escapeHtml(refDigits)}</strong></p><p style="margin:8px 0 0;font-size:13px;color:#4b5563;">A printable receipt is attached as a PDF.</p>`;
       }
       if (typeof amount === 'number') {
+        // Receipt cell copy: keep in sync with BOOKING_CONFIRMED_PAID_RECEIPT_LINE
         extraHtml = `<table role="presentation" style="margin:12px 0 0;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:14px 16px;width:100%;">
 <tr><td style="font-size:12px;color:#166534;text-transform:uppercase;letter-spacing:0.05em;font-weight:600;">Payment receipt</td></tr>
 <tr><td style="font-size:22px;font-weight:700;color:#14532d;padding-top:4px;">${escapeHtml(currency)} ${amount.toFixed(2)}</td></tr>
-<tr><td style="font-size:13px;color:#15803d;padding-top:6px;">Charged for this tour. Keep this email for your records.</td></tr>
+<tr><td style="font-size:13px;color:#15803d;padding-top:6px;">Charged for this tour. Trips is the durable receipt — keep this email if it arrives.</td></tr>
 </table>`;
       }
       footerNote =

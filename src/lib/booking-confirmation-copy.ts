@@ -229,6 +229,19 @@ export const BOOKING_CONFIRMED_PAID_FOLLOWUP_NOTE =
   'Watch Trips for schedule or meeting updates from the host. Traverion does not treat email delivery as proof you received a notice.';
 
 /**
+ * Paid confirmation receipt line — Trips is durable; email may not arrive.
+ * Keep in sync with notify-customer-booking booking_confirmed_paid receipt cell.
+ */
+export const BOOKING_CONFIRMED_PAID_RECEIPT_LINE =
+  'Charged for this tour. Trips is the durable receipt — keep this email if it arrives.';
+
+/**
+ * Money page collected total caption — not a Stripe payout.
+ */
+export const PARTNER_MONEY_COLLECTED_TO_DATE_NOTE =
+  'Guest checkout totals — not a Stripe payout. Payouts stay manual until Traverion enables them.';
+
+/**
  * Legacy booking_request email footer — do not promise a later confirmation email.
  * Keep in sync with notify-customer-booking booking_request footerNote.
  */

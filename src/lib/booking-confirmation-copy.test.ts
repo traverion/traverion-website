@@ -28,7 +28,9 @@ import {
   SUPPLIER_NEW_BOOKING_PENDING_NOTIFY_SUB,
   SUPPLIER_CANCELLATION_DECLINED_NOTIFY_SUB,
   BOOKING_CONFIRMED_PAID_FOLLOWUP_NOTE,
+  BOOKING_CONFIRMED_PAID_RECEIPT_LINE,
   BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE,
+  PARTNER_MONEY_COLLECTED_TO_DATE_NOTE,
   BOOKING_REQUEST_EMAIL_FOLLOWUP_NOTE,
   TRAVELER_NEW_BOOKING_MESSAGE_EMAIL_NOTE,
   TRAVELER_HOST_SCHEDULE_UPDATED_EMAIL_NOTE,
@@ -251,6 +253,11 @@ describe('booking confirmation copy', () => {
       'does not treat email delivery as proof'
     );
     expect(BOOKING_CONFIRMED_PAID_FOLLOWUP_NOTE.toLowerCase()).not.toContain('follow up by email');
+    expect(bookingConfirmationPromisesEmailSent(BOOKING_CONFIRMED_PAID_RECEIPT_LINE)).toBe(false);
+    expect(BOOKING_CONFIRMED_PAID_RECEIPT_LINE.toLowerCase()).toContain('trips is the durable receipt');
+    expect(BOOKING_CONFIRMED_PAID_RECEIPT_LINE.toLowerCase()).not.toContain('keep this email for your records');
+    expect(PARTNER_MONEY_COLLECTED_TO_DATE_NOTE.toLowerCase()).toContain('not a stripe payout');
+    expect(PARTNER_MONEY_COLLECTED_TO_DATE_NOTE.toLowerCase()).toContain('payouts stay manual');
     expect(bookingConfirmationPromisesEmailSent(BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE)).toBe(false);
     expect(BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE.toLowerCase()).toContain('trips');
     expect(BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE.toLowerCase()).not.toContain('may follow up');
