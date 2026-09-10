@@ -312,10 +312,27 @@ serve(async (req) => {
 
         const { data: existingBooking } = await admin
           .from('bookings')
-          .select('id, payment_status, currency, total_amount')
+          .select('id, payment_status, currency, total_amount, checkout_session_id, payment_intent_id')
           .eq('id', bookingId)
           .maybeSingle();
         const existingPay = (existingBooking?.payment_status ?? '').toLowerCase();
+        if (
+          !staleCheckoutFailureShouldApply({
+            eventCheckoutSessionId: session.id,
+            eventPaymentIntentId: paymentIntentId,
+            bookingCheckoutSessionId: existingBooking?.checkout_session_id ?? null,
+            bookingPaymentIntentId: existingBooking?.payment_intent_id ?? null,
+          })
+        ) {
+          await markProcessed('processed');
+          return json({
+            success: true,
+            ignored: true,
+            reason: 'stale checkout.session.completed for superseded session',
+            eventId: event.id,
+            bookingId,
+          });
+        }
         if (existingPay === 'paid' || existingPay === 'refunded') {
           if (existingPay === 'paid') {
             const { error: earnErr } = await admin.rpc('record_paid_booking_earnings', {
@@ -377,7 +394,7 @@ serve(async (req) => {
 
         const currency = String(existingBooking?.currency || session.currency || 'eur').toUpperCase();
 
-        const { data: paidRows, error: bookingErr } = await admin
+        let paidUpdate = admin
           .from('bookings')
           .update({
             status: 'confirmed',
@@ -390,8 +407,12 @@ serve(async (req) => {
             paid_at: new Date().toISOString(),
           })
           .eq('id', bookingId)
-          .in('payment_status', ['pending', 'failed'])
-          .select('id');
+          .in('payment_status', ['pending', 'failed']);
+        const currentCheckoutSessionId = String(existingBooking?.checkout_session_id ?? '').trim();
+        if (currentCheckoutSessionId) {
+          paidUpdate = paidUpdate.eq('checkout_session_id', session.id);
+        }
+        const { data: paidRows, error: bookingErr } = await paidUpdate.select('id');
         if (bookingErr) throw new Error(bookingErr.message);
         if ((paidRows ?? []).length === 0) {
           await markProcessed('processed');

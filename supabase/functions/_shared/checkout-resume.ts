@@ -12,6 +12,7 @@ export function stripeWebhookCanMarkPaidFrom(paymentStatus: string | null | unde
   return checkoutPaymentStatusCanResume(paymentStatus);
 }
 
+/** Late expire/fail/completed from a superseded session/PI must not apply. */
 export function staleCheckoutFailureShouldApply(params: {
   eventCheckoutSessionId?: string | null;
   eventPaymentIntentId?: string | null;

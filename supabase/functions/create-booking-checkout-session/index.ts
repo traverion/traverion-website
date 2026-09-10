@@ -113,12 +113,13 @@ serve(async (req) => {
     let resumeStayNights: number | null = null;
     let resumeStayNotes: string | null = null;
     let resumeGuestName: string | null = null;
+    let priorCheckoutSessionId: string | null = null;
 
     if (targetBookingId) {
       const withOption = await admin
         .from('bookings')
         .select(
-          'id, listing_id, guest_email, guest_user_id, guest_name, guests, booking_date, check_out, nights, status, payment_status, total_amount, currency, special_requests, booking_option_id'
+          'id, listing_id, guest_email, guest_user_id, guest_name, guests, booking_date, check_out, nights, status, payment_status, total_amount, currency, special_requests, booking_option_id, checkout_session_id'
         )
         .eq('id', targetBookingId)
         .maybeSingle();
@@ -127,7 +128,7 @@ serve(async (req) => {
         const fallback = await admin
           .from('bookings')
           .select(
-            'id, listing_id, guest_email, guest_user_id, guest_name, guests, booking_date, status, payment_status, total_amount, currency, special_requests'
+            'id, listing_id, guest_email, guest_user_id, guest_name, guests, booking_date, status, payment_status, total_amount, currency, special_requests, checkout_session_id'
           )
           .eq('id', targetBookingId)
           .maybeSingle();
@@ -169,6 +170,10 @@ serve(async (req) => {
       resumeStayNights = Number.isFinite(nightsRaw) && nightsRaw >= 1 ? Math.floor(nightsRaw) : null;
       resumeStayNotes = typeof row.special_requests === 'string' ? row.special_requests : null;
       resumeGuestName = typeof row.guest_name === 'string' ? row.guest_name.trim() : null;
+      priorCheckoutSessionId =
+        typeof row.checkout_session_id === 'string' && row.checkout_session_id.trim()
+          ? row.checkout_session_id.trim()
+          : null;
       storedOptionId =
         (typeof (row as { booking_option_id?: string }).booking_option_id === 'string' &&
           (row as { booking_option_id?: string }).booking_option_id?.trim()) ||
@@ -513,6 +518,16 @@ serve(async (req) => {
       .eq('id', targetBookingId);
     if (updateError) {
       return json({ success: false, error: 'Checkout created but booking update failed' }, 500);
+    }
+
+    // Expire after the booking points at the new session so the expire webhook
+    // is treated as stale and cannot flip payment_status to failed.
+    if (priorCheckoutSessionId && priorCheckoutSessionId !== session.id) {
+      try {
+        await stripe.checkout.sessions.expire(priorCheckoutSessionId);
+      } catch {
+        // Already expired, completed, or unknown — continue.
+      }
     }
 
     return json({

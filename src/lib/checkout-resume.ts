@@ -15,8 +15,8 @@ export function stripeWebhookCanMarkPaidFrom(paymentStatus: string | null | unde
 }
 
 /**
- * After Pay now opens a new Checkout, late expire/fail from an older session/PI
- * must not flip the booking to failed.
+ * After Pay now opens a new Checkout, late events from an older session/PI
+ * must not flip the booking (expire/fail → failed, or completed → paid).
  */
 export function staleCheckoutFailureShouldApply(params: {
   eventCheckoutSessionId?: string | null;

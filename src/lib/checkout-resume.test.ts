@@ -39,6 +39,16 @@ describe('staleCheckoutFailureShouldApply', () => {
     ).toBe(true);
   });
 
+  it('ignores a stale checkout.session.completed after Pay now rotated sessions', () => {
+    expect(
+      staleCheckoutFailureShouldApply({
+        eventCheckoutSessionId: 'cs_old',
+        bookingCheckoutSessionId: 'cs_new',
+        bookingPaymentIntentId: null,
+      })
+    ).toBe(false);
+  });
+
   it('ignores an old PI failure while a newer Checkout session is open', () => {
     expect(
       staleCheckoutFailureShouldApply({
