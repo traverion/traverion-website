@@ -5,7 +5,7 @@ import Stripe from 'https://esm.sh/stripe@16.12.0?target=deno';
 import { stripeWebhookReplayDecision } from '../_shared/stripe-webhook-replay.ts';
 import { isStripeChargeFullyRefunded } from '../_shared/stripe-charge-refund.ts';
 import { staleCheckoutFailureShouldApply, stripeWebhookCanMarkPaidFrom } from '../_shared/checkout-resume.ts';
-import { checkoutPaidAmountAcceptable, checkoutPaidCurrencyMatches } from '../_shared/checkout-paid-amount.ts';
+import { checkoutPaidAmountAcceptable, checkoutPaidCurrencyMatches, rejectedCheckoutCaptureShouldRefund } from '../_shared/checkout-paid-amount.ts';
 import { orphanSupersededCheckoutShouldRefund } from '../_shared/orphan-checkout-refund.ts';
 import {
   cancelledCheckoutCaptureShouldRefund,
@@ -459,18 +459,59 @@ serve(async (req) => {
             quotedTotalMeta: session.metadata?.quoted_total ?? null,
           })
         ) {
-          await markProcessed('failed', 'Checkout paid amount below booking quote');
-          return json(
-            {
-              success: false,
-              error: 'paid amount below booking quote',
-              eventId: event.id,
-              bookingId,
-              amountPaid,
-              bookingTotal: existingBooking?.total_amount ?? null,
-            },
-            500
-          );
+          let underpayRefunded = false;
+          if (
+            rejectedCheckoutCaptureShouldRefund({
+              sessionPaymentStatus: session.payment_status,
+              paymentIntentId,
+            })
+          ) {
+            try {
+              await stripe.refunds.create(
+                {
+                  payment_intent: paymentIntentId as string,
+                  reason: 'duplicate',
+                },
+                { idempotencyKey: `underpay-checkout-refund:${session.id}` }
+              );
+              underpayRefunded = true;
+              const underpayCurrency = String(
+                existingBooking?.currency || session.currency || 'eur'
+              ).toUpperCase();
+              await admin.from('booking_payment_events').insert({
+                booking_id: bookingId,
+                event_id: event.id,
+                event_type: 'underpay_checkout_refund',
+                payment_intent_id: paymentIntentId,
+                checkout_session_id: session.id,
+                amount: amountPaid,
+                currency: underpayCurrency,
+                payload: {
+                  reason: 'paid_amount_below_quote',
+                  amountPaid,
+                  bookingTotal: existingBooking?.total_amount ?? null,
+                  quotedTotalMeta: session.metadata?.quoted_total ?? null,
+                  stripeEventType: event.type,
+                },
+              });
+            } catch (refundErr) {
+              const msg = refundErr instanceof Error ? refundErr.message : String(refundErr);
+              if (!/already.?been.?refunded|charge_already_refunded/i.test(msg)) {
+                throw refundErr;
+              }
+            }
+          }
+          await markProcessed('processed');
+          return json({
+            success: true,
+            ignored: true,
+            reason: 'checkout paid amount below quote',
+            underpayRefunded,
+            eventId: event.id,
+            bookingId,
+            amountPaid,
+            bookingTotal: existingBooking?.total_amount ?? null,
+          });
         }
 
         if (
@@ -479,18 +520,58 @@ serve(async (req) => {
             bookingCurrency: existingBooking?.currency ?? null,
           })
         ) {
-          await markProcessed('failed', 'Checkout currency does not match booking');
-          return json(
-            {
-              success: false,
-              error: 'paid currency does not match booking',
-              eventId: event.id,
-              bookingId,
-              sessionCurrency: session.currency ?? null,
-              bookingCurrency: existingBooking?.currency ?? null,
-            },
-            500
-          );
+          let currencyRefunded = false;
+          if (
+            rejectedCheckoutCaptureShouldRefund({
+              sessionPaymentStatus: session.payment_status,
+              paymentIntentId,
+            })
+          ) {
+            try {
+              await stripe.refunds.create(
+                {
+                  payment_intent: paymentIntentId as string,
+                  reason: 'duplicate',
+                },
+                { idempotencyKey: `currency-checkout-refund:${session.id}` }
+              );
+              currencyRefunded = true;
+              const mismatchCurrency = String(
+                existingBooking?.currency || session.currency || 'eur'
+              ).toUpperCase();
+              await admin.from('booking_payment_events').insert({
+                booking_id: bookingId,
+                event_id: event.id,
+                event_type: 'currency_mismatch_checkout_refund',
+                payment_intent_id: paymentIntentId,
+                checkout_session_id: session.id,
+                amount: amountPaid,
+                currency: mismatchCurrency,
+                payload: {
+                  reason: 'paid_currency_mismatch',
+                  sessionCurrency: session.currency ?? null,
+                  bookingCurrency: existingBooking?.currency ?? null,
+                  stripeEventType: event.type,
+                },
+              });
+            } catch (refundErr) {
+              const msg = refundErr instanceof Error ? refundErr.message : String(refundErr);
+              if (!/already.?been.?refunded|charge_already_refunded/i.test(msg)) {
+                throw refundErr;
+              }
+            }
+          }
+          await markProcessed('processed');
+          return json({
+            success: true,
+            ignored: true,
+            reason: 'checkout currency does not match booking',
+            currencyRefunded,
+            eventId: event.id,
+            bookingId,
+            sessionCurrency: session.currency ?? null,
+            bookingCurrency: existingBooking?.currency ?? null,
+          });
         }
 
         const currency = String(existingBooking?.currency || session.currency || 'eur').toUpperCase();

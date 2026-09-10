@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { checkoutPaidAmountAcceptable, checkoutPaidCurrencyMatches } from './checkout-paid-amount';
+import {
+  checkoutPaidAmountAcceptable,
+  checkoutPaidCurrencyMatches,
+  rejectedCheckoutCaptureShouldRefund,
+} from './checkout-paid-amount';
 
 describe('checkoutPaidAmountAcceptable', () => {
   it('rejects missing or zero paid amounts', () => {
@@ -48,5 +52,31 @@ describe('checkoutPaidCurrencyMatches', () => {
     expect(checkoutPaidCurrencyMatches({ sessionCurrency: 'usd', bookingCurrency: 'EUR' })).toBe(false);
     expect(checkoutPaidCurrencyMatches({ sessionCurrency: 'usd', bookingCurrency: null })).toBe(true);
     expect(checkoutPaidCurrencyMatches({ sessionCurrency: null, bookingCurrency: 'EUR' })).toBe(true);
+  });
+});
+
+describe('rejectedCheckoutCaptureShouldRefund', () => {
+  it('refunds paid sessions with a PaymentIntent', () => {
+    expect(
+      rejectedCheckoutCaptureShouldRefund({
+        sessionPaymentStatus: 'paid',
+        paymentIntentId: 'pi_x',
+      })
+    ).toBe(true);
+  });
+
+  it('skips unpaid or missing PI', () => {
+    expect(
+      rejectedCheckoutCaptureShouldRefund({
+        sessionPaymentStatus: 'unpaid',
+        paymentIntentId: 'pi_x',
+      })
+    ).toBe(false);
+    expect(
+      rejectedCheckoutCaptureShouldRefund({
+        sessionPaymentStatus: 'paid',
+        paymentIntentId: null,
+      })
+    ).toBe(false);
   });
 });

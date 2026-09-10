@@ -35,3 +35,14 @@ export function checkoutPaidCurrencyMatches(params: {
   if (!session || !booking) return true;
   return session === booking;
 }
+
+export function rejectedCheckoutCaptureShouldRefund(params: {
+  sessionPaymentStatus?: string | null;
+  paymentIntentId?: string | null;
+}): boolean {
+  const sessionPay = String(params.sessionPaymentStatus ?? '')
+    .trim()
+    .toLowerCase();
+  if (sessionPay !== 'paid') return false;
+  return Boolean(String(params.paymentIntentId ?? '').trim());
+}

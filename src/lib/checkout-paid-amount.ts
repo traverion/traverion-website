@@ -40,3 +40,18 @@ export function checkoutPaidCurrencyMatches(params: {
   if (!session || !booking) return true;
   return session === booking;
 }
+
+/**
+ * When amount/currency checks reject checkout.session.completed, refund the
+ * captured PaymentIntent instead of leaving money trapped on an unpaid booking.
+ */
+export function rejectedCheckoutCaptureShouldRefund(params: {
+  sessionPaymentStatus?: string | null;
+  paymentIntentId?: string | null;
+}): boolean {
+  const sessionPay = String(params.sessionPaymentStatus ?? '')
+    .trim()
+    .toLowerCase();
+  if (sessionPay !== 'paid') return false;
+  return Boolean(String(params.paymentIntentId ?? '').trim());
+}
