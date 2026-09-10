@@ -50,6 +50,15 @@ describe('stay occupancy', () => {
     });
   });
 
+  it('uses nights when check_out and notes are missing', () => {
+    expect(
+      stayRangeFromBooking({ booking_date: '2026-09-10', nights: 3, special_requests: null })
+    ).toEqual({
+      checkIn: '2026-09-10',
+      checkOut: '2026-09-13',
+    });
+  });
+
   it('treats capacity 0 as an operator block, not listing_availability.booked', () => {
     expect(stayNightIsOperatorBlocked(0)).toBe(true);
     expect(stayNightIsOperatorBlocked(1)).toBe(false);

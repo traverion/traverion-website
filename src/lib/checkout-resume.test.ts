@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   checkoutPaymentStatusCanResume,
+  resumeStayCheckoutDate,
   staleCheckoutFailureShouldApply,
   stripeWebhookCanMarkPaidFrom,
 } from './checkout-resume';
+import { stayRangeFromBooking } from './stayOccupancy';
 
 describe('checkout resume after hold expiry', () => {
   it('allows pending and failed unpaid holds to resume/pay', () => {
@@ -52,5 +54,40 @@ describe('staleCheckoutFailureShouldApply', () => {
         bookingPaymentIntentId: 'pi_old',
       })
     ).toBe(true);
+  });
+});
+
+describe('resumeStayCheckoutDate', () => {
+  it('prefers the client checkoutDate when present', () => {
+    expect(
+      resumeStayCheckoutDate({
+        bodyCheckoutDate: '2026-11-05',
+        bookingCheckOut: '2026-11-04',
+        bookingDate: '2026-11-01',
+        bookingNights: 3,
+        resolveFromBooking: stayRangeFromBooking,
+      })
+    ).toBe('2026-11-05');
+  });
+
+  it('restores multi-night check-out from the booking on Trips Pay now', () => {
+    expect(
+      resumeStayCheckoutDate({
+        bodyCheckoutDate: '',
+        bookingCheckOut: '2026-11-04',
+        bookingDate: '2026-11-01',
+        bookingNights: 3,
+        resolveFromBooking: stayRangeFromBooking,
+      })
+    ).toBe('2026-11-04');
+    expect(
+      resumeStayCheckoutDate({
+        bodyCheckoutDate: null,
+        bookingCheckOut: null,
+        bookingDate: '2026-11-01',
+        bookingNights: 3,
+        resolveFromBooking: stayRangeFromBooking,
+      })
+    ).toBe('2026-11-04');
   });
 });

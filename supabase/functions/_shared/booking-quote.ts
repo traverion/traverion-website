@@ -69,18 +69,24 @@ export function stayDateRangesOverlap(aIn: string, aOut: string, bIn: string, bO
 export function stayRangeFromBooking(booking: {
   booking_date: string | null;
   check_out?: string | null;
+  nights?: number | null;
   special_requests?: string | null;
 }): { checkIn: string; checkOut: string } | null {
   const checkIn = (booking.booking_date ?? '').trim();
   if (!ISO_DATE.test(checkIn)) return null;
   const fromColumn = (booking.check_out ?? '').trim();
   const fromNotes = parseStayCheckOutFromNotes(booking.special_requests);
+  const nights = Math.floor(Number(booking.nights ?? 0));
+  const fromNights =
+    Number.isFinite(nights) && nights >= 1 ? addCalendarDays(checkIn, nights) : null;
   const checkOut =
     fromColumn && fromColumn > checkIn
       ? fromColumn
       : fromNotes && fromNotes > checkIn
         ? fromNotes
-        : addCalendarDays(checkIn, 1);
+        : fromNights && fromNights > checkIn
+          ? fromNights
+          : addCalendarDays(checkIn, 1);
   return { checkIn, checkOut };
 }
 

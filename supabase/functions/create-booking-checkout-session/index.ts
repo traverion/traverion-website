@@ -2,9 +2,9 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 import Stripe from 'https://esm.sh/stripe@16.12.0?target=deno';
-import { quoteListingBooking, stayCheckoutNightsAlreadyBooked, stayNightIsOperatorBlocked, type DiscountRow, type ListingQuoteRow, type StayCheckoutOccupancyRow } from '../_shared/booking-quote.ts';
+import { quoteListingBooking, stayCheckoutNightsAlreadyBooked, stayNightIsOperatorBlocked, stayRangeFromBooking, type DiscountRow, type ListingQuoteRow, type StayCheckoutOccupancyRow } from '../_shared/booking-quote.ts';
 import { tourCheckoutOccupiedGuests, type TourCheckoutOccupancyRow } from '../_shared/booking-hold.ts';
-import { checkoutPaymentStatusCanResume } from '../_shared/checkout-resume.ts';
+import { checkoutPaymentStatusCanResume, resumeStayCheckoutDate } from '../_shared/checkout-resume.ts';
 
 type RequestBody = {
   bookingId?: string;
@@ -101,19 +101,22 @@ serve(async (req) => {
     const customerPhone = String(body.customerPhone ?? '').trim();
     const specialRequests = String(body.specialRequests ?? '').trim();
     const requestedOptionId = String(body.bookingOptionId ?? '').trim();
-    const checkoutDate = String(body.checkoutDate ?? '').trim();
+    let checkoutDate = String(body.checkoutDate ?? '').trim();
     const successPath = sanitizePath(body.successPath, '/booking-confirmed');
     const cancelPath = sanitizePath(body.cancelPath, '/bookings?payment=cancelled');
 
     const admin = createClient(supabaseUrl, supabaseServiceRoleKey);
     let targetBookingId = bookingId;
     let storedOptionId: string | null = requestedOptionId || null;
+    let resumeStayCheckOut: string | null = null;
+    let resumeStayNights: number | null = null;
+    let resumeStayNotes: string | null = null;
 
     if (targetBookingId) {
       const withOption = await admin
         .from('bookings')
         .select(
-          'id, listing_id, guest_email, guest_user_id, guest_name, guests, booking_date, status, payment_status, total_amount, currency, special_requests, booking_option_id'
+          'id, listing_id, guest_email, guest_user_id, guest_name, guests, booking_date, check_out, nights, status, payment_status, total_amount, currency, special_requests, booking_option_id'
         )
         .eq('id', targetBookingId)
         .maybeSingle();
@@ -159,6 +162,10 @@ serve(async (req) => {
       listingId = String(row.listing_id ?? '').trim();
       bookingDate = String(row.booking_date ?? '').trim();
       guests = Number(row.guests ?? 0);
+      resumeStayCheckOut = typeof row.check_out === 'string' ? row.check_out.trim() : null;
+      const nightsRaw = Number(row.nights ?? NaN);
+      resumeStayNights = Number.isFinite(nightsRaw) && nightsRaw >= 1 ? Math.floor(nightsRaw) : null;
+      resumeStayNotes = typeof row.special_requests === 'string' ? row.special_requests : null;
       storedOptionId =
         (typeof (row as { booking_option_id?: string }).booking_option_id === 'string' &&
           (row as { booking_option_id?: string }).booking_option_id?.trim()) ||
@@ -211,6 +218,25 @@ serve(async (req) => {
     };
     const discounts = (discountRows ?? []) as DiscountRow[];
 
+    const extrasFamily =
+      listingRow.listing_extras && typeof listingRow.listing_extras === 'object'
+        ? (listingRow.listing_extras as { inventoryFamily?: unknown }).inventoryFamily
+        : null;
+    if (extrasFamily === 'stay' && targetBookingId) {
+      const restored = resumeStayCheckoutDate({
+        bodyCheckoutDate: checkoutDate,
+        bookingCheckOut: resumeStayCheckOut,
+        bookingDate,
+        bookingNights: resumeStayNights,
+        specialRequests: resumeStayNotes,
+        resolveFromBooking: stayRangeFromBooking,
+      });
+      if (restored) checkoutDate = restored;
+    }
+    if (extrasFamily === 'stay' && !checkoutDate) {
+      return json({ success: false, error: 'Choose valid check-in and check-out dates.' }, 400);
+    }
+
     const quote = quoteListingBooking({
       listing,
       discounts,
@@ -223,10 +249,6 @@ serve(async (req) => {
       return json({ success: false, error: quote.error }, 400);
     }
 
-    const extrasFamily =
-      listingRow.listing_extras && typeof listingRow.listing_extras === 'object'
-        ? (listingRow.listing_extras as { inventoryFamily?: unknown }).inventoryFamily
-        : null;
     if (extrasFamily === 'stay' && checkoutDate) {
       const { data: existingStayBookings, error: stayBusyErr } = await admin
         .from('bookings')
