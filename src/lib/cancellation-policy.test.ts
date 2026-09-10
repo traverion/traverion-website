@@ -97,6 +97,15 @@ describe('supplier cancellation policy', () => {
     expect(partnerPickupAllowsForceCancel({ status: 'pending', payment_status: 'pending' })).toBe(true);
   });
 
+  it('blocks partner manual confirm while Stripe payment is unpaid', () => {
+    expect(partnerManualConfirmBlock({ payment_status: 'pending' })).toBe('unpaid');
+    expect(partnerManualConfirmBlock({ payment_status: 'failed' })).toBe('unpaid');
+    expect(partnerManualConfirmBlock({ payment_status: 'paid' })).toBe('none');
+    expect(partnerManualConfirmError('unpaid')).toBe(PARTNER_CONFIRM_UNPAID);
+    expect(PARTNER_CONFIRM_UNPAID.toLowerCase()).toContain('only paid');
+    expect(PARTNER_CONFIRM_UNPAID.toLowerCase()).not.toContain('refund due');
+  });
+
   it('rejects traveler self-cancel on refunded bookings as already refunded', () => {
     expect(travelerSelfCancelBlock({ status: 'confirmed', payment_status: 'refunded' })).toBe(
       'refunded'
