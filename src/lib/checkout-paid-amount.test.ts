@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checkoutPaidAmountAcceptable } from './checkout-paid-amount';
+import { checkoutPaidAmountAcceptable, checkoutPaidCurrencyMatches } from './checkout-paid-amount';
 
 describe('checkoutPaidAmountAcceptable', () => {
   it('rejects missing or zero paid amounts', () => {
@@ -24,5 +24,14 @@ describe('checkoutPaidAmountAcceptable', () => {
     expect(checkoutPaidAmountAcceptable({ amountPaid: 50, quotedTotalMeta: '189' })).toBe(false);
     expect(checkoutPaidAmountAcceptable({ amountPaid: 189, quotedTotalMeta: '189' })).toBe(true);
     expect(checkoutPaidAmountAcceptable({ amountPaid: 50 })).toBe(true);
+  });
+});
+
+describe('checkoutPaidCurrencyMatches', () => {
+  it('requires session and booking currencies to match when both exist', () => {
+    expect(checkoutPaidCurrencyMatches({ sessionCurrency: 'eur', bookingCurrency: 'EUR' })).toBe(true);
+    expect(checkoutPaidCurrencyMatches({ sessionCurrency: 'usd', bookingCurrency: 'EUR' })).toBe(false);
+    expect(checkoutPaidCurrencyMatches({ sessionCurrency: 'usd', bookingCurrency: null })).toBe(true);
+    expect(checkoutPaidCurrencyMatches({ sessionCurrency: null, bookingCurrency: 'EUR' })).toBe(true);
   });
 });
