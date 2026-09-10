@@ -114,6 +114,13 @@ serve(async (req) => {
     let resumeStayNotes: string | null = null;
     let resumeGuestName: string | null = null;
     let priorCheckoutSessionId: string | null = null;
+    let resumeQuoteSync: {
+      totalAmount: number;
+      currency: string;
+      guestName: string | null;
+      optionId: string | null;
+      holdExpiresAtIso: string;
+    } | null = null;
 
     if (targetBookingId) {
       const withOption = await admin
@@ -446,19 +453,16 @@ serve(async (req) => {
         const conflict = /already booked|not enough capacity|occupied/i.test(inventoryErr.message);
         return json({ success: false, error: inventoryErr.message }, conflict ? 409 : 500);
       }
-      const updatePayload: Record<string, unknown> = {
-        total_amount: totalAmount,
+      // Defer total_amount / payment_status write until the new Checkout session is
+      // stored, so a still-current session cannot be underpay-rejected against a
+      // raised quote before checkout_session_id rotates.
+      resumeQuoteSync = {
+        totalAmount,
         currency,
-        // Revive holds that expire_stale_checkout_holds just flipped to failed mid-Pay-now.
-        payment_status: 'pending',
-        hold_expires_at: holdExpiresAtIso,
+        guestName: effectiveGuestName || null,
+        optionId: quote.optionId ?? null,
+        holdExpiresAtIso,
       };
-      if (effectiveGuestName) updatePayload.guest_name = effectiveGuestName;
-      if (quote.optionId) updatePayload.booking_option_id = quote.optionId;
-      const { error: priceSyncErr } = await admin.from('bookings').update(updatePayload).eq('id', targetBookingId);
-      if (priceSyncErr && !/booking_option_id|hold_expires_at/i.test(priceSyncErr.message)) {
-        return json({ success: false, error: priceSyncErr.message }, 500);
-      }
     }
 
     const stripe = new Stripe(stripeSecret);
@@ -514,6 +518,16 @@ serve(async (req) => {
         hold_expires_at: session.expires_at
           ? new Date(session.expires_at * 1000).toISOString()
           : holdExpiresAtIso,
+        ...(resumeQuoteSync
+          ? {
+              total_amount: resumeQuoteSync.totalAmount,
+              currency: resumeQuoteSync.currency,
+              // Revive holds that expire_stale_checkout_holds flipped to failed mid-Pay-now.
+              payment_status: 'pending',
+              ...(resumeQuoteSync.guestName ? { guest_name: resumeQuoteSync.guestName } : {}),
+              ...(resumeQuoteSync.optionId ? { booking_option_id: resumeQuoteSync.optionId } : {}),
+            }
+          : {}),
       })
       .eq('id', targetBookingId);
     if (updateError) {

@@ -1,7 +1,9 @@
 /**
  * Stripe checkout.session.completed must not confirm a booking for less than the
- * server quote. Overpayment is accepted (amount_paid records what Stripe charged).
- * Missing quote totals (legacy rows) do not block confirmation.
+ * Checkout session quote. Prefer session metadata.quoted_total (what was charged)
+ * over bookings.total_amount so a Pay-now re-quote cannot reject a still-current
+ * session that paid the amount Stripe actually collected.
+ * Overpayment is accepted. Missing quotes (legacy) do not block confirmation.
  */
 export function checkoutPaidAmountAcceptable(params: {
   amountPaid: number | null | undefined;
@@ -11,14 +13,14 @@ export function checkoutPaidAmountAcceptable(params: {
   const paid = Number(params.amountPaid);
   if (!Number.isFinite(paid) || paid <= 0) return false;
 
-  const fromBooking = Number(params.bookingTotalAmount);
-  if (Number.isFinite(fromBooking) && fromBooking > 0) {
-    return paid + 0.011 >= fromBooking;
-  }
-
   const meta = Number(String(params.quotedTotalMeta ?? '').trim());
   if (Number.isFinite(meta) && meta > 0) {
     return paid + 0.011 >= meta;
+  }
+
+  const fromBooking = Number(params.bookingTotalAmount);
+  if (Number.isFinite(fromBooking) && fromBooking > 0) {
+    return paid + 0.011 >= fromBooking;
   }
 
   return true;

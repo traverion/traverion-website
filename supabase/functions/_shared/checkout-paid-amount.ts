@@ -9,14 +9,14 @@ export function checkoutPaidAmountAcceptable(params: {
   const paid = Number(params.amountPaid);
   if (!Number.isFinite(paid) || paid <= 0) return false;
 
-  const fromBooking = Number(params.bookingTotalAmount);
-  if (Number.isFinite(fromBooking) && fromBooking > 0) {
-    return paid + 0.011 >= fromBooking;
-  }
-
   const meta = Number(String(params.quotedTotalMeta ?? '').trim());
   if (Number.isFinite(meta) && meta > 0) {
     return paid + 0.011 >= meta;
+  }
+
+  const fromBooking = Number(params.bookingTotalAmount);
+  if (Number.isFinite(fromBooking) && fromBooking > 0) {
+    return paid + 0.011 >= fromBooking;
   }
 
   return true;
