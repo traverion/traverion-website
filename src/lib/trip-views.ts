@@ -27,7 +27,10 @@ export function partnerBookingIsUnpaidCheckout(b: {
   return normalizePaymentStatus(b.payment_status) === 'pending';
 }
 
-/** Partner live trips: paid, pending hold, cancelled, refunded — not abandoned Stripe checkouts. */
+/** Partner live trips: paid, pending hold, cancelled, refunded — not abandoned Stripe checkouts.
+ * Pending unpaid holds stay in Bookings (Unpaid filter) so partners can release them, but they are
+ * not operating/Today work.
+ */
 export function partnerBookingIsLiveTrip(b: { payment_status?: string | null }): boolean {
   return !bookingIsFailedCheckout(b);
 }
@@ -39,6 +42,14 @@ export function partnerBookingIsOperatingTrip(b: {
 }): boolean {
   if (partnerBookingIsUnpaidCheckout(b)) return false;
   return partnerBookingIsLiveTrip(b) && !bookingIsCancelledTrip(b);
+}
+
+/** Partner Bookings cancel UI: paid request-cancel or release unpaid hold. */
+export function partnerBookingShowsCancelAction(b: {
+  status?: string | null;
+  payment_status?: string | null;
+}): boolean {
+  return partnerBookingIsOperatingTrip(b) || partnerBookingIsUnpaidCheckout(b);
 }
 
 /** Traveler trip still needs pay, stay, pickup, or cancel — not refunded or cancelled. */

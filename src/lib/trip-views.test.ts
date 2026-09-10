@@ -10,6 +10,7 @@ import {
   travelerTripIsLive,
   travelerBookingNeedsPayNow,
   partnerBookingIsUnpaidCheckout,
+  partnerBookingShowsCancelAction,
   sortTravelerCancelledTrips,
 } from './trip-views';
 
@@ -100,6 +101,13 @@ describe('trip list views', () => {
     expect(partnerBookingIsTodaySchedule(unpaidToday, '2026-09-11')).toBe(false);
     expect(partnerBookingIsUpcomingSchedule(unpaidToday, '2026-09-09')).toBe(false);
     expect(travelerTripIsLive(unpaidToday)).toBe(true);
+    expect(partnerBookingShowsCancelAction(unpaidToday)).toBe(true);
+    expect(
+      partnerBookingShowsCancelAction({ status: 'confirmed', payment_status: 'paid' })
+    ).toBe(true);
+    expect(
+      partnerBookingShowsCancelAction({ status: 'cancelled', payment_status: 'pending' })
+    ).toBe(false);
   });
 
   it('does not ask the partner to look at cancelled or refunded trips', () => {

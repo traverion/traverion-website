@@ -61,7 +61,7 @@ import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { inventoryFamilyFromListing } from '../../lib/inventory';
 import { parseStayCheckOutFromNotes, nightsOccupiedByStay, stayRangeFromBooking } from '../../lib/stayOccupancy';
-import { partnerBookingIsLiveTrip, bookingIsCancelledTrip, partnerBookingIsOperatingTrip, partnerBookingNeedsLook, partnerBookingIsUnpaidCheckout } from '../../lib/trip-views';
+import { partnerBookingIsLiveTrip, bookingIsCancelledTrip, partnerBookingIsOperatingTrip, partnerBookingNeedsLook, partnerBookingIsUnpaidCheckout, partnerBookingShowsCancelAction } from '../../lib/trip-views';
 import { formatStayNightHuman } from '../../lib/stay-calendar';
 
 const BOOKINGS_PAGE_SIZE = 10;
@@ -946,6 +946,24 @@ export default function SupplierBookings() {
                       </button>
                     </div>
                   ) : null}
+                  {canEditBookings && partnerBookingIsUnpaidCheckout(booking) ? (
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => {
+                          setCancelError(null);
+                          setCancelReasonText('');
+                          setCancelEvidence('');
+                          setCancelModal(booking);
+                        }}
+                        className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
+                      >
+                        <Trash2 className="h-4 w-4" aria-hidden />
+                        Cancel unpaid
+                      </button>
+                    </div>
+                  ) : null}
                   {openCancels[booking.id] ? (
                     <NoticeCallout
                       title={
@@ -1048,7 +1066,7 @@ export default function SupplierBookings() {
         </SupplierModalShell>
       )}
 
-      {cancelModal && partnerBookingIsOperatingTrip(cancelModal) && (
+      {cancelModal && partnerBookingShowsCancelAction(cancelModal) && (
         <SupplierModalShell onClose={() => setCancelModal(null)} maxWidth="md">
           <SupplierModalHeader
             icon={Trash2}
