@@ -32,11 +32,12 @@ export function partnerBookingIsLiveTrip(b: { payment_status?: string | null }):
   return !bookingIsFailedCheckout(b);
 }
 
-/** Partner operating work: a real booking that still needs today/upcoming/pickup handling. */
+/** Partner operating work: paid trips that still need today/upcoming/pickup handling — not unpaid holds. */
 export function partnerBookingIsOperatingTrip(b: {
   status?: string | null;
   payment_status?: string | null;
 }): boolean {
+  if (partnerBookingIsUnpaidCheckout(b)) return false;
   return partnerBookingIsLiveTrip(b) && !bookingIsCancelledTrip(b);
 }
 
@@ -46,9 +47,10 @@ export function travelerTripIsLive(b: {
   payment_status?: string | null;
 }): boolean {
   if (bookingIsCancelledTrip(b)) return false;
-  // Recoverable failed holds stay visible for Pay now; other failed are dead.
-  if (bookingIsFailedCheckout(b)) return travelerBookingNeedsPayNow(b);
-  return partnerBookingIsOperatingTrip(b);
+  // Recoverable Pay now holds stay live for the traveler even when partners ignore unpaid.
+  if (travelerBookingNeedsPayNow(b)) return true;
+  if (bookingIsFailedCheckout(b)) return false;
+  return partnerBookingIsLiveTrip(b) && !bookingIsCancelledTrip(b);
 }
 
 /** Traveler can resume Stripe for an unpaid hold (live pending or expired→failed). */

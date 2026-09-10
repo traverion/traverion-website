@@ -68,7 +68,7 @@ describe('trip list views', () => {
     expect(partnerBookingIsLiveTrip({ payment_status: 'paid' })).toBe(true);
   });
 
-  it('does not treat refunded or cancelled bookings as partner operating work', () => {
+  it('does not treat refunded, cancelled, or unpaid checkouts as partner operating work', () => {
     expect(
       partnerBookingIsOperatingTrip({ status: 'confirmed', payment_status: 'refunded' })
     ).toBe(false);
@@ -80,7 +80,26 @@ describe('trip list views', () => {
     ).toBe(true);
     expect(
       partnerBookingIsOperatingTrip({ status: 'pending', payment_status: 'pending' })
-    ).toBe(true);
+    ).toBe(false);
+    expect(
+      partnerBookingNeedsLook({
+        acknowledged_at: null,
+        status: 'pending',
+        payment_status: 'pending',
+      })
+    ).toBe(false);
+  });
+
+  it('does not put unpaid checkout holds on Today or the upcoming strip', () => {
+    const unpaidToday = {
+      status: 'pending',
+      payment_status: 'pending',
+      booking_date: '2026-09-11',
+      hold_expires_at: '2099-01-01T00:00:00.000Z',
+    };
+    expect(partnerBookingIsTodaySchedule(unpaidToday, '2026-09-11')).toBe(false);
+    expect(partnerBookingIsUpcomingSchedule(unpaidToday, '2026-09-09')).toBe(false);
+    expect(travelerTripIsLive(unpaidToday)).toBe(true);
   });
 
   it('does not ask the partner to look at cancelled or refunded trips', () => {
