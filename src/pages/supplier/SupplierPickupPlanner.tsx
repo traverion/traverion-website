@@ -31,7 +31,7 @@ import { partnerBookingIsLiveTrip, partnerBookingIsOperatingTrip, partnerBooking
 import { PARTNER_PICKUP_CSV_HEADER, partnerPickupCsvValues } from '../../lib/partner-pickup-csv';
 import { bookingIsStayNight, bookingNeedsPickupCopy } from '../../lib/pickup-completeness';
 import { inventoryFamilyFromListing } from '../../lib/inventory';
-import { partnerPickupAllowsForceCancel } from '../../lib/cancellation-policy';
+import { partnerPickupAllowsForceCancel, partnerManualConfirmBlock } from '../../lib/cancellation-policy';
 import { PARTNER_CANCEL_REQUEST_REFUND_POLICY } from '../../lib/booking-confirmation-copy';
 import NoticeCallout from '../../components/NoticeCallout';
 
@@ -450,6 +450,13 @@ export default function SupplierPickupPlanner() {
   const handleConfirmSelected = async () => {
     if (!canEditBookings) return;
     if (!selectedBooking || selectedBooking.status === 'confirmed' || selectedBooking.status === 'cancelled') return;
+    if (partnerManualConfirmBlock(selectedBooking) !== 'none') {
+      showActionFeedback(
+        'error',
+        'Only paid bookings can be confirmed. Unpaid checkouts stay pending until the traveler pays or the hold is released.'
+      );
+      return;
+    }
     setUpdatingId(selectedBooking.id);
     const res = await updateBookingStatus(selectedBooking.id, 'confirmed');
     if (res.ok) {
