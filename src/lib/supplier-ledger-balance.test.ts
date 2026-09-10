@@ -31,4 +31,12 @@ describe('supplier ledger balance', () => {
     expect(collected).not.toBe(1268);
     expect(supplierAvailableBalance({ collected, ledger: [penalty, earning] })).toBe(803);
   });
+
+  it('does not double-subtract refund journal rows after Collected dropped the booking', () => {
+    const refund = { kind: 'refund', amount: -189 };
+    const ledger = [earning, refund, penalty];
+    // Collected no longer includes the refunded booking's 189.
+    expect(ledgerAdjustmentTotal(ledger)).toBe(-20);
+    expect(supplierAvailableBalance({ collected: 634, ledger })).toBe(614);
+  });
 });

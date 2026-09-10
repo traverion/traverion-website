@@ -1,7 +1,7 @@
 /**
  * Partner Money: collected traveler payments plus ledger adjustments.
- * booking_earnings is the journal copy of a paid booking; it must not be added
- * on top of collected or collected is counted twice.
+ * booking_earnings / refund are journal mirrors of paid (then reversed) bookings —
+ * already reflected in Collected — so they must not be added again as adjustments.
  */
 
 export type LedgerAmountRow = {
@@ -9,8 +9,10 @@ export type LedgerAmountRow = {
   amount: number | string;
 };
 
+/** Journal rows that mirror Collected (paid booking or its full reversal). */
 export function isCollectedEarningKind(kind: string): boolean {
-  return kind.trim().toLowerCase() === 'booking_earnings';
+  const k = kind.trim().toLowerCase();
+  return k === 'booking_earnings' || k === 'refund';
 }
 
 export function ledgerNetTotal(rows: LedgerAmountRow[]): number {
