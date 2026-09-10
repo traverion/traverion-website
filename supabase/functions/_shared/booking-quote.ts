@@ -99,6 +99,7 @@ export type StayCheckoutOccupancyRow = InventoryHoldRow & {
   id?: string | null;
   booking_date?: string | null;
   check_out?: string | null;
+  nights?: number | null;
   special_requests?: string | null;
 };
 
@@ -119,6 +120,7 @@ export function stayCheckoutNightsAlreadyBooked(
     const range = stayRangeFromBooking({
       booking_date: typeof row.booking_date === 'string' ? row.booking_date : null,
       check_out: typeof row.check_out === 'string' ? row.check_out : null,
+      nights: row.nights ?? null,
       special_requests: typeof row.special_requests === 'string' ? row.special_requests : null,
     });
     if (range && stayDateRangesOverlap(checkIn, checkOut, range.checkIn, range.checkOut)) return true;

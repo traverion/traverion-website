@@ -252,19 +252,19 @@ serve(async (req) => {
     if (extrasFamily === 'stay' && checkoutDate) {
       const { data: existingStayBookings, error: stayBusyErr } = await admin
         .from('bookings')
-        .select('id, booking_date, check_out, special_requests, status, payment_status, hold_expires_at, created_at')
+        .select('id, booking_date, check_out, nights, special_requests, status, payment_status, hold_expires_at, created_at')
         .eq('listing_id', listingId)
         .neq('status', 'cancelled');
-      const stayRows = stayBusyErr && /check_out/i.test(stayBusyErr.message)
+      const stayRows = stayBusyErr && /check_out|nights/i.test(stayBusyErr.message)
         ? (
             await admin
               .from('bookings')
-              .select('id, booking_date, special_requests, status')
+              .select('id, booking_date, special_requests, status, payment_status, hold_expires_at, created_at')
               .eq('listing_id', listingId)
               .neq('status', 'cancelled')
           ).data
         : existingStayBookings;
-      if (stayBusyErr && !/check_out/i.test(stayBusyErr.message)) {
+      if (stayBusyErr && !/check_out|nights/i.test(stayBusyErr.message)) {
         return json({ success: false, error: stayBusyErr.message }, 500);
       }
       if (

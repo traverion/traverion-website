@@ -141,4 +141,20 @@ describe('stay occupancy', () => {
       stayCheckoutNightsAlreadyBooked(stayBookings, '2026-09-20', '2026-09-22', null, now)
     );
   });
+
+  it('blocks checkout using nights when check_out is missing', () => {
+    const now = Date.parse('2026-09-09T12:00:00.000Z');
+    const stayBookings = [
+      {
+        id: 'n1',
+        status: 'confirmed',
+        payment_status: 'paid',
+        booking_date: '2026-11-01',
+        nights: 3,
+      },
+    ];
+    expect(stayCheckoutNightsAlreadyBooked(stayBookings, '2026-11-02', '2026-11-03', null, now)).toBe(true);
+    expect(stayCheckoutNightsAlreadyBooked(stayBookings, '2026-11-04', '2026-11-05', null, now)).toBe(false);
+    expect(checkoutStayNightsAlreadyBooked(stayBookings, '2026-11-02', '2026-11-03', null, now)).toBe(true);
+  });
 });
