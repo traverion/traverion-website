@@ -46,3 +46,18 @@ export function rejectedCheckoutCaptureShouldRefund(params: {
   if (sessionPay !== 'paid') return false;
   return Boolean(String(params.paymentIntentId ?? '').trim());
 }
+
+export function unpromotedCheckoutCaptureShouldRefund(params: {
+  sessionPaymentStatus?: string | null;
+  paymentIntentId?: string | null;
+  bookingPaymentStatus?: string | null;
+}): boolean {
+  const pay = String(params.bookingPaymentStatus ?? '')
+    .trim()
+    .toLowerCase();
+  if (pay === 'paid' || pay === 'refunded') return false;
+  return rejectedCheckoutCaptureShouldRefund({
+    sessionPaymentStatus: params.sessionPaymentStatus,
+    paymentIntentId: params.paymentIntentId,
+  });
+}

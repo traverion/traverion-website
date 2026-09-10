@@ -3,6 +3,7 @@ import {
   checkoutPaidAmountAcceptable,
   checkoutPaidCurrencyMatches,
   rejectedCheckoutCaptureShouldRefund,
+  unpromotedCheckoutCaptureShouldRefund,
 } from './checkout-paid-amount';
 
 describe('checkoutPaidAmountAcceptable', () => {
@@ -76,6 +77,42 @@ describe('rejectedCheckoutCaptureShouldRefund', () => {
       rejectedCheckoutCaptureShouldRefund({
         sessionPaymentStatus: 'paid',
         paymentIntentId: null,
+      })
+    ).toBe(false);
+  });
+});
+
+describe('unpromotedCheckoutCaptureShouldRefund', () => {
+  it('refunds captured sessions when the booking was not promoted to paid', () => {
+    expect(
+      unpromotedCheckoutCaptureShouldRefund({
+        sessionPaymentStatus: 'paid',
+        paymentIntentId: 'pi_x',
+        bookingPaymentStatus: 'pending',
+      })
+    ).toBe(true);
+    expect(
+      unpromotedCheckoutCaptureShouldRefund({
+        sessionPaymentStatus: 'paid',
+        paymentIntentId: 'pi_x',
+        bookingPaymentStatus: 'failed',
+      })
+    ).toBe(true);
+  });
+
+  it('does not refund when the booking already settled', () => {
+    expect(
+      unpromotedCheckoutCaptureShouldRefund({
+        sessionPaymentStatus: 'paid',
+        paymentIntentId: 'pi_x',
+        bookingPaymentStatus: 'paid',
+      })
+    ).toBe(false);
+    expect(
+      unpromotedCheckoutCaptureShouldRefund({
+        sessionPaymentStatus: 'paid',
+        paymentIntentId: 'pi_x',
+        bookingPaymentStatus: 'refunded',
       })
     ).toBe(false);
   });

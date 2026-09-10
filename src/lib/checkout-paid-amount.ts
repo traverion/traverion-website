@@ -55,3 +55,22 @@ export function rejectedCheckoutCaptureShouldRefund(params: {
   if (sessionPay !== 'paid') return false;
   return Boolean(String(params.paymentIntentId ?? '').trim());
 }
+
+/**
+ * Paid UPDATE matched 0 rows (cancel / session rotation race) while Checkout
+ * still captured — refund unless the booking already settled this payment.
+ */
+export function unpromotedCheckoutCaptureShouldRefund(params: {
+  sessionPaymentStatus?: string | null;
+  paymentIntentId?: string | null;
+  bookingPaymentStatus?: string | null;
+}): boolean {
+  const pay = String(params.bookingPaymentStatus ?? '')
+    .trim()
+    .toLowerCase();
+  if (pay === 'paid' || pay === 'refunded') return false;
+  return rejectedCheckoutCaptureShouldRefund({
+    sessionPaymentStatus: params.sessionPaymentStatus,
+    paymentIntentId: params.paymentIntentId,
+  });
+}
