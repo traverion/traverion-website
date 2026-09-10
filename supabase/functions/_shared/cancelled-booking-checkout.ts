@@ -15,6 +15,22 @@ export function cancelledUnpaidBookingBlocksCheckoutPaid(params: {
   return pay === 'pending' || pay === 'failed';
 }
 
+export function unpaidCancelShouldExpireCheckout(params: {
+  bookingStatus?: string | null;
+  bookingPaymentStatus?: string | null;
+  checkoutSessionId?: string | null;
+}): boolean {
+  if (
+    !cancelledUnpaidBookingBlocksCheckoutPaid({
+      bookingStatus: params.bookingStatus,
+      bookingPaymentStatus: params.bookingPaymentStatus,
+    })
+  ) {
+    return false;
+  }
+  return Boolean(String(params.checkoutSessionId ?? '').trim());
+}
+
 export function cancelledCheckoutCaptureShouldRefund(params: {
   sessionPaymentStatus?: string | null;
   paymentIntentId?: string | null;

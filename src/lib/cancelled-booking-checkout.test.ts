@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   cancelledCheckoutCaptureShouldRefund,
   cancelledUnpaidBookingBlocksCheckoutPaid,
+  unpaidCancelShouldExpireCheckout,
 } from './cancelled-booking-checkout';
 
 describe('cancelledUnpaidBookingBlocksCheckoutPaid', () => {
@@ -37,6 +38,35 @@ describe('cancelledUnpaidBookingBlocksCheckoutPaid', () => {
       cancelledUnpaidBookingBlocksCheckoutPaid({
         bookingStatus: 'cancelled',
         bookingPaymentStatus: 'refunded',
+      })
+    ).toBe(false);
+  });
+});
+
+describe('unpaidCancelShouldExpireCheckout', () => {
+  it('expires when cancelled unpaid and a Checkout session exists', () => {
+    expect(
+      unpaidCancelShouldExpireCheckout({
+        bookingStatus: 'cancelled',
+        bookingPaymentStatus: 'pending',
+        checkoutSessionId: 'cs_test_1',
+      })
+    ).toBe(true);
+  });
+
+  it('skips when there is no session or booking is settled', () => {
+    expect(
+      unpaidCancelShouldExpireCheckout({
+        bookingStatus: 'cancelled',
+        bookingPaymentStatus: 'pending',
+        checkoutSessionId: null,
+      })
+    ).toBe(false);
+    expect(
+      unpaidCancelShouldExpireCheckout({
+        bookingStatus: 'cancelled',
+        bookingPaymentStatus: 'paid',
+        checkoutSessionId: 'cs_test_1',
       })
     ).toBe(false);
   });

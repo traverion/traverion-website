@@ -15,6 +15,10 @@ verify_jwt = false
 # Validate JWT inside the function (avoids gateway "Invalid JWT" edge cases with some clients).
 verify_jwt = false
 
+[functions.expire-booking-checkout]
+# Validate JWT inside the function (same pattern as create-booking-checkout-session).
+verify_jwt = false
+
 [functions.stripe-webhook]
 verify_jwt = false
 

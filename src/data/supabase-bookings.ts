@@ -10,6 +10,13 @@ import {
   TRAVELER_CANCEL_UNPAID_CHECKOUT_EMAIL_DIFF,
 } from '../lib/booking-confirmation-copy';
 
+/** Best-effort: close open Stripe Checkout after unpaid cancel (Phase 134 still refunds late captures). */
+function expireUnpaidCancelledCheckout(bookingId: string): void {
+  if (!supabase) return;
+  void supabase.functions.invoke('expire-booking-checkout', {
+    body: { bookingId },
+  });
+}
 /** Shape used by BookingForm (legacy). Mapped to public.bookings in DB. */
 export type Booking = {
   id?: string;
@@ -459,7 +466,7 @@ export async function updateBookingStatus(
   if (!supabase) return { ok: false, error: 'Supabase not configured' };
   const { data: current, error: loadError } = await supabase
     .from('bookings')
-    .select('id, status, payment_status')
+    .select('id, status, payment_status, checkout_session_id')
     .eq('id', bookingId)
     .maybeSingle();
   if (loadError) return { ok: false, error: loadError.message };
@@ -490,6 +497,9 @@ export async function updateBookingStatus(
       return { ok: false, error: travelerSelfCancelError('refunded') };
     }
     return { ok: false, error: message };
+  }
+  if (status === 'cancelled' && travelerSelfCancelIsUnpaidCheckout(current)) {
+    expireUnpaidCancelledCheckout(bookingId);
   }
   return { ok: true };
 }
@@ -689,6 +699,9 @@ export async function cancelBookingAsCustomer(
       success: false,
       error: String((rpcData as { error?: string }).error ?? 'Could not cancel this booking.'),
     };
+  }
+  if (unpaidCheckout) {
+    expireUnpaidCancelledCheckout(bookingId);
   }
   const cancelDiffAfter = unpaidCheckout
     ? TRAVELER_CANCEL_UNPAID_CHECKOUT_EMAIL_DIFF
