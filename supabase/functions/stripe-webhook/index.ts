@@ -5,7 +5,7 @@ import Stripe from 'https://esm.sh/stripe@16.12.0?target=deno';
 import { stripeWebhookReplayDecision } from '../_shared/stripe-webhook-replay.ts';
 import { isStripeChargeFullyRefunded } from '../_shared/stripe-charge-refund.ts';
 import { staleCheckoutFailureShouldApply, stripeWebhookCanMarkPaidFrom } from '../_shared/checkout-resume.ts';
-import { checkoutPaidAmountAcceptable } from '../_shared/checkout-paid-amount.ts';
+import { checkoutPaidAmountAcceptable, checkoutPaidCurrencyMatches } from '../_shared/checkout-paid-amount.ts';
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -350,6 +350,26 @@ serve(async (req) => {
               bookingId,
               amountPaid,
               bookingTotal: existingBooking?.total_amount ?? null,
+            },
+            500
+          );
+        }
+
+        if (
+          !checkoutPaidCurrencyMatches({
+            sessionCurrency: session.currency,
+            bookingCurrency: existingBooking?.currency ?? null,
+          })
+        ) {
+          await markProcessed('failed', 'Checkout currency does not match booking');
+          return json(
+            {
+              success: false,
+              error: 'paid currency does not match booking',
+              eventId: event.id,
+              bookingId,
+              sessionCurrency: session.currency ?? null,
+              bookingCurrency: existingBooking?.currency ?? null,
             },
             500
           );

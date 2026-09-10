@@ -21,3 +21,17 @@ export function checkoutPaidAmountAcceptable(params: {
 
   return true;
 }
+
+export function checkoutPaidCurrencyMatches(params: {
+  sessionCurrency?: string | null;
+  bookingCurrency?: string | null;
+}): boolean {
+  const session = String(params.sessionCurrency ?? '')
+    .trim()
+    .toUpperCase();
+  const booking = String(params.bookingCurrency ?? '')
+    .trim()
+    .toUpperCase();
+  if (!session || !booking) return true;
+  return session === booking;
+}
