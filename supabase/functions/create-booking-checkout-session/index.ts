@@ -5,6 +5,7 @@ import Stripe from 'https://esm.sh/stripe@16.12.0?target=deno';
 import { quoteListingBooking, stayCheckoutNightsAlreadyBooked, stayNightIsOperatorBlocked, stayRangeFromBooking, type DiscountRow, type ListingQuoteRow, type StayCheckoutOccupancyRow } from '../_shared/booking-quote.ts';
 import { tourCheckoutOccupiedGuests, type TourCheckoutOccupancyRow } from '../_shared/booking-hold.ts';
 import { checkoutPaymentStatusCanResume, resumeStayCheckoutDate } from '../_shared/checkout-resume.ts';
+import { resumeStayLeadGuestName, stayCheckoutLeadGuestNameReady } from '../_shared/stay-checkout-guest.ts';
 
 type RequestBody = {
   bookingId?: string;
@@ -111,6 +112,7 @@ serve(async (req) => {
     let resumeStayCheckOut: string | null = null;
     let resumeStayNights: number | null = null;
     let resumeStayNotes: string | null = null;
+    let resumeGuestName: string | null = null;
 
     if (targetBookingId) {
       const withOption = await admin
@@ -166,6 +168,7 @@ serve(async (req) => {
       const nightsRaw = Number(row.nights ?? NaN);
       resumeStayNights = Number.isFinite(nightsRaw) && nightsRaw >= 1 ? Math.floor(nightsRaw) : null;
       resumeStayNotes = typeof row.special_requests === 'string' ? row.special_requests : null;
+      resumeGuestName = typeof row.guest_name === 'string' ? row.guest_name.trim() : null;
       storedOptionId =
         (typeof (row as { booking_option_id?: string }).booking_option_id === 'string' &&
           (row as { booking_option_id?: string }).booking_option_id?.trim()) ||
@@ -235,6 +238,17 @@ serve(async (req) => {
     }
     if (extrasFamily === 'stay' && !checkoutDate) {
       return json({ success: false, error: 'Choose valid check-in and check-out dates.' }, 400);
+    }
+
+    const effectiveGuestName = resumeStayLeadGuestName({
+      bodyCustomerName: customerName,
+      bookingGuestName: resumeGuestName,
+    });
+    if (extrasFamily === 'stay' && !stayCheckoutLeadGuestNameReady(effectiveGuestName)) {
+      return json(
+        { success: false, error: 'Enter the lead guest name so the host knows who is arriving.' },
+        400
+      );
     }
 
     const quote = quoteListingBooking({
@@ -344,7 +358,7 @@ serve(async (req) => {
       const claimArgs = {
         p_listing_id: listingId,
         p_guest_email: email,
-        p_guest_name: customerName || null,
+        p_guest_name: effectiveGuestName || null,
         p_guests: guests,
         p_booking_date: bookingDate,
         p_check_out: extrasFamily === 'stay' && checkoutDate ? checkoutDate : null,
@@ -381,7 +395,7 @@ serve(async (req) => {
         const insertBase: Record<string, unknown> = {
           listing_id: listingId,
           guest_email: email,
-          guest_name: customerName || null,
+          guest_name: effectiveGuestName || null,
           guests,
           booking_date: bookingDate,
           status: 'pending',
@@ -431,6 +445,7 @@ serve(async (req) => {
         payment_status: 'pending',
         hold_expires_at: holdExpiresAtIso,
       };
+      if (effectiveGuestName) updatePayload.guest_name = effectiveGuestName;
       if (quote.optionId) updatePayload.booking_option_id = quote.optionId;
       const { error: priceSyncErr } = await admin.from('bookings').update(updatePayload).eq('id', targetBookingId);
       if (priceSyncErr && !/booking_option_id|hold_expires_at/i.test(priceSyncErr.message)) {
