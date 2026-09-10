@@ -5,6 +5,7 @@ import Stripe from 'https://esm.sh/stripe@16.12.0?target=deno';
 import { stripeWebhookReplayDecision } from '../_shared/stripe-webhook-replay.ts';
 import { isStripeChargeFullyRefunded } from '../_shared/stripe-charge-refund.ts';
 import { staleCheckoutFailureShouldApply, stripeWebhookCanMarkPaidFrom } from '../_shared/checkout-resume.ts';
+import { isCheckoutInventoryConflictError } from '../_shared/checkout-inventory-conflict.ts';
 import { checkoutPaidAmountAcceptable, checkoutPaidCurrencyMatches, rejectedCheckoutCaptureShouldRefund, unpromotedCheckoutCaptureShouldRefund } from '../_shared/checkout-paid-amount.ts';
 import { orphanSupersededCheckoutShouldRefund } from '../_shared/orphan-checkout-refund.ts';
 import {
@@ -315,12 +316,27 @@ serve(async (req) => {
             : session.payment_intent?.id ?? null;
         const amountPaid = amountToMajor(session.amount_total ?? null);
 
-        const { data: existingBooking } = await admin
+        const withStay = await admin
           .from('bookings')
-          .select('id, status, payment_status, currency, total_amount, checkout_session_id, payment_intent_id')
+          .select(
+            'id, status, payment_status, currency, total_amount, checkout_session_id, payment_intent_id, listing_id, booking_date, guests, check_out'
+          )
           .eq('id', bookingId)
           .maybeSingle();
-        const existingPay = (existingBooking?.payment_status ?? '').toLowerCase();
+        let existingBooking = withStay.data as Record<string, unknown> | null;
+        if (withStay.error && /check_out/i.test(withStay.error.message)) {
+          const fallback = await admin
+            .from('bookings')
+            .select(
+              'id, status, payment_status, currency, total_amount, checkout_session_id, payment_intent_id, listing_id, booking_date, guests'
+            )
+            .eq('id', bookingId)
+            .maybeSingle();
+          existingBooking = fallback.data as Record<string, unknown> | null;
+        } else if (withStay.error) {
+          throw new Error(withStay.error.message);
+        }
+        const existingPay = String(existingBooking?.payment_status ?? '').toLowerCase();
         if (
           !staleCheckoutFailureShouldApply({
             eventCheckoutSessionId: session.id,
@@ -575,6 +591,79 @@ serve(async (req) => {
         }
 
         const currency = String(existingBooking?.currency || session.currency || 'eur').toUpperCase();
+
+        const listingId = String(existingBooking?.listing_id ?? '').trim();
+        const bookingDate = String(existingBooking?.booking_date ?? '').trim();
+        const guests = Number(existingBooking?.guests ?? 0);
+        const checkOutRaw = String(existingBooking?.check_out ?? '').trim();
+        if (listingId && bookingDate && Number.isFinite(guests) && guests >= 1) {
+          const { error: inventoryErr } = await admin.rpc('assert_checkout_inventory', {
+            p_listing_id: listingId,
+            p_check_in: bookingDate,
+            p_guests: guests,
+            p_check_out: checkOutRaw || null,
+            p_exclude_booking_id: bookingId,
+          });
+          if (
+            inventoryErr &&
+            !/could not find the function|schema cache/i.test(inventoryErr.message) &&
+            isCheckoutInventoryConflictError(inventoryErr.message)
+          ) {
+            let inventoryRefunded = false;
+            if (
+              rejectedCheckoutCaptureShouldRefund({
+                sessionPaymentStatus: session.payment_status,
+                paymentIntentId,
+              })
+            ) {
+              try {
+                await stripe.refunds.create(
+                  {
+                    payment_intent: paymentIntentId as string,
+                    reason: 'duplicate',
+                  },
+                  { idempotencyKey: `inventory-conflict-checkout-refund:${session.id}` }
+                );
+                inventoryRefunded = true;
+                await admin.from('booking_payment_events').insert({
+                  booking_id: bookingId,
+                  event_id: event.id,
+                  event_type: 'inventory_conflict_checkout_refund',
+                  payment_intent_id: paymentIntentId,
+                  checkout_session_id: session.id,
+                  amount: amountPaid,
+                  currency,
+                  payload: {
+                    reason: 'inventory_conflict_on_paid_promotion',
+                    inventoryError: inventoryErr.message,
+                    stripeEventType: event.type,
+                  },
+                });
+              } catch (refundErr) {
+                const msg = refundErr instanceof Error ? refundErr.message : String(refundErr);
+                if (!/already.?been.?refunded|charge_already_refunded/i.test(msg)) {
+                  throw refundErr;
+                }
+              }
+            }
+            await markProcessed('processed');
+            return json({
+              success: true,
+              ignored: true,
+              reason: 'inventory conflict on checkout.session.completed',
+              inventoryRefunded,
+              eventId: event.id,
+              bookingId,
+            });
+          }
+          if (
+            inventoryErr &&
+            !/could not find the function|schema cache/i.test(inventoryErr.message) &&
+            !isCheckoutInventoryConflictError(inventoryErr.message)
+          ) {
+            throw new Error(inventoryErr.message);
+          }
+        }
 
         let paidUpdate = admin
           .from('bookings')
