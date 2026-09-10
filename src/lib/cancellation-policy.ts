@@ -1,4 +1,4 @@
-import { isPaidPaymentStatus, normalizePaymentStatus } from './payment-states';
+import { bookingPaymentWasCollected, isPaidPaymentStatus, normalizePaymentStatus } from './payment-states';
 
 /**
  * Snapshot-able supplier cancellation fee policy.
@@ -93,18 +93,29 @@ export function snapshotSupplierCancellationPolicy(reasonCode: string): Cancella
   };
 }
 
-/** Traveler self-cancel: 24 hours before local start of the activity/check-in date. */
+/** Traveler self-cancel: 24 hours before local start of the activity/check-in date.
+ * Unpaid / failed checkouts never owe a refund.
+ */
 export function travelerSelfCancelRefundChoice(params: {
   bookingDate: string | null;
   startTimeHm?: string | null;
   nowMs?: number;
+  paymentStatus?: string | null;
 }): 'full_refund' | 'no_refund' {
+  if (!bookingPaymentWasCollected(params.paymentStatus)) return 'no_refund';
   if (!params.bookingDate) return 'no_refund';
   const hm = (params.startTimeHm ?? '00:00').slice(0, 5);
   const startMs = Date.parse(`${params.bookingDate}T${hm}:00`);
   if (!Number.isFinite(startMs)) return 'no_refund';
   const now = params.nowMs ?? Date.now();
   return startMs - now > 24 * 60 * 60 * 1000 ? 'full_refund' : 'no_refund';
+}
+
+/** True when Trips Cancel removes an unpaid checkout (no Stripe money collected). */
+export function travelerSelfCancelIsUnpaidCheckout(row: {
+  payment_status?: string | null;
+}): boolean {
+  return !bookingPaymentWasCollected(row.payment_status);
 }
 
 /** SQL is the authority; these strings match request_supplier_cancellation. */

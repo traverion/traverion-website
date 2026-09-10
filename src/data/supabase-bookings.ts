@@ -3,10 +3,11 @@ import { publicSiteBaseUrl } from '../lib/publicSiteUrl';
 import { supplierPortalPublicBaseUrl } from '../lib/partnerHost';
 import { notifySupplierEvent } from './supabase-supplier-messaging';
 import { hmToPgTime, pgTimeToHm } from './supabase-listings';
-import { travelerSelfCancelBlock, travelerSelfCancelError, partnerBookingStatusRewriteBlock } from '../lib/cancellation-policy';
+import { travelerSelfCancelBlock, travelerSelfCancelError, travelerSelfCancelIsUnpaidCheckout, partnerBookingStatusRewriteBlock } from '../lib/cancellation-policy';
 import {
   TRAVELER_SELF_CANCEL_EMAIL_DIFF_FULL_REFUND,
   TRAVELER_SELF_CANCEL_EMAIL_DIFF_NO_REFUND,
+  TRAVELER_CANCEL_UNPAID_CHECKOUT_EMAIL_DIFF,
 } from '../lib/booking-confirmation-copy';
 
 /** Shape used by BookingForm (legacy). Mapped to public.bookings in DB. */
@@ -670,9 +671,11 @@ export async function cancelBookingAsCustomer(
   if (closed !== 'none') {
     return { success: false, error: travelerSelfCancelError(closed) };
   }
+  const unpaidCheckout = travelerSelfCancelIsUnpaidCheckout(current);
+  const effectiveChoice = unpaidCheckout ? 'no_refund' : refundChoice;
   const { data: rpcData, error: rpcError } = await supabase.rpc('cancel_booking_as_traveler', {
     p_booking_id: bookingId,
-    p_refund_choice: refundChoice,
+    p_refund_choice: effectiveChoice,
   });
   if (rpcError) return { success: false, error: rpcError.message };
   if (rpcData && typeof rpcData === 'object' && (rpcData as { ok?: boolean }).ok === false) {
@@ -681,6 +684,11 @@ export async function cancelBookingAsCustomer(
       error: String((rpcData as { error?: string }).error ?? 'Could not cancel this booking.'),
     };
   }
+  const cancelDiffAfter = unpaidCheckout
+    ? TRAVELER_CANCEL_UNPAID_CHECKOUT_EMAIL_DIFF
+    : effectiveChoice === 'full_refund'
+      ? TRAVELER_SELF_CANCEL_EMAIL_DIFF_FULL_REFUND
+      : TRAVELER_SELF_CANCEL_EMAIL_DIFF_NO_REFUND;
   const { data: bookingMeta } = await supabase
     .from('bookings')
     .select('id, listing_id, booking_date, guests, guest_name, guest_email, refund_choice, booking_number')
@@ -714,11 +722,8 @@ export async function cancelBookingAsCustomer(
         fieldDiffs: [
           {
             label: 'Cancellation & refund',
-            before: 'Active booking',
-            after:
-              refundChoice === 'full_refund'
-                ? TRAVELER_SELF_CANCEL_EMAIL_DIFF_FULL_REFUND
-                : TRAVELER_SELF_CANCEL_EMAIL_DIFF_NO_REFUND,
+            before: unpaidCheckout ? 'Unpaid checkout' : 'Active booking',
+            after: cancelDiffAfter,
           },
         ],
       });
@@ -740,11 +745,8 @@ export async function cancelBookingAsCustomer(
         fieldDiffs: [
           {
             label: 'Cancellation & refund',
-            before: 'Active booking',
-            after:
-              refundChoice === 'full_refund'
-                ? TRAVELER_SELF_CANCEL_EMAIL_DIFF_FULL_REFUND
-                : TRAVELER_SELF_CANCEL_EMAIL_DIFF_NO_REFUND,
+            before: unpaidCheckout ? 'Unpaid checkout' : 'Active booking',
+            after: cancelDiffAfter,
           },
         ],
         publicSiteUrl: publicSiteBaseUrl(),

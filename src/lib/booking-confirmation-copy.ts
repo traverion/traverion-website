@@ -162,6 +162,25 @@ export const TRAVELER_SELF_CANCEL_SUCCESS_REFUND_DUE =
 export const TRAVELER_SELF_CANCEL_SUCCESS_NO_REFUND =
   'Booking cancelled. No refund applies for this cancellation. Open Cancelled to see it.';
 
+/** Traveler Trips — cancel an unpaid / failed Pay now hold (no money collected). */
+export const TRAVELER_CANCEL_UNPAID_CHECKOUT_CTA = 'Cancel checkout';
+
+/** Traveler Trips — success after cancelling unpaid checkout. */
+export const TRAVELER_CANCEL_UNPAID_CHECKOUT_SUCCESS =
+  'Checkout cancelled. No payment was collected. Open Cancelled if you need the record.';
+
+/** Traveler Trips — sheet body for unpaid checkout cancel. */
+export const TRAVELER_CANCEL_UNPAID_CHECKOUT_POLICY =
+  'No payment was collected for this checkout. Cancelling removes it from Upcoming and frees the hold.';
+
+/** System thread after traveler cancels unpaid checkout — keep in sync with cancel_booking_as_traveler. */
+export const TRAVELER_CANCEL_UNPAID_CHECKOUT_SYSTEM_MESSAGE =
+  'Traveler cancelled an unpaid checkout. No payment was collected.';
+
+/** Supplier notify fieldDiff after traveler cancels unpaid checkout. */
+export const TRAVELER_CANCEL_UNPAID_CHECKOUT_EMAIL_DIFF =
+  'Unpaid checkout cancelled — no payment was collected.';
+
 /** Traveler Trips — success after accepting host cancel request. */
 export const TRAVELER_ACCEPT_CANCEL_SUCCESS =
   'You accepted the cancellation. Status: Refund due until Stripe records a refund. Traverion does not send refunds automatically. Open Cancelled to follow status.';

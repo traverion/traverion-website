@@ -24,7 +24,7 @@ import { parseStayCheckOutFromNotes } from '../lib/stayOccupancy';
 import { formatMoney, isStripeTestCheckoutSession } from '../lib/money';
 import { travelerPaymentLabel, REFUND_DUE_MANUAL_COPY, bookingPaymentWasCollected, isRefundDueBooking } from '../lib/payment-states';
 import { bookingLifecycleLabel } from '../lib/status-language';
-import { travelerSelfCancelRefundChoice, supplierCancellationReasonLabel, travelerSelfCancelBlock, travelerSelfCancelError } from '../lib/cancellation-policy';
+import { travelerSelfCancelRefundChoice, supplierCancellationReasonLabel, travelerSelfCancelBlock, travelerSelfCancelError, travelerSelfCancelIsUnpaidCheckout } from '../lib/cancellation-policy';
 import {
   messagingComposeBlock,
   fetchCancellationRequestsForBookings,
@@ -53,6 +53,9 @@ import {
   TRAVELER_SELF_CANCEL_CTA,
   TRAVELER_SELF_CANCEL_SUCCESS_REFUND_DUE,
   TRAVELER_SELF_CANCEL_SUCCESS_NO_REFUND,
+  TRAVELER_CANCEL_UNPAID_CHECKOUT_CTA,
+  TRAVELER_CANCEL_UNPAID_CHECKOUT_SUCCESS,
+  TRAVELER_CANCEL_UNPAID_CHECKOUT_POLICY,
   TRAVELER_ACCEPT_CANCEL_SUCCESS,
   TRAVELER_DECLINE_CANCEL_SUCCESS,
   readStripeCheckoutReturnBanner,
@@ -114,6 +117,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
     return travelerSelfCancelRefundChoice({
       bookingDate: b.booking_date,
       startTimeHm: pgTimeToHm(b.start_time),
+      paymentStatus: b.payment_status,
     });
   }, []);
 
@@ -181,15 +185,17 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
       return;
     }
     const refundChoice = getRefundChoiceForCancel(b);
+    const unpaid = travelerSelfCancelIsUnpaidCheckout(b);
     const res = await cancelBookingAsCustomer(b.id, refundChoice);
     setCancellingId(null);
     setCancelConfirm(null);
     if (res.success) {
       if (b.booking_date) await decrementAvailabilityBooked(b.listing_id, b.booking_date, b.guests ?? 1);
       setActionSuccess({
-        title: 'Booking cancelled',
-        body:
-          refundChoice === 'full_refund'
+        title: unpaid ? 'Checkout cancelled' : 'Booking cancelled',
+        body: unpaid
+          ? TRAVELER_CANCEL_UNPAID_CHECKOUT_SUCCESS
+          : refundChoice === 'full_refund'
             ? TRAVELER_SELF_CANCEL_SUCCESS_REFUND_DUE
             : TRAVELER_SELF_CANCEL_SUCCESS_NO_REFUND,
       });
@@ -767,14 +773,18 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         {payingId === b.id ? 'Opening checkout…' : 'Pay now'}
                       </button>
                     )}
-                    {liveTrip && b.status === 'confirmed' && !openCancel && (
+                    {liveTrip &&
+                      !openCancel &&
+                      (travelerBookingNeedsPayNow(b) || b.status === 'confirmed') && (
                       <button
                         type="button"
                         onClick={() => setCancelConfirm(b)}
                         disabled={cancellingId !== null}
                         className="tv-btn-ghost text-red-700"
                       >
-                        {TRAVELER_SELF_CANCEL_CTA}
+                        {travelerSelfCancelIsUnpaidCheckout(b)
+                          ? TRAVELER_CANCEL_UNPAID_CHECKOUT_CTA
+                          : TRAVELER_SELF_CANCEL_CTA}
                       </button>
                     )}
                   </div>
@@ -817,12 +827,18 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
           <div ref={cancelSheetRef} className="tv-sheet-overlay z-50">
             <button type="button" tabIndex={-1} className="absolute inset-0" aria-label="Close" onClick={closeCancelConfirm} />
             <div className="tv-sheet-panel relative motion-safe:animate-slide-up" role="dialog" aria-modal="true" aria-labelledby="cancel-trip-title">
-              <h3 id="cancel-trip-title" className="font-display text-2xl text-ink">Cancel this booking?</h3>
+              <h3 id="cancel-trip-title" className="font-display text-2xl text-ink">
+                {travelerSelfCancelIsUnpaidCheckout(cancelConfirm)
+                  ? 'Cancel this checkout?'
+                  : 'Cancel this booking?'}
+              </h3>
               <p className="mt-2 text-sm text-ink-muted">
                 {titles[cancelConfirm.listing_id] ?? 'Tour'} · {cancelConfirm.booking_date ? new Date(cancelConfirm.booking_date).toLocaleDateString() : 'Date TBC'}
               </p>
               <p className="mt-3 text-sm text-ink-muted">
-                {getRefundChoiceForCancel(cancelConfirm) === 'full_refund'
+                {travelerSelfCancelIsUnpaidCheckout(cancelConfirm)
+                  ? TRAVELER_CANCEL_UNPAID_CHECKOUT_POLICY
+                  : getRefundChoiceForCancel(cancelConfirm) === 'full_refund'
                   ? `You are more than 24 hours before the scheduled ${
                       cancelConfirm.check_out || parseStayCheckOutFromNotes(cancelConfirm.special_requests)
                         ? 'check-in'
@@ -841,7 +857,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                   onClick={closeCancelConfirm}
                   className="tv-btn-secondary"
                 >
-                  Keep booking
+                  {travelerSelfCancelIsUnpaidCheckout(cancelConfirm) ? 'Keep checkout' : 'Keep booking'}
                 </button>
                 <button
                   type="button"

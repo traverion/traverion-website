@@ -37,6 +37,7 @@ describe('supplier cancellation policy', () => {
         bookingDate: '2026-09-10',
         startTimeHm: '18:00',
         nowMs: start - 25 * 60 * 60 * 1000,
+        paymentStatus: 'paid',
       })
     ).toBe('full_refund');
     expect(
@@ -44,6 +45,27 @@ describe('supplier cancellation policy', () => {
         bookingDate: '2026-09-10',
         startTimeHm: '18:00',
         nowMs: start - 2 * 60 * 60 * 1000,
+        paymentStatus: 'paid',
+      })
+    ).toBe('no_refund');
+  });
+
+  it('never offers a refund for unpaid or failed checkouts', () => {
+    const start = Date.parse('2026-09-10T18:00:00');
+    expect(
+      travelerSelfCancelRefundChoice({
+        bookingDate: '2026-09-10',
+        startTimeHm: '18:00',
+        nowMs: start - 25 * 60 * 60 * 1000,
+        paymentStatus: 'pending',
+      })
+    ).toBe('no_refund');
+    expect(
+      travelerSelfCancelRefundChoice({
+        bookingDate: '2026-09-10',
+        startTimeHm: '18:00',
+        nowMs: start - 25 * 60 * 60 * 1000,
+        paymentStatus: 'failed',
       })
     ).toBe('no_refund');
   });
