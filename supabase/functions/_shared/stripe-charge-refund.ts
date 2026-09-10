@@ -14,3 +14,26 @@ export function isStripeChargeFullyRefunded(charge: {
   if (typeof refunded !== 'number' || !Number.isFinite(refunded)) return false;
   return refunded >= amount;
 }
+
+export function refundBeforePaidShouldMarkFailed(params: {
+  bookingPaymentStatus?: string | null;
+  fullyRefunded: boolean;
+}): boolean {
+  if (!params.fullyRefunded) return false;
+  const pay = String(params.bookingPaymentStatus ?? '')
+    .trim()
+    .toLowerCase();
+  return pay === 'pending' || pay === 'failed';
+}
+
+export function paidPromotionShouldRefuseFullyRefundedCharge(
+  charge: {
+    amount?: number | null;
+    amount_refunded?: number | null;
+    refunded?: boolean | null;
+  } | null
+    | undefined
+): boolean {
+  if (!charge) return false;
+  return isStripeChargeFullyRefunded(charge);
+}

@@ -3,7 +3,7 @@ import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 import Stripe from 'https://esm.sh/stripe@16.12.0?target=deno';
 import { stripeWebhookReplayDecision } from '../_shared/stripe-webhook-replay.ts';
-import { isStripeChargeFullyRefunded } from '../_shared/stripe-charge-refund.ts';
+import { isStripeChargeFullyRefunded, paidPromotionShouldRefuseFullyRefundedCharge, refundBeforePaidShouldMarkFailed } from '../_shared/stripe-charge-refund.ts';
 import { staleCheckoutFailureShouldApply, stripeWebhookCanMarkPaidFrom } from '../_shared/checkout-resume.ts';
 import { isCheckoutInventoryConflictError } from '../_shared/checkout-inventory-conflict.ts';
 import { checkoutPaidAmountAcceptable, checkoutPaidCurrencyMatches, rejectedCheckoutCaptureShouldRefund, unpromotedCheckoutCaptureShouldRefund } from '../_shared/checkout-paid-amount.ts';
@@ -322,6 +322,49 @@ async function promotePaidFromCheckoutSession(params: {
       eventId: event.id,
       bookingId,
     });
+  }
+
+  if (paymentIntentId) {
+    const pi = await stripe.paymentIntents.retrieve(paymentIntentId, {
+      expand: ['latest_charge'],
+    });
+    const latest = pi.latest_charge;
+    const latestCharge =
+      latest && typeof latest === 'object' && !('deleted' in latest && (latest as { deleted?: boolean }).deleted)
+        ? (latest as Stripe.Charge)
+        : null;
+    if (paidPromotionShouldRefuseFullyRefundedCharge(latestCharge)) {
+      await admin
+        .from('bookings')
+        .update({
+          payment_status: 'failed',
+          payment_provider: 'stripe',
+          payment_intent_id: paymentIntentId,
+        })
+        .eq('id', bookingId)
+        .in('payment_status', ['pending', 'failed']);
+      await admin.from('booking_payment_events').insert({
+        booking_id: bookingId,
+        event_id: event.id,
+        event_type: 'refunded_before_promote',
+        payment_intent_id: paymentIntentId,
+        checkout_session_id: session.id,
+        amount: amountPaid,
+        currency: String(existingBooking?.currency || session.currency || 'eur').toUpperCase(),
+        payload: {
+          reason: 'charge_fully_refunded_before_paid_promotion',
+          stripeEventType: event.type,
+        },
+      });
+      await markProcessed('processed');
+      return json({
+        success: true,
+        ignored: true,
+        reason: 'charge fully refunded before paid promotion',
+        eventId: event.id,
+        bookingId,
+      });
+    }
   }
 
   if (
@@ -1027,11 +1070,40 @@ serve(async (req) => {
           await markProcessed('ignored', 'Refunded charge missing payment_intent');
           return json({ success: true, ignored: true, reason: 'no payment intent' });
         }
-        const { data: booking } = await admin
+
+        let booking: {
+          id: string;
+          payment_status: string | null;
+          listing_id?: string | null;
+          booking_date?: string | null;
+          check_out?: string | null;
+          guests?: number | null;
+        } | null = null;
+        const byPi = await admin
           .from('bookings')
           .select('id, payment_status, listing_id, booking_date, check_out, guests')
           .eq('payment_intent_id', paymentIntentId)
           .maybeSingle();
+        booking = byPi.data;
+        if (!booking) {
+          let metaBookingId = String(charge.metadata?.booking_id ?? '').trim();
+          if (!metaBookingId) {
+            try {
+              const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
+              metaBookingId = String(pi.metadata?.booking_id ?? '').trim();
+            } catch {
+              /* ignore */
+            }
+          }
+          if (metaBookingId) {
+            const byMeta = await admin
+              .from('bookings')
+              .select('id, payment_status, listing_id, booking_date, check_out, guests')
+              .eq('id', metaBookingId)
+              .maybeSingle();
+            booking = byMeta.data;
+          }
+        }
         if (!booking) {
           await markProcessed('ignored', 'Refunded charge had no matching booking');
           return json({ success: true, ignored: true, reason: 'no booking' });
@@ -1040,16 +1112,57 @@ serve(async (req) => {
           await markProcessed('processed');
           return json({ success: true, duplicate: true, alreadyRefunded: true, bookingId: booking.id });
         }
+
+        const refundAmount = amountToMajor(charge.amount_refunded ?? charge.amount ?? null);
+        const currency = (charge.currency ?? 'eur').toUpperCase();
+        const fullyRefunded = isStripeChargeFullyRefunded(charge);
+
+        if (
+          refundBeforePaidShouldMarkFailed({
+            bookingPaymentStatus: booking.payment_status,
+            fullyRefunded,
+          })
+        ) {
+          const { error: failErr } = await admin
+            .from('bookings')
+            .update({
+              payment_status: 'failed',
+              payment_provider: 'stripe',
+              payment_intent_id: paymentIntentId,
+            })
+            .eq('id', booking.id)
+            .in('payment_status', ['pending', 'failed']);
+          if (failErr) throw new Error(failErr.message);
+          await admin.from('booking_payment_events').insert({
+            booking_id: booking.id,
+            event_id: event.id,
+            event_type: event.type,
+            payment_intent_id: paymentIntentId,
+            amount: refundAmount,
+            currency,
+            payload: {
+              ...(event as unknown as Record<string, unknown>),
+              reason: 'full_refund_before_paid_promotion',
+            },
+          });
+          await markProcessed('processed');
+          return json({
+            success: true,
+            eventId: event.id,
+            bookingId: booking.id,
+            status: 'failed',
+            fullyRefunded: true,
+            refundBeforePaid: true,
+          });
+        }
+
         if ((booking.payment_status ?? '').toLowerCase() !== 'paid') {
           await markProcessed('processed');
           return json({ success: true, ignored: true, reason: 'booking was not paid', bookingId: booking.id });
         }
 
-        const refundAmount = amountToMajor(charge.amount_refunded ?? charge.amount ?? null);
-        const currency = (charge.currency ?? 'eur').toUpperCase();
-
         // Partial refunds must not flip payment_status or release inventory.
-        if (!isStripeChargeFullyRefunded(charge)) {
+        if (!fullyRefunded) {
           await admin.from('booking_payment_events').insert({
             booking_id: booking.id,
             event_id: event.id,
