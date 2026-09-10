@@ -5,6 +5,7 @@ import Stripe from 'https://esm.sh/stripe@16.12.0?target=deno';
 import { stripeWebhookReplayDecision } from '../_shared/stripe-webhook-replay.ts';
 import { isStripeChargeFullyRefunded } from '../_shared/stripe-charge-refund.ts';
 import { staleCheckoutFailureShouldApply, stripeWebhookCanMarkPaidFrom } from '../_shared/checkout-resume.ts';
+import { checkoutPaidAmountAcceptable } from '../_shared/checkout-paid-amount.ts';
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -311,7 +312,7 @@ serve(async (req) => {
 
         const { data: existingBooking } = await admin
           .from('bookings')
-          .select('id, payment_status, currency')
+          .select('id, payment_status, currency, total_amount')
           .eq('id', bookingId)
           .maybeSingle();
         const existingPay = (existingBooking?.payment_status ?? '').toLowerCase();
@@ -331,6 +332,27 @@ serve(async (req) => {
             eventId: event.id,
             bookingId,
           });
+        }
+
+        if (
+          !checkoutPaidAmountAcceptable({
+            amountPaid,
+            bookingTotalAmount: existingBooking?.total_amount ?? null,
+            quotedTotalMeta: session.metadata?.quoted_total ?? null,
+          })
+        ) {
+          await markProcessed('failed', 'Checkout paid amount below booking quote');
+          return json(
+            {
+              success: false,
+              error: 'paid amount below booking quote',
+              eventId: event.id,
+              bookingId,
+              amountPaid,
+              bookingTotal: existingBooking?.total_amount ?? null,
+            },
+            500
+          );
         }
 
         const currency = String(existingBooking?.currency || session.currency || 'eur').toUpperCase();
