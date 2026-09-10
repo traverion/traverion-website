@@ -12,6 +12,14 @@ export function stripeWebhookCanMarkPaidFrom(paymentStatus: string | null | unde
   return checkoutPaymentStatusCanResume(paymentStatus);
 }
 
+/** Concurrent webhook paid/refunded the booking while Pay now created a new session. */
+export function checkoutResumeLostRaceToPaid(paymentStatus: string | null | undefined): boolean {
+  const pay = String(paymentStatus ?? '')
+    .trim()
+    .toLowerCase();
+  return pay === 'paid' || pay === 'refunded';
+}
+
 /** Late expire/fail/completed from a superseded session/PI must not apply. */
 export function staleCheckoutFailureShouldApply(params: {
   eventCheckoutSessionId?: string | null;

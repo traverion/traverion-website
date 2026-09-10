@@ -4,6 +4,7 @@ import {
   resumeStayCheckoutDate,
   staleCheckoutFailureShouldApply,
   stripeWebhookCanMarkPaidFrom,
+  checkoutResumeLostRaceToPaid,
 } from './checkout-resume';
 import { stayRangeFromBooking } from './stayOccupancy';
 
@@ -20,6 +21,13 @@ describe('checkout resume after hold expiry', () => {
     expect(stripeWebhookCanMarkPaidFrom('failed')).toBe(true);
     expect(stripeWebhookCanMarkPaidFrom('pending')).toBe(true);
     expect(stripeWebhookCanMarkPaidFrom('paid')).toBe(false);
+  });
+
+  it('detects a Pay-now race lost to concurrent paid promotion', () => {
+    expect(checkoutResumeLostRaceToPaid('paid')).toBe(true);
+    expect(checkoutResumeLostRaceToPaid('refunded')).toBe(true);
+    expect(checkoutResumeLostRaceToPaid('pending')).toBe(false);
+    expect(checkoutResumeLostRaceToPaid('failed')).toBe(false);
   });
 });
 

@@ -15,6 +15,17 @@ export function stripeWebhookCanMarkPaidFrom(paymentStatus: string | null | unde
 }
 
 /**
+ * After Stripe creates a new Checkout, the booking write must not demote a row
+ * that a concurrent webhook already marked paid/refunded.
+ */
+export function checkoutResumeLostRaceToPaid(paymentStatus: string | null | undefined): boolean {
+  const pay = String(paymentStatus ?? '')
+    .trim()
+    .toLowerCase();
+  return pay === 'paid' || pay === 'refunded';
+}
+
+/**
  * After Pay now opens a new Checkout, late events from an older session/PI
  * must not flip the booking (expire/fail → failed, or completed → paid).
  */

@@ -4,7 +4,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 import Stripe from 'https://esm.sh/stripe@16.12.0?target=deno';
 import { quoteListingBooking, stayCheckoutNightsAlreadyBooked, stayNightIsOperatorBlocked, stayRangeFromBooking, type DiscountRow, type ListingQuoteRow, type StayCheckoutOccupancyRow } from '../_shared/booking-quote.ts';
 import { tourCheckoutOccupiedGuests, type TourCheckoutOccupancyRow } from '../_shared/booking-hold.ts';
-import { checkoutPaymentStatusCanResume, resumeStayCheckoutDate } from '../_shared/checkout-resume.ts';
+import { checkoutPaymentStatusCanResume, resumeStayCheckoutDate, checkoutResumeLostRaceToPaid } from '../_shared/checkout-resume.ts';
 import { resumeStayLeadGuestName, stayCheckoutLeadGuestNameReady } from '../_shared/stay-checkout-guest.ts';
 
 type RequestBody = {
@@ -509,7 +509,7 @@ serve(async (req) => {
       },
     });
 
-    const { error: updateError } = await admin
+    const { data: updatedRows, error: updateError } = await admin
       .from('bookings')
       .update({
         checkout_session_id: session.id,
@@ -529,9 +529,39 @@ serve(async (req) => {
             }
           : {}),
       })
-      .eq('id', targetBookingId);
+      .eq('id', targetBookingId)
+      .in('payment_status', ['pending', 'failed'])
+      .neq('status', 'cancelled')
+      .select('id');
     if (updateError) {
       return json({ success: false, error: 'Checkout created but booking update failed' }, 500);
+    }
+    if ((updatedRows ?? []).length === 0) {
+      // Concurrent webhook may have marked paid while Stripe created this session.
+      const { data: again } = await admin
+        .from('bookings')
+        .select('payment_status')
+        .eq('id', targetBookingId)
+        .maybeSingle();
+      try {
+        await stripe.checkout.sessions.expire(session.id);
+      } catch {
+        // Already complete/expired — continue.
+      }
+      if (checkoutResumeLostRaceToPaid(again?.payment_status)) {
+        return json({
+          success: false,
+          error: 'This booking is already paid',
+          alreadyPaid: (again?.payment_status ?? '').toLowerCase() === 'paid',
+          alreadyRefunded: (again?.payment_status ?? '').toLowerCase() === 'refunded',
+          bookingId: targetBookingId,
+        }, 400);
+      }
+      return json({
+        success: false,
+        error: 'This booking cannot be paid',
+        bookingId: targetBookingId,
+      }, 400);
     }
 
     // Expire after the booking points at the new session so the expire webhook
