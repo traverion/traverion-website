@@ -244,9 +244,12 @@ serve(async (req) => {
       bodyCustomerName: customerName,
       bookingGuestName: resumeGuestName,
     });
-    if (extrasFamily === 'stay' && !stayCheckoutLeadGuestNameReady(effectiveGuestName)) {
+    if (!stayCheckoutLeadGuestNameReady(effectiveGuestName)) {
       return json(
-        { success: false, error: 'Enter the lead guest name so the host knows who is arriving.' },
+        {
+          success: false,
+          error: 'Enter the lead guest name so the host knows who is arriving.',
+        },
         400
       );
     }

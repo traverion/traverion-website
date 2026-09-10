@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { resumeStayLeadGuestName, stayCheckoutLeadGuestNameReady } from './stay-checkout-guest';
+import { resumeStayLeadGuestName, stayCheckoutLeadGuestNameReady, bookingLeadGuestNameReady } from './stay-checkout-guest';
 
 describe('stayCheckoutLeadGuestNameReady', () => {
-  it('requires at least two non-space characters', () => {
+  it('requires at least two non-space characters for tours and stays', () => {
     expect(stayCheckoutLeadGuestNameReady('')).toBe(false);
     expect(stayCheckoutLeadGuestNameReady(' A ')).toBe(false);
     expect(stayCheckoutLeadGuestNameReady('Jo')).toBe(true);
+    expect(bookingLeadGuestNameReady('Ada Lovelace')).toBe(true);
   });
 });
 
