@@ -7,6 +7,10 @@ import { isStripeChargeFullyRefunded } from '../_shared/stripe-charge-refund.ts'
 import { staleCheckoutFailureShouldApply, stripeWebhookCanMarkPaidFrom } from '../_shared/checkout-resume.ts';
 import { checkoutPaidAmountAcceptable, checkoutPaidCurrencyMatches } from '../_shared/checkout-paid-amount.ts';
 import { orphanSupersededCheckoutShouldRefund } from '../_shared/orphan-checkout-refund.ts';
+import {
+  cancelledCheckoutCaptureShouldRefund,
+  cancelledUnpaidBookingBlocksCheckoutPaid,
+} from '../_shared/cancelled-booking-checkout.ts';
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -313,7 +317,7 @@ serve(async (req) => {
 
         const { data: existingBooking } = await admin
           .from('bookings')
-          .select('id, payment_status, currency, total_amount, checkout_session_id, payment_intent_id')
+          .select('id, status, payment_status, currency, total_amount, checkout_session_id, payment_intent_id')
           .eq('id', bookingId)
           .maybeSingle();
         const existingPay = (existingBooking?.payment_status ?? '').toLowerCase();
@@ -371,6 +375,61 @@ serve(async (req) => {
             ignored: true,
             reason: 'stale checkout.session.completed for superseded session',
             orphanRefunded,
+            eventId: event.id,
+            bookingId,
+          });
+        }
+        if (
+          cancelledUnpaidBookingBlocksCheckoutPaid({
+            bookingStatus: (existingBooking as { status?: string | null } | null)?.status ?? null,
+            bookingPaymentStatus: existingBooking?.payment_status ?? null,
+          })
+        ) {
+          let cancelledRefunded = false;
+          if (
+            cancelledCheckoutCaptureShouldRefund({
+              sessionPaymentStatus: session.payment_status,
+              paymentIntentId,
+            })
+          ) {
+            try {
+              await stripe.refunds.create(
+                {
+                  payment_intent: paymentIntentId as string,
+                  reason: 'requested_by_customer',
+                },
+                { idempotencyKey: `cancelled-checkout-refund:${session.id}` }
+              );
+              cancelledRefunded = true;
+              const cancelCurrency = String(
+                existingBooking?.currency || session.currency || 'eur'
+              ).toUpperCase();
+              await admin.from('booking_payment_events').insert({
+                booking_id: bookingId,
+                event_id: event.id,
+                event_type: 'cancelled_checkout_refund',
+                payment_intent_id: paymentIntentId,
+                checkout_session_id: session.id,
+                amount: amountPaid,
+                currency: cancelCurrency,
+                payload: {
+                  reason: 'checkout_after_unpaid_cancel',
+                  stripeEventType: event.type,
+                },
+              });
+            } catch (refundErr) {
+              const msg = refundErr instanceof Error ? refundErr.message : String(refundErr);
+              if (!/already.?been.?refunded|charge_already_refunded/i.test(msg)) {
+                throw refundErr;
+              }
+            }
+          }
+          await markProcessed('processed');
+          return json({
+            success: true,
+            ignored: true,
+            reason: 'checkout.session.completed for cancelled unpaid booking',
+            cancelledRefunded,
             eventId: event.id,
             bookingId,
           });
@@ -449,7 +508,8 @@ serve(async (req) => {
             paid_at: new Date().toISOString(),
           })
           .eq('id', bookingId)
-          .in('payment_status', ['pending', 'failed']);
+          .in('payment_status', ['pending', 'failed'])
+          .neq('status', 'cancelled');
         const currentCheckoutSessionId = String(existingBooking?.checkout_session_id ?? '').trim();
         if (currentCheckoutSessionId) {
           paidUpdate = paidUpdate.eq('checkout_session_id', session.id);
