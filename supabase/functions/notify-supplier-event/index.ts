@@ -43,6 +43,8 @@ type Payload = {
   fieldDiffs?: FieldDiff[];
   /** Global sequential order number; emails show as #N */
   bookingNumber?: number;
+  /** booking_cancelled: true when traveler cancelled an unpaid checkout. */
+  unpaidCheckout?: boolean;
 };
 
 function json(body: unknown, status = 200): Response {
@@ -107,10 +109,12 @@ function eventBody(payload: Payload): string {
     // Keep in sync with SUPPLIER_HOST_SCHEDULE_UPDATED_NOTIFY_SUB
     lines.push('The guest sees the update on Trips; Traverion does not treat email delivery as proof they saw it.');
   } else if (payload.eventType === 'booking_cancelled') {
-    lines.push('Booking cancelled (traveler)');
+    lines.push(payload.unpaidCheckout === true ? 'Unpaid checkout cancelled (traveler)' : 'Booking cancelled (traveler)');
     lines.push(`Listing: ${listing}`);
     lines.push(
-      'When a refund applies, traveler status is Refund due until Stripe records a refund — Traverion does not send refunds automatically.',
+      payload.unpaidCheckout === true
+        ? 'No payment was collected. The hold is released; nothing is Refund due.'
+        : 'When a refund applies, traveler status is Refund due until Stripe records a refund — Traverion does not send refunds automatically.',
     );
   } else {
     lines.push(`Event: ${payload.eventType}`);
@@ -189,10 +193,12 @@ ${bodyText}
         'A traveler has a booking on your listing. Open Bookings to review details. If payment is still pending, the traveler completes checkout on Traverion — Traverion does not treat email delivery as proof you saw this booking.';
     }
   } else if (payload.eventType === 'booking_cancelled') {
-    headline = 'Booking cancelled';
-    // Keep in sync with SUPPLIER_BOOKING_CANCELLED_NOTIFY_SUB in booking-confirmation-copy.ts
+    headline = payload.unpaidCheckout === true ? 'Unpaid checkout cancelled' : 'Booking cancelled';
+    // Keep in sync with SUPPLIER_BOOKING_CANCELLED_*_NOTIFY_SUB in booking-confirmation-copy.ts
     sub =
-      'The traveler cancelled this booking. When a refund applies, traveler status is Refund due until Stripe records a refund — Traverion does not send refunds automatically. Inventory is released; check Bookings and Money.';
+      payload.unpaidCheckout === true
+        ? 'The traveler cancelled an unpaid checkout. No payment was collected. The hold is released; nothing is Refund due. Check Bookings if you need the record.'
+        : 'The traveler cancelled this booking. When a refund applies, traveler status is Refund due until Stripe records a refund — Traverion does not send refunds automatically. Inventory is released; check Bookings and Money.';
   } else if (payload.eventType === 'cancellation_accepted') {
     headline = 'Cancellation accepted';
     sub =

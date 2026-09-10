@@ -42,6 +42,8 @@ type Payload = {
   fieldDiffs?: FieldDiff[];
   /** Public traveler site base, no trailing slash (e.g. https://www.traverion.com). */
   publicSiteUrl?: string;
+  /** booking_cancelled: true when no Stripe money was collected (unpaid checkout). */
+  unpaidCheckout?: boolean;
 };
 
 function json(body: unknown, status = 200): Response {
@@ -225,11 +227,16 @@ serve(async (req) => {
         // Keep in sync with TRAVELER_HOST_SCHEDULE_UPDATED_EMAIL_NOTE in booking-confirmation-copy.ts
         'Updated times appear in Trips. Traverion does not treat email delivery as proof you received this update. Reply to the host in Trips if you need help.';
     } else if (kind === 'booking_cancelled') {
-      headline = 'Your booking was cancelled';
-      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your reservation has been cancelled as requested. Summary below.</p>`;
+      const unpaid = body.unpaidCheckout === true;
+      headline = unpaid ? 'Checkout cancelled' : 'Your booking was cancelled';
+      intro = unpaid
+        ? `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">You cancelled an unpaid checkout. No payment was collected. Summary below.</p>`
+        : `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your reservation has been cancelled as requested. Summary below.</p>`;
       if (diffs.length) extraHtml = fieldDiffTableHtml(diffs);
-      footerNote =
-        'When a refund applies, Trips shows Refund due until Stripe records Refunded. Traverion does not send Stripe refunds automatically. Timing then depends on your bank.';
+      footerNote = unpaid
+        ? // Keep in sync with TRAVELER_CANCEL_UNPAID_CHECKOUT_EMAIL_FOOTER
+          'This was an unpaid checkout. No payment was collected. Trips keeps the cancelled record if you need it.'
+        : 'When a refund applies, Trips shows Refund due until Stripe records Refunded. Traverion does not send Stripe refunds automatically. Timing then depends on your bank.';
     } else if (kind === 'cancellation_requested_by_supplier') {
       headline = 'Action needed: cancellation request';
       intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">The host requested to cancel this booking. Open Trips to review the reason and accept or decline. Traverion will not cancel automatically if you do not respond.</p>`;

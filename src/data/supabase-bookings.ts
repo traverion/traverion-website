@@ -719,6 +719,7 @@ export async function cancelBookingAsCustomer(
         guestName: bookingMeta.guest_name ?? undefined,
         portalBaseUrl: supplierPortalPublicBaseUrl(),
         bookingNumber: cancelOrd,
+        unpaidCheckout,
         fieldDiffs: [
           {
             label: 'Cancellation & refund',
@@ -742,6 +743,7 @@ export async function cancelBookingAsCustomer(
         bookingDate: bookingMeta?.booking_date ?? undefined,
         guests: bookingMeta?.guests ?? undefined,
         emailKind: 'booking_cancelled',
+        unpaidCheckout,
         fieldDiffs: [
           {
             label: 'Cancellation & refund',

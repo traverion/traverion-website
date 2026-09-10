@@ -55,6 +55,8 @@ export async function notifySupplierEvent(params: {
   fieldDiffs?: { label: string; before: string; after: string }[];
   /** Global sequential order number; emails show as #N */
   bookingNumber?: number;
+  /** booking_cancelled: unpaid checkout — no Refund due copy */
+  unpaidCheckout?: boolean;
 }): Promise<{ success: boolean; notified?: number; error?: string }> {
   if (!supabase) return { success: false, error: 'Supabase not configured' };
   const { data, error } = await supabase.functions.invoke('notify-supplier-event', {

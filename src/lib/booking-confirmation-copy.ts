@@ -181,6 +181,14 @@ export const TRAVELER_CANCEL_UNPAID_CHECKOUT_SYSTEM_MESSAGE =
 export const TRAVELER_CANCEL_UNPAID_CHECKOUT_EMAIL_DIFF =
   'Unpaid checkout cancelled — no payment was collected.';
 
+/** Traveler cancel email footer when no Stripe money was collected — keep in sync with notify-customer-booking. */
+export const TRAVELER_CANCEL_UNPAID_CHECKOUT_EMAIL_FOOTER =
+  'This was an unpaid checkout. No payment was collected. Trips keeps the cancelled record if you need it.';
+
+/** Partner notify-supplier-event for traveler cancel of unpaid checkout — keep in sync with notify-supplier-event. */
+export const SUPPLIER_BOOKING_CANCELLED_UNPAID_NOTIFY_SUB =
+  'The traveler cancelled an unpaid checkout. No payment was collected. The hold is released; nothing is Refund due. Check Bookings if you need the record.';
+
 /** Traveler Trips — success after accepting host cancel request. */
 export const TRAVELER_ACCEPT_CANCEL_SUCCESS =
   'You accepted the cancellation. Status: Refund due until Stripe records a refund. Traverion does not send refunds automatically. Open Cancelled to follow status.';
