@@ -6,6 +6,7 @@ import { stripeWebhookReplayDecision } from '../_shared/stripe-webhook-replay.ts
 import { isStripeChargeFullyRefunded } from '../_shared/stripe-charge-refund.ts';
 import { staleCheckoutFailureShouldApply, stripeWebhookCanMarkPaidFrom } from '../_shared/checkout-resume.ts';
 import { checkoutPaidAmountAcceptable, checkoutPaidCurrencyMatches } from '../_shared/checkout-paid-amount.ts';
+import { orphanSupersededCheckoutShouldRefund } from '../_shared/orphan-checkout-refund.ts';
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -324,11 +325,52 @@ serve(async (req) => {
             bookingPaymentIntentId: existingBooking?.payment_intent_id ?? null,
           })
         ) {
+          let orphanRefunded = false;
+          if (
+            orphanSupersededCheckoutShouldRefund({
+              sessionPaymentStatus: session.payment_status,
+              eventPaymentIntentId: paymentIntentId,
+              bookingPaymentIntentId: existingBooking?.payment_intent_id ?? null,
+            })
+          ) {
+            try {
+              await stripe.refunds.create(
+                {
+                  payment_intent: paymentIntentId as string,
+                  reason: 'duplicate',
+                },
+                { idempotencyKey: `orphan-checkout-refund:${session.id}` }
+              );
+              orphanRefunded = true;
+              const orphanCurrency = String(
+                existingBooking?.currency || session.currency || 'eur'
+              ).toUpperCase();
+              await admin.from('booking_payment_events').insert({
+                booking_id: bookingId,
+                event_id: event.id,
+                event_type: 'orphan_checkout_refund',
+                payment_intent_id: paymentIntentId,
+                checkout_session_id: session.id,
+                amount: amountPaid,
+                currency: orphanCurrency,
+                payload: {
+                  reason: 'stale_superseded_checkout',
+                  stripeEventType: event.type,
+                },
+              });
+            } catch (refundErr) {
+              const msg = refundErr instanceof Error ? refundErr.message : String(refundErr);
+              if (!/already.?been.?refunded|charge_already_refunded/i.test(msg)) {
+                throw refundErr;
+              }
+            }
+          }
           await markProcessed('processed');
           return json({
             success: true,
             ignored: true,
             reason: 'stale checkout.session.completed for superseded session',
+            orphanRefunded,
             eventId: event.id,
             bookingId,
           });
