@@ -174,6 +174,24 @@ export function travelerSelfCancelError(block: TravelerSelfCancelBlock): string 
   return '';
 }
 
+/** Partners must not manually confirm unpaid Stripe holds as if money was collected. */
+export const PARTNER_CONFIRM_UNPAID =
+  'Only paid bookings can be confirmed. Unpaid checkouts stay pending until the traveler pays or the hold is released.';
+
+export type PartnerManualConfirmBlock = 'none' | 'unpaid';
+
+export function partnerManualConfirmBlock(row: {
+  payment_status?: string | null;
+}): PartnerManualConfirmBlock {
+  if (isPaidPaymentStatus(row.payment_status)) return 'none';
+  return 'unpaid';
+}
+
+export function partnerManualConfirmError(block: PartnerManualConfirmBlock): string {
+  if (block === 'unpaid') return PARTNER_CONFIRM_UNPAID;
+  return '';
+}
+
 /** Partner status rewrite: refunded trips are closed even if status is still confirmed. */
 export function partnerBookingStatusRewriteBlock(
   row: {

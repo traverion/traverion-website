@@ -14,6 +14,9 @@ import {
   travelerSelfCancelError,
   travelerSelfCancelRefundChoice,
   partnerBookingStatusRewriteBlock,
+  partnerManualConfirmBlock,
+  partnerManualConfirmError,
+  PARTNER_CONFIRM_UNPAID,
 } from './cancellation-policy';
 
 describe('supplier cancellation policy', () => {

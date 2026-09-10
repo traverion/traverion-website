@@ -3,7 +3,7 @@ import { publicSiteBaseUrl } from '../lib/publicSiteUrl';
 import { supplierPortalPublicBaseUrl } from '../lib/partnerHost';
 import { notifySupplierEvent } from './supabase-supplier-messaging';
 import { hmToPgTime, pgTimeToHm } from './supabase-listings';
-import { travelerSelfCancelBlock, travelerSelfCancelError, travelerSelfCancelIsUnpaidCheckout, partnerBookingStatusRewriteBlock } from '../lib/cancellation-policy';
+import { travelerSelfCancelBlock, travelerSelfCancelError, travelerSelfCancelIsUnpaidCheckout, partnerBookingStatusRewriteBlock, partnerManualConfirmBlock, partnerManualConfirmError } from '../lib/cancellation-policy';
 import {
   TRAVELER_SELF_CANCEL_EMAIL_DIFF_FULL_REFUND,
   TRAVELER_SELF_CANCEL_EMAIL_DIFF_NO_REFUND,
@@ -467,6 +467,12 @@ export async function updateBookingStatus(
   const locked = partnerBookingStatusRewriteBlock(current, status);
   if (locked !== 'none') {
     return { ok: false, error: travelerSelfCancelError(locked) };
+  }
+  if (status === 'confirmed') {
+    const confirmBlock = partnerManualConfirmBlock(current);
+    if (confirmBlock !== 'none') {
+      return { ok: false, error: partnerManualConfirmError(confirmBlock) };
+    }
   }
   const payload: Record<string, unknown> = { status };
   if (status === 'cancelled') {
