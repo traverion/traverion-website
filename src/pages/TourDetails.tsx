@@ -777,9 +777,9 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                     String(d.description ?? '').trim() ||
                     (d.activities ?? []).some((a) => String(a).trim())
                 ) ? (
-                  <section className="mt-12 pt-12 border-t border-black/[0.06]">
+                  <section className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]">
                     <h2 className="font-display text-2xl text-ink mb-5">Itinerary</h2>
-                    <ol className="space-y-8">
+                    <ol className="space-y-6">
                       {(tour.itinerary ?? [])
                         .filter(
                           (d) =>
@@ -788,8 +788,11 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                             (d.activities ?? []).some((a) => String(a).trim())
                         )
                         .map((day) => (
-                          <li key={day.day}>
-                            <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-1">
+                          <li
+                            key={day.day}
+                            className="rounded-xl bg-finland/[0.04] p-4 ring-1 ring-finland/10"
+                          >
+                            <p className="text-[11px] uppercase tracking-[0.16em] text-finland font-semibold mb-1">
                               Day {day.day}
                               {day.location?.trim() ? ` · ${day.location.trim()}` : ''}
                             </p>
@@ -870,13 +873,13 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                 ) : null}
 
                 {weekdayHint ? (
-                  <section className="mt-12 pt-12 border-t border-black/[0.06]">
+                  <section className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]">
                     <h2 className="font-display text-2xl text-ink mb-3">Availability</h2>
                     <p className="text-ink-muted leading-relaxed">{weekdayHint}. Choose a date on the right to see live options.</p>
                   </section>
                 ) : null}
 
-                <section className="mt-12 pt-12 border-t border-black/[0.06]">
+                <section className="rounded-2xl bg-amber-50/70 p-5 sm:p-6 ring-1 ring-amber-200/60">
                   <h2 className="font-display text-2xl text-ink mb-3">Cancellation</h2>
                   <p className="text-ink-muted leading-relaxed">
                     {tour.cancellationPolicy?.trim() || TRAVERION_STANDARD_CANCELLATION_POLICY}
@@ -886,7 +889,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                 {(tour.difficulty === 'Challenging' ||
                   (tour.price?.importantNotes ?? []).some((n) => String(n).trim()) ||
                   tour.listingExtras?.minGuestAge?.trim()) ? (
-                  <section className="mt-12 pt-12 border-t border-black/[0.06]">
+                  <section className="rounded-2xl bg-rose-50/60 p-5 sm:p-6 ring-1 ring-rose-200/50">
                     <h2 className="font-display text-2xl text-ink mb-4">Important information</h2>
                     <ul className="space-y-2 text-ink-muted">
                       {tour.difficulty === 'Challenging' ? <li>This tour is marked challenging.</li> : null}
@@ -904,7 +907,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                 ) : null}
 
                 {supplierLegal && (
-                  <section className="mt-12 pt-12 border-t border-black/[0.06]">
+                  <section className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]">
                     <h2 className="font-display text-2xl text-ink mb-4">Operator</h2>
                     <div className="flex items-center gap-4">
                     {supplierLegal.business_logo_url ? (
