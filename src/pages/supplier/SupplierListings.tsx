@@ -812,13 +812,13 @@ export default function SupplierListings() {
                     key={opt.family}
                     type="button"
                     onClick={opt.family === 'stay' ? startNewStay : startNewTour}
-                    className="lux-flat w-full rounded-2xl bg-paper px-4 py-4 text-left hover:bg-black/[0.04]"
+                    className="lux-flat w-full rounded-2xl bg-paper-raised px-4 py-4 text-left shadow-soft ring-1 ring-black/[0.06] hover:ring-finland/25 hover:bg-finland/[0.04]"
                   >
                     <p className="font-semibold text-ink">{opt.title}</p>
                     <p className="mt-1 text-sm text-ink-muted">{opt.description}</p>
                   </button>
                 ) : (
-                  <div key={opt.family} className="w-full rounded-2xl px-4 py-4 text-left opacity-70">
+                  <div key={opt.family} className="w-full rounded-2xl bg-paper px-4 py-4 text-left opacity-70 ring-1 ring-black/[0.04]">
                     <p className="font-semibold text-ink">{opt.title}</p>
                     <p className="mt-1 text-sm text-ink-muted">{opt.description}</p>
                   </div>
