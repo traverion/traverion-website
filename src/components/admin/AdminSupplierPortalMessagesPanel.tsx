@@ -224,7 +224,7 @@ export default function AdminSupplierPortalMessagesPanel() {
             {items.map((n) => (
               <li
                 key={n.id}
-                className="rounded-xl bg-black/[0.02] ring-1 ring-black/[0.06] p-4 flex flex-col sm:flex-row sm:items-start gap-3"
+                className="rounded-2xl bg-paper-raised shadow-soft ring-1 ring-black/[0.06] p-4 flex flex-col sm:flex-row sm:items-start gap-3"
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
