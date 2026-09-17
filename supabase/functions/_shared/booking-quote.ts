@@ -46,6 +46,9 @@ type Option = {
   isPrivate?: boolean;
   privatePricing?: string;
   privateGroupPriceUsd?: number;
+  pickupPlace?: string;
+  startTime?: string;
+  duration?: string;
 };
 
 export type QuoteOk = {
@@ -289,6 +292,9 @@ function parseOptions(extras: unknown): Option[] {
       availabilityDateFrom: typeof o.availabilityDateFrom === 'string' ? o.availabilityDateFrom : '',
       availabilityDateTo: typeof o.availabilityDateTo === 'string' ? o.availabilityDateTo : '',
     };
+    if (typeof o.pickupPlace === 'string' && o.pickupPlace.trim()) opt.pickupPlace = o.pickupPlace.trim();
+    if (typeof o.startTime === 'string' && o.startTime.trim()) opt.startTime = o.startTime.trim();
+    if (typeof o.duration === 'string' && o.duration.trim()) opt.duration = o.duration.trim();
     if (o.pricingMode === 'age_dependent' || o.pricingMode === 'uniform') opt.pricingMode = String(o.pricingMode);
     if (cats) opt.priceCategories = cats;
     if (o.isPrivate) {
@@ -302,7 +308,78 @@ function parseOptions(extras: unknown): Option[] {
     }
     if (!isEmptyOption(opt)) opts.push(opt);
   }
-  return opts;
+  return coalesceLegacyParticipantTicketOptions(opts);
+}
+
+function legacyParticipantKind(name: string): 'adult' | 'reduced' | 'other' {
+  const n = (name ?? '').trim();
+  if (!n) return 'other';
+  if (/\b(adults?|grown[-\s]?ups?)\b/i.test(n) && !/\b(child|children|kids?|infants?)\b/i.test(n)) {
+    return 'adult';
+  }
+  if (/\b(child|children|kids?|infants?|toddlers?|youth|teen(?:ager)?s?|students?|seniors?)\b/i.test(n)) {
+    return 'reduced';
+  }
+  return 'other';
+}
+
+function deriveCoalescedName(anchor: Option): string {
+  const pickup = (anchor.pickupPlace ?? '').trim();
+  if (/hotel\s*pick[\s-]?up/i.test(pickup) || /hotel\s*pick[\s-]?up/i.test(anchor.name)) {
+    return 'Hotel pickup';
+  }
+  if (pickup.length >= 3 && pickup.length <= 56) return pickup;
+  if ((anchor.startTime ?? '').trim()) return `Departure ${anchor.startTime!.trim()}`;
+  if ((anchor.duration ?? '').trim()) return `${anchor.duration!.trim()} tour`;
+  return 'Standard tour';
+}
+
+/** Adult/Child as separate options → one age_dependent option (mirrors src/lib/legacy-participant-options.ts). */
+function coalesceLegacyParticipantTicketOptions(opts: Option[]): Option[] {
+  if (opts.length < 2) return opts;
+  if (opts.some((o) => o.pricingMode === 'age_dependent' && (o.priceCategories?.length ?? 0) > 0)) {
+    return opts;
+  }
+  const kinds = opts.map((o) => legacyParticipantKind(o.name));
+  if (kinds.some((k) => k === 'other')) return opts;
+  if (!kinds.includes('adult') || !kinds.includes('reduced')) return opts;
+
+  const adults = opts.filter((o) => legacyParticipantKind(o.name) === 'adult');
+  const reduced = opts.filter((o) => legacyParticipantKind(o.name) === 'reduced');
+  const anchor = adults.reduce((a, b) => (a.priceUsd >= b.priceUsd ? a : b), adults[0]);
+  const ordered = [...adults, ...reduced].sort((a, b) => b.priceUsd - a.priceUsd);
+  const priceCategories: PriceCat[] = ordered.map((o) => {
+    const pk = legacyParticipantKind(o.name);
+    const infant = /\binfants?\b|\btoddlers?\b/i.test(o.name);
+    const youth = /\byouth\b|\bteen/i.test(o.name);
+    const senior = /\bseniors?\b/i.test(o.name);
+    let kind = 'child';
+    if (pk === 'adult') kind = 'adult';
+    else if (infant) kind = 'infant';
+    else if (youth) kind = 'youth';
+    else if (senior) kind = 'senior';
+    return {
+      id: o.id,
+      label: o.name.trim() || 'Participant',
+      kind,
+      priceUsd: o.priceUsd,
+      notPermitted: false,
+      requiresAdult: kind !== 'adult' && kind !== 'senior',
+      countsTowardCapacity: true,
+    };
+  });
+
+  return [
+    {
+      ...anchor,
+      name: deriveCoalescedName(anchor),
+      priceUsd: anchor.priceUsd,
+      minPersons: Math.min(...opts.map((o) => Math.max(1, o.minPersons || 1))),
+      maxPersons: Math.max(1, anchor.maxPersons || 8),
+      pricingMode: 'age_dependent',
+      priceCategories,
+    },
+  ];
 }
 
 function discountActive(d: DiscountRow, day: string): boolean {

@@ -2,6 +2,7 @@ import { userFacingError } from './userFacingError';
 import type { TourPackage } from '../types/tour';
 import type { ListingBookingOption } from '../types/listingExtras';
 import { materializedBookingOptions } from '../types/listingExtras';
+import { travelerFacingBookingOptions } from './legacy-participant-options';
 
 const DRAFT_KEY = (tourId: string) => `traverion_booking_draft_v1_${tourId}`;
 
@@ -109,7 +110,7 @@ export function guestCountValidationError(
 
 export function getTourBookingVariants(tour: TourPackage): TourBookingVariant[] {
   const bounds = getPartySizeBounds(tour);
-  const opts = materializedBookingOptions(tour.listingExtras?.bookingOptions);
+  const opts = travelerFacingBookingOptions(tour.listingExtras?.bookingOptions);
   const basePrice = tour.price?.startingFrom ?? 0;
   if (opts.length > 0) {
     return opts.map((o) => {
@@ -118,7 +119,7 @@ export function getTourBookingVariants(tour: TourPackage): TourBookingVariant[] 
         o.duration?.trim(),
         o.startTime?.trim() ? `Starts ${o.startTime.trim()}` : null,
         o.isPrivate ? 'Private' : null,
-        o.optionInfo?.trim(),
+        o.pickupPlace?.trim() || null,
         o.maxPersons ? `Up to ${o.maxPersons} guests` : null,
       ].filter(Boolean) as string[];
       return {

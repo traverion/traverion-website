@@ -14,6 +14,7 @@ import type { ListingDiscount } from '../data/supabase-discounts';
 import { applyDiscount, discountsApplicableToOption } from '../data/supabase-discounts';
 import { getPartySizeBounds, getPartySizeBoundsForVariant, guestCountValidationError } from './booking-flow';
 import { listingCanUseTravelerQuote } from './inventory';
+import { travelerFacingBookingOptions } from './legacy-participant-options';
 import { DEFAULT_CURRENCY, normalizeCurrency } from './money';
 import {
   buildParticipantMixLines,
@@ -186,7 +187,7 @@ export function quoteBooking(input: {
   }
 
   const extras = parseListingExtras(input.tour.listingExtras);
-  const opts = materializedBookingOptions(extras.bookingOptions);
+  const opts = travelerFacingBookingOptions(extras.bookingOptions);
   const fallbackBase = Number(input.tour.price?.startingFrom ?? 0);
   const currency = normalizeCurrency(input.tour.price?.currency ?? DEFAULT_CURRENCY);
   const requestedId = (input.bookingOptionId ?? '').trim();

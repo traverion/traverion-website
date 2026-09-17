@@ -3,9 +3,9 @@ import {
   LayoutDashboard,
   MapPin,
   Calendar,
+  CalendarDays,
   X,
   UserCircle2,
-  MessageSquare,
   Wallet,
 } from 'lucide-react';
 import type { User } from '@supabase/supabase-js';
@@ -140,9 +140,9 @@ type BusinessProfileTab = 'company' | 'legal';
 const PRIMARY_NAV: { id: SupplierSection; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'dashboard', label: 'Today', icon: LayoutDashboard },
   { id: 'bookings', label: 'Bookings', icon: Calendar },
-  { id: 'earnings', label: 'Money', icon: Wallet },
+  { id: 'availability', label: 'Calendar', icon: CalendarDays },
   { id: 'listings', label: 'Listings', icon: MapPin },
-  { id: 'inbox', label: 'Inbox', icon: MessageSquare },
+  { id: 'earnings', label: 'Money', icon: Wallet },
 ];
 
 if (
@@ -871,7 +871,7 @@ export default function SupplierLayout() {
                 className="absolute right-0 top-11 w-64 rounded-2xl bg-paper-raised shadow-soft-xl p-2 z-50 origin-top-right motion-safe:animate-slide-down"
               >
                 <p className="px-3 pt-2 pb-1 text-[10px] uppercase tracking-[0.16em] text-ink-faint">Business</p>
-                <button type="button" onClick={() => handleNavigate('availability')} className="lux-flat w-full text-left px-3 py-2 rounded-xl text-sm hover:bg-paper">Calendar</button>
+                <button type="button" onClick={() => handleNavigate('inbox')} className="lux-flat w-full text-left px-3 py-2 rounded-xl text-sm hover:bg-paper">Inbox</button>
                 <button type="button" onClick={() => handleNavigate('reviews')} className="lux-flat w-full text-left px-3 py-2 rounded-xl text-sm hover:bg-paper">Reviews</button>
                 <button type="button" onClick={() => handleNavigate('discounts')} className="lux-flat w-full text-left px-3 py-2 rounded-xl text-sm hover:bg-paper">Offers</button>
                 <button type="button" onClick={() => handleNavigate('pickup')} className="lux-flat w-full text-left px-3 py-2 rounded-xl text-sm hover:bg-paper">Pickup</button>
@@ -903,7 +903,7 @@ export default function SupplierLayout() {
             </button>
           </div>
           <div className="px-4 space-y-1">
-            <button type="button" onClick={() => handleNavigate('availability')} className="lux-flat w-full text-left py-3.5 text-base">Calendar</button>
+            <button type="button" onClick={() => handleNavigate('inbox')} className="lux-flat w-full text-left py-3.5 text-base">Inbox</button>
             <button type="button" onClick={() => handleNavigate('reviews')} className="lux-flat w-full text-left py-3.5 text-base">Reviews</button>
             <button type="button" onClick={() => handleNavigate('discounts')} className="lux-flat w-full text-left py-3.5 text-base">Offers</button>
             <button type="button" onClick={() => handleNavigate('pickup')} className="lux-flat w-full text-left py-3.5 text-base">Pickup</button>

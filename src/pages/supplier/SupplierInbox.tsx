@@ -10,7 +10,7 @@ import {
   messagingComposeBlock,
   type BookingMessageRow,
 } from '../../data/supabase-booking-ops';
-import { SUPPLIER_PAGE_CLASS, SupplierEmptyState, SupplierListSkeleton } from '../../components/supplier/supplierUi';
+import { SUPPLIER_PAGE_CLASS, SupplierEmptyState, SupplierListSkeleton, SupplierPageHero } from '../../components/supplier/supplierUi';
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
@@ -92,16 +92,11 @@ export default function SupplierInbox() {
 
   return (
     <div className={SUPPLIER_PAGE_CLASS}>
-      <header className="mb-10 rounded-2xl bg-paper-raised p-5 sm:p-7 shadow-soft ring-1 ring-black/[0.06]">
-        <div className="inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15 mb-3">
-          Messages
-        </div>
-        <h1 className="font-display text-4xl sm:text-5xl text-ink tracking-tight">Inbox</h1>
-        <p className="mt-2 text-ink-muted max-w-xl">
-          Messages about paid bookings. Closed and Refund due trips stay here if they already have a thread.{' '}
-          {PARTNER_INBOX_MESSAGE_DELIVERY_NOTE}
-        </p>
-      </header>
+      <SupplierPageHero
+        badge="Messages"
+        title="Inbox"
+        description={`Messages about paid bookings. Closed and Refund due trips stay here if they already have a thread. ${PARTNER_INBOX_MESSAGE_DELIVERY_NOTE}`}
+      />
       {error ? (
         <ErrorState className="py-6" title="Inbox unavailable" body={error} retry={{ onClick: () => void load() }} />
       ) : null}
