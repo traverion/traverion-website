@@ -770,6 +770,7 @@ export default function SupplierPickupPlanner() {
   return (
     <div className={SUPPLIER_PAGE_CLASS}>
       <SupplierPageHero
+        badge="Operations"
         title="Pickup"
         description="Meeting points, pickup times, and what still needs copy."
         actions={

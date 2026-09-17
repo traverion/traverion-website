@@ -4,7 +4,7 @@ import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { fetchSupplierEarnings, SupplierEarning } from '../../data/supabase-earnings';
 import { fetchBookingsForSupplier, type BookingRow } from '../../data/supabase-bookings';
 import { fetchSupplierProfile } from '../../data/supabase-supplier-profile';
-import { SUPPLIER_PAGE_CLASS, SupplierEmptyState, SupplierListSkeleton } from '../../components/supplier/supplierUi';
+import { SUPPLIER_PAGE_CLASS, SupplierEmptyState, SupplierListSkeleton, SupplierPageHero } from '../../components/supplier/supplierUi';
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
@@ -171,13 +171,11 @@ export default function SupplierEarnings() {
 
   return (
     <div className={SUPPLIER_PAGE_CLASS}>
-      <header className="mb-10">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Earnings</p>
-        <h1 className="font-display text-4xl sm:text-5xl text-ink tracking-tight">Money</h1>
-        <p className="mt-2 text-ink-muted max-w-xl">
-          What travelers paid, and what Traverion has paid you. Payouts are manual — this page never invents a transfer.
-        </p>
-      </header>
+      <SupplierPageHero
+        badge="Earnings"
+        title="Money"
+        description="What travelers paid, and what Traverion has paid you. Payouts are manual — this page never invents a transfer."
+      />
 
       {error && (
         <ErrorState
