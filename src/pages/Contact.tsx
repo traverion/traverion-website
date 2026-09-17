@@ -5,6 +5,7 @@ import { required, validateEmail, maxLength } from '../lib/validation';
 import { CONTACT_PREFILL_KEY } from '../lib/contactPrefill';
 import { buildInquiryEmailSubject } from '../lib/contactEmailSubject';
 import { CONTACT_FORM_SUCCESS_HEADING, CONTACT_FORM_THANK_YOU, CONTACT_FORM_SUBMIT_ERROR } from '../lib/booking-confirmation-copy';
+import NoticeCallout from '../components/NoticeCallout';
 
 type ContactProps = {
   onNavigate?: (page: string) => void;
@@ -113,109 +114,112 @@ export default function Contact({ onNavigate }: ContactProps) {
       subtitle="Bookings, trips, and general questions. Affiliate and creator applications each have their own page in the footer."
       onNavigate={onNavigate}
     >
-      <p>
-        Browse{' '}
-        <a href="/packages" onClick={goPackages}>
-          tours &amp; activities
-        </a>{' '}
-        anytime. Email <a href="mailto:info@traverion.com">info@traverion.com</a>.
-      </p>
-
       {isSubmitted ? (
-        <div>
-          <h2>{CONTACT_FORM_SUCCESS_HEADING}</h2>
-          <p>{CONTACT_FORM_THANK_YOU}</p>
+        <div className="max-w-lg rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]">
+          <NoticeCallout title={CONTACT_FORM_SUCCESS_HEADING} tone="success">
+            {CONTACT_FORM_THANK_YOU}
+          </NoticeCallout>
         </div>
       ) : (
-        <form noValidate onSubmit={(e) => void handleSubmit(e)} className="space-y-4 max-w-lg">
-          {fieldErrors.form && (
-            <p className="text-sm text-red-800" role="alert">
-              {fieldErrors.form}
-            </p>
-          )}
-          <div>
-            <label htmlFor="contact-name" className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">
-              Name
-            </label>
-            <input
-              id="contact-name"
-              type="text"
-              value={formData.name}
-              onChange={(e) => {
-                setFormData((p) => ({ ...p, name: e.target.value }));
-                clearField('name');
-              }}
-              className="tv-input"
-              autoComplete="name"
-              aria-invalid={fieldErrors.name ? true : undefined}
-            />
-            {fieldErrors.name && (
-              <p className="mt-1.5 text-sm text-red-800" role="alert">
-                {fieldErrors.name}
-              </p>
-            )}
-          </div>
-          <div>
-            <label htmlFor="contact-email" className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">
-              Email
-            </label>
-            <input
-              id="contact-email"
-              type="email"
-              value={formData.email}
-              onChange={(e) => {
-                setFormData((p) => ({ ...p, email: e.target.value }));
-                clearField('email');
-              }}
-              className="tv-input"
-              autoComplete="email"
-              aria-invalid={fieldErrors.email ? true : undefined}
-            />
-            {fieldErrors.email && (
-              <p className="mt-1.5 text-sm text-red-800" role="alert">
-                {fieldErrors.email}
-              </p>
-            )}
-          </div>
-          <div>
-            <label htmlFor="contact-phone" className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">
-              Phone <span className="normal-case tracking-normal">(optional)</span>
-            </label>
-            <input
-              id="contact-phone"
-              type="tel"
-              value={formData.phone}
-              onChange={(e) => setFormData((p) => ({ ...p, phone: e.target.value }))}
-              className="tv-input"
-              autoComplete="tel"
-            />
-          </div>
-          <div>
-            <label htmlFor="contact-message" className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">
-              Message
-            </label>
-            <textarea
-              id="contact-message"
-              name="message"
-              value={formData.message}
-              onChange={(e) => {
-                setFormData((p) => ({ ...p, message: e.target.value }));
-                clearField('message');
-              }}
-              rows={8}
-              className="tv-input min-h-[10rem] resize-y py-3"
-              aria-invalid={fieldErrors.message ? true : undefined}
-            />
-            {fieldErrors.message && (
-              <p className="mt-1.5 text-sm text-red-800" role="alert">
-                {fieldErrors.message}
-              </p>
-            )}
-          </div>
-          <button type="submit" disabled={isSubmitting} className="tv-btn-primary disabled:opacity-50">
-            {isSubmitting ? 'Submitting…' : 'Submit message'}
-          </button>
-        </form>
+        <>
+          <p>
+            Browse{' '}
+            <a href="/packages" onClick={goPackages}>
+              tours &amp; activities
+            </a>{' '}
+            anytime. Email <a href="mailto:info@traverion.com">info@traverion.com</a>.
+          </p>
+
+          <form noValidate onSubmit={(e) => void handleSubmit(e)} className="space-y-4 max-w-lg">
+            {fieldErrors.form ? (
+              <NoticeCallout title="Could not send message" tone="danger">
+                {fieldErrors.form}
+              </NoticeCallout>
+            ) : null}
+            <div>
+              <label htmlFor="contact-name" className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">
+                Name
+              </label>
+              <input
+                id="contact-name"
+                type="text"
+                value={formData.name}
+                onChange={(e) => {
+                  setFormData((p) => ({ ...p, name: e.target.value }));
+                  clearField('name');
+                }}
+                className="tv-input"
+                autoComplete="name"
+                aria-invalid={fieldErrors.name ? true : undefined}
+              />
+              {fieldErrors.name && (
+                <p className="mt-1.5 text-sm text-red-800" role="alert">
+                  {fieldErrors.name}
+                </p>
+              )}
+            </div>
+            <div>
+              <label htmlFor="contact-email" className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">
+                Email
+              </label>
+              <input
+                id="contact-email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => {
+                  setFormData((p) => ({ ...p, email: e.target.value }));
+                  clearField('email');
+                }}
+                className="tv-input"
+                autoComplete="email"
+                aria-invalid={fieldErrors.email ? true : undefined}
+              />
+              {fieldErrors.email && (
+                <p className="mt-1.5 text-sm text-red-800" role="alert">
+                  {fieldErrors.email}
+                </p>
+              )}
+            </div>
+            <div>
+              <label htmlFor="contact-phone" className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">
+                Phone <span className="normal-case tracking-normal">(optional)</span>
+              </label>
+              <input
+                id="contact-phone"
+                type="tel"
+                value={formData.phone}
+                onChange={(e) => setFormData((p) => ({ ...p, phone: e.target.value }))}
+                className="tv-input"
+                autoComplete="tel"
+              />
+            </div>
+            <div>
+              <label htmlFor="contact-message" className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">
+                Message
+              </label>
+              <textarea
+                id="contact-message"
+                name="message"
+                value={formData.message}
+                onChange={(e) => {
+                  setFormData((p) => ({ ...p, message: e.target.value }));
+                  clearField('message');
+                }}
+                rows={8}
+                className="tv-input min-h-[10rem] resize-y py-3"
+                aria-invalid={fieldErrors.message ? true : undefined}
+              />
+              {fieldErrors.message && (
+                <p className="mt-1.5 text-sm text-red-800" role="alert">
+                  {fieldErrors.message}
+                </p>
+              )}
+            </div>
+            <button type="submit" disabled={isSubmitting} className="tv-btn-primary disabled:opacity-50">
+              {isSubmitting ? 'Submitting…' : 'Submit message'}
+            </button>
+          </form>
+        </>
       )}
     </LegalPageShell>
   );
