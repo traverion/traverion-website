@@ -69,10 +69,18 @@ function PartnerRouteFallback() {
   return (
     <div className="min-h-screen bg-paper" aria-busy="true" aria-label="Loading">
       <p className="sr-only">Loading</p>
-      <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 pt-10">
-        <div className="h-10 w-48 rounded-lg bg-black/[0.06] animate-pulse" />
-        <div className="mt-8 h-24 rounded-2xl bg-black/[0.04] animate-pulse" />
-        <div className="mt-4 h-24 rounded-2xl bg-black/[0.04] animate-pulse" />
+      <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 pt-10 pb-16">
+        <div className="inline-flex items-center gap-2 rounded-2xl bg-finland/10 px-3 py-2 ring-1 ring-finland/15">
+          <div className="h-6 w-6 rounded-md bg-finland/25 animate-pulse" aria-hidden />
+          <div className="h-3 w-24 rounded bg-black/[0.06] animate-pulse" aria-hidden />
+        </div>
+        <div className="mt-10 h-10 w-56 max-w-full rounded-lg bg-black/[0.06] animate-pulse" />
+        <div className="mt-3 h-4 w-72 max-w-full rounded bg-black/[0.04] animate-pulse" />
+        <div className="mt-10 space-y-3">
+          <div className="h-24 rounded-2xl bg-paper-raised shadow-soft ring-1 ring-black/[0.06] animate-pulse" />
+          <div className="h-24 rounded-2xl bg-paper-raised shadow-soft ring-1 ring-black/[0.06] animate-pulse" />
+          <div className="h-24 rounded-2xl bg-paper-raised shadow-soft ring-1 ring-black/[0.06] animate-pulse" />
+        </div>
       </div>
     </div>
   );
