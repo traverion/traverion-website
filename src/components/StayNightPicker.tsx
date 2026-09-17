@@ -94,9 +94,9 @@ export default function StayNightPicker({
           const disabled = state === 'past' || state === 'occupied';
           const cls =
             state === 'selected'
-              ? 'bg-ink text-paper-raised'
+              ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
               : state === 'checkout'
-                ? 'ring-1 ring-ink/40 text-ink'
+                ? 'ring-1 ring-finland/40 text-finland'
                 : state === 'occupied'
                   ? 'text-ink-faint line-through'
                   : state === 'past'
