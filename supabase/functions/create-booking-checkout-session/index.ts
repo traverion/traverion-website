@@ -16,21 +16,6 @@ type RequestBody = {
   customerName?: string;
   customerPhone?: string;
   specialRequests?: string;
-  bookingOptionId?: string;
-  checkoutDate?: string;
-  successPath?: string;
-  cancelPath?: string;
-  participantMix?: Record<string, number>;
-  guestBreakdown?: unknown;
-};
-  bookingId?: string;
-  listingId: string;
-  listingTitle?: string;
-  bookingDate: string;
-  guests: number;
-  customerName?: string;
-  customerPhone?: string;
-  specialRequests?: string;
   /** Ignored for pricing. Kept so old clients do not break; server recomputes. */
   totalAmount?: number;
   currency?: string;
@@ -38,6 +23,8 @@ type RequestBody = {
   checkoutDate?: string;
   successPath?: string;
   cancelPath?: string;
+  participantMix?: Record<string, number>;
+  guestBreakdown?: unknown;
 };
 
 function json(body: unknown, status = 200): Response {
