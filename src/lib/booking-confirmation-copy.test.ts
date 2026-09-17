@@ -538,6 +538,9 @@ describe('booking confirmation copy', () => {
     expect(
       bookingConfirmationPhase({ status: 'pending', payment_status: 'pending' })
     ).toBe('confirming');
+    expect(
+      bookingConfirmationPhase({ status: 'pending', payment_status: 'failed' })
+    ).toBe('needs_pay');
     const due = bookingConfirmationCancelledBody({
       status: 'cancelled',
       payment_status: 'paid',

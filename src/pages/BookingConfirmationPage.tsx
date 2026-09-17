@@ -12,6 +12,7 @@ import { isSupabaseConfigured } from '../lib/supabase';
 import {
   fetchMyBookingByCheckoutSessionId,
   reconcileCheckoutSession,
+  resumePendingBookingCheckout,
   type BookingWithPaymentRow,
 } from '../data/supabase-bookings';
 import { fetchListingOpsByIds, pgTimeToHm } from '../data/supabase-listings';
@@ -21,7 +22,14 @@ import { formatMoney, isStripeTestCheckoutSession } from '../lib/money';
 import NoticeCallout from '../components/NoticeCallout';
 import { listingPickupCopyIncomplete } from '../lib/pickup-completeness';
 import { clearBookingsUnread } from '../lib/customerBookingNotifications';
-import { BOOKING_CONFIRMATION_EMAIL_DISCLAIMER, bookingConfirmationPhase, bookingConfirmationCancelledBody, BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE } from '../lib/booking-confirmation-copy';
+import {
+  BOOKING_CONFIRMATION_EMAIL_DISCLAIMER,
+  BOOKING_CONFIRMATION_NEEDS_PAY_BODY,
+  BOOKING_CONFIRMATION_NEEDS_PAY_TITLE,
+  bookingConfirmationPhase,
+  bookingConfirmationCancelledBody,
+  BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE,
+} from '../lib/booking-confirmation-copy';
 import { travelerPaymentLabel, bookingPaymentWasCollected } from '../lib/payment-states';
 import {
   confirmationShouldReconcileCheckout,
@@ -64,6 +72,8 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
   const [pollCount, setPollCount] = useState(0);
   const [reconcileAttempted, setReconcileAttempted] = useState(false);
   const [reconciling, setReconciling] = useState(false);
+  const [payingNow, setPayingNow] = useState(false);
+  const [payNowError, setPayNowError] = useState<string | null>(null);
 
   const canQuery = Boolean(user?.email && sessionId && isSupabaseConfigured());
 
@@ -187,6 +197,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
   const phase = booking ? bookingConfirmationPhase(booking) : null;
   const paidActive = phase === 'confirmed';
   const confirming = phase === 'confirming';
+  const needsPay = phase === 'needs_pay';
   const cancelled = phase === 'cancelled';
   const payLabel = booking ? travelerPaymentLabel(booking) : '';
   const collected = booking ? bookingPaymentWasCollected(booking.payment_status) : false;
@@ -195,6 +206,19 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
     reconcileAttempted,
     pollCount,
   });
+
+  const handlePayNow = useCallback(async () => {
+    if (!booking?.id) return;
+    setPayNowError(null);
+    setPayingNow(true);
+    const res = await resumePendingBookingCheckout({ bookingId: booking.id });
+    setPayingNow(false);
+    if (!res.success || !res.checkoutUrl) {
+      setPayNowError(userFacingError(res.error, USER_ERROR.checkout));
+      return;
+    }
+    window.location.assign(res.checkoutUrl);
+  }, [booking?.id]);
 
   useEffect(() => {
     if (!paidActive && !cancelled) return;
@@ -347,6 +371,15 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                         : 'Almost done — we are finalizing your booking. This usually takes a few seconds.'}
                   </p>
                 </>
+              ) : needsPay ? (
+                <>
+                  <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">
+                    {BOOKING_CONFIRMATION_NEEDS_PAY_TITLE}
+                  </h1>
+                  <p className="mt-2 text-sm text-ink-muted leading-relaxed">
+                    {BOOKING_CONFIRMATION_NEEDS_PAY_BODY}
+                  </p>
+                </>
               ) : (
                 <>
                   <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Booking received</h1>
@@ -408,6 +441,10 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                 <p className="text-xs text-ink-faint leading-relaxed pt-2">
                   Manage this booking from Trips — Cancelled shows Refund due until Stripe records a refund.
                 </p>
+              ) : needsPay ? (
+                <p className="text-xs text-ink-faint leading-relaxed pt-2">
+                  Your hold stays on Trips until you pay or cancel. Stripe TEST checkout opens in the same flow as before.
+                </p>
               ) : (
                 <p className="text-xs text-ink-faint leading-relaxed pt-2">
                   Next: {BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE} Manage this {stayCheckOut ? 'stay' : 'booking'} from Trips.
@@ -421,13 +458,28 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                   the host updates them.
                 </NoticeCallout>
               ) : null}
+              {payNowError ? (
+                <p className="text-sm text-red-700 pt-2" role="alert">
+                  {payNowError}
+                </p>
+              ) : null}
             </div>
 
             <div className="pt-2 flex flex-col gap-3">
+              {needsPay ? (
+                <button
+                  type="button"
+                  onClick={() => void handlePayNow()}
+                  disabled={payingNow}
+                  className="tv-btn-primary w-full"
+                >
+                  {payingNow ? 'Opening checkout…' : 'Pay now'}
+                </button>
+              ) : null}
               <button
                 type="button"
                 onClick={goToBookings}
-                className="tv-btn-primary w-full"
+                className={needsPay ? 'tv-btn-secondary w-full' : 'tv-btn-primary w-full'}
               >
                 Manage booking
               </button>

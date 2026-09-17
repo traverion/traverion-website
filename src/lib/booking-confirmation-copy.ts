@@ -3,7 +3,7 @@
  * Resend is blocked until a valid key exists — never claim an email was sent.
  */
 
-import { bookingIsCancelledTrip } from './trip-views';
+import { bookingIsCancelledTrip, travelerBookingNeedsPayNow } from './trip-views';
 import {
   isPaidPaymentStatus,
   normalizePaymentStatus,
@@ -15,7 +15,12 @@ import {
 export const BOOKING_CONFIRMATION_EMAIL_DISCLAIMER =
   'Trips is your confirmation. If an email arrives, keep it for your records — Traverion does not treat email delivery as booking proof.';
 
-export type BookingConfirmationPhase = 'cancelled' | 'confirmed' | 'confirming' | 'received';
+export type BookingConfirmationPhase =
+  | 'cancelled'
+  | 'confirmed'
+  | 'confirming'
+  | 'needs_pay'
+  | 'received';
 
 /** Post-checkout screen phase — cancelled must never read as Booking confirmed. */
 export function bookingConfirmationPhase(b: MoneyBookingRow): BookingConfirmationPhase {
@@ -23,8 +28,15 @@ export function bookingConfirmationPhase(b: MoneyBookingRow): BookingConfirmatio
   if (isPaidPaymentStatus(b.payment_status)) return 'confirmed';
   const pay = normalizePaymentStatus(b.payment_status);
   if (pay === 'pending' || pay === '') return 'confirming';
+  // Failed/expired Checkout that Trips can still Pay now — not “still processing”.
+  if (travelerBookingNeedsPayNow(b)) return 'needs_pay';
   return 'received';
 }
+
+export const BOOKING_CONFIRMATION_NEEDS_PAY_TITLE = 'Payment not completed';
+
+export const BOOKING_CONFIRMATION_NEEDS_PAY_BODY =
+  'Checkout expired or did not finish. You were not charged for a completed booking. Use Pay now to open a new Stripe checkout, or manage the hold from Trips.';
 
 export function bookingConfirmationCancelledBody(b: MoneyBookingRow): string {
   const pay = travelerPaymentLabel(b);
