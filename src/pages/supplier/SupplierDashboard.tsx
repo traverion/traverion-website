@@ -457,10 +457,19 @@ export default function SupplierDashboard({ onNavigateToBookings: _onNavigateToB
                   <button
                     type="button"
                     onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings?booking=${b.id}`)}
-                    className="lux-flat flex w-full items-baseline justify-between gap-3 rounded-2xl bg-paper-raised px-4 py-3.5 text-left shadow-soft ring-1 ring-black/[0.05] hover:ring-finland/20"
+                    className="lux-flat flex w-full flex-col gap-1 rounded-2xl bg-paper-raised px-4 py-3.5 text-left shadow-soft ring-1 ring-black/[0.05] hover:ring-finland/20 sm:flex-row sm:items-baseline sm:justify-between"
                   >
-                    <span className="font-semibold text-ink truncate">
-                      {b.guest_name?.trim() || listingTitlesById[b.listing_id] || 'New booking'}
+                    <span className="min-w-0">
+                      <span className="font-semibold text-ink block truncate">
+                        {b.guest_name?.trim() || listingTitlesById[b.listing_id] || 'New booking'}
+                      </span>
+                      <span className="text-xs text-ink-muted mt-0.5 block">
+                        {listingTitlesById[b.listing_id] && b.guest_name?.trim()
+                          ? listingTitlesById[b.listing_id]
+                          : null}
+                        {listingTitlesById[b.listing_id] && b.guest_name?.trim() ? ' · ' : null}
+                        {formatBookingParticipantsLabel(b)}
+                      </span>
                     </span>
                     {money ? <span className="text-sm tabular-nums text-ink-muted shrink-0">{money}</span> : null}
                   </button>
