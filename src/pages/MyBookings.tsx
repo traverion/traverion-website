@@ -39,7 +39,7 @@ import { listingPickupCopyIncomplete } from '../lib/pickup-completeness';
 import { decrementAvailabilityBooked } from '../data/supabase-availability';
 import { clearBookingsUnread } from '../lib/customerBookingNotifications';
 import { guestFacingBookingNotes } from '../lib/booking-notes';
-import { bookingIsCancelledTrip, bookingMatchesTripView, travelerTripIsLive, travelerBookingNeedsPayNow, sortTravelerCancelledTrips } from '../lib/trip-views';
+import { bookingIsCancelledTrip, bookingMatchesTripView, travelerTripIsLive, travelerBookingNeedsPayNow, travelerTripReferenceLabel, sortTravelerCancelledTrips } from '../lib/trip-views';
 import {
   BOOKING_CONFIRMATION_EMAIL_DISCLAIMER,
   BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE,
@@ -624,12 +624,25 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                     </span>
                   </div>
                   <p className="mt-1 text-sm text-ink-muted">
-                    {b.guests} {b.guests === 1 ? 'guest' : 'guests'}
-                    {b.nights ? ` · ${b.nights === 1 ? '1 night' : `${b.nights} nights`}` : ''}
-                    {b.amount_paid != null && Number(b.amount_paid) > 0 && bookingPaymentWasCollected(b.payment_status)
-                      ? ` · ${formatMoney(Number(b.amount_paid), b.currency)}${isStripeTestCheckoutSession(b.checkout_session_id) ? ' TEST' : ''}`
-                      : ''}
-                    {pickupMissing ? ' · Pickup still needed' : ''}
+                    {(() => {
+                      const ref = travelerTripReferenceLabel(b.booking_number);
+                      return (
+                        <>
+                          {ref ? (
+                            <span className="font-mono text-finland font-semibold tracking-wide">{ref}</span>
+                          ) : null}
+                          {ref ? ' · ' : ''}
+                          {b.guests} {b.guests === 1 ? 'guest' : 'guests'}
+                          {b.nights ? ` · ${b.nights === 1 ? '1 night' : `${b.nights} nights`}` : ''}
+                          {b.amount_paid != null &&
+                          Number(b.amount_paid) > 0 &&
+                          bookingPaymentWasCollected(b.payment_status)
+                            ? ` · ${formatMoney(Number(b.amount_paid), b.currency)}${isStripeTestCheckoutSession(b.checkout_session_id) ? ' TEST' : ''}`
+                            : ''}
+                          {pickupMissing ? ' · Pickup still needed' : ''}
+                        </>
+                      );
+                    })()}
                   </p>
                 </button>
                 {travelerBookingNeedsPayNow(b) && !open ? (
@@ -666,9 +679,6 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                 ) : null}
                 {open ? (
                 <div className="mt-4 space-y-3 motion-safe:animate-fade-in">
-                  {typeof b.booking_number === 'number' && b.booking_number > 0 ? (
-                    <p className="text-sm text-ink-muted">Reference #{b.booking_number}</p>
-                  ) : null}
                   {b.pickup_time ? (
                     <p className="text-sm text-ink-muted">Pickup {pgTimeToHm(b.pickup_time)}</p>
                   ) : pickupMissing ? (

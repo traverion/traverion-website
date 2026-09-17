@@ -2,6 +2,14 @@ import { normalizePaymentStatus, isRefundDueBooking } from './payment-states';
 import { bookingOccupiesInventory } from './booking-hold';
 import { checkoutPaymentStatusCanResume } from './checkout-resume';
 
+/** Collapsed Trips row — booking reference for support/receipt matching without expand. */
+export function travelerTripReferenceLabel(bookingNumber: number | null | undefined): string | null {
+  if (typeof bookingNumber !== 'number' || !Number.isFinite(bookingNumber) || bookingNumber <= 0) {
+    return null;
+  }
+  return `Ref #${Math.floor(bookingNumber)}`;
+}
+
 export type TripListView = 'upcoming' | 'past' | 'cancelled';
 
 export function bookingIsCancelledTrip(b: {

@@ -9,6 +9,7 @@ import {
   partnerBookingIsUpcomingSchedule,
   travelerTripIsLive,
   travelerBookingNeedsPayNow,
+  travelerTripReferenceLabel,
   partnerBookingIsUnpaidCheckout,
   partnerBookingShowsCancelAction,
   sortTravelerCancelledTrips,
@@ -35,6 +36,9 @@ describe('trip list views', () => {
     expect(travelerBookingNeedsPayNow({ status: 'pending', payment_status: 'pending' })).toBe(true);
     expect(travelerBookingNeedsPayNow({ status: 'confirmed', payment_status: 'paid' })).toBe(false);
     expect(travelerBookingNeedsPayNow({ status: 'pending', payment_status: 'failed' })).toBe(true);
+    expect(travelerTripReferenceLabel(42)).toBe('Ref #42');
+    expect(travelerTripReferenceLabel(0)).toBe(null);
+    expect(travelerTripReferenceLabel(null)).toBe(null);
   });
 
   it('keeps confirmed paid future trips in Upcoming', () => {
