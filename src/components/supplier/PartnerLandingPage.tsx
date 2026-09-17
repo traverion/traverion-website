@@ -116,7 +116,7 @@ export default function PartnerLandingPage() {
           </div>
         </section>
 
-        <section className="border-y border-black/[0.06] bg-black/[0.02]">
+        <section className="border-y border-black/[0.06] bg-finland/[0.04]">
           <div className="max-w-5xl mx-auto px-5 sm:px-8 py-16 sm:py-20 grid gap-3 md:grid-cols-2">
             <div className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]">
               <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-finland/10 text-finland">
