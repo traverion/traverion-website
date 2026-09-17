@@ -668,9 +668,12 @@ export default function SupplierListings() {
       ) : null}
 
       {!canEditListings && (
-        <div className="p-4 rounded-2xl bg-black/[0.03] text-ink text-sm">
-          <p className="font-medium text-ink">View-only access</p>
-          <p className="mt-1 text-ink-muted">
+        <div className="rounded-2xl bg-amber-50/90 p-4 sm:p-5 text-ink text-sm shadow-soft ring-1 ring-amber-200/70">
+          <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-amber-100/80 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-amber-900 ring-1 ring-amber-200/80">
+            Permissions
+          </div>
+          <p className="font-semibold text-ink">View-only access</p>
+          <p className="mt-1 text-ink-muted leading-relaxed">
             You can browse listings on this page. Creating, editing, or publishing requires an owner, manager, or ops role.
           </p>
         </div>
