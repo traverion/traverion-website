@@ -530,7 +530,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
           />
         ) : (
           <div className="space-y-6">
-            <div className="flex gap-1 rounded-full bg-black/[0.04] p-1 w-fit">
+            <div className="flex gap-1 rounded-full bg-paper-raised p-1 w-fit shadow-soft ring-1 ring-black/[0.06]">
               {([
                 ['upcoming', 'Upcoming'],
                 ['past', 'Past'],
@@ -541,7 +541,13 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                   type="button"
                   onClick={() => setTripView(id)}
                   className={`lux-flat rounded-full px-3.5 py-1.5 text-sm font-medium transition-[background-color,color,box-shadow] duration-150 ${
-                    tripView === id ? 'bg-paper-raised text-ink shadow-sm' : 'text-ink-muted hover:text-ink'
+                    tripView === id
+                      ? id === 'cancelled'
+                        ? 'bg-rose-600 text-white shadow-sm ring-1 ring-rose-700/20'
+                        : id === 'past'
+                          ? 'bg-ink text-paper-raised shadow-sm'
+                          : 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
+                      : 'text-ink-muted hover:bg-finland/10 hover:text-finland'
                   }`}
                 >
                   {label}
