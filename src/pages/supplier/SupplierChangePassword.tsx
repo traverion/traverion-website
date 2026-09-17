@@ -3,6 +3,7 @@ import { ArrowLeft } from 'lucide-react';
 import { SUPPLIER_PAGE_CLASS, SupplierPageHero } from '../../components/supplier/supplierUi';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { userFacingError } from '../../lib/userFacingError';
+import NoticeCallout from '../../components/NoticeCallout';
 
 type Props = {
   onBack: () => void;
@@ -103,24 +104,24 @@ export default function SupplierChangePassword({ onBack, userEmail, isSupabase, 
         description="Enter your current password, then your new password twice. Your session stays active after a successful change."
       />
 
-      <div className="max-w-xl space-y-5">
-        {!isSupabase && (
-          <p className="text-sm text-amber-900">
-            Supabase auth is not configured here, so passwords cannot be updated from this build.
-          </p>
-        )}
+      <div className="max-w-xl space-y-5 rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]">
+        {!isSupabase ? (
+          <NoticeCallout title="Password changes unavailable" tone="warn">
+            Sign-in is not connected in this build, so passwords cannot be updated here.
+          </NoticeCallout>
+        ) : null}
 
-        {success && (
-          <p className="text-sm text-emerald-800" role="status">
-            Your password was updated successfully.
-          </p>
-        )}
+        {success ? (
+          <NoticeCallout title="Password updated" tone="success">
+            Your password was updated successfully. Your session stays active.
+          </NoticeCallout>
+        ) : null}
 
-        {error && (
-          <p className="text-sm text-red-800" role="alert">
+        {error ? (
+          <NoticeCallout title="Could not update password" tone="danger">
             {error}
-          </p>
-        )}
+          </NoticeCallout>
+        ) : null}
 
         <div>
           <label className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5" htmlFor="supplier-current-password">
