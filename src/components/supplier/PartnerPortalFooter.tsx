@@ -22,13 +22,15 @@ export default function PartnerPortalFooter() {
       <div className="max-w-5xl mx-auto px-5 sm:px-8 py-12">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
           <div className="col-span-2 md:col-span-1">
-            <a href={landing} className="inline-flex items-center gap-2 mb-3" aria-label="Traverion Partner">
-              <img src={BRAND_LOGO_SRC} alt="" className="h-10 w-auto object-contain" />
-              <span className="font-sans text-sm font-semibold tracking-[0.18em]">TRAVERION</span>
-            </a>
-            <p className="text-sm text-ink-muted leading-relaxed">
-              The supplier product for tours and stays. Travelers book on traverion.com.
-            </p>
+            <div className="rounded-2xl bg-finland/8 p-4 ring-1 ring-finland/15 mb-1">
+              <a href={landing} className="inline-flex items-center gap-2 mb-3" aria-label="Traverion Partner">
+                <img src={BRAND_LOGO_SRC} alt="" className="h-10 w-auto object-contain" />
+                <span className="font-sans text-sm font-semibold tracking-[0.18em]">TRAVERION</span>
+              </a>
+              <p className="text-sm text-ink leading-relaxed m-0">
+                The supplier product for tours and stays. Travelers book on traverion.com.
+              </p>
+            </div>
           </div>
           <div>
             <h3 className="font-sans text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint mb-3">
