@@ -523,7 +523,7 @@ export default function SupplierBookings() {
                     ? id === 'today'
                       ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
                       : id === 'past'
-                        ? 'bg-ink text-paper-raised shadow-sm'
+                        ? 'bg-stone-700 text-white shadow-sm'
                         : 'bg-finland/90 text-white shadow-sm'
                     : 'text-ink-muted hover:bg-finland/10 hover:text-finland'
                 }`}
