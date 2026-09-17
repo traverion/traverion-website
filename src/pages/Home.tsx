@@ -160,12 +160,14 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
           <p className="page-hero-subtitle text-base sm:text-lg mb-8 max-w-xl font-normal">
             Live tours and stays from operators — not a brochure. Free cancellation up to 24 hours before.
           </p>
-          <div className="flex gap-1 rounded-full bg-white/15 p-1 mb-3 w-fit">
+          <div className="flex gap-1 rounded-full bg-white/15 p-1 mb-3 w-fit ring-1 ring-white/20 backdrop-blur-sm">
             <button
               type="button"
               onClick={() => setSearchFamily('tours')}
-              className={`lux-flat rounded-full px-4 py-1.5 text-sm font-medium ${
-                searchFamily === 'tours' ? 'bg-white text-ink' : 'text-white/80'
+              className={`lux-flat rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+                searchFamily === 'tours'
+                  ? 'bg-white text-ink shadow-sm'
+                  : 'text-white/80 hover:bg-white/10 hover:text-white'
               }`}
             >
               Tours
@@ -173,8 +175,10 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
             <button
               type="button"
               onClick={() => setSearchFamily('stays')}
-              className={`lux-flat rounded-full px-4 py-1.5 text-sm font-medium ${
-                searchFamily === 'stays' ? 'bg-white text-ink' : 'text-white/80'
+              className={`lux-flat rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+                searchFamily === 'stays'
+                  ? 'bg-white text-ink shadow-sm'
+                  : 'text-white/80 hover:bg-white/10 hover:text-white'
               }`}
             >
               Stays
