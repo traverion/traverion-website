@@ -3,7 +3,7 @@
  * RLS ensures only rows where guest_email = auth user email are returned.
  */
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { LogIn, RefreshCw, ArrowLeft, CalendarDays } from 'lucide-react';
+import { LogIn, RefreshCw, ArrowLeft, CalendarDays, MapPin, ChevronDown } from 'lucide-react';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
@@ -388,29 +388,34 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   return (
     <div className="min-h-screen bg-paper tv-page">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-12 pb-16">
-        <div className="flex flex-wrap items-end justify-between gap-4 mb-8">
-          <div>
-            <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Trips</h1>
-            <p className="mt-2 text-ink-muted">Tours and stays you have booked.</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => onNavigate('account')}
-              className="lux-flat inline-flex items-center gap-1.5 text-sm text-ink-muted hover:text-ink"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Account
-            </button>
-            <button
-              type="button"
-              onClick={load}
-              disabled={loading}
-              className="lux-flat inline-flex items-center gap-2 px-3 py-2 text-sm text-ink-muted hover:text-ink disabled:opacity-50"
-            >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-              Refresh
-            </button>
+        <div className="mb-8 rounded-3xl bg-finland/[0.04] p-5 sm:p-6 ring-1 ring-finland/10">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.16em] text-finland/70 mb-1">Your bookings</p>
+              <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Trips</h1>
+              <p className="mt-2 text-sm text-ink-muted max-w-md">
+                Upcoming, past, and cancelled tours and stays — with payment and pickup status at a glance.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => onNavigate('account')}
+                className="lux-flat inline-flex items-center gap-1.5 text-sm text-ink-muted hover:text-ink"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Account
+              </button>
+              <button
+                type="button"
+                onClick={load}
+                disabled={loading}
+                className="lux-flat inline-flex items-center gap-2 px-3 py-2 text-sm text-ink-muted hover:text-ink disabled:opacity-50"
+              >
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                Refresh
+              </button>
+            </div>
           </div>
         </div>
 
@@ -495,7 +500,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
         )}
 
         {loading ? (
-          <div className="space-y-2 divide-y divide-black/[0.04]" aria-busy="true" aria-label="Loading your trips">
+          <div className="space-y-3" aria-busy="true" aria-label="Loading your trips">
             <SkeletonListItem />
             <SkeletonListItem />
             <SkeletonListItem />
@@ -565,7 +570,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                 Open a trip below for the details.
               </NoticeCallout>
             ) : null}
-          <div className="divide-y divide-black/[0.06]">
+          <div className="space-y-3">
             {visibleBookings.map((b) => {
               const open = openTripId === b.id;
               const lifecycle = bookingLifecycleLabel(b.status, b.payment_status);
@@ -582,8 +587,38 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                 !isStay &&
                 listingPickupCopyIncomplete(ops?.meeting_point, ops?.pickup_instructions) &&
                 !b.pickup_time;
+              const thumb = ops?.image ?? null;
+              const placeLine = (ops?.city || ops?.destination || '').trim() || null;
+              const dateLine = (() => {
+                const out =
+                  b.check_out && /^\d{4}-\d{2}-\d{2}$/.test(b.check_out)
+                    ? b.check_out
+                    : parseStayCheckOutFromNotes(b.special_requests);
+                if (out && b.booking_date) {
+                  return `${new Date(`${b.booking_date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })} → ${new Date(`${out}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}`;
+                }
+                return b.booking_date
+                  ? new Date(`${b.booking_date}T12:00:00`).toLocaleDateString(undefined, {
+                      weekday: 'short',
+                      day: 'numeric',
+                      month: 'short',
+                    })
+                  : 'Date TBC';
+              })();
+              const timeBit = b.start_time && !b.check_out ? pgTimeToHm(b.start_time) : null;
+              const ref = travelerTripReferenceLabel(b.booking_number);
+              const needsPay = travelerBookingNeedsPayNow(b);
               return (
-              <article key={b.id} className="py-5">
+              <article
+                key={b.id}
+                className={`rounded-2xl bg-paper-raised shadow-soft ring-1 transition-[box-shadow,ring-color] ${
+                  open
+                    ? 'ring-finland/25 shadow-soft-lg'
+                    : openCancel
+                      ? 'ring-amber-300/80'
+                      : 'ring-black/[0.06]'
+                }`}
+              >
                 <button
                   type="button"
                   onClick={() => {
@@ -594,91 +629,116 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                     else url.searchParams.delete('booking');
                     window.history.replaceState({}, '', `${url.pathname}${url.search}`);
                   }}
-                  className="lux-flat w-full text-left"
+                  className="lux-flat flex w-full items-start gap-3.5 p-3.5 sm:gap-4 sm:p-4 text-left"
                 >
-                  <p className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">
-                    {(() => {
-                      const out =
-                        b.check_out && /^\d{4}-\d{2}-\d{2}$/.test(b.check_out)
-                          ? b.check_out
-                          : parseStayCheckOutFromNotes(b.special_requests);
-                      if (out && b.booking_date) {
-                        return `${new Date(`${b.booking_date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })} → ${new Date(`${out}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}`;
-                      }
-                      return b.booking_date
-                        ? new Date(`${b.booking_date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })
-                        : 'Date TBC';
-                    })()}
-                    {b.start_time && !b.check_out ? ` · ${pgTimeToHm(b.start_time) ?? ''}` : ''}
-                  </p>
-                  <div className="mt-1 flex items-baseline justify-between gap-3">
-                    <h3 className="font-semibold text-ink truncate">
-                      {titles[b.listing_id] ?? (isStay ? 'Stay' : 'Tour')}
-                    </h3>
-                    <span className="flex flex-wrap justify-end gap-1.5 shrink-0">
+                  {thumb ? (
+                    <img
+                      src={thumb}
+                      alt=""
+                      className="h-20 w-20 sm:h-24 sm:w-24 rounded-xl object-cover shrink-0 bg-black/[0.04]"
+                      width={96}
+                      height={96}
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  ) : (
+                    <div
+                      className="flex h-20 w-20 sm:h-24 sm:w-24 shrink-0 items-center justify-center rounded-xl bg-finland/[0.06] ring-1 ring-finland/10"
+                      aria-hidden
+                    >
+                      <CalendarDays className="h-7 w-7 text-finland/50" />
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">
+                          {dateLine}
+                          {timeBit ? ` · ${timeBit}` : ''}
+                        </p>
+                        <h3 className="mt-0.5 font-semibold text-ink line-clamp-2 leading-snug">
+                          {titles[b.listing_id] ?? (isStay ? 'Stay' : 'Tour')}
+                        </h3>
+                      </div>
+                      <ChevronDown
+                        className={`mt-1 h-4 w-4 shrink-0 text-ink-faint transition-transform ${open ? 'rotate-180' : ''}`}
+                        aria-hidden
+                      />
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
                       {openCancel ? <StatusChip tone="warn">Host cancellation</StatusChip> : null}
                       <StatusChip tone={toneForPaymentLabel(lifecycle)}>{lifecycle}</StatusChip>
                       {payLabel !== lifecycle ? (
                         <StatusChip tone={toneForPaymentLabel(payLabel)}>{payLabel}</StatusChip>
                       ) : null}
-                    </span>
+                      {pickupMissing ? <StatusChip tone="warn">Pickup needed</StatusChip> : null}
+                    </div>
+                    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-muted">
+                      {placeLine ? (
+                        <span className="inline-flex min-w-0 items-center gap-1">
+                          <MapPin className="h-3.5 w-3.5 shrink-0 text-ink-faint" aria-hidden />
+                          <span className="truncate">{placeLine}</span>
+                        </span>
+                      ) : null}
+                      <span>
+                        {b.guests} {b.guests === 1 ? 'guest' : 'guests'}
+                        {b.nights ? ` · ${b.nights === 1 ? '1 night' : `${b.nights} nights`}` : ''}
+                      </span>
+                    </div>
+                    <p className="mt-1.5 text-sm text-ink-muted">
+                      {ref ? (
+                        <span className="font-mono text-finland font-semibold tracking-wide">{ref}</span>
+                      ) : null}
+                      {ref &&
+                      b.amount_paid != null &&
+                      Number(b.amount_paid) > 0 &&
+                      bookingPaymentWasCollected(b.payment_status)
+                        ? ' · '
+                        : ''}
+                      {b.amount_paid != null &&
+                      Number(b.amount_paid) > 0 &&
+                      bookingPaymentWasCollected(b.payment_status)
+                        ? `${formatMoney(Number(b.amount_paid), b.currency)}${isStripeTestCheckoutSession(b.checkout_session_id) ? ' TEST' : ''}`
+                        : null}
+                    </p>
                   </div>
-                  <p className="mt-1 text-sm text-ink-muted">
-                    {(() => {
-                      const ref = travelerTripReferenceLabel(b.booking_number);
-                      return (
-                        <>
-                          {ref ? (
-                            <span className="font-mono text-finland font-semibold tracking-wide">{ref}</span>
-                          ) : null}
-                          {ref ? ' · ' : ''}
-                          {b.guests} {b.guests === 1 ? 'guest' : 'guests'}
-                          {b.nights ? ` · ${b.nights === 1 ? '1 night' : `${b.nights} nights`}` : ''}
-                          {b.amount_paid != null &&
-                          Number(b.amount_paid) > 0 &&
-                          bookingPaymentWasCollected(b.payment_status)
-                            ? ` · ${formatMoney(Number(b.amount_paid), b.currency)}${isStripeTestCheckoutSession(b.checkout_session_id) ? ' TEST' : ''}`
-                            : ''}
-                          {pickupMissing ? ' · Pickup still needed' : ''}
-                        </>
-                      );
-                    })()}
-                  </p>
                 </button>
-                {travelerBookingNeedsPayNow(b) && !open ? (
-                  <div className="mt-3">
-                    <button
-                      type="button"
-                      onClick={() => void handlePayNow(b)}
-                      disabled={payingId === b.id}
-                      className="tv-btn-primary"
-                    >
-                      {payingId === b.id ? 'Opening checkout…' : 'Pay now'}
-                    </button>
-                  </div>
-                ) : null}
-                {openCancel && !open ? (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      className="tv-btn-primary bg-red-700 hover:bg-red-800"
-                      disabled={respondingId === openCancel.id}
-                      onClick={() => void handleRespondCancellation(b, openCancel, true)}
-                    >
-                      {respondingId === openCancel.id ? 'Saving…' : 'Accept cancellation'}
-                    </button>
-                    <button
-                      type="button"
-                      className="tv-btn-secondary"
-                      disabled={respondingId === openCancel.id}
-                      onClick={() => void handleRespondCancellation(b, openCancel, false)}
-                    >
-                      Decline
-                    </button>
+                {(needsPay && !open) || (openCancel && !open) ? (
+                  <div className="flex flex-wrap gap-2 border-t border-black/[0.05] px-3.5 py-3 sm:px-4">
+                    {needsPay && !open ? (
+                      <button
+                        type="button"
+                        onClick={() => void handlePayNow(b)}
+                        disabled={payingId === b.id}
+                        className="tv-btn-primary"
+                      >
+                        {payingId === b.id ? 'Opening checkout…' : 'Pay now'}
+                      </button>
+                    ) : null}
+                    {openCancel && !open ? (
+                      <>
+                        <button
+                          type="button"
+                          className="tv-btn-primary bg-red-700 hover:bg-red-800"
+                          disabled={respondingId === openCancel.id}
+                          onClick={() => void handleRespondCancellation(b, openCancel, true)}
+                        >
+                          {respondingId === openCancel.id ? 'Saving…' : 'Accept cancellation'}
+                        </button>
+                        <button
+                          type="button"
+                          className="tv-btn-secondary"
+                          disabled={respondingId === openCancel.id}
+                          onClick={() => void handleRespondCancellation(b, openCancel, false)}
+                        >
+                          Decline
+                        </button>
+                      </>
+                    ) : null}
                   </div>
                 ) : null}
                 {open ? (
-                <div className="mt-4 space-y-3 motion-safe:animate-fade-in">
+                <div className="space-y-3 border-t border-black/[0.05] px-3.5 py-4 sm:px-4 motion-safe:animate-fade-in">
                   {b.pickup_time ? (
                     <p className="text-sm text-ink-muted">Pickup {pgTimeToHm(b.pickup_time)}</p>
                   ) : pickupMissing ? (

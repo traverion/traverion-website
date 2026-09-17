@@ -341,13 +341,16 @@ export type ListingOpsMeta = {
   supplier_id: string | null;
   meeting_point: string | null;
   pickup_instructions: string | null;
+  image: string | null;
+  destination: string | null;
+  city: string | null;
 };
 
 export async function fetchListingOpsByIds(ids: string[]): Promise<Record<string, ListingOpsMeta>> {
   if (!supabase || ids.length === 0) return {};
   const { data, error } = await supabase
     .from('listings')
-    .select('id, title, supplier_id, meeting_point, pickup_instructions')
+    .select('id, title, supplier_id, meeting_point, pickup_instructions, image, destination, city')
     .in('id', ids);
   if (error) return {};
   const map: Record<string, ListingOpsMeta> = {};
@@ -357,6 +360,9 @@ export async function fetchListingOpsByIds(ids: string[]): Promise<Record<string
       supplier_id: r.supplier_id ?? null,
       meeting_point: r.meeting_point ?? null,
       pickup_instructions: r.pickup_instructions ?? null,
+      image: listingHeroImageSrc(r.image) ?? null,
+      destination: typeof r.destination === 'string' ? r.destination : null,
+      city: typeof r.city === 'string' ? r.city : null,
     };
   }
   return map;
