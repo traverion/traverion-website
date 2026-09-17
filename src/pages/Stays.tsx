@@ -9,6 +9,7 @@ import { PublicListingBrowseCard } from '../components/PublicListingBrowseCard';
 import { quoteStayNights } from '../lib/booking-quote';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
+import NoticeCallout from '../components/NoticeCallout';
 import { SkeletonCardGrid } from '../components/ui/Skeleton';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 import { supplierPortalLandingHref } from '../lib/partnerHost';
@@ -118,18 +119,25 @@ export default function Stays({ onStaySelect }: Props) {
   return (
     <div className="min-h-screen bg-paper tv-page">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-12 pb-16 motion-safe:animate-fade-in">
-        <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-3">Stays</p>
-        <h1 className="font-display text-4xl sm:text-5xl text-ink tracking-tight mb-2">Places to stay</h1>
-        <p className="text-ink-muted max-w-xl mb-8 leading-relaxed">
-          Apartments and rooms from operators — not mixed into Tours. Dates are nights, not departures.
-          {dateFilterActive
-            ? ' Results hide stays whose nights are already booked for your dates.'
-            : ''}
-        </p>
-        {paymentBanner === 'cancelled' ? (
-          <p className="mb-8 max-w-xl rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-950 ring-1 ring-amber-200/70">
-            {STRIPE_CHECKOUT_CANCELLED_STAY_COPY}
+        <header className="mb-8 rounded-2xl bg-paper-raised p-5 sm:p-7 shadow-soft ring-1 ring-black/[0.06]">
+          <div className="inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15">
+            <Compass className="h-3.5 w-3.5" aria-hidden />
+            Stays
+          </div>
+          <h1 className="mt-3 font-display text-4xl sm:text-5xl text-ink tracking-tight">Places to stay</h1>
+          <p className="mt-3 text-ink-muted max-w-xl leading-relaxed">
+            Apartments and rooms from operators — not mixed into Tours. Dates are nights, not departures.
+            {dateFilterActive
+              ? ' Results hide stays whose nights are already booked for your dates.'
+              : ''}
           </p>
+        </header>
+        {paymentBanner === 'cancelled' ? (
+          <div className="mb-8 max-w-xl">
+            <NoticeCallout title="Checkout cancelled" tone="warn">
+              {STRIPE_CHECKOUT_CANCELLED_STAY_COPY}
+            </NoticeCallout>
+          </div>
         ) : null}
 
         <form
