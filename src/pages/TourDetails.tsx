@@ -648,11 +648,11 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                     const currency = normalizeCurrency(tour.price?.currency);
                     const unit = qualifier ? `per ${qualifier}` : 'per person';
                     return (
-                      <span className="inline-flex items-center rounded-full bg-ink px-2.5 py-1 text-paper-raised font-semibold tabular-nums">
+                      <span className="inline-flex items-center rounded-full bg-finland px-2.5 py-1 text-white font-semibold tabular-nums shadow-sm ring-1 ring-finland/30">
                         From {formatMoney(Number(price), currency)}
-                        <span className="ml-1 font-medium text-paper-raised/80"> {unit}</span>
+                        <span className="ml-1 font-medium text-white/80"> {unit}</span>
                         {summary ? (
-                          <span className="ml-2 font-medium text-paper-raised/80">{summary}</span>
+                          <span className="ml-2 font-medium text-white/80">{summary}</span>
                         ) : null}
                       </span>
                     );
