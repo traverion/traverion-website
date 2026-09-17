@@ -924,36 +924,69 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
         {cancelConfirm && (
           <div ref={cancelSheetRef} className="tv-sheet-overlay z-50">
             <button type="button" tabIndex={-1} className="absolute inset-0" aria-label="Close" onClick={closeCancelConfirm} />
-            <div className="tv-sheet-panel relative motion-safe:animate-slide-up" role="dialog" aria-modal="true" aria-labelledby="cancel-trip-title">
-              <h3 id="cancel-trip-title" className="font-display text-2xl text-ink">
+            <div className="tv-sheet-panel relative max-w-lg motion-safe:animate-slide-up" role="dialog" aria-modal="true" aria-labelledby="cancel-trip-title">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland">Cancellation</p>
+              <h3 id="cancel-trip-title" className="mt-2 font-display text-2xl sm:text-3xl text-ink tracking-tight">
                 {travelerSelfCancelIsUnpaidCheckout(cancelConfirm)
                   ? 'Cancel this checkout?'
                   : 'Cancel this booking?'}
               </h3>
-              <p className="mt-2 text-sm text-ink-muted">
-                {titles[cancelConfirm.listing_id] ?? 'Tour'} · {cancelConfirm.booking_date ? new Date(cancelConfirm.booking_date).toLocaleDateString() : 'Date TBC'}
-              </p>
-              <p className="mt-3 text-sm text-ink-muted">
-                {travelerSelfCancelIsUnpaidCheckout(cancelConfirm)
-                  ? TRAVELER_CANCEL_UNPAID_CHECKOUT_POLICY
-                  : getRefundChoiceForCancel(cancelConfirm) === 'full_refund'
-                  ? `You are more than 24 hours before the scheduled ${
-                      cancelConfirm.check_out || parseStayCheckOutFromNotes(cancelConfirm.special_requests)
-                        ? 'check-in'
-                        : 'start'
-                    }. ${TRAVELER_SELF_CANCEL_FULL_REFUND_POLICY}`
-                  : `This ${
-                      cancelConfirm.check_out || parseStayCheckOutFromNotes(cancelConfirm.special_requests)
-                        ? 'check-in is'
-                        : 'start is'
-                    } within 24 hours. No refund applies for a traveler-initiated cancellation.`}
-              </p>
-              <p className="mt-2 text-xs text-ink-muted leading-relaxed">{TRAVELER_SELF_CANCEL_DELIVERY_NOTE}</p>
-              <div className="mt-6 flex flex-wrap gap-2">
+              <div className="mt-4 rounded-2xl bg-paper px-4 py-3.5 ring-1 ring-black/[0.05]">
+                <p className="font-semibold text-ink leading-snug">
+                  {titles[cancelConfirm.listing_id] ?? 'Experience'}
+                </p>
+                <p className="mt-1 text-sm text-ink-muted">
+                  {cancelConfirm.booking_date
+                    ? new Date(`${cancelConfirm.booking_date}T12:00:00`).toLocaleDateString(undefined, {
+                        weekday: 'short',
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                      })
+                    : 'Date TBC'}
+                  {typeof cancelConfirm.booking_number === 'number' && cancelConfirm.booking_number > 0
+                    ? ` · #${cancelConfirm.booking_number}`
+                    : ''}
+                </p>
+              </div>
+              {travelerSelfCancelIsUnpaidCheckout(cancelConfirm) ? (
+                <div className="mt-4 rounded-2xl bg-finland/[0.06] px-4 py-3.5 ring-1 ring-finland/15">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-finland">No payment taken</p>
+                  <p className="mt-1.5 text-sm text-ink leading-relaxed">{TRAVELER_CANCEL_UNPAID_CHECKOUT_POLICY}</p>
+                </div>
+              ) : getRefundChoiceForCancel(cancelConfirm) === 'full_refund' ? (
+                <div className="mt-4 rounded-2xl bg-emerald-50 px-4 py-3.5 ring-1 ring-emerald-200/80">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-emerald-800">
+                    Eligible for refund
+                  </p>
+                  <p className="mt-1.5 text-sm text-ink leading-relaxed">
+                    More than 24 hours before scheduled{' '}
+                    {cancelConfirm.check_out || parseStayCheckOutFromNotes(cancelConfirm.special_requests)
+                      ? 'check-in'
+                      : 'start'}
+                    . {TRAVELER_SELF_CANCEL_FULL_REFUND_POLICY}
+                  </p>
+                </div>
+              ) : (
+                <div className="mt-4 rounded-2xl bg-amber-50 px-4 py-3.5 ring-1 ring-amber-200/80">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-amber-900">
+                    No refund
+                  </p>
+                  <p className="mt-1.5 text-sm text-ink leading-relaxed">
+                    This{' '}
+                    {cancelConfirm.check_out || parseStayCheckOutFromNotes(cancelConfirm.special_requests)
+                      ? 'check-in is'
+                      : 'start is'}{' '}
+                    within 24 hours. No refund applies for a traveler-initiated cancellation.
+                  </p>
+                </div>
+              )}
+              <p className="mt-3 text-xs text-ink-muted leading-relaxed">{TRAVELER_SELF_CANCEL_DELIVERY_NOTE}</p>
+              <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap">
                 <button
                   type="button"
                   onClick={closeCancelConfirm}
-                  className="tv-btn-secondary"
+                  className="tv-btn-secondary w-full sm:w-auto"
                 >
                   {travelerSelfCancelIsUnpaidCheckout(cancelConfirm) ? 'Keep checkout' : 'Keep booking'}
                 </button>
@@ -961,7 +994,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                   type="button"
                   onClick={() => handleCancelBooking(cancelConfirm)}
                   disabled={cancellingId !== null}
-                  className="tv-btn-primary bg-red-700 hover:bg-red-800"
+                  className="tv-btn-primary w-full sm:w-auto bg-red-700 hover:bg-red-800"
                 >
                   {cancellingId === cancelConfirm.id ? 'Cancelling…' : 'Yes, cancel'}
                 </button>
