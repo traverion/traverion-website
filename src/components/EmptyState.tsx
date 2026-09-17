@@ -11,14 +11,14 @@ type EmptyStateProps = {
 
 /**
  * Intentional empty: what happened, that this can be normal, and one next step.
- * No bordered empty cards.
+ * Prefer wrapping pages to add raised surfaces; keep this primitive borderless.
  */
 export default function EmptyState({ icon: Icon, title, body, action, className = '' }: EmptyStateProps) {
   return (
     <div className={`py-10 sm:py-16 max-w-md motion-safe:animate-fade-in-up ${className}`}>
       {Icon ? (
         <div
-          className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-black/[0.04] text-ink-muted"
+          className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-finland/10 text-finland ring-1 ring-finland/15"
           aria-hidden
         >
           <Icon className="w-5 h-5" />

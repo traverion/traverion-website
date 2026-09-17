@@ -238,7 +238,9 @@ export default function AuthModal() {
           <div className="flex items-start gap-3 min-w-0">
             <img src={BRAND_LOGO_SRC} alt="" className="h-10 w-10 object-contain flex-shrink-0 mt-0.5" />
             <div className="min-w-0">
-              <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint">Traveler account</p>
+              <div className="inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15 mb-2">
+                Traveler account
+              </div>
               <h2 id="auth-modal-title" className="font-display text-2xl tracking-tight text-ink truncate">
                 {modalTitle}
               </h2>
