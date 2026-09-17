@@ -246,7 +246,7 @@ export default function Stays({ onStaySelect }: Props) {
                 setCheckOut('');
                 setGuests('');
               }}
-              className="lux-flat rounded-full bg-ink px-3 py-1.5 text-xs font-semibold text-paper-raised"
+              className="lux-flat rounded-full bg-finland px-3 py-1.5 text-xs font-semibold text-white shadow-sm ring-1 ring-finland/30"
             >
               Clear all
             </button>
