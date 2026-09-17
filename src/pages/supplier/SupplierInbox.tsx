@@ -124,8 +124,19 @@ export default function SupplierInbox() {
             const payLabel = partnerPaymentLabel(b);
             const showMoneyChip =
               payLabel === 'Refund due' || payLabel === 'Refunded' || payLabel === 'No refund';
+            const isClosed =
+              messagingComposeBlock({
+                status: b.status,
+                payment_status: b.payment_status,
+                openCancellation: openCancelIds.has(b.id),
+              }) === 'closed';
             return (
-              <li key={b.id} className="border-b border-black/[0.06] pb-4">
+              <li
+                key={b.id}
+                className={`rounded-2xl bg-paper-raised p-4 sm:p-5 shadow-soft ring-1 ring-black/[0.06] ${
+                  open ? 'ring-finland/25 shadow-soft-lg' : ''
+                } ${unread ? 'ring-amber-200/80' : ''}`}
+              >
                 <button
                   type="button"
                   className="lux-flat w-full text-left"
@@ -146,13 +157,7 @@ export default function SupplierInbox() {
                       {showMoneyChip ? (
                         <StatusChip tone={toneForPaymentLabel(payLabel)}>{payLabel}</StatusChip>
                       ) : null}
-                      {messagingComposeBlock({
-                        status: b.status,
-                        payment_status: b.payment_status,
-                        openCancellation: openCancelIds.has(b.id),
-                      }) === 'closed' ? (
-                        <StatusChip tone="neutral">Closed</StatusChip>
-                      ) : null}
+                      {isClosed ? <StatusChip tone="neutral">Closed</StatusChip> : null}
                       {typeof b.booking_number === 'number' ? (
                         <span className="text-xs text-ink-muted">#{b.booking_number}</span>
                       ) : null}
