@@ -405,9 +405,16 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
           {catalogLoading ? (
             <SkeletonCardGrid count={3} />
           ) : stayListings.length === 0 ? (
-            <p className="text-ink-muted max-w-xl leading-relaxed">
-              No stays are published yet. When an operator lists an apartment or room, it appears here — separate from Tours.
-            </p>
+            <EmptyState
+              icon={Compass}
+              title="No stays published yet"
+              body="Traverion does not fill this page with sample apartments. When an operator publishes a stay, it appears here — separate from Tours."
+              action={
+                <a href={supplierPortalLandingHref()} className="tv-btn-primary inline-flex">
+                  List a stay
+                </a>
+              }
+            />
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {stayListings.slice(0, 6).map((item, index) => (
