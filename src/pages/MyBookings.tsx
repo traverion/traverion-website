@@ -23,6 +23,7 @@ import { fetchListingOpsByIds, pgTimeToHm, type ListingOpsMeta } from '../data/s
 import { parseStayCheckOutFromNotes } from '../lib/stayOccupancy';
 import { formatMoney, isStripeTestCheckoutSession } from '../lib/money';
 import { travelerPaymentLabel, REFUND_DUE_MANUAL_COPY, bookingPaymentWasCollected, isRefundDueBooking } from '../lib/payment-states';
+import { formatBookingParticipantsLabel } from '../lib/participant-mix';
 import { bookingLifecycleLabel } from '../lib/status-language';
 import { travelerSelfCancelRefundChoice, supplierCancellationReasonLabel, travelerSelfCancelBlock, travelerSelfCancelError, travelerSelfCancelIsUnpaidCheckout } from '../lib/cancellation-policy';
 import {
@@ -710,7 +711,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         </span>
                       ) : null}
                       <span>
-                        {b.guests} {b.guests === 1 ? 'guest' : 'guests'}
+                        {formatBookingParticipantsLabel(b)}
                         {b.nights ? ` · ${b.nights === 1 ? '1 night' : `${b.nights} nights`}` : ''}
                       </span>
                     </div>

@@ -18,6 +18,7 @@ import { formatMoney } from '../../lib/money';
 import { isPaidPaymentStatus, partnerPaymentLabel, partnerCollectedAmountCaption, bookingPaymentWasCollected, isRefundDueBooking, REFUND_DUE_MANUAL_COPY } from '../../lib/payment-states';
 import { PARTNER_BOOKINGS_CSV_HEADER, partnerBookingCsvValues } from '../../lib/partner-bookings-csv';
 import { guestFacingBookingNotes } from '../../lib/booking-notes';
+import { formatBookingParticipantsLabel } from '../../lib/participant-mix';
 import {
   SUPPLIER_CANCELLATION_REASON_CODES,
   isForceMajeureReason,
@@ -757,7 +758,7 @@ export default function SupplierBookings() {
                         ) : null}
                         {dateLine}
                         {' · '}
-                        {booking.guests} guest{booking.guests === 1 ? '' : 's'}
+                        {formatBookingParticipantsLabel(booking)}
                         {paidLabel ? ` · ${paidLabel}` : ''}
                       </p>
                       {needsAck ? (
@@ -897,9 +898,9 @@ export default function SupplierBookings() {
                       <dd className="mt-0.5 text-ink">{formatActivityDateLong(booking.booking_date, startHm)}</dd>
                     </div>
                     <div>
-                      <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Party</dt>
+                      <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Participants</dt>
                       <dd className="mt-0.5 text-ink">
-                        {booking.guests} guest{booking.guests === 1 ? '' : 's'}
+                        {formatBookingParticipantsLabel(booking)}
                       </dd>
                     </div>
                     {pickupHm ? (

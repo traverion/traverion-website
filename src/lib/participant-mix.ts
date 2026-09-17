@@ -77,6 +77,26 @@ export function formatMixSummaryCompact(lines: ParticipantMixLine[]): string {
     .join(' · ');
 }
 
+/** Human label for a booking row: prefers guest_breakdown, then Participants: note, then guest count. */
+export function formatBookingParticipantsLabel(booking: {
+  guests?: number | null;
+  guest_breakdown?: { label?: string; quantity?: number }[] | null;
+  special_requests?: string | null;
+}): string {
+  const fromCol = (booking.guest_breakdown ?? [])
+    .filter((r) => r && typeof r.quantity === 'number' && r.quantity > 0 && r.label)
+    .map((r) => `${r.quantity} ${r.label}`);
+  if (fromCol.length > 0) return fromCol.join(' · ');
+  const notes = booking.special_requests ?? '';
+  for (const line of notes.split(/\n+/)) {
+    const m = line.trim().match(/^Participants:\s*(.+)$/i);
+    if (m?.[1]?.trim()) return m[1].trim();
+  }
+  const n = typeof booking.guests === 'number' ? booking.guests : 0;
+  if (n <= 0) return '—';
+  return `${n} ${n === 1 ? 'guest' : 'guests'}`;
+}
+
 export function emptyMixSelection(option: ListingBookingOption): ParticipantMixSelection {
   const sel: ParticipantMixSelection = {};
   for (const c of activePriceCategories(option)) {
