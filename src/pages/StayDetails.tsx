@@ -157,7 +157,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
 
   const startStayCheckout = () => {
     if (!stay || !stayQuote?.ok) {
-      document.getElementById('stay-checkin')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       return;
     }
     if (selectionOccupied) {
@@ -343,7 +343,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
             ) : null}
           </div>
 
-          <aside className="lg:sticky lg:top-24 h-fit rounded-2xl bg-paper-raised p-5 shadow-soft-lg">
+          <aside id="stay-booking-panel" className="lg:sticky lg:top-24 h-fit rounded-2xl bg-paper-raised p-5 shadow-soft-lg scroll-mt-24">
             {nightly > 0 ? (
               <PriceHero
                 amount={nightly}
