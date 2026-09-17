@@ -2430,23 +2430,26 @@ export default function SupplierListingForm({
                 />
               </label>
               {Number.parseFloat(form.stayNightly) > 0 ? (
-                <p className="text-sm text-ink leading-relaxed rounded-xl bg-black/[0.03] px-3 py-3">
-                  Example {Number.parseInt(form.stayMinNights, 10) > 1 ? `${form.stayMinNights}-night` : '1-night'} stay:{' '}
-                  {formatMoney(Number.parseFloat(form.stayNightly), listingCurrency)} ×{' '}
-                  {Math.max(1, Number.parseInt(form.stayMinNights, 10) || 1)} nights
-                  {Number.parseFloat(form.stayCleaningFee) > 0
-                    ? ` + ${formatMoney(Number.parseFloat(form.stayCleaningFee), listingCurrency)} cleaning`
-                    : ''}
-                  {' = '}
-                  <span className="font-semibold">
-                    {formatMoney(
-                      Number.parseFloat(form.stayNightly) * Math.max(1, Number.parseInt(form.stayMinNights, 10) || 1) +
-                        (Number.parseFloat(form.stayCleaningFee) > 0 ? Number.parseFloat(form.stayCleaningFee) : 0),
-                      listingCurrency
-                    )}
-                  </span>
-                  . Guests see this breakdown before they pay.
-                </p>
+                <div className="rounded-2xl bg-finland/[0.05] px-3.5 py-3.5 ring-1 ring-finland/15 space-y-1.5">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-finland">Traveler price preview</p>
+                  <p className="text-sm text-ink leading-relaxed">
+                    Example {Number.parseInt(form.stayMinNights, 10) > 1 ? `${form.stayMinNights}-night` : '1-night'} stay:{' '}
+                    {formatMoney(Number.parseFloat(form.stayNightly), listingCurrency)} ×{' '}
+                    {Math.max(1, Number.parseInt(form.stayMinNights, 10) || 1)} nights
+                    {Number.parseFloat(form.stayCleaningFee) > 0
+                      ? ` + ${formatMoney(Number.parseFloat(form.stayCleaningFee), listingCurrency)} cleaning`
+                      : ''}
+                    {' = '}
+                    <span className="font-semibold">
+                      {formatMoney(
+                        Number.parseFloat(form.stayNightly) * Math.max(1, Number.parseInt(form.stayMinNights, 10) || 1) +
+                          (Number.parseFloat(form.stayCleaningFee) > 0 ? Number.parseFloat(form.stayCleaningFee) : 0),
+                        listingCurrency
+                      )}
+                    </span>
+                    . Guests see this breakdown before they pay.
+                  </p>
+                </div>
               ) : null}
               <div id="supplier-listing-field-stay-amenities">
                 <p className="text-sm font-medium text-ink">Amenities</p>
