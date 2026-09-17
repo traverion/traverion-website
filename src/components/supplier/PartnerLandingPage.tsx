@@ -1,6 +1,7 @@
 /**
  * Partner marketing landing — distinct from /login and /signup.
  */
+import { CalendarDays, CreditCard, MapPin, Store } from 'lucide-react';
 import { BRAND_LOGO_SRC } from '../../lib/brandAssets';
 import { publicSiteBaseUrl } from '../../lib/publicSiteUrl';
 import { HERO_IMG } from '../../lib/heroImages';
@@ -9,6 +10,29 @@ import { supplierPortalLandingHref } from '../../lib/partnerHost';
 import { PARTNER_LANDING_LIST_NOTE, PARTNER_LANDING_GET_PAID_NOTE, PARTNER_LANDING_HOW_PUBLISH_NOTE } from '../../lib/booking-confirmation-copy';
 import PartnerPortalFooter from './PartnerPortalFooter';
 import SkipLink from '../SkipLink';
+
+const CAPABILITIES = [
+  {
+    eyebrow: 'List',
+    icon: Store,
+    body: PARTNER_LANDING_LIST_NOTE,
+  },
+  {
+    eyebrow: 'Operate',
+    icon: CalendarDays,
+    body: 'Today, calendar, and bookings show who is coming, what they bought, and whether they paid. Pickup sits next to the booking — not in a separate app.',
+  },
+  {
+    eyebrow: 'Sell',
+    icon: MapPin,
+    body: 'Travelers find you on Traverion. They compare dates, understand the product, and pay — you do not rebuild a shopfront.',
+  },
+  {
+    eyebrow: 'Get paid',
+    icon: CreditCard,
+    body: PARTNER_LANDING_GET_PAID_NOTE,
+  },
+] as const;
 
 export default function PartnerLandingPage() {
   const traveler = publicSiteBaseUrl();
@@ -65,32 +89,23 @@ export default function PartnerLandingPage() {
 
       <main id="main-content" className="flex-1">
         <section className="max-w-5xl mx-auto px-5 sm:px-8 py-16 sm:py-20">
-          <h2 className="font-display text-3xl sm:text-4xl tracking-tight mb-10">What Traverion does</h2>
-          <div className="space-y-10 max-w-2xl">
-            <div>
-              <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">List</p>
-              <p className="text-lg text-ink leading-relaxed">
-                {PARTNER_LANDING_LIST_NOTE}
-              </p>
-            </div>
-            <div>
-              <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">Operate</p>
-              <p className="text-lg text-ink leading-relaxed">
-                Today, calendar, and bookings show who is coming, what they bought, and whether they paid. Pickup sits next to the booking — not in a separate app.
-              </p>
-            </div>
-            <div>
-              <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">Sell</p>
-              <p className="text-lg text-ink leading-relaxed">
-                Travelers find you on Traverion. They compare dates, understand the product, and pay — you do not rebuild a shopfront.
-              </p>
-            </div>
-            <div>
-              <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">Get paid</p>
-              <p className="text-lg text-ink leading-relaxed">
-                {PARTNER_LANDING_GET_PAID_NOTE}
-              </p>
-            </div>
+          <h2 className="font-display text-3xl sm:text-4xl tracking-tight mb-3">What Traverion does</h2>
+          <p className="text-ink-muted max-w-xl mb-10 leading-relaxed">
+            One partner product for listing, day-of ops, marketplace sales, and payouts.
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {CAPABILITIES.map(({ eyebrow, icon: Icon, body }) => (
+              <div
+                key={eyebrow}
+                className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]"
+              >
+                <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-finland/10 text-finland">
+                  <Icon className="h-5 w-5" aria-hidden />
+                </div>
+                <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">{eyebrow}</p>
+                <p className="text-base text-ink leading-relaxed m-0">{body}</p>
+              </div>
+            ))}
           </div>
         </section>
 
