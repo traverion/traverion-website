@@ -411,21 +411,24 @@ export default function SupplierAuth({
           <div className="w-12 h-12 rounded-xl bg-finland/10 flex items-center justify-center">
             <Globe className="w-6 h-6" />
           </div>
-          <span className="font-semibold text-gray-900">Traverion for suppliers</span>
+          <span className="font-semibold text-ink">Traverion for suppliers</span>
         </div>
-        <h1 className="text-3xl sm:text-4xl xl:text-[2.5rem] font-bold text-gray-900 tracking-tight mb-4">
+        <h1 className="font-display text-3xl sm:text-4xl xl:text-[2.5rem] text-ink tracking-tight mb-4">
           List once. Reach travelers everywhere.
         </h1>
-        <p className="text-base sm:text-lg text-gray-600 mb-8 max-w-prose">
+        <p className="text-base sm:text-lg text-ink-muted mb-8 max-w-prose leading-relaxed">
           Add your tours to Traverion. Travelers find them, book them, and you run the day.
         </p>
-        <ul className="space-y-4">
+        <ul className="space-y-3">
           {BENEFITS.map(({ icon: Icon, text }) => (
-            <li key={text} className="flex items-start gap-3">
-              <div className="w-8 h-8 rounded-lg bg-finland/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+            <li
+              key={text}
+              className="flex items-start gap-3 rounded-2xl bg-paper-raised p-3.5 shadow-soft ring-1 ring-black/[0.06]"
+            >
+              <div className="w-9 h-9 rounded-xl bg-finland/10 flex items-center justify-center flex-shrink-0">
                 <Icon className="w-4 h-4 text-finland" />
               </div>
-              <span className="text-gray-700">{text}</span>
+              <span className="text-sm text-ink leading-relaxed pt-1.5">{text}</span>
             </li>
           ))}
         </ul>
