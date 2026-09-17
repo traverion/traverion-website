@@ -234,7 +234,8 @@ export default function AuthModal() {
         style={{ animationDelay: '40ms' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between gap-3 px-6 pt-6 pb-2">
+        <div className="border-b border-black/[0.06] bg-gradient-to-b from-finland/[0.07] to-paper-raised px-6 pt-6 pb-4">
+          <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-3 min-w-0">
             <img src={BRAND_LOGO_SRC} alt="" className="h-10 w-10 object-contain flex-shrink-0 mt-0.5" />
             <div className="min-w-0">
@@ -255,12 +256,13 @@ export default function AuthModal() {
           >
             <X className="w-5 h-5" />
           </button>
+          </div>
         </div>
 
-        <div className="px-6 pb-6 pt-3 space-y-4">
+        <div className="px-6 pb-6 pt-4 space-y-4">
           {!(tab === 'signin' && passwordResetPanel) ? (
             <>
-              <div className="flex gap-1 rounded-full bg-black/[0.04] p-1 w-full">
+              <div className="flex gap-1 rounded-full bg-paper p-1 w-full ring-1 ring-black/[0.06]">
                 <button
                   type="button"
                   onClick={() => {
@@ -269,8 +271,10 @@ export default function AuthModal() {
                     setSuccessMessage(null);
                     exitModalPasswordReset();
                   }}
-                  className={`lux-flat flex-1 rounded-full px-3.5 py-2 text-sm font-medium ${
-                    tab === 'signin' ? 'bg-paper-raised text-ink shadow-sm' : 'text-ink-muted'
+                  className={`lux-flat flex-1 rounded-full px-3.5 py-2 text-sm font-medium transition-colors ${
+                    tab === 'signin'
+                      ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
+                      : 'text-ink-muted hover:text-finland'
                   }`}
                 >
                   Log in
@@ -283,8 +287,10 @@ export default function AuthModal() {
                     setSuccessMessage(null);
                     exitModalPasswordReset();
                   }}
-                  className={`lux-flat flex-1 rounded-full px-3.5 py-2 text-sm font-medium ${
-                    tab === 'signup' ? 'bg-paper-raised text-ink shadow-sm' : 'text-ink-muted'
+                  className={`lux-flat flex-1 rounded-full px-3.5 py-2 text-sm font-medium transition-colors ${
+                    tab === 'signup'
+                      ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
+                      : 'text-ink-muted hover:text-finland'
                   }`}
                 >
                   Sign up
