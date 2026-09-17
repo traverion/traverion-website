@@ -353,7 +353,8 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                 Stays
               </button>
               {!isSupabaseConfigured() && (
-                <div className="px-4 py-3 rounded-lg bg-black/[0.03] ring-1 ring-black/[0.06] text-sm text-ink-muted">
+                <div className="mx-2 px-4 py-3 rounded-xl bg-finland/[0.06] ring-1 ring-finland/15 text-sm text-ink-muted">
+                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-finland">Accounts</p>
                   <p className="mb-2">Accounts need the live site configuration.</p>
                   <button
                     type="button"
