@@ -136,9 +136,13 @@ export default function SupplierInbox() {
             return (
               <li
                 key={b.id}
-                className={`rounded-2xl bg-paper-raised p-4 sm:p-5 shadow-soft ring-1 ring-black/[0.06] ${
-                  open ? 'ring-finland/25 shadow-soft-lg' : ''
-                } ${unread ? 'ring-amber-200/80' : ''}`}
+                className={`overflow-hidden rounded-2xl bg-paper-raised p-4 sm:p-5 shadow-soft ring-1 ring-black/[0.06] ${
+                  unread
+                    ? 'border-l-[3px] border-l-amber-500'
+                    : isClosed
+                      ? 'border-l-[3px] border-l-slate-400'
+                      : 'border-l-[3px] border-l-finland'
+                } ${open ? 'ring-finland/25 shadow-soft-lg' : ''} ${unread ? 'ring-amber-200/80' : ''}`}
               >
                 <button
                   type="button"
