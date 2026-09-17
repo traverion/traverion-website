@@ -372,7 +372,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
               </p>
 
               {!passwordResetPanel ? (
-                <div className="flex gap-1 rounded-full bg-black/[0.04] p-1 mb-6 w-full sm:w-fit">
+                <div className="flex gap-1 rounded-full bg-paper p-1 mb-6 w-full sm:w-fit shadow-soft ring-1 ring-black/[0.06]">
                   <button
                     type="button"
                     onClick={() => {
@@ -381,8 +381,10 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
                       setSuccessMessage(null);
                       exitTravelerPasswordReset();
                     }}
-                    className={`lux-flat flex-1 sm:flex-none rounded-full px-3.5 py-1.5 text-sm font-medium ${
-                      tab === 'signin' ? 'bg-paper-raised text-ink shadow-sm' : 'text-ink-muted'
+                    className={`lux-flat flex-1 sm:flex-none rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                      tab === 'signin'
+                        ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
+                        : 'text-ink-muted hover:bg-finland/10 hover:text-finland'
                     }`}
                   >
                     Log in
@@ -395,8 +397,10 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
                       setSuccessMessage(null);
                       exitTravelerPasswordReset();
                     }}
-                    className={`lux-flat flex-1 sm:flex-none rounded-full px-3.5 py-1.5 text-sm font-medium ${
-                      tab === 'signup' ? 'bg-paper-raised text-ink shadow-sm' : 'text-ink-muted'
+                    className={`lux-flat flex-1 sm:flex-none rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                      tab === 'signup'
+                        ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
+                        : 'text-ink-muted hover:bg-finland/10 hover:text-finland'
                     }`}
                   >
                     Sign up
