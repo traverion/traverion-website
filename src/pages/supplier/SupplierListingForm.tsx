@@ -1559,10 +1559,10 @@ export default function SupplierListingForm({
                         next[di] = !next[di];
                         patchOptionDraft({ weekdays: next });
                       }}
-                      className={`lux-flat min-h-[40px] min-w-[2.75rem] rounded-full px-2.5 text-xs font-semibold ${
+                      className={`lux-flat min-h-[40px] min-w-[2.75rem] rounded-full px-2.5 text-xs font-semibold transition-colors ${
                         optionDraft.weekdays[di]
-                          ? 'bg-ink text-paper'
-                          : 'bg-black/[0.04] text-ink-muted hover:bg-black/[0.07]'
+                          ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
+                          : 'bg-paper text-ink-muted ring-1 ring-black/[0.06] hover:bg-finland/10 hover:text-finland'
                       }`}
                     >
                       {label}
@@ -1781,7 +1781,7 @@ export default function SupplierListingForm({
                   aria-current={current ? 'step' : undefined}
                   className={`lux-flat inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
                     current
-                      ? 'bg-ink text-paper-raised shadow-sm ring-2 ring-finland/30'
+                      ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
                       : completed
                         ? 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200/70'
                         : 'bg-amber-50/80 text-amber-900 ring-1 ring-amber-200/60 hover:bg-amber-50'
