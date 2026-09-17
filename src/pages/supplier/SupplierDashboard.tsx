@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo, useCallback, type ReactNode } from 'react';
-import { SUPPLIER_PAGE_CLASS, SupplierEmptyState, SupplierListSkeleton } from '../../components/supplier/supplierUi';
+import { SUPPLIER_PAGE_CLASS, SupplierListSkeleton } from '../../components/supplier/supplierUi';
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR } from '../../lib/userFacingError';
-import { CalendarDays, ChevronRight } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { fetchMyListings } from '../../data/supabase-listings';
 import { fetchBookingsForSupplier, type BookingRow } from '../../data/supabase-bookings';
@@ -20,6 +20,8 @@ import { formatMoney } from '../../lib/money';
 import { bookingOccupiesInventory } from '../../lib/booking-hold';
 import { partnerBookingIsOperatingTrip, partnerBookingIsTodaySchedule, partnerBookingIsUpcomingSchedule } from '../../lib/trip-views';
 import { partnerTodayEmptyScheduleCopy } from '../../lib/partner-today-copy';
+import { formatBookingParticipantsLabel } from '../../lib/participant-mix';
+import { pgTimeToHm } from '../../data/supabase-listings';
 
 interface SupplierDashboardProps {
   onNavigateToBookings?: () => void;
@@ -154,10 +156,19 @@ export default function SupplierDashboard({ onNavigateToBookings: _onNavigateToB
   const now = new Date();
   const todayYmd = localYmd(now);
 
+  const todayDepartures = useMemo(() => {
+    return supplierBookings
+      .filter((b) => partnerBookingIsTodaySchedule(b, todayYmd))
+      .sort((a, b) => {
+        const ta = (a.start_time ?? a.pickup_time ?? '').toString();
+        const tb = (b.start_time ?? b.pickup_time ?? '').toString();
+        return ta.localeCompare(tb) || (a.created_at ?? '').localeCompare(b.created_at ?? '');
+      });
+  }, [supplierBookings, todayYmd]);
+
   const todayScheduleRows = useMemo(() => {
-    const active = supplierBookings.filter((b) => partnerBookingIsTodaySchedule(b, todayYmd));
     const byListing = new Map<string, { bookings: number; guests: number }>();
-    for (const b of active) {
+    for (const b of todayDepartures) {
       const cur = byListing.get(b.listing_id) ?? { bookings: 0, guests: 0 };
       cur.bookings += 1;
       cur.guests += b.guests ?? 0;
@@ -169,7 +180,7 @@ export default function SupplierDashboard({ onNavigateToBookings: _onNavigateToB
       bookings: v.bookings,
       guests: v.guests,
     }));
-  }, [supplierBookings, listingTitlesById, todayYmd]);
+  }, [todayDepartures, listingTitlesById]);
 
   const pendingBookings = useMemo(
     () =>
@@ -324,50 +335,74 @@ export default function SupplierDashboard({ onNavigateToBookings: _onNavigateToB
         </section>
       )}
 
-      <section className="mb-10 rounded-3xl bg-finland/[0.04] p-5 sm:p-6 ring-1 ring-finland/10">
-        <h2 className="text-[11px] uppercase tracking-[0.18em] text-finland/70 mb-4">Today</h2>
+      <section className="mb-8 rounded-2xl bg-paper-raised p-4 sm:p-5 shadow-soft ring-1 ring-black/[0.06]">
+        <div className="mb-3 flex items-baseline justify-between gap-3">
+          <h2 className="text-[11px] uppercase tracking-[0.18em] text-ink-faint">Today’s departures</h2>
+          {todayDepartures.length > 0 ? (
+            <span className="text-xs text-ink-muted tabular-nums">
+              {todayDepartures.length} booking{todayDepartures.length === 1 ? '' : 's'} ·{' '}
+              {todayScheduleRows.reduce((s, r) => s + r.guests, 0)} guests
+            </span>
+          ) : null}
+        </div>
         {dashboardLoading && publishedListingsCount === null ? (
           <SupplierListSkeleton rows={3} />
-        ) : todayScheduleRows.length === 0 ? (
-          <SupplierEmptyState
-            icon={CalendarDays}
-            className="py-4"
-            title={todayEmptyCopy.title}
-            body={todayEmptyCopy.body}
-            action={
-              attentionCount > 0 ? undefined : (
-                <button
-                  type="button"
-                  onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/calendar`)}
-                  className="tv-btn-primary"
-                >
-                  Open calendar
-                </button>
-              )
-            }
-          />
+        ) : todayDepartures.length === 0 ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-finland/[0.04] px-3.5 py-3 ring-1 ring-finland/10">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-ink">{todayEmptyCopy.title}</p>
+              <p className="text-xs text-ink-muted mt-0.5 leading-snug">{todayEmptyCopy.body}</p>
+            </div>
+            {attentionCount === 0 ? (
+              <button
+                type="button"
+                onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/calendar`)}
+                className="tv-btn-ghost text-xs shrink-0"
+              >
+                Calendar
+              </button>
+            ) : null}
+          </div>
         ) : (
-          <ul className="space-y-3">
-            {todayScheduleRows.map((row) => (
-              <li key={row.listingId}>
-                <button
-                  type="button"
-                  onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/calendar`)}
-                  className="lux-flat group flex w-full items-center justify-between gap-3 rounded-2xl bg-paper-raised p-4 text-left shadow-soft ring-1 ring-black/[0.06] transition-shadow hover:ring-finland/25"
-                >
-                  <div className="min-w-0">
-                    <p className="font-sans text-base sm:text-lg font-semibold text-ink truncate">{row.title}</p>
-                    <p className="mt-0.5 text-sm text-ink-muted">
-                      {row.guests} guests · {row.bookings} booking{row.bookings === 1 ? '' : 's'}
-                    </p>
-                  </div>
-                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-900 ring-1 ring-emerald-200/80">
-                    Today
-                    <ChevronRight className="h-3.5 w-3.5 opacity-60 transition-transform group-hover:translate-x-0.5" aria-hidden />
-                  </span>
-                </button>
-              </li>
-            ))}
+          <ul className="divide-y divide-black/[0.06]">
+            {todayDepartures.map((b) => {
+              const startHm = pgTimeToHm(b.start_time) || pgTimeToHm(b.pickup_time) || null;
+              const pickupMissing = pickupGaps.some((g) => g.id === b.id);
+              return (
+                <li key={b.id}>
+                  <button
+                    type="button"
+                    onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings?booking=${b.id}`)}
+                    className="lux-flat group flex w-full items-start justify-between gap-3 py-3.5 text-left hover:bg-finland/[0.03] -mx-1 px-1 rounded-lg"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                        {startHm ? (
+                          <span className="text-sm font-semibold tabular-nums text-finland">{startHm}</span>
+                        ) : (
+                          <span className="text-xs font-medium text-ink-faint">Time TBD</span>
+                        )}
+                        <span className="font-semibold text-ink truncate">
+                          {listingTitlesById[b.listing_id] ?? 'Tour'}
+                        </span>
+                      </div>
+                      <p className="mt-0.5 text-xs text-ink-muted">
+                        {typeof b.booking_number === 'number' && b.booking_number > 0 ? (
+                          <span className="font-mono text-finland">#{b.booking_number}</span>
+                        ) : null}
+                        {typeof b.booking_number === 'number' && b.booking_number > 0 ? ' · ' : null}
+                        {formatBookingParticipantsLabel(b)}
+                        {b.guest_name ? ` · ${b.guest_name}` : ''}
+                      </p>
+                      {pickupMissing ? (
+                        <p className="mt-1 text-xs font-medium text-amber-800">Pickup missing</p>
+                      ) : null}
+                    </div>
+                    <ChevronRight className="h-4 w-4 shrink-0 text-ink-faint mt-1 transition-transform group-hover:translate-x-0.5" aria-hidden />
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>
@@ -390,7 +425,7 @@ export default function SupplierDashboard({ onNavigateToBookings: _onNavigateToB
                       day: 'numeric',
                       month: 'short',
                     })}{' '}
-                    · {b.guests} guest{b.guests === 1 ? '' : 's'}
+                    · {formatBookingParticipantsLabel(b)}
                   </span>
                 </button>
               </li>
@@ -400,13 +435,9 @@ export default function SupplierDashboard({ onNavigateToBookings: _onNavigateToB
       )}
 
       {attentionCount === 0 && !dashboardLoading && (
-        <section className="mb-10 rounded-3xl bg-emerald-50/50 p-5 sm:p-6 ring-1 ring-emerald-100/80">
-          <h2 className="text-[11px] uppercase tracking-[0.18em] text-emerald-800/70 mb-3">Needs attention</h2>
-          <p className="text-sm text-emerald-950/80 max-w-lg leading-relaxed">
-            Nothing needs you right now. Pickup gaps, cancellation requests, Refund due, drafts, and verification will
-            show up here when they do.
-          </p>
-        </section>
+        <p className="mb-8 text-sm text-ink-muted leading-snug">
+          ✓ Nothing needs your attention right now.
+        </p>
       )}
 
       {recentBookings.length > 0 && (
