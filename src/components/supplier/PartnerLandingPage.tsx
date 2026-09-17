@@ -1,7 +1,7 @@
 /**
  * Partner marketing landing — distinct from /login and /signup.
  */
-import { CalendarDays, CreditCard, MapPin, Store } from 'lucide-react';
+import { BedDouble, CalendarDays, Compass, CreditCard, MapPin, Store } from 'lucide-react';
 import { BRAND_LOGO_SRC } from '../../lib/brandAssets';
 import { publicSiteBaseUrl } from '../../lib/publicSiteUrl';
 import { HERO_IMG } from '../../lib/heroImages';
@@ -109,17 +109,23 @@ export default function PartnerLandingPage() {
           </div>
         </section>
 
-        <section className="border-y border-black/[0.06] bg-paper-raised">
-          <div className="max-w-5xl mx-auto px-5 sm:px-8 py-16 sm:py-20 grid gap-12 md:grid-cols-2">
-            <div>
-              <h2 className="font-display text-3xl tracking-tight mb-4">Tours</h2>
-              <p className="text-ink-muted leading-relaxed">
+        <section className="border-y border-black/[0.06] bg-black/[0.02]">
+          <div className="max-w-5xl mx-auto px-5 sm:px-8 py-16 sm:py-20 grid gap-3 md:grid-cols-2">
+            <div className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]">
+              <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-finland/10 text-finland">
+                <Compass className="h-5 w-5" aria-hidden />
+              </div>
+              <h2 className="font-display text-2xl sm:text-3xl tracking-tight mb-3">Tours</h2>
+              <p className="text-ink-muted leading-relaxed m-0">
                 Day tours and activities with dates, guest capacity, adult and child options, meeting or pickup, and a live traveler page.
               </p>
             </div>
-            <div>
-              <h2 className="font-display text-3xl tracking-tight mb-4">Stays</h2>
-              <p className="text-ink-muted leading-relaxed">
+            <div className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]">
+              <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-finland/10 text-finland">
+                <BedDouble className="h-5 w-5" aria-hidden />
+              </div>
+              <h2 className="font-display text-2xl sm:text-3xl tracking-tight mb-3">Stays</h2>
+              <p className="text-ink-muted leading-relaxed m-0">
                 Apartments and rooms with nights, guest capacity, and house rules — a different listing type from Tours, not a renamed tour.
               </p>
             </div>
@@ -127,31 +133,38 @@ export default function PartnerLandingPage() {
         </section>
 
         <section className="max-w-5xl mx-auto px-5 sm:px-8 py-16 sm:py-20">
-          <h2 className="font-display text-3xl sm:text-4xl tracking-tight mb-4">Money, plainly</h2>
-          <p className="text-ink-muted leading-relaxed max-w-2xl mb-8">
-            {PARTNER_LANDING_GET_PAID_NOTE}
-          </p>
-          <h2 className="font-display text-3xl sm:text-4xl tracking-tight mb-4">A business product</h2>
-          <p className="text-ink-muted leading-relaxed max-w-2xl">
-            Listings, calendar, bookings, and payout details live in one partner account. Travelers never see this. Partners never land in a traveler trip inbox by accident.
-          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-2xl bg-finland/8 p-5 sm:p-6 ring-1 ring-finland/15">
+              <h2 className="font-display text-2xl sm:text-3xl tracking-tight mb-3">Money, plainly</h2>
+              <p className="text-ink-muted leading-relaxed m-0">{PARTNER_LANDING_GET_PAID_NOTE}</p>
+            </div>
+            <div className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]">
+              <h2 className="font-display text-2xl sm:text-3xl tracking-tight mb-3">A business product</h2>
+              <p className="text-ink-muted leading-relaxed m-0">
+                Listings, calendar, bookings, and payout details live in one partner account. Travelers never see this.
+                Partners never land in a traveler trip inbox by accident.
+              </p>
+            </div>
+          </div>
         </section>
 
         <section className="max-w-5xl mx-auto px-5 sm:px-8 py-16 sm:py-20">
-          <h2 className="font-display text-3xl sm:text-4xl tracking-tight mb-8">How it works</h2>
-          <ol className="space-y-6 max-w-xl text-ink">
-            <li className="flex gap-4">
-              <span className="font-display text-2xl text-finland w-8 shrink-0">1</span>
-              <p className="pt-1 leading-relaxed">Create a partner account with your work email.</p>
-            </li>
-            <li className="flex gap-4">
-              <span className="font-display text-2xl text-finland w-8 shrink-0">2</span>
-              <p className="pt-1 leading-relaxed">Add the business details travelers and payouts need.</p>
-            </li>
-            <li className="flex gap-4">
-              <span className="font-display text-2xl text-finland w-8 shrink-0">3</span>
-              <p className="pt-1 leading-relaxed">{PARTNER_LANDING_HOW_PUBLISH_NOTE}</p>
-            </li>
+          <h2 className="font-display text-3xl sm:text-4xl tracking-tight mb-3">How it works</h2>
+          <p className="text-ink-muted max-w-xl mb-8 leading-relaxed">Three steps from account to live listing.</p>
+          <ol className="grid gap-3 sm:grid-cols-3 list-none m-0 p-0">
+            {[
+              'Create a partner account with your work email.',
+              'Add the business details travelers and payouts need.',
+              PARTNER_LANDING_HOW_PUBLISH_NOTE,
+            ].map((text, i) => (
+              <li
+                key={i}
+                className="rounded-2xl bg-paper-raised p-5 shadow-soft ring-1 ring-black/[0.06]"
+              >
+                <span className="font-display text-2xl text-finland tabular-nums">{i + 1}</span>
+                <p className="mt-3 text-sm text-ink leading-relaxed m-0">{text}</p>
+              </li>
+            ))}
           </ol>
           <a href={PARTNER_SIGNUP_PATH} className="tv-btn-primary mt-10 inline-flex">
             Get started
