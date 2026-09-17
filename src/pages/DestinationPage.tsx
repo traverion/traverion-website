@@ -118,16 +118,22 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
           <ArrowLeft className="w-4 h-4" />
           Back to all tours
         </button>
-        <h1 className="font-display text-4xl sm:text-5xl text-ink tracking-tight">Tours in {label}</h1>
-        {catalogLoading ? (
-          <Skeleton className="h-4 w-40 mb-8" />
-        ) : listings.length > 0 ? (
-          <p className="text-ink-muted mb-8">
-            {listings.length} {listings.length === 1 ? 'tour' : 'tours'} in this destination
-          </p>
-        ) : (
-          <div className="mb-8" />
-        )}
+        <header className="mb-8 rounded-2xl bg-paper-raised p-5 sm:p-7 shadow-soft ring-1 ring-black/[0.06]">
+          <div className="inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15">
+            <MapPin className="h-3.5 w-3.5" aria-hidden />
+            Destination
+          </div>
+          <h1 className="mt-3 font-display text-4xl sm:text-5xl text-ink tracking-tight">Tours in {label}</h1>
+          {catalogLoading ? (
+            <Skeleton className="mt-3 h-4 w-40" />
+          ) : listings.length > 0 ? (
+            <p className="mt-3 text-ink-muted">
+              {listings.length} {listings.length === 1 ? 'tour' : 'tours'} in this destination
+            </p>
+          ) : (
+            <p className="mt-3 text-ink-muted">Browse when operators publish tours here.</p>
+          )}
+        </header>
 
         {listingsError && supplierListings === null ? (
           <ErrorState
