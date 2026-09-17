@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useDialogFocus } from '../hooks/useDialogFocus';
-import { X, LogIn, UserPlus } from 'lucide-react';
+import { X, LogIn, UserPlus, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { normalizeConsumerPhone } from '../data/supabase-consumer-profile';
@@ -12,6 +12,7 @@ import { authInputErrorClasses, isValidEmailFormat } from '../lib/authFormValida
 import ForgotPasswordInline, { type ForgotPasswordSendResult } from './auth/ForgotPasswordInline';
 import { TRAVELER_RESET_PASSWORD_PATH } from '../lib/partnerPortalPaths';
 import { AUTH_CONFIRMATION_EMAIL_REQUESTED, AUTH_PASSWORD_RESET_REQUESTED } from '../lib/booking-confirmation-copy';
+import NoticeCallout from './NoticeCallout';
 
 type Tab = 'signin' | 'signup';
 
@@ -35,6 +36,8 @@ export default function AuthModal() {
   const [resetPasswordEmail, setResetPasswordEmail] = useState('');
   const [resetPasswordFieldError, setResetPasswordFieldError] = useState<string | null>(null);
   const [resetPasswordSuccess, setResetPasswordSuccess] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
 
   useDialogFocus(authModalOpen, dialogRef, closeAuthModal);
@@ -203,6 +206,19 @@ export default function AuthModal() {
 
   if (!authModalOpen) return null;
 
+  const modalTitle =
+    tab === 'signin' && passwordResetPanel
+      ? 'Reset password'
+      : tab === 'signin'
+        ? 'Log in'
+        : 'Create your account';
+  const modalSubtitle =
+    tab === 'signin' && passwordResetPanel
+      ? 'We will email a reset link if an account exists for that address.'
+      : tab === 'signin'
+        ? 'Manage trips, confirmations, and bookings.'
+        : 'Save trips and book experiences. Takes under a minute.';
+
   return (
     <div
       ref={dialogRef}
@@ -214,356 +230,387 @@ export default function AuthModal() {
       onClick={closeAuthModal}
     >
       <div
-        className="bg-paper-raised rounded-t-2xl sm:rounded-2xl shadow-soft-xl w-full max-w-md overflow-y-auto max-h-[min(92dvh,40rem)] animate-slide-up pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]"
+        className="bg-paper-raised text-ink rounded-t-2xl sm:rounded-2xl shadow-soft-xl ring-1 ring-black/[0.06] w-full max-w-md overflow-y-auto max-h-[min(92dvh,40rem)] animate-slide-up pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]"
         style={{ animationDelay: '40ms' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between gap-3 px-6 pt-6 pb-4 border-b border-gray-100">
-          <div className="flex items-center gap-3 min-w-0">
-            <img src={BRAND_LOGO_SRC} alt="" className="h-10 w-10 object-contain flex-shrink-0" />
-            <h2 id="auth-modal-title" className="text-xl font-semibold text-gray-900 truncate">
-              {tab === 'signin' && passwordResetPanel ? 'Reset your password' : tab === 'signin' ? 'Log in' : 'Sign up'}
-            </h2>
+        <div className="flex items-start justify-between gap-3 px-6 pt-6 pb-2">
+          <div className="flex items-start gap-3 min-w-0">
+            <img src={BRAND_LOGO_SRC} alt="" className="h-10 w-10 object-contain flex-shrink-0 mt-0.5" />
+            <div className="min-w-0">
+              <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint">Traveler account</p>
+              <h2 id="auth-modal-title" className="font-display text-2xl tracking-tight text-ink truncate">
+                {modalTitle}
+              </h2>
+              <p className="mt-1 text-sm text-ink-muted leading-relaxed">{modalSubtitle}</p>
+            </div>
           </div>
           <button
             type="button"
             onClick={closeAuthModal}
-            className="lux-tap-target inline-flex h-11 w-11 items-center justify-center rounded-full hover:bg-gray-100 text-gray-500"
+            className="lux-flat lux-tap-target inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink-muted hover:bg-black/[0.04] hover:text-ink"
             aria-label="Close"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="flex border-b border-gray-100">
-          <button
-            type="button"
-            onClick={() => {
-              setTab('signin');
-              setFieldErrors({});
-              setSuccessMessage(null);
-              exitModalPasswordReset();
-            }}
-            className={`flex-1 py-4 text-sm font-medium transition-colors ${
-              tab === 'signin'
-                ? 'text-gray-900 border-b-2 border-gray-900'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Log in
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setTab('signup');
-              setFieldErrors({});
-              setSuccessMessage(null);
-              exitModalPasswordReset();
-            }}
-            className={`flex-1 py-4 text-sm font-medium transition-colors ${
-              tab === 'signup'
-                ? 'text-gray-900 border-b-2 border-gray-900'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Sign up
-          </button>
-        </div>
-
-        {!(tab === 'signin' && passwordResetPanel) && (
-        <p className="px-6 pt-3 pb-1 text-xs text-gray-500 leading-relaxed border-b border-gray-50">
-          Traveler account — bookings and saved trips, not the partner dashboard. Want to be a supplier?{' '}
-          <a
-            href={supplierPortalLandingHref()}
-            className="text-finland font-medium hover:underline"
-            onClick={() => closeAuthModal()}
-          >
-            Join here
-          </a>
-        </p>
-        )}
-
-        {tab === 'signin' && passwordResetPanel ? (
-          <ForgotPasswordInline
-            title="Reset your password"
-            email={resetPasswordEmail}
-            onEmailChange={(v) => {
-              setResetPasswordEmail(v);
-              setResetPasswordFieldError(null);
-            }}
-            fieldError={resetPasswordFieldError}
-            successMessage={resetPasswordSuccess}
-            sending={resetSending}
-            onSubmit={(e) => void handleModalPasswordResetSubmit(e)}
-            onBack={exitModalPasswordReset}
-            emailInputId="auth-modal-forgot-reset-email"
-            className="p-6 space-y-4"
-          />
-        ) : (
-        <form noValidate onSubmit={handleSubmit} className="p-6 space-y-4">
-          {fieldErrors.form && (
-            <p className="text-sm text-red-700 bg-red-50 px-3 py-2 rounded-lg border border-red-100" role="alert">
-              {fieldErrors.form}
-            </p>
-          )}
-          {tab === 'signup' && (
+        <div className="px-6 pb-6 pt-3 space-y-4">
+          {!(tab === 'signin' && passwordResetPanel) ? (
             <>
-              <div>
-                <label htmlFor="auth-modal-first-name" className="block text-sm font-medium text-gray-700 mb-1">
-                  Name
-                </label>
-                <input
-                  id="auth-modal-first-name"
-                  type="text"
-                  name="given-name"
-                  value={firstName}
-                  onChange={(e) => {
-                    setFirstName(e.target.value);
-                    setFieldErrors((p) => {
-                      const n = { ...p };
-                      delete n.firstName;
-                      delete n.form;
-                      return n;
-                    });
+              <div className="flex gap-1 rounded-full bg-black/[0.04] p-1 w-full">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTab('signin');
+                    setFieldErrors({});
+                    setSuccessMessage(null);
+                    exitModalPasswordReset();
                   }}
-                  placeholder="First name"
-                  className={authInputErrorClasses(!!fieldErrors.firstName)}
-                  autoComplete="given-name"
-                  aria-invalid={fieldErrors.firstName ? true : undefined}
-                  aria-describedby={fieldErrors.firstName ? 'auth-modal-first-name-err' : undefined}
-                />
-                {fieldErrors.firstName && (
-                  <p id="auth-modal-first-name-err" className="mt-1.5 text-sm text-red-600" role="alert">
-                    {fieldErrors.firstName}
-                  </p>
-                )}
-              </div>
-              <div>
-                <label htmlFor="auth-modal-last-name" className="block text-sm font-medium text-gray-700 mb-1">
-                  Surname
-                </label>
-                <input
-                  id="auth-modal-last-name"
-                  type="text"
-                  name="family-name"
-                  value={lastName}
-                  onChange={(e) => {
-                    setLastName(e.target.value);
-                    setFieldErrors((p) => {
-                      const n = { ...p };
-                      delete n.lastName;
-                      delete n.form;
-                      return n;
-                    });
+                  className={`lux-flat flex-1 rounded-full px-3.5 py-2 text-sm font-medium ${
+                    tab === 'signin' ? 'bg-paper-raised text-ink shadow-sm' : 'text-ink-muted'
+                  }`}
+                >
+                  Log in
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTab('signup');
+                    setFieldErrors({});
+                    setSuccessMessage(null);
+                    exitModalPasswordReset();
                   }}
-                  placeholder="Last name"
-                  className={authInputErrorClasses(!!fieldErrors.lastName)}
-                  autoComplete="family-name"
-                  aria-invalid={fieldErrors.lastName ? true : undefined}
-                  aria-describedby={fieldErrors.lastName ? 'auth-modal-last-name-err' : undefined}
-                />
-                {fieldErrors.lastName && (
-                  <p id="auth-modal-last-name-err" className="mt-1.5 text-sm text-red-600" role="alert">
-                    {fieldErrors.lastName}
-                  </p>
-                )}
+                  className={`lux-flat flex-1 rounded-full px-3.5 py-2 text-sm font-medium ${
+                    tab === 'signup' ? 'bg-paper-raised text-ink shadow-sm' : 'text-ink-muted'
+                  }`}
+                >
+                  Sign up
+                </button>
               </div>
-            </>
-          )}
-          <div>
-            <label htmlFor="auth-email" className="block text-sm font-medium text-gray-700 mb-1">
-              Email
-            </label>
-            <input
-              id="auth-email"
-              type="email"
-              name="email"
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                setFieldErrors((p) => {
-                  const n = { ...p };
-                  delete n.email;
-                  delete n.form;
-                  return n;
-                });
-              }}
-              placeholder="you@example.com"
-              className={authInputErrorClasses(!!fieldErrors.email)}
-              autoComplete="email"
-              aria-invalid={fieldErrors.email ? true : undefined}
-              aria-describedby={fieldErrors.email ? 'auth-email-err' : undefined}
-            />
-            {fieldErrors.email && (
-              <p id="auth-email-err" className="mt-1.5 text-sm text-red-600" role="alert">
-                {fieldErrors.email}
+              <p className="text-xs text-ink-faint leading-relaxed">
+                Want to list experiences?{' '}
+                <a
+                  href={supplierPortalLandingHref()}
+                  className="text-finland font-medium hover:underline"
+                  onClick={() => closeAuthModal()}
+                >
+                  Traverion Partner
+                </a>
               </p>
-            )}
-            {tab === 'signin' && (
-              <button
-                type="button"
-                onClick={() => {
-                  setResetPasswordEmail(email.trim());
-                  setResetPasswordFieldError(null);
-                  setResetPasswordSuccess(null);
-                  setPasswordResetPanel(true);
-                }}
-                className="mt-2 text-xs text-finland hover:underline"
-              >
-                Forgot password?
-              </button>
-            )}
-          </div>
-          {tab === 'signup' && (
-            <div>
-              <label htmlFor="auth-phone" className="block text-sm font-medium text-gray-700 mb-1">
-                Phone number
-              </label>
-              <input
-                id="auth-phone"
-                type="tel"
-                name="tel"
-                value={phoneNumber}
-                onChange={(e) => {
-                  setPhoneNumber(e.target.value);
-                  setFieldErrors((p) => {
-                    const n = { ...p };
-                    delete n.phoneNumber;
-                    delete n.form;
-                    return n;
-                  });
-                }}
-                placeholder="+358 40 123 4567"
-                className={authInputErrorClasses(!!fieldErrors.phoneNumber)}
-                autoComplete="tel"
-                aria-invalid={fieldErrors.phoneNumber ? true : undefined}
-                aria-describedby={fieldErrors.phoneNumber ? 'auth-phone-err' : undefined}
-              />
-              {fieldErrors.phoneNumber && (
-                <p id="auth-phone-err" className="mt-1.5 text-sm text-red-600" role="alert">
-                  {fieldErrors.phoneNumber}
-                </p>
-              )}
-            </div>
-          )}
-          {tab === 'signup' ? (
-            <div className="rounded-xl border border-gray-200 bg-gray-50/80 p-3.5 space-y-2">
-              <p className="text-xs font-medium text-gray-600 uppercase tracking-wide">Choose a password</p>
-              <div>
-                <label htmlFor="auth-password" className="block text-xs font-medium text-gray-600 mb-1">
-                  Password
-                </label>
-                <input
-                  id="auth-password"
-                  type="password"
-                  name="new-password"
-                  value={password}
-                  onChange={(e) => {
-                    setPassword(e.target.value);
-                    setFieldErrors((p) => {
-                      const n = { ...p };
-                      delete n.password;
-                      delete n.form;
-                      return n;
-                    });
-                  }}
-                  placeholder="Min. 6 characters"
-                  className={authInputErrorClasses(!!fieldErrors.password)}
-                  autoComplete="new-password"
-                  aria-invalid={fieldErrors.password ? true : undefined}
-                  aria-describedby={fieldErrors.password ? 'auth-password-err' : undefined}
-                />
-                {fieldErrors.password && (
-                  <p id="auth-password-err" className="mt-1.5 text-sm text-red-600" role="alert">
-                    {fieldErrors.password}
-                  </p>
-                )}
-              </div>
-              <div>
-                <label htmlFor="auth-confirm" className="block text-xs font-medium text-gray-600 mb-1">
-                  Confirm password
-                </label>
-                <input
-                  id="auth-confirm"
-                  type="password"
-                  name="confirm-password"
-                  value={confirmPassword}
-                  onChange={(e) => {
-                    setConfirmPassword(e.target.value);
-                    setFieldErrors((p) => {
-                      const n = { ...p };
-                      delete n.confirmPassword;
-                      delete n.form;
-                      return n;
-                    });
-                  }}
-                  placeholder="Same as above"
-                  className={authInputErrorClasses(!!fieldErrors.confirmPassword)}
-                  autoComplete="new-password"
-                  aria-invalid={fieldErrors.confirmPassword ? true : undefined}
-                  aria-describedby={fieldErrors.confirmPassword ? 'auth-confirm-err' : undefined}
-                />
-                {fieldErrors.confirmPassword && (
-                  <p id="auth-confirm-err" className="mt-1.5 text-sm text-red-600" role="alert">
-                    {fieldErrors.confirmPassword}
-                  </p>
-                )}
-              </div>
-            </div>
+            </>
+          ) : null}
+
+          {tab === 'signin' && passwordResetPanel ? (
+            <ForgotPasswordInline
+              title="Reset your password"
+              email={resetPasswordEmail}
+              onEmailChange={(v) => {
+                setResetPasswordEmail(v);
+                setResetPasswordFieldError(null);
+              }}
+              fieldError={resetPasswordFieldError}
+              successMessage={resetPasswordSuccess}
+              sending={resetSending}
+              onSubmit={(e) => void handleModalPasswordResetSubmit(e)}
+              onBack={exitModalPasswordReset}
+              emailInputId="auth-modal-forgot-reset-email"
+              className="space-y-4"
+            />
           ) : (
-            <div>
-              <label htmlFor="auth-password-signin" className="block text-sm font-medium text-gray-700 mb-1">
-                Password
-              </label>
-              <input
-                id="auth-password-signin"
-                type="password"
-                name="current-password"
-                value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value);
-                  setFieldErrors((p) => {
-                    const n = { ...p };
-                    delete n.password;
-                    delete n.form;
-                    return n;
-                  });
-                }}
-                placeholder="••••••••"
-                className={authInputErrorClasses(!!fieldErrors.password)}
-                autoComplete="current-password"
-                aria-invalid={fieldErrors.password ? true : undefined}
-                aria-describedby={fieldErrors.password ? 'auth-password-signin-err' : undefined}
-              />
-              {fieldErrors.password && (
-                <p id="auth-password-signin-err" className="mt-1.5 text-sm text-red-600" role="alert">
-                  {fieldErrors.password}
-                </p>
+            <form noValidate onSubmit={handleSubmit} className="space-y-4">
+              {fieldErrors.form ? (
+                <NoticeCallout title="Could not continue" tone="danger">
+                  {fieldErrors.form}
+                </NoticeCallout>
+              ) : null}
+              {tab === 'signup' && (
+                <>
+                  <div>
+                    <label htmlFor="auth-modal-first-name" className="block text-sm font-medium text-ink mb-1">
+                      Name
+                    </label>
+                    <input
+                      id="auth-modal-first-name"
+                      type="text"
+                      name="given-name"
+                      value={firstName}
+                      onChange={(e) => {
+                        setFirstName(e.target.value);
+                        setFieldErrors((p) => {
+                          const n = { ...p };
+                          delete n.firstName;
+                          delete n.form;
+                          return n;
+                        });
+                      }}
+                      placeholder="First name"
+                      className={authInputErrorClasses(!!fieldErrors.firstName)}
+                      autoComplete="given-name"
+                      aria-invalid={fieldErrors.firstName ? true : undefined}
+                      aria-describedby={fieldErrors.firstName ? 'auth-modal-first-name-err' : undefined}
+                    />
+                    {fieldErrors.firstName && (
+                      <p id="auth-modal-first-name-err" className="mt-1.5 text-sm text-red-600" role="alert">
+                        {fieldErrors.firstName}
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <label htmlFor="auth-modal-last-name" className="block text-sm font-medium text-ink mb-1">
+                      Surname
+                    </label>
+                    <input
+                      id="auth-modal-last-name"
+                      type="text"
+                      name="family-name"
+                      value={lastName}
+                      onChange={(e) => {
+                        setLastName(e.target.value);
+                        setFieldErrors((p) => {
+                          const n = { ...p };
+                          delete n.lastName;
+                          delete n.form;
+                          return n;
+                        });
+                      }}
+                      placeholder="Last name"
+                      className={authInputErrorClasses(!!fieldErrors.lastName)}
+                      autoComplete="family-name"
+                      aria-invalid={fieldErrors.lastName ? true : undefined}
+                      aria-describedby={fieldErrors.lastName ? 'auth-modal-last-name-err' : undefined}
+                    />
+                    {fieldErrors.lastName && (
+                      <p id="auth-modal-last-name-err" className="mt-1.5 text-sm text-red-600" role="alert">
+                        {fieldErrors.lastName}
+                      </p>
+                    )}
+                  </div>
+                </>
               )}
-            </div>
+              <div>
+                <label htmlFor="auth-email" className="block text-sm font-medium text-ink mb-1">
+                  Email
+                </label>
+                <input
+                  id="auth-email"
+                  type="email"
+                  name="email"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    setFieldErrors((p) => {
+                      const n = { ...p };
+                      delete n.email;
+                      delete n.form;
+                      return n;
+                    });
+                  }}
+                  placeholder="you@example.com"
+                  className={authInputErrorClasses(!!fieldErrors.email)}
+                  autoComplete="email"
+                  aria-invalid={fieldErrors.email ? true : undefined}
+                  aria-describedby={fieldErrors.email ? 'auth-email-err' : undefined}
+                />
+                {fieldErrors.email && (
+                  <p id="auth-email-err" className="mt-1.5 text-sm text-red-600" role="alert">
+                    {fieldErrors.email}
+                  </p>
+                )}
+                {tab === 'signin' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setResetPasswordEmail(email.trim());
+                      setResetPasswordFieldError(null);
+                      setResetPasswordSuccess(null);
+                      setPasswordResetPanel(true);
+                    }}
+                    className="mt-2 text-xs text-finland hover:underline"
+                  >
+                    Forgot password?
+                  </button>
+                )}
+              </div>
+              {tab === 'signup' && (
+                <div>
+                  <label htmlFor="auth-phone" className="block text-sm font-medium text-ink mb-1">
+                    Phone number
+                  </label>
+                  <input
+                    id="auth-phone"
+                    type="tel"
+                    name="tel"
+                    value={phoneNumber}
+                    onChange={(e) => {
+                      setPhoneNumber(e.target.value);
+                      setFieldErrors((p) => {
+                        const n = { ...p };
+                        delete n.phoneNumber;
+                        delete n.form;
+                        return n;
+                      });
+                    }}
+                    placeholder="+358 40 123 4567"
+                    className={authInputErrorClasses(!!fieldErrors.phoneNumber)}
+                    autoComplete="tel"
+                    aria-invalid={fieldErrors.phoneNumber ? true : undefined}
+                    aria-describedby={fieldErrors.phoneNumber ? 'auth-phone-err' : undefined}
+                  />
+                  {fieldErrors.phoneNumber && (
+                    <p id="auth-phone-err" className="mt-1.5 text-sm text-red-600" role="alert">
+                      {fieldErrors.phoneNumber}
+                    </p>
+                  )}
+                </div>
+              )}
+              {tab === 'signup' ? (
+                <div className="rounded-2xl bg-finland/[0.04] ring-1 ring-finland/10 p-3.5 space-y-3">
+                  <p className="text-xs font-medium text-finland uppercase tracking-wide">Choose a password</p>
+                  <div>
+                    <label htmlFor="auth-password" className="block text-xs font-medium text-ink-muted mb-1">
+                      Password
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="auth-password"
+                        type={showPassword ? 'text' : 'password'}
+                        name="new-password"
+                        value={password}
+                        onChange={(e) => {
+                          setPassword(e.target.value);
+                          setFieldErrors((p) => {
+                            const n = { ...p };
+                            delete n.password;
+                            delete n.form;
+                            return n;
+                          });
+                        }}
+                        placeholder="Min. 6 characters"
+                        className={`${authInputErrorClasses(!!fieldErrors.password)} pr-11`}
+                        autoComplete="new-password"
+                        aria-invalid={fieldErrors.password ? true : undefined}
+                        aria-describedby={fieldErrors.password ? 'auth-password-err' : undefined}
+                      />
+                      <button
+                        type="button"
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 lux-flat p-1.5 text-ink-muted hover:text-ink"
+                        onClick={() => setShowPassword((v) => !v)}
+                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    {fieldErrors.password && (
+                      <p id="auth-password-err" className="mt-1.5 text-sm text-red-600" role="alert">
+                        {fieldErrors.password}
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <label htmlFor="auth-confirm" className="block text-xs font-medium text-ink-muted mb-1">
+                      Confirm password
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="auth-confirm"
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        name="confirm-password"
+                        value={confirmPassword}
+                        onChange={(e) => {
+                          setConfirmPassword(e.target.value);
+                          setFieldErrors((p) => {
+                            const n = { ...p };
+                            delete n.confirmPassword;
+                            delete n.form;
+                            return n;
+                          });
+                        }}
+                        placeholder="Same as above"
+                        className={`${authInputErrorClasses(!!fieldErrors.confirmPassword)} pr-11`}
+                        autoComplete="new-password"
+                        aria-invalid={fieldErrors.confirmPassword ? true : undefined}
+                        aria-describedby={fieldErrors.confirmPassword ? 'auth-confirm-err' : undefined}
+                      />
+                      <button
+                        type="button"
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 lux-flat p-1.5 text-ink-muted hover:text-ink"
+                        onClick={() => setShowConfirmPassword((v) => !v)}
+                        aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
+                      >
+                        {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    {fieldErrors.confirmPassword && (
+                      <p id="auth-confirm-err" className="mt-1.5 text-sm text-red-600" role="alert">
+                        {fieldErrors.confirmPassword}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <label htmlFor="auth-password-signin" className="block text-sm font-medium text-ink mb-1">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      id="auth-password-signin"
+                      type={showPassword ? 'text' : 'password'}
+                      name="current-password"
+                      value={password}
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        setFieldErrors((p) => {
+                          const n = { ...p };
+                          delete n.password;
+                          delete n.form;
+                          return n;
+                        });
+                      }}
+                      placeholder="••••••••"
+                      className={`${authInputErrorClasses(!!fieldErrors.password)} pr-11`}
+                      autoComplete="current-password"
+                      aria-invalid={fieldErrors.password ? true : undefined}
+                      aria-describedby={fieldErrors.password ? 'auth-password-signin-err' : undefined}
+                    />
+                    <button
+                      type="button"
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 lux-flat p-1.5 text-ink-muted hover:text-ink"
+                      onClick={() => setShowPassword((v) => !v)}
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  {fieldErrors.password && (
+                    <p id="auth-password-signin-err" className="mt-1.5 text-sm text-red-600" role="alert">
+                      {fieldErrors.password}
+                    </p>
+                  )}
+                </div>
+              )}
+              {successMessage ? (
+                <NoticeCallout title="Check your email" tone="success">
+                  {successMessage}
+                </NoticeCallout>
+              ) : null}
+              <button type="submit" disabled={submitting} className="tv-btn-primary w-full">
+                {tab === 'signin' ? (
+                  <>
+                    <LogIn className="w-4 h-4" />
+                    {submitting ? 'Logging in…' : 'Log in'}
+                  </>
+                ) : (
+                  <>
+                    <UserPlus className="w-4 h-4" />
+                    {submitting ? 'Creating account…' : 'Sign up'}
+                  </>
+                )}
+              </button>
+            </form>
           )}
-          {successMessage && (
-            <p className="text-sm text-gray-700 bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">{successMessage}</p>
-          )}
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full py-3 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark transition-all duration-200 ease-smooth active:scale-[0.99] flex items-center justify-center gap-2 disabled:opacity-60"
-          >
-            {tab === 'signin' ? (
-              <>
-                <LogIn className="w-4 h-4" />
-                {submitting ? 'Logging in…' : 'Log in'}
-              </>
-            ) : (
-              <>
-                <UserPlus className="w-4 h-4" />
-                {submitting ? 'Creating account…' : 'Sign up'}
-              </>
-            )}
-          </button>
-        </form>
-        )}
+        </div>
       </div>
     </div>
   );
