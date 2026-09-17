@@ -205,9 +205,9 @@ export default function AdminSupplierVerificationPanel() {
               </div>
 
               <div className="grid sm:grid-cols-2 gap-3 text-sm">
-                <div className="rounded-xl bg-black/[0.02] ring-1 ring-black/[0.06] p-3 space-y-2">
+                <div className="rounded-2xl bg-paper-raised shadow-soft ring-1 ring-black/[0.06] p-3 space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland">
                       Business verification
                     </p>
                     <StatusChip tone={statusTone(row.verification_status)}>
@@ -260,9 +260,9 @@ export default function AdminSupplierVerificationPanel() {
                     </>
                   )}
                 </div>
-                <div className="rounded-xl bg-black/[0.02] ring-1 ring-black/[0.06] p-3 space-y-2">
+                <div className="rounded-2xl bg-paper-raised shadow-soft ring-1 ring-black/[0.06] p-3 space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland">
                       Banking / payout
                     </p>
                     <StatusChip tone={statusTone(row.payout_verification_status)}>
