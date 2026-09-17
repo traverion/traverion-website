@@ -61,7 +61,8 @@ function DocShell({
         {intro ? <p className="mt-3 text-base text-ink-muted leading-relaxed max-w-xl">{intro}</p> : null}
         <p className="mt-4 text-[11px] uppercase tracking-[0.16em] text-ink-faint">Last updated {LAST_UPDATED}</p>
         <article
-          className="mt-10 space-y-8 text-[15px] sm:text-base leading-relaxed
+          className="mt-10 rounded-2xl bg-paper-raised p-5 sm:p-8 shadow-soft ring-1 ring-black/[0.06]
+            space-y-8 text-[15px] sm:text-base leading-relaxed
             [&_p]:text-ink-muted [&_li]:text-ink-muted
             [&_strong]:text-ink [&_strong]:font-semibold
             [&_a]:text-ink [&_a]:underline [&_a]:underline-offset-2 [&_a]:decoration-black/25 hover:[&_a]:decoration-ink"
