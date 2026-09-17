@@ -1030,7 +1030,7 @@ export default function SupplierListings() {
                         href={isStay ? publicStayListingUrl(listing.id) : publicTourListingUrl(listing.id)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="lux-flat inline-flex min-h-9 items-center rounded-full bg-black/[0.05] px-3.5 text-xs font-semibold text-ink hover:bg-black/[0.08]"
+                        className="lux-flat inline-flex min-h-9 items-center rounded-full bg-finland/10 px-3.5 text-xs font-semibold text-finland ring-1 ring-finland/20 hover:bg-finland/15"
                       >
                         View
                       </a>
