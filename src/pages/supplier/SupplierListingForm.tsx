@@ -2460,8 +2460,10 @@ export default function SupplierListingForm({
                         type="button"
                         aria-pressed={on}
                         onClick={() => setForm((f) => ({ ...f, stayAmenities: toggleStayAmenity(f.stayAmenities, label) }))}
-                        className={`lux-flat rounded-full px-3 py-1.5 text-sm ${
-                          on ? 'bg-ink text-paper-raised' : 'text-ink-muted ring-1 ring-black/[0.08]'
+                        className={`lux-flat rounded-full px-3 py-1.5 text-sm transition-colors ${
+                          on
+                            ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
+                            : 'text-ink-muted ring-1 ring-black/[0.08] hover:bg-finland/10 hover:text-finland'
                         }`}
                       >
                         {label}
