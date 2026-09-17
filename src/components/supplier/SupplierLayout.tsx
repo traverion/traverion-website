@@ -1120,10 +1120,13 @@ export default function SupplierLayout() {
                 type="button"
                 onClick={() => handleNavigate(tab.id)}
                 aria-current={active ? 'page' : undefined}
-                className={`lux-flat flex flex-1 flex-col items-center justify-center gap-0.5 py-2 min-h-[52px] ${
+                className={`lux-flat relative flex flex-1 flex-col items-center justify-center gap-0.5 py-2 min-h-[52px] ${
                   active ? 'text-finland' : 'text-ink-faint'
                 }`}
               >
+                {active ? (
+                  <span className="absolute inset-x-3 top-0 h-0.5 rounded-full bg-finland" aria-hidden />
+                ) : null}
                 <tab.icon className="w-5 h-5" strokeWidth={active ? 2.4 : 1.8} aria-hidden />
                 <span className="text-[10px] font-semibold">{tab.label}</span>
               </button>
