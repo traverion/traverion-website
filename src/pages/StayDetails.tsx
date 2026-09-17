@@ -225,42 +225,65 @@ export default function StayDetails({ stayId, onBack }: Props) {
           Back to stays
         </button>
         {hero ? (
-          <img src={hero} alt="" className="w-full h-[22rem] sm:h-[28rem] object-cover rounded-3xl mb-3" />
+          <img
+            src={hero}
+            alt=""
+            className="w-full h-[22rem] sm:h-[28rem] object-cover rounded-3xl mb-3 shadow-soft ring-1 ring-black/[0.06]"
+          />
         ) : (
-          <div className="w-full h-64 rounded-3xl bg-ink/10 mb-3" />
+          <div className="w-full h-64 rounded-3xl bg-ink/10 mb-3 ring-1 ring-black/[0.06]" />
         )}
         {gallery.length > 0 ? (
           <div className="grid grid-cols-3 gap-2 mb-8">
             {gallery.slice(0, 3).map((url) => (
-              <img key={url} src={listingHeroImageSrc(url) ?? url} alt="" className="h-24 sm:h-32 w-full object-cover rounded-2xl" />
+              <img
+                key={url}
+                src={listingHeroImageSrc(url) ?? url}
+                alt=""
+                className="h-24 sm:h-32 w-full object-cover rounded-2xl ring-1 ring-black/[0.06]"
+              />
             ))}
           </div>
         ) : (
           <div className="mb-8" />
         )}
-        <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">Stay</p>
-        <p className="text-ink-muted flex items-center gap-2 mb-2">
-          <MapPin className="w-4 h-4" aria-hidden />
-          {[stay.city, stay.country].filter(Boolean).join(', ') || stay.destination}
-        </p>
-        <h1 className="font-display text-3xl sm:text-5xl text-ink tracking-tight mb-4">{stay.title}</h1>
-        <p className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-ink-muted mb-10">
-          {typeof s?.maxGuests === 'number' ? <span>Up to {s.maxGuests} guests</span> : null}
-          {typeof s?.bedrooms === 'number' ? (
-            <span>{s.bedrooms === 1 ? '1 bedroom' : `${s.bedrooms} bedrooms`}</span>
-          ) : null}
-          {typeof s?.beds === 'number' ? (
-            <span>{s.beds === 1 ? '1 bed' : `${s.beds} beds`}</span>
-          ) : null}
-          {typeof s?.bathrooms === 'number' ? (
-            <span>{s.bathrooms === 1 ? '1 bath' : `${s.bathrooms} baths`}</span>
-          ) : null}
-              {nightly > 0 ? (
-            <span className="text-ink font-semibold tabular-nums">
-              {formatMoney(nightly, currency)} per night
-            </span>
-          ) : null}
-        </p>
+        <header className="mb-10 rounded-2xl bg-paper-raised p-5 sm:p-7 shadow-soft ring-1 ring-black/[0.06]">
+          <div className="inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15 mb-3">
+            Stay
+          </div>
+          <p className="text-ink-muted flex items-center gap-2 mb-2">
+            <MapPin className="w-4 h-4 text-finland" aria-hidden />
+            {[stay.city, stay.country].filter(Boolean).join(', ') || stay.destination}
+          </p>
+          <h1 className="font-display text-3xl sm:text-5xl text-ink tracking-tight mb-4">{stay.title}</h1>
+          <p className="flex flex-wrap gap-2 text-sm text-ink-muted">
+            {typeof s?.maxGuests === 'number' ? (
+              <span className="inline-flex items-center rounded-full bg-black/[0.03] px-2.5 py-1 ring-1 ring-black/[0.05]">
+                Up to {s.maxGuests} guests
+              </span>
+            ) : null}
+            {typeof s?.bedrooms === 'number' ? (
+              <span className="inline-flex items-center rounded-full bg-black/[0.03] px-2.5 py-1 ring-1 ring-black/[0.05]">
+                {s.bedrooms === 1 ? '1 bedroom' : `${s.bedrooms} bedrooms`}
+              </span>
+            ) : null}
+            {typeof s?.beds === 'number' ? (
+              <span className="inline-flex items-center rounded-full bg-black/[0.03] px-2.5 py-1 ring-1 ring-black/[0.05]">
+                {s.beds === 1 ? '1 bed' : `${s.beds} beds`}
+              </span>
+            ) : null}
+            {typeof s?.bathrooms === 'number' ? (
+              <span className="inline-flex items-center rounded-full bg-black/[0.03] px-2.5 py-1 ring-1 ring-black/[0.05]">
+                {s.bathrooms === 1 ? '1 bath' : `${s.bathrooms} baths`}
+              </span>
+            ) : null}
+            {nightly > 0 ? (
+              <span className="inline-flex items-center rounded-full bg-ink px-2.5 py-1 text-paper-raised font-semibold tabular-nums">
+                {formatMoney(nightly, currency)} per night
+              </span>
+            ) : null}
+          </p>
+        </header>
 
         <div className="grid lg:grid-cols-[1fr_20rem] gap-10 pb-24 lg:pb-0">
           <div className="space-y-10 text-[15px] leading-relaxed text-ink">
