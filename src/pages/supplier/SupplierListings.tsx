@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Plus,
@@ -49,6 +49,11 @@ import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import { SUPPLIER_PAGE_CLASS, SupplierEmptyState, SupplierModalHeader, SupplierPageHero } from '../../components/supplier/supplierUi';
 import { PARTNER_FIRST_LISTING_STEP_NOTE } from '../../lib/booking-confirmation-copy';
+import {
+  computeListingQualityPartnerFocus,
+  listingQualityPercentPartnerFocus,
+} from '../../lib/listingQualityScore';
+import StatusChip from '../../components/StatusChip';
 
 function verificationStatusLabel(status: string): string {
   const s = status.toLowerCase();
@@ -97,6 +102,18 @@ export default function SupplierListings() {
   const createChooserRef = useRef<HTMLDivElement>(null);
   const closeCreateChooser = useCallback(() => setShowCreateChooser(false), []);
   useDialogFocus(showCreateChooser, createChooserRef, closeCreateChooser);
+
+  const filteredListings = useMemo(() => {
+    return listings.filter((listing) => {
+      const family = inventoryFamilyFromListing(listing);
+      const isLive = listing.status !== 'draft';
+      if (workspaceFilter === 'tour') return family === 'tour';
+      if (workspaceFilter === 'stay') return family === 'stay';
+      if (workspaceFilter === 'draft') return !isLive;
+      if (workspaceFilter === 'published') return isLive;
+      return true;
+    });
+  }, [listings, workspaceFilter]);
 
   const startNewTour = useCallback(() => {
     if (!canEditListings || !canPostNewListing) return;
@@ -602,7 +619,7 @@ export default function SupplierListings() {
     <div className={SUPPLIER_PAGE_CLASS}>
       <SupplierPageHero
         title="Listings"
-        description="Tours and stays you operate. Drafts stay private until you publish."
+        description="Tours and stays you operate — health, status, and publish actions at a glance. Drafts stay private until you publish."
         actions={
           <button
             type="button"
@@ -874,30 +891,26 @@ export default function SupplierListings() {
             </button>
           }
         />
+      ) : listings.length > 0 && filteredListings.length === 0 && !showForm ? (
+        <SupplierEmptyState
+          icon={Map}
+          title="Nothing in this view"
+          body="You have listings, but none match this filter. Clear it to see everything."
+          action={
+            <button type="button" onClick={() => setWorkspaceFilter('all')} className="tv-btn-secondary">
+              Show all listings
+            </button>
+          }
+        />
       ) : (
         listings.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-            {listings
-              .filter((listing) => {
-                const family = inventoryFamilyFromListing(listing);
-                const isLive = listing.status !== 'draft';
-                if (workspaceFilter === 'tour') return family === 'tour';
-                if (workspaceFilter === 'stay') return family === 'stay';
-                if (workspaceFilter === 'draft') return !isLive;
-                if (workspaceFilter === 'published') return isLive;
-                return true;
-              })
-              .map((listing) => {
+            {filteredListings.map((listing) => {
               const isLive = listing.status !== 'draft';
               const family = inventoryFamilyFromListing(listing);
               const isStay = family === 'stay';
-              const typeLabel = isStay
-                ? isLive
-                  ? 'Live stay'
-                  : 'Draft stay'
-                : isLive
-                  ? 'Live tour'
-                  : 'Draft tour';
+              const familyLabel = isStay ? 'Stay' : 'Tour';
+              const statusLabel = isLive ? 'Live' : 'Draft';
               const currency = listing.price?.currency ?? 'EUR';
               const from = catalogHeadlineAmount(listing);
               const money = from == null ? null : formatMoney(from, currency);
@@ -905,14 +918,26 @@ export default function SupplierListings() {
               const qualifier = pickHeadlineOption(opts).qualifier;
               const place = [listing.city, listing.country ?? listing.destination].filter(Boolean).join(', ');
               const heroSrc = listingHeroImageSrc(listing.image);
+              const healthPct = listingQualityPercentPartnerFocus(listing);
+              const healthTip =
+                healthPct < 100
+                  ? computeListingQualityPartnerFocus(listing).checks.find((c) => c.earned < c.max)?.tip ?? null
+                  : null;
+              const healthTone =
+                healthPct >= 85 ? 'text-emerald-800' : healthPct >= 60 ? 'text-amber-900' : 'text-rose-800';
+              const healthBar =
+                healthPct >= 85 ? 'bg-emerald-500' : healthPct >= 60 ? 'bg-amber-500' : 'bg-rose-400';
               return (
-                <article key={listing.id} className="group min-w-0">
+                <article
+                  key={listing.id}
+                  className="group min-w-0 rounded-2xl bg-paper-raised p-3 ring-1 ring-black/[0.06] shadow-soft sm:p-3.5"
+                >
                   <button
                     type="button"
                     onClick={() => openSupplierListingEditor(listing.id)}
-                    className="lux-flat block w-full text-left"
+                    className="block w-full text-left"
                   >
-                    <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-black/[0.04]">
+                    <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-black/[0.04]">
                       {heroSrc ? (
                         <img
                           src={heroSrc}
@@ -920,16 +945,17 @@ export default function SupplierListings() {
                           className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]"
                         />
                       ) : null}
-                      <span
-                        className={`absolute left-3 top-3 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-                          isLive ? 'bg-paper-raised text-ink' : 'bg-ink/70 text-paper-raised'
-                        } ${justPublishedId === listing.id ? 'tv-pop' : ''}`}
-                      >
-                        {typeLabel}
-                      </span>
+                      <div className="absolute left-3 top-3 flex flex-wrap items-center gap-1.5">
+                        <StatusChip tone={isLive ? 'good' : 'neutral'}>{statusLabel}</StatusChip>
+                        {justPublishedId === listing.id ? (
+                          <span className="tv-pop rounded-full bg-emerald-600 px-2 py-0.5 text-[11px] font-semibold text-white">
+                            Published
+                          </span>
+                        ) : null}
+                      </div>
                     </div>
                     <div className="pt-3">
-                      <p className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">{typeLabel}</p>
+                      <p className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">{familyLabel}</p>
                       {place ? <p className="mt-1 text-sm text-ink-muted">{place}</p> : null}
                       <h2 className="mt-0.5 font-sans text-base font-semibold text-ink leading-snug">{listing.title}</h2>
                       {money ? (
@@ -940,10 +966,33 @@ export default function SupplierListings() {
                       ) : (
                         <p className="mt-1 text-sm text-ink-faint">Price not set</p>
                       )}
+                      <div className="mt-3 rounded-xl bg-black/[0.03] px-3 py-2.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-faint">
+                            Listing health
+                          </span>
+                          <span className={`text-sm font-semibold tabular-nums ${healthTone}`}>{healthPct}%</span>
+                        </div>
+                        <div
+                          className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-black/[0.08]"
+                          role="progressbar"
+                          aria-valuenow={healthPct}
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                          aria-label={`Listing health ${healthPct} percent`}
+                        >
+                          <div className={`h-full rounded-full ${healthBar}`} style={{ width: `${healthPct}%` }} />
+                        </div>
+                        {healthTip ? (
+                          <p className="mt-1.5 text-xs leading-snug text-ink-muted line-clamp-2">{healthTip}</p>
+                        ) : (
+                          <p className="mt-1.5 text-xs text-ink-muted">Ready for travelers.</p>
+                        )}
+                      </div>
                     </div>
                   </button>
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
-                    {isSupabase && canEditListings && !isLive && (
+                  <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-black/[0.06] pt-3">
+                    {isSupabase && canEditListings && !isLive ? (
                       <button
                         type="button"
                         onClick={() => handleStatusChange(listing, 'published')}
@@ -953,19 +1002,19 @@ export default function SupplierListings() {
                             ? 'Business verification and payout verification (IBAN + BIC) required.'
                             : 'Publish this listing on Traverion for travelers to book.'
                         }
-                        className="text-xs font-semibold text-finland hover:underline disabled:opacity-40"
+                        className="lux-flat inline-flex min-h-9 items-center rounded-full bg-finland px-3.5 text-xs font-semibold text-white hover:bg-finland/90 disabled:opacity-40"
                       >
                         Publish
                       </button>
-                    )}
+                    ) : null}
                     {isLive ? (
                       <a
                         href={isStay ? publicStayListingUrl(listing.id) : publicTourListingUrl(listing.id)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-xs font-medium text-ink-muted hover:text-ink"
+                        className="lux-flat inline-flex min-h-9 items-center rounded-full bg-black/[0.05] px-3.5 text-xs font-semibold text-ink hover:bg-black/[0.08]"
                       >
-                        View on Traverion
+                        View
                       </a>
                     ) : null}
                     <button
@@ -978,7 +1027,7 @@ export default function SupplierListings() {
                       aria-expanded={listingActionsMenuId === listing.id}
                       aria-haspopup="menu"
                       aria-label={isStay ? 'Stay actions' : 'Tour actions'}
-                      className="ml-auto lux-flat inline-flex h-9 w-9 items-center justify-center rounded-full text-ink-muted hover:text-ink disabled:opacity-40"
+                      className="ml-auto lux-flat inline-flex h-9 w-9 items-center justify-center rounded-full text-ink-muted hover:bg-black/[0.05] hover:text-ink disabled:opacity-40"
                     >
                       <Cog className="h-4 w-4" aria-hidden />
                     </button>
