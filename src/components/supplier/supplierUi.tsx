@@ -124,9 +124,9 @@ export function SupplierStatSkeletonGrid({ count = 4 }: { count?: number }) {
       {Array.from({ length: count }, (_, i) => (
         <div
           key={i}
-          className="rounded-2xl bg-black/[0.04] p-4 sm:p-5 flex items-center gap-3 sm:gap-4 animate-pulse"
+          className="rounded-2xl bg-paper-raised p-4 sm:p-5 flex items-center gap-3 sm:gap-4 shadow-soft ring-1 ring-black/[0.06] animate-pulse"
         >
-          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-black/[0.06] shrink-0" />
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-finland/15 shrink-0" />
           <div className="flex-1 space-y-2">
             <div className="h-3 w-20 rounded bg-black/[0.06]" />
             <div className="h-6 w-16 rounded bg-black/[0.06]" />
