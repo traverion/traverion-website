@@ -816,9 +816,9 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                 ) : null}
 
                 {(tour.includes.some((s) => String(s).trim()) || tour.excludes.some((s) => String(s).trim())) ? (
-                  <section className="mt-12 pt-12 border-t border-black/[0.06]">
+                  <section className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06] space-y-8">
                     {tour.includes.some((s) => String(s).trim()) ? (
-                      <div className={tour.excludes.some((s) => String(s).trim()) ? 'mb-10' : ''}>
+                      <div>
                         <h2 className="font-display text-2xl text-ink mb-4">What’s included</h2>
                         <ul className="space-y-3">
                           {tour.includes
@@ -834,7 +834,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                       </div>
                     ) : null}
                     {tour.excludes.some((s) => String(s).trim()) ? (
-                      <div>
+                      <div className="rounded-xl bg-black/[0.02] p-4 ring-1 ring-black/[0.05]">
                         <h2 className="font-display text-2xl text-ink mb-4">Not included</h2>
                         <ul className="space-y-3">
                           {tour.excludes
@@ -853,7 +853,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                 ) : null}
 
                 {(tour.meetingPoint?.trim() || tour.pickupInstructions?.trim() || tour.experienceStartStyle) ? (
-                  <section className="mt-12 pt-12 border-t border-black/[0.06]">
+                  <section className="rounded-2xl bg-finland/[0.06] p-5 sm:p-6 ring-1 ring-finland/15">
                     <h2 className="font-display text-2xl text-ink mb-4">Pickup / meeting</h2>
                     <div className="space-y-3 text-ink-muted leading-relaxed">
                       {tour.experienceStartStyle === 'operator_pickup' ? (
