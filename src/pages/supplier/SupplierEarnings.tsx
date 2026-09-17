@@ -188,7 +188,7 @@ export default function SupplierEarnings() {
 
       {loading ? (
         <SupplierListSkeleton rows={3} />
-      ) : (
+      ) : error ? null : (
         <>
           <section className="mb-12">
             <p className="text-[11px] uppercase tracking-[0.18em] text-ink-faint mb-2">
