@@ -12,6 +12,7 @@ import { TourPackage } from '../types/tour';
 import { getReviewAggregatesForListingIds } from '../data/supabase-reviews';
 import { fetchDiscountsByListingIds } from '../data/supabase-discounts';
 import { isSupabaseListingId } from '../lib/discount-display';
+import { filterCatalogByFamily } from '../lib/inventory';
 import { PublicListingBrowseCard } from '../components/PublicListingBrowseCard';
 
 const TAG_LABELS: Record<string, string> = {
@@ -67,6 +68,9 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
     return { label: label || labelFromSlug, listings: list };
   }, [slug, allListings]);
 
+  const tourListings = useMemo(() => filterCatalogByFamily(listings, 'tour'), [listings]);
+  const stayListings = useMemo(() => filterCatalogByFamily(listings, 'stay'), [listings]);
+
   const listingIdsForReviews = useMemo(
     () => listings.map((t) => t.id).filter(isSupabaseListingId),
     [listings]
@@ -97,10 +101,14 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
   useEffect(() => {
     if (!label) return;
     setPageMetaWithOg(
-      `Tours in ${label}`,
-      `Book tours in ${label}. ${listings.length} tour${listings.length !== 1 ? 's' : ''} available.`
+      `${label} · Traverion`,
+      `Tours and stays in ${label}. ${tourListings.length} tour${tourListings.length !== 1 ? 's' : ''}${
+        stayListings.length > 0
+          ? `, ${stayListings.length} stay${stayListings.length !== 1 ? 's' : ''}`
+          : ''
+      }.`
     );
-  }, [label, listings.length]);
+  }, [label, tourListings.length, stayListings.length]);
 
   if (!slug) {
     if (onNavigate) onNavigate('packages');
@@ -116,35 +124,44 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
           className="tv-btn-ghost mb-6 -ml-2"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to all tours
+          Back to browse
         </button>
         <header className="mb-8 rounded-2xl bg-paper-raised p-5 sm:p-7 shadow-soft ring-1 ring-black/[0.06]">
           <div className="inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15">
             <MapPin className="h-3.5 w-3.5" aria-hidden />
             Destination
           </div>
-          <h1 className="mt-3 font-display text-4xl sm:text-5xl text-ink tracking-tight">Tours in {label}</h1>
+          <h1 className="mt-3 font-display text-4xl sm:text-5xl text-ink tracking-tight">{label}</h1>
           {catalogLoading ? (
             <Skeleton className="mt-3 h-4 w-40" />
           ) : listings.length > 0 ? (
             <p className="mt-3 text-ink-muted">
-              {listings.length} {listings.length === 1 ? 'tour' : 'tours'} in this destination
+              {[
+                tourListings.length > 0
+                  ? `${tourListings.length} ${tourListings.length === 1 ? 'tour' : 'tours'}`
+                  : null,
+                stayListings.length > 0
+                  ? `${stayListings.length} ${stayListings.length === 1 ? 'stay' : 'stays'}`
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
             </p>
           ) : (
-            <p className="mt-3 text-ink-muted">Browse when operators publish tours here.</p>
+            <p className="mt-3 text-ink-muted">Browse when operators publish here.</p>
           )}
         </header>
 
         {listingsError && supplierListings === null ? (
           <ErrorState
             className="py-8"
-            title="Tours unavailable"
+            title="Destination unavailable"
             body={userFacingError(listingsError, USER_ERROR.tours)}
             retry={{ onClick: () => reloadCatalog() }}
             back={{ onClick: onBack, label: 'View all tours' }}
           />
         ) : catalogLoading ? (
-          <div aria-busy="true" aria-label="Loading tours">
+          <div aria-busy="true" aria-label="Loading destination">
             <SkeletonCardGrid count={6} />
           </div>
         ) : listings.length === 0 ? (
@@ -152,8 +169,8 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
             <EmptyState
               className="py-10 sm:py-12 max-w-lg"
               icon={MapPin}
-              title="No tours here yet"
-              body={`Nothing is published in ${label} right now. That is normal until an operator lists a tour for this place.`}
+              title="Nothing published here yet"
+              body={`Nothing is live in ${label} right now. That is normal until an operator lists a tour or stay for this place.`}
               action={
                 <button type="button" onClick={onBack} className="tv-btn-primary">
                   View all tours
@@ -162,20 +179,47 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
             />
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {listings.map((tour, index) => (
-              <PublicListingBrowseCard
-                key={tour.id}
-                tour={tour}
-                index={index}
-                onSelect={() => onTourSelect(tour)}
-                discountsByListing={discountsByListing}
-                reviewAggregate={reviewAggregates.get(tour.id)}
-                tagLabels={TAG_LABELS}
-                size="default"
-                showTagPills
-              />
-            ))}
+          <div className="space-y-12">
+            {tourListings.length > 0 ? (
+              <section>
+                <h2 className="font-display text-2xl text-ink tracking-tight mb-5">Tours</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {tourListings.map((tour, index) => (
+                    <PublicListingBrowseCard
+                      key={tour.id}
+                      tour={tour}
+                      index={index}
+                      onSelect={() => onTourSelect(tour)}
+                      discountsByListing={discountsByListing}
+                      reviewAggregate={reviewAggregates.get(tour.id)}
+                      tagLabels={TAG_LABELS}
+                      size="default"
+                      showTagPills
+                    />
+                  ))}
+                </div>
+              </section>
+            ) : null}
+            {stayListings.length > 0 ? (
+              <section>
+                <h2 className="font-display text-2xl text-ink tracking-tight mb-5">Stays</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {stayListings.map((stay, index) => (
+                    <PublicListingBrowseCard
+                      key={stay.id}
+                      tour={stay}
+                      index={index}
+                      onSelect={() => onTourSelect(stay)}
+                      discountsByListing={discountsByListing}
+                      reviewAggregate={reviewAggregates.get(stay.id)}
+                      tagLabels={TAG_LABELS}
+                      size="default"
+                      showTagPills
+                    />
+                  ))}
+                </div>
+              </section>
+            ) : null}
           </div>
         )}
       </div>
