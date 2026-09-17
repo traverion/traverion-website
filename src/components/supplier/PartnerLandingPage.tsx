@@ -124,7 +124,7 @@ export default function PartnerLandingPage() {
               </div>
               <h2 className="font-display text-2xl sm:text-3xl tracking-tight mb-3">Tours</h2>
               <p className="text-ink-muted leading-relaxed m-0">
-                Day tours and activities with dates, guest capacity, adult and child options, meeting or pickup, and a live traveler page.
+                Day tours and activities with dates, guest capacity, Adult/Child prices inside each option, meeting or pickup, and a live traveler page.
               </p>
             </div>
             <div className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]">
