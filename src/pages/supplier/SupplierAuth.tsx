@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Globe, MapPin, Users, CreditCard } from 'lucide-react';
+import { Eye, EyeOff, Globe, MapPin, Users, CreditCard } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { ensureSupplierProfile, fetchSupplierProfile } from '../../data/supabase-supplier-profile';
 import { isPhoneAvailableForSignup } from '../../data/supabase-phone-signup';
@@ -74,6 +74,8 @@ export default function SupplierAuth({
   const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<SupplierFieldErrors>({});
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -644,26 +646,36 @@ export default function SupplierAuth({
               <label className="block text-[11px] font-medium uppercase tracking-wide text-ink-muted mb-1.5" htmlFor="supplier-auth-password">
                 Password
               </label>
-              <input
-                id="supplier-auth-password"
-                type="password"
-                name={mode === 'signup' ? 'new-password' : 'current-password'}
-                value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value);
-                  setFieldErrors((prev) => {
-                    const next = { ...prev };
-                    delete next.password;
-                    delete next.form;
-                    return next;
-                  });
-                }}
-                placeholder="••••••••"
-                className="tv-input"
-                autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
-                aria-invalid={fieldErrors.password ? true : undefined}
-                aria-describedby={fieldErrors.password ? 'supplier-auth-password-error' : undefined}
-              />
+              <div className="relative">
+                <input
+                  id="supplier-auth-password"
+                  type={showPassword ? 'text' : 'password'}
+                  name={mode === 'signup' ? 'new-password' : 'current-password'}
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    setFieldErrors((prev) => {
+                      const next = { ...prev };
+                      delete next.password;
+                      delete next.form;
+                      return next;
+                    });
+                  }}
+                  placeholder="••••••••"
+                  className="tv-input pr-11"
+                  autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+                  aria-invalid={fieldErrors.password ? true : undefined}
+                  aria-describedby={fieldErrors.password ? 'supplier-auth-password-error' : undefined}
+                />
+                <button
+                  type="button"
+                  className="lux-flat absolute inset-y-0 right-0 flex items-center px-3 text-ink-muted hover:text-ink"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
               {mode === 'signup' && (
                 <p className="text-xs text-ink-faint mt-1">At least 8 characters</p>
               )}
@@ -692,26 +704,36 @@ export default function SupplierAuth({
                 <label className="block text-[11px] font-medium uppercase tracking-wide text-ink-muted mb-1.5" htmlFor="supplier-auth-confirm">
                   Confirm password
                 </label>
-                <input
-                  id="supplier-auth-confirm"
-                  type="password"
-                  name="confirm-password"
-                  value={confirmPassword}
-                  onChange={(e) => {
-                    setConfirmPassword(e.target.value);
-                    setFieldErrors((prev) => {
-                      const next = { ...prev };
-                      delete next.confirmPassword;
-                      delete next.form;
-                      return next;
-                    });
-                  }}
-                  placeholder="••••••••"
-                  className="tv-input"
-                  autoComplete="new-password"
-                  aria-invalid={fieldErrors.confirmPassword ? true : undefined}
-                  aria-describedby={fieldErrors.confirmPassword ? 'supplier-auth-confirm-error' : undefined}
-                />
+                <div className="relative">
+                  <input
+                    id="supplier-auth-confirm"
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    name="confirm-password"
+                    value={confirmPassword}
+                    onChange={(e) => {
+                      setConfirmPassword(e.target.value);
+                      setFieldErrors((prev) => {
+                        const next = { ...prev };
+                        delete next.confirmPassword;
+                        delete next.form;
+                        return next;
+                      });
+                    }}
+                    placeholder="••••••••"
+                    className="tv-input pr-11"
+                    autoComplete="new-password"
+                    aria-invalid={fieldErrors.confirmPassword ? true : undefined}
+                    aria-describedby={fieldErrors.confirmPassword ? 'supplier-auth-confirm-error' : undefined}
+                  />
+                  <button
+                    type="button"
+                    className="lux-flat absolute inset-y-0 right-0 flex items-center px-3 text-ink-muted hover:text-ink"
+                    onClick={() => setShowConfirmPassword((v) => !v)}
+                    aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
+                  >
+                    {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
                 {fieldErrors.confirmPassword && (
                   <p id="supplier-auth-confirm-error" className="mt-1.5 text-sm text-red-600" role="alert">
                     {fieldErrors.confirmPassword}
