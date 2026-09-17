@@ -1,6 +1,6 @@
 import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, Circle, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { AlertCircle, Check, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { TourPackage } from '../../types/tour';
 import type { ListingBookingOption, ListingExtras, ScheduleStyle, VenueSetting } from '../../types/listingExtras';
 import {
@@ -1688,7 +1688,7 @@ export default function SupplierListingForm({
           onClick={(e) => e.stopPropagation()}
           className="pointer-events-auto motion-safe:animate-fade-in motion-reduce:animate-none flex min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden border-0 bg-paper shadow-none h-full rounded-none"
         >
-        <div className="shrink-0 border-b border-black/[0.06] bg-paper px-5 py-4 sm:px-8 pt-[max(1rem,env(safe-area-inset-top))]">
+        <div className="shrink-0 border-b border-black/[0.06] bg-gradient-to-b from-finland/[0.07] to-paper-raised px-5 py-4 sm:px-8 pt-[max(1rem,env(safe-area-inset-top))]">
           <div className="mb-3 flex items-center justify-between gap-3">
             <button
               type="button"
@@ -1702,7 +1702,9 @@ export default function SupplierListingForm({
               {draftCloseBusy || submitting ? (
                 'Saving…'
               ) : isDirty() ? (
-                <span className="text-amber-800">Unsaved changes</span>
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-amber-900 ring-1 ring-amber-200/80">
+                  Unsaved changes
+                </span>
               ) : lastSavedAt ? (
                 <>
                   <Check className="h-3 w-3 text-finland" aria-hidden />
@@ -1779,23 +1781,29 @@ export default function SupplierListingForm({
                   aria-current={current ? 'step' : undefined}
                   className={`lux-flat inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
                     current
-                      ? 'bg-ink text-paper-raised shadow-sm'
+                      ? 'bg-ink text-paper-raised shadow-sm ring-2 ring-finland/30'
                       : completed
-                        ? 'bg-finland/10 text-finland ring-1 ring-finland/20'
-                        : 'bg-black/[0.03] text-ink-muted hover:text-ink'
+                        ? 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200/70'
+                        : 'bg-amber-50/80 text-amber-900 ring-1 ring-amber-200/60 hover:bg-amber-50'
                   }`}
                 >
                   {completed ? (
                     <Check className="h-3.5 w-3.5" aria-hidden />
+                  ) : current ? (
+                    <span className="text-[10px] leading-none" aria-hidden>
+                      •
+                    </span>
                   ) : incomplete ? (
-                    <Circle className="h-3 w-3 opacity-50" aria-hidden />
+                    <AlertCircle className="h-3.5 w-3.5" aria-hidden />
                   ) : null}
                   {step.label}
                 </button>
               );
             })}
           </nav>
-          <p className="mt-3 text-sm text-ink-muted leading-relaxed">{stepGuidance[stepIdx]}</p>
+          <p className="mt-3 rounded-xl bg-paper-raised/80 px-3 py-2.5 text-sm text-ink-muted leading-relaxed ring-1 ring-black/[0.04]">
+            {stepGuidance[stepIdx]}
+          </p>
           {editorSectionLinks.length > 1 ? (
             <div className="mt-2 flex flex-wrap gap-1" aria-label="Jump to section">
               {editorSectionLinks.map((s) => (
