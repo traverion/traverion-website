@@ -629,7 +629,9 @@ export default function Packages({ onTourSelect }: PackagesProps) {
                         type="button"
                         onClick={() => setSelectedDestination(chip.id)}
                         className={`tv-chip transition-colors duration-150 ${
-                          selectedDestination === chip.id ? 'bg-ink text-paper-raised' : 'bg-paper text-ink'
+                          selectedDestination === chip.id
+                            ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
+                            : 'bg-paper text-ink hover:bg-finland/10 hover:text-finland'
                         }`}
                       >
                         {chip.label}
@@ -646,7 +648,9 @@ export default function Packages({ onTourSelect }: PackagesProps) {
                         type="button"
                         onClick={() => setPriceRange(chip.id)}
                         className={`tv-chip transition-colors duration-150 ${
-                          priceRange === chip.id ? 'bg-ink text-paper-raised' : 'bg-paper text-ink'
+                          priceRange === chip.id
+                            ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
+                            : 'bg-paper text-ink hover:bg-finland/10 hover:text-finland'
                         }`}
                       >
                         {chip.label}
@@ -663,7 +667,9 @@ export default function Packages({ onTourSelect }: PackagesProps) {
                         type="button"
                         onClick={() => toggleTag(tag.id)}
                         className={`tv-chip transition-colors duration-150 ${
-                          selectedTags.includes(tag.id) ? 'bg-ink text-paper-raised' : 'bg-paper text-ink'
+                          selectedTags.includes(tag.id)
+                            ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
+                            : 'bg-paper text-ink hover:bg-finland/10 hover:text-finland'
                         }`}
                       >
                         {tag.label}
