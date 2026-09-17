@@ -1,9 +1,9 @@
-import { Star, Clock } from 'lucide-react';
+import { Star } from 'lucide-react';
 import { isSupabaseListingId } from '../lib/discount-display';
 import { SHOW_SEED_LISTINGS } from '../data/listings';
 import type { TourPackage } from '../types/tour';
 
-type TourRatingFields = Pick<TourPackage, 'id' | 'rating' | 'reviews' | 'duration'>;
+type TourRatingFields = Pick<TourPackage, 'id' | 'rating' | 'reviews'>;
 
 type Props = {
   tour: TourRatingFields;
@@ -16,6 +16,7 @@ type Props = {
 /**
  * Honest ratings on cards: Supabase listings use real review aggregates when available;
  * otherwise "No reviews yet" instead of a placeholder score.
+ * Duration lives on the browse card meta line — do not duplicate it here.
  */
 export function ListingCardRating({ tour, aggregate, compact }: Props) {
   const isDb = isSupabaseListingId(tour.id);
@@ -40,9 +41,6 @@ export function ListingCardRating({ tour, aggregate, compact }: Props) {
       ) : (
         <span className={`text-ink-faint ${compact ? 'max-w-[9rem] truncate' : ''}`}>No reviews yet</span>
       )}
-      <span className="mx-1.5 text-ink-faint">·</span>
-      <Clock className={`mr-0.5 text-ink-muted ${compact ? 'h-3 w-3' : 'h-3.5 w-3.5'}`} />
-      <span className="text-ink">{tour.duration}</span>
     </div>
   );
 }
