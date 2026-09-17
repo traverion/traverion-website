@@ -654,27 +654,39 @@ export default function Packages({ onTourSelect }: PackagesProps) {
             </aside>
           </div>
         )}
-        {allListings.length > 0 && filteredPackages.length > 0 ? (
-        <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filteredPackages.map((tour, index) => (
-            <PublicListingBrowseCard
-              key={tour.id}
-              tour={tour}
-              index={index}
-              onSelect={() => handleTourSelect(tour)}
-              discountsByListing={discountsByListing}
-              reviewAggregate={reviewAggregates.get(tour.id)}
-              tagLabels={TAG_LABELS}
-              size="default"
-              showTagPills={false}
-            />
-          ))}
-        </div>
-        ) : allListings.length > 0 ? (
+        {showCatalogLoading ? (
+          <div className="mt-10 py-8">
+            <SkeletonCardGrid count={6} />
+          </div>
+        ) : allListings.length > 0 && filteredPackages.length > 0 ? (
+          <>
+            <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {filteredPackages.map((tour, index) => (
+                <PublicListingBrowseCard
+                  key={tour.id}
+                  tour={tour}
+                  index={index}
+                  onSelect={() => handleTourSelect(tour)}
+                  discountsByListing={discountsByListing}
+                  reviewAggregate={reviewAggregates.get(tour.id)}
+                  tagLabels={TAG_LABELS}
+                  size="default"
+                  showTagPills={false}
+                />
+              ))}
+            </div>
+            <p className="mt-16 text-sm text-ink-faint max-w-lg">
+              Live tours from operators appear here when they publish. Traverion does not fill this page with sample trips.
+            </p>
+          </>
+        ) : (
+          <div className="mt-10 rounded-2xl bg-paper-raised px-6 py-2 shadow-soft ring-1 ring-black/[0.06] sm:px-8">
+            {allListings.length > 0 ? (
               <EmptyState
+                className="py-10 sm:py-12 max-w-lg"
                 icon={Search}
                 title="No tours match"
-                body="Nothing in the catalog fits this search. That is a filter result, not a missing page. Change the query or clear filters to see live tours again."
+                body="Nothing fits this search. Try another place, date, or clear filters to see live tours again."
                 action={
                   hasActiveFilters ? (
                     <button type="button" onClick={clearAllFilters} className="tv-btn-primary">
@@ -683,28 +695,21 @@ export default function Packages({ onTourSelect }: PackagesProps) {
                   ) : undefined
                 }
               />
-        ) : null}
-
-        {showCatalogLoading ? (
-          <div className="py-8">
-            <SkeletonCardGrid count={6} />
+            ) : (
+              <EmptyState
+                className="py-10 sm:py-12 max-w-lg"
+                icon={Compass}
+                title="No tours published yet"
+                body="Operators have not published live tours. That is expected — Traverion does not show a demo catalog. If you run tours, you can list yours today."
+                action={
+                  <a href={supplierPortalLandingHref()} className="tv-btn-primary inline-flex">
+                    List your tours
+                  </a>
+                }
+              />
+            )}
           </div>
-        ) : allListings.length === 0 ? (
-          <EmptyState
-            icon={Compass}
-            title="No tours published yet"
-            body="Operators have not published live tours. That is expected — Traverion does not show a demo catalog. If you run tours, you can list yours today."
-            action={
-              <a href={supplierPortalLandingHref()} className="tv-btn-primary inline-flex">
-                List your tours
-              </a>
-            }
-          />
-        ) : null}
-
-        <p className="mt-16 text-sm text-ink-faint max-w-lg">
-          Live tours from operators appear here when they publish. Traverion does not fill this page with sample trips.
-        </p>
+        )}
       </div>
     </div>
   );
