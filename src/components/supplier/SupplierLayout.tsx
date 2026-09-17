@@ -825,7 +825,7 @@ export default function SupplierLayout() {
           Stripe TEST — payments and Money rows are sandbox, not live charges.
         </p>
       ) : null}
-      <header className="sticky top-0 z-30 bg-paper/90 backdrop-blur-md pt-[env(safe-area-inset-top)]">
+      <header className="sticky top-0 z-30 border-b border-black/[0.06] bg-paper-raised/95 backdrop-blur-md pt-[env(safe-area-inset-top)] shadow-soft">
         <div className="mx-auto flex h-14 max-w-6xl items-center gap-6 px-4 sm:px-6">
           <button type="button" onClick={() => handleNavigate('dashboard')} className="lux-flat flex items-center gap-2 shrink-0" aria-label="Partner home">
             <img src={BRAND_LOGO_SRC} alt="" className="h-8 w-8 object-contain" />
@@ -841,7 +841,9 @@ export default function SupplierLayout() {
                   onClick={() => handleNavigate(item.id)}
                   aria-current={active ? 'page' : undefined}
                   className={`lux-flat px-3 py-1.5 rounded-full text-sm font-medium transition-colors duration-150 ${
-                    active ? 'bg-ink text-paper-raised' : 'text-ink-muted hover:text-ink'
+                    active
+                      ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
+                      : 'text-ink-muted hover:bg-finland/10 hover:text-finland'
                   }`}
                 >
                   {item.label}
@@ -853,7 +855,7 @@ export default function SupplierLayout() {
             <button
               type="button"
               onClick={() => setAccountMenuOpen((v) => !v)}
-              className="lux-flat hidden md:inline-flex h-9 w-9 items-center justify-center rounded-full bg-ink text-paper-raised text-xs font-semibold"
+              className="lux-flat hidden md:inline-flex h-9 w-9 items-center justify-center rounded-full bg-finland text-white text-xs font-semibold ring-1 ring-finland/25"
               aria-label="Account"
               aria-expanded={accountMenuOpen}
               aria-haspopup="menu"
@@ -1074,7 +1076,7 @@ export default function SupplierLayout() {
       </main>
 
       <nav
-        className="partner-bottom-nav md:hidden fixed bottom-0 inset-x-0 z-40 bg-paper/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)] border-t border-black/[0.04]"
+        className="partner-bottom-nav md:hidden fixed bottom-0 inset-x-0 z-40 bg-paper-raised/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)] border-t border-black/[0.06] shadow-[0_-4px_24px_rgba(0,0,0,0.04)]"
         aria-label="Primary"
       >
         <div className="flex items-stretch justify-around max-w-lg mx-auto px-1">
@@ -1087,7 +1089,7 @@ export default function SupplierLayout() {
                 onClick={() => handleNavigate(tab.id)}
                 aria-current={active ? 'page' : undefined}
                 className={`lux-flat flex flex-1 flex-col items-center justify-center gap-0.5 py-2 min-h-[52px] ${
-                  active ? 'text-ink' : 'text-ink-faint'
+                  active ? 'text-finland' : 'text-ink-faint'
                 }`}
               >
                 <tab.icon className="w-5 h-5" strokeWidth={active ? 2.4 : 1.8} aria-hidden />
@@ -1101,7 +1103,7 @@ export default function SupplierLayout() {
             aria-expanded={mobileAccountOpen}
             aria-haspopup="dialog"
             className={`lux-flat flex flex-1 flex-col items-center justify-center gap-0.5 py-2 min-h-[52px] ${
-              mobileAccountOpen ? 'text-ink' : 'text-ink-faint'
+              mobileAccountOpen ? 'text-finland' : 'text-ink-faint'
             }`}
           >
             <UserCircle2 className="w-5 h-5" strokeWidth={mobileAccountOpen ? 2.4 : 1.8} aria-hidden />
