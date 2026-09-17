@@ -821,7 +821,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                 {(tour.includes.some((s) => String(s).trim()) || tour.excludes.some((s) => String(s).trim())) ? (
                   <section className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06] space-y-8">
                     {tour.includes.some((s) => String(s).trim()) ? (
-                      <div>
+                      <div className="rounded-2xl bg-emerald-50/70 p-4 sm:p-5 ring-1 ring-emerald-200/60">
                         <h2 className="font-display text-2xl text-ink mb-4">What’s included</h2>
                         <ul className="space-y-3">
                           {tour.includes
@@ -829,7 +829,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                             .filter(Boolean)
                             .map((item, index) => (
                               <li key={index} className="flex items-start gap-3 text-ink-muted">
-                                <CheckCircle size={18} className="text-finland flex-shrink-0 mt-0.5" aria-hidden />
+                                <CheckCircle size={18} className="text-emerald-600 flex-shrink-0 mt-0.5" aria-hidden />
                                 <span>{item}</span>
                               </li>
                             ))}
