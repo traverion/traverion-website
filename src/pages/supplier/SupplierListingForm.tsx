@@ -38,6 +38,7 @@ import {
 import { headlineStartingAmount } from '../../lib/headline-price';
 import { DEFAULT_CURRENCY, formatMoney, normalizeCurrency } from '../../lib/money';
 import { STAY_AMENITY_PRESETS } from '../../lib/stay-amenities';
+import NoticeCallout from '../../components/NoticeCallout';
 
 const TAG_OPTIONS = [
   { id: 'free-cancellation', label: 'Free cancellation' },
@@ -1732,14 +1733,20 @@ export default function SupplierListingForm({
                 : 'Close anytime — unfinished work is saved as a draft.'}
             </p>
           </div>
-          {draftCloseError && (
-            <p className="mb-3 text-sm text-red-800" role="alert">{draftCloseError}</p>
-          )}
-          {submitError && (
-            <p className="mb-3 text-sm text-red-800" role="alert">
-              {submitError}
-            </p>
-          )}
+          {draftCloseError ? (
+            <div className="mb-3">
+              <NoticeCallout title="Could not save draft" tone="danger">
+                {draftCloseError}
+              </NoticeCallout>
+            </div>
+          ) : null}
+          {submitError ? (
+            <div className="mb-3">
+              <NoticeCallout title="Could not save listing" tone="danger">
+                {submitError}
+              </NoticeCallout>
+            </div>
+          ) : null}
           <div className="mb-2 flex items-center justify-between gap-2">
             <p className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">
               Step {stepIdx + 1} of {steps.length}
