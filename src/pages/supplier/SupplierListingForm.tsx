@@ -1,6 +1,6 @@
 import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { Check, Circle, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { TourPackage } from '../../types/tour';
 import type { ListingBookingOption, ListingExtras, ScheduleStyle, VenueSetting } from '../../types/listingExtras';
 import {
@@ -698,6 +698,7 @@ export default function SupplierListingForm({
   const [draftCloseBusy, setDraftCloseBusy] = useState(false);
   const [draftCloseError, setDraftCloseError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
   const publishChecklistKey = editingId ? `traverion-publish-checklist-${editingId}` : null;
   const [publishChecklistDismissed, setPublishChecklistDismissed] = useState(false);
   /**
@@ -752,6 +753,22 @@ export default function SupplierListingForm({
     ],
     []
   );
+
+  const stepGuidance = useMemo(() => {
+    const stay = form.inventoryFamily === 'stay' || createFamily === 'stay';
+    return [
+      stay
+        ? 'Name the stay and describe what guests will love.'
+        : 'Title, language, and a clear description — what makes this worth booking.',
+      stay
+        ? 'Where is it, and what should guests know before they arrive?'
+        : 'Location, inclusions, and what travelers should expect on the day.',
+      stay
+        ? 'Set the nightly rate and guest capacity travelers will see.'
+        : 'Add booking options and prices travelers can choose from.',
+      'Add your strongest photo first — it becomes the cover in search.',
+    ] as const;
+  }, [form.inventoryFamily, createFamily]);
 
   const editorSectionLinks = useMemo(() => {
     const stay = form.inventoryFamily === 'stay';
@@ -1075,6 +1092,7 @@ export default function SupplierListingForm({
     const t = window.setTimeout(() => {
       if (serializeListingFormState(form) !== initialFormSnapshotRef.current) {
         writeListingDraftBackup(editingId, form);
+        setLastSavedAt(Date.now());
       }
     }, 700);
     return () => window.clearTimeout(t);
@@ -1145,6 +1163,8 @@ export default function SupplierListingForm({
           return;
         }
         clearListingDraftBackup(editingId);
+        initialFormSnapshotRef.current = serializeListingFormState(form);
+        setLastSavedAt(Date.now());
       } finally {
         setDraftCloseBusy(false);
         closeIntentRunningRef.current = false;
@@ -1213,6 +1233,8 @@ export default function SupplierListingForm({
           }
           clearListingDraftBackup(editingId);
           clearWizardStepStorage(editingId);
+          initialFormSnapshotRef.current = serializeListingFormState(form);
+          setLastSavedAt(Date.now());
         } finally {
           setSubmitting(false);
         }
@@ -1675,21 +1697,28 @@ export default function SupplierListingForm({
             >
               {draftCloseBusy ? 'Saving…' : '← Exit'}
             </button>
-            <p
-              key={draftCloseBusy ? 'saving' : 'saved'}
-              className="text-[11px] uppercase tracking-[0.16em] text-ink-faint inline-flex items-center gap-1"
-            >
-              {draftCloseBusy ? (
-                'Saving'
+            <p className="text-[11px] uppercase tracking-[0.14em] text-ink-faint inline-flex items-center gap-1.5">
+              {draftCloseBusy || submitting ? (
+                'Saving…'
+              ) : isDirty() ? (
+                <span className="text-amber-800">Unsaved changes</span>
+              ) : lastSavedAt ? (
+                <>
+                  <Check className="h-3 w-3 text-finland" aria-hidden />
+                  Saved
+                  {Date.now() - lastSavedAt < 60_000
+                    ? ' · just now'
+                    : ` · ${new Date(lastSavedAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`}
+                </>
               ) : (
                 <>
-                  <Check className="h-3 w-3 text-finland tv-pop" aria-hidden />
-                  Saved
+                  <Check className="h-3 w-3 text-finland/50" aria-hidden />
+                  Draft ready
                 </>
               )}
             </p>
           </div>
-          <div className="mb-5 min-w-0">
+          <div className="mb-4 min-w-0">
             <h2 id="supplier-listing-editor-title" className="font-display text-2xl sm:text-3xl text-ink">
               {editingId
                 ? form.title.trim() || (form.inventoryFamily === 'stay' ? 'Stay' : 'Tour')
@@ -1711,6 +1740,14 @@ export default function SupplierListingForm({
               {submitError}
             </p>
           )}
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <p className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">
+              Step {stepIdx + 1} of {steps.length}
+            </p>
+            <p className="text-[11px] text-ink-faint tabular-nums">
+              {steps.filter((_, i) => isStepSatisfied(i, form)).length}/{steps.length} ready
+            </p>
+          </div>
           <nav
             aria-label={
               editingId
@@ -1721,25 +1758,37 @@ export default function SupplierListingForm({
                   ? 'Create stay steps'
                   : 'Create tour steps'
             }
-            className="flex gap-1 overflow-x-auto pb-0.5"
+            className="flex gap-1.5 overflow-x-auto pb-0.5"
           >
             {steps.map((step, idx) => {
               const current = idx === stepIdx;
+              const completed = !current && isStepSatisfied(idx, form);
+              const incomplete = !current && !completed;
               return (
                 <button
                   key={step.id}
                   type="button"
                   onClick={() => setStepIdxPersisted(idx)}
                   aria-current={current ? 'step' : undefined}
-                  className={`lux-flat shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
-                    current ? 'bg-ink text-paper-raised' : 'text-ink-muted hover:text-ink'
+                  className={`lux-flat inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                    current
+                      ? 'bg-ink text-paper-raised shadow-sm'
+                      : completed
+                        ? 'bg-finland/10 text-finland ring-1 ring-finland/20'
+                        : 'bg-black/[0.03] text-ink-muted hover:text-ink'
                   }`}
                 >
+                  {completed ? (
+                    <Check className="h-3.5 w-3.5" aria-hidden />
+                  ) : incomplete ? (
+                    <Circle className="h-3 w-3 opacity-50" aria-hidden />
+                  ) : null}
                   {step.label}
                 </button>
               );
             })}
           </nav>
+          <p className="mt-3 text-sm text-ink-muted leading-relaxed">{stepGuidance[stepIdx]}</p>
           {editorSectionLinks.length > 1 ? (
             <div className="mt-2 flex flex-wrap gap-1" aria-label="Jump to section">
               {editorSectionLinks.map((s) => (
@@ -1754,28 +1803,37 @@ export default function SupplierListingForm({
               ))}
             </div>
           ) : null}
-          <p className="mt-3 text-xs text-ink-muted">
-            {publishBlockersPreview.length === 0
-              ? 'Ready to publish — finish Photos, then publish from this last step.'
-              : `${publishBlockersPreview.length} item${publishBlockersPreview.length === 1 ? '' : 's'} left before publish`}
-          </p>
-          {publishBlockersPreview.length > 0 ? (
-            <ul className="mt-2 space-y-1">
-              {publishBlockersPreview.slice(0, 5).map((line) => (
-                <li key={line}>
-                  <button
-                    type="button"
-                    className="lux-flat text-left text-xs text-ink-muted hover:text-ink"
-                    onClick={() => jumpToPublishBlocker(line)}
-                  >
-                    {line}
-                  </button>
-                </li>
-              ))}
-              {publishBlockersPreview.length > 5 ? (
-                <li className="text-xs text-ink-faint">And {publishBlockersPreview.length - 5} more</li>
+          {stepIdx === steps.length - 1 ? (
+            <>
+              <p className="mt-3 text-xs text-ink-muted">
+                {publishBlockersPreview.length === 0
+                  ? 'Ready to publish — review photos, then publish below.'
+                  : `${publishBlockersPreview.length} item${publishBlockersPreview.length === 1 ? '' : 's'} left before publish`}
+              </p>
+              {publishBlockersPreview.length > 0 ? (
+                <ul className="mt-2 space-y-1">
+                  {publishBlockersPreview.slice(0, 5).map((line) => (
+                    <li key={line}>
+                      <button
+                        type="button"
+                        className="lux-flat text-left text-xs text-ink-muted hover:text-ink"
+                        onClick={() => jumpToPublishBlocker(line)}
+                      >
+                        {line}
+                      </button>
+                    </li>
+                  ))}
+                  {publishBlockersPreview.length > 5 ? (
+                    <li className="text-xs text-ink-faint">And {publishBlockersPreview.length - 5} more</li>
+                  ) : null}
+                </ul>
               ) : null}
-            </ul>
+            </>
+          ) : publishBlockersPreview.length > 0 ? (
+            <p className="mt-3 text-xs text-ink-faint">
+              {publishBlockersPreview.length} item{publishBlockersPreview.length === 1 ? '' : 's'} still needed before
+              publish — finish steps as you go.
+            </p>
           ) : null}
         </div>
 
@@ -2604,14 +2662,24 @@ export default function SupplierListingForm({
           </button>
           <div className="flex items-stretch sm:items-center gap-2 w-full sm:w-auto">
             {stepIdx < steps.length - 1 ? (
-              <button
-                type="button"
-                onClick={() => setStepIdxPersisted((s) => Math.min(steps.length - 1, s + 1))}
-                disabled={!canContinueStep() || draftCloseBusy || submitting}
-                className="touch-manipulation tv-btn-primary flex-1 sm:flex-none disabled:opacity-50"
-              >
-                Continue
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => void runSubmit('draft')}
+                  disabled={submitting || draftCloseBusy || form.status === 'published'}
+                  className="touch-manipulation tv-btn-secondary flex-1 sm:flex-none disabled:opacity-50"
+                >
+                  {submitting ? 'Saving…' : 'Save draft'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStepIdxPersisted((s) => Math.min(steps.length - 1, s + 1))}
+                  disabled={!canContinueStep() || draftCloseBusy || submitting}
+                  className="touch-manipulation tv-btn-primary flex-1 sm:flex-none disabled:opacity-50"
+                >
+                  Continue
+                </button>
+              </>
             ) : (
               <div className="flex flex-col sm:flex-row flex-1 sm:flex-auto gap-2 w-full sm:w-auto min-w-0">
                 {form.status === 'published' ? (
