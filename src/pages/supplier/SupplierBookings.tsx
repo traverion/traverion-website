@@ -507,7 +507,7 @@ export default function SupplierBookings() {
         }
       >
         {bookings.length > 0 && (
-          <div className="mt-6 flex gap-1 rounded-full bg-black/[0.04] p-1 w-fit max-w-full overflow-x-auto">
+          <div className="mt-6 flex gap-1 rounded-full bg-paper-raised p-1 w-fit max-w-full overflow-x-auto shadow-soft ring-1 ring-black/[0.06]">
             {([
               ['today', 'Today'],
               ['upcoming', 'Upcoming'],
@@ -518,8 +518,14 @@ export default function SupplierBookings() {
                 key={id}
                 type="button"
                 onClick={() => setView(id)}
-                className={`lux-flat rounded-full px-3.5 py-2 min-h-11 text-sm font-medium shrink-0 ${
-                  view === id ? 'bg-paper-raised text-ink shadow-sm' : 'text-ink-muted'
+                className={`lux-flat rounded-full px-3.5 py-2 min-h-11 text-sm font-medium shrink-0 transition-colors ${
+                  view === id
+                    ? id === 'today'
+                      ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
+                      : id === 'past'
+                        ? 'bg-ink text-paper-raised shadow-sm'
+                        : 'bg-finland/90 text-white shadow-sm'
+                    : 'text-ink-muted hover:bg-finland/10 hover:text-finland'
                 }`}
               >
                 {label}
@@ -528,7 +534,7 @@ export default function SupplierBookings() {
           </div>
         )}
         {bookings.length > 0 && (
-          <div className="mt-3 flex gap-1 rounded-full bg-black/[0.04] p-1 w-fit max-w-full overflow-x-auto">
+          <div className="mt-3 flex gap-1 rounded-full bg-paper-raised p-1 w-fit max-w-full overflow-x-auto shadow-soft ring-1 ring-black/[0.06]">
             {([
               ['all', 'All states'],
               ['unpaid', 'Unpaid'],
@@ -540,8 +546,14 @@ export default function SupplierBookings() {
                 key={id}
                 type="button"
                 onClick={() => setOpsFilterAndUrl(id)}
-                className={`lux-flat rounded-full px-3.5 py-2 min-h-11 text-sm font-medium shrink-0 ${
-                  opsFilter === id ? 'bg-paper-raised text-ink shadow-sm' : 'text-ink-muted'
+                className={`lux-flat rounded-full px-3.5 py-2 min-h-11 text-sm font-medium shrink-0 transition-colors ${
+                  opsFilter === id
+                    ? id === 'unpaid' || id === 'pickup' || id === 'refund_due'
+                      ? 'bg-amber-500 text-white shadow-sm'
+                      : id === 'cancel'
+                        ? 'bg-rose-600 text-white shadow-sm'
+                        : 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
+                    : 'text-ink-muted hover:bg-finland/10 hover:text-finland'
                 }`}
               >
                 {label}
