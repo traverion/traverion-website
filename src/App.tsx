@@ -656,7 +656,10 @@ function App() {
     currentPage === 'admin-app' ||
     isTraverionAdminHost();
 
-  const minimalTravelerChrome = currentPage === 'booking-confirmed' || currentPage === 'reset-password';
+  const minimalTravelerChrome =
+    currentPage === 'booking-confirmed' ||
+    currentPage === 'reset-password' ||
+    currentPage === 'auth';
 
   return (
     <TranslationProvider>
