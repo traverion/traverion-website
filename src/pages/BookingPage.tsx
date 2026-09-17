@@ -993,13 +993,16 @@ export default function BookingPage({
           onClick={handleLeaveBooking}
         />
         <div className="relative z-10 flex h-[100dvh] w-full max-w-6xl flex-col overflow-hidden rounded-none bg-paper sm:h-auto sm:max-h-[min(95dvh,1040px)] sm:rounded-2xl sm:shadow-2xl sm:ring-1 sm:ring-black/[0.08] pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]">
-          <div className="flex shrink-0 items-center justify-between border-b border-black/[0.06] px-4 py-3 sm:px-5">
-            <h2
-              id="booking-flow-modal-title"
-              className="truncate pr-2 text-base font-semibold text-ink sm:text-lg"
-            >
-              Book this tour
-            </h2>
+          <div className="flex shrink-0 items-center justify-between border-b border-black/[0.06] bg-gradient-to-b from-finland/[0.06] to-paper-raised px-4 py-3 sm:px-5">
+            <div className="min-w-0 pr-2">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland">Checkout</p>
+              <h2
+                id="booking-flow-modal-title"
+                className="truncate text-base font-semibold text-ink sm:text-lg"
+              >
+                Book this tour
+              </h2>
+            </div>
             <button
               type="button"
               onClick={handleLeaveBooking}
@@ -1009,11 +1012,11 @@ export default function BookingPage({
               <X className="h-5 w-5" />
             </button>
           </div>
-          <div className="relative mx-4 mt-3 h-24 shrink-0 overflow-hidden rounded-xl sm:mx-5 sm:mt-4 sm:h-28">
+          <div className="relative mx-4 mt-3 h-28 shrink-0 overflow-hidden rounded-xl shadow-soft ring-1 ring-black/[0.08] sm:mx-5 sm:mt-4 sm:h-32">
               <img src={tour.image} alt="" className="h-full w-full object-cover" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/55 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/15 to-transparent" />
               <div className="absolute bottom-2 left-3 right-3 text-white">
-                <p className="line-clamp-2 text-sm font-semibold leading-tight">{tour.title}</p>
+                <p className="line-clamp-2 font-display text-base font-semibold leading-tight tracking-tight sm:text-lg">{tour.title}</p>
                 <p className="text-[11px] text-white/90">
                   {formatTourDurationDisplay(tour.duration)} · From {formatMoney(pricePerPerson, currency)}/person
                 </p>
@@ -1041,13 +1044,18 @@ export default function BookingPage({
               Back to tour
             </button>
 
-            <div className="overflow-hidden rounded-2xl mb-6">
-              <div className="h-32 sm:h-40 bg-black/10 relative">
+            <div className="overflow-hidden rounded-2xl mb-6 shadow-soft ring-1 ring-black/[0.08]">
+              <div className="h-36 sm:h-44 bg-black/10 relative">
                 <img src={tour.image} alt="" className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/20 to-transparent" />
+                <div className="absolute top-3 left-3">
+                  <span className="inline-flex items-center rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-finland shadow-sm ring-1 ring-black/[0.06]">
+                    Checkout
+                  </span>
+                </div>
                 <div className="absolute bottom-3 left-3 right-3 text-white">
-                  <h1 className="text-lg sm:text-xl font-semibold">{tour.title}</h1>
-                  <p className="text-sm text-white/90">
+                  <h1 className="font-display text-xl sm:text-2xl tracking-tight">{tour.title}</h1>
+                  <p className="mt-1 text-sm text-white/90">
                     {formatTourDurationDisplay(tour.duration)} · From {formatMoney(pricePerPerson, currency)} per person
                   </p>
                 </div>
