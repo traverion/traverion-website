@@ -158,7 +158,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
             Book the people who run the day.
           </h1>
           <p className="page-hero-subtitle text-base sm:text-lg mb-8 max-w-xl font-normal">
-            Live tours and stays from operators — not a brochure. Free cancellation on tours up to 24 hours before.
+            Live tours and stays from operators — not a brochure. Free cancellation up to 24 hours before.
           </p>
           <div className="flex gap-1 rounded-full bg-white/15 p-1 mb-3 w-fit">
             <button

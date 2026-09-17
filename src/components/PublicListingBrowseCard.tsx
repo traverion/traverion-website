@@ -101,7 +101,7 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
         />
         ) : null}
         <div className="absolute top-2.5 left-2.5 flex flex-wrap gap-1.5">
-          {listingShowsFreeCancellation(tour) && !isStay && (
+          {listingShowsFreeCancellation(tour) && (
             <span className="bg-white/95 text-ink text-[11px] font-medium px-2 py-0.5 rounded-full">
               Free cancellation
             </span>
