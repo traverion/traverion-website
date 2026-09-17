@@ -65,33 +65,44 @@ export default function Sitemap({ onNavigate }: SitemapProps) {
       subtitle="Every main page on Traverion — support, legal, company, and partner programs — in one place."
       onNavigate={onNavigate}
     >
-      <p>
-        Use the links below to jump to any section of the site. Supplier login opens the partner portal in the same
-        window.
-      </p>
+      <div className="not-prose mb-8 rounded-2xl bg-finland/8 px-4 py-3 ring-1 ring-finland/15">
+        <p className="text-sm text-ink leading-relaxed m-0">
+          Jump to any section below. Supplier login opens the partner portal in the same window.
+        </p>
+      </div>
 
-      {SECTIONS.map(({ title, items }) => (
-        <section key={title}>
-          <h2>{title}</h2>
-          <div className="space-y-2">
-            {items.map((item) => (
-              <p key={item.label} className="m-0">
-                {item.page ? (
-                  <button
-                    type="button"
-                    onClick={() => go(item.page!)}
-                    className="lux-flat text-left text-ink underline underline-offset-2 decoration-black/25 hover:decoration-ink"
-                  >
-                    {item.label}
-                  </button>
-                ) : (
-                  <a href={item.href}>{item.label}</a>
-                )}
-              </p>
-            ))}
-          </div>
-        </section>
-      ))}
+      <div className="not-prose grid gap-3 sm:grid-cols-2">
+        {SECTIONS.map(({ title, items }) => (
+          <section
+            key={title}
+            className="rounded-2xl bg-paper-raised p-4 sm:p-5 shadow-soft ring-1 ring-black/[0.06]"
+          >
+            <h2 className="font-display text-xl text-ink tracking-tight mb-3 mt-0">{title}</h2>
+            <ul className="space-y-2 m-0 p-0 list-none">
+              {items.map((item) => (
+                <li key={item.label}>
+                  {item.page ? (
+                    <button
+                      type="button"
+                      onClick={() => go(item.page!)}
+                      className="lux-flat text-left text-sm font-medium text-finland hover:underline underline-offset-2"
+                    >
+                      {item.label}
+                    </button>
+                  ) : (
+                    <a
+                      href={item.href}
+                      className="text-sm font-medium text-finland hover:underline underline-offset-2"
+                    >
+                      {item.label}
+                    </a>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
+      </div>
     </LegalPageShell>
   );
 }
