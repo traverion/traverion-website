@@ -717,7 +717,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
                     {tab === 'signin' ? (
                       <>
                         <LogIn className="w-4 h-4" />
-                        {submitting ? 'Signing in…' : 'Sign in'}
+                        {submitting ? 'Logging in…' : 'Log in'}
                       </>
                     ) : (
                       <>
