@@ -86,10 +86,7 @@ type Step = BookingFlowStep;
 
 function BookingProgress({ step, flow }: { step: Step; flow: 'page' | 'modal' }) {
   if (step === 'done') return null;
-  const labels =
-    flow === 'modal'
-      ? (['Trip', 'Details', 'Pay'] as const)
-      : (['Date', 'Details', 'Pay'] as const);
+  const labels = (['Trip', 'Contact', 'Pay'] as const);
   const order: Step[] = flow === 'modal' ? ['review', 'contact', 'confirm'] : ['date-guests', 'contact', 'confirm'];
   const currentIndex = Math.max(0, order.indexOf(step));
 
@@ -109,15 +106,19 @@ function BookingProgress({ step, flow }: { step: Step; flow: 'page' | 'modal' })
               <span
                 className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors duration-200 ${
                   done
-                    ? 'bg-finland/10 text-finland ring-1 ring-finland/20'
+                    ? 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200/80'
                     : current
-                      ? 'bg-finland/10 text-finland ring-1 ring-finland/30'
+                      ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
                       : 'bg-black/[0.04] text-ink-faint ring-1 ring-black/[0.04]'
                 }`}
               >
                 <span
                   className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
-                    done ? 'bg-finland text-white' : current ? 'bg-finland text-white' : 'bg-black/[0.08] text-ink-faint'
+                    done
+                      ? 'bg-emerald-600 text-white'
+                      : current
+                        ? 'bg-white/20 text-white'
+                        : 'bg-black/[0.08] text-ink-faint'
                   }`}
                   aria-hidden
                 >
@@ -592,18 +593,18 @@ export default function BookingPage({
         {step === 'review' && presentation === 'modal' && selectedVariant && (
           <div className="bg-paper-raised rounded-2xl p-6 sm:p-8 ring-1 ring-black/[0.06]">
             <BookingProgress step={step} flow={flowMode} />
-            <h2 className="text-xl font-semibold text-ink mb-2">Your trip</h2>
+            <h2 className="font-display text-2xl text-ink mb-2">Your trip</h2>
             <p className="text-sm text-ink-muted mb-6">
-              Check the date, party size, and option below. Continue to enter your contact details for checkout.
+              Confirm date, option, and participants. Next you will enter contact details, then pay on Stripe.
             </p>
-            <div className="space-y-3 text-sm text-ink-muted mb-6">
+            <div className="space-y-3 text-sm text-ink-muted mb-6 rounded-xl bg-paper px-4 py-3.5 ring-1 ring-black/[0.05]">
               <p>
-                <span className="font-medium text-ink">Tour</span> — {tour.title}
+                <span className="font-medium text-ink">Experience</span> — {tour.title}
               </p>
               <p>
                 <span className="font-medium text-ink">Option</span> — {selectedVariant.label}
               </p>
-              <p className="text-ink-muted">{selectedVariant.subtitle}</p>
+              {selectedVariant.subtitle ? <p className="text-ink-muted">{selectedVariant.subtitle}</p> : null}
               <p>
                 <span className="font-medium text-ink">Date</span> — {dateDisplay || date}
               </p>
@@ -613,6 +614,12 @@ export default function BookingPage({
                   ? quoted.guestBreakdown.map((r) => `${r.quantity} ${r.label}`).join(' · ')
                   : `${guests} ${guests === 1 ? 'guest' : 'guests'}`}
               </p>
+              {selectedVariant.listingOption?.pickupPlace?.trim() ? (
+                <p>
+                  <span className="font-medium text-ink">Pickup / meeting</span> —{' '}
+                  {selectedVariant.listingOption.pickupPlace.trim()}
+                </p>
+              ) : null}
             </div>
             <div className="mb-6">
               <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint mb-2">Total</p>
@@ -725,12 +732,47 @@ export default function BookingPage({
             </p>
             <div className="space-y-4">
               <div className="rounded-2xl bg-finland/[0.05] ring-1 ring-finland/15 p-3.5 text-sm text-ink-muted">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-finland mb-1.5">Your selection</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-finland mb-1.5">Your booking</p>
                 <p className="font-medium text-ink">{tour.title}</p>
-                <p className="mt-1 text-xs">
-                  {dateDisplay || date || 'Select date'} · {guests} {guests === 1 ? 'guest' : 'guests'}
-                  {selectedVariant ? ` · ${selectedVariant.label}` : ''}
-                </p>
+                <dl className="mt-2 space-y-1 text-xs">
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-ink-faint">Date</dt>
+                    <dd className="font-medium text-ink text-right">{dateDisplay || date || '—'}</dd>
+                  </div>
+                  {selectedVariant ? (
+                    <div className="flex justify-between gap-3">
+                      <dt className="text-ink-faint">Option</dt>
+                      <dd className="font-medium text-ink text-right">{selectedVariant.label}</dd>
+                    </div>
+                  ) : null}
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-ink-faint">Participants</dt>
+                    <dd className="font-medium text-ink text-right">
+                      {quoted?.guestBreakdown?.length
+                        ? quoted.guestBreakdown.map((r) => `${r.quantity} ${r.label}`).join(' · ')
+                        : `${guests} ${guests === 1 ? 'guest' : 'guests'}`}
+                    </dd>
+                  </div>
+                  {selectedVariant?.listingOption?.pickupPlace?.trim() ? (
+                    <div className="flex justify-between gap-3">
+                      <dt className="text-ink-faint">Pickup / meeting</dt>
+                      <dd className="font-medium text-ink text-right max-w-[60%] line-clamp-2">
+                        {selectedVariant.listingOption.pickupPlace.trim()}
+                      </dd>
+                    </div>
+                  ) : tour.meetingPoint?.trim() ? (
+                    <div className="flex justify-between gap-3">
+                      <dt className="text-ink-faint">Meeting</dt>
+                      <dd className="font-medium text-ink text-right max-w-[60%] line-clamp-2">
+                        {tour.meetingPoint.trim()}
+                      </dd>
+                    </div>
+                  ) : null}
+                  <div className="flex justify-between gap-3 pt-1 border-t border-finland/15">
+                    <dt className="text-ink-faint">Total</dt>
+                    <dd className="font-semibold text-ink tabular-nums">{formatMoney(total, currency)}</dd>
+                  </div>
+                </dl>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
@@ -861,65 +903,87 @@ export default function BookingPage({
         {step === 'confirm' && (
           <div className="bg-paper-raised rounded-2xl p-6 sm:p-8 ring-1 ring-black/[0.06]">
             <BookingProgress step={step} flow={flowMode} />
-            <h2 className="text-xl font-semibold text-ink mb-2">Pay to confirm</h2>
+            <h2 className="font-display text-2xl text-ink mb-2">Review &amp; pay</h2>
             <p className="text-sm text-ink-muted mb-6 flex items-start gap-2 rounded-xl bg-finland/5 ring-1 ring-finland/15 px-3 py-2.5">
               <ClipboardList className="w-4 h-4 text-finland shrink-0 mt-0.5" aria-hidden />
               <span>
                 {isSupabaseConfigured()
-                  ? `Pay ${formatMoney(total, currency)} on Stripe to confirm. Inventory is held for ${CHECKOUT_HOLD_MINUTES} minutes while you complete checkout.`
+                  ? `Confirm the details below, then pay ${formatMoney(total, currency)} on Stripe. Your spots are held for ${CHECKOUT_HOLD_MINUTES} minutes while you check out.`
                   : 'Live card checkout is not configured in this environment. We will not pretend a payment succeeded.'}
               </span>
             </p>
 
-            <div className="space-y-3 text-sm text-ink-muted mb-6">
-              <p>
-                <span className="font-medium text-ink">Tour</span> — {tour.title}
-              </p>
-              <p>
-                <span className="font-medium text-ink">Date</span> — {dateDisplay || date}
-              </p>
-              <p>
-                <span className="font-medium text-ink">Participants</span> —{' '}
-                {quoted?.guestBreakdown?.length
-                  ? quoted.guestBreakdown.map((r) => `${r.quantity} ${r.label}`).join(' · ')
-                  : `${guests} ${guests === 1 ? 'guest' : 'guests'}`}
-              </p>
-              {selectedVariant ? (
-                <p>
-                  <span className="font-medium text-ink">Option</span> — {selectedVariant.label}
-                </p>
-              ) : null}
-              <p>
-                <span className="font-medium text-ink">Lead guest</span> — {leadGuestName}
-              </p>
-              {phone.trim() ? (
-                <p>
-                  <span className="font-medium text-ink">Phone</span> — {phone.trim()}
-                </p>
-              ) : null}
-              {placeOfStay.trim() ? (
-                <p>
-                  <span className="font-medium text-ink">Place of stay</span> — {placeOfStay.trim()}
-                </p>
-              ) : null}
-              <p>
-                <span className="font-medium text-ink">Email</span> — {email}
-              </p>
-              <p className="text-xs text-ink-muted">{BOOKING_CONTACT_EMAIL_FIELD_NOTE}</p>
-              {specialRequests.trim() && (
-                <p>
-                  <span className="font-medium text-ink">Special requests</span> — {specialRequests.trim()}
-                </p>
-              )}
-              {tour.meetingPoint?.trim() && (
-                <p>
-                  <span className="font-medium text-ink">Meeting / pickup</span> — {tour.meetingPoint.trim()}
-                </p>
-              )}
-            </div>
+            <section className="mb-6">
+              <h3 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint mb-3">Your booking</h3>
+              <dl className="space-y-2.5 text-sm">
+                <div className="flex justify-between gap-4">
+                  <dt className="text-ink-muted">Experience</dt>
+                  <dd className="font-medium text-ink text-right max-w-[65%]">{tour.title}</dd>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-ink-muted">Date</dt>
+                  <dd className="font-medium text-ink text-right">{dateDisplay || date}</dd>
+                </div>
+                {selectedVariant ? (
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-ink-muted">Option</dt>
+                    <dd className="font-medium text-ink text-right">{selectedVariant.label}</dd>
+                  </div>
+                ) : null}
+                <div className="flex justify-between gap-4">
+                  <dt className="text-ink-muted">Participants</dt>
+                  <dd className="font-medium text-ink text-right">
+                    {quoted?.guestBreakdown?.length
+                      ? quoted.guestBreakdown.map((r) => `${r.quantity} ${r.label}`).join(' · ')
+                      : `${guests} ${guests === 1 ? 'guest' : 'guests'}`}
+                  </dd>
+                </div>
+                {selectedVariant?.listingOption?.pickupPlace?.trim() || tour.meetingPoint?.trim() ? (
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-ink-muted">Pickup / meeting</dt>
+                    <dd className="font-medium text-ink text-right max-w-[65%]">
+                      {selectedVariant?.listingOption?.pickupPlace?.trim() || tour.meetingPoint?.trim()}
+                    </dd>
+                  </div>
+                ) : null}
+              </dl>
+            </section>
 
-            <div className="mb-6">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint mb-2">You pay now</p>
+            <section className="mb-6 border-t border-black/[0.06] pt-5">
+              <h3 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint mb-3">Contact</h3>
+              <dl className="space-y-2.5 text-sm">
+                <div className="flex justify-between gap-4">
+                  <dt className="text-ink-muted">Lead guest</dt>
+                  <dd className="font-medium text-ink text-right">{leadGuestName}</dd>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-ink-muted">Email</dt>
+                  <dd className="font-medium text-ink text-right">{email}</dd>
+                </div>
+                {phone.trim() ? (
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-ink-muted">Phone</dt>
+                    <dd className="font-medium text-ink text-right">{phone.trim()}</dd>
+                  </div>
+                ) : null}
+                {placeOfStay.trim() ? (
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-ink-muted">Place of stay</dt>
+                    <dd className="font-medium text-ink text-right">{placeOfStay.trim()}</dd>
+                  </div>
+                ) : null}
+                {specialRequests.trim() ? (
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-ink-muted">Requests</dt>
+                    <dd className="font-medium text-ink text-right max-w-[65%]">{specialRequests.trim()}</dd>
+                  </div>
+                ) : null}
+              </dl>
+              <p className="mt-2 text-xs text-ink-muted">{BOOKING_CONTACT_EMAIL_FIELD_NOTE}</p>
+            </section>
+
+            <section className="mb-6 border-t border-black/[0.06] pt-5">
+              <h3 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint mb-2">Payment</h3>
               {quoted ? (
                 <PriceBreakdown
                   currency={quoted.currency}
@@ -941,15 +1005,15 @@ export default function BookingPage({
                   <p className="text-xs text-ink-muted mt-2">This is the amount you pay at checkout.</p>
                 </>
               )}
-            </div>
+            </section>
 
-            <div className="mb-6">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint mb-1.5">Cancellation</p>
+            <div className="mb-6 rounded-xl bg-paper px-4 py-3 ring-1 ring-black/[0.05]">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint mb-1.5">Cancellation</p>
               <p className="text-sm text-ink-muted leading-relaxed">{cancellationText}</p>
             </div>
 
             <div className="mb-6">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint mb-1.5">After you pay</p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint mb-1.5">After you pay</p>
               <p className="text-sm text-ink-muted leading-relaxed">
                 {bookingPayConfirmAfterPayCopy(CHECKOUT_HOLD_MINUTES)}
               </p>

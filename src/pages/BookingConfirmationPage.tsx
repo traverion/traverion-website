@@ -31,6 +31,7 @@ import {
   bookingConfirmationCancelledBody,
   BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE,
 } from '../lib/booking-confirmation-copy';
+import { formatBookingParticipantsLabel } from '../lib/participant-mix';
 import { travelerPaymentLabel, bookingPaymentWasCollected } from '../lib/payment-states';
 import {
   confirmationShouldReconcileCheckout,
@@ -503,10 +504,8 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                   <div className="flex items-start gap-3 rounded-xl bg-finland/[0.04] p-3 ring-1 ring-finland/10">
                     <Users className="w-5 h-5 text-finland shrink-0 mt-0.5" aria-hidden />
                     <div>
-                      <p className="text-xs font-medium text-ink-faint uppercase tracking-wide">Guests</p>
-                      <p className="mt-0.5 font-medium text-ink">
-                        {booking.guests} {booking.guests === 1 ? 'guest' : 'guests'}
-                      </p>
+                      <p className="text-xs font-medium text-ink-faint uppercase tracking-wide">Participants</p>
+                      <p className="mt-0.5 font-medium text-ink">{formatBookingParticipantsLabel(booking)}</p>
                     </div>
                   </div>
                 </div>
