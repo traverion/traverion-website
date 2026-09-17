@@ -927,10 +927,23 @@ export default function SupplierListings() {
                 healthPct >= 85 ? 'text-emerald-800' : healthPct >= 60 ? 'text-amber-900' : 'text-rose-800';
               const healthBar =
                 healthPct >= 85 ? 'bg-emerald-500' : healthPct >= 60 ? 'bg-amber-500' : 'bg-rose-400';
+              const healthPanel =
+                healthPct >= 85
+                  ? 'bg-emerald-50/70 ring-1 ring-emerald-200/60'
+                  : healthPct >= 60
+                    ? 'bg-amber-50/70 ring-1 ring-amber-200/60'
+                    : 'bg-rose-50/70 ring-1 ring-rose-200/50';
+              const cardAccent = !isLive
+                ? 'border-l-[3px] border-l-slate-400'
+                : healthPct >= 85
+                  ? 'border-l-[3px] border-l-emerald-500'
+                  : healthPct >= 60
+                    ? 'border-l-[3px] border-l-amber-500'
+                    : 'border-l-[3px] border-l-rose-400';
               return (
                 <article
                   key={listing.id}
-                  className="group min-w-0 rounded-2xl bg-paper-raised p-3 ring-1 ring-black/[0.06] shadow-soft sm:p-3.5"
+                  className={`group min-w-0 overflow-hidden rounded-2xl bg-paper-raised p-3 ring-1 ring-black/[0.06] shadow-soft sm:p-3.5 ${cardAccent}`}
                 >
                   <button
                     type="button"
@@ -966,7 +979,7 @@ export default function SupplierListings() {
                       ) : (
                         <p className="mt-1 text-sm text-ink-faint">Price not set</p>
                       )}
-                      <div className="mt-3 rounded-xl bg-black/[0.03] px-3 py-2.5">
+                      <div className={`mt-3 rounded-xl px-3 py-2.5 ${healthPanel}`}>
                         <div className="flex items-center justify-between gap-2">
                           <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-faint">
                             Listing health
