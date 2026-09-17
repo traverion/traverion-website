@@ -24,7 +24,7 @@ import { openSupplierListingEditor, openSupplierBooking } from '../../lib/suppli
 import { decrementAvailabilityBooked } from '../../data/supabase-availability';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { canManageBookings } from '../../lib/supplierTeamRoles';
-import { SUPPLIER_PAGE_CLASS, SupplierEmptyState, SupplierPageHero } from '../../components/supplier/supplierUi';
+import { SUPPLIER_PAGE_CLASS, SupplierEmptyState, SupplierListSkeleton, SupplierPageHero } from '../../components/supplier/supplierUi';
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import { partnerBookingIsLiveTrip, partnerBookingIsOperatingTrip, partnerBookingNeedsLook } from '../../lib/trip-views';
@@ -895,11 +895,7 @@ export default function SupplierPickupPlanner() {
       {actionFeedbackBanner}
 
       {loading ? (
-        <div className="space-y-3 animate-pulse" aria-hidden>
-          <div className="h-16 rounded-xl bg-black/[0.04]" />
-          <div className="h-16 rounded-xl bg-black/[0.04]" />
-          <div className="h-16 rounded-xl bg-black/[0.04]" />
-        </div>
+        <SupplierListSkeleton rows={3} />
       ) : activeBookingsCount === 0 ? (
         <SupplierEmptyState
           icon={CalendarDays}

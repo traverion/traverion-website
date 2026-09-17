@@ -245,7 +245,11 @@ export default function SupplierAvailability() {
       {!isSupabase || !user ? (
         <p className="text-sm text-ink-muted">Sign in to manage availability.</p>
       ) : loading ? (
-        <div className="grid grid-cols-7 gap-1.5" aria-hidden>
+        <div
+          className="grid grid-cols-7 gap-1.5"
+          aria-busy="true"
+          aria-label="Loading calendar"
+        >
           {Array.from({ length: 35 }, (_, i) => (
             <div key={i} className="min-h-[4.5rem] rounded-xl bg-black/[0.04] animate-pulse" />
           ))}
