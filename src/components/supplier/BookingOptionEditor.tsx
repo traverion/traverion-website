@@ -199,25 +199,49 @@ export default function BookingOptionEditor({
             </span>
           </label>
           {option.isPrivate ? (
-            <div className="space-y-3 pl-8">
-              <div className="flex flex-col gap-2">
+            <div className="space-y-3 pl-0 sm:pl-8">
+              <div className="grid gap-2">
                 {(
                   [
-                    { value: 'per_person' as const, label: 'Price per person (same categories as below)' },
-                    { value: 'flat_group' as const, label: 'One flat price for the private group' },
+                    {
+                      value: 'per_person' as const,
+                      label: 'Price per person',
+                      hint: 'Uses the same age categories below',
+                    },
+                    {
+                      value: 'flat_group' as const,
+                      label: 'Flat group price',
+                      hint: 'One buy-out price for the private party',
+                    },
                   ] as const
-                ).map((row) => (
-                  <label key={row.value} className="flex items-center gap-2 cursor-pointer text-sm text-ink">
-                    <input
-                      type="radio"
-                      name={`private-pricing-${option.id}`}
-                      checked={(option.privatePricing ?? 'per_person') === row.value}
-                      onChange={() => onChange({ privatePricing: row.value })}
-                      className="text-finland focus:ring-finland"
-                    />
-                    {row.label}
-                  </label>
-                ))}
+                ).map((row) => {
+                  const selected = (option.privatePricing ?? 'per_person') === row.value;
+                  return (
+                    <button
+                      key={row.value}
+                      type="button"
+                      onClick={() => onChange({ privatePricing: row.value })}
+                      className={`lux-flat flex w-full items-start gap-3 rounded-xl px-3.5 py-3 text-left ring-1 transition-colors ${
+                        selected
+                          ? 'bg-finland/[0.08] ring-2 ring-finland'
+                          : 'bg-paper ring-black/[0.08] hover:bg-finland/5 hover:ring-finland/30'
+                      }`}
+                    >
+                      <span
+                        className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${
+                          selected ? 'border-finland bg-finland' : 'border-black/25 bg-paper'
+                        }`}
+                        aria-hidden
+                      >
+                        {selected ? <span className="h-1.5 w-1.5 rounded-full bg-white" /> : null}
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block text-sm font-semibold text-ink">{row.label}</span>
+                        <span className="block text-xs text-ink-muted mt-0.5">{row.hint}</span>
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
               {option.privatePricing === 'flat_group' ? (
                 <div>
