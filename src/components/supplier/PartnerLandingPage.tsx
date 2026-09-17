@@ -40,22 +40,27 @@ export default function PartnerLandingPage() {
   return (
     <div className="min-h-[100dvh] bg-paper text-ink flex flex-col">
       <SkipLink />
-      <header className="relative z-10 flex items-center justify-between px-5 sm:px-8 py-5">
-        <a href={supplierPortalLandingHref()} className="flex items-center gap-2.5 no-lux-interaction" aria-label="Traverion Partner">
-          <img src={BRAND_LOGO_SRC} alt="" className="h-10 w-10 object-contain" />
-          <span className="font-sans text-sm font-semibold tracking-[0.18em]">TRAVERION</span>
-        </a>
-        <nav className="flex items-center gap-2 sm:gap-3">
-          <a href={traveler} className="lux-flat hidden sm:inline text-sm text-ink-muted hover:text-ink">
-            For travelers
+      <header className="sticky top-0 z-20 border-b border-black/[0.06] bg-paper-raised/95 backdrop-blur-md shadow-soft">
+        <div className="flex items-center justify-between px-5 sm:px-8 py-3.5">
+          <a href={supplierPortalLandingHref()} className="flex items-center gap-2.5 no-lux-interaction" aria-label="Traverion Partner">
+            <img src={BRAND_LOGO_SRC} alt="" className="h-10 w-10 object-contain" />
+            <span className="flex flex-col leading-tight">
+              <span className="font-sans text-sm font-semibold tracking-[0.18em]">TRAVERION</span>
+              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-finland">For business</span>
+            </span>
           </a>
-          <a href={PARTNER_LOGIN_PATH} className="tv-btn-ghost text-sm">
-            Log in
-          </a>
-          <a href={PARTNER_SIGNUP_PATH} className="tv-btn-primary h-10 px-5 text-sm">
-            Get started
-          </a>
-        </nav>
+          <nav className="flex items-center gap-2 sm:gap-3">
+            <a href={traveler} className="lux-flat hidden sm:inline rounded-full px-3 py-1.5 text-sm text-ink-muted hover:bg-finland/10 hover:text-finland">
+              For travelers
+            </a>
+            <a href={PARTNER_LOGIN_PATH} className="tv-btn-ghost text-sm">
+              Log in
+            </a>
+            <a href={PARTNER_SIGNUP_PATH} className="tv-btn-primary h-10 px-5 text-sm">
+              Get started
+            </a>
+          </nav>
+        </div>
       </header>
 
       <section className="relative text-white min-h-[78dvh] flex flex-col justify-end overflow-hidden">
@@ -64,7 +69,9 @@ export default function PartnerLandingPage() {
           <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/50 to-black/25" />
         </div>
         <div className="relative z-10 w-full max-w-5xl mx-auto px-5 sm:px-8 pb-12 sm:pb-16">
-          <p className="text-xs uppercase tracking-[0.22em] text-white/70 mb-4">Traverion Partner</p>
+          <div className="inline-flex items-center rounded-full bg-white/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-white ring-1 ring-white/25 mb-4 backdrop-blur-sm">
+            Traverion Partner
+          </div>
           <h1 className="font-display text-[2.35rem] sm:text-5xl lg:text-6xl leading-[1.05] max-w-2xl mb-5">
             Sell your travel products.
             <br />
