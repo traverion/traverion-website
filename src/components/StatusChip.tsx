@@ -1,7 +1,7 @@
 type Tone = 'neutral' | 'good' | 'warn' | 'bad' | 'info';
 
 const TONE: Record<Tone, string> = {
-  neutral: 'bg-black/[0.05] text-ink-muted ring-black/[0.06]',
+  neutral: 'bg-paper text-ink-muted ring-black/[0.08]',
   good: 'bg-emerald-50 text-emerald-800 ring-emerald-200/80',
   warn: 'bg-amber-50 text-amber-900 ring-amber-200/80',
   bad: 'bg-rose-50 text-rose-800 ring-rose-200/80',
