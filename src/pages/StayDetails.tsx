@@ -162,11 +162,13 @@ export default function StayDetails({ stayId, onBack }: Props) {
     }
     if (selectionOccupied) {
       setPayError('Those dates were just booked by another traveler. Choose different dates to continue.');
+      document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       return;
     }
     const name = guestName.trim();
     if (!stayCheckoutLeadGuestNameReady(name)) {
       setPayError('Enter the lead guest name so the host knows who is arriving.');
+      document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       document.getElementById('stay-guest-name')?.focus();
       return;
     }
@@ -488,10 +490,16 @@ export default function StayDetails({ stayId, onBack }: Props) {
             <button
               type="button"
               className="tv-btn-primary shrink-0 disabled:opacity-50"
-              disabled={paying}
+              disabled={paying || selectionOccupied}
               onClick={startStayCheckout}
             >
-              {quoteOk ? (paying ? 'Opening…' : 'Continue to payment') : 'Select dates'}
+              {selectionOccupied
+                ? 'Dates unavailable'
+                : quoteOk
+                  ? paying
+                    ? 'Opening…'
+                    : 'Continue to payment'
+                  : 'Select dates'}
             </button>
           ) : (
             <a
