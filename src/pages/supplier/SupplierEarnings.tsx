@@ -190,7 +190,7 @@ export default function SupplierEarnings() {
         <SupplierListSkeleton rows={3} />
       ) : error ? null : (
         <>
-          <section className="mb-12">
+          <section className="mb-12 rounded-2xl bg-paper-raised p-5 sm:p-7 shadow-soft ring-1 ring-black/[0.06]">
             <p className="text-[11px] uppercase tracking-[0.18em] text-ink-faint mb-2">
               {available < 0 ? PARTNER_MONEY_NEGATIVE_BALANCE_LABEL : PARTNER_MONEY_AVAILABLE_BALANCE_LABEL}
             </p>
@@ -215,9 +215,11 @@ export default function SupplierEarnings() {
               </span>
             </p>
             {available < 0 ? (
-              <p className="mt-3 text-sm text-red-800 max-w-lg">
-                {PARTNER_MONEY_NEGATIVE_BALANCE_NOTE}
-              </p>
+              <div className="mt-4 max-w-lg">
+                <NoticeCallout title={PARTNER_MONEY_NEGATIVE_BALANCE_LABEL} tone="danger">
+                  {PARTNER_MONEY_NEGATIVE_BALANCE_NOTE}
+                </NoticeCallout>
+              </div>
             ) : null}
             {payoutProgressPct !== null ? (
               <p className="mt-3 text-sm text-ink-muted">
@@ -298,9 +300,12 @@ export default function SupplierEarnings() {
             {ledger.length > 0 ? (
               <div className="mb-8">
                 <h3 className="text-[11px] uppercase tracking-[0.18em] text-ink-faint mb-2">Ledger</h3>
-              <ul className="divide-y divide-black/[0.06]">
+              <ul className="space-y-2">
                 {ledger.map((e) => (
-                  <li key={e.id} className="py-4 flex items-baseline justify-between gap-4">
+                  <li
+                    key={e.id}
+                    className="rounded-2xl bg-paper-raised px-4 py-3.5 shadow-soft ring-1 ring-black/[0.06] flex items-baseline justify-between gap-4"
+                  >
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-ink">{e.reason}</p>
                       <p className="mt-0.5 text-xs text-ink-muted">
@@ -321,9 +326,12 @@ export default function SupplierEarnings() {
             ) : null}
             {filteredEarnings.length === 0 ? (
               paidBookings.length > 0 ? (
-                <ul className="divide-y divide-black/[0.06]">
+                <ul className="space-y-2">
                   {paidBookings.map((b) => (
-                    <li key={b.id} className="py-4 flex items-baseline justify-between gap-4">
+                    <li
+                      key={b.id}
+                      className="rounded-2xl bg-paper-raised px-4 py-3.5 shadow-soft ring-1 ring-black/[0.06] flex items-baseline justify-between gap-4"
+                    >
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-ink">
                           {b.booking_number != null ? `#${b.booking_number} · ` : ''}
