@@ -2,7 +2,7 @@
  * Consumer: saved listings (wishlist). Requires login when Supabase is configured.
  */
 import { useState, useEffect, useCallback } from 'react';
-import { LogIn, ArrowLeft, Heart } from 'lucide-react';
+import { LogIn, ArrowLeft, Heart, MapPin } from 'lucide-react';
 import { SkeletonListItem, SkeletonConsumerPage } from '../components/ui/Skeleton';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
@@ -118,19 +118,24 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
   return (
     <div className="min-h-screen bg-paper tv-page">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-12 pb-16">
-        <div className="flex flex-wrap items-end justify-between gap-4 mb-8">
-          <div>
-            <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Wishlist</h1>
-            <p className="mt-2 text-ink-muted">Tours you’ve saved.</p>
+        <div className="mb-8 rounded-3xl bg-finland/[0.04] p-5 sm:p-6 ring-1 ring-finland/10">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.16em] text-finland/70 mb-1">Saved for later</p>
+              <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Wishlist</h1>
+              <p className="mt-2 text-sm text-ink-muted max-w-md">
+                Tours and stays you want to come back to — open one to check dates and book.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => onNavigate('account')}
+              className="lux-flat inline-flex items-center gap-1.5 text-sm text-ink-muted hover:text-ink"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Account
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={() => onNavigate('account')}
-            className="lux-flat inline-flex items-center gap-1.5 text-sm text-ink-muted hover:text-ink"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Account
-          </button>
         </div>
         {error && (
           <ErrorState
@@ -141,7 +146,7 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
           />
         )}
         {loading ? (
-          <div className="space-y-4">
+          <div className="space-y-3" aria-busy="true" aria-label="Loading wishlist">
             {[1, 2, 3, 4].map((i) => (
               <SkeletonListItem key={i} />
             ))}
@@ -158,41 +163,68 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
             }
           />
         ) : (
-          <div className="divide-y divide-black/[0.06]">
+          <div className="space-y-3">
             {listings.map((tour) => {
               const thumb = listingHeroImageSrc(tour.image);
+              const place = (tour.city || tour.destination || '').trim();
               return (
-              <div key={tour.id} className="flex items-center gap-4 py-5">
-                <button
-                  type="button"
-                  onClick={() => onTourSelect(tour)}
-                  className="lux-flat flex-1 text-left flex gap-4 min-w-0"
+                <article
+                  key={tour.id}
+                  className="rounded-2xl bg-paper-raised shadow-soft ring-1 ring-black/[0.06] transition-[box-shadow,ring-color] hover:ring-finland/20 hover:shadow-soft-lg"
                 >
-                  {thumb ? (
-                    <img src={thumb} alt="" className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl object-cover shrink-0" />
-                  ) : (
-                    <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-black/[0.04] shrink-0" aria-hidden />
-                  )}
-                  <div className="min-w-0">
-                    <h2 className="font-semibold text-ink truncate">{tour.title}</h2>
-                    <p className="mt-0.5 text-sm text-ink-muted">
-                      {tour.destination} · {tour.duration}
-                    </p>
-                    <p className="mt-1 text-sm text-ink">
-                      From {formatMoney(catalogHeadlineAmount(tour), tour.price?.currency)}
-                    </p>
+                  <div className="flex items-stretch gap-0">
+                    <button
+                      type="button"
+                      onClick={() => onTourSelect(tour)}
+                      className="lux-flat flex min-w-0 flex-1 items-start gap-3.5 p-3.5 sm:gap-4 sm:p-4 text-left"
+                    >
+                      {thumb ? (
+                        <img
+                          src={thumb}
+                          alt=""
+                          className="h-20 w-20 sm:h-24 sm:w-24 rounded-xl object-cover shrink-0 bg-black/[0.04]"
+                          width={96}
+                          height={96}
+                          loading="lazy"
+                          decoding="async"
+                        />
+                      ) : (
+                        <div
+                          className="flex h-20 w-20 sm:h-24 sm:w-24 shrink-0 items-center justify-center rounded-xl bg-finland/[0.06] ring-1 ring-finland/10"
+                          aria-hidden
+                        >
+                          <Heart className="h-7 w-7 text-finland/45" />
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <h2 className="font-semibold text-ink line-clamp-2 leading-snug">{tour.title}</h2>
+                        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-muted">
+                          {place ? (
+                            <span className="inline-flex min-w-0 items-center gap-1">
+                              <MapPin className="h-3.5 w-3.5 shrink-0 text-ink-faint" aria-hidden />
+                              <span className="truncate">{place}</span>
+                            </span>
+                          ) : null}
+                          {tour.duration ? <span>{tour.duration}</span> : null}
+                        </div>
+                        <p className="mt-2 text-sm font-semibold text-ink">
+                          From {formatMoney(catalogHeadlineAmount(tour), tour.price?.currency)}
+                        </p>
+                      </div>
+                    </button>
+                    <div className="flex items-start border-l border-black/[0.05] p-2 sm:p-3">
+                      <button
+                        type="button"
+                        onClick={() => void handleRemove(tour.id)}
+                        className="lux-flat rounded-xl p-2.5 text-ink-muted hover:bg-rose-50 hover:text-rose-800 active:scale-90"
+                        title="Remove from wishlist"
+                        aria-label={`Remove ${tour.title} from wishlist`}
+                      >
+                        <Heart className="w-5 h-5 fill-current" />
+                      </button>
+                    </div>
                   </div>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleRemove(tour.id)}
-                  className="lux-flat p-2 text-ink-muted hover:text-ink active:scale-90"
-                  title="Remove from wishlist"
-                  aria-label={`Remove ${tour.title} from wishlist`}
-                >
-                  <Heart className="w-5 h-5 fill-ink/80" />
-                </button>
-              </div>
+                </article>
               );
             })}
           </div>
