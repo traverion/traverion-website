@@ -43,6 +43,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
   const catalogLoading = isSupabaseConfigured() && supplierListings === null && !listingsError;
   const [searchTerm, setSearchTerm] = useState('');
   const [when, setWhen] = useState('');
+  const [checkout, setCheckout] = useState('');
   const [who, setWho] = useState('');
   const [discountsByListing, setDiscountsByListing] = useState<Map<string, import('../data/supabase-discounts').ListingDiscount[]>>(new Map());
   const [reviewAggregates, setReviewAggregates] = useState<Map<string, { rating: number; count: number }>>(
@@ -120,17 +121,18 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
     onNavigate('packages');
   };
 
-  const goToStays = (extra?: { q?: string; date?: string; guests?: string }) => {
+  const goToStays = (extra?: { q?: string; date?: string; checkout?: string; guests?: string }) => {
     if (!onNavigate) return;
     const params = new URLSearchParams();
     const q = (extra?.q ?? searchTerm).trim();
     const date = (extra?.date ?? when).trim();
+    const out = (extra?.checkout ?? checkout).trim();
     const guests = (extra?.guests ?? who).trim();
     if (q) params.set('q', q);
     if (date) {
       params.set('date', date);
-      // Home has one date field; default one night so Stays can filter occupancy honestly.
-      params.set('checkout', addCalendarDays(date, 1));
+      const nightOut = out && out > date ? out : addCalendarDays(date, 1);
+      params.set('checkout', nightOut);
     }
     if (guests) params.set('guests', guests);
     const query = params.toString();
@@ -194,7 +196,11 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
           <form
             onSubmit={submitSearch}
             onPointerEnter={prefetchPackagesPage}
-            className="bg-paper-raised text-ink rounded-2xl sm:rounded-full p-2 sm:p-1.5 grid grid-cols-1 sm:grid-cols-[1.4fr_1fr_0.85fr_auto] gap-1 max-w-3xl shadow-soft-xl ring-1 ring-black/[0.06]"
+            className={`bg-paper-raised text-ink rounded-2xl sm:rounded-full p-2 sm:p-1.5 grid grid-cols-1 gap-1 max-w-3xl shadow-soft-xl ring-1 ring-black/[0.06] ${
+              searchFamily === 'stays'
+                ? 'sm:grid-cols-[1.2fr_0.9fr_0.9fr_0.75fr_auto]'
+                : 'sm:grid-cols-[1.4fr_1fr_0.85fr_auto]'
+            }`}
             aria-label={searchFamily === 'stays' ? 'Search stays' : 'Search tours'}
           >
             <div className="relative min-w-0 rounded-xl sm:rounded-full px-3.5 py-2 hover:bg-black/[0.03] focus-within:bg-black/[0.03] focus-within:ring-2 focus-within:ring-finland/25 transition-colors">
@@ -221,13 +227,34 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                 id="home-when"
                 type="date"
                 value={when}
-                onChange={(e) => setWhen(e.target.value)}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setWhen(next);
+                  if (checkout && next && checkout <= next) {
+                    setCheckout(addCalendarDays(next, 1));
+                  }
+                }}
                 className="w-full h-9 border-0 text-ink focus:ring-0 text-[15px] bg-transparent"
               />
             </div>
+            {searchFamily === 'stays' ? (
+              <div className="relative min-w-0 rounded-xl sm:rounded-full px-3.5 py-2 hover:bg-black/[0.03] focus-within:bg-black/[0.03] focus-within:ring-2 focus-within:ring-finland/25 transition-colors">
+                <label htmlFor="home-checkout" className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
+                  Check-out
+                </label>
+                <input
+                  id="home-checkout"
+                  type="date"
+                  value={checkout}
+                  min={when ? addCalendarDays(when, 1) : undefined}
+                  onChange={(e) => setCheckout(e.target.value)}
+                  className="w-full h-9 border-0 text-ink focus:ring-0 text-[15px] bg-transparent"
+                />
+              </div>
+            ) : null}
             <div className="relative min-w-0 rounded-xl sm:rounded-full px-3.5 py-2 hover:bg-black/[0.03] focus-within:bg-black/[0.03] focus-within:ring-2 focus-within:ring-finland/25 transition-colors">
               <label htmlFor="home-who" className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
-                Travelers
+                {searchFamily === 'stays' ? 'Guests' : 'Travelers'}
               </label>
               <input
                 id="home-who"
