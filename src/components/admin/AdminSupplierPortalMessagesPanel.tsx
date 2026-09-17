@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Loader2, Megaphone, RefreshCw, Trash2 } from 'lucide-react';
-import LuxuryButton from '../ui/LuxuryButton';
-import LuxuryCard from '../ui/LuxuryCard';
 import { isSupabaseConfigured } from '../../lib/supabase';
 import { invokeAdminEdgeFunction } from '../../lib/adminEdgeFunction';
+import NoticeCallout from '../NoticeCallout';
+import StatusChip from '../StatusChip';
+import EmptyState from '../EmptyState';
 
 type NoticeRow = {
   id: string;
@@ -14,6 +15,22 @@ type NoticeRow = {
   supplier_user_id: string | null;
   created_at: string;
 };
+
+function variantTone(v: string): 'info' | 'warn' | 'good' | 'neutral' {
+  const s = v.toLowerCase();
+  if (s === 'warning') return 'warn';
+  if (s === 'success') return 'good';
+  if (s === 'info') return 'info';
+  return 'neutral';
+}
+
+function variantLabel(v: string): string {
+  const s = v.toLowerCase();
+  if (s === 'warning') return 'Warning';
+  if (s === 'success') return 'Success';
+  if (s === 'info') return 'Info';
+  return v || 'Info';
+}
 
 export default function AdminSupplierPortalMessagesPanel() {
   const [items, setItems] = useState<NoticeRow[]>([]);
@@ -83,47 +100,57 @@ export default function AdminSupplierPortalMessagesPanel() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-            <Megaphone className="w-6 h-6 text-finland shrink-0" />
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="max-w-2xl">
+          <h2 className="font-display text-xl text-ink tracking-tight flex items-center gap-2">
+            <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-finland/10 text-finland">
+              <Megaphone className="w-5 h-5" aria-hidden />
+            </span>
             Supplier portal messages
           </h2>
-          <p className="text-sm text-gray-600 mt-1 max-w-2xl">
-            Banners appear on each supplier&apos;s <strong>Dashboard</strong> under Quick start. Publish for everyone or
-            for one supplier using their <strong>user id</strong> (same as profile id in the verification queue). These
-            are portal banners — not emails.
+          <p className="text-sm text-ink-muted mt-2 leading-relaxed">
+            Banners appear on each supplier&apos;s <strong className="text-ink font-semibold">Dashboard</strong> under
+            Quick start. Publish for everyone or for one supplier using their{' '}
+            <strong className="text-ink font-semibold">user id</strong> (same as profile id in the verification queue).
+            These are portal banners — not emails.
           </p>
         </div>
-        <LuxuryButton variant="outline" size="sm" onClick={() => void load()} disabled={loading} className="inline-flex items-center gap-2">
-          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+        <button
+          type="button"
+          onClick={() => void load()}
+          disabled={loading}
+          className="tv-btn-secondary text-sm inline-flex items-center gap-2 disabled:opacity-50"
+        >
+          {loading ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden /> : <RefreshCw className="w-4 h-4" aria-hidden />}
           Refresh
-        </LuxuryButton>
+        </button>
       </div>
 
-      {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 text-red-800 text-sm px-4 py-3">{error}</div>
-      )}
+      {error ? (
+        <NoticeCallout title="Could not update messages" tone="danger">
+          {error}
+        </NoticeCallout>
+      ) : null}
 
-      <LuxuryCard variant="glass" className="p-6 space-y-4">
-        <h3 className="text-sm font-semibold text-gray-900">New message</h3>
+      <div className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06] space-y-4">
+        <h3 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint">New message</h3>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="block text-sm">
-            <span className="text-gray-600">Title</span>
+            <span className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Title</span>
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              className="tv-input mt-1.5 w-full text-sm"
               placeholder="e.g. Update your payment details"
               maxLength={300}
             />
           </label>
           <label className="block text-sm">
-            <span className="text-gray-600">Style</span>
+            <span className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Style</span>
             <select
               value={variant}
               onChange={(e) => setVariant(e.target.value as 'info' | 'warning' | 'success')}
-              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              className="tv-input mt-1.5 w-full text-sm"
             >
               <option value="info">Info</option>
               <option value="warning">Warning</option>
@@ -132,68 +159,81 @@ export default function AdminSupplierPortalMessagesPanel() {
           </label>
         </div>
         <fieldset className="text-sm">
-          <legend className="text-gray-600 mb-2">Audience</legend>
+          <legend className="text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-2">Audience</legend>
           <div className="flex flex-wrap gap-4">
-            <label className="inline-flex items-center gap-2 cursor-pointer">
+            <label className="inline-flex items-center gap-2 cursor-pointer text-ink">
               <input type="radio" name="aud" checked={audience === 'all'} onChange={() => setAudience('all')} />
               All suppliers
             </label>
-            <label className="inline-flex items-center gap-2 cursor-pointer">
+            <label className="inline-flex items-center gap-2 cursor-pointer text-ink">
               <input type="radio" name="aud" checked={audience === 'supplier'} onChange={() => setAudience('supplier')} />
               One supplier
             </label>
           </div>
         </fieldset>
-        {audience === 'supplier' && (
+        {audience === 'supplier' ? (
           <label className="block text-sm">
-            <span className="text-gray-600">Supplier user id (UUID)</span>
+            <span className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Supplier user id (UUID)</span>
             <input
               value={supplierUserId}
               onChange={(e) => setSupplierUserId(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono"
+              className="tv-input mt-1.5 w-full text-sm font-mono"
               placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
             />
           </label>
-        )}
+        ) : null}
         <label className="block text-sm">
-          <span className="text-gray-600">Message</span>
+          <span className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Message</span>
           <textarea
             value={messageBody}
             onChange={(e) => setMessageBody(e.target.value)}
             rows={4}
-            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+            className="tv-input mt-1.5 w-full text-sm min-h-[6rem] resize-y"
             placeholder="Explain what you need them to do and where in Settings to find it."
             maxLength={8000}
           />
         </label>
-        <LuxuryButton variant="gradient" size="sm" onClick={() => void createNotice()} disabled={saving || !title.trim() || !messageBody.trim()}>
-          {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+        <button
+          type="button"
+          onClick={() => void createNotice()}
+          disabled={saving || !title.trim() || !messageBody.trim()}
+          className="tv-btn-primary text-sm inline-flex items-center gap-2 disabled:opacity-50"
+        >
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden /> : null}
           Publish message
-        </LuxuryButton>
-      </LuxuryCard>
+        </button>
+      </div>
 
-      <LuxuryCard variant="glass" className="p-6">
-        <h3 className="text-sm font-semibold text-gray-900 mb-3">Published ({items.length})</h3>
+      <div className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]">
+        <h3 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint mb-4">
+          Published ({items.length})
+        </h3>
         {loading && items.length === 0 ? (
-          <p className="text-sm text-gray-500 flex items-center gap-2">
-            <Loader2 className="w-4 h-4 animate-spin" /> Loading…
+          <p className="text-sm text-ink-muted flex items-center gap-2">
+            <Loader2 className="w-4 h-4 animate-spin" aria-hidden /> Loading…
           </p>
         ) : items.length === 0 ? (
-          <p className="text-sm text-gray-500">No messages yet.</p>
+          <EmptyState
+            icon={Megaphone}
+            className="py-8 sm:py-10"
+            title="No portal messages yet"
+            body="Published banners will show here and on supplier dashboards under Quick start."
+          />
         ) : (
-          <ul className="divide-y divide-gray-200 border border-gray-200 rounded-lg overflow-hidden bg-white">
+          <ul className="space-y-3 m-0 p-0 list-none">
             {items.map((n) => (
-              <li key={n.id} className="p-4 flex flex-col sm:flex-row sm:items-start gap-3">
+              <li
+                key={n.id}
+                className="rounded-xl bg-black/[0.02] ring-1 ring-black/[0.06] p-4 flex flex-col sm:flex-row sm:items-start gap-3"
+              >
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-medium text-gray-900">{n.title}</span>
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">{n.variant}</span>
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-finland/10 text-finland">
-                      {n.audience === 'all' ? 'All suppliers' : 'One supplier'}
-                    </span>
+                    <span className="font-medium text-ink">{n.title}</span>
+                    <StatusChip tone={variantTone(n.variant)}>{variantLabel(n.variant)}</StatusChip>
+                    <StatusChip tone="info">{n.audience === 'all' ? 'All suppliers' : 'One supplier'}</StatusChip>
                   </div>
-                  <p className="text-sm text-gray-600 mt-1 whitespace-pre-wrap">{n.body}</p>
-                  <p className="text-xs text-gray-400 mt-2">
+                  <p className="text-sm text-ink-muted mt-1.5 whitespace-pre-wrap leading-relaxed">{n.body}</p>
+                  <p className="text-xs text-ink-faint mt-2">
                     {new Date(n.created_at).toLocaleString()}
                     {n.supplier_user_id ? ` · ${n.supplier_user_id}` : null}
                   </p>
@@ -202,16 +242,20 @@ export default function AdminSupplierPortalMessagesPanel() {
                   type="button"
                   onClick={() => void remove(n.id)}
                   disabled={deletingId === n.id}
-                  className="shrink-0 inline-flex items-center gap-1 rounded-lg border border-red-200 px-3 py-2 text-sm text-red-700 hover:bg-red-50 disabled:opacity-50"
+                  className="shrink-0 tv-btn-secondary text-sm inline-flex items-center gap-1.5 text-rose-800 ring-rose-200 disabled:opacity-50"
                 >
-                  {deletingId === n.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                  {deletingId === n.id ? (
+                    <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
+                  ) : (
+                    <Trash2 className="w-4 h-4" aria-hidden />
+                  )}
                   Remove
                 </button>
               </li>
             ))}
           </ul>
         )}
-      </LuxuryCard>
+      </div>
     </div>
   );
 }
