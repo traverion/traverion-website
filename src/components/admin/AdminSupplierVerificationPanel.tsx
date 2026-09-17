@@ -6,6 +6,9 @@ import {
   AdminSupplierDetailSection,
   type AdminSupplierDetailPayload,
 } from './AdminSupplierDetailSection';
+import NoticeCallout from '../NoticeCallout';
+import StatusChip from '../StatusChip';
+import EmptyState from '../EmptyState';
 
 type QueueRow = {
   id: string;
@@ -21,6 +24,23 @@ type QueueRow = {
 };
 
 type FeedbackDrafts = Record<string, { business: string; payout: string }>;
+
+function statusTone(status: string | null | undefined): 'good' | 'warn' | 'bad' | 'neutral' {
+  const s = (status ?? '').toLowerCase();
+  if (s === 'approved' || s === 'verified') return 'good';
+  if (s === 'pending') return 'warn';
+  if (s === 'rejected') return 'bad';
+  return 'neutral';
+}
+
+function humanStatus(status: string | null | undefined): string {
+  const s = (status ?? '').trim();
+  if (!s) return 'Not submitted';
+  if (s === 'pending') return 'Pending';
+  if (s === 'approved' || s === 'verified') return 'Approved';
+  if (s === 'rejected') return 'Rejected';
+  return s;
+}
 
 export default function AdminSupplierVerificationPanel() {
   const [loading, setLoading] = useState(false);
@@ -105,53 +125,59 @@ export default function AdminSupplierVerificationPanel() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+      <div className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]">
         <div className="flex items-start gap-3 mb-4">
-          <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0">
-            <ClipboardCheck className="w-5 h-5 text-emerald-700" aria-hidden />
+          <div className="w-10 h-10 rounded-xl bg-finland/10 flex items-center justify-center shrink-0">
+            <ClipboardCheck className="w-5 h-5 text-finland" aria-hidden />
           </div>
           <div className="flex-1 min-w-0">
-            <h2 className="text-lg font-semibold text-gray-900">Supplier verification queue</h2>
-            <p className="text-sm text-gray-600 mt-1">
+            <h2 className="font-display text-xl text-ink tracking-tight">Supplier verification queue</h2>
+            <p className="text-sm text-ink-muted mt-1 leading-relaxed">
               Review submitted business and payout data. Open verification files in a new tab. Approve or reject
-              separately. Use the <strong>business</strong> note when rejecting company verification, and the{' '}
-              <strong>banking / payout</strong> note when rejecting IBAN/BIC — suppliers see the matching message in
-              Settings.
+              separately. Use the <strong className="text-ink font-semibold">business</strong> note when rejecting
+              company verification, and the <strong className="text-ink font-semibold">banking / payout</strong> note
+              when rejecting IBAN/BIC — suppliers see the matching message in Settings.
             </p>
           </div>
         </div>
 
-        {!baseConfigured && (
-          <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-            Set <code className="text-xs">VITE_SUPABASE_URL</code> and <code className="text-xs">VITE_SUPABASE_ANON_KEY</code>{' '}
-            in your env.
-          </p>
-        )}
+        {!baseConfigured ? (
+          <NoticeCallout title="Supabase not configured" tone="warn">
+            Set <code className="text-xs font-mono">VITE_SUPABASE_URL</code> and{' '}
+            <code className="text-xs font-mono">VITE_SUPABASE_ANON_KEY</code> in your env.
+          </NoticeCallout>
+        ) : null}
 
         <div className="mt-4">
           <button
             type="button"
             onClick={() => void loadQueue()}
             disabled={loading || !baseConfigured}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-sky-600 text-white text-sm font-medium hover:bg-sky-700 disabled:opacity-50"
+            className="tv-btn-primary text-sm inline-flex items-center gap-2 disabled:opacity-50"
           >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden /> : <RefreshCw className="w-4 h-4" aria-hidden />}
             Refresh queue
           </button>
         </div>
       </div>
 
-      {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 text-red-800 text-sm px-4 py-3">{error}</div>
-      )}
+      {error ? (
+        <NoticeCallout title="Could not load queue" tone="danger">
+          {error}
+        </NoticeCallout>
+      ) : null}
 
-      {items.length === 0 && !loading && (
-        <p className="text-sm text-gray-500">
-          No rows in queue (no supplier with business or payout status pending after submit).
-        </p>
-      )}
+      {items.length === 0 && !loading ? (
+        <div className="rounded-2xl bg-paper-raised px-4 py-2 shadow-soft ring-1 ring-black/[0.06]">
+          <EmptyState
+            icon={ClipboardCheck}
+            title="Queue is clear"
+            body="No suppliers are waiting with business or payout verification submitted for review."
+          />
+        </div>
+      ) : null}
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         {items.map((row) => {
           const name = row.company_legal_name?.trim() || row.display_name?.trim() || row.id;
           const bizPending =
@@ -166,35 +192,39 @@ export default function AdminSupplierVerificationPanel() {
           return (
             <div
               key={row.id}
-              className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm space-y-3"
+              className="rounded-2xl bg-paper-raised p-4 sm:p-5 shadow-soft ring-1 ring-black/[0.06] space-y-3"
             >
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <div>
-                  <p className="font-semibold text-gray-900">{name}</p>
-                  <p className="text-xs text-gray-500 font-mono mt-0.5">{row.id}</p>
+                  <p className="font-semibold text-ink">{name}</p>
+                  <p className="text-xs text-ink-faint font-mono mt-0.5">{row.id}</p>
                 </div>
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-ink-faint">
                   Updated {row.updated_at ? new Date(row.updated_at).toLocaleString() : '—'}
                 </p>
               </div>
 
-              <div className="grid sm:grid-cols-2 gap-4 text-sm">
-                <div className="rounded-lg bg-gray-50 border border-gray-100 p-3 space-y-2">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">Business verification</p>
-                  <p className="text-gray-800">
-                    Status: <span className="font-medium">{row.verification_status ?? '—'}</span>
-                    {bizPending ? <span className="text-amber-700"> · in queue</span> : null}
-                  </p>
+              <div className="grid sm:grid-cols-2 gap-3 text-sm">
+                <div className="rounded-xl bg-black/[0.02] ring-1 ring-black/[0.06] p-3 space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint">
+                      Business verification
+                    </p>
+                    <StatusChip tone={statusTone(row.verification_status)}>
+                      {humanStatus(row.verification_status)}
+                    </StatusChip>
+                    {bizPending ? <StatusChip tone="warn">In queue</StatusChip> : null}
+                  </div>
                   {row.verification_status === 'rejected' &&
                     (row.business_verification_feedback ?? '').trim() !== '' && (
-                      <p className="text-xs text-gray-600 bg-white/80 border border-gray-200 rounded-md px-2 py-1.5">
-                        <span className="font-medium text-gray-700">Saved note: </span>
+                      <p className="text-xs text-ink-muted bg-paper-raised ring-1 ring-black/[0.06] rounded-lg px-2.5 py-1.5">
+                        <span className="font-medium text-ink">Saved note: </span>
                         {row.business_verification_feedback}
                       </p>
                     )}
                   {bizPending && (
                     <>
-                      <label className="block text-xs font-medium text-gray-600 pt-1">
+                      <label className="block text-xs font-medium text-ink-muted pt-1">
                         Note if rejecting (company / documents — shown under business verification)
                       </label>
                       <textarea
@@ -207,14 +237,14 @@ export default function AdminSupplierVerificationPanel() {
                         }
                         rows={2}
                         placeholder="e.g. Registration document is unreadable — please upload a clearer PDF."
-                        className="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg bg-white"
+                        className="tv-input w-full text-sm"
                       />
                       <div className="flex flex-wrap gap-2 pt-1">
                         <button
                           type="button"
                           disabled={actingId === row.id}
                           onClick={() => void runAction(row.id, 'approve_business')}
-                          className="px-2.5 py-1 rounded-md bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 disabled:opacity-50"
+                          className="tv-btn-primary text-xs h-8 px-3 disabled:opacity-50"
                         >
                           Approve
                         </button>
@@ -222,7 +252,7 @@ export default function AdminSupplierVerificationPanel() {
                           type="button"
                           disabled={actingId === row.id}
                           onClick={() => void runAction(row.id, 'reject_business')}
-                          className="px-2.5 py-1 rounded-md bg-red-600 text-white text-xs font-medium hover:bg-red-700 disabled:opacity-50"
+                          className="tv-btn-secondary text-xs h-8 px-3 text-rose-800 ring-rose-200 disabled:opacity-50"
                         >
                           Reject
                         </button>
@@ -230,22 +260,26 @@ export default function AdminSupplierVerificationPanel() {
                     </>
                   )}
                 </div>
-                <div className="rounded-lg bg-gray-50 border border-gray-100 p-3 space-y-2">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">Banking / payout</p>
-                  <p className="text-gray-800">
-                    Status: <span className="font-medium">{row.payout_verification_status ?? '—'}</span>
-                    {payPending ? <span className="text-amber-700"> · in queue</span> : null}
-                  </p>
+                <div className="rounded-xl bg-black/[0.02] ring-1 ring-black/[0.06] p-3 space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint">
+                      Banking / payout
+                    </p>
+                    <StatusChip tone={statusTone(row.payout_verification_status)}>
+                      {humanStatus(row.payout_verification_status)}
+                    </StatusChip>
+                    {payPending ? <StatusChip tone="warn">In queue</StatusChip> : null}
+                  </div>
                   {(row.payout_verification_status ?? '').toLowerCase() === 'rejected' &&
                     (row.payout_verification_feedback ?? '').trim() !== '' && (
-                      <p className="text-xs text-gray-600 bg-white/80 border border-gray-200 rounded-md px-2 py-1.5">
-                        <span className="font-medium text-gray-700">Saved note: </span>
+                      <p className="text-xs text-ink-muted bg-paper-raised ring-1 ring-black/[0.06] rounded-lg px-2.5 py-1.5">
+                        <span className="font-medium text-ink">Saved note: </span>
                         {row.payout_verification_feedback}
                       </p>
                     )}
                   {payPending && (
                     <>
-                      <label className="block text-xs font-medium text-gray-600 pt-1">
+                      <label className="block text-xs font-medium text-ink-muted pt-1">
                         Note if rejecting (IBAN/BIC / bank details — shown under payout section)
                       </label>
                       <textarea
@@ -258,14 +292,14 @@ export default function AdminSupplierVerificationPanel() {
                         }
                         rows={2}
                         placeholder="e.g. IBAN format invalid — please check country code and length."
-                        className="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg bg-white"
+                        className="tv-input w-full text-sm"
                       />
                       <div className="flex flex-wrap gap-2 pt-1">
                         <button
                           type="button"
                           disabled={actingId === row.id}
                           onClick={() => void runAction(row.id, 'approve_payout')}
-                          className="px-2.5 py-1 rounded-md bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 disabled:opacity-50"
+                          className="tv-btn-primary text-xs h-8 px-3 disabled:opacity-50"
                         >
                           Approve
                         </button>
@@ -273,7 +307,7 @@ export default function AdminSupplierVerificationPanel() {
                           type="button"
                           disabled={actingId === row.id}
                           onClick={() => void runAction(row.id, 'reject_payout')}
-                          className="px-2.5 py-1 rounded-md bg-red-600 text-white text-xs font-medium hover:bg-red-700 disabled:opacity-50"
+                          className="tv-btn-secondary text-xs h-8 px-3 text-rose-800 ring-rose-200 disabled:opacity-50"
                         >
                           Reject
                         </button>
@@ -286,14 +320,14 @@ export default function AdminSupplierVerificationPanel() {
               <button
                 type="button"
                 onClick={() => void toggleExpand(row.id)}
-                className="inline-flex items-center gap-2 text-sm font-medium text-sky-700 hover:text-sky-900"
+                className="lux-flat inline-flex items-center gap-2 text-sm font-semibold text-finland"
               >
-                {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                {expanded ? <ChevronUp className="w-4 h-4" aria-hidden /> : <ChevronDown className="w-4 h-4" aria-hidden />}
                 {expanded ? 'Hide submission details' : 'View submission details & files'}
               </button>
 
               {expanded && (
-                <div className="border-t border-gray-100 pt-4 space-y-4">
+                <div className="border-t border-black/[0.06] pt-4 space-y-4">
                   <AdminSupplierDetailSection loading={detailLoading} detail={detail ?? null} />
                 </div>
               )}
