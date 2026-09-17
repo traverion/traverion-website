@@ -241,7 +241,8 @@ export default function SupplierBookings() {
       const ops = params.get('ops');
       if (ops === 'refund_due' || ops === 'unpaid' || ops === 'pickup' || ops === 'cancel') {
         setOpsFilter(ops);
-        if (ops === 'refund_due') setView('all');
+        // Money/hold/cancel ops are not schedule-scoped — Today/Upcoming hide unpaid holds.
+        if (ops === 'refund_due' || ops === 'unpaid' || ops === 'cancel') setView('all');
       } else if (ops === 'all' || ops === null) {
         if (ops === 'all') setOpsFilter('all');
       }
@@ -261,7 +262,7 @@ export default function SupplierBookings() {
 
   const setOpsFilterAndUrl = useCallback((next: OpsFilter) => {
     setOpsFilter(next);
-    if (next === 'refund_due') setView('all');
+    if (next === 'refund_due' || next === 'unpaid' || next === 'cancel') setView('all');
     const url = new URL(window.location.href);
     if (next === 'all') url.searchParams.delete('ops');
     else url.searchParams.set('ops', next);
@@ -278,8 +279,8 @@ export default function SupplierBookings() {
       const isStay = meta?.family === 'stay' || Boolean(b.check_out);
       const stayRange = isStay ? stayRangeFromBooking(b) : null;
       if (view === 'today') {
-        if (opsFilter === 'refund_due') {
-          /* Refund due is money ops, not schedule — still list regardless of date. */
+        if (opsFilter === 'refund_due' || opsFilter === 'unpaid' || opsFilter === 'cancel') {
+          /* Ops filters are money/hold/cancel work — not schedule-scoped. */
         } else if (!partnerBookingIsOperatingTrip(b)) {
           return false;
         } else if (stayRange) {
@@ -289,7 +290,7 @@ export default function SupplierBookings() {
         }
       }
       if (view === 'upcoming') {
-        if (opsFilter === 'refund_due') {
+        if (opsFilter === 'refund_due' || opsFilter === 'unpaid' || opsFilter === 'cancel') {
           /* keep */
         } else if (!partnerBookingIsOperatingTrip(b)) {
           return false;
@@ -300,7 +301,7 @@ export default function SupplierBookings() {
         }
       }
       if (view === 'past') {
-        if (opsFilter === 'refund_due') {
+        if (opsFilter === 'refund_due' || opsFilter === 'unpaid' || opsFilter === 'cancel') {
           /* keep */
         } else if (stayRange) {
           if (stayRange.checkOut > todayIso && partnerBookingIsOperatingTrip(b)) return false;

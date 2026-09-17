@@ -315,7 +315,11 @@ export default function SupplierDashboard({ onNavigateToBookings }: SupplierDash
         <ul className="space-y-2 text-sm">
             {openCancelCount > 0 && (
               <li>
-                <button type="button" onClick={() => onNavigateToBookings?.()} className="lux-flat min-h-11 w-full text-left py-2 text-finland font-medium">
+                <button
+                  type="button"
+                  onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings?ops=cancel`)}
+                  className="lux-flat min-h-11 w-full text-left py-2 text-finland font-medium"
+                >
                   {openCancelCount} cancellation request{openCancelCount === 1 ? '' : 's'} waiting for the traveler
                   {overdueCancelCount > 0
                     ? ` · ${overdueCancelCount} past the review window (Traverion does not auto-cancel)`
@@ -343,7 +347,11 @@ export default function SupplierDashboard({ onNavigateToBookings }: SupplierDash
             )}
             {pendingBookings.length > 0 && (
               <li>
-                <button type="button" onClick={() => onNavigateToBookings?.()} className="lux-flat min-h-11 w-full text-left py-2 text-finland font-medium">
+                <button
+                  type="button"
+                  onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings?ops=unpaid`)}
+                  className="lux-flat min-h-11 w-full text-left py-2 text-finland font-medium"
+                >
                   {pendingBookings.length} unpaid checkout{pendingBookings.length === 1 ? '' : 's'} still open
                 </button>
               </li>
