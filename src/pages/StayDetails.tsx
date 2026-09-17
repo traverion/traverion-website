@@ -248,10 +248,21 @@ export default function StayDetails({ stayId, onBack }: Props) {
           <div className="mb-8" />
         )}
         <header className="mb-8">
-          <p className="text-ink-muted flex items-center gap-2 mb-2 text-sm">
-            <MapPin className="w-4 h-4 text-finland" aria-hidden />
-            {[stay.city, stay.country].filter(Boolean).join(', ') || stay.destination}
-          </p>
+          <div className="mb-2 flex flex-wrap items-center gap-2">
+            {s?.propertyType?.trim() ? (
+              <span className="inline-flex items-center rounded-full bg-finland/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-finland ring-1 ring-finland/15">
+                {s.propertyType.trim()}
+              </span>
+            ) : (
+              <span className="inline-flex items-center rounded-full bg-finland/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-finland ring-1 ring-finland/15">
+                Stay
+              </span>
+            )}
+            <p className="text-ink-muted flex items-center gap-2 text-sm m-0">
+              <MapPin className="w-4 h-4 text-finland" aria-hidden />
+              {[stay.city, stay.country].filter(Boolean).join(', ') || stay.destination}
+            </p>
+          </div>
           <h1 className="font-display text-3xl sm:text-5xl text-ink tracking-tight mb-5">{stay.title}</h1>
           <dl className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {typeof s?.maxGuests === 'number' ? (
