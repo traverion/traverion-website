@@ -58,7 +58,25 @@ import {
   type TourBookingVariant,
 } from '../lib/booking-flow';
 import TourDatePicker from '../components/TourDatePicker';
+import GuestStepper from '../components/booking/GuestStepper';
+import ParticipantCategoryStepper from '../components/booking/ParticipantCategoryStepper';
 import { useDialogFocus } from '../hooks/useDialogFocus';
+import {
+  buildParticipantMixLines,
+  emptyMixSelection,
+  formatMixSummaryCompact,
+  optionUsesAgePricing,
+  optionUsesPrivateFlatPrice,
+  totalGuestsFromMix,
+  validateParticipantMix,
+  type ParticipantMixSelection,
+} from '../lib/participant-mix';
+import { activePriceCategories, summarizeOptionPricing } from '../lib/price-categories';
+import { quoteBooking } from '../lib/booking-quote';
+import { fetchWishlistListingIds, toggleWishlist } from '../data/supabase-wishlist';
+import { formatMoney, normalizeCurrency } from '../lib/money';
+import { PriceHero } from '../components/PriceBreakdown';
+import NoticeCallout from '../components/NoticeCallout';
 
 function readSearchPrefill(): { date: string; guests: number } {
   if (typeof window === 'undefined') return { date: '', guests: 1 };
@@ -70,11 +88,6 @@ function readSearchPrefill(): { date: string; guests: number } {
     guests: Number.isFinite(g) && g >= 1 ? Math.min(99, Math.floor(g)) : 1,
   };
 }
-import GuestStepper from '../components/booking/GuestStepper';
-import { fetchWishlistListingIds, toggleWishlist } from '../data/supabase-wishlist';
-import { formatMoney, normalizeCurrency } from '../lib/money';
-import { PriceHero } from '../components/PriceBreakdown';
-import NoticeCallout from '../components/NoticeCallout';
 
 interface TourDetailsProps {
   tourId: string;
@@ -114,6 +127,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   const [bookingVariantsOpen, setBookingVariantsOpen] = useState(false);
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
   const [selectedBookingVariant, setSelectedBookingVariant] = useState<TourBookingVariant | null>(null);
+  const [participantMix, setParticipantMix] = useState<ParticipantMixSelection>({});
   const [variantChecking, setVariantChecking] = useState(false);
   const [optionsAttentionPulse, setOptionsAttentionPulse] = useState(false);
   const [savedToWishlist, setSavedToWishlist] = useState(false);
@@ -135,9 +149,39 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   const weekdayHint = useMemo(() => {
     const unique = [...new Set(tourVariants.map((v) => formatOptionWeekdays(v.listingOption?.weekdays)))];
     if (unique.length === 1) return `Runs ${unique[0]}`;
-    if (unique.length > 1) return 'Each option has its own days — Adult and Child can differ';
+    if (unique.length > 1) return 'Each option has its own schedule';
     return undefined;
   }, [tourVariants]);
+
+  const selectedOption = selectedBookingVariant?.listingOption ?? null;
+  const usesAgePricing = optionUsesAgePricing(selectedOption);
+  const usesPrivateFlat = optionUsesPrivateFlatPrice(selectedOption);
+
+  const panelQuote = useMemo(() => {
+    if (!tour || !bookingDate.trim() || !selectedBookingVariant) return null;
+    const optionId =
+      selectedBookingVariant.id !== '__default__' ? selectedBookingVariant.id : null;
+    const guestsForQuote = usesAgePricing
+      ? Math.max(1, totalGuestsFromMix(buildParticipantMixLines(selectedOption!, participantMix)))
+      : guests;
+    return quoteBooking({
+      tour,
+      discounts: discountsByListing.get(tour.id) ?? [],
+      bookingDate: bookingDate.trim(),
+      guests: guestsForQuote,
+      bookingOptionId: optionId,
+      participantMix: usesAgePricing ? participantMix : null,
+    });
+  }, [
+    tour,
+    bookingDate,
+    selectedBookingVariant,
+    selectedOption,
+    usesAgePricing,
+    participantMix,
+    guests,
+    discountsByListing,
+  ]);
 
   const scrollToOptionsSection = useCallback(() => {
     window.setTimeout(() => {
@@ -330,7 +374,6 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
 
   const closeBookingModal = () => {
     setBookingModalOpen(false);
-    setSelectedBookingVariant(null);
   };
 
   const handleCheckAvailabilityToggle = () => {
@@ -343,12 +386,6 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     const dateCheck = dateNotInPast(bookingDate.trim());
     if (!dateCheck.valid) {
       setBookingCardError(dateCheck.message ?? 'Please select a date');
-      setBookingVariantsOpen(false);
-      return;
-    }
-    const guestErr = guestCountValidationError(guests, partyBounds);
-    if (guestErr) {
-      setBookingCardError(guestErr);
       setBookingVariantsOpen(false);
       return;
     }
@@ -368,6 +405,10 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       });
       return;
     }
+    if (selectedBookingVariant && !bookingModalOpen) {
+      void handleContinueToCheckout();
+      return;
+    }
     if (bookingVariantsOpen) {
       document.getElementById('tour-booking-variants-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       return;
@@ -375,33 +416,69 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     handleCheckAvailabilityToggle();
   };
 
-  const handlePickTourVariant = async (variant: TourBookingVariant) => {
+  const handleSelectTourVariant = (variant: TourBookingVariant) => {
     if (!tour) return;
     if (!isListingVisibleToTravelers(tour.status)) {
       setBookingCardError('This tour is not available to book.');
-      setBookingVariantsOpen(false);
-      return;
-    }
-    setBookingVariantsOpen(false);
-    setVariantChecking(true);
-    const variantBounds = getPartySizeBoundsForVariant(tour, variant);
-    const guestErr = guestCountValidationError(guests, variantBounds);
-    if (guestErr) {
-      setBookingCardError(guestErr);
-      setVariantChecking(false);
       return;
     }
     if (variant.listingOption) {
       const dayErr = optionRunsOnDate(variant.listingOption, bookingDate.trim());
       if (dayErr) {
         setBookingCardError(dayErr);
-        setVariantChecking(false);
         return;
       }
     }
     setBookingCardError(null);
+    setSelectedBookingVariant(variant);
+    if (optionUsesAgePricing(variant.listingOption)) {
+      setParticipantMix(emptyMixSelection(variant.listingOption!));
+    } else {
+      const bounds = getPartySizeBoundsForVariant(tour, variant);
+      setGuests((g) => Math.min(bounds.max, Math.max(bounds.min, g)));
+    }
+  };
+
+  const handleContinueToCheckout = async () => {
+    if (!tour || !selectedBookingVariant) return;
+    if (!isListingVisibleToTravelers(tour.status)) {
+      setBookingCardError('This tour is not available to book.');
+      return;
+    }
+    const dateCheck = dateNotInPast(bookingDate.trim());
+    if (!dateCheck.valid) {
+      setBookingCardError(dateCheck.message ?? 'Please select a date');
+      return;
+    }
+    let partySize = guests;
+    if (optionUsesAgePricing(selectedBookingVariant.listingOption)) {
+      const mixErr = validateParticipantMix(selectedBookingVariant.listingOption!, participantMix);
+      if (mixErr) {
+        setBookingCardError(mixErr);
+        return;
+      }
+      partySize = totalGuestsFromMix(
+        buildParticipantMixLines(selectedBookingVariant.listingOption!, participantMix)
+      );
+    } else {
+      const variantBounds = getPartySizeBoundsForVariant(tour, selectedBookingVariant);
+      const guestErr = guestCountValidationError(guests, variantBounds);
+      if (guestErr) {
+        setBookingCardError(guestErr);
+        return;
+      }
+    }
+    if (selectedBookingVariant.listingOption) {
+      const dayErr = optionRunsOnDate(selectedBookingVariant.listingOption, bookingDate.trim());
+      if (dayErr) {
+        setBookingCardError(dayErr);
+        return;
+      }
+    }
+    setBookingCardError(null);
+    setVariantChecking(true);
     try {
-      const avail = await checkAvailability(tour.id, bookingDate.trim(), guests);
+      const avail = await checkAvailability(tour.id, bookingDate.trim(), partySize);
       if (!avail.available) {
         setBookingCardError(
           avail.remaining !== undefined && avail.remaining === 0
@@ -410,13 +487,8 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
         );
         return;
       }
-      const openBooking = () => {
-        analytics.bookStart(tour.id);
-        setSelectedBookingVariant(variant);
-        setBookingModalOpen(true);
-      };
-      // Auth is required at checkout contact/pay — not when opening the booking sheet after capacity OK.
-      openBooking();
+      analytics.bookStart(tour.id);
+      setBookingModalOpen(true);
     } catch {
       setBookingCardError('Could not verify availability. Check your connection and try again.');
     } finally {
@@ -493,6 +565,9 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   const review = publicReviewLabel(reviewAggregate);
 
   if (bookingModalOpen && selectedBookingVariant && canBook) {
+    const mixGuests = usesAgePricing
+      ? totalGuestsFromMix(buildParticipantMixLines(selectedOption!, participantMix))
+      : guests;
     return (
       <BookingPage
         tour={tour}
@@ -500,7 +575,8 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
         selectedVariant={selectedBookingVariant}
         discountsByListing={discountsByListing}
         initialDate={bookingDate.trim()}
-        initialGuests={guests}
+        initialGuests={Math.max(1, mixGuests)}
+        initialParticipantMix={usesAgePricing ? participantMix : undefined}
         onBack={closeBookingModal}
         onComplete={closeBookingModal}
         onModalClose={closeBookingModal}
@@ -1011,49 +1087,126 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                       setBookingDate(next);
                       setBookingCardError(null);
                       setBookingVariantsOpen(false);
+                      setSelectedBookingVariant(null);
                     }}
                     options={calendarOptions}
                     soldOutDates={soldOutDates}
                     hint={weekdayHint}
                   />
-                  <GuestStepper
-                    id="tour-booking-guests"
-                    value={guests}
-                    min={partyBounds.min}
-                    max={partyBounds.max}
-                    onChange={(next) => {
-                      setGuests(next);
-                      setBookingCardError(null);
-                      setBookingVariantsOpen(false);
-                    }}
-                    onBoundaryAttempt={(message) => setBookingCardError(message)}
-                  />
+                  {!selectedBookingVariant ? (
+                    <>
+                      <button
+                        type="button"
+                        aria-expanded={bookingVariantsOpen}
+                        aria-controls="tour-booking-variants-list"
+                        onClick={handleCheckAvailabilityToggle}
+                        disabled={variantChecking || bookingModalOpen}
+                        className="tv-btn-primary w-full disabled:opacity-60"
+                      >
+                        {variantChecking ? 'Checking…' : bookingVariantsOpen ? 'Hide options' : 'See available options'}
+                        <ChevronDown
+                          className={`h-5 w-5 shrink-0 transition-transform duration-200 ease-out ${bookingVariantsOpen ? 'rotate-180' : ''}`}
+                          aria-hidden
+                        />
+                      </button>
+                      {bookingVariantsOpen && (
+                        <p className="mt-1.5 text-xs text-finland font-medium">
+                          Select one option below — then choose participants.
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <div className="space-y-3 rounded-xl bg-finland/[0.04] p-3 ring-1 ring-finland/20">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">Selected option</p>
+                          <p className="text-sm font-semibold text-ink truncate">{selectedBookingVariant.label}</p>
+                          {selectedOption ? (
+                            <p className="text-xs text-ink-muted mt-0.5">
+                              {summarizeOptionPricing(selectedOption, (n) => formatMoney(n, tour.price?.currency))}
+                            </p>
+                          ) : null}
+                        </div>
+                        <button
+                          type="button"
+                          className="tv-btn-ghost text-xs shrink-0"
+                          onClick={() => {
+                            setSelectedBookingVariant(null);
+                            setBookingVariantsOpen(true);
+                            scrollToOptionsSection();
+                          }}
+                        >
+                          Change
+                        </button>
+                      </div>
+                      {usesAgePricing && selectedOption ? (
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium text-ink">Participants</p>
+                          {activePriceCategories(selectedOption).map((cat) => (
+                            <ParticipantCategoryStepper
+                              key={cat.id}
+                              category={cat}
+                              quantity={participantMix[cat.id] ?? 0}
+                              currency={normalizeCurrency(tour.price?.currency)}
+                              max={selectedOption.maxPersons}
+                              onChange={(qty) => {
+                                setParticipantMix((prev) => ({ ...prev, [cat.id]: qty }));
+                                setBookingCardError(null);
+                              }}
+                              onBoundaryAttempt={(message) => setBookingCardError(message)}
+                            />
+                          ))}
+                        </div>
+                      ) : (
+                        <GuestStepper
+                          id="tour-booking-guests"
+                          value={guests}
+                          min={getPartySizeBoundsForVariant(tour, selectedBookingVariant).min}
+                          max={getPartySizeBoundsForVariant(tour, selectedBookingVariant).max}
+                          onChange={(next) => {
+                            setGuests(next);
+                            setBookingCardError(null);
+                          }}
+                          onBoundaryAttempt={(message) => setBookingCardError(message)}
+                          label={usesPrivateFlat ? 'Group size' : 'Guests'}
+                        />
+                      )}
+                      {panelQuote?.ok ? (
+                        <div className="flex items-end justify-between gap-3 pt-1 border-t border-black/[0.06]">
+                          <div>
+                            <p className="text-xs text-ink-muted">Total</p>
+                            {usesAgePricing && panelQuote.guestBreakdown ? (
+                              <p className="text-xs text-ink-muted">
+                                {formatMixSummaryCompact(
+                                  buildParticipantMixLines(selectedOption!, participantMix)
+                                )}
+                              </p>
+                            ) : null}
+                          </div>
+                          <p className="text-lg font-semibold tabular-nums text-ink">
+                            {formatMoney(panelQuote.totalAmount, panelQuote.currency)}
+                          </p>
+                        </div>
+                      ) : panelQuote && !panelQuote.ok ? (
+                        <p className="text-xs text-red-700">{panelQuote.error}</p>
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => void handleContinueToCheckout()}
+                        disabled={variantChecking || (panelQuote != null && !panelQuote.ok)}
+                        className="tv-btn-primary w-full disabled:opacity-60"
+                      >
+                        {variantChecking ? 'Checking…' : 'Continue'}
+                      </button>
+                    </div>
+                  )}
                   <div role="status" aria-live="polite" aria-atomic="true" className="min-h-[1.25rem]">
                     {bookingCardError ? (
-                      <NoticeCallout title="Check date and guests" tone="danger">
+                      <NoticeCallout title="Check your selection" tone="danger">
                         {bookingCardError}
                       </NoticeCallout>
                     ) : null}
                   </div>
-                  <button
-                    type="button"
-                    aria-expanded={bookingVariantsOpen}
-                    aria-controls="tour-booking-variants-list"
-                    onClick={handleCheckAvailabilityToggle}
-                    disabled={variantChecking || bookingModalOpen}
-                    className="tv-btn-primary w-full disabled:opacity-60"
-                  >
-                    {variantChecking ? 'Checking…' : 'See options'}
-                    <ChevronDown
-                      className={`h-5 w-5 shrink-0 transition-transform duration-200 ease-out ${bookingVariantsOpen ? 'rotate-180' : ''}`}
-                      aria-hidden
-                    />
-                  </button>
-                  {bookingVariantsOpen && (
-                    <p className="mt-1.5 text-xs text-finland font-medium">
-                      Select one option below to continue.
-                    </p>
-                  )}
                   <div className="mt-3 space-y-1.5 text-xs text-ink-muted">
                     <p className="flex items-center gap-2">
                       <CheckCircle className="w-3.5 h-3.5 text-finland flex-shrink-0" />{' '}
@@ -1115,15 +1268,21 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                           ? 'bg-finland text-white shadow-sm ring-finland/40'
                           : 'ring-black/[0.08] hover:bg-finland/5 hover:ring-finland/30 active:bg-finland/10'
                     }`}
-                    onClick={() => void handlePickTourVariant(v)}
+                    onClick={() => handleSelectTourVariant(v)}
                   >
                     <span className="flex items-start justify-between gap-3">
                       <span className={`font-semibold ${selected ? 'text-white' : 'text-ink'}`}>{v.label}</span>
                       <span className={`text-sm font-semibold tabular-nums shrink-0 ${selected ? 'text-white' : 'text-ink'}`}>
-                        {formatMoney(v.pricePerPerson, tour.price?.currency)}
-                        <span className={`block text-right text-xs font-normal ${selected ? 'text-white/75' : 'text-ink-muted'}`}>
-                          per person
-                        </span>
+                        {optionUsesAgePricing(opt)
+                          ? summarizeOptionPricing(opt!, (n) => formatMoney(n, tour.price?.currency))
+                          : (
+                            <>
+                              {formatMoney(v.pricePerPerson, tour.price?.currency)}
+                              <span className={`block text-right text-xs font-normal ${selected ? 'text-white/75' : 'text-ink-muted'}`}>
+                                {optionUsesPrivateFlatPrice(opt) ? 'private group' : 'per person'}
+                              </span>
+                            </>
+                          )}
                       </span>
                     </span>
                     {opt ? (

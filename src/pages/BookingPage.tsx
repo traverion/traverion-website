@@ -73,6 +73,8 @@ interface BookingPageProps {
   /** When opening booking from tour sidebar after “Check availability”. */
   initialDate?: string;
   initialGuests?: number;
+  /** Age-category quantities when the selected option uses age-dependent pricing. */
+  initialParticipantMix?: Record<string, number>;
   presentation?: 'page' | 'modal';
   /** Required when presentation is modal (after traveler picks a tour option). */
   selectedVariant?: TourBookingVariant | null;
@@ -136,6 +138,7 @@ export default function BookingPage({
   onBack,
   initialDate,
   initialGuests,
+  initialParticipantMix,
   presentation = 'page',
   selectedVariant = null,
   discountsByListing,
@@ -150,6 +153,7 @@ export default function BookingPage({
   );
   const [date, setDate] = useState('');
   const [guests, setGuests] = useState(1);
+  const [participantMix] = useState<Record<string, number>>(() => initialParticipantMix ?? {});
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
@@ -180,6 +184,7 @@ export default function BookingPage({
       bookingDate: day,
       guests,
       bookingOptionId: optionId,
+      participantMix: Object.keys(participantMix).length > 0 ? participantMix : null,
     });
     if (quoted.ok) {
       return {
@@ -196,7 +201,7 @@ export default function BookingPage({
       };
     }
     return { price: fallbackBasePrice, originalPrice: fallbackBasePrice, label: undefined as string | undefined, quote: quoted };
-  }, [presentation, selectedVariant, tour, date, guests, discountsByListing, fallbackBasePrice]);
+  }, [presentation, selectedVariant, tour, date, guests, discountsByListing, fallbackBasePrice, participantMix]);
 
   const pricePerPerson = priceInfo.price;
   const quoted = priceInfo.quote && priceInfo.quote.ok ? priceInfo.quote : null;
@@ -525,21 +530,30 @@ export default function BookingPage({
           bookingDate: date,
           guests,
           bookingOptionId: optionId,
+          participantMix: Object.keys(participantMix).length > 0 ? participantMix : null,
         });
         if (!quoted.ok) {
           setError(userFacingError(quoted.error, USER_ERROR.checkout));
           setSubmitting(false);
           return;
         }
+        const mixNote =
+          quoted.guestBreakdown && quoted.guestBreakdown.length > 0
+            ? `Participants: ${quoted.guestBreakdown.map((r) => `${r.quantity} ${r.label}`).join(' · ')}`
+            : '';
+        const baseSpecial = mergedSpecialRequests();
+        const specialWithMix = [baseSpecial, mixNote].filter(Boolean).join('\n');
         const checkout = await createBookingCheckoutSession({
           listingId: tour.id,
           listingTitle: tour.title,
           bookingDate: date,
-          guests,
+          guests: quoted.guests,
           customerName: leadGuestName,
           customerPhone: phone.trim() || undefined,
-          specialRequests: mergedSpecialRequests() || undefined,
+          specialRequests: specialWithMix || undefined,
           bookingOptionId: quoted.optionId ?? undefined,
+          guestBreakdown: quoted.guestBreakdown,
+          participantMix: Object.keys(participantMix).length > 0 ? participantMix : undefined,
           currency: quoted.currency,
           successPath: '/booking-confirmed',
           cancelPath: '/bookings?payment=cancelled',
@@ -549,7 +563,7 @@ export default function BookingPage({
           setSubmitting(false);
           return;
         }
-        analytics.bookComplete(tour.id, guests);
+        analytics.bookComplete(tour.id, quoted.guests);
         if (user?.id) markBookingsUnread(user.id);
         clearBookingDraft(tour.id);
         window.location.assign(checkout.checkoutUrl);
@@ -594,7 +608,10 @@ export default function BookingPage({
                 <span className="font-medium text-ink">Date</span> — {dateDisplay || date}
               </p>
               <p>
-                <span className="font-medium text-ink">Guests</span> — {guests}
+                <span className="font-medium text-ink">Participants</span> —{' '}
+                {quoted?.guestBreakdown?.length
+                  ? quoted.guestBreakdown.map((r) => `${r.quantity} ${r.label}`).join(' · ')
+                  : `${guests} ${guests === 1 ? 'guest' : 'guests'}`}
               </p>
             </div>
             <div className="mb-6">
@@ -862,7 +879,10 @@ export default function BookingPage({
                 <span className="font-medium text-ink">Date</span> — {dateDisplay || date}
               </p>
               <p>
-                <span className="font-medium text-ink">Guests</span> — {guests}
+                <span className="font-medium text-ink">Participants</span> —{' '}
+                {quoted?.guestBreakdown?.length
+                  ? quoted.guestBreakdown.map((r) => `${r.quantity} ${r.label}`).join(' · ')
+                  : `${guests} ${guests === 1 ? 'guest' : 'guests'}`}
               </p>
               {selectedVariant ? (
                 <p>

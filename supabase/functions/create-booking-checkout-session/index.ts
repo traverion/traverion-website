@@ -9,6 +9,21 @@ import { resumeStayLeadGuestName, stayCheckoutLeadGuestNameReady } from '../_sha
 
 type RequestBody = {
   bookingId?: string;
+  listingId?: string;
+  listingTitle?: string;
+  bookingDate?: string;
+  guests?: number;
+  customerName?: string;
+  customerPhone?: string;
+  specialRequests?: string;
+  bookingOptionId?: string;
+  checkoutDate?: string;
+  successPath?: string;
+  cancelPath?: string;
+  participantMix?: Record<string, number>;
+  guestBreakdown?: unknown;
+};
+  bookingId?: string;
   listingId: string;
   listingTitle?: string;
   bookingDate: string;
@@ -105,6 +120,10 @@ serve(async (req) => {
     let checkoutDate = String(body.checkoutDate ?? '').trim();
     const successPath = sanitizePath(body.successPath, '/booking-confirmed');
     const cancelPath = sanitizePath(body.cancelPath, '/bookings?payment=cancelled');
+    const participantMix =
+      body.participantMix && typeof body.participantMix === 'object' && !Array.isArray(body.participantMix)
+        ? (body.participantMix as Record<string, number>)
+        : null;
 
     const admin = createClient(supabaseUrl, supabaseServiceRoleKey);
     let targetBookingId = bookingId;
@@ -273,9 +292,13 @@ serve(async (req) => {
       guests,
       bookingOptionId: storedOptionId,
       checkoutDate: checkoutDate || null,
+      participantMix,
     });
     if (!quote.ok) {
       return json({ success: false, error: quote.error }, 400);
+    }
+    if (typeof quote.guests === 'number' && quote.guests >= 1) {
+      guests = quote.guests;
     }
 
     if (extrasFamily === 'stay' && checkoutDate) {
@@ -423,6 +446,9 @@ serve(async (req) => {
           booking_option_id: quote.optionId,
           hold_expires_at: holdExpiresAtIso,
         };
+        if (quote.guestBreakdown?.length) {
+          insertBase.guest_breakdown = quote.guestBreakdown;
+        }
         if (extrasFamily === 'stay' && checkoutDate) {
           insertBase.check_out = checkoutDate;
           if (stayNights != null && stayNights >= 1) {

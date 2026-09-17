@@ -15,6 +15,18 @@ import { applyDiscount, discountsApplicableToOption } from '../data/supabase-dis
 import { getPartySizeBounds, getPartySizeBoundsForVariant, guestCountValidationError } from './booking-flow';
 import { listingCanUseTravelerQuote } from './inventory';
 import { DEFAULT_CURRENCY, normalizeCurrency } from './money';
+import {
+  buildParticipantMixLines,
+  guestBreakdownFromLines,
+  mixLineAmount,
+  mixSubtotal,
+  optionUsesAgePricing,
+  optionUsesPrivateFlatPrice,
+  totalGuestsFromMix,
+  validateParticipantMix,
+  type ParticipantMixSelection,
+} from './participant-mix';
+import { optionHeadlineUnitPrice } from './price-categories';
 
 export type BookingQuoteDiscount = Pick<
   ListingDiscount,
@@ -32,6 +44,9 @@ export type BookingQuoteOk = {
   optionId: string | null;
   optionLabel: string;
   discountLabel?: string;
+  /** Present when age-dependent pricing was used. */
+  lineItems?: { label: string; quantity: number; unitPrice: number; amount: number }[];
+  guestBreakdown?: { categoryId: string; label: string; kind: string; quantity: number; unitPrice: number }[];
 };
 
 export type BookingQuoteErr = {
@@ -148,12 +163,14 @@ export function quoteBooking(input: {
   bookingDate: string;
   guests: number;
   bookingOptionId?: string | null;
+  /** Age-category quantities when the selected option uses age-dependent pricing. */
+  participantMix?: ParticipantMixSelection | null;
   /** YYYY-MM-DD; defaults to today UTC. */
   todayIso?: string;
 }): BookingQuoteResult {
   const today = input.todayIso ?? new Date().toISOString().slice(0, 10);
   const date = (input.bookingDate ?? '').trim();
-  const guests = Number(input.guests);
+  let guests = Number(input.guests);
 
   if (!isListingBookable(input.tour.status)) {
     return { ok: false, code: 'unpublished', error: 'This tour is not available to book.' };
@@ -166,9 +183,6 @@ export function quoteBooking(input: {
   }
   if (!isIsoDateNotInPast(date, today)) {
     return { ok: false, code: 'bad_date', error: 'Choose a date that is today or later.' };
-  }
-  if (!Number.isFinite(guests) || guests < 1 || guests > 99) {
-    return { ok: false, code: 'party', error: 'Guest count must be between 1 and 99.' };
   }
 
   const extras = parseListingExtras(input.tour.listingExtras);
@@ -196,6 +210,95 @@ export function quoteBooking(input: {
     if (dayErr) {
       const code = dayErr.includes('week') ? 'weekday' : dayErr.includes('yet') || dayErr.includes('longer') ? 'season' : 'weekday';
       return { ok: false, code, error: dayErr };
+    }
+
+    if (optionUsesPrivateFlatPrice(option)) {
+      if (!Number.isFinite(guests) || guests < 1 || guests > 99) {
+        return { ok: false, code: 'party', error: 'Guest count must be between 1 and 99.' };
+      }
+      const bounds = getPartySizeBoundsForVariant(asTour, {
+        id: option.id,
+        label: option.name,
+        subtitle: '',
+        pricePerPerson: 0,
+        listingOption: option,
+      });
+      const partyErr = guestCountValidationError(guests, bounds);
+      if (partyErr) return { ok: false, code: 'party', error: partyErr };
+      const flat = option.privateGroupPriceUsd ?? option.priceUsd;
+      if (!(flat > 0)) {
+        return { ok: false, code: 'price', error: 'This tour does not have a bookable price yet.' };
+      }
+      const at = new Date(`${date}T12:00:00`);
+      const applicable = discountsApplicableToOption(input.discounts as ListingDiscount[], option.id, at);
+      const { price: discountedFlat, label } = bestUnitPrice(flat, applicable);
+      return {
+        ok: true,
+        currency,
+        unitPrice: money(discountedFlat / Math.max(1, guests)),
+        originalUnitPrice: money(flat / Math.max(1, guests)),
+        totalAmount: money(discountedFlat),
+        guests,
+        bookingDate: date,
+        optionId: option.id,
+        optionLabel: option.name.trim() || 'Private tour',
+        discountLabel: label,
+        lineItems: [{ label: 'Private group', quantity: 1, unitPrice: money(discountedFlat), amount: money(discountedFlat) }],
+      };
+    }
+
+    if (optionUsesAgePricing(option)) {
+      const mix = input.participantMix ?? {};
+      const mixErr = validateParticipantMix(option, mix);
+      if (mixErr) return { ok: false, code: 'party', error: mixErr };
+      const lines = buildParticipantMixLines(option, mix);
+      guests = totalGuestsFromMix(lines);
+      if (!Number.isFinite(guests) || guests < 1 || guests > 99) {
+        return { ok: false, code: 'party', error: 'Guest count must be between 1 and 99.' };
+      }
+      const at = new Date(`${date}T12:00:00`);
+      const applicable = discountsApplicableToOption(input.discounts as ListingDiscount[], option.id, at);
+      const pricedLines = lines
+        .filter((l) => l.quantity > 0)
+        .map((l) => {
+          const { price: unit } = bestUnitPrice(l.unitPrice, applicable);
+          return {
+            ...l,
+            unitPrice: unit,
+          };
+        });
+      const lineItems = pricedLines.map((l) => ({
+        label: l.label,
+        quantity: l.quantity,
+        unitPrice: money(l.unitPrice),
+        amount: mixLineAmount(l),
+      }));
+      const totalAmount = mixSubtotal(pricedLines);
+      if (!(totalAmount > 0) && !pricedLines.every((l) => l.unitPrice === 0)) {
+        return { ok: false, code: 'price', error: 'This tour does not have a bookable price yet.' };
+      }
+      if (!(totalAmount > 0) && pricedLines.every((l) => l.unitPrice === 0)) {
+        return { ok: false, code: 'price', error: 'This tour does not have a bookable price yet.' };
+      }
+      const headline = optionHeadlineUnitPrice(option) || pricedLines[0]?.unitPrice || 0;
+      return {
+        ok: true,
+        currency,
+        unitPrice: money(headline),
+        originalUnitPrice: money(headline),
+        totalAmount: money(totalAmount),
+        guests,
+        bookingDate: date,
+        optionId: option.id,
+        optionLabel: option.name.trim() || 'Tour option',
+        discountLabel: applicable.length ? bestUnitPrice(headline, applicable).label : undefined,
+        lineItems,
+        guestBreakdown: guestBreakdownFromLines(pricedLines),
+      };
+    }
+
+    if (!Number.isFinite(guests) || guests < 1 || guests > 99) {
+      return { ok: false, code: 'party', error: 'Guest count must be between 1 and 99.' };
     }
 
     const variant = {
@@ -231,6 +334,10 @@ export function quoteBooking(input: {
       optionLabel: variant.label,
       discountLabel: label,
     };
+  }
+
+  if (!Number.isFinite(guests) || guests < 1 || guests > 99) {
+    return { ok: false, code: 'party', error: 'Guest count must be between 1 and 99.' };
   }
 
   const bounds = getPartySizeBounds(asTour);
@@ -353,6 +460,12 @@ export function clientAmountConflictsWithQuote(clientTotal: number, quoteTotal: 
 }
 
 export function tourQuotePriceLines(quote: BookingQuoteOk): { label: string; amount: number }[] {
+  if (quote.lineItems && quote.lineItems.length > 0) {
+    return quote.lineItems.map((l) => ({
+      label: `${l.label} × ${l.quantity}`,
+      amount: l.amount,
+    }));
+  }
   const unit = quote.optionLabel?.trim() || 'Guest';
   return [{ label: `${unit} × ${quote.guests}`, amount: quote.totalAmount }];
 }

@@ -173,6 +173,8 @@ export async function createBookingCheckoutSession(params: {
   totalAmount?: number;
   currency?: string;
   bookingOptionId?: string;
+  guestBreakdown?: { categoryId: string; label: string; kind: string; quantity: number; unitPrice: number }[];
+  participantMix?: Record<string, number>;
   checkoutDate?: string;
   successPath?: string;
   cancelPath?: string;
@@ -190,6 +192,8 @@ export async function createBookingCheckoutSession(params: {
       specialRequests: params.specialRequests,
       currency: params.currency,
       bookingOptionId: params.bookingOptionId,
+      guestBreakdown: params.guestBreakdown,
+      participantMix: params.participantMix,
       checkoutDate: params.checkoutDate,
       successPath: params.successPath,
       cancelPath: params.cancelPath,

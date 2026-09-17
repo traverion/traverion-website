@@ -116,6 +116,8 @@ export function getTourBookingVariants(tour: TourPackage): TourBookingVariant[] 
       const price = typeof o.priceUsd === 'number' && o.priceUsd >= 0 ? o.priceUsd : basePrice;
       const subtitleParts = [
         o.duration?.trim(),
+        o.startTime?.trim() ? `Starts ${o.startTime.trim()}` : null,
+        o.isPrivate ? 'Private' : null,
         o.optionInfo?.trim(),
         o.maxPersons ? `Up to ${o.maxPersons} guests` : null,
       ].filter(Boolean) as string[];

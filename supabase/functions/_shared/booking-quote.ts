@@ -22,6 +22,16 @@ export type ListingQuoteRow = {
   title?: string | null;
 };
 
+type PriceCat = {
+  id: string;
+  label: string;
+  kind: string;
+  priceUsd: number;
+  notPermitted: boolean;
+  requiresAdult: boolean;
+  countsTowardCapacity: boolean;
+};
+
 type Option = {
   id: string;
   name: string;
@@ -31,6 +41,11 @@ type Option = {
   weekdays: boolean[];
   availabilityDateFrom: string;
   availabilityDateTo: string;
+  pricingMode?: string;
+  priceCategories?: PriceCat[];
+  isPrivate?: boolean;
+  privatePricing?: string;
+  privateGroupPriceUsd?: number;
 };
 
 export type QuoteOk = {
@@ -40,6 +55,8 @@ export type QuoteOk = {
   totalAmount: number;
   optionId: string | null;
   optionLabel: string;
+  guests?: number;
+  guestBreakdown?: { categoryId: string; label: string; kind: string; quantity: number; unitPrice: number }[];
 };
 
 export type QuoteErr = { ok: false; error: string };
@@ -212,6 +229,26 @@ function normalizeWeekdays(raw: unknown): boolean[] {
   return out;
 }
 
+function parsePriceCategories(raw: unknown): PriceCat[] | undefined {
+  if (!Array.isArray(raw) || raw.length === 0) return undefined;
+  const out: PriceCat[] = [];
+  for (let i = 0; i < raw.length; i++) {
+    const x = raw[i];
+    if (x == null || typeof x !== 'object') continue;
+    const o = x as Record<string, unknown>;
+    out.push({
+      id: typeof o.id === 'string' && o.id.trim() ? o.id.trim() : `cat-${i}`,
+      label: typeof o.label === 'string' && o.label.trim() ? o.label.trim() : 'Participant',
+      kind: typeof o.kind === 'string' ? o.kind : 'participant',
+      priceUsd: typeof o.priceUsd === 'number' && !Number.isNaN(o.priceUsd) ? Math.max(0, o.priceUsd) : 0,
+      notPermitted: Boolean(o.notPermitted),
+      requiresAdult: Boolean(o.requiresAdult),
+      countsTowardCapacity: o.countsTowardCapacity === false ? false : true,
+    });
+  }
+  return out.length > 0 ? out : undefined;
+}
+
 function parseOptions(extras: unknown): Option[] {
   if (extras == null || typeof extras !== 'object' || Array.isArray(extras)) return [];
   const raw = (extras as { bookingOptions?: unknown }).bookingOptions;
@@ -224,16 +261,45 @@ function parseOptions(extras: unknown): Option[] {
     const minP = typeof o.minPersons === 'number' && o.minPersons >= 1 ? Math.floor(o.minPersons) : 1;
     const maxP =
       typeof o.maxPersons === 'number' && o.maxPersons >= minP ? Math.floor(o.maxPersons) : Math.max(minP, 12);
+    const cats = parsePriceCategories(o.priceCategories);
+    let priceUsd = typeof o.priceUsd === 'number' && !Number.isNaN(o.priceUsd) ? Math.max(0, o.priceUsd) : 0;
+    if (o.pricingMode === 'age_dependent' && cats?.length) {
+      const usable = cats.filter((c) => !c.notPermitted);
+      const adult = usable.find((c) => c.kind === 'adult' && c.priceUsd > 0);
+      if (adult) priceUsd = adult.priceUsd;
+      else {
+        const priced = usable.filter((c) => c.priceUsd > 0).sort((a, b) => b.priceUsd - a.priceUsd);
+        if (priced[0]) priceUsd = priced[0].priceUsd;
+      }
+    }
+    if (o.isPrivate && o.privatePricing === 'flat_group') {
+      const flat =
+        typeof o.privateGroupPriceUsd === 'number' && !Number.isNaN(o.privateGroupPriceUsd)
+          ? Math.max(0, o.privateGroupPriceUsd)
+          : 0;
+      if (flat > 0) priceUsd = flat;
+    }
     const opt: Option = {
       id: typeof o.id === 'string' && o.id.trim() ? o.id.trim() : `opt-${i}`,
       name: typeof o.name === 'string' ? o.name : '',
-      priceUsd: typeof o.priceUsd === 'number' && !Number.isNaN(o.priceUsd) ? Math.max(0, o.priceUsd) : 0,
+      priceUsd,
       minPersons: minP,
       maxPersons: maxP,
       weekdays: normalizeWeekdays(o.weekdays),
       availabilityDateFrom: typeof o.availabilityDateFrom === 'string' ? o.availabilityDateFrom : '',
       availabilityDateTo: typeof o.availabilityDateTo === 'string' ? o.availabilityDateTo : '',
     };
+    if (o.pricingMode === 'age_dependent' || o.pricingMode === 'uniform') opt.pricingMode = String(o.pricingMode);
+    if (cats) opt.priceCategories = cats;
+    if (o.isPrivate) {
+      opt.isPrivate = true;
+      if (o.privatePricing === 'flat_group' || o.privatePricing === 'per_person') {
+        opt.privatePricing = String(o.privatePricing);
+      }
+      if (typeof o.privateGroupPriceUsd === 'number' && !Number.isNaN(o.privateGroupPriceUsd)) {
+        opt.privateGroupPriceUsd = Math.max(0, o.privateGroupPriceUsd);
+      }
+    }
     if (!isEmptyOption(opt)) opts.push(opt);
   }
   return opts;
@@ -299,10 +365,11 @@ export function quoteListingBooking(input: {
   bookingOptionId?: string | null;
   todayIso?: string;
   checkoutDate?: string | null;
+  participantMix?: Record<string, number> | null;
 }): QuoteOk | QuoteErr {
   const today = input.todayIso ?? new Date().toISOString().slice(0, 10);
   const date = (input.bookingDate ?? '').trim();
-  const guests = Number(input.guests);
+  let guests = Number(input.guests);
   const status = (input.listing.status ?? '').trim();
   if (status && status !== 'published') {
     return { ok: false, error: 'This listing is not available to book.' };
@@ -326,9 +393,6 @@ export function quoteListingBooking(input: {
   }
   if (!ISO_DATE.test(date)) return { ok: false, error: 'Choose a valid date.' };
   if (date < today) return { ok: false, error: 'Choose a date that is today or later.' };
-  if (!Number.isFinite(guests) || guests < 1 || guests > 99) {
-    return { ok: false, error: 'Guest count must be between 1 and 99.' };
-  }
 
   const opts = parseOptions(input.listing.listing_extras);
   const fallbackBase = Number(input.listing.price_starting_from ?? 0);
@@ -347,6 +411,93 @@ export function quoteListingBooking(input: {
     }
     const dayErr = optionRunsOnDate(option, date);
     if (dayErr) return { ok: false, error: dayErr };
+
+    if (option.isPrivate && option.privatePricing === 'flat_group') {
+      if (!Number.isFinite(guests) || guests < 1 || guests > 99) {
+        return { ok: false, error: 'Guest count must be between 1 and 99.' };
+      }
+      if (guests < option.minPersons) {
+        return { ok: false, error: `At least ${option.minPersons} guests are required for this tour.` };
+      }
+      if (guests > option.maxPersons) {
+        return { ok: false, error: `No more than ${option.maxPersons} guests allowed for this tour.` };
+      }
+      const flat = option.privateGroupPriceUsd ?? option.priceUsd;
+      if (!(flat > 0)) return { ok: false, error: 'This tour does not have a bookable price yet.' };
+      const unit = bestPrice(flat, applicable(input.discounts, option.id, date));
+      return {
+        ok: true,
+        currency,
+        unitPrice: money(unit / Math.max(1, guests)),
+        totalAmount: money(unit),
+        optionId: option.id,
+        optionLabel: option.name.trim() || 'Private tour',
+        guests,
+      };
+    }
+
+    if (option.pricingMode === 'age_dependent' && (option.priceCategories?.length ?? 0) > 0) {
+      const mix = input.participantMix ?? {};
+      const cats = (option.priceCategories ?? []).filter((c) => !c.notPermitted);
+      const lines = cats.map((c) => ({
+        categoryId: c.id,
+        label: c.label,
+        kind: c.kind,
+        quantity: Math.max(0, Math.floor(Number(mix[c.id] ?? 0) || 0)),
+        unitPrice: c.priceUsd,
+        requiresAdult: c.requiresAdult,
+        countsTowardCapacity: c.countsTowardCapacity,
+      }));
+      const headcount = lines.reduce((s, l) => s + l.quantity, 0);
+      const capacityGuests = lines.reduce((s, l) => s + (l.countsTowardCapacity ? l.quantity : 0), 0);
+      if (headcount < 1) return { ok: false, error: 'Add at least one participant.' };
+      if (capacityGuests < option.minPersons) {
+        return { ok: false, error: `At least ${option.minPersons} guests are required for this tour.` };
+      }
+      if (capacityGuests > option.maxPersons) {
+        return { ok: false, error: `No more than ${option.maxPersons} guests allowed for this tour.` };
+      }
+      const adults = lines
+        .filter((l) => l.kind === 'adult' || l.kind === 'senior')
+        .reduce((s, l) => s + l.quantity, 0);
+      for (const line of lines) {
+        if (line.quantity > 0 && line.requiresAdult && adults < 1) {
+          return { ok: false, error: `${line.label} must be accompanied by an adult.` };
+        }
+      }
+      guests = capacityGuests;
+      const disc = applicable(input.discounts, option.id, date);
+      let total = 0;
+      const breakdown: { categoryId: string; label: string; kind: string; quantity: number; unitPrice: number }[] = [];
+      for (const line of lines) {
+        if (line.quantity <= 0) continue;
+        const unit = bestPrice(line.unitPrice, disc);
+        total += unit * line.quantity;
+        breakdown.push({
+          categoryId: line.categoryId,
+          label: line.label,
+          kind: line.kind,
+          quantity: line.quantity,
+          unitPrice: unit,
+        });
+      }
+      total = money(total);
+      if (!(total > 0)) return { ok: false, error: 'This tour does not have a bookable price yet.' };
+      return {
+        ok: true,
+        currency,
+        unitPrice: money(option.priceUsd > 0 ? option.priceUsd : breakdown[0]?.unitPrice ?? 0),
+        totalAmount: total,
+        optionId: option.id,
+        optionLabel: option.name.trim() || 'Tour option',
+        guests,
+        guestBreakdown: breakdown,
+      };
+    }
+
+    if (!Number.isFinite(guests) || guests < 1 || guests > 99) {
+      return { ok: false, error: 'Guest count must be between 1 and 99.' };
+    }
     if (guests < option.minPersons) {
       return { ok: false, error: `At least ${option.minPersons} guests are required for this tour.` };
     }
@@ -364,9 +515,13 @@ export function quoteListingBooking(input: {
       totalAmount: money(unit * guests),
       optionId: option.id,
       optionLabel: option.name.trim() || 'Tour option',
+      guests,
     };
   }
 
+  if (!Number.isFinite(guests) || guests < 1 || guests > 99) {
+    return { ok: false, error: 'Guest count must be between 1 and 99.' };
+  }
   const bounds = parseGroupSize(input.listing.group_size);
   if (guests < bounds.min) {
     return { ok: false, error: `At least ${bounds.min} guests are required for this tour.` };
@@ -384,5 +539,6 @@ export function quoteListingBooking(input: {
     totalAmount: money(unit * guests),
     optionId: null,
     optionLabel: 'Standard tour',
+    guests,
   };
 }
