@@ -21,6 +21,7 @@ import {
   saveConsumerProfile,
   normalizeConsumerPhone,
 } from '../data/supabase-consumer-profile';
+import NoticeCallout from '../components/NoticeCallout';
 interface AccountPageProps {
   onNavigate: (page: string) => void;
 }
@@ -173,22 +174,30 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
   return (
     <div className="min-h-screen bg-paper tv-page">
       <div className="max-w-2xl mx-auto px-4 sm:px-6 py-12 pb-16">
-        <div className="mb-10">
+        <div className="mb-10 rounded-3xl bg-finland/[0.04] p-5 sm:p-6 ring-1 ring-finland/10">
+          <p className="text-[11px] uppercase tracking-[0.16em] text-finland/70 mb-1">Traveler</p>
           <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Account</h1>
-          <p className="mt-2 text-ink-muted truncate" title={user.email ?? undefined}>
-            {user.email}
+          <p className="mt-2 text-sm text-ink-muted truncate" title={user.email ?? undefined}>
+            {displayName.trim() || user.email}
           </p>
+          {displayName.trim() && user.email ? (
+            <p className="mt-0.5 text-xs text-ink-faint truncate">{user.email}</p>
+          ) : null}
         </div>
 
-        <section className="mb-12">
+        <section className="mb-10">
           <h2 className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-4">Profile</h2>
           {profileLoading ? (
-            <div aria-busy="true" aria-label="Loading profile">
+            <div
+              className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]"
+              aria-busy="true"
+              aria-label="Loading profile"
+            >
               <SkeletonFormFields count={3} />
             </div>
           ) : (
             <form
-              className="space-y-4 max-w-lg"
+              className="space-y-4 max-w-lg rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]"
               onSubmit={(e) => {
                 e.preventDefault();
                 if (!user?.id) return;
@@ -255,14 +264,14 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
                   placeholder="+358 40 123 4567"
                 />
               </div>
-              {profileMessage && (
-                <p
-                  className={`text-sm ${profileMessage.kind === 'ok' ? 'text-emerald-800' : 'text-red-600'}`}
-                  role={profileMessage.kind === 'err' ? 'alert' : undefined}
+              {profileMessage ? (
+                <NoticeCallout
+                  title={profileMessage.kind === 'ok' ? 'Saved' : 'Could not save'}
+                  tone={profileMessage.kind === 'ok' ? 'success' : 'danger'}
                 >
                   {profileMessage.text}
-                </p>
-              )}
+                </NoticeCallout>
+              ) : null}
               <button type="submit" disabled={profileSaving} className="tv-btn-primary">
                 {profileSaving ? 'Saving…' : 'Save profile'}
               </button>
@@ -270,43 +279,57 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
           )}
         </section>
 
-        <h2 className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">Your travel</h2>
-        {statsError ? (
-          <ErrorState
-            className="mb-4 py-4"
-            title="Could not load your trips"
-            body={statsError}
-            retry={{ onClick: () => void loadStats() }}
-          />
-        ) : null}
-        <ul className="divide-y divide-black/[0.06]">
-          {tiles.map((tile) => {
-            const Icon = tile.icon;
-            return (
-              <li key={tile.id}>
-                <button
-                  type="button"
-                  onClick={tile.onClick}
-                  className="lux-flat w-full text-left min-h-[3.5rem] py-4 flex items-center gap-4"
-                >
-                  <Icon className="w-5 h-5 text-ink-muted shrink-0" strokeWidth={tile.id === 'wishlist' ? 2 : 1.75} />
-                  <span className="min-w-0 flex-1">
-                    <span className="flex items-center justify-between gap-2">
-                      <span className="font-semibold text-ink">{tile.title}</span>
-                      {tile.count != null && (
-                        <span className="text-sm tabular-nums text-ink-muted">{tile.count}</span>
-                      )}
+        <section className="mb-10">
+          <h2 className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-4">Your travel</h2>
+          {statsError ? (
+            <ErrorState
+              className="mb-4 py-4"
+              title="Could not load your trips"
+              body={statsError}
+              retry={{ onClick: () => void loadStats() }}
+            />
+          ) : null}
+          <ul className="space-y-3">
+            {tiles.map((tile) => {
+              const Icon = tile.icon;
+              return (
+                <li key={tile.id}>
+                  <button
+                    type="button"
+                    onClick={tile.onClick}
+                    className="lux-flat group flex w-full min-h-[3.75rem] items-center gap-4 rounded-2xl bg-paper-raised px-4 py-4 text-left shadow-soft ring-1 ring-black/[0.06] transition-[box-shadow,ring-color] hover:ring-finland/25 hover:shadow-soft-lg"
+                  >
+                    <span
+                      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${
+                        tile.id === 'wishlist'
+                          ? 'bg-rose-50 text-rose-800 ring-1 ring-rose-100'
+                          : 'bg-finland/[0.08] text-finland ring-1 ring-finland/15'
+                      }`}
+                    >
+                      <Icon className="w-5 h-5" strokeWidth={tile.id === 'wishlist' ? 2 : 1.75} />
                     </span>
-                    <span className="block text-sm text-ink-muted mt-0.5">{tile.description}</span>
-                  </span>
-                  <ChevronRight className="w-5 h-5 text-ink-faint shrink-0" />
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center justify-between gap-2">
+                        <span className="font-semibold text-ink">{tile.title}</span>
+                        {tile.count != null ? (
+                          <span className="rounded-full bg-black/[0.04] px-2.5 py-0.5 text-sm tabular-nums font-medium text-ink-muted">
+                            {tile.count}
+                          </span>
+                        ) : statsLoading ? (
+                          <span className="h-5 w-8 animate-pulse rounded-full bg-black/[0.06]" aria-hidden />
+                        ) : null}
+                      </span>
+                      <span className="mt-0.5 block text-sm text-ink-muted">{tile.description}</span>
+                    </span>
+                    <ChevronRight className="w-5 h-5 shrink-0 text-ink-faint transition-transform group-hover:translate-x-0.5 group-hover:text-finland" />
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
 
-        <section className="mt-14">
+        <section className="rounded-2xl bg-black/[0.03] p-5 sm:p-6 ring-1 ring-black/[0.05]">
           <h2 className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-3">Security</h2>
           <p className="text-sm text-ink-muted leading-relaxed">
             You are signed in as this traveler. Signing out does not change bookings.
@@ -326,7 +349,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
           </button>
         </section>
 
-        <p className="mt-10">
+        <p className="mt-8">
           <button type="button" onClick={() => onNavigate('packages')} className="tv-btn-ghost -ml-2">
             Browse tours
           </button>
