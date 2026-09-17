@@ -194,7 +194,7 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
             {extraTags.slice(0, 3).map((tagId) => (
               <span
                 key={tagId}
-                className="rounded-md bg-black/[0.04] px-2 py-0.5 text-[11px] font-medium text-ink-muted"
+                className="rounded-md bg-finland/10 px-2 py-0.5 text-[11px] font-medium text-finland ring-1 ring-finland/15"
               >
                 {tagLabels[tagId] ?? tagId}
               </span>
