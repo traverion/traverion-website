@@ -254,13 +254,17 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
 
   if (!isSupabaseConfigured()) {
     return (
-      <div className="min-h-screen bg-paper px-4 py-16">
-        <div className="max-w-md mx-auto">
-          <ErrorState
-            title="Booking confirmation unavailable"
-            body="Bookings are not available in this environment."
-            back={{ onClick: () => onNavigate('packages'), label: 'Browse tours' }}
-          />
+      <div className="min-h-screen flex flex-col items-center justify-center px-6 py-16 bg-paper">
+        <div className="w-full max-w-md rounded-2xl bg-paper-raised p-6 sm:p-8 shadow-soft-lg ring-1 ring-black/[0.06] text-center">
+          <img src={BRAND_LOGO_SRC} alt="Traverion" className="h-9 w-auto mx-auto mb-6 opacity-90" />
+          <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">Booking confirmation</p>
+          <h1 className="font-display text-2xl tracking-tight text-ink">Booking confirmation unavailable</h1>
+          <p className="text-ink-muted text-sm mt-2 mb-6 leading-relaxed">
+            Bookings are not available in this environment.
+          </p>
+          <button type="button" onClick={() => onNavigate('packages')} className="tv-btn-primary w-full">
+            Browse tours
+          </button>
         </div>
       </div>
     );
@@ -268,13 +272,26 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
 
   if (!sessionId) {
     return (
-      <div className="min-h-screen bg-paper px-4 py-16">
-        <div className="max-w-md mx-auto">
-          <ErrorState
-            title="No checkout in this link"
-            body={userFacingError(error, 'This page needs the return link from payment. Open Trips if you already booked.')}
-            back={{ onClick: goToBookings, label: 'Manage booking' }}
-          />
+      <div className="min-h-screen flex flex-col items-center justify-center px-6 py-16 bg-paper">
+        <div className="w-full max-w-md rounded-2xl bg-paper-raised p-6 sm:p-8 shadow-soft-lg ring-1 ring-black/[0.06] text-center">
+          <img src={BRAND_LOGO_SRC} alt="Traverion" className="h-9 w-auto mx-auto mb-6 opacity-90" />
+          <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">Booking confirmation</p>
+          <h1 className="font-display text-2xl tracking-tight text-ink">No checkout in this link</h1>
+          <p className="text-ink-muted text-sm mt-2 mb-6 leading-relaxed">
+            {userFacingError(
+              error,
+              'This page needs the return link from payment. Open Trips if you already booked.'
+            )}
+          </p>
+          <div className="flex flex-col gap-2">
+            <button type="button" onClick={goToBookings} className="tv-btn-primary w-full">
+              <Calendar className="w-4 h-4" aria-hidden />
+              Open Trips
+            </button>
+            <button type="button" onClick={() => onNavigate('packages')} className="tv-btn-ghost w-full justify-center">
+              Browse tours
+            </button>
+          </div>
         </div>
       </div>
     );
