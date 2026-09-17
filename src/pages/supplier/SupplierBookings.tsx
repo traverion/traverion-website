@@ -676,7 +676,7 @@ export default function SupplierBookings() {
         />
       ) : (
         <div className="space-y-4">
-          <div className="divide-y divide-black/[0.06]">
+          <div className="space-y-3">
             {paginatedBookings.map((booking) => {
               const startHm = booking.start_time ? pgTimeToHm(booking.start_time) ?? null : null;
               const meta = listingMeta[booking.listing_id];
@@ -697,26 +697,36 @@ export default function SupplierBookings() {
                 !bookingIsCancelledTrip(booking) &&
                 !booking.pickup_time;
               const openCancel = openCancels[booking.id];
+              const pay = (booking.payment_status ?? '').trim().toLowerCase();
+              const statusAccent =
+                openCancel || pickupGap || needsAck
+                  ? 'border-l-[3px] border-l-amber-500'
+                  : booking.status === 'cancelled' || pay === 'refunded'
+                    ? 'border-l-[3px] border-l-slate-400'
+                    : booking.status === 'confirmed' || pay === 'paid'
+                      ? 'border-l-[3px] border-l-emerald-500'
+                      : 'border-l-[3px] border-l-amber-400';
               return (
                 <article
                   key={booking.id}
                   id={`supplier-booking-row-${booking.id}`}
+                  className={`overflow-hidden rounded-2xl bg-paper-raised shadow-soft ring-1 ring-black/[0.06] ${statusAccent} ${
+                    highlightBookingId === booking.id ? 'ring-finland/30 shadow-soft-lg' : ''
+                  }`}
                 >
                   <button
                     type="button"
                     onClick={() => setSelectedBookingId(booking.id)}
-                    className={`lux-flat flex w-full min-w-0 items-center gap-4 py-4 text-left ${
-                      highlightBookingId === booking.id ? 'bg-paper-raised -mx-2 px-2 rounded-xl' : ''
-                    }`}
+                    className="lux-flat flex w-full min-w-0 items-center gap-4 p-3.5 sm:p-4 text-left"
                   >
                     {meta?.imageUrl ? (
                       <img
                         src={meta.imageUrl}
                         alt=""
-                        className="h-14 w-14 sm:h-16 sm:w-16 rounded-xl object-cover shrink-0"
+                        className="h-14 w-14 sm:h-16 sm:w-16 rounded-xl object-cover shrink-0 ring-1 ring-black/[0.06]"
                       />
                     ) : (
-                      <div className="h-14 w-14 sm:h-16 sm:w-16 rounded-xl bg-black/[0.04] shrink-0" aria-hidden />
+                      <div className="h-14 w-14 sm:h-16 sm:w-16 rounded-xl bg-finland/10 shrink-0 ring-1 ring-finland/15" aria-hidden />
                     )}
                     <div className="min-w-0 flex-1">
                       <div className="flex items-baseline justify-between gap-3">
