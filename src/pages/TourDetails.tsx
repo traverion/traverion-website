@@ -837,7 +837,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                       </div>
                     ) : null}
                     {tour.excludes.some((s) => String(s).trim()) ? (
-                      <div className="rounded-xl bg-black/[0.02] p-4 ring-1 ring-black/[0.05]">
+                      <div className="rounded-2xl bg-rose-50/70 p-4 sm:p-5 ring-1 ring-rose-200/60">
                         <h2 className="font-display text-2xl text-ink mb-4">Not included</h2>
                         <ul className="space-y-3">
                           {tour.excludes
@@ -845,7 +845,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                             .filter(Boolean)
                             .map((item, index) => (
                               <li key={index} className="flex items-start gap-3 text-ink-muted">
-                                <XCircle size={18} className="text-ink-faint flex-shrink-0 mt-0.5" aria-hidden />
+                                <XCircle size={18} className="text-rose-500 flex-shrink-0 mt-0.5" aria-hidden />
                                 <span>{item}</span>
                               </li>
                             ))}
