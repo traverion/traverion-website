@@ -169,7 +169,7 @@ export default function SupplierDiscountsOffers() {
         <SupplierEmptyState
           icon={MapPin}
           title="No listings yet"
-          body="Offers attach to a published tour. You have no listings yet, so this page is empty. That is expected until you create one."
+          body="Offers attach to a published listing. You have no listings yet, so this page is empty. That is expected until you create one."
           action={
             <button type="button" onClick={goToListings} className="tv-btn-primary">
               Open listings
@@ -196,7 +196,7 @@ export default function SupplierDiscountsOffers() {
               <SupplierEmptyState
                 icon={Tag}
                 title="No offers yet"
-                body="You have listings, but no timed discounts. That is normal. Create one on a published tour and it will show on the public tour page."
+                body="You have listings, but no timed discounts. That is normal. Create one on a published listing and it will show on the public product page."
                 action={
                   canEdit ? (
                     <button type="button" onClick={openNew} className="tv-btn-primary">

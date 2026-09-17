@@ -13,6 +13,7 @@ const SECTIONS: SitemapSection[] = [
     items: [
       { label: 'Home', page: 'home' },
       { label: 'Tours', page: 'packages' },
+      { label: 'Stays', page: 'stays' },
       { label: 'Trips', page: 'bookings' },
       { label: 'Contact', page: 'contact' },
     ],
