@@ -13,6 +13,7 @@ import { customerSignInPartnerOnlyMessage } from '../lib/customerSupplierAuthMes
 import { supplierPortalPublicBaseUrl } from '../lib/partnerHost';
 import { PARTNER_LOGIN_PATH } from '../lib/partnerPortalPaths';
 import { BRAND_LOGO_SRC } from '../lib/brandAssets';
+import NoticeCallout from '../components/NoticeCallout';
 
 import { sanitizeTravelerAuthNext } from '../lib/travelerAuthLinks';
 
@@ -96,12 +97,13 @@ export default function EmailConfirmedSuccess() {
   }, [phase, next, signOut]);
 
   return (
-    <div className="min-h-screen bg-paper flex items-center justify-center px-4 py-16">
-      <div className="w-full max-w-md text-center">
-        <img src={BRAND_LOGO_SRC} alt="Traverion" className="h-10 w-auto mx-auto mb-8" />
+    <div className="min-h-screen bg-paper flex flex-col items-center justify-center px-6 py-16">
+      <div className="w-full max-w-md rounded-2xl bg-paper-raised p-6 sm:p-8 shadow-soft-lg ring-1 ring-black/[0.06] text-center">
+        <img src={BRAND_LOGO_SRC} alt="Traverion" className="h-9 w-auto mx-auto mb-6 opacity-90" />
+        <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">Traveler account</p>
         {phase === 'loading' && (
           <div aria-busy="true" aria-label="Verifying your email">
-            <h1 className="font-display text-3xl text-ink tracking-tight">Verifying your email</h1>
+            <h1 className="font-display text-2xl sm:text-3xl text-ink tracking-tight">Verifying your email</h1>
             <p className="mt-3 text-sm text-ink-muted">One moment while we confirm your account.</p>
             <div className="mt-8 space-y-3" aria-hidden>
               <div className="h-3 w-full rounded bg-black/[0.06] animate-pulse" />
@@ -111,10 +113,10 @@ export default function EmailConfirmedSuccess() {
         )}
         {phase === 'success' && (
           <>
-            <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center mb-3 mx-auto">
+            <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center mb-4 mx-auto">
               <CheckCircle2 className="w-8 h-8 text-emerald-600" aria-hidden />
             </div>
-            <h1 className="font-display text-3xl text-ink tracking-tight">Email verified</h1>
+            <h1 className="font-display text-2xl sm:text-3xl text-ink tracking-tight">Email verified</h1>
             <p className="mt-3 text-sm text-ink-muted leading-relaxed">
               Your Traverion traveler account is ready. For security, you will be signed out here—then sign in on the
               next screen with the email and password you created.
@@ -126,12 +128,14 @@ export default function EmailConfirmedSuccess() {
         )}
         {phase === 'invalid' && (
           <>
-            <h1 className="font-display text-3xl text-ink tracking-tight">Link not valid</h1>
-            <p className="mt-3 text-sm text-ink-muted leading-relaxed">
-              This confirmation link is missing, expired, or was already used. Try signing in, or request a new
-              confirmation email from the sign-in page.
-            </p>
-            <div className="mt-8 flex flex-col gap-2">
+            <h1 className="font-display text-2xl sm:text-3xl text-ink tracking-tight">Link not valid</h1>
+            <div className="mt-4 text-left">
+              <NoticeCallout title="Try signing in" tone="danger">
+                This confirmation link is missing, expired, or was already used. Request a new confirmation email from
+                the sign-in page if needed.
+              </NoticeCallout>
+            </div>
+            <div className="mt-6 flex flex-col gap-2">
               <a href={`/log-in?next=${encodeURIComponent(next)}`} className="tv-btn-primary justify-center">
                 Go to sign in
               </a>
@@ -143,13 +147,15 @@ export default function EmailConfirmedSuccess() {
         )}
         {phase === 'wrong_account' && (
           <>
-            <h1 className="font-display text-3xl text-ink tracking-tight">Partner account</h1>
-            <p className="mt-3 text-sm text-ink-muted leading-relaxed">
-              {customerSignInPartnerOnlyMessage(`${supplierPortalPublicBaseUrl()}${PARTNER_LOGIN_PATH}`)}
-            </p>
+            <h1 className="font-display text-2xl sm:text-3xl text-ink tracking-tight">Partner account</h1>
+            <div className="mt-4 text-left">
+              <NoticeCallout title="Use Traverion Partner" tone="info">
+                {customerSignInPartnerOnlyMessage(`${supplierPortalPublicBaseUrl()}${PARTNER_LOGIN_PATH}`)}
+              </NoticeCallout>
+            </div>
             <button
               type="button"
-              className="tv-btn-primary mt-8 w-full justify-center"
+              className="tv-btn-primary mt-6 w-full justify-center"
               onClick={() =>
                 void signOut().then(() => {
                   window.location.replace(`${supplierPortalPublicBaseUrl()}${PARTNER_LOGIN_PATH}`);

@@ -659,7 +659,8 @@ function App() {
   const minimalTravelerChrome =
     currentPage === 'booking-confirmed' ||
     currentPage === 'reset-password' ||
-    currentPage === 'auth';
+    currentPage === 'auth' ||
+    currentPage === 'email-confirmed';
 
   return (
     <TranslationProvider>
