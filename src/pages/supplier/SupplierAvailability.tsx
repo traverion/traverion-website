@@ -318,30 +318,33 @@ export default function SupplierAvailability() {
             />
           ) : null}
 
-          <div className="mb-4 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-muted" aria-hidden>
+          <div
+            className="mb-4 flex flex-wrap gap-x-4 gap-y-2 rounded-xl bg-paper-raised px-3 py-2.5 text-xs text-ink-muted shadow-soft ring-1 ring-black/[0.06]"
+            aria-hidden
+          >
             {stayCalendar ? (
               <>
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-finland/40" /> Occupied
+                  <span className="h-2.5 w-2.5 rounded-full bg-finland ring-1 ring-finland/30" /> Occupied
                 </span>
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-finland/15" /> Available
+                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 ring-1 ring-emerald-500/30" /> Available
                 </span>
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-rose-300" /> Blocked
+                  <span className="h-2.5 w-2.5 rounded-full bg-rose-500 ring-1 ring-rose-600/30" /> Blocked
                 </span>
-                <span>Minimum stay and nightly price live on the listing, not as a second calendar.</span>
+                <span className="text-ink-faint">Minimum stay and nightly price live on the listing.</span>
               </>
             ) : (
               <>
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-finland/40" /> Guests
+                  <span className="h-2.5 w-2.5 rounded-full bg-finland ring-1 ring-finland/30" /> Guests
                 </span>
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-finland/15" /> Cap
+                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 ring-1 ring-emerald-500/30" /> Cap open
                 </span>
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-rose-300" /> Full
+                  <span className="h-2.5 w-2.5 rounded-full bg-rose-500 ring-1 ring-rose-600/30" /> Full
                 </span>
                 <span className="inline-flex items-center gap-1.5 text-ink-faint">Closed days show —</span>
               </>
@@ -404,22 +407,22 @@ export default function SupplierAvailability() {
                       capacity: String(cap?.capacity ?? defaultSpots(listing)),
                     });
                   }}
-                  className={`lux-flat min-h-[4.75rem] sm:min-h-[6.25rem] rounded-2xl p-1.5 sm:p-2 text-left transition-[background-color,box-shadow,transform] duration-150 disabled:opacity-40 motion-safe:active:scale-[0.97] ${
+                  className={`lux-flat min-h-[4.75rem] sm:min-h-[6.25rem] rounded-2xl p-1.5 sm:p-2 text-left ring-1 transition-[background-color,box-shadow,transform] duration-150 disabled:opacity-40 motion-safe:active:scale-[0.97] ${
                     !cell.inMonth
-                      ? 'bg-transparent text-ink-faint'
+                      ? 'bg-transparent text-ink-faint ring-transparent'
                       : isEditing
-                        ? 'bg-paper-raised ring-2 ring-finland/30'
+                        ? 'bg-paper-raised ring-2 ring-finland/40 shadow-soft'
                         : isToday
-                          ? 'bg-paper-raised'
+                          ? 'bg-paper-raised ring-finland/25 shadow-soft'
                           : occupying || stayKind === 'occupied'
-                            ? 'bg-finland/10'
+                            ? 'bg-finland/15 ring-finland/20'
                         : stayKind === 'blocked' || remaining === 0
-                          ? 'bg-rose-50'
-                          : cap
-                          ? 'bg-finland/8'
+                          ? 'bg-rose-50 ring-rose-200/70'
+                          : cap || (open && stayCalendar)
+                          ? 'bg-emerald-50/80 ring-emerald-200/50'
                           : open
-                          ? 'hover:bg-paper-raised'
-                          : 'text-ink-faint'
+                          ? 'bg-paper-raised/80 ring-black/[0.05] hover:bg-emerald-50/60'
+                          : 'text-ink-faint ring-transparent'
                   }`}
                 >
                   <span className="block text-sm font-semibold text-ink">{cell.day}</span>
