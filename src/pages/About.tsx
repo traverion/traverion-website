@@ -36,19 +36,19 @@ export default function About({ onNavigate }: AboutProps) {
     <LegalPageShell
       eyebrow="Company"
       title="About Traverion"
-      subtitle="A Finland-rooted team building a clearer way to book tours — for travelers and for operators who deserve a global stage."
+      subtitle="A Finland-rooted team building a clearer way to book tours and stays — for travelers and for operators who deserve a global stage."
       onNavigate={onNavigate}
     >
       <div className="mb-8 rounded-2xl bg-finland/8 px-4 py-3 sm:px-5 sm:py-4 ring-1 ring-finland/15">
         <p className="text-sm sm:text-base text-ink leading-relaxed m-0">
-          Traverion is a tours marketplace where travelers discover and book worldwide, and where local operators list
-          and manage offerings with tools built for real operations — not just a pretty listing page.
+          Traverion is a travel marketplace where travelers discover and book tours and stays worldwide, and where local
+          operators list and manage offerings with tools built for real operations — not just a pretty listing page.
         </p>
       </div>
 
       <p>
         We are originally built in Finland, and that Nordic mindset shapes how we operate: clear communication, honest
-        pricing, and high quality standards. Our mission is to help people find the best tours and holiday trips with
+        pricing, and high quality standards. Our mission is to help people find the best experiences and nights with
         confidence, while helping local operators reach global travelers fairly and sustainably.
       </p>
 
