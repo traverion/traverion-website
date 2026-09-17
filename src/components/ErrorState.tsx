@@ -37,7 +37,7 @@ export default function ErrorState({
       aria-live="assertive"
     >
       <div
-        className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-black/[0.04] text-ink-muted"
+        className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-rose-50 text-rose-700 ring-1 ring-rose-200/70"
         aria-hidden
       >
         <Icon className="w-5 h-5" />
