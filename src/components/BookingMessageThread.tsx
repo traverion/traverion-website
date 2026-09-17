@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { MessageSquare } from 'lucide-react';
 import {
   fetchBookingMessages,
   markBookingMessagesRead,
@@ -95,13 +96,36 @@ export default function BookingMessageThread({
     <div className="space-y-3">
       <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint">Messages</p>
       {rows.length === 0 ? (
-        <p className="text-sm text-ink-muted">
-          {canCompose
-            ? 'No messages yet. Use this thread for this booking only — contact details stay in Traverion.'
-            : composeBlock === 'closed'
-              ? 'This booking is closed. Earlier messages stay here.'
-              : 'Messages appear here after a paid booking.'}
-        </p>
+        canCompose ? (
+          <div className="rounded-xl bg-paper-raised px-4 py-3.5 ring-1 ring-black/[0.06]">
+            <div className="flex items-start gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-finland/10">
+                <MessageSquare className="h-4 w-4 text-finland" aria-hidden />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-ink">No messages yet</p>
+                <p className="mt-1 text-sm leading-relaxed text-ink-muted">
+                  Use this thread for this booking only — contact details stay in Traverion.
+                </p>
+                <button
+                  type="button"
+                  className="mt-3 text-xs font-semibold text-finland hover:underline"
+                  onClick={() => document.getElementById(`msg-${bookingId}`)?.focus()}
+                >
+                  Write first message
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : composeBlock === 'closed' ? (
+          <NoticeCallout title="This booking is closed" tone="info">
+            Earlier messages stay here for your records.
+          </NoticeCallout>
+        ) : (
+          <NoticeCallout title="Messages unlock after payment" tone="info">
+            Messages appear here after a paid booking.
+          </NoticeCallout>
+        )
       ) : (
         <ul className="space-y-2 max-h-72 overflow-y-auto">
           {rows.map((m) => (
