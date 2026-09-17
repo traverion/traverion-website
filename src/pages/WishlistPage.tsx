@@ -105,8 +105,8 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
           <EmptyState
             icon={LogIn}
             className="pt-2 pb-0"
-            title="Log in to see saved tours"
-            body="Wishlist is tied to your traveler account. You have not signed in, so this list is empty."
+            title="Log in to see saved experiences"
+            body="Wishlist is tied to your traveler account. Sign in to save tours and stays while you browse."
             action={
               <button
                 type="button"
@@ -150,7 +150,7 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
         {error && (
           <ErrorState
             className="py-6"
-            title="Saved tours unavailable"
+            title="Saved listings unavailable"
             body={userFacingError(error, USER_ERROR.wishlist)}
             retry={{ onClick: () => void load() }}
           />
@@ -166,7 +166,7 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
             body="Your wishlist is empty because you have not saved a tour or stay. Save one while browsing and it will show up here."
             action={
               <button type="button" onClick={() => onNavigate('packages')} className="tv-btn-primary">
-                Browse tours
+                Browse experiences
               </button>
             }
           />
