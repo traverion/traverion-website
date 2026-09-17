@@ -263,9 +263,17 @@ export default function SupplierReviews() {
             <article
               key={r.id}
               id={`supplier-review-card-${r.id}`}
-              className={`rounded-2xl bg-paper-raised p-4 sm:p-5 shadow-soft ring-1 ring-black/[0.06] ${
-                isHighlighted ? 'ring-finland/30 shadow-soft-lg' : ''
-              } ${needsReply ? 'ring-amber-200/80' : ''}`}
+              className={`overflow-hidden rounded-2xl bg-paper-raised p-4 sm:p-5 shadow-soft ring-1 ring-black/[0.06] ${
+                needsReply
+                  ? 'border-l-[3px] border-l-amber-500'
+                  : replies[r.id]
+                    ? 'border-l-[3px] border-l-emerald-500'
+                    : r.verified
+                      ? 'border-l-[3px] border-l-finland'
+                      : 'border-l-[3px] border-l-black/10'
+              } ${isHighlighted ? 'ring-finland/30 shadow-soft-lg' : ''} ${
+                needsReply ? 'ring-amber-200/80' : ''
+              }`}
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1">
