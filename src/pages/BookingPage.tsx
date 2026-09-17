@@ -707,7 +707,8 @@ export default function BookingPage({
               <span>{bookingContactIntroCopy(Boolean(user?.email))}</span>
             </p>
             <div className="space-y-4">
-              <div className="rounded-xl bg-black/[0.03] ring-1 ring-black/[0.06] p-3.5 text-sm text-ink-muted">
+              <div className="rounded-2xl bg-finland/[0.05] ring-1 ring-finland/15 p-3.5 text-sm text-ink-muted">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-finland mb-1.5">Your selection</p>
                 <p className="font-medium text-ink">{tour.title}</p>
                 <p className="mt-1 text-xs">
                   {dateDisplay || date || 'Select date'} · {guests} {guests === 1 ? 'guest' : 'guests'}
