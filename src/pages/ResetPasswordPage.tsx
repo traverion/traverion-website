@@ -74,7 +74,9 @@ export default function ResetPasswordPage({ onNavigate }: ResetPasswordPageProps
           aria-label="Verifying your reset link"
         >
           <img src={BRAND_LOGO_SRC} alt="Traverion" className="h-9 w-auto mx-auto mb-6 opacity-90" />
-          <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">Traveler account</p>
+          <div className="inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15 mb-3">
+            Traveler account
+          </div>
           <h1 className="font-display text-2xl sm:text-3xl text-ink tracking-tight">Verifying your reset link</h1>
           <p className="mt-3 text-sm text-ink-muted">This usually takes a few seconds.</p>
           <div className="mt-8 space-y-3" aria-hidden>
@@ -91,7 +93,9 @@ export default function ResetPasswordPage({ onNavigate }: ResetPasswordPageProps
       <div className="min-h-screen bg-paper flex flex-col items-center justify-center px-6 py-16">
         <div className="w-full max-w-md rounded-2xl bg-paper-raised p-6 sm:p-8 shadow-soft-lg ring-1 ring-black/[0.06] text-center">
           <img src={BRAND_LOGO_SRC} alt="Traverion" className="h-9 w-auto mx-auto mb-6 opacity-90" />
-          <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">Traveler account</p>
+          <div className="inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15 mb-3">
+            Traveler account
+          </div>
           <h1 className="font-display text-2xl tracking-tight text-ink">This reset link is not valid</h1>
           <div className="mt-4 text-left">
             <NoticeCallout title="Open the email link" tone="danger">
