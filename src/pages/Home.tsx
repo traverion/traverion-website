@@ -513,22 +513,32 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
 
       <section className="pb-20 sm:pb-28">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 border-t border-black/[0.06] pt-16">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Trust</p>
           <h2 className="font-display text-3xl sm:text-4xl text-ink tracking-tight mb-3">Why book on Traverion</h2>
-          <p className="text-sm text-ink-muted mb-10 max-w-xl">
+          <p className="text-sm text-ink-muted mb-10 max-w-xl leading-relaxed">
             A marketplace for independent operators — clear booking truth, honest money, separate product types.
           </p>
-          <div className="grid sm:grid-cols-3 gap-8 text-[15px] leading-relaxed text-ink-muted">
-            <div>
+          <div className="grid sm:grid-cols-3 gap-6 sm:gap-8">
+            <div className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">01</p>
               <p className="font-semibold text-ink mb-2">Real operators</p>
-              <p>You book the people who run the day. Price is confirmed at checkout — not guessed on the card.</p>
+              <p className="text-[15px] leading-relaxed text-ink-muted">
+                You book the people who run the day. Price is confirmed at checkout — not guessed on the card.
+              </p>
             </div>
-            <div>
+            <div className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">02</p>
               <p className="font-semibold text-ink mb-2">Clear money</p>
-              <p>Pay with Stripe. If checkout cannot start, you see an error. We never pretend a payment succeeded.</p>
+              <p className="text-[15px] leading-relaxed text-ink-muted">
+                Pay with Stripe. Trips is your confirmation of record — we do not invent email receipts.
+              </p>
             </div>
-            <div>
+            <div className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">03</p>
               <p className="font-semibold text-ink mb-2">Tours ≠ stays</p>
-              <p>Departures are not nights. Each product keeps its own calendar, options, and rules.</p>
+              <p className="text-[15px] leading-relaxed text-ink-muted">
+                Departures are not nights. Each product keeps its own calendar, options, and rules.
+              </p>
             </div>
           </div>
           <a href={supplierPortalLandingHref()} className="tv-btn-ghost mt-10 -ml-2 inline-flex">
