@@ -1,6 +1,8 @@
 import { useLayoutEffect, useState } from 'react';
+import { CheckCircle2 } from 'lucide-react';
 import { BRAND_LOGO_SRC } from '../../lib/brandAssets';
 import { supabase } from '../../lib/supabase';
+import NoticeCallout from '../NoticeCallout';
 import {
   PARTNER_EMAIL_VERIFIED_PATH,
   PARTNER_LOGIN_PATH,
@@ -109,10 +111,11 @@ export default function PartnerEmailVerifiedPage() {
         <img src={BRAND_LOGO_SRC} alt="" className="h-10 w-10 object-contain" />
       </header>
       <main className="flex-1 flex items-center justify-center px-5 pb-16">
-        <div className="max-w-md w-full text-center">
+        <div className="w-full max-w-md rounded-2xl bg-paper-raised p-6 sm:p-8 shadow-soft-lg ring-1 ring-black/[0.06] text-center">
+          <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">Traverion Partner</p>
           {phase === 'checking' && (
             <div aria-busy="true" aria-label="Confirming your email">
-              <h1 className="font-display text-3xl text-ink tracking-tight">Confirming your email</h1>
+              <h1 className="font-display text-2xl sm:text-3xl text-ink tracking-tight">Confirming your email</h1>
               <p className="mt-3 text-sm text-ink-muted">Please wait a moment.</p>
               <div className="mt-8 space-y-3" aria-hidden>
                 <div className="h-3 w-full rounded bg-black/[0.06] animate-pulse" />
@@ -122,27 +125,46 @@ export default function PartnerEmailVerifiedPage() {
           )}
           {phase === 'verified' && (
             <>
-              <h1 className="font-display text-3xl text-ink tracking-tight">Account verified</h1>
-              <p className="mt-3 text-sm text-ink-muted">Your partner email is confirmed. Continuing to your workspace…</p>
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100">
+                <CheckCircle2 className="h-8 w-8 text-emerald-600" aria-hidden />
+              </div>
+              <h1 className="font-display text-2xl sm:text-3xl text-ink tracking-tight">Account verified</h1>
+              <div className="mt-4 text-left">
+                <NoticeCallout title="Email confirmed" tone="success">
+                  Your partner email is confirmed. Continuing to your workspace…
+                </NoticeCallout>
+              </div>
             </>
           )}
           {phase === 'already' && (
             <>
-              <h1 className="font-display text-3xl text-ink tracking-tight">Already verified</h1>
-              <p className="mt-3 text-sm text-ink-muted">This email is already confirmed. Continuing to your workspace…</p>
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-finland/15">
+                <CheckCircle2 className="h-8 w-8 text-finland" aria-hidden />
+              </div>
+              <h1 className="font-display text-2xl sm:text-3xl text-ink tracking-tight">Already verified</h1>
+              <div className="mt-4 text-left">
+                <NoticeCallout title="You’re all set" tone="info">
+                  This email is already confirmed. Continuing to your workspace…
+                </NoticeCallout>
+              </div>
             </>
           )}
           {(phase === 'invalid' || phase === 'unconfigured') && (
             <>
-              <h1 className="font-display text-3xl text-ink tracking-tight">
+              <h1 className="font-display text-2xl sm:text-3xl text-ink tracking-tight">
                 {phase === 'unconfigured' ? 'Sign-in is not available' : 'This link has expired'}
               </h1>
-              <p className="mt-3 text-sm text-ink-muted leading-relaxed">
-                {phase === 'unconfigured'
-                  ? 'Sign-in is not configured on this environment.'
-                  : 'This confirmation link is missing, expired, or was already used. Open the latest email from Traverion, or log in if you already confirmed.'}
-              </p>
-              <a href={PARTNER_LOGIN_PATH} className="tv-btn-primary mt-8 inline-flex">
+              <div className="mt-4 text-left">
+                <NoticeCallout
+                  title={phase === 'unconfigured' ? 'Environment not ready' : 'Open a fresh confirmation email'}
+                  tone="danger"
+                >
+                  {phase === 'unconfigured'
+                    ? 'Sign-in is not configured on this environment.'
+                    : 'This confirmation link is missing, expired, or was already used. Open the latest email from Traverion, or log in if you already confirmed.'}
+                </NoticeCallout>
+              </div>
+              <a href={PARTNER_LOGIN_PATH} className="tv-btn-primary mt-6 inline-flex w-full justify-center">
                 Log in
               </a>
             </>
