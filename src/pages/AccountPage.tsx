@@ -184,7 +184,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
   return (
     <div className="min-h-screen bg-paper tv-page">
       <div className="max-w-2xl mx-auto px-4 sm:px-6 py-12 pb-16">
-        <div className="mb-10">
+        <header className="mb-10 rounded-2xl bg-paper-raised p-5 sm:p-7 shadow-soft ring-1 ring-black/[0.06]">
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Traveler</p>
           <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Account</h1>
           <p className="mt-2 text-sm text-ink-muted truncate" title={user.email ?? undefined}>
@@ -193,7 +193,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
           {displayName.trim() && user.email ? (
             <p className="mt-0.5 text-xs text-ink-faint truncate">{user.email}</p>
           ) : null}
-        </div>
+        </header>
 
         <section className="mb-10">
           <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint mb-4">Profile</h2>
