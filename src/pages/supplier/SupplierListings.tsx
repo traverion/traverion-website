@@ -641,7 +641,7 @@ export default function SupplierListings() {
       />
 
       {listings.length > 0 && !showForm ? (
-        <div className="flex flex-wrap gap-1 mb-8" role="tablist" aria-label="Listing filters">
+        <div className="flex flex-wrap gap-1 mb-8 rounded-full bg-paper-raised p-1 w-fit max-w-full shadow-soft ring-1 ring-black/[0.06]" role="tablist" aria-label="Listing filters">
           {([
             { id: 'all', label: 'All' },
             { id: 'tour', label: 'Tours' },
@@ -655,8 +655,10 @@ export default function SupplierListings() {
               role="tab"
               aria-selected={workspaceFilter === tab.id}
               onClick={() => setWorkspaceFilter(tab.id)}
-              className={`lux-flat rounded-full px-3.5 py-2 min-h-11 text-sm font-medium ${
-                workspaceFilter === tab.id ? 'bg-ink text-paper-raised' : 'text-ink-muted hover:text-ink'
+              className={`lux-flat rounded-full px-3.5 py-2 min-h-11 text-sm font-medium transition-colors ${
+                workspaceFilter === tab.id
+                  ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
+                  : 'text-ink-muted hover:bg-finland/10 hover:text-finland'
               }`}
             >
               {tab.label}
