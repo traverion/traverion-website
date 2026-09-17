@@ -585,11 +585,21 @@ export default function Packages({ onTourSelect }: PackagesProps) {
               aria-labelledby="filters-drawer-title"
               className="tv-sheet-panel relative flex flex-col overflow-hidden motion-safe:animate-slide-up"
             >
-              <div className="flex items-center justify-between mb-6">
-                <h3 id="filters-drawer-title" className="font-display text-2xl">Filters</h3>
-                <button type="button" onClick={() => setMobileFiltersOpen(false)} className="lux-tap-target p-2" aria-label="Close">
-                  <X className="w-5 h-5" />
-                </button>
+              <div className="mb-6">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland">Browse</p>
+                <div className="mt-2 flex items-center justify-between gap-3">
+                  <h3 id="filters-drawer-title" className="font-display text-2xl sm:text-3xl text-ink tracking-tight">
+                    Filters
+                    {extraFilterCount > 0 ? (
+                      <span className="ml-2 align-middle text-base font-sans font-semibold text-finland tabular-nums">
+                        · {extraFilterCount}
+                      </span>
+                    ) : null}
+                  </h3>
+                  <button type="button" onClick={() => setMobileFiltersOpen(false)} className="lux-tap-target p-2" aria-label="Close">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
               <div className="space-y-6 min-h-0 flex-1 overflow-y-auto">
                 <div className="grid grid-cols-2 gap-3 lg:hidden">
