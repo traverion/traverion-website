@@ -116,7 +116,7 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
           )}
           {isStay ? (
             <span className="bg-white/95 text-finland text-[11px] font-semibold px-2.5 py-1 rounded-full ring-1 ring-finland/20 shadow-sm">
-              Stay
+              {stay?.propertyType?.trim() || 'Stay'}
             </span>
           ) : (
             <span className="bg-white/95 text-finland text-[11px] font-semibold px-2.5 py-1 rounded-full ring-1 ring-finland/20 shadow-sm">
