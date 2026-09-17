@@ -765,12 +765,13 @@ export default function SupplierBookings() {
                         <p className="mt-1 text-xs font-medium text-finland">Needs a look</p>
                       ) : null}
                       {pickupGap ? (
-                        <p className="mt-1 text-xs font-medium text-amber-800">Pickup missing</p>
+                        <p className="mt-1 text-xs font-medium text-amber-800">Pickup missing ⚠</p>
                       ) : null}
                       {openCancel ? (
                         <p className="mt-1 text-xs font-medium text-red-800">Awaiting traveler cancellation response</p>
                       ) : null}
                     </div>
+                    <span className="tv-btn-ghost shrink-0 pointer-events-none hidden sm:inline-flex">Open</span>
                   </button>
                 </article>
               );
