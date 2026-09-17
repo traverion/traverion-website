@@ -19,21 +19,23 @@ export default function PartnerResetPasswordPage() {
       </header>
 
       <main className="flex-1 w-full max-w-md mx-auto px-5 pb-16">
-        <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint">Traverion Partner</p>
-        <h1 className="mt-2 font-display text-3xl sm:text-4xl text-ink tracking-tight">Set a new password</h1>
-        <p className="mt-2 text-sm text-ink-muted leading-relaxed mb-8">
-          This page only works from the secure link in your reset email.
-        </p>
-        <SetNewPasswordForm
-          minPasswordLength={8}
-          description="Enter a new password for your partner account. When you are done, sign in to the supplier portal."
-          onSuccess={() => {
-            window.location.replace(PARTNER_LOGIN_PATH);
-          }}
-          loginHref={PARTNER_LOGIN_PATH}
-          loginLabel="Back to partner log in"
-          successHint="Sign in to the supplier portal with your new password."
-        />
+        <div className="rounded-2xl bg-paper-raised p-6 sm:p-8 shadow-soft-lg ring-1 ring-black/[0.06]">
+          <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint">Traverion Partner</p>
+          <h1 className="mt-2 font-display text-2xl sm:text-3xl text-ink tracking-tight">Set a new password</h1>
+          <p className="mt-2 text-sm text-ink-muted leading-relaxed mb-6">
+            This page only works from the secure link in your reset email.
+          </p>
+          <SetNewPasswordForm
+            minPasswordLength={8}
+            description="Enter a new password for your partner account. When you are done, sign in to the supplier portal."
+            onSuccess={() => {
+              window.location.replace(PARTNER_LOGIN_PATH);
+            }}
+            loginHref={PARTNER_LOGIN_PATH}
+            loginLabel="Back to partner log in"
+            successHint="Sign in to the supplier portal with your new password."
+          />
+        </div>
       </main>
     </div>
   );

@@ -7,6 +7,7 @@ import {
   stripRecoveryQueryFromUrl,
   updatePasswordAfterRecovery,
 } from '../../lib/passwordRecoveryFlow';
+import NoticeCallout from '../NoticeCallout';
 
 type Phase = 'loading' | 'form' | 'invalid' | 'timeout' | 'success';
 
@@ -114,13 +115,10 @@ export default function SetNewPasswordForm({
   if (phase === 'invalid') {
     return (
       <div className="space-y-4 py-2">
-        <p className="text-sm text-ink-muted" role="alert">
+        <NoticeCallout title="Open the email link" tone="danger">
           This page only works from the secure link in your password reset email. The link may be invalid, expired, or
-          already used.
-        </p>
-        <p className="text-sm text-ink-muted">
-          Open the page from a new reset email, or request one from log in → Forgot password.
-        </p>
+          already used. Request a new reset from log in → Forgot password.
+        </NoticeCallout>
         <a href={loginHref} className="tv-btn-primary inline-flex w-full justify-center">
           {loginLabel}
         </a>
@@ -131,10 +129,10 @@ export default function SetNewPasswordForm({
   if (phase === 'timeout') {
     return (
       <div className="space-y-4 py-2">
-        <p className="text-sm text-ink-muted" role="alert">
-          We could not verify your reset link in time. Try opening the link from your email again, or request a new
-          reset email.
-        </p>
+        <NoticeCallout title="Link took too long to verify" tone="warn">
+          We could not verify your reset link in time. Open the link from your email again, or request a new reset
+          email.
+        </NoticeCallout>
         <a href={loginHref} className="tv-btn-primary inline-flex w-full justify-center">
           {loginLabel}
         </a>
@@ -145,7 +143,9 @@ export default function SetNewPasswordForm({
   if (phase === 'success') {
     return (
       <div className="space-y-4 py-2">
-        <p className="text-sm text-ink">Your password was updated. {successHint}</p>
+        <NoticeCallout title="Password updated" tone="success">
+          {successHint}
+        </NoticeCallout>
         <button type="button" onClick={onSuccess} className="tv-btn-primary w-full">
           Continue to sign in
         </button>
