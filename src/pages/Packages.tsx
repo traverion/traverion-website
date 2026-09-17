@@ -408,17 +408,23 @@ export default function Packages({ onTourSelect }: PackagesProps) {
   return (
     <div className="min-h-screen bg-paper tv-page">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-12 pb-16 motion-safe:animate-fade-in">
-        <h1 className="font-display text-4xl sm:text-5xl text-ink tracking-tight">Tours</h1>
-        <p className="mt-2 text-ink-muted">
-          {showCatalogLoading ? (
-            <span className="inline-block h-4 w-24 rounded bg-black/[0.06] animate-pulse align-middle" aria-hidden />
-          ) : (
-            <>
-              {filteredPackages.length} {filteredPackages.length === 1 ? 'tour' : 'tours'}
-              {searchTerm.trim() !== '' && searchTerm !== deferredSearch ? ' · Updating…' : ''}
-            </>
-          )}
-        </p>
+        <header className="rounded-2xl bg-paper-raised p-5 sm:p-7 shadow-soft ring-1 ring-black/[0.06]">
+          <div className="inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15">
+            <Compass className="h-3.5 w-3.5" aria-hidden />
+            Tours
+          </div>
+          <h1 className="mt-3 font-display text-4xl sm:text-5xl text-ink tracking-tight">Tours</h1>
+          <p className="mt-3 text-ink-muted">
+            {showCatalogLoading ? (
+              <span className="inline-block h-4 w-24 rounded bg-black/[0.06] animate-pulse align-middle" aria-hidden />
+            ) : (
+              <>
+                {filteredPackages.length} {filteredPackages.length === 1 ? 'tour' : 'tours'}
+                {searchTerm.trim() !== '' && searchTerm !== deferredSearch ? ' · Updating…' : ''}
+              </>
+            )}
+          </p>
+        </header>
 
         {listingsLoadError && isSupabaseConfigured() && (
           <ErrorState
