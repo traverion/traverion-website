@@ -409,7 +409,7 @@ export default function SupplierDashboard({ onNavigateToBookings: _onNavigateToB
       {recentBookings.length > 0 && (
         <section className="mb-10">
           <h2 className="text-[11px] uppercase tracking-[0.18em] text-ink-faint mb-4">Recent</h2>
-          <ul className="divide-y divide-black/[0.05] overflow-hidden rounded-2xl bg-paper-raised ring-1 ring-black/[0.05]">
+          <ul className="space-y-2">
             {recentBookings.map((b) => {
               const paid =
                 b.amount_paid != null &&
@@ -423,7 +423,7 @@ export default function SupplierDashboard({ onNavigateToBookings: _onNavigateToB
                   <button
                     type="button"
                     onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings?booking=${b.id}`)}
-                    className="lux-flat flex w-full items-baseline justify-between gap-3 px-4 py-3.5 text-left hover:bg-black/[0.02]"
+                    className="lux-flat flex w-full items-baseline justify-between gap-3 rounded-2xl bg-paper-raised px-4 py-3.5 text-left shadow-soft ring-1 ring-black/[0.05] hover:ring-finland/20"
                   >
                     <span className="font-semibold text-ink truncate">
                       {b.guest_name?.trim() || listingTitlesById[b.listing_id] || 'New booking'}
