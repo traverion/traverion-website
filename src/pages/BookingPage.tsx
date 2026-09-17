@@ -933,9 +933,21 @@ export default function BookingPage({
                 <div className="flex justify-between gap-4">
                   <dt className="text-ink-muted">Participants</dt>
                   <dd className="font-medium text-ink text-right">
-                    {quoted?.guestBreakdown?.length
-                      ? quoted.guestBreakdown.map((r) => `${r.quantity} ${r.label}`).join(' · ')
-                      : `${guests} ${guests === 1 ? 'guest' : 'guests'}`}
+                    {quoted?.guestBreakdown?.length ? (
+                      <ul className="space-y-1">
+                        {quoted.guestBreakdown.map((r) => (
+                          <li key={r.categoryId}>
+                            {r.quantity} × {r.label}
+                            <span className="text-ink-muted font-normal">
+                              {' '}
+                              · {formatMoney(r.unitPrice, quoted.currency)} each
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      `${guests} ${guests === 1 ? 'guest' : 'guests'}`
+                    )}
                   </dd>
                 </div>
                 {selectedVariant?.listingOption?.pickupPlace?.trim() || tour.meetingPoint?.trim() ? (
