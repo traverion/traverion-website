@@ -27,6 +27,7 @@ import {
   BOOKING_CONFIRMATION_EMAIL_DISCLAIMER,
   STAY_LISTING_CONFIRMATION_NOTE,
 } from '../lib/booking-confirmation-copy';
+import { listingShowsFreeCancellation } from '../lib/listingTruth';
 
 type Props = {
   stayId: string;
@@ -217,8 +218,8 @@ export default function StayDetails({ stayId, onBack }: Props) {
   }
 
   return (
-    <div className="min-h-screen bg-paper tv-page">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 pb-24">
+    <div className="min-h-screen bg-paper tv-page pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-0">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
         <button type="button" onClick={onBack} className="tv-btn-ghost mb-6 -ml-2">
           <ArrowLeft className="w-4 h-4" aria-hidden />
           Back to stays
@@ -478,14 +479,19 @@ export default function StayDetails({ stayId, onBack }: Props) {
           </aside>
         </div>
       </div>
-      <div className="lg:hidden fixed bottom-0 inset-x-0 z-30 border-t border-black/[0.06] bg-paper-raised px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      <div className="lg:hidden fixed inset-x-0 bottom-0 z-40 border-t border-black/[0.06] bg-paper-raised/95 backdrop-blur-md px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] motion-safe:animate-slide-up">
         <div className="flex items-center justify-between gap-3 max-w-5xl mx-auto">
-          <p className="text-sm text-ink min-w-0">
-            <span className="font-semibold">
-              {quoteOk ? formatMoney(total, currency) : nightly > 0 ? formatMoney(nightly, currency) : '—'}
-            </span>
-            <span className="text-ink-muted"> {quoteOk ? 'total' : 'per night'}</span>
-          </p>
+          <div className="min-w-0">
+            <p className="text-sm text-ink">
+              <span className="font-semibold">
+                {quoteOk ? formatMoney(total, currency) : nightly > 0 ? formatMoney(nightly, currency) : '—'}
+              </span>
+              <span className="text-ink-muted"> {quoteOk ? 'total' : 'per night'}</span>
+            </p>
+            <p className="text-xs text-ink-muted">
+              {listingShowsFreeCancellation(stay) ? 'Free cancellation' : 'Pay via Stripe to confirm'}
+            </p>
+          </div>
           {user ? (
             <button
               type="button"
