@@ -247,42 +247,44 @@ export default function StayDetails({ stayId, onBack }: Props) {
         ) : (
           <div className="mb-8" />
         )}
-        <header className="mb-10 rounded-2xl bg-paper-raised p-5 sm:p-7 shadow-soft ring-1 ring-black/[0.06]">
-          <div className="inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15 mb-3">
-            Stay
-          </div>
-          <p className="text-ink-muted flex items-center gap-2 mb-2">
+        <header className="mb-8">
+          <p className="text-ink-muted flex items-center gap-2 mb-2 text-sm">
             <MapPin className="w-4 h-4 text-finland" aria-hidden />
             {[stay.city, stay.country].filter(Boolean).join(', ') || stay.destination}
           </p>
-          <h1 className="font-display text-3xl sm:text-5xl text-ink tracking-tight mb-4">{stay.title}</h1>
-          <p className="flex flex-wrap gap-2 text-sm text-ink-muted">
+          <h1 className="font-display text-3xl sm:text-5xl text-ink tracking-tight mb-5">{stay.title}</h1>
+          <dl className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {typeof s?.maxGuests === 'number' ? (
-              <span className="inline-flex items-center rounded-full bg-paper px-2.5 py-1 ring-1 ring-black/[0.06] shadow-soft">
-                Up to {s.maxGuests} guests
-              </span>
+              <div className="rounded-xl bg-paper-raised px-3.5 py-3 ring-1 ring-black/[0.05]">
+                <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">Guests</dt>
+                <dd className="mt-1 text-sm font-medium text-ink">Up to {s.maxGuests}</dd>
+              </div>
             ) : null}
             {typeof s?.bedrooms === 'number' ? (
-              <span className="inline-flex items-center rounded-full bg-paper px-2.5 py-1 ring-1 ring-black/[0.06] shadow-soft">
-                {s.bedrooms === 1 ? '1 bedroom' : `${s.bedrooms} bedrooms`}
-              </span>
+              <div className="rounded-xl bg-paper-raised px-3.5 py-3 ring-1 ring-black/[0.05]">
+                <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">Bedrooms</dt>
+                <dd className="mt-1 text-sm font-medium text-ink">{s.bedrooms}</dd>
+              </div>
             ) : null}
             {typeof s?.beds === 'number' ? (
-              <span className="inline-flex items-center rounded-full bg-paper px-2.5 py-1 ring-1 ring-black/[0.06] shadow-soft">
-                {s.beds === 1 ? '1 bed' : `${s.beds} beds`}
-              </span>
+              <div className="rounded-xl bg-paper-raised px-3.5 py-3 ring-1 ring-black/[0.05]">
+                <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">Beds</dt>
+                <dd className="mt-1 text-sm font-medium text-ink">{s.beds}</dd>
+              </div>
             ) : null}
             {typeof s?.bathrooms === 'number' ? (
-              <span className="inline-flex items-center rounded-full bg-paper px-2.5 py-1 ring-1 ring-black/[0.06] shadow-soft">
-                {s.bathrooms === 1 ? '1 bath' : `${s.bathrooms} baths`}
-              </span>
+              <div className="rounded-xl bg-paper-raised px-3.5 py-3 ring-1 ring-black/[0.05]">
+                <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">Baths</dt>
+                <dd className="mt-1 text-sm font-medium text-ink">{s.bathrooms}</dd>
+              </div>
             ) : null}
-            {nightly > 0 ? (
-              <span className="inline-flex items-center rounded-full bg-finland px-2.5 py-1 text-white font-semibold tabular-nums shadow-sm ring-1 ring-finland/30">
-                {formatMoney(nightly, currency)} per night
-              </span>
-            ) : null}
-          </p>
+          </dl>
+          {nightly > 0 ? (
+            <p className="mt-4 text-lg font-semibold tabular-nums text-ink">
+              {formatMoney(nightly, currency)}
+              <span className="ml-1 text-sm font-medium text-ink-muted">per night</span>
+            </p>
+          ) : null}
         </header>
 
         <div className="grid lg:grid-cols-[1fr_20rem] gap-10 pb-24 lg:pb-0">

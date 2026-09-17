@@ -203,12 +203,10 @@ export default function SupplierAvailability() {
 
   return (
     <div className={`${SUPPLIER_PAGE_CLASS} min-h-[70vh]`}>
-      <div className="mb-6 rounded-2xl bg-paper-raised p-5 sm:p-7 shadow-soft ring-1 ring-black/[0.06]">
+      <div className="mb-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15 mb-3">
-              Availability
-            </div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Availability</p>
             <h1 className="font-display text-3xl sm:text-5xl text-ink tracking-tight">Calendar</h1>
             <p className="mt-2 text-sm text-ink-muted max-w-lg">
               Tours: departures and capacity. Stays: nights booked or blocked. Open a listing to edit that day.
