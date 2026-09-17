@@ -286,14 +286,14 @@ export default function StayDetails({ stayId, onBack }: Props) {
         </header>
 
         <div className="grid lg:grid-cols-[1fr_20rem] gap-10 pb-24 lg:pb-0">
-          <div className="space-y-10 text-[15px] leading-relaxed text-ink">
+          <div className="space-y-6 text-[15px] leading-relaxed text-ink">
             {stay.description ? (
-              <div>
+              <div className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]">
                 <h2 className="font-display text-2xl mb-3">The place</h2>
                 <p className="text-ink-muted">{stay.description}</p>
               </div>
             ) : null}
-            <div>
+            <div className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]">
               <h2 className="font-display text-2xl mb-3">Sleeping</h2>
               <ul className="space-y-2 text-ink-muted">
               {s?.propertyType ? <li>{s.propertyType}</li> : null}
@@ -306,17 +306,17 @@ export default function StayDetails({ stayId, onBack }: Props) {
               ) : null}
               {typeof s?.maxGuests === 'number' ? (
                 <li className="flex items-center gap-2">
-                  <Users className="w-4 h-4" aria-hidden /> Up to {s.maxGuests} guests
+                  <Users className="w-4 h-4 text-finland" aria-hidden /> Up to {s.maxGuests} guests
                 </li>
               ) : null}
               </ul>
             </div>
             {amenities.length > 0 ? (
-              <div>
+              <div className="rounded-2xl bg-finland/[0.06] p-5 sm:p-6 ring-1 ring-finland/15">
                 <h2 className="font-display text-2xl mb-3">Amenities</h2>
                 <ul className="flex flex-wrap gap-2">
                   {amenities.map((a) => (
-                    <li key={a} className="rounded-full bg-black/[0.04] px-3 py-1.5 text-sm text-ink">
+                    <li key={a} className="rounded-full bg-paper-raised px-3 py-1.5 text-sm text-ink ring-1 ring-black/[0.05]">
                       {a}
                     </li>
                   ))}
