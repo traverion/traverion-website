@@ -171,10 +171,8 @@ export default function SupplierEarnings() {
 
   return (
     <div className={SUPPLIER_PAGE_CLASS}>
-      <header className="mb-10 rounded-2xl bg-paper-raised p-5 sm:p-7 shadow-soft ring-1 ring-black/[0.06]">
-        <div className="inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15 mb-3">
-          Earnings
-        </div>
+      <header className="mb-10">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Earnings</p>
         <h1 className="font-display text-4xl sm:text-5xl text-ink tracking-tight">Money</h1>
         <p className="mt-2 text-ink-muted max-w-xl">
           What travelers paid, and what Traverion has paid you. Payouts are manual — this page never invents a transfer.
