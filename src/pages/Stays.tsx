@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from 'react';
-import { Compass, Search, X } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { usePublishedSupplierListings } from '../hooks/usePublishedSupplierListings';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { getAllListings } from '../data/listings';
