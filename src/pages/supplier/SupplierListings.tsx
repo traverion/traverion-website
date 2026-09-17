@@ -947,7 +947,7 @@ export default function SupplierListings() {
         />
       ) : (
         listings.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+          <div className="space-y-2.5">
             {filteredListings.map((listing) => {
               const isLive = listing.status !== 'draft';
               const family = inventoryFamilyFromListing(listing);
@@ -970,12 +970,6 @@ export default function SupplierListings() {
                 healthPct >= 85 ? 'text-emerald-800' : healthPct >= 60 ? 'text-amber-900' : 'text-rose-800';
               const healthBar =
                 healthPct >= 85 ? 'bg-emerald-500' : healthPct >= 60 ? 'bg-amber-500' : 'bg-rose-400';
-              const healthPanel =
-                healthPct >= 85
-                  ? 'bg-emerald-50/70 ring-1 ring-emerald-200/60'
-                  : healthPct >= 60
-                    ? 'bg-amber-50/70 ring-1 ring-amber-200/60'
-                    : 'bg-rose-50/70 ring-1 ring-rose-200/50';
               const cardAccent = !isLive
                 ? 'border-l-[3px] border-l-slate-400'
                 : healthPct >= 85
@@ -986,107 +980,104 @@ export default function SupplierListings() {
               return (
                 <article
                   key={listing.id}
-                  className={`group min-w-0 overflow-hidden rounded-2xl bg-paper-raised p-3 ring-1 ring-black/[0.06] shadow-soft sm:p-3.5 ${cardAccent}`}
+                  className={`group min-w-0 overflow-hidden rounded-2xl bg-paper-raised ring-1 ring-black/[0.06] shadow-soft ${cardAccent}`}
                 >
-                  <button
-                    type="button"
-                    onClick={() => openSupplierListingEditor(listing.id)}
-                    className="block w-full text-left"
-                  >
-                    <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-black/[0.04]">
-                      {heroSrc ? (
-                        <img
-                          src={heroSrc}
-                          alt=""
-                          className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]"
-                        />
-                      ) : null}
-                      <div className="absolute left-3 top-3 flex flex-wrap items-center gap-1.5">
-                        <StatusChip tone={isLive ? 'good' : 'neutral'}>{statusLabel}</StatusChip>
-                        {justPublishedId === listing.id ? (
-                          <span className="tv-pop rounded-full bg-emerald-600 px-2 py-0.5 text-[11px] font-semibold text-white">
-                            Published
-                          </span>
-                        ) : null}
-                      </div>
-                    </div>
-                    <div className="pt-3">
-                      <p className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">{familyLabel}</p>
-                      {place ? <p className="mt-1 text-sm text-ink-muted">{place}</p> : null}
-                      <h2 className="mt-0.5 font-sans text-base font-semibold text-ink leading-snug">{listing.title}</h2>
-                      {money ? (
-                        <p className="mt-1 text-sm text-ink">
-                          From {money}
-                          {qualifier && !isStay ? ` per ${qualifier}` : isStay ? ' per night' : ''}
-                        </p>
-                      ) : (
-                        <p className="mt-1 text-sm text-ink-faint">Price not set</p>
-                      )}
-                      <div className={`mt-3 rounded-xl px-3 py-2.5 ${healthPanel}`}>
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-faint">
-                            Listing health
-                          </span>
-                          <span className={`text-sm font-semibold tabular-nums ${healthTone}`}>{healthPct}%</span>
-                        </div>
-                        <div
-                          className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-black/[0.08]"
-                          role="progressbar"
-                          aria-valuenow={healthPct}
-                          aria-valuemin={0}
-                          aria-valuemax={100}
-                          aria-label={`Listing health ${healthPct} percent`}
-                        >
-                          <div className={`h-full rounded-full ${healthBar}`} style={{ width: `${healthPct}%` }} />
-                        </div>
-                        {healthTip ? (
-                          <p className="mt-1.5 text-xs leading-snug text-ink-muted line-clamp-2">{healthTip}</p>
-                        ) : (
-                          <p className="mt-1.5 text-xs text-ink-muted">Ready for travelers.</p>
-                        )}
-                      </div>
-                    </div>
-                  </button>
-                  <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-black/[0.06] pt-3">
-                    {isSupabase && canEditListings && !isLive ? (
-                      <button
-                        type="button"
-                        onClick={() => handleStatusChange(listing, 'published')}
-                        disabled={!canPostNewListing}
-                        title={
-                          !canPostNewListing
-                            ? 'Business verification and payout verification (IBAN + BIC) required.'
-                            : 'Publish this listing on Traverion for travelers to book.'
-                        }
-                        className="lux-flat inline-flex min-h-9 items-center rounded-full bg-finland px-3.5 text-xs font-semibold text-white hover:bg-finland/90 disabled:opacity-40"
-                      >
-                        Publish
-                      </button>
-                    ) : null}
-                    {isLive ? (
-                      <a
-                        href={isStay ? publicStayListingUrl(listing.id) : publicTourListingUrl(listing.id)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="lux-flat inline-flex min-h-9 items-center rounded-full bg-finland/10 px-3.5 text-xs font-semibold text-finland ring-1 ring-finland/20 hover:bg-finland/15"
-                      >
-                        View
-                      </a>
-                    ) : null}
+                  <div className="flex flex-col gap-3 p-3 sm:flex-row sm:items-stretch sm:gap-4 sm:p-3.5">
                     <button
                       type="button"
-                      data-listing-gear={listing.id}
-                      onClick={() =>
-                        setListingActionsMenuId((id) => (id === listing.id ? null : listing.id))
-                      }
-                      disabled={!canEditListings}
-                      aria-expanded={listingActionsMenuId === listing.id}
-                      aria-haspopup="menu"
-                      aria-label={isStay ? 'Stay actions' : 'Tour actions'}
-                      className="ml-auto lux-flat inline-flex h-9 w-9 items-center justify-center rounded-full text-ink-muted hover:bg-black/[0.05] hover:text-ink disabled:opacity-40"
+                      onClick={() => openSupplierListingEditor(listing.id)}
+                      className="flex min-w-0 flex-1 gap-3 text-left sm:gap-4"
                     >
-                      <Cog className="h-4 w-4" aria-hidden />
+                      <div className="relative h-20 w-24 shrink-0 overflow-hidden rounded-xl bg-black/[0.04] sm:h-[5.5rem] sm:w-28">
+                        {heroSrc ? (
+                          <img
+                            src={heroSrc}
+                            alt=""
+                            className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]"
+                          />
+                        ) : null}
+                      </div>
+                      <div className="min-w-0 flex-1 py-0.5">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <StatusChip tone={isLive ? 'good' : 'neutral'}>{statusLabel}</StatusChip>
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
+                            {familyLabel}
+                          </span>
+                          {justPublishedId === listing.id ? (
+                            <span className="tv-pop rounded-full bg-emerald-600 px-2 py-0.5 text-[11px] font-semibold text-white">
+                              Published
+                            </span>
+                          ) : null}
+                        </div>
+                        <h2 className="mt-1.5 font-sans text-base font-semibold text-ink leading-snug line-clamp-2">
+                          {listing.title}
+                        </h2>
+                        <p className="mt-0.5 text-sm text-ink-muted truncate">
+                          {[place || null, money ? `From ${money}${qualifier && !isStay ? ` / ${qualifier}` : isStay ? ' / night' : ''}` : 'Price not set']
+                            .filter(Boolean)
+                            .join(' · ')}
+                        </p>
+                        <div className="mt-2 flex max-w-xs items-center gap-2">
+                          <div
+                            className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-black/[0.08]"
+                            role="progressbar"
+                            aria-valuenow={healthPct}
+                            aria-valuemin={0}
+                            aria-valuemax={100}
+                            aria-label={`Listing health ${healthPct} percent`}
+                          >
+                            <div className={`h-full rounded-full ${healthBar}`} style={{ width: `${healthPct}%` }} />
+                          </div>
+                          <span className={`text-xs font-semibold tabular-nums shrink-0 ${healthTone}`}>{healthPct}%</span>
+                        </div>
+                        {healthTip ? (
+                          <p className="mt-1 text-xs leading-snug text-ink-muted line-clamp-1">{healthTip}</p>
+                        ) : (
+                          <p className="mt-1 text-xs text-ink-muted">Ready for travelers</p>
+                        )}
+                      </div>
                     </button>
+                    <div className="flex shrink-0 flex-wrap items-center gap-2 border-t border-black/[0.06] pt-3 sm:flex-col sm:items-stretch sm:justify-center sm:border-t-0 sm:border-l sm:pl-4 sm:pt-0">
+                      {isSupabase && canEditListings && !isLive ? (
+                        <button
+                          type="button"
+                          onClick={() => handleStatusChange(listing, 'published')}
+                          disabled={!canPostNewListing}
+                          title={
+                            !canPostNewListing
+                              ? 'Business verification and payout verification (IBAN + BIC) required.'
+                              : 'Publish this listing on Traverion for travelers to book.'
+                          }
+                          className="lux-flat inline-flex min-h-9 items-center justify-center rounded-full bg-finland px-3.5 text-xs font-semibold text-white hover:bg-finland/90 disabled:opacity-40"
+                        >
+                          Publish
+                        </button>
+                      ) : null}
+                      {isLive ? (
+                        <a
+                          href={isStay ? publicStayListingUrl(listing.id) : publicTourListingUrl(listing.id)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="lux-flat inline-flex min-h-9 items-center justify-center rounded-full bg-finland/10 px-3.5 text-xs font-semibold text-finland ring-1 ring-finland/20 hover:bg-finland/15"
+                        >
+                          View
+                        </a>
+                      ) : null}
+                      <button
+                        type="button"
+                        data-listing-gear={listing.id}
+                        onClick={() =>
+                          setListingActionsMenuId((id) => (id === listing.id ? null : listing.id))
+                        }
+                        disabled={!canEditListings}
+                        aria-expanded={listingActionsMenuId === listing.id}
+                        aria-haspopup="menu"
+                        aria-label={isStay ? 'Stay actions' : 'Tour actions'}
+                        className="lux-flat inline-flex h-9 w-9 items-center justify-center rounded-full text-ink-muted hover:bg-black/[0.05] hover:text-ink disabled:opacity-40 sm:self-end"
+                      >
+                        <Cog className="h-4 w-4" aria-hidden />
+                      </button>
+                    </div>
                   </div>
                 </article>
               );
