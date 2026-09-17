@@ -2,8 +2,8 @@
  * Consumer: saved listings (wishlist). Requires login when Supabase is configured.
  */
 import { useState, useEffect, useCallback } from 'react';
-import { LogIn, ArrowLeft, Heart, MapPin } from 'lucide-react';
-import { SkeletonListItem, SkeletonConsumerPage } from '../components/ui/Skeleton';
+import { LogIn, ArrowLeft, Heart } from 'lucide-react';
+import { SkeletonCardGrid, SkeletonConsumerPage } from '../components/ui/Skeleton';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
@@ -13,9 +13,7 @@ import { isSupabaseConfigured } from '../lib/supabase';
 import { fetchWishlistListingIds, removeFromWishlist } from '../data/supabase-wishlist';
 import { fetchListingById } from '../data/supabase-listings';
 import { TourPackage } from '../types/tour';
-import { formatMoney } from '../lib/money';
-import { catalogHeadlineAmount } from '../lib/discount-display';
-import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
+import { PublicListingBrowseCard } from '../components/PublicListingBrowseCard';
 
 interface WishlistPageProps {
   onNavigate: (page: string) => void;
@@ -130,12 +128,12 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
   return (
     <div className="min-h-screen bg-paper tv-page">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-12 pb-16">
-        <div className="mb-8">
+        <header className="mb-8 rounded-2xl bg-paper-raised p-5 sm:p-7 shadow-soft ring-1 ring-black/[0.06]">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Saved for later</p>
               <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Wishlist</h1>
-              <p className="mt-2 text-sm text-ink-muted max-w-md">
+              <p className="mt-2 text-sm text-ink-muted max-w-md leading-relaxed">
                 Tours and stays you want to come back to — open one to check dates and book.
               </p>
             </div>
@@ -148,7 +146,7 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
               Account
             </button>
           </div>
-        </div>
+        </header>
         {error && (
           <ErrorState
             className="py-6"
@@ -158,10 +156,8 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
           />
         )}
         {loading ? (
-          <div className="space-y-3" aria-busy="true" aria-label="Loading wishlist">
-            {[1, 2, 3, 4].map((i) => (
-              <SkeletonListItem key={i} />
-            ))}
+          <div aria-busy="true" aria-label="Loading wishlist">
+            <SkeletonCardGrid count={4} />
           </div>
         ) : listings.length === 0 ? (
           <EmptyState
@@ -175,73 +171,28 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
             }
           />
         ) : (
-          <div className="space-y-3">
-            {listings.map((tour) => {
-              const thumb = listingHeroImageSrc(tour.image);
-              const place = (tour.city || tour.destination || '').trim();
-              return (
-                <article
-                  key={tour.id}
-                  className="overflow-hidden rounded-2xl border-l-[3px] border-l-rose-400 bg-paper-raised shadow-soft ring-1 ring-black/[0.06] transition-[box-shadow,ring-color] hover:ring-rose-300/50 hover:shadow-soft-lg"
+          <div className="grid gap-5 sm:grid-cols-2">
+            {listings.map((tour, index) => (
+              <div key={tour.id} className="relative">
+                <PublicListingBrowseCard
+                  tour={tour}
+                  index={index}
+                  onSelect={() => onTourSelect(tour)}
+                  discountsByListing={new Map()}
+                  tagLabels={{}}
+                  size="compact"
+                />
+                <button
+                  type="button"
+                  onClick={() => void handleRemove(tour.id)}
+                  className="lux-flat absolute top-3 right-3 z-10 rounded-full bg-paper-raised/95 p-2.5 text-rose-700 shadow-soft ring-1 ring-rose-200/80 hover:bg-rose-50 hover:text-rose-900"
+                  title="Remove from wishlist"
+                  aria-label={`Remove ${tour.title} from wishlist`}
                 >
-                  <div className="flex items-stretch gap-0">
-                    <button
-                      type="button"
-                      onClick={() => onTourSelect(tour)}
-                      className="lux-flat flex min-w-0 flex-1 items-start gap-3.5 p-3.5 sm:gap-4 sm:p-4 text-left"
-                    >
-                      {thumb ? (
-                        <img
-                          src={thumb}
-                          alt=""
-                          className="h-20 w-20 sm:h-24 sm:w-24 rounded-xl object-cover shrink-0 bg-black/[0.04] ring-1 ring-black/[0.06]"
-                          width={96}
-                          height={96}
-                          loading="lazy"
-                          decoding="async"
-                        />
-                      ) : (
-                        <div
-                          className="flex h-20 w-20 sm:h-24 sm:w-24 shrink-0 items-center justify-center rounded-xl bg-rose-50 ring-1 ring-rose-200/70"
-                          aria-hidden
-                        >
-                          <Heart className="h-7 w-7 text-rose-400 fill-rose-400/30" />
-                        </div>
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <span className="inline-flex items-center rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-rose-800 ring-1 ring-rose-200/70">
-                          Saved
-                        </span>
-                        <h2 className="mt-1.5 font-semibold text-ink line-clamp-2 leading-snug">{tour.title}</h2>
-                        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-muted">
-                          {place ? (
-                            <span className="inline-flex min-w-0 items-center gap-1">
-                              <MapPin className="h-3.5 w-3.5 shrink-0 text-ink-faint" aria-hidden />
-                              <span className="truncate">{place}</span>
-                            </span>
-                          ) : null}
-                          {tour.duration ? <span>{tour.duration}</span> : null}
-                        </div>
-                        <p className="mt-2 text-sm font-semibold text-ink">
-                          From {formatMoney(catalogHeadlineAmount(tour), tour.price?.currency)}
-                        </p>
-                      </div>
-                    </button>
-                    <div className="flex items-start border-l border-black/[0.05] bg-rose-50/40 p-2 sm:p-3">
-                      <button
-                        type="button"
-                        onClick={() => void handleRemove(tour.id)}
-                        className="lux-flat rounded-xl p-2.5 text-rose-700 hover:bg-rose-100 hover:text-rose-900 active:scale-90"
-                        title="Remove from wishlist"
-                        aria-label={`Remove ${tour.title} from wishlist`}
-                      >
-                        <Heart className="w-5 h-5 fill-current" />
-                      </button>
-                    </div>
-                  </div>
-                </article>
-              );
-            })}
+                  <Heart className="w-4 h-4 fill-current" />
+                </button>
+              </div>
+            ))}
           </div>
         )}
       </div>
