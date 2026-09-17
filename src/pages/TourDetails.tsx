@@ -74,6 +74,7 @@ import GuestStepper from '../components/booking/GuestStepper';
 import { fetchWishlistListingIds, toggleWishlist } from '../data/supabase-wishlist';
 import { formatMoney, normalizeCurrency } from '../lib/money';
 import { PriceHero } from '../components/PriceBreakdown';
+import NoticeCallout from '../components/NoticeCallout';
 
 interface TourDetailsProps {
   tourId: string;
@@ -1023,7 +1024,11 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                     onBoundaryAttempt={(message) => setBookingCardError(message)}
                   />
                   <div role="status" aria-live="polite" aria-atomic="true" className="min-h-[1.25rem]">
-                    {bookingCardError && <p className="text-sm text-red-600">{bookingCardError}</p>}
+                    {bookingCardError ? (
+                      <NoticeCallout title="Check date and guests" tone="danger">
+                        {bookingCardError}
+                      </NoticeCallout>
+                    ) : null}
                   </div>
                   <button
                     type="button"
@@ -1235,7 +1240,11 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                     required
                   />
                 </div>
-                {reviewError && <p className="text-sm text-red-600">{reviewError}</p>}
+                {reviewError ? (
+                  <NoticeCallout title="Could not submit review" tone="danger">
+                    {reviewError}
+                  </NoticeCallout>
+                ) : null}
                 <div className="flex gap-3">
                   <button
                     type="button"
