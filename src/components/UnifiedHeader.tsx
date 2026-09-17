@@ -84,7 +84,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
 
   return (
     <>
-    <header className="fixed top-0 left-0 right-0 z-[9999] bg-paper/90 backdrop-blur-md pt-[env(safe-area-inset-top,0px)]">
+    <header className="fixed top-0 left-0 right-0 z-[9999] border-b border-black/[0.06] bg-paper-raised/95 backdrop-blur-md pt-[env(safe-area-inset-top,0px)] shadow-soft">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
           <button type="button" onClick={() => onNavigate('home')} className="lux-flat flex items-center gap-2 min-w-0" aria-label="Traverion home">
             <img 
@@ -99,13 +99,15 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
           </button>
 
           {/* Navigation */}
-          <nav className="hidden lg:flex items-center gap-6 flex-1 justify-center" aria-label="Primary">
+          <nav className="hidden lg:flex items-center gap-1.5 flex-1 justify-center" aria-label="Primary">
             <button
               type="button"
               onClick={() => onNavigate('home')}
               aria-current={currentPage === 'home' ? 'page' : undefined}
-              className={`lux-flat text-sm font-medium ${
-                currentPage === 'home' ? 'text-ink' : 'text-ink-muted hover:text-ink'
+              className={`lux-flat rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                currentPage === 'home'
+                  ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
+                  : 'text-ink-muted hover:bg-finland/10 hover:text-finland'
               }`}
             >
               Explore
@@ -119,10 +121,10 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                   ? 'page'
                   : undefined
               }
-              className={`lux-flat text-sm font-medium ${
+              className={`lux-flat rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
                 currentPage === 'packages' || currentPage === 'tour-details' || currentPage === 'destination'
-                  ? 'text-ink'
-                  : 'text-ink-muted hover:text-ink'
+                  ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
+                  : 'text-ink-muted hover:bg-finland/10 hover:text-finland'
               }`}
             >
               Tours
@@ -131,8 +133,10 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
               type="button"
               onClick={() => onNavigate('stays')}
               aria-current={currentPage === 'stays' || currentPage === 'stay-details' ? 'page' : undefined}
-              className={`lux-flat text-sm font-medium ${
-                currentPage === 'stays' || currentPage === 'stay-details' ? 'text-ink' : 'text-ink-muted hover:text-ink'
+              className={`lux-flat rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                currentPage === 'stays' || currentPage === 'stay-details'
+                  ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
+                  : 'text-ink-muted hover:bg-finland/10 hover:text-finland'
               }`}
             >
               Stays
@@ -143,11 +147,16 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                 onClick={openBookings}
                 onPointerEnter={prefetchMyBookingsPage}
                 aria-current={currentPage === 'bookings' ? 'page' : undefined}
-                className={`lux-flat text-sm font-medium ${
-                  currentPage === 'bookings' ? 'text-ink' : 'text-ink-muted hover:text-ink'
+                className={`lux-flat relative rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                  currentPage === 'bookings'
+                    ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
+                    : 'text-ink-muted hover:bg-finland/10 hover:text-finland'
                 }`}
               >
                 Trips
+                {hasUnreadBookings ? (
+                  <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-rose-500 ring-2 ring-paper-raised" aria-hidden />
+                ) : null}
               </button>
             ) : null}
           </nav>
