@@ -20,17 +20,20 @@ const navLink = 'underline underline-offset-2 decoration-black/25 hover:decorati
 function PartnerStaticHeader() {
   const mainSite = publicSiteBaseUrl();
   return (
-    <header className="bg-paper/90 backdrop-blur-md sticky top-0 z-40">
+    <header className="sticky top-0 z-40 border-b border-black/[0.06] bg-paper-raised/95 backdrop-blur-md shadow-soft">
       <div className="max-w-2xl mx-auto px-5 sm:px-6 h-14 flex items-center justify-between gap-4">
         <a href={PARTNER_LOGIN_PATH} className="flex items-center gap-2.5 text-ink min-w-0">
           <img src={BRAND_LOGO_SRC} alt="" className="h-10 w-10 object-contain flex-shrink-0" />
-          <span className="font-sans text-sm font-semibold tracking-[0.18em]">TRAVERION</span>
+          <span className="flex flex-col leading-tight min-w-0">
+            <span className="font-sans text-sm font-semibold tracking-[0.18em]">TRAVERION</span>
+            <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-finland">For business</span>
+          </span>
         </a>
-        <div className="flex items-center gap-4 shrink-0">
-          <a href={mainSite} className="lux-flat text-sm text-ink-muted hover:text-ink">
+        <div className="flex items-center gap-2 shrink-0">
+          <a href={mainSite} className="lux-flat rounded-full px-3 py-1.5 text-sm text-ink-muted hover:bg-finland/10 hover:text-finland">
             Browse tours
           </a>
-          <a href={PARTNER_LOGIN_PATH} className="lux-flat text-sm text-ink-muted hover:text-ink">
+          <a href={PARTNER_LOGIN_PATH} className="tv-btn-ghost text-sm">
             Log in
           </a>
         </div>
