@@ -78,7 +78,7 @@ export default function PartnerOnboarding({
           </StatusChip>
         </div>
         <div
-          className="h-1.5 rounded-full bg-black/[0.06] overflow-hidden"
+          className="h-1.5 rounded-full bg-finland/15 overflow-hidden"
           role="progressbar"
           aria-valuenow={completed}
           aria-valuemin={0}
