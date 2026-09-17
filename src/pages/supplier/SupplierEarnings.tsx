@@ -278,28 +278,34 @@ export default function SupplierEarnings() {
               <h2 className="text-[11px] uppercase tracking-[0.18em] text-ink-faint">
                 {filteredEarnings.length > 0 ? 'Payout periods' : 'Collected'}
               </h2>
-              <div className="flex flex-wrap items-center gap-1">
+              <div className="flex flex-wrap items-center gap-1 rounded-full bg-paper-raised p-1 shadow-soft ring-1 ring-black/[0.06]">
                 {(['all', 'pending', 'paid'] as const).map((s) => (
                   <button
                     key={s}
                     type="button"
                     onClick={() => setStatusFilter(s)}
-                    className={`lux-flat rounded-full px-3 py-2 min-h-11 text-sm font-medium ${
-                      statusFilter === s ? 'bg-ink text-paper-raised' : 'text-ink-muted hover:text-ink'
+                    className={`lux-flat rounded-full px-3 py-2 min-h-11 text-sm font-medium transition-colors ${
+                      statusFilter === s
+                        ? s === 'pending'
+                          ? 'bg-amber-500 text-white shadow-sm'
+                          : s === 'paid'
+                            ? 'bg-emerald-600 text-white shadow-sm'
+                            : 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
+                        : 'text-ink-muted hover:bg-finland/10 hover:text-finland'
                     }`}
                   >
                     {s === 'all' ? 'All' : s === 'pending' ? PARTNER_MONEY_PERIOD_NOT_PAID_OUT_LABEL : s.charAt(0).toUpperCase() + s.slice(1)}
                   </button>
                 ))}
-                <button
-                  type="button"
-                  onClick={exportCsv}
-                  disabled={!canExportMoney}
-                  className="tv-btn-ghost text-sm disabled:opacity-40"
-                >
-                  Export
-                </button>
               </div>
+              <button
+                type="button"
+                onClick={exportCsv}
+                disabled={!canExportMoney}
+                className="tv-btn-ghost text-sm disabled:opacity-40"
+              >
+                Export
+              </button>
             </div>
             {ledger.length > 0 ? (
               <div className="mb-8">
