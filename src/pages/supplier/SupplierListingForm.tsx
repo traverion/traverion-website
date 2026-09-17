@@ -771,9 +771,9 @@ export default function SupplierListingForm({
     const stay = form.inventoryFamily === 'stay' || createFamily === 'stay';
     if (stay) {
       return [
-        { id: 'the_experience' as StepId, label: 'Basics' },
-        { id: 'practical' as StepId, label: 'Place' },
-        { id: 'cost_options' as StepId, label: 'Price' },
+        { id: 'the_experience' as StepId, label: 'Property' },
+        { id: 'practical' as StepId, label: 'Location' },
+        { id: 'cost_options' as StepId, label: 'Pricing' },
         { id: 'photos' as StepId, label: 'Photos' },
       ];
     }
@@ -790,9 +790,9 @@ export default function SupplierListingForm({
     const stay = form.inventoryFamily === 'stay' || createFamily === 'stay';
     if (stay) {
       return [
-        'Name the stay and describe what guests will love.',
+        'Choose the property type and a clear title guests will recognize.',
         'Where is it, and what should guests know before they arrive?',
-        'Set the nightly rate and guest capacity travelers will see.',
+        'Nightly rate, rooms, and capacity — priced for the whole stay, not per person.',
         'Add your strongest photo first — it becomes the cover in search.',
       ] as const;
     }
@@ -1713,6 +1713,31 @@ export default function SupplierListingForm({
 
           {stepIdx === 0 && (
             <div className="space-y-5 transition-all duration-300 ease-out opacity-100 translate-y-0">
+              {form.inventoryFamily === 'stay' || createFamily === 'stay' ? (
+                <div id="supplier-listing-field-stay-type">
+                  <label className="block text-sm font-medium text-ink mb-1">Property type *</label>
+                  <p className="text-xs text-ink-muted mb-3">What travelers are booking — not a tour option.</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                    {(['Apartment', 'House', 'Cabin', 'Room', 'Cottage', 'Other'] as const).map((type) => {
+                      const selected = (form.stayPropertyType || 'Apartment') === type;
+                      return (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() => setForm((f) => ({ ...f, stayPropertyType: type }))}
+                          className={`rounded-xl border-2 px-3 py-3 text-left text-sm font-semibold transition-all ${
+                            selected
+                              ? 'border-finland bg-finland/5 text-ink ring-1 ring-finland/25 shadow-sm'
+                              : 'border-black/[0.08] bg-paper-raised text-ink-muted hover:border-finland/35 hover:bg-finland/5 hover:text-ink'
+                          }`}
+                        >
+                          {type}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
               <div id="supplier-listing-field-title">
                 <label className="block text-sm font-medium text-ink mb-1">Title *</label>
                 <p className="text-xs text-ink-muted mb-2">A clear, specific name travelers will see in search and on the listing page.</p>
