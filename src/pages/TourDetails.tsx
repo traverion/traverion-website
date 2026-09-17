@@ -605,7 +605,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                     {tour.destination}
                   </span>
                   {review.score ? (
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-black/[0.03] px-2.5 py-1 ring-1 ring-black/[0.05]">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-paper px-2.5 py-1 ring-1 ring-black/[0.06] shadow-soft">
                       <Star size={14} className="text-finland fill-finland shrink-0" aria-hidden />
                       <strong className="text-ink">{review.score}</strong>
                       <span>
@@ -613,18 +613,18 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                       </span>
                     </span>
                   ) : null}
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-black/[0.03] px-2.5 py-1 ring-1 ring-black/[0.05]">
-                    <Clock size={14} className="shrink-0" aria-hidden />
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-paper px-2.5 py-1 ring-1 ring-black/[0.06] shadow-soft">
+                    <Clock size={14} className="shrink-0 text-finland" aria-hidden />
                     {formatTourDurationDisplay(tour.duration)}
                   </span>
                   {tour.groupSize?.trim() ? (
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-black/[0.03] px-2.5 py-1 ring-1 ring-black/[0.05]">
-                      <Users size={14} className="shrink-0" aria-hidden />
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-paper px-2.5 py-1 ring-1 ring-black/[0.06] shadow-soft">
+                      <Users size={14} className="shrink-0 text-finland" aria-hidden />
                       {tour.groupSize}
                     </span>
                   ) : null}
                   {tour.experienceLanguage?.trim() ? (
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-black/[0.03] px-2.5 py-1 ring-1 ring-black/[0.05]">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-paper px-2.5 py-1 ring-1 ring-black/[0.06] shadow-soft">
                       {({
                         en: 'English',
                         es: 'Spanish',
@@ -639,7 +639,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                     </span>
                   ) : null}
                   {tour.meetingPoint?.trim() ? (
-                    <span className="inline-flex items-center gap-1.5 truncate max-w-[18rem] rounded-full bg-black/[0.03] px-2.5 py-1 ring-1 ring-black/[0.05]" title={tour.meetingPoint.trim()}>
+                    <span className="inline-flex items-center gap-1.5 truncate max-w-[18rem] rounded-full bg-paper px-2.5 py-1 ring-1 ring-black/[0.06] shadow-soft" title={tour.meetingPoint.trim()}>
                       {tour.meetingPoint.trim()}
                     </span>
                   ) : null}
