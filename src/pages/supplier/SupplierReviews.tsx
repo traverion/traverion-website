@@ -146,7 +146,7 @@ export default function SupplierReviews() {
       <SupplierPageHero
         badge="Guest feedback"
         title="Reviews"
-        description="What guests said about your tours. Reply to written reviews."
+        description="What guests said about your tours and stays. Reply to written reviews."
       />
 
       {error && (
@@ -173,19 +173,19 @@ export default function SupplierReviews() {
         <SupplierEmptyState
           icon={Star}
           title="No reviews yet"
-          body="Guests have not rated a tour yet. That is normal for new listings. Feedback appears here after a trip."
+          body="Guests have not rated a listing yet. That is normal for new products. Feedback appears here after a trip."
         />
       ) : (
         <div className="space-y-4 sm:space-y-5">
                 <div className="flex flex-wrap items-end gap-x-4 gap-y-3 mb-6">
                 <div className="flex flex-col gap-1 min-w-[min(100%,12rem)] flex-1 sm:flex-none sm:min-w-[11rem]">
-                  <label className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Tour</label>
+                  <label className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Listing</label>
                   <select
                     value={filterListingId}
                     onChange={(e) => setFilterListingId(e.target.value)}
                     className="tv-input w-full"
                   >
-                    <option value="">All tours</option>
+                    <option value="">All listings</option>
                     {listingOptions.map(([id, title]) => (
                       <option key={id} value={id}>
                         {title}
