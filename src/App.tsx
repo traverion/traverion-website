@@ -2,7 +2,6 @@ import { useState, useEffect, useLayoutEffect, useCallback, lazy, Suspense } fro
 import UnifiedHeader from './components/UnifiedHeader';
 import Footer from './components/Footer';
 import SkipLink from './components/SkipLink';
-import ErrorState from './components/ErrorState';
 import Home from './pages/Home';
 import { TranslationProvider } from './contexts/TranslationContext';
 import { SupplierAuthProvider } from './contexts/SupplierAuthContext';
@@ -620,22 +619,25 @@ function App() {
       case 'not-found':
         return (
           <div className="min-h-screen bg-paper tv-page">
-            <div className="max-w-lg mx-auto px-4 py-16">
-              <ErrorState
-                title="Page not found"
-                body="This address is not a Traverion page. Check the link, or continue from Home, Tours, or Stays."
-                back={{ onClick: () => handleNavigate('home'), label: 'Go home' }}
-                extra={
-                  <div className="flex flex-wrap justify-center gap-2">
-                    <button type="button" className="tv-btn-secondary" onClick={() => handleNavigate('packages')}>
-                      Browse tours
-                    </button>
-                    <button type="button" className="tv-btn-ghost" onClick={() => handleNavigate('stays')}>
-                      Browse stays
-                    </button>
-                  </div>
-                }
-              />
+            <div className="max-w-lg mx-auto px-4 py-16 sm:py-24">
+              <div className="rounded-2xl bg-paper-raised p-6 sm:p-8 shadow-soft-lg ring-1 ring-black/[0.06] text-center">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-3">404</p>
+                <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Page not found</h1>
+                <p className="mt-3 text-sm text-ink-muted leading-relaxed max-w-sm mx-auto">
+                  This address is not a Traverion page. Check the link, or continue from Home, Tours, or Stays.
+                </p>
+                <div className="mt-8 flex flex-wrap justify-center gap-2">
+                  <button type="button" className="tv-btn-primary" onClick={() => handleNavigate('home')}>
+                    Go home
+                  </button>
+                  <button type="button" className="tv-btn-secondary" onClick={() => handleNavigate('packages')}>
+                    Browse tours
+                  </button>
+                  <button type="button" className="tv-btn-ghost" onClick={() => handleNavigate('stays')}>
+                    Browse stays
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         );
