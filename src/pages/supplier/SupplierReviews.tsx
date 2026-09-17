@@ -11,6 +11,7 @@ import {
   SupplierPageHero,
 } from '../../components/supplier/supplierUi';
 import ErrorState from '../../components/ErrorState';
+import StatusChip from '../../components/StatusChip';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import {
   fetchReviewsForSupplierListings,
@@ -254,30 +255,30 @@ export default function SupplierReviews() {
               }
             />
           ) : (
-          <div className="divide-y divide-black/[0.06]">
-          {filteredReviews.map((r) => (
+          <div className="space-y-3 sm:space-y-4">
+          {filteredReviews.map((r) => {
+            const needsReply = reviewHasWrittenFeedback(r) && !replies[r.id];
+            const isHighlighted = highlightReviewId === r.id;
+            return (
             <article
               key={r.id}
               id={`supplier-review-card-${r.id}`}
-              className={`py-5 ${
-                highlightReviewId === r.id ? 'bg-paper-raised -mx-2 px-2 rounded-xl' : ''
-              }`}
+              className={`rounded-2xl bg-paper-raised p-4 sm:p-5 shadow-soft ring-1 ring-black/[0.06] ${
+                isHighlighted ? 'ring-finland/30 shadow-soft-lg' : ''
+              } ${needsReply ? 'ring-amber-200/80' : ''}`}
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1">
                   <p className="text-sm text-ink-muted mb-1">
                     {r.listing_title ?? 'Listing'} · {new Date(r.created_at).toLocaleDateString()}
                   </p>
-                  <div className="flex items-center gap-2 mb-2">
+                  <div className="flex flex-wrap items-center gap-2 mb-2">
                     <span className="font-semibold text-ink">{r.guest_name}</span>
-                    {r.verified && (
-                      <span className="text-xs text-finland font-medium">Verified</span>
-                    )}
-                    {reviewHasWrittenFeedback(r) && !replies[r.id] ? (
-                      <span className="text-xs font-medium text-amber-800">Needs reply</span>
-                    ) : null}
+                    {r.verified ? <StatusChip tone="good">Verified</StatusChip> : null}
+                    {needsReply ? <StatusChip tone="warn">Needs reply</StatusChip> : null}
+                    {replies[r.id] ? <StatusChip tone="neutral">Replied</StatusChip> : null}
                   </div>
-                  <div className="flex gap-1 mb-2">
+                  <div className="flex gap-1 mb-2" aria-label={`${r.rating} out of 5 stars`}>
                     {[1, 2, 3, 4, 5].map((i) => (
                       <Star
                         key={i}
@@ -298,7 +299,7 @@ export default function SupplierReviews() {
               </div>
 
               {replies[r.id] ? (
-                <div className="mt-4 pl-4 border-l-2 border-finland/30">
+                <div className="mt-4 rounded-xl bg-finland/8 px-4 py-3 ring-1 ring-finland/15">
                   <p className="text-sm font-medium text-ink mb-1">Your reply</p>
                   <p className="text-ink-muted">{replies[r.id].reply_text}</p>
                   <p className="text-xs text-ink-faint mt-1">
@@ -334,7 +335,8 @@ export default function SupplierReviews() {
                 </div>
               )}
             </article>
-          ))}
+            );
+          })}
           </div>
           )}
         </div>
