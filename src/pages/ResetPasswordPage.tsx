@@ -119,10 +119,12 @@ export default function ResetPasswordPage({ onNavigate }: ResetPasswordPageProps
         </button>
 
         <div className="rounded-2xl bg-paper-raised p-6 sm:p-8 shadow-soft-lg ring-1 ring-black/[0.06]">
+          <div className="inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15 mb-4">
+            Traveler account
+          </div>
           <div className="flex items-center gap-3 mb-6">
             <img src={BRAND_LOGO_SRC} alt="" className="h-12 w-12 object-contain flex-shrink-0" />
             <div className="min-w-0">
-              <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint">Traveler account</p>
               <h1 className="font-display text-2xl sm:text-3xl text-ink tracking-tight">Set a new password</h1>
               <p className="text-sm text-ink-muted mt-1">On {siteLabel}</p>
             </div>
