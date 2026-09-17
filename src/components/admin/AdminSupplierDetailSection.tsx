@@ -86,7 +86,8 @@ export function AdminSupplierDetailSection({
           Document links expire in about {Math.round(detail.signedUrlExpiresInSeconds / 60)} minutes.
         </p>
       ) : null}
-      <div className="rounded-xl bg-black/[0.02] ring-1 ring-black/[0.06] p-3 sm:p-4">
+      <div className="rounded-2xl bg-paper-raised shadow-soft ring-1 ring-black/[0.06] p-3 sm:p-4">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-finland mb-3">Supplier profile</p>
         <div className="grid sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
           {Object.entries(detail.profile)
             .filter(([k]) => !ADMIN_SUPPLIER_DETAIL_SKIP.has(k))
