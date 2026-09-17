@@ -545,7 +545,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                       ? id === 'cancelled'
                         ? 'bg-rose-600 text-white shadow-sm ring-1 ring-rose-700/20'
                         : id === 'past'
-                          ? 'bg-ink text-paper-raised shadow-sm'
+                          ? 'bg-stone-700 text-white shadow-sm'
                           : 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
                       : 'text-ink-muted hover:bg-finland/10 hover:text-finland'
                   }`}
