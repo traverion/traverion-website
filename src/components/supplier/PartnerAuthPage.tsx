@@ -19,8 +19,6 @@ type Props = {
 export default function PartnerAuthPage({ mode, onAuthenticated, isSupabase }: Props) {
   const traveler = publicSiteBaseUrl();
   const landing = supplierPortalLandingHref();
-  const otherHref = mode === 'signin' ? PARTNER_SIGNUP_PATH : PARTNER_LOGIN_PATH;
-  const otherLabel = mode === 'signin' ? 'Create an account' : 'Log in';
 
   return (
     <div className="min-h-[100dvh] bg-paper text-ink flex flex-col lg:flex-row">
@@ -59,13 +57,32 @@ export default function PartnerAuthPage({ mode, onAuthenticated, isSupabase }: P
       </aside>
 
       <main id="main-content" tabIndex={-1} className="flex-1 flex flex-col outline-none">
-        <div className="flex items-center justify-end gap-3 px-5 sm:px-8 pt-5">
-          <a href={traveler} className="lux-flat text-sm text-ink-muted hover:text-ink">
+        <div className="flex items-center justify-between gap-3 px-5 sm:px-8 pt-5">
+          <a href={traveler} className="lux-flat text-sm text-ink-muted hover:bg-finland/10 hover:text-finland rounded-full px-3 py-1.5">
             For travelers
           </a>
-          <a href={otherHref} className="tv-btn-ghost text-sm">
-            {otherLabel}
-          </a>
+          <nav className="flex gap-1 rounded-full bg-paper-raised p-1 shadow-soft ring-1 ring-black/[0.06]" aria-label="Partner account mode">
+            <a
+              href={PARTNER_LOGIN_PATH}
+              className={`lux-flat rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                mode === 'signin'
+                  ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
+                  : 'text-ink-muted hover:bg-finland/10 hover:text-finland'
+              }`}
+            >
+              Log in
+            </a>
+            <a
+              href={PARTNER_SIGNUP_PATH}
+              className={`lux-flat rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                mode === 'signup'
+                  ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
+                  : 'text-ink-muted hover:bg-finland/10 hover:text-finland'
+              }`}
+            >
+              Sign up
+            </a>
+          </nav>
         </div>
         <div className="flex-1 px-5 sm:px-8 pb-16 pt-4 sm:pt-8">
           <div className="mx-auto w-full max-w-md">
