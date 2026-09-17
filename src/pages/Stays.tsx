@@ -200,24 +200,48 @@ export default function Stays({ onStaySelect }: Props) {
         ) : catalogLoading || waitingOnOccupancy ? (
           <SkeletonCardGrid count={3} />
         ) : filtered.length === 0 ? (
-          <EmptyState
-            icon={Compass}
-            title={stays.length === 0 ? 'No stays published yet' : 'Nothing matches'}
-            body={
-              stays.length === 0
-                ? 'Traverion does not fill this page with sample apartments. When an operator publishes a stay, it appears here.'
-                : dateFilterActive
-                  ? 'No stays are free for those nights. Try other dates or clear check-out to browse all stays.'
-                  : 'Try another place, dates, or guest count.'
-            }
-            action={
-              stays.length === 0 ? (
-                <a href={supplierPortalLandingHref()} className="tv-btn-primary inline-flex">
-                  List a stay
-                </a>
-              ) : undefined
-            }
-          />
+          <div className="rounded-2xl bg-paper-raised px-6 py-2 shadow-soft ring-1 ring-black/[0.06] sm:px-8">
+            {stays.length === 0 ? (
+              <EmptyState
+                className="py-10 sm:py-12 max-w-lg"
+                icon={Compass}
+                title="No stays published yet"
+                body="Traverion does not fill this page with sample apartments. When an operator publishes a stay, it appears here."
+                action={
+                  <a href={supplierPortalLandingHref()} className="tv-btn-primary inline-flex">
+                    List a stay
+                  </a>
+                }
+              />
+            ) : (
+              <EmptyState
+                className="py-10 sm:py-12 max-w-lg"
+                icon={Search}
+                title="No stays match"
+                body={
+                  dateFilterActive
+                    ? 'No stays are free for those nights. Try other dates or clear filters to browse all stays.'
+                    : 'Try another place, dates, or guest count — or clear filters to see live stays again.'
+                }
+                action={
+                  q || checkIn || checkOut || guests ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setQ('');
+                        setCheckIn('');
+                        setCheckOut('');
+                        setGuests('');
+                      }}
+                      className="tv-btn-primary"
+                    >
+                      Clear filters
+                    </button>
+                  ) : undefined
+                }
+              />
+            )}
+          </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {filtered.map((item, index) => {
