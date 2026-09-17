@@ -9,13 +9,12 @@ import ErrorState from '../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
-import {
-  fetchMyBookingByCheckoutSessionId,
+import { fetchMyBookingByCheckoutSessionId,
   reconcileCheckoutSession,
   resumePendingBookingCheckout,
   type BookingWithPaymentRow,
 } from '../data/supabase-bookings';
-import { fetchListingOpsByIds, pgTimeToHm } from '../data/supabase-listings';
+import { fetchListingById, fetchListingOpsByIds, pgTimeToHm } from '../data/supabase-listings';
 import { BRAND_LOGO_SRC } from '../lib/brandAssets';
 import { parseStayCheckOutFromNotes, nightsOccupiedByStay, stayRangeFromBooking } from '../lib/stayOccupancy';
 import { formatMoney, isStripeTestCheckoutSession } from '../lib/money';
@@ -32,6 +31,7 @@ import {
   BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE,
 } from '../lib/booking-confirmation-copy';
 import { formatBookingParticipantsLabel } from '../lib/participant-mix';
+import { travelerFacingBookingOptions } from '../lib/legacy-participant-options';
 import { travelerPaymentLabel, bookingPaymentWasCollected } from '../lib/payment-states';
 import {
   confirmationShouldReconcileCheckout,
@@ -69,6 +69,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
   }, [sessionId]);
   const [booking, setBooking] = useState<BookingWithPaymentRow | null>(null);
   const [listingTitle, setListingTitle] = useState('');
+  const [optionLabel, setOptionLabel] = useState('');
   const [pickupPending, setPickupPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pollCount, setPollCount] = useState(0);
@@ -110,8 +111,20 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
         setPickupPending(
           !stay && listingPickupCopyIncomplete(meta?.meeting_point, meta?.pickup_instructions) && !row.pickup_time
         );
+        try {
+          const listing = await fetchListingById(row.listing_id);
+          const opts = travelerFacingBookingOptions(listing?.listingExtras?.bookingOptions);
+          const match =
+            (row.booking_option_id
+              ? opts.find((o) => o.id === row.booking_option_id)
+              : null) ?? (opts.length === 1 ? opts[0] : null);
+          setOptionLabel(match?.name?.trim() || '');
+        } catch {
+          setOptionLabel('');
+        }
       } else {
         setListingTitle('');
+        setOptionLabel('');
         setPickupPending(false);
       }
     } catch (e) {
@@ -483,6 +496,11 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                   <p className="mt-1 text-base font-semibold text-ink">
                     {listingTitle || (stayCheckOut ? 'Your stay' : 'Your tour')}
                   </p>
+                  {optionLabel ? (
+                    <p className="mt-1 text-sm text-ink-muted">
+                      Option · <span className="font-medium text-ink">{optionLabel}</span>
+                    </p>
+                  ) : null}
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="flex items-start gap-3 rounded-xl bg-finland/[0.04] p-3 ring-1 ring-finland/10">
