@@ -258,27 +258,27 @@ export default function StayDetails({ stayId, onBack }: Props) {
           <h1 className="font-display text-3xl sm:text-5xl text-ink tracking-tight mb-4">{stay.title}</h1>
           <p className="flex flex-wrap gap-2 text-sm text-ink-muted">
             {typeof s?.maxGuests === 'number' ? (
-              <span className="inline-flex items-center rounded-full bg-black/[0.03] px-2.5 py-1 ring-1 ring-black/[0.05]">
+              <span className="inline-flex items-center rounded-full bg-paper px-2.5 py-1 ring-1 ring-black/[0.06] shadow-soft">
                 Up to {s.maxGuests} guests
               </span>
             ) : null}
             {typeof s?.bedrooms === 'number' ? (
-              <span className="inline-flex items-center rounded-full bg-black/[0.03] px-2.5 py-1 ring-1 ring-black/[0.05]">
+              <span className="inline-flex items-center rounded-full bg-paper px-2.5 py-1 ring-1 ring-black/[0.06] shadow-soft">
                 {s.bedrooms === 1 ? '1 bedroom' : `${s.bedrooms} bedrooms`}
               </span>
             ) : null}
             {typeof s?.beds === 'number' ? (
-              <span className="inline-flex items-center rounded-full bg-black/[0.03] px-2.5 py-1 ring-1 ring-black/[0.05]">
+              <span className="inline-flex items-center rounded-full bg-paper px-2.5 py-1 ring-1 ring-black/[0.06] shadow-soft">
                 {s.beds === 1 ? '1 bed' : `${s.beds} beds`}
               </span>
             ) : null}
             {typeof s?.bathrooms === 'number' ? (
-              <span className="inline-flex items-center rounded-full bg-black/[0.03] px-2.5 py-1 ring-1 ring-black/[0.05]">
+              <span className="inline-flex items-center rounded-full bg-paper px-2.5 py-1 ring-1 ring-black/[0.06] shadow-soft">
                 {s.bathrooms === 1 ? '1 bath' : `${s.bathrooms} baths`}
               </span>
             ) : null}
             {nightly > 0 ? (
-              <span className="inline-flex items-center rounded-full bg-ink px-2.5 py-1 text-paper-raised font-semibold tabular-nums">
+              <span className="inline-flex items-center rounded-full bg-finland px-2.5 py-1 text-white font-semibold tabular-nums shadow-sm ring-1 ring-finland/30">
                 {formatMoney(nightly, currency)} per night
               </span>
             ) : null}
