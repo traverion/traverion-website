@@ -127,7 +127,7 @@ export default function AdminDashboard() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
           <div
-            className="flex flex-wrap gap-1 rounded-full bg-black/[0.04] p-1 w-fit max-w-full"
+            className="flex flex-wrap gap-1 rounded-full bg-paper-raised p-1 w-fit max-w-full shadow-soft ring-1 ring-black/[0.06]"
             role="tablist"
             aria-label="Admin sections"
           >
@@ -140,8 +140,8 @@ export default function AdminDashboard() {
                 onClick={() => setActiveTab(tab.id)}
                 className={`lux-flat flex items-center px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors ${
                   activeTab === tab.id
-                    ? 'bg-paper-raised text-ink shadow-sm'
-                    : 'text-ink-muted hover:text-ink'
+                    ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
+                    : 'text-ink-muted hover:bg-finland/10 hover:text-finland'
                 }`}
               >
                 <tab.icon className="w-4 h-4 mr-2 shrink-0" aria-hidden />
