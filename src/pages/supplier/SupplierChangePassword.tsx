@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { SUPPLIER_PAGE_CLASS, SupplierPageHero } from '../../components/supplier/supplierUi';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { userFacingError } from '../../lib/userFacingError';
@@ -27,6 +27,9 @@ export default function SupplierChangePassword({ onBack, userEmail, isSupabase, 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -127,20 +130,31 @@ export default function SupplierChangePassword({ onBack, userEmail, isSupabase, 
           <label className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5" htmlFor="supplier-current-password">
             Current password
           </label>
-          <input
-            id="supplier-current-password"
-            type="password"
-            name="current-password"
-            autoComplete="current-password"
-            value={currentPassword}
-            onChange={(e) => {
-              setCurrentPassword(e.target.value);
-              setError(null);
-              setSuccess(false);
-            }}
-            className={profileInputClass(!isSupabase)}
-            disabled={!isSupabase}
-          />
+          <div className="relative">
+            <input
+              id="supplier-current-password"
+              type={showCurrent ? 'text' : 'password'}
+              name="current-password"
+              autoComplete="current-password"
+              value={currentPassword}
+              onChange={(e) => {
+                setCurrentPassword(e.target.value);
+                setError(null);
+                setSuccess(false);
+              }}
+              className={`${profileInputClass(!isSupabase)} pr-11`}
+              disabled={!isSupabase}
+            />
+            <button
+              type="button"
+              className="lux-flat absolute inset-y-0 right-0 flex items-center px-3 text-ink-muted hover:text-ink disabled:opacity-50"
+              onClick={() => setShowCurrent((v) => !v)}
+              disabled={!isSupabase}
+              aria-label={showCurrent ? 'Hide current password' : 'Show current password'}
+            >
+              {showCurrent ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -148,40 +162,62 @@ export default function SupplierChangePassword({ onBack, userEmail, isSupabase, 
             <label className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5" htmlFor="supplier-new-password">
               New password
             </label>
-            <input
-              id="supplier-new-password"
-              type="password"
-              name="new-password"
-              autoComplete="new-password"
-              value={newPassword}
-              onChange={(e) => {
-                setNewPassword(e.target.value);
-                setError(null);
-                setSuccess(false);
-              }}
-              placeholder="Min. 8 characters"
-              className={profileInputClass(!isSupabase)}
-              disabled={!isSupabase}
-            />
+            <div className="relative">
+              <input
+                id="supplier-new-password"
+                type={showNew ? 'text' : 'password'}
+                name="new-password"
+                autoComplete="new-password"
+                value={newPassword}
+                onChange={(e) => {
+                  setNewPassword(e.target.value);
+                  setError(null);
+                  setSuccess(false);
+                }}
+                placeholder="Min. 8 characters"
+                className={`${profileInputClass(!isSupabase)} pr-11`}
+                disabled={!isSupabase}
+              />
+              <button
+                type="button"
+                className="lux-flat absolute inset-y-0 right-0 flex items-center px-3 text-ink-muted hover:text-ink disabled:opacity-50"
+                onClick={() => setShowNew((v) => !v)}
+                disabled={!isSupabase}
+                aria-label={showNew ? 'Hide new password' : 'Show new password'}
+              >
+                {showNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
           </div>
           <div>
             <label className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5" htmlFor="supplier-confirm-password">
               Confirm new password
             </label>
-            <input
-              id="supplier-confirm-password"
-              type="password"
-              name="confirm-new-password"
-              autoComplete="new-password"
-              value={confirmPassword}
-              onChange={(e) => {
-                setConfirmPassword(e.target.value);
-                setError(null);
-                setSuccess(false);
-              }}
-              className={profileInputClass(!isSupabase)}
-              disabled={!isSupabase}
-            />
+            <div className="relative">
+              <input
+                id="supplier-confirm-password"
+                type={showConfirm ? 'text' : 'password'}
+                name="confirm-new-password"
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={(e) => {
+                  setConfirmPassword(e.target.value);
+                  setError(null);
+                  setSuccess(false);
+                }}
+                className={`${profileInputClass(!isSupabase)} pr-11`}
+                disabled={!isSupabase}
+              />
+              <button
+                type="button"
+                className="lux-flat absolute inset-y-0 right-0 flex items-center px-3 text-ink-muted hover:text-ink disabled:opacity-50"
+                onClick={() => setShowConfirm((v) => !v)}
+                disabled={!isSupabase}
+                aria-label={showConfirm ? 'Hide confirm password' : 'Show confirm password'}
+              >
+                {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
           </div>
         </div>
 
