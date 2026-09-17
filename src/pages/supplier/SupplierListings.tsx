@@ -802,30 +802,49 @@ export default function SupplierListings() {
       {showCreateChooser && (
         <div ref={createChooserRef} className="tv-sheet-overlay z-[85]">
           <button type="button" tabIndex={-1} className="absolute inset-0" aria-label="Close" onClick={closeCreateChooser} />
-          <aside role="dialog" aria-modal="true" aria-labelledby="create-listing-title" className="tv-sheet-panel relative motion-safe:animate-slide-up">
-            <h2 id="create-listing-title" className="font-display text-2xl text-ink">What would you like to list?</h2>
-            <p className="mt-2 text-sm text-ink-muted">Tour or stay. Experiences and packages are not offered here yet.</p>
-            <div className="mt-6 space-y-2">
+          <aside
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="create-listing-title"
+            className="tv-sheet-panel relative max-w-xl motion-safe:animate-slide-up sm:max-w-2xl"
+          >
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland">Create listing</p>
+            <h2 id="create-listing-title" className="mt-2 font-display text-2xl sm:text-3xl text-ink tracking-tight">
+              What do you want to sell?
+            </h2>
+            <p className="mt-2 text-sm text-ink-muted leading-relaxed">
+              Choose a product type. Tours and stays use different calendars and booking rules — pick the one that matches
+              what travelers will book.
+            </p>
+            <div className="mt-6 grid gap-3 sm:grid-cols-2">
               {PARTNER_CREATE_INVENTORY.map((opt) =>
                 opt.canCreate ? (
                   <button
                     key={opt.family}
                     type="button"
                     onClick={opt.family === 'stay' ? startNewStay : startNewTour}
-                    className="lux-flat w-full rounded-2xl bg-paper-raised px-4 py-4 text-left shadow-soft ring-1 ring-black/[0.06] hover:ring-finland/25 hover:bg-finland/[0.04]"
+                    className="lux-flat group flex h-full flex-col rounded-2xl bg-paper-raised px-5 py-5 text-left shadow-soft ring-1 ring-black/[0.06] transition-[box-shadow,ring-color,background-color] hover:bg-finland/[0.05] hover:ring-2 hover:ring-finland/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-finland"
                   >
-                    <p className="font-semibold text-ink">{opt.title}</p>
-                    <p className="mt-1 text-sm text-ink-muted">{opt.description}</p>
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-finland">
+                      {opt.family === 'stay' ? 'Nights' : 'Departures'}
+                    </span>
+                    <p className="mt-2 font-display text-xl text-ink tracking-tight">{opt.title}</p>
+                    <p className="mt-2 flex-1 text-sm text-ink-muted leading-relaxed">{opt.description}</p>
+                    <span className="mt-4 text-sm font-semibold text-finland group-hover:underline">Continue →</span>
                   </button>
                 ) : (
-                  <div key={opt.family} className="w-full rounded-2xl bg-paper px-4 py-4 text-left opacity-70 ring-1 ring-black/[0.04]">
-                    <p className="font-semibold text-ink">{opt.title}</p>
-                    <p className="mt-1 text-sm text-ink-muted">{opt.description}</p>
+                  <div
+                    key={opt.family}
+                    className="flex h-full flex-col rounded-2xl bg-paper px-5 py-5 text-left opacity-70 ring-1 ring-black/[0.04]"
+                  >
+                    <p className="font-display text-xl text-ink tracking-tight">{opt.title}</p>
+                    <p className="mt-2 text-sm text-ink-muted leading-relaxed">{opt.description}</p>
+                    <span className="mt-4 text-xs font-medium text-ink-faint">Coming later</span>
                   </div>
                 ),
               )}
             </div>
-            <button type="button" onClick={closeCreateChooser} className="tv-btn-ghost mt-4">
+            <button type="button" onClick={closeCreateChooser} className="tv-btn-ghost mt-5">
               Cancel
             </button>
           </aside>

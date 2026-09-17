@@ -408,12 +408,9 @@ export default function Packages({ onTourSelect }: PackagesProps) {
   return (
     <div className="min-h-screen bg-paper tv-page">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-12 pb-16 motion-safe:animate-fade-in">
-        <header className="rounded-2xl bg-paper-raised p-5 sm:p-7 shadow-soft ring-1 ring-black/[0.06]">
-          <div className="inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15">
-            <Compass className="h-3.5 w-3.5" aria-hidden />
-            Tours
-          </div>
-          <h1 className="mt-3 font-display text-4xl sm:text-5xl text-ink tracking-tight">Tours</h1>
+        <header className="mb-8">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Browse</p>
+          <h1 className="font-display text-4xl sm:text-5xl text-ink tracking-tight">Tours</h1>
           <p className="mt-3 text-ink-muted">
             {showCatalogLoading ? (
               <span className="inline-block h-4 w-24 rounded bg-black/[0.06] animate-pulse align-middle" aria-hidden />
@@ -440,39 +437,54 @@ export default function Packages({ onTourSelect }: PackagesProps) {
           />
         )}
 
-        <div className="mt-8 bg-paper-raised rounded-2xl p-2 sm:p-2.5 grid grid-cols-2 lg:grid-cols-[1fr_auto_auto_auto] gap-2 shadow-soft-lg">
-          <div className="relative col-span-2 lg:col-span-1 min-w-0">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-faint pointer-events-none" />
+        <div className="bg-paper-raised rounded-2xl sm:rounded-full p-2 sm:p-1.5 grid grid-cols-1 sm:grid-cols-[1.4fr_1fr_0.85fr_auto] gap-1 shadow-soft-lg ring-1 ring-black/[0.06]">
+          <div className="relative min-w-0 rounded-xl sm:rounded-full px-3.5 py-2 hover:bg-black/[0.03] focus-within:ring-2 focus-within:ring-finland/25">
+            <label htmlFor="tours-where" className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
+              Where
+            </label>
+            <div className="relative">
+              <Search className="absolute left-0 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-faint pointer-events-none" />
+              <input
+                id="tours-where"
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="City or tour"
+                className="w-full h-9 pl-6 pr-2 border-0 text-ink placeholder:text-ink-muted focus:ring-0 text-[15px] bg-transparent"
+              />
+            </div>
+          </div>
+          <div className="relative min-w-0 rounded-xl sm:rounded-full px-3.5 py-2 hover:bg-black/[0.03] focus-within:ring-2 focus-within:ring-finland/25">
+            <label htmlFor="tours-date" className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
+              Date
+            </label>
             <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Where"
-              aria-label="Where"
-              className="w-full h-12 pl-10 pr-4 rounded-xl bg-transparent text-ink"
+              id="tours-date"
+              type="date"
+              value={filterDate}
+              onChange={(e) => setFilterDate(e.target.value)}
+              className="w-full h-9 border-0 text-ink focus:ring-0 text-[15px] bg-transparent"
             />
           </div>
-          <input
-            type="date"
-            value={filterDate}
-            onChange={(e) => setFilterDate(e.target.value)}
-            aria-label="Date"
-            className="h-12 px-3 rounded-xl bg-transparent text-ink"
-          />
-          <input
-            type="number"
-            min={1}
-            max={99}
-            inputMode="numeric"
-            value={filterGuests}
-            onChange={(e) => setFilterGuests(e.target.value)}
-            placeholder="Guests"
-            aria-label="Guests"
-            className="h-12 px-3 rounded-xl bg-transparent text-ink"
-          />
+          <div className="relative min-w-0 rounded-xl sm:rounded-full px-3.5 py-2 hover:bg-black/[0.03] focus-within:ring-2 focus-within:ring-finland/25">
+            <label htmlFor="tours-guests" className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
+              Travelers
+            </label>
+            <input
+              id="tours-guests"
+              type="number"
+              min={1}
+              max={99}
+              inputMode="numeric"
+              value={filterGuests}
+              onChange={(e) => setFilterGuests(e.target.value)}
+              placeholder="Guests"
+              className="w-full h-9 border-0 text-ink placeholder:text-ink-muted focus:ring-0 text-[15px] bg-transparent"
+            />
+          </div>
           <button
             type="button"
-            className="tv-btn-secondary h-12 col-span-2 lg:col-span-1"
+            className="tv-btn-secondary h-12 sm:h-14 sm:self-center col-span-1"
             onClick={() => setMobileFiltersOpen(true)}
             aria-expanded={mobileFiltersOpen}
             aria-controls="tours-filters"
