@@ -821,7 +821,7 @@ export default function SupplierLayout() {
     <div className="partner-app-shell min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden bg-paper text-ink">
       <SkipLink />
       {appStripeIsTestMode() ? (
-        <p className="bg-ink text-paper-raised text-center text-[11px] font-medium tracking-wide px-3 py-1.5">
+        <p className="bg-amber-500 text-ink text-center text-[11px] font-semibold tracking-wide px-3 py-1.5">
           Stripe TEST — payments and Money rows are sandbox, not live charges.
         </p>
       ) : null}
