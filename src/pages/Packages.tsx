@@ -482,12 +482,12 @@ export default function Packages({ onTourSelect }: PackagesProps) {
           </button>
         </div>
         <div className="mt-3 flex justify-end">
-          <label className="inline-flex items-center gap-2 text-sm text-ink-muted">
-            <span>Sort</span>
+          <label className="inline-flex items-center gap-2 rounded-full bg-paper-raised px-3 py-1.5 text-sm text-ink-muted shadow-soft ring-1 ring-black/[0.06]">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-finland">Sort</span>
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as SortOption)}
-              className="h-9 bg-transparent text-sm text-ink"
+              className="h-8 bg-transparent text-sm font-medium text-ink"
               aria-label="Sort"
             >
               <option value="recommended">Recommended</option>
@@ -502,37 +502,62 @@ export default function Packages({ onTourSelect }: PackagesProps) {
         {hasActiveFilters && (
           <div className="mt-4 flex flex-wrap items-center gap-2" aria-label="Active filters">
             {searchTerm.trim() !== '' && (
-              <button type="button" onClick={() => setSearchTerm('')} className="tv-btn-ghost text-xs">
+              <button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                className="lux-flat inline-flex items-center gap-1.5 rounded-full bg-finland/10 px-3 py-1.5 text-xs font-semibold text-finland ring-1 ring-finland/20"
+              >
                 “{searchTerm.trim().slice(0, 36)}{searchTerm.trim().length > 36 ? '…' : ''}” <X className="w-3.5 h-3.5" />
               </button>
             )}
             {selectedDestination !== 'all' && (
-              <button type="button" onClick={() => setSelectedDestination('all')} className="tv-btn-ghost text-xs">
+              <button
+                type="button"
+                onClick={() => setSelectedDestination('all')}
+                className="lux-flat inline-flex items-center gap-1.5 rounded-full bg-finland/10 px-3 py-1.5 text-xs font-semibold text-finland ring-1 ring-finland/20"
+              >
                 {destinationOptions.find((c) => c.id === selectedDestination)?.label ?? selectedDestination} <X className="w-3.5 h-3.5" />
               </button>
             )}
             {selectedTags.map((tagId) => (
-              <button key={tagId} type="button" onClick={() => toggleTag(tagId)} className="tv-btn-ghost text-xs">
+              <button
+                key={tagId}
+                type="button"
+                onClick={() => toggleTag(tagId)}
+                className="lux-flat inline-flex items-center gap-1.5 rounded-full bg-finland/10 px-3 py-1.5 text-xs font-semibold text-finland ring-1 ring-finland/20"
+              >
                 {TAG_OPTIONS.find((t) => t.id === tagId)?.label ?? tagId} <X className="w-3.5 h-3.5" />
               </button>
             ))}
             {priceRange !== 'all' && (
-              <button type="button" onClick={() => setPriceRange('all')} className="tv-btn-ghost text-xs">
+              <button
+                type="button"
+                onClick={() => setPriceRange('all')}
+                className="lux-flat inline-flex items-center gap-1.5 rounded-full bg-finland/10 px-3 py-1.5 text-xs font-semibold text-finland ring-1 ring-finland/20"
+              >
                 {PRICE_CHIPS.find((c) => c.id === priceRange)?.label ?? priceRange} <X className="w-3.5 h-3.5" />
               </button>
             )}
             {filterDate && (
-              <button type="button" onClick={() => setFilterDate('')} className="tv-btn-ghost text-xs">
+              <button
+                type="button"
+                onClick={() => setFilterDate('')}
+                className="lux-flat inline-flex items-center gap-1.5 rounded-full bg-finland/10 px-3 py-1.5 text-xs font-semibold text-finland ring-1 ring-finland/20"
+              >
                 {filterDate} <X className="w-3.5 h-3.5" />
               </button>
             )}
             {filterGuests && (
-              <button type="button" onClick={() => setFilterGuests('')} className="tv-btn-ghost text-xs">
+              <button
+                type="button"
+                onClick={() => setFilterGuests('')}
+                className="lux-flat inline-flex items-center gap-1.5 rounded-full bg-finland/10 px-3 py-1.5 text-xs font-semibold text-finland ring-1 ring-finland/20"
+              >
                 {filterGuests} {filterGuests === '1' ? 'guest' : 'guests'} <X className="w-3.5 h-3.5" />
               </button>
             )}
-            <button type="button" onClick={clearAllFilters} className="text-sm font-medium text-finland">
-              Clear
+            <button type="button" onClick={clearAllFilters} className="lux-flat rounded-full bg-ink px-3 py-1.5 text-xs font-semibold text-paper-raised">
+              Clear all
             </button>
           </div>
         )}
