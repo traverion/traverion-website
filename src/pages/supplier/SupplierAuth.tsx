@@ -461,7 +461,7 @@ export default function SupplierAuth({
             </div>
           ) : null}
           {!(mode === 'signin' && passwordResetPanel) && !compact && (
-          <div className="flex gap-1 rounded-full bg-black/[0.04] p-1 mb-5 w-fit">
+          <div className="flex gap-1 rounded-full bg-paper p-1 mb-5 w-fit shadow-soft ring-1 ring-black/[0.06]">
             <button
               type="button"
               onClick={() => {
@@ -471,8 +471,10 @@ export default function SupplierAuth({
                 exitPartnerPasswordReset();
                 onModeChange?.('signin');
               }}
-              className={`lux-flat rounded-full px-3.5 py-1.5 text-sm font-medium ${
-                mode === 'signin' ? 'bg-white text-ink shadow-sm' : 'text-ink-muted'
+              className={`lux-flat rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                mode === 'signin'
+                  ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
+                  : 'text-ink-muted hover:bg-finland/10 hover:text-finland'
               }`}
             >
               Log in
@@ -486,8 +488,10 @@ export default function SupplierAuth({
                 exitPartnerPasswordReset();
                 onModeChange?.('signup');
               }}
-              className={`lux-flat rounded-full px-3.5 py-1.5 text-sm font-medium ${
-                mode === 'signup' ? 'bg-white text-ink shadow-sm' : 'text-ink-muted'
+              className={`lux-flat rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                mode === 'signup'
+                  ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
+                  : 'text-ink-muted hover:bg-finland/10 hover:text-finland'
               }`}
             >
               Sign up
