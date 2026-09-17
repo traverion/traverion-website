@@ -1112,22 +1112,22 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                       dayErr
                         ? 'opacity-50 cursor-not-allowed ring-black/[0.04]'
                         : selected
-                          ? 'bg-ink text-paper-raised ring-ink'
+                          ? 'bg-finland text-white shadow-sm ring-finland/40'
                           : 'ring-black/[0.08] hover:bg-finland/5 hover:ring-finland/30 active:bg-finland/10'
                     }`}
                     onClick={() => void handlePickTourVariant(v)}
                   >
                     <span className="flex items-start justify-between gap-3">
-                      <span className={`font-semibold ${selected ? 'text-paper-raised' : 'text-ink'}`}>{v.label}</span>
-                      <span className={`text-sm font-semibold tabular-nums shrink-0 ${selected ? 'text-paper-raised' : 'text-ink'}`}>
+                      <span className={`font-semibold ${selected ? 'text-white' : 'text-ink'}`}>{v.label}</span>
+                      <span className={`text-sm font-semibold tabular-nums shrink-0 ${selected ? 'text-white' : 'text-ink'}`}>
                         {formatMoney(v.pricePerPerson, tour.price?.currency)}
-                        <span className={`block text-right text-xs font-normal ${selected ? 'text-paper-raised/70' : 'text-ink-muted'}`}>
+                        <span className={`block text-right text-xs font-normal ${selected ? 'text-white/75' : 'text-ink-muted'}`}>
                           per person
                         </span>
                       </span>
                     </span>
                     {opt ? (
-                      <span className={`mt-1.5 block text-xs ${selected ? 'text-paper-raised/75' : 'text-ink-muted'}`}>
+                      <span className={`mt-1.5 block text-xs ${selected ? 'text-white/75' : 'text-ink-muted'}`}>
                         {[
                           opt.duration.trim() || null,
                           groupLine,
@@ -1140,11 +1140,11 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                       </span>
                     ) : null}
                     {opt?.optionInfo?.trim() ? (
-                      <span className={`mt-1 block text-xs leading-snug ${selected ? 'text-paper-raised/80' : 'text-ink-muted'}`}>
+                      <span className={`mt-1 block text-xs leading-snug ${selected ? 'text-white/80' : 'text-ink-muted'}`}>
                         {opt.optionInfo.trim()}
                       </span>
                     ) : v.subtitle ? (
-                      <span className={`mt-1 block text-xs leading-snug ${selected ? 'text-paper-raised/80' : 'text-ink-muted'}`}>
+                      <span className={`mt-1 block text-xs leading-snug ${selected ? 'text-white/80' : 'text-ink-muted'}`}>
                         {v.subtitle}
                       </span>
                     ) : null}
