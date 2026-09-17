@@ -100,11 +100,16 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
     return (
       <div className="min-h-screen bg-paper tv-page">
         <div className="max-w-xl mx-auto px-4 py-12">
-          <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Account</h1>
-          <p className="mt-2 text-ink-muted">
-            Account features need the live app configuration. You can still browse tours or reach support.
-          </p>
-          <div className="mt-8 flex flex-wrap items-center gap-2">
+          <header className="mb-6 rounded-2xl bg-paper-raised p-5 sm:p-7 shadow-soft ring-1 ring-black/[0.06]">
+            <div className="inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15 mb-3">
+              Traveler
+            </div>
+            <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Account</h1>
+            <p className="mt-2 text-sm text-ink-muted">
+              Account features need the live app configuration. You can still browse tours or reach support.
+            </p>
+          </header>
+          <div className="flex flex-wrap items-center gap-2">
             <button type="button" onClick={() => onNavigate('packages')} className="tv-btn-primary">
               Browse tours
             </button>
@@ -124,15 +129,20 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
     return (
       <div className="min-h-screen bg-paper tv-page">
         <div className="max-w-xl mx-auto px-4 py-12">
-          <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Account</h1>
-          <p className="mt-2 text-ink-muted">Log in to see trips you’ve booked and tours you’ve saved.</p>
+          <header className="mb-6 rounded-2xl bg-paper-raised p-5 sm:p-7 shadow-soft ring-1 ring-black/[0.06]">
+            <div className="inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15 mb-3">
+              Traveler
+            </div>
+            <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Account</h1>
+            <p className="mt-2 text-sm text-ink-muted">Log in to see trips you’ve booked and tours you’ve saved.</p>
+          </header>
           <button
             type="button"
             onClick={() => {
               window.history.pushState({}, '', travelerLoginHref('account'));
               onNavigate('auth');
             }}
-            className="tv-btn-primary mt-8"
+            className="tv-btn-primary"
           >
             <LogIn className="w-5 h-5" />
             Log in
@@ -174,8 +184,10 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
   return (
     <div className="min-h-screen bg-paper tv-page">
       <div className="max-w-2xl mx-auto px-4 sm:px-6 py-12 pb-16">
-        <div className="mb-10 rounded-3xl bg-finland/[0.04] p-5 sm:p-6 ring-1 ring-finland/10">
-          <p className="text-[11px] uppercase tracking-[0.16em] text-finland/70 mb-1">Traveler</p>
+        <div className="mb-10 rounded-2xl bg-paper-raised p-5 sm:p-7 shadow-soft ring-1 ring-black/[0.06]">
+          <div className="inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15 mb-3">
+            Traveler
+          </div>
           <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Account</h1>
           <p className="mt-2 text-sm text-ink-muted truncate" title={user.email ?? undefined}>
             {displayName.trim() || user.email}
