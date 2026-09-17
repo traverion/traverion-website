@@ -18,22 +18,27 @@ export default function PartnerPortalFooter() {
   const landing = supplierPortalLandingHref();
 
   return (
-    <footer className="mt-auto border-t border-black/[0.06] bg-paper text-ink">
+    <footer className="mt-auto border-t border-black/[0.06] bg-gradient-to-b from-finland/[0.05] to-paper text-ink">
       <div className="max-w-5xl mx-auto px-5 sm:px-8 py-12">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 lg:gap-8">
           <div className="col-span-2 md:col-span-1">
-            <div className="rounded-2xl bg-finland/8 p-4 ring-1 ring-finland/15 mb-1">
+            <div className="rounded-2xl bg-paper-raised p-4 sm:p-5 shadow-soft ring-1 ring-finland/20 h-full">
               <a href={landing} className="inline-flex items-center gap-2 mb-3" aria-label="Traverion Partner">
                 <img src={BRAND_LOGO_SRC} alt="" className="h-10 w-auto object-contain" />
-                <span className="font-sans text-sm font-semibold tracking-[0.18em]">TRAVERION</span>
+                <span className="flex flex-col leading-tight">
+                  <span className="font-sans text-sm font-semibold tracking-[0.18em]">TRAVERION</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-finland">
+                    For business
+                  </span>
+                </span>
               </a>
-              <p className="text-sm text-ink leading-relaxed m-0">
+              <p className="text-sm text-ink-muted leading-relaxed m-0">
                 The supplier product for tours and stays. Travelers book on traverion.com.
               </p>
             </div>
           </div>
-          <div>
-            <h3 className="font-sans text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint mb-3">
+          <div className="rounded-2xl bg-paper-raised/80 p-4 ring-1 ring-black/[0.05]">
+            <h3 className="font-sans text-[11px] font-semibold uppercase tracking-[0.16em] text-finland mb-3">
               For partners
             </h3>
             <ul className="space-y-2">
@@ -54,8 +59,8 @@ export default function PartnerPortalFooter() {
               </li>
             </ul>
           </div>
-          <div>
-            <h3 className="font-sans text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint mb-3">
+          <div className="rounded-2xl bg-paper-raised/80 p-4 ring-1 ring-black/[0.05]">
+            <h3 className="font-sans text-[11px] font-semibold uppercase tracking-[0.16em] text-finland mb-3">
               For travelers
             </h3>
             <ul className="space-y-2">
@@ -81,8 +86,8 @@ export default function PartnerPortalFooter() {
               </li>
             </ul>
           </div>
-          <div>
-            <h3 className="font-sans text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint mb-3">
+          <div className="rounded-2xl bg-paper-raised/80 p-4 ring-1 ring-black/[0.05]">
+            <h3 className="font-sans text-[11px] font-semibold uppercase tracking-[0.16em] text-finland mb-3">
               Company
             </h3>
             <ul className="space-y-2">
@@ -115,7 +120,7 @@ export default function PartnerPortalFooter() {
           </div>
         </div>
       </div>
-      <div className="border-t border-black/[0.06] py-4 px-5 sm:px-8">
+      <div className="border-t border-black/[0.06] bg-paper-raised/60 py-4 px-5 sm:px-8">
         <p className="text-center text-xs text-ink-faint">© 2026 Traverion – Original from Finland</p>
       </div>
     </footer>
