@@ -67,10 +67,16 @@ export default function ResetPasswordPage({ onNavigate }: ResetPasswordPageProps
 
   if (portal === 'verifying') {
     return (
-      <div className="min-h-screen bg-paper flex items-center justify-center px-4">
-        <div className="w-full max-w-md text-center" aria-busy="true" aria-label="Verifying your reset link">
-          <p className="font-display text-2xl text-ink">Verifying your reset link</p>
-          <p className="mt-2 text-sm text-ink-muted">This usually takes a few seconds.</p>
+      <div className="min-h-screen bg-paper flex flex-col items-center justify-center px-6 py-16">
+        <div
+          className="w-full max-w-md rounded-2xl bg-paper-raised p-6 sm:p-8 shadow-soft-lg ring-1 ring-black/[0.06] text-center"
+          aria-busy="true"
+          aria-label="Verifying your reset link"
+        >
+          <img src={BRAND_LOGO_SRC} alt="Traverion" className="h-9 w-auto mx-auto mb-6 opacity-90" />
+          <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">Traveler account</p>
+          <h1 className="font-display text-2xl sm:text-3xl text-ink tracking-tight">Verifying your reset link</h1>
+          <p className="mt-3 text-sm text-ink-muted">This usually takes a few seconds.</p>
           <div className="mt-8 space-y-3" aria-hidden>
             <div className="h-11 rounded-xl bg-black/[0.06] animate-pulse" />
             <div className="h-11 rounded-xl bg-black/[0.06] animate-pulse" />
@@ -106,32 +112,35 @@ export default function ResetPasswordPage({ onNavigate }: ResetPasswordPageProps
         <button
           type="button"
           onClick={() => onNavigate('home')}
-          className="lux-flat mb-8 inline-flex items-center gap-2 text-ink-muted hover:text-ink"
+          className="lux-flat mb-6 inline-flex items-center gap-2 text-ink-muted hover:text-ink"
         >
           <ArrowLeft className="w-4 h-4" />
           Back
         </button>
 
-        <div className="flex items-center gap-3 mb-8">
-          <img src={BRAND_LOGO_SRC} alt="" className="h-12 w-12 object-contain flex-shrink-0" />
-          <div className="min-w-0">
-            <h1 className="font-display text-3xl text-ink tracking-tight">Set a new password</h1>
-            <p className="text-sm text-ink-muted mt-1">Traveler account on {siteLabel}</p>
-            <p className="text-xs text-ink-faint mt-2">
-              This page only works from the secure link in your reset email.
-            </p>
+        <div className="rounded-2xl bg-paper-raised p-6 sm:p-8 shadow-soft-lg ring-1 ring-black/[0.06]">
+          <div className="flex items-center gap-3 mb-6">
+            <img src={BRAND_LOGO_SRC} alt="" className="h-12 w-12 object-contain flex-shrink-0" />
+            <div className="min-w-0">
+              <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint">Traveler account</p>
+              <h1 className="font-display text-2xl sm:text-3xl text-ink tracking-tight">Set a new password</h1>
+              <p className="text-sm text-ink-muted mt-1">On {siteLabel}</p>
+            </div>
           </div>
+          <p className="text-sm text-ink-muted mb-6">
+            This page only works from the secure link in your reset email.
+          </p>
+          <SetNewPasswordForm
+            minPasswordLength={6}
+            description="Enter a new password for your traveler account. When you are done, sign in to book trips and manage bookings."
+            onSuccess={() => {
+              window.location.replace(loginHref);
+            }}
+            loginHref={loginHref}
+            loginLabel="Back to traveler sign in"
+            successHint="You can sign in with your new password."
+          />
         </div>
-        <SetNewPasswordForm
-          minPasswordLength={6}
-          description="Enter a new password for your traveler account. When you are done, sign in to book trips and manage bookings."
-          onSuccess={() => {
-            window.location.replace(loginHref);
-          }}
-          loginHref={loginHref}
-          loginLabel="Back to traveler sign in"
-          successHint="You can sign in with your new password."
-        />
       </div>
     </div>
   );
