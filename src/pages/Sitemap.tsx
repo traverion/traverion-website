@@ -61,6 +61,7 @@ export default function Sitemap({ onNavigate }: SitemapProps) {
 
   return (
     <LegalPageShell
+      eyebrow="Explore"
       title="Sitemap"
       subtitle="Every main page on Traverion — support, legal, company, and partner programs — in one place."
       onNavigate={onNavigate}

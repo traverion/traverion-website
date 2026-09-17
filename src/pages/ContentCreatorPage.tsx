@@ -95,16 +95,15 @@ export default function ContentCreatorPage({ onNavigate }: ContentCreatorPagePro
 
   return (
     <LegalPageShell
+      eyebrow="Work with us"
       title="Become a content creator"
       subtitle="Pitch a collaboration — press trips, sponsored content, or co-created guides — separate from customer support."
       onNavigate={onNavigate}
     >
       {isSubmitted ? (
-        <div className="max-w-lg rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]">
-          <NoticeCallout title={PARTNERSHIP_FORM_SUCCESS_HEADING} tone="success">
-            {PARTNERSHIP_FORM_THANK_YOU}
-          </NoticeCallout>
-        </div>
+        <NoticeCallout title={PARTNERSHIP_FORM_SUCCESS_HEADING} tone="success">
+          {PARTNERSHIP_FORM_THANK_YOU}
+        </NoticeCallout>
       ) : (
         <>
           <div className="max-w-lg mb-6 rounded-2xl bg-finland/8 px-4 py-3 ring-1 ring-finland/15">

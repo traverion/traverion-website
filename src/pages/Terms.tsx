@@ -26,6 +26,7 @@ export default function Terms({ onNavigate }: TermsProps) {
 
   return (
     <LegalPageShell
+      eyebrow="Legal"
       title="General Terms and Conditions"
       subtitle="Terms of Service for using Traverion — bookings, accounts, liability, and your relationship with us and our suppliers."
       lastUpdated={LAST_UPDATED}

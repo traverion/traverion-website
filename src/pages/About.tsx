@@ -34,6 +34,7 @@ export default function About({ onNavigate }: AboutProps) {
 
   return (
     <LegalPageShell
+      eyebrow="Company"
       title="About Traverion"
       subtitle="A Finland-rooted team building a clearer way to book tours — for travelers and for operators who deserve a global stage."
       onNavigate={onNavigate}

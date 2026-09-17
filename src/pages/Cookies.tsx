@@ -10,6 +10,7 @@ const LAST_UPDATED = '26 March 2026';
 export default function Cookies({ onNavigate }: CookiesProps) {
   return (
     <LegalPageShell
+      eyebrow="Legal"
       title="Cookies & marketing preferences"
       subtitle="What cookies we use, why they matter, and how you can control analytics and marketing signals when you browse Traverion."
       lastUpdated={LAST_UPDATED}

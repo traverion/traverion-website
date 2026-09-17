@@ -10,6 +10,7 @@ const LAST_UPDATED = '26 March 2026';
 export default function Privacy({ onNavigate }: PrivacyProps) {
   return (
     <LegalPageShell
+      eyebrow="Legal"
       title="Privacy Policy"
       subtitle="How we collect, use, and protect personal data when you use Traverion — including bookings, accounts, and marketing preferences."
       lastUpdated={LAST_UPDATED}

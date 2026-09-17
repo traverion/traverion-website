@@ -17,6 +17,7 @@ export default function LegalNotice({ onNavigate }: LegalNoticeProps) {
 
   return (
     <LegalPageShell
+      eyebrow="Legal"
       title="Legal notice"
       subtitle="Operator identification, contact details for official correspondence, and links to our policies."
       lastUpdated={LAST_UPDATED}
