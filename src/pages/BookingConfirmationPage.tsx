@@ -11,6 +11,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import {
   fetchMyBookingByCheckoutSessionId,
+  reconcileCheckoutSession,
   type BookingWithPaymentRow,
 } from '../data/supabase-bookings';
 import { fetchListingOpsByIds, pgTimeToHm } from '../data/supabase-listings';
@@ -22,6 +23,10 @@ import { listingPickupCopyIncomplete } from '../lib/pickup-completeness';
 import { clearBookingsUnread } from '../lib/customerBookingNotifications';
 import { BOOKING_CONFIRMATION_EMAIL_DISCLAIMER, bookingConfirmationPhase, bookingConfirmationCancelledBody, BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE } from '../lib/booking-confirmation-copy';
 import { travelerPaymentLabel, bookingPaymentWasCollected } from '../lib/payment-states';
+import {
+  confirmationShouldReconcileCheckout,
+  confirmationStillWaitingAfterReconcile,
+} from '../lib/checkout-confirmation-reconcile';
 
 const SESSION_RETURN_KEY = 'traverion_checkout_return_session_id';
 
@@ -57,6 +62,8 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
   const [pickupPending, setPickupPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pollCount, setPollCount] = useState(0);
+  const [reconcileAttempted, setReconcileAttempted] = useState(false);
+  const [reconciling, setReconciling] = useState(false);
 
   const canQuery = Boolean(user?.email && sessionId && isSupabaseConfigured());
 
@@ -116,6 +123,37 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
     return () => window.clearTimeout(t);
   }, [canQuery, booking, load, pollCount]);
 
+  /** After a few polls, ask Stripe directly via edge function if Checkout is already paid. */
+  useEffect(() => {
+    if (!canQuery || !sessionId || !booking) return;
+    const phaseNow = bookingConfirmationPhase(booking);
+    if (
+      !confirmationShouldReconcileCheckout({
+        phase: phaseNow,
+        pollCount,
+        reconcileAttempted,
+      })
+    ) {
+      return;
+    }
+    let cancelledEffect = false;
+    setReconcileAttempted(true);
+    setReconciling(true);
+    void (async () => {
+      try {
+        await reconcileCheckoutSession(sessionId);
+        if (!cancelledEffect) await load();
+      } catch {
+        /* keep polling / show stalled copy */
+      } finally {
+        if (!cancelledEffect) setReconciling(false);
+      }
+    })();
+    return () => {
+      cancelledEffect = true;
+    };
+  }, [canQuery, sessionId, booking, pollCount, reconcileAttempted, load]);
+
   const stayCheckOut =
     (booking?.check_out && /^\d{4}-\d{2}-\d{2}$/.test(booking.check_out) ? booking.check_out : null) ??
     (booking ? parseStayCheckOutFromNotes(booking.special_requests) : null);
@@ -152,6 +190,11 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
   const cancelled = phase === 'cancelled';
   const payLabel = booking ? travelerPaymentLabel(booking) : '';
   const collected = booking ? bookingPaymentWasCollected(booking.payment_status) : false;
+  const stalledConfirming = confirmationStillWaitingAfterReconcile({
+    phase,
+    reconcileAttempted,
+    pollCount,
+  });
 
   useEffect(() => {
     if (!paidActive && !cancelled) return;
@@ -293,9 +336,15 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                   <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-amber-50 text-amber-600">
                     <Loader2 className="w-8 h-8 animate-spin" aria-hidden />
                   </div>
-                  <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Confirming payment</h1>
+                  <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">
+                    {reconciling ? 'Checking payment with Stripe' : 'Confirming payment'}
+                  </h1>
                   <p className="mt-2 text-sm text-ink-muted leading-relaxed">
-                    Almost done — we are finalizing your booking. This usually takes a few seconds.
+                    {stalledConfirming
+                      ? 'Payment may still be settling. Open Trips — if Pay now appears, finish there. If you were charged, support can match your Stripe receipt.'
+                      : reconciling
+                        ? 'Stripe already has your card result — we are syncing it into your booking now.'
+                        : 'Almost done — we are finalizing your booking. This usually takes a few seconds.'}
                   </p>
                 </>
               ) : (

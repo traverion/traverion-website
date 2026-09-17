@@ -828,6 +828,36 @@ export async function fetchMyBookingByCheckoutSessionId(
   throw new Error(lastError ?? 'Could not load booking');
 }
 
+/** Ask the server to promote a paid Stripe Checkout session if the webhook lagged. */
+export async function reconcileCheckoutSession(sessionId: string): Promise<{
+  success: boolean;
+  promoted?: boolean;
+  alreadySettled?: boolean;
+  error?: string;
+}> {
+  if (!supabase) return { success: false, error: 'Supabase not configured' };
+  const id = sessionId.trim();
+  if (!id) return { success: false, error: 'Missing checkout session' };
+  const { data, error } = await supabase.functions.invoke('reconcile-checkout-session', {
+    body: { sessionId: id },
+  });
+  if (error) {
+    return { success: false, error: error.message || 'Could not reconcile checkout' };
+  }
+  const payload = data as {
+    success?: boolean;
+    promoted?: boolean;
+    alreadySettled?: boolean;
+    error?: string;
+  } | null;
+  return {
+    success: Boolean(payload?.success),
+    promoted: Boolean(payload?.promoted || payload?.alreadySettled),
+    alreadySettled: Boolean(payload?.alreadySettled),
+    error: typeof payload?.error === 'string' ? payload.error : undefined,
+  };
+}
+
 /** Occupied stay ranges for a published listing (no guest PII). Checkout night is exclusive. */
 export async function fetchPublishedStayOccupiedRanges(
   listingId: string

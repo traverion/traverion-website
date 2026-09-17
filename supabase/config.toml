@@ -19,6 +19,10 @@ verify_jwt = false
 # Validate JWT inside the function (same pattern as create-booking-checkout-session).
 verify_jwt = false
 
+[functions.reconcile-checkout-session]
+# Validate JWT inside the function (confirmation page reconcile after Stripe return).
+verify_jwt = false
+
 [functions.stripe-webhook]
 verify_jwt = false
 
