@@ -302,8 +302,8 @@ export default function BookingOptionEditor({
                     onClick={() => setPricingMode(row.value)}
                     className={`rounded-xl px-4 py-3 text-left transition-colors min-h-[72px] ring-1 ${
                       selected
-                        ? 'bg-finland/10 ring-finland/40 shadow-sm'
-                        : 'bg-paper-raised ring-black/[0.06] hover:bg-finland/[0.04]'
+                        ? 'bg-finland/[0.08] ring-2 ring-finland shadow-sm'
+                        : 'bg-paper-raised ring-black/[0.06] hover:bg-finland/[0.04] hover:ring-finland/30'
                     }`}
                     aria-pressed={selected}
                   >
