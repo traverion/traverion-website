@@ -63,6 +63,7 @@ import {
   bookingPayConfirmAfterPayCopy,
 } from '../lib/booking-confirmation-copy';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
+import NoticeCallout from '../components/NoticeCallout';
 
 interface BookingPageProps {
   tour: TourPackage;
@@ -664,15 +665,13 @@ export default function BookingPage({
                 onBoundaryAttempt={setError}
               />
             </div>
-            <div
-              className="mt-3 min-h-[1.25rem]"
-              role="status"
-              aria-live="polite"
-              aria-atomic="true"
-            >
-              {error && <p className="text-sm text-red-600">{error}</p>}
-              {!error && quoteBlockReason && <p className="text-sm text-red-600">{quoteBlockReason}</p>}
-            </div>
+            {(error || quoteBlockReason) ? (
+              <div className="mt-3">
+                <NoticeCallout title={error ? 'Could not continue' : 'Pricing unavailable'} tone="danger">
+                  {error || quoteBlockReason}
+                </NoticeCallout>
+              </div>
+            ) : null}
             <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-between sm:items-center">
               <div className="text-sm text-ink-muted">
                 <p>
@@ -815,14 +814,13 @@ export default function BookingPage({
                 </div>
               </div>
             </div>
-            <div
-              className="mt-3 min-h-[1.25rem]"
-              role="status"
-              aria-live="polite"
-              aria-atomic="true"
-            >
-              {error && <p className="text-sm text-red-600">{error}</p>}
-            </div>
+            {error ? (
+              <div className="mt-3">
+                <NoticeCallout title="Could not continue" tone="danger">
+                  {error}
+                </NoticeCallout>
+              </div>
+            ) : null}
             <div className="mt-6 flex justify-end gap-3">
               <button
                 type="button"
@@ -936,14 +934,13 @@ export default function BookingPage({
               </p>
             </div>
 
-            <div
-              className="mb-4 min-h-[1.25rem]"
-              role="status"
-              aria-live="polite"
-              aria-atomic="true"
-            >
-              {error && <p className="text-sm text-red-600">{error}</p>}
-            </div>
+            {error ? (
+              <div className="mb-4">
+                <NoticeCallout title="Payment could not start" tone="danger">
+                  {error}
+                </NoticeCallout>
+              </div>
+            ) : null}
             <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between sm:items-center">
               <button
                 type="button"
