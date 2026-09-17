@@ -346,29 +346,31 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
               Back to Traverion
             </button>
 
-            <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">Traveler account</p>
-            <h1 className="font-display text-3xl sm:text-4xl tracking-tight text-ink mb-2">
-              {passwordResetPanel
-                ? 'Reset password'
-                : tab === 'signin'
-                  ? 'Log in'
-                  : 'Create your account'}
-            </h1>
-            <p className="text-sm text-ink-muted mb-2 leading-relaxed">
-              {passwordResetPanel
-                ? 'We will email a reset link if an account exists for that address.'
-                : tab === 'signin'
-                  ? 'Manage trips, confirmations, and bookings.'
-                  : 'Save trips and book experiences. Takes under a minute.'}
-            </p>
-            <p className="text-xs text-ink-faint mb-6">
-              Want to list experiences?{' '}
-              <a href={supplierPortalLandingHref()} className="text-finland font-medium hover:underline">
-                Traverion Partner
-              </a>
-            </p>
-
             <div className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft-lg ring-1 ring-black/[0.06]">
+              <div className="inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15 mb-3">
+                Traveler account
+              </div>
+              <h1 className="font-display text-3xl sm:text-4xl tracking-tight text-ink mb-2">
+                {passwordResetPanel
+                  ? 'Reset password'
+                  : tab === 'signin'
+                    ? 'Log in'
+                    : 'Create your account'}
+              </h1>
+              <p className="text-sm text-ink-muted mb-2 leading-relaxed">
+                {passwordResetPanel
+                  ? 'We will email a reset link if an account exists for that address.'
+                  : tab === 'signin'
+                    ? 'Manage trips, confirmations, and bookings.'
+                    : 'Save trips and book experiences. Takes under a minute.'}
+              </p>
+              <p className="text-xs text-ink-faint mb-6">
+                Want to list experiences?{' '}
+                <a href={supplierPortalLandingHref()} className="text-finland font-medium hover:underline">
+                  Traverion Partner
+                </a>
+              </p>
+
               {!passwordResetPanel ? (
                 <div className="flex gap-1 rounded-full bg-black/[0.04] p-1 mb-6 w-full sm:w-fit">
                   <button
