@@ -121,10 +121,12 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
         <h1 className="font-display text-4xl sm:text-5xl text-ink tracking-tight">Tours in {label}</h1>
         {catalogLoading ? (
           <Skeleton className="h-4 w-40 mb-8" />
-        ) : (
+        ) : listings.length > 0 ? (
           <p className="text-ink-muted mb-8">
             {listings.length} {listings.length === 1 ? 'tour' : 'tours'} in this destination
           </p>
+        ) : (
+          <div className="mb-8" />
         )}
 
         {listingsError && supplierListings === null ? (
@@ -140,16 +142,19 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
             <SkeletonCardGrid count={6} />
           </div>
         ) : listings.length === 0 ? (
-          <EmptyState
-            icon={MapPin}
-            title="No tours here yet"
-            body={`Nothing is published in ${label} right now. That is normal until an operator lists a tour for this place.`}
-            action={
-              <button type="button" onClick={onBack} className="tv-btn-primary">
-                View all tours
-              </button>
-            }
-          />
+          <div className="rounded-2xl bg-paper-raised px-6 py-2 shadow-soft ring-1 ring-black/[0.06] sm:px-8">
+            <EmptyState
+              className="py-10 sm:py-12 max-w-lg"
+              icon={MapPin}
+              title="No tours here yet"
+              body={`Nothing is published in ${label} right now. That is normal until an operator lists a tour for this place.`}
+              action={
+                <button type="button" onClick={onBack} className="tv-btn-primary">
+                  View all tours
+                </button>
+              }
+            />
+          </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {listings.map((tour, index) => (
