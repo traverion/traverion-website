@@ -29,6 +29,7 @@ import {
   LISTING_PHOTO_MIN,
 } from '../../lib/listingPhotoGrid';
 import { getListingPublishBlockers } from '../../lib/listingPublishGate';
+import { listingBuilderSections, listingBuilderReadyToPublish } from '../../lib/listingBuilderProgress';
 import { isSupabaseConfigured } from '../../lib/supabase';
 import { userFacingError } from '../../lib/userFacingError';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
@@ -88,38 +89,42 @@ const EXCLUDE_SLOT_COUNT = 6;
 const MAX_ACCESSIBILITY_LENGTH = 500;
 const MAX_TIMELINE_LENGTH = 800;
 
-const WIZARD_STEP_COUNT = 4;
-
-function wizardStepStorageKey(editingId: string | null) {
-  return `traverion-listing-wizard-step-v2-${editingId ?? 'create'}`;
+/** Stay: 4 steps. Tour: 5 steps (Review at the end). */
+function wizardStepCount(isStay: boolean): number {
+  return isStay ? 4 : 5;
 }
 
-function readWizardStepFromStorage(editingId: string | null): number | null {
+function wizardStepStorageKey(editingId: string | null, isStay: boolean) {
+  return `traverion-listing-wizard-step-v3-${isStay ? 'stay' : 'tour'}-${editingId ?? 'create'}`;
+}
+
+function readWizardStepFromStorage(editingId: string | null, isStay: boolean): number | null {
   if (typeof window === 'undefined') return null;
   try {
-    const raw = sessionStorage.getItem(wizardStepStorageKey(editingId));
+    const raw = sessionStorage.getItem(wizardStepStorageKey(editingId, isStay));
     if (!raw) return null;
     const n = Number.parseInt(raw, 10);
-    if (Number.isNaN(n) || n < 0 || n >= WIZARD_STEP_COUNT) return null;
+    const max = wizardStepCount(isStay);
+    if (Number.isNaN(n) || n < 0 || n >= max) return null;
     return n;
   } catch {
     return null;
   }
 }
 
-function writeWizardStepToStorage(editingId: string | null, step: number) {
+function writeWizardStepToStorage(editingId: string | null, step: number, isStay: boolean) {
   if (typeof window === 'undefined') return;
   try {
-    sessionStorage.setItem(wizardStepStorageKey(editingId), String(step));
+    sessionStorage.setItem(wizardStepStorageKey(editingId, isStay), String(step));
   } catch {
     // ignore quota / private mode
   }
 }
 
-function clearWizardStepStorage(editingId: string | null) {
+function clearWizardStepStorage(editingId: string | null, isStay: boolean) {
   if (typeof window === 'undefined') return;
   try {
-    sessionStorage.removeItem(wizardStepStorageKey(editingId));
+    sessionStorage.removeItem(wizardStepStorageKey(editingId, isStay));
   } catch {
     // ignore
   }
@@ -612,10 +617,21 @@ function isStepSatisfied(idx: number, form: ListingFormState): boolean {
     return active.length >= 1 && active.every(isBookingOptionOkForStep);
   }
   if (idx === 3) {
+    if (isStay) {
+      if (form.status === 'draft') {
+        return orderedPhotoUrls(normalizePhotoSlots(form.photoSlots)).length >= 1;
+      }
+      return listingPhotosReadyToPublish(form);
+    }
+    // Tour photos step
     if (form.status === 'draft') {
       return orderedPhotoUrls(normalizePhotoSlots(form.photoSlots)).length >= 1;
     }
     return listingPhotosReadyToPublish(form);
+  }
+  if (idx === 4 && !isStay) {
+    // Review — allow Continue/Save when prior steps are complete enough to publish or draft-save
+    return isStepSatisfied(0, form) && isStepSatisfied(1, form) && isStepSatisfied(2, form) && isStepSatisfied(3, form);
   }
   return true;
 }
@@ -679,7 +695,7 @@ interface SupplierListingFormProps {
   createFamily?: 'tour' | 'stay';
 }
 
-type StepId = 'the_experience' | 'practical' | 'cost_options' | 'photos';
+type StepId = 'the_experience' | 'practical' | 'cost_options' | 'photos' | 'review';
 
 export default function SupplierListingForm({
   editingId,
@@ -697,7 +713,11 @@ export default function SupplierListingForm({
   const [form, setForm] = useState<ListingFormState>(emptyForm);
   const [submitting, setSubmitting] = useState(false);
   const [publishBlockers, setPublishBlockers] = useState<string[] | null>(null);
-  const [stepIdx, setStepIdx] = useState(() => readWizardStepFromStorage(editingId) ?? 0);
+  const isStayForm = form.inventoryFamily === 'stay' || createFamily === 'stay';
+
+  const [stepIdx, setStepIdx] = useState(
+    () => readWizardStepFromStorage(editingId, createFamily === 'stay') ?? 0
+  );
   const [draftCloseBusy, setDraftCloseBusy] = useState(false);
   const [draftCloseError, setDraftCloseError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -747,31 +767,48 @@ export default function SupplierListingForm({
   const optionModalOpenRef = useRef(false);
   const optionModalRef = useRef<HTMLDivElement>(null);
 
-  const steps = useMemo(
-    () => [
+  const steps = useMemo(() => {
+    const stay = form.inventoryFamily === 'stay' || createFamily === 'stay';
+    if (stay) {
+      return [
+        { id: 'the_experience' as StepId, label: 'Basics' },
+        { id: 'practical' as StepId, label: 'Place' },
+        { id: 'cost_options' as StepId, label: 'Price' },
+        { id: 'photos' as StepId, label: 'Photos' },
+      ];
+    }
+    return [
       { id: 'the_experience' as StepId, label: 'Basics' },
-      { id: 'practical' as StepId, label: form.inventoryFamily === 'stay' || createFamily === 'stay' ? 'Place' : 'Details' },
-      { id: 'cost_options' as StepId, label: form.inventoryFamily === 'stay' || createFamily === 'stay' ? 'Price' : 'Options' },
+      { id: 'practical' as StepId, label: 'Details' },
+      { id: 'cost_options' as StepId, label: 'Options' },
       { id: 'photos' as StepId, label: 'Photos' },
-    ],
-    [form.inventoryFamily, createFamily]
-  );
+      { id: 'review' as StepId, label: 'Review' },
+    ];
+  }, [form.inventoryFamily, createFamily]);
 
   const stepGuidance = useMemo(() => {
     const stay = form.inventoryFamily === 'stay' || createFamily === 'stay';
+    if (stay) {
+      return [
+        'Name the stay and describe what guests will love.',
+        'Where is it, and what should guests know before they arrive?',
+        'Set the nightly rate and guest capacity travelers will see.',
+        'Add your strongest photo first — it becomes the cover in search.',
+      ] as const;
+    }
     return [
-      stay
-        ? 'Name the stay and describe what guests will love.'
-        : 'Title, language, and a clear description — what makes this worth booking.',
-      stay
-        ? 'Where is it, and what should guests know before they arrive?'
-        : 'Location, inclusions, itinerary, and what travelers should expect on the day.',
-      stay
-        ? 'Set the nightly rate and guest capacity travelers will see.'
-        : 'Create bookable options (pickup, time, private). Set Adult/Child prices inside each option — not as separate options.',
-      'Add your strongest photo first — it becomes the cover in search.',
+      'Title, language, and a clear description — what travelers see first.',
+      'Location, inclusions, itinerary, and important day-of details.',
+      'Options are versions of this experience (pickup, time, private). Age prices live inside each option.',
+      'Cover photo first, then supporting shots travelers swipe through.',
+      'Check what’s ready, fix gaps, then save as draft or publish.',
     ] as const;
   }, [form.inventoryFamily, createFamily]);
+
+  const builderSections = useMemo(
+    () => (isStayForm ? [] : listingBuilderSections(form)),
+    [form, isStayForm]
+  );
 
   const editorSectionLinks = useMemo(() => {
     const stay = form.inventoryFamily === 'stay';
@@ -810,8 +847,27 @@ export default function SupplierListingForm({
             { id: 'supplier-listing-field-tags', label: 'Tags' },
           ];
     }
+    if (stepIdx === 3) {
+      return [{ id: 'supplier-listing-field-photos', label: 'Photos' }];
+    }
+    if (stepIdx === 4 && !stay) {
+      return [{ id: 'supplier-listing-field-review', label: 'Completeness' }];
+    }
     return [{ id: 'supplier-listing-field-photos', label: 'Photos' }];
   }, [stepIdx, form.inventoryFamily]);
+
+  // Tour review step: jump links into prior sections via step navigation
+  const reviewJumpTargets = useMemo(
+    () =>
+      [
+        { step: 0, label: 'Basics' },
+        { step: 0, label: 'Content' },
+        { step: 1, label: 'Location' },
+        { step: 2, label: 'Options & pricing' },
+        { step: 3, label: 'Photos' },
+      ] as const,
+    []
+  );
 
   const jumpToEditorSection = useCallback((id: string) => {
     const el = document.getElementById(id);
@@ -836,15 +892,17 @@ export default function SupplierListingForm({
     (next: number | ((prev: number) => number)) => {
       setStepIdx((prev) => {
         const resolved = typeof next === 'function' ? (next as (p: number) => number)(prev) : next;
-        writeWizardStepToStorage(editingId, resolved);
+        writeWizardStepToStorage(editingId, resolved, form.inventoryFamily === 'stay');
         return resolved;
       });
     },
-    [editingId]
+    [editingId, form.inventoryFamily]
   );
 
-  const focusToStep: Record<string, number> = useMemo(
-    () => ({
+  const focusToStep: Record<string, number> = useMemo(() => {
+    const stay = form.inventoryFamily === 'stay';
+    const photos = stay ? 3 : 3;
+    return {
       language: 0,
       title: 0,
       category: 0,
@@ -869,13 +927,13 @@ export default function SupplierListingForm({
       pickup: 2,
       pickup_timing: 2,
       dropoff: 2,
-      image: 3,
-      gallery: 3,
-      hero: 3,
-      photos: 3,
-    }),
-    []
-  );
+      image: photos,
+      gallery: photos,
+      hero: photos,
+      photos: photos,
+      review: stay ? 3 : 4,
+    };
+  }, [form.inventoryFamily]);
 
   useEffect(() => {
     if (editingId) {
@@ -991,17 +1049,17 @@ export default function SupplierListingForm({
     if (prevEditingIdForWizardRef.current !== editingId) {
       prevEditingIdForWizardRef.current = editingId;
       lastFocused.current = null;
-      const stored = readWizardStepFromStorage(editingId);
+      const stored = readWizardStepFromStorage(editingId, form.inventoryFamily === 'stay');
       const next = stored !== null ? stored : 0;
-      writeWizardStepToStorage(editingId, next);
+      writeWizardStepToStorage(editingId, next, form.inventoryFamily === 'stay');
       setStepIdx(next);
     }
-  }, [editingId]);
+  }, [editingId, form.inventoryFamily]);
 
   /** Backup: keep storage aligned if step changes without going through setStepIdxPersisted (e.g. focus effect). */
   useLayoutEffect(() => {
-    writeWizardStepToStorage(editingId, stepIdx);
-  }, [stepIdx, editingId]);
+    writeWizardStepToStorage(editingId, stepIdx, form.inventoryFamily === 'stay');
+  }, [stepIdx, editingId, form.inventoryFamily]);
 
   useEffect(() => {
     if (form.status === 'draft') setPublishBlockers(null);
@@ -1015,7 +1073,7 @@ export default function SupplierListingForm({
     const focusKey = `${editingId}:${focusSection}`;
     if (lastFocused.current === focusKey) return;
 
-    writeWizardStepToStorage(editingId, targetStep);
+    writeWizardStepToStorage(editingId, targetStep, form.inventoryFamily === 'stay');
     setStepIdx(targetStep);
 
     const el = document.getElementById(`supplier-listing-field-${focusSection}`);
@@ -1173,7 +1231,7 @@ export default function SupplierListingForm({
         closeIntentRunningRef.current = false;
       }
     }
-    clearWizardStepStorage(editingId);
+    clearWizardStepStorage(editingId, form.inventoryFamily === 'stay');
     onCancel();
   }, [enableDraftOnClose, onSaveDraft, isDirty, form, editingId, submitting, onCancel]);
 
@@ -1219,8 +1277,9 @@ export default function SupplierListingForm({
             const photosRelated = blockers.some((b) =>
               /image|photo|gallery|hero|placeholder/i.test(b)
             );
-            const go = photosRelated ? steps.length - 1 : 0;
-            writeWizardStepToStorage(editingId, go);
+            const photosStep = form.inventoryFamily === 'stay' ? 3 : 3;
+            const go = photosRelated ? photosStep : form.inventoryFamily === 'stay' ? 0 : 4;
+            writeWizardStepToStorage(editingId, go, form.inventoryFamily === 'stay');
             setStepIdx(go);
             return;
           }
@@ -1235,7 +1294,7 @@ export default function SupplierListingForm({
             return;
           }
           clearListingDraftBackup(editingId);
-          clearWizardStepStorage(editingId);
+          clearWizardStepStorage(editingId, form.inventoryFamily === 'stay');
           initialFormSnapshotRef.current = serializeListingFormState(form);
           setLastSavedAt(Date.now());
         } finally {
@@ -2334,9 +2393,27 @@ export default function SupplierListingForm({
                 </button>
               </div>
               {materializedBookingOptions(form.bookingOptions).length === 0 && (
-                <p className="text-xs text-ink-muted">
-                  Add at least one complete option to continue. The adult or standard price appears as &quot;from&quot; on listing cards.
-                </p>
+                <div className="rounded-xl bg-finland/[0.04] px-4 py-4 ring-1 ring-finland/15 space-y-3">
+                  <p className="text-sm font-medium text-ink">Example options travelers might choose</p>
+                  <ul className="grid gap-2 sm:grid-cols-3 text-xs text-ink-muted">
+                    <li className="rounded-lg bg-paper-raised px-3 py-2.5 ring-1 ring-black/[0.05]">
+                      <span className="font-semibold text-ink">Hotel pickup</span>
+                      <span className="mt-0.5 block">Evening departure · pickup included</span>
+                    </li>
+                    <li className="rounded-lg bg-paper-raised px-3 py-2.5 ring-1 ring-black/[0.05]">
+                      <span className="font-semibold text-ink">Meeting point</span>
+                      <span className="mt-0.5 block">Same tour · guests meet you</span>
+                    </li>
+                    <li className="rounded-lg bg-paper-raised px-3 py-2.5 ring-1 ring-black/[0.05]">
+                      <span className="font-semibold text-ink">Private group</span>
+                      <span className="mt-0.5 block">Your group only · flat or per person</span>
+                    </li>
+                  </ul>
+                  <p className="text-xs text-ink-muted">
+                    Add at least one complete option to continue. Adult/Child prices belong inside an option — not as
+                    separate options.
+                  </p>
+                </div>
               )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
                 <div>
@@ -2432,6 +2509,7 @@ export default function SupplierListingForm({
                   </ul>
                 </div>
               )}
+              {(form.inventoryFamily === 'stay' || createFamily === 'stay') && (
               <div>
                 <p className="font-medium text-ink">
                   {form.status === 'published' ? 'Update your live listing' : PARTNER_LISTING_PUBLISH_STEP_TITLE}
@@ -2439,6 +2517,76 @@ export default function SupplierListingForm({
                 <p className="mt-2 text-sm text-ink-muted leading-relaxed">
                   {PARTNER_LISTING_PUBLISH_STEP_NOTE}
                 </p>
+              </div>
+              )}
+            </div>
+          )}
+
+          {stepIdx === 4 && form.inventoryFamily !== 'stay' && createFamily !== 'stay' && (
+            <div id="supplier-listing-field-review" className="space-y-6">
+              <div>
+                <h3 className="font-display text-xl text-ink">Review &amp; publish</h3>
+                <p className="mt-1 text-sm text-ink-muted leading-relaxed max-w-2xl">
+                  Options are versions of this experience. Adult and Child prices belong inside an option — not as separate
+                  options. Fix anything incomplete below, then save or publish.
+                </p>
+              </div>
+              <ul className="space-y-2">
+                {builderSections.map((section) => {
+                  const jump =
+                    reviewJumpTargets.find((t) => t.label === section.label) ??
+                    (section.id === 'basics' || section.id === 'content'
+                      ? { step: 0, label: section.label }
+                      : section.id === 'location'
+                        ? { step: 1, label: section.label }
+                        : section.id === 'options'
+                          ? { step: 2, label: section.label }
+                          : { step: 3, label: section.label });
+                  const tone =
+                    section.status === 'complete'
+                      ? 'bg-emerald-50 ring-emerald-200/80 text-emerald-950'
+                      : section.status === 'incomplete'
+                        ? 'bg-amber-50 ring-amber-200/80 text-amber-950'
+                        : 'bg-paper ring-black/[0.06] text-ink';
+                  return (
+                    <li key={section.id}>
+                      <button
+                        type="button"
+                        onClick={() => setStepIdxPersisted(jump.step)}
+                        className={`lux-flat flex w-full items-start justify-between gap-3 rounded-xl px-4 py-3.5 text-left ring-1 ${tone}`}
+                      >
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold">
+                            {section.status === 'complete' ? '✓ ' : section.status === 'incomplete' ? '! ' : '○ '}
+                            {section.label}
+                          </p>
+                          {section.issues.length > 0 ? (
+                            <p className="mt-1 text-xs leading-snug opacity-90">
+                              {section.issues.slice(0, 2).join(' · ')}
+                              {section.issues.length > 2 ? ` · +${section.issues.length - 2} more` : ''}
+                            </p>
+                          ) : (
+                            <p className="mt-1 text-xs opacity-80">Ready</p>
+                          )}
+                        </div>
+                        <span className="text-xs font-medium shrink-0 opacity-70">Edit</span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+              <div className="rounded-xl bg-finland/[0.05] px-4 py-4 ring-1 ring-finland/15">
+                <p className="font-medium text-ink">
+                  {form.status === 'published' ? 'Update your live listing' : PARTNER_LISTING_PUBLISH_STEP_TITLE}
+                </p>
+                <p className="mt-2 text-sm text-ink-muted leading-relaxed">{PARTNER_LISTING_PUBLISH_STEP_NOTE}</p>
+                {listingBuilderReadyToPublish(form) ? (
+                  <p className="mt-3 text-sm font-medium text-emerald-800">All sections look ready to publish.</p>
+                ) : (
+                  <p className="mt-3 text-sm font-medium text-amber-900">
+                    Finish the incomplete sections above before publishing. You can always save a draft.
+                  </p>
+                )}
               </div>
             </div>
           )}
@@ -2483,7 +2631,7 @@ export default function SupplierListingForm({
                     disabled={
                       submitting ||
                       draftCloseBusy ||
-                      !isStepSatisfied(3, form) ||
+                      !isStepSatisfied(steps.length - 1, form) ||
                       !lastStepSubmitArmed ||
                       publishBlockersPreview.length > 0
                     }
@@ -2500,7 +2648,10 @@ export default function SupplierListingForm({
                       type="button"
                       onClick={() => void runSubmit('draft')}
                       disabled={
-                        submitting || draftCloseBusy || !isStepSatisfied(3, form) || !lastStepSubmitArmed
+                        submitting ||
+                        draftCloseBusy ||
+                        !isStepSatisfied(steps.length - 1, form) ||
+                        !lastStepSubmitArmed
                       }
                       className="touch-manipulation tv-btn-secondary flex-1 sm:flex-none disabled:opacity-50"
                     >
