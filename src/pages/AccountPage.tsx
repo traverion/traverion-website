@@ -198,7 +198,9 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
         </div>
 
         <section className="mb-10">
-          <h2 className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-4">Profile</h2>
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15">
+            Profile
+          </div>
           {profileLoading ? (
             <div
               className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]"
@@ -292,7 +294,9 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
         </section>
 
         <section className="mb-10">
-          <h2 className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-4">Your travel</h2>
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15">
+            Your travel
+          </div>
           {statsError ? (
             <ErrorState
               className="mb-4 py-4"
@@ -309,7 +313,11 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
                   <button
                     type="button"
                     onClick={tile.onClick}
-                    className="lux-flat group flex w-full min-h-[3.75rem] items-center gap-4 rounded-2xl bg-paper-raised px-4 py-4 text-left shadow-soft ring-1 ring-black/[0.06] transition-[box-shadow,ring-color] hover:ring-finland/25 hover:shadow-soft-lg"
+                    className={`lux-flat group flex w-full min-h-[3.75rem] items-center gap-4 rounded-2xl bg-paper-raised px-4 py-4 text-left shadow-soft ring-1 ring-black/[0.06] transition-[box-shadow,ring-color] hover:ring-finland/25 hover:shadow-soft-lg ${
+                      tile.id === 'wishlist'
+                        ? 'border-l-[3px] border-l-rose-400'
+                        : 'border-l-[3px] border-l-finland'
+                    }`}
                   >
                     <span
                       className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${
@@ -324,7 +332,13 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
                       <span className="flex items-center justify-between gap-2">
                         <span className="font-semibold text-ink">{tile.title}</span>
                         {tile.count != null ? (
-                          <span className="rounded-full bg-black/[0.04] px-2.5 py-0.5 text-sm tabular-nums font-medium text-ink-muted">
+                          <span
+                            className={`rounded-full px-2.5 py-0.5 text-sm tabular-nums font-semibold ${
+                              tile.id === 'wishlist'
+                                ? 'bg-rose-50 text-rose-800 ring-1 ring-rose-200/70'
+                                : 'bg-finland/10 text-finland ring-1 ring-finland/20'
+                            }`}
+                          >
                             {tile.count}
                           </span>
                         ) : statsLoading ? (
@@ -341,8 +355,10 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
           </ul>
         </section>
 
-        <section className="rounded-2xl bg-black/[0.03] p-5 sm:p-6 ring-1 ring-black/[0.05]">
-          <h2 className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-3">Security</h2>
+        <section className="rounded-2xl bg-amber-50/60 p-5 sm:p-6 ring-1 ring-amber-200/50">
+          <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-amber-100/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-900 ring-1 ring-amber-200/70">
+            Security
+          </div>
           <p className="text-sm text-ink-muted leading-relaxed">
             You are signed in as this traveler. Signing out does not change bookings.
           </p>
