@@ -594,37 +594,37 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Left: Title + description + stats (no pricing/CTA here on desktop; they're in sidebar) */}
             <div className="lg:col-span-2 space-y-8">
-              <div>
+              <div className="rounded-2xl bg-paper-raised p-5 sm:p-7 shadow-soft ring-1 ring-black/[0.06]">
                 <h1 className="font-display text-3xl lg:text-5xl text-ink tracking-tight mb-3">{tour.title}</h1>
                 {tour.subtitle?.trim() && (
                   <p className="text-lg text-ink-muted mb-4 leading-snug">{tour.subtitle.trim()}</p>
                 )}
-                <p className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-ink-muted mb-8">
-                  <span className="inline-flex items-center gap-1.5">
-                    <MapPin size={16} className="text-finland shrink-0" aria-hidden />
+                <p className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-ink-muted mb-6">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-finland/10 px-2.5 py-1 text-finland ring-1 ring-finland/15">
+                    <MapPin size={14} className="shrink-0" aria-hidden />
                     {tour.destination}
                   </span>
                   {review.score ? (
-                    <span className="inline-flex items-center gap-1.5">
-                      <Star size={16} className="text-finland fill-finland shrink-0" aria-hidden />
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-black/[0.03] px-2.5 py-1 ring-1 ring-black/[0.05]">
+                      <Star size={14} className="text-finland fill-finland shrink-0" aria-hidden />
                       <strong className="text-ink">{review.score}</strong>
                       <span>
                         {review.count} {review.count === 1 ? 'review' : 'reviews'}
                       </span>
                     </span>
                   ) : null}
-                  <span className="inline-flex items-center gap-1.5">
-                    <Clock size={16} className="shrink-0" aria-hidden />
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-black/[0.03] px-2.5 py-1 ring-1 ring-black/[0.05]">
+                    <Clock size={14} className="shrink-0" aria-hidden />
                     {formatTourDurationDisplay(tour.duration)}
                   </span>
                   {tour.groupSize?.trim() ? (
-                    <span className="inline-flex items-center gap-1.5">
-                      <Users size={16} className="shrink-0" aria-hidden />
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-black/[0.03] px-2.5 py-1 ring-1 ring-black/[0.05]">
+                      <Users size={14} className="shrink-0" aria-hidden />
                       {tour.groupSize}
                     </span>
                   ) : null}
                   {tour.experienceLanguage?.trim() ? (
-                    <span className="inline-flex items-center gap-1.5">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-black/[0.03] px-2.5 py-1 ring-1 ring-black/[0.05]">
                       {({
                         en: 'English',
                         es: 'Spanish',
@@ -639,7 +639,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                     </span>
                   ) : null}
                   {tour.meetingPoint?.trim() ? (
-                    <span className="inline-flex items-center gap-1.5 truncate max-w-[18rem]" title={tour.meetingPoint.trim()}>
+                    <span className="inline-flex items-center gap-1.5 truncate max-w-[18rem] rounded-full bg-black/[0.03] px-2.5 py-1 ring-1 ring-black/[0.05]" title={tour.meetingPoint.trim()}>
                       {tour.meetingPoint.trim()}
                     </span>
                   ) : null}
@@ -648,11 +648,11 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                     const currency = normalizeCurrency(tour.price?.currency);
                     const unit = qualifier ? `per ${qualifier}` : 'per person';
                     return (
-                      <span className="text-ink font-semibold tabular-nums">
+                      <span className="inline-flex items-center rounded-full bg-ink px-2.5 py-1 text-paper-raised font-semibold tabular-nums">
                         From {formatMoney(Number(price), currency)}
-                        <span className="font-medium text-ink-muted"> {unit}</span>
+                        <span className="ml-1 font-medium text-paper-raised/80"> {unit}</span>
                         {summary ? (
-                          <span className="ml-2 font-medium text-ink-muted">{summary}</span>
+                          <span className="ml-2 font-medium text-paper-raised/80">{summary}</span>
                         ) : null}
                       </span>
                     );
@@ -660,7 +660,9 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                 </p>
                 <h2 className="font-display text-2xl text-ink mb-3">What you’ll do</h2>
                 <p className="text-ink leading-relaxed text-[15px]">{tour.description}</p>
+              </div>
 
+              <div className="space-y-8">
                 {(() => {
                   const x = tour.listingExtras;
                   const scheduleLabel =
@@ -708,8 +710,8 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                     Boolean(x?.typicalTimelineNotes?.trim());
                   if (!hasGoodToKnow) return null;
                   return (
-                    <div className="mt-8">
-                      <h2 className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-3">Good to know</h2>
+                    <div className="rounded-2xl bg-finland/[0.06] p-5 sm:p-6 ring-1 ring-finland/15">
+                      <h2 className="text-[11px] uppercase tracking-[0.16em] text-finland mb-3 font-semibold">Good to know</h2>
                       <ul className="space-y-2 text-sm text-ink-muted">
                         {scheduleLabel && (
                           <li>
@@ -753,7 +755,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                 })()}
 
                 {tour.highlights.filter((h) => String(h).trim()).length > 0 ? (
-                  <section className="mt-12 pt-12 border-t border-black/[0.06]">
+                  <section className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]">
                     <h2 className="font-display text-2xl text-ink mb-5">Highlights</h2>
                     <ul className="space-y-3">
                       {tour.highlights
