@@ -16,6 +16,7 @@ import { fetchMyListings } from '../../data/supabase-listings';
 import { fetchSupplierLedger, type SupplierLedgerEntry } from '../../data/supabase-booking-ops';
 import { PARTNER_MONEY_PAYOUT_STATUS_NOTE, PARTNER_MONEY_PAID_OUT_TO_DATE_NOTE, PARTNER_MONEY_EMPTY_TITLE, PARTNER_MONEY_EMPTY_BODY, PARTNER_MONEY_LOAD_ERROR_TITLE, PARTNER_MONEY_FILTER_EMPTY_BODY, PARTNER_MONEY_AVAILABLE_BALANCE_LABEL, PARTNER_MONEY_NEGATIVE_BALANCE_LABEL, PARTNER_MONEY_NEGATIVE_BALANCE_NOTE, PARTNER_MONEY_PERIOD_NOT_PAID_OUT_LABEL, PARTNER_MONEY_THRESHOLD_PROGRESS_SUFFIX } from '../../lib/booking-confirmation-copy';
 import NoticeCallout from '../../components/NoticeCallout';
+import StatusChip from '../../components/StatusChip';
 import {
   PARTNER_MONEY_CSV_HEADER,
   buildPartnerMoneyCsvRows,
@@ -360,17 +361,33 @@ export default function SupplierEarnings() {
               />
               )
             ) : (
-              <ul className="divide-y divide-black/[0.06]">
+              <ul className="space-y-2">
                 {filteredEarnings.map((e) => (
-                  <li key={e.id} className="py-4 flex items-baseline justify-between gap-4">
+                  <li
+                    key={e.id}
+                    className="rounded-2xl bg-paper-raised px-4 py-3.5 shadow-soft ring-1 ring-black/[0.06] flex items-baseline justify-between gap-4"
+                  >
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-ink">
-                        {e.period_start} – {e.period_end}
-                      </p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-medium text-ink">
+                          {e.period_start} – {e.period_end}
+                        </p>
+                        <StatusChip tone={e.status === 'paid' ? 'good' : e.status === 'pending' ? 'warn' : 'neutral'}>
+                          {e.status === 'paid'
+                            ? 'Paid'
+                            : e.status === 'pending'
+                              ? PARTNER_MONEY_PERIOD_NOT_PAID_OUT_LABEL
+                              : e.status}
+                        </StatusChip>
+                      </div>
                       <p className="mt-0.5 text-xs text-ink-muted">
-                        {e.status === 'paid' ? 'Paid' : e.status === 'pending' ? PARTNER_MONEY_PERIOD_NOT_PAID_OUT_LABEL : e.status}
-                        {e.invoice_number ? ` · ${e.invoice_number}` : ''}
-                        {e.status === 'paid' && e.payment_reference ? ` · ${e.payment_reference}` : ''}
+                        {e.invoice_number ? e.invoice_number : null}
+                        {e.status === 'paid' && e.payment_reference
+                          ? `${e.invoice_number ? ' · ' : ''}${e.payment_reference}`
+                          : null}
+                        {!e.invoice_number && !(e.status === 'paid' && e.payment_reference) ? (
+                          <span className="text-ink-faint">Payout period</span>
+                        ) : null}
                       </p>
                     </div>
                     <p className="tabular-nums font-semibold text-ink shrink-0">
