@@ -620,10 +620,21 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
               const timeBit = b.start_time && !b.check_out ? pgTimeToHm(b.start_time) : null;
               const ref = travelerTripReferenceLabel(b.booking_number);
               const needsPay = travelerBookingNeedsPayNow(b);
+              const statusTone = openCancel ? 'warn' : toneForPaymentLabel(lifecycle);
+              const statusAccent =
+                statusTone === 'good'
+                  ? 'border-l-[3px] border-l-emerald-500'
+                  : statusTone === 'warn'
+                    ? 'border-l-[3px] border-l-amber-500'
+                    : statusTone === 'bad'
+                      ? 'border-l-[3px] border-l-rose-500'
+                      : statusTone === 'info'
+                        ? 'border-l-[3px] border-l-finland'
+                        : 'border-l-[3px] border-l-black/10';
               return (
               <article
                 key={b.id}
-                className={`rounded-2xl bg-paper-raised shadow-soft ring-1 transition-[box-shadow,ring-color] ${
+                className={`rounded-2xl bg-paper-raised shadow-soft ring-1 transition-[box-shadow,ring-color] overflow-hidden ${statusAccent} ${
                   open
                     ? 'ring-finland/25 shadow-soft-lg'
                     : openCancel
