@@ -126,6 +126,18 @@ export default function Contact({ onNavigate }: ContactProps) {
             <a href="/packages" onClick={goPackages}>
               tours &amp; activities
             </a>{' '}
+            or{' '}
+            <a
+              href="/stays"
+              onClick={(e) => {
+                if (onNavigate) {
+                  e.preventDefault();
+                  onNavigate('stays');
+                }
+              }}
+            >
+              stays
+            </a>{' '}
             anytime. Email <a href="mailto:info@traverion.com">info@traverion.com</a>.
           </p>
 

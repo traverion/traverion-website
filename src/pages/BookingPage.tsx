@@ -742,7 +742,14 @@ export default function BookingPage({
                   {selectedVariant ? (
                     <div className="flex justify-between gap-3">
                       <dt className="text-ink-faint">Option</dt>
-                      <dd className="font-medium text-ink text-right">{selectedVariant.label}</dd>
+                      <dd className="font-medium text-ink text-right">
+                        {selectedVariant.label}
+                        {selectedVariant.listingOption?.isPrivate ? (
+                          <span className="mt-0.5 block text-[11px] font-semibold text-ink">
+                            Private · your group only
+                          </span>
+                        ) : null}
+                      </dd>
                     </div>
                   ) : null}
                   <div className="flex justify-between gap-3">
@@ -927,7 +934,14 @@ export default function BookingPage({
                 {selectedVariant ? (
                   <div className="flex justify-between gap-4">
                     <dt className="text-ink-muted">Option</dt>
-                    <dd className="font-medium text-ink text-right">{selectedVariant.label}</dd>
+                    <dd className="font-medium text-ink text-right">
+                      {selectedVariant.label}
+                      {selectedVariant.listingOption?.isPrivate ? (
+                        <span className="mt-0.5 block text-[11px] font-semibold text-ink">
+                          Private · your group only
+                        </span>
+                      ) : null}
+                    </dd>
                   </div>
                 ) : null}
                 <div className="flex justify-between gap-4">

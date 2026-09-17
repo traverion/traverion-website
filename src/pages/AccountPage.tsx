@@ -134,19 +134,29 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
               Traveler
             </div>
             <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Account</h1>
-            <p className="mt-2 text-sm text-ink-muted">Log in to see trips you’ve booked and tours you’ve saved.</p>
+            <p className="mt-2 text-sm text-ink-muted">
+              Log in to manage trips, wishlist, and your traveler profile.
+            </p>
           </header>
-          <button
-            type="button"
-            onClick={() => {
-              window.history.pushState({}, '', travelerLoginHref('account'));
-              onNavigate('auth');
-            }}
-            className="tv-btn-primary"
-          >
-            <LogIn className="w-5 h-5" />
-            Log in
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                window.history.pushState({}, '', travelerLoginHref('account'));
+                onNavigate('auth');
+              }}
+              className="tv-btn-primary"
+            >
+              <LogIn className="w-5 h-5" />
+              Log in
+            </button>
+            <button type="button" onClick={() => onNavigate('packages')} className="tv-btn-ghost">
+              Browse tours
+            </button>
+            <button type="button" onClick={() => onNavigate('stays')} className="tv-btn-ghost">
+              Browse stays
+            </button>
+          </div>
         </div>
       </div>
     );

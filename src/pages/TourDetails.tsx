@@ -1208,9 +1208,20 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                         <div className="min-w-0">
                           <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">Selected option</p>
                           <p className="text-sm font-semibold text-ink truncate">{selectedBookingVariant.label}</p>
+                          {selectedOption?.isPrivate ? (
+                            <p className="mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-ink px-2.5 py-0.5 text-[11px] font-semibold text-paper">
+                              Private experience
+                              <span className="font-normal text-paper/80">· your group only</span>
+                            </p>
+                          ) : null}
                           {selectedOption ? (
-                            <p className="text-xs text-ink-muted mt-0.5">
+                            <p className="text-xs text-ink-muted mt-1">
                               {summarizeOptionPricing(selectedOption, (n) => formatMoney(n, tour.price?.currency))}
+                              {optionUsesPrivateFlatPrice(selectedOption)
+                                ? ' · flat group price'
+                                : selectedOption.isPrivate
+                                  ? ' · per person'
+                                  : ''}
                             </p>
                           ) : null}
                         </div>
@@ -1356,7 +1367,17 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                               </span>
                               <span className="min-w-0 flex-1">
                                 <span className="flex items-start justify-between gap-3">
-                                  <span className="font-semibold text-ink">{v.label}</span>
+                                  <span className="min-w-0">
+                                    <span className="font-semibold text-ink">{v.label}</span>
+                                    {opt?.isPrivate ? (
+                                      <span className="mt-1 flex flex-wrap items-center gap-1.5">
+                                        <span className="inline-flex rounded-full bg-ink px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-paper">
+                                          Private
+                                        </span>
+                                        <span className="text-[11px] text-ink-muted">Your group only</span>
+                                      </span>
+                                    ) : null}
+                                  </span>
                                   <span className="text-sm font-semibold tabular-nums shrink-0 text-ink">
                                     {optionUsesAgePricing(opt)
                                       ? summarizeOptionPricing(opt!, (n) => formatMoney(n, tour.price?.currency))
@@ -1376,7 +1397,6 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                                       opt.duration.trim() || null,
                                       groupLine,
                                       opt.startTime.trim() ? `Starts ${opt.startTime}` : null,
-                                      opt.isPrivate ? 'Private' : null,
                                       opt.pickupPlace.trim() || null,
                                     ]
                                       .filter(Boolean)
