@@ -1,14 +1,22 @@
 import { useCallback, useEffect, useState } from 'react';
 import { BarChart3, ClipboardCheck, History, Loader2, LogOut, Megaphone, Store, Users, ListChecks, UserCircle } from 'lucide-react';
-import LuxuryButton from '../components/ui/LuxuryButton';
-import LuxuryCard from '../components/ui/LuxuryCard';
 import AdminSupplierVerificationPanel from '../components/admin/AdminSupplierVerificationPanel';
 import AdminPastVerificationsPanel from '../components/admin/AdminPastVerificationsPanel';
 import AdminSupplierPortalMessagesPanel from '../components/admin/AdminSupplierPortalMessagesPanel';
+import NoticeCallout from '../components/NoticeCallout';
 import { useAuth } from '../contexts/AuthContext';
 import { invokeAdminEdgeFunction, type AdminStatsPayload } from '../lib/adminEdgeFunction';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { publicMarketingSiteUrl } from '../lib/adminHost';
+
+type Metric = {
+  label: string;
+  value: string;
+  hint: string;
+  icon: typeof Store;
+  accent: string;
+  valueClass?: string;
+};
 
 export default function AdminDashboard() {
   const { user, signOut } = useAuth();
@@ -43,48 +51,100 @@ export default function AdminDashboard() {
     { id: 'portal_messages' as const, label: 'Portal messages', icon: Megaphone },
   ];
 
+  const metrics: Metric[] = [
+    {
+      label: 'Suppliers',
+      value: statsLoading ? '…' : String(stats?.total_suppliers ?? '—'),
+      hint: 'Total supplier profiles',
+      icon: Store,
+      accent: 'bg-finland/10 text-finland',
+    },
+    {
+      label: 'Pending business review',
+      value: statsLoading ? '…' : String(stats?.pending_business_submissions ?? '—'),
+      hint: 'Submitted, awaiting review',
+      icon: ClipboardCheck,
+      accent: 'bg-amber-100 text-amber-800',
+      valueClass: 'text-amber-900',
+    },
+    {
+      label: 'Pending payout review',
+      value: statsLoading ? '…' : String(stats?.pending_payout_submissions ?? '—'),
+      hint: 'IBAN/BIC submitted',
+      icon: ListChecks,
+      accent: 'bg-emerald-100 text-emerald-800',
+      valueClass: 'text-amber-900',
+    },
+    {
+      label: 'Listings (published)',
+      value: statsLoading ? '…' : String(stats?.published_listings ?? '—'),
+      hint: `of ${statsLoading ? '…' : stats?.total_listings ?? '—'} total (incl. drafts)`,
+      icon: BarChart3,
+      accent: 'bg-finland/10 text-finland',
+    },
+    {
+      label: 'Registered customers',
+      value: statsLoading ? '…' : String(stats?.registered_customers ?? '—'),
+      hint: 'Consumer profiles (site sign-ups)',
+      icon: UserCircle,
+      accent: 'bg-finland/10 text-finland',
+    },
+    {
+      label: 'Visitors / traffic',
+      value: 'Host analytics',
+      hint: 'e.g. Vercel Analytics or Plausible — not stored in Supabase here.',
+      icon: Users,
+      accent: 'bg-black/[0.05] text-ink-muted',
+      valueClass: 'text-base font-semibold text-ink-muted',
+    },
+  ];
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white shadow-sm border-b">
+    <div className="min-h-screen bg-paper text-ink">
+      <header className="border-b border-black/[0.06] bg-paper-raised/90 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-wrap justify-between items-center gap-4 py-6">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Dashboard</h1>
-              <p className="text-gray-600 text-sm mt-1">
-                Signed in as <span className="font-medium text-gray-800">{user?.email ?? '—'}</span>
+              <p className="text-[11px] uppercase tracking-[0.18em] text-ink-faint mb-1">Traverion Admin</p>
+              <h1 className="font-display text-2xl sm:text-3xl tracking-tight text-ink">Operations</h1>
+              <p className="text-ink-muted text-sm mt-1">
+                Signed in as <span className="font-medium text-ink">{user?.email ?? '—'}</span>
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <a
-                href={publicMarketingSiteUrl()}
-                className="text-sm text-gray-600 hover:text-gray-900 underline-offset-2 hover:underline px-2 py-1.5"
-              >
+              <a href={publicMarketingSiteUrl()} className="tv-btn-ghost text-sm">
                 Public site
               </a>
-              <LuxuryButton variant="outline" size="sm" onClick={() => void signOut()}>
-                <LogOut className="w-4 h-4 mr-2" />
+              <button type="button" onClick={() => void signOut()} className="tv-btn-secondary text-sm inline-flex items-center gap-2">
+                <LogOut className="w-4 h-4" aria-hidden />
                 Sign out
-              </LuxuryButton>
+              </button>
             </div>
           </div>
         </div>
-      </div>
+      </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <div className="flex flex-wrap gap-1 bg-gray-100 p-1 rounded-lg w-fit max-w-full">
+          <div
+            className="flex flex-wrap gap-1 rounded-full bg-black/[0.04] p-1 w-fit max-w-full"
+            role="tablist"
+            aria-label="Admin sections"
+          >
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 type="button"
+                role="tab"
+                aria-selected={activeTab === tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                className={`lux-flat flex items-center px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors ${
                   activeTab === tab.id
-                    ? 'bg-white text-sky-600 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                    ? 'bg-paper-raised text-ink shadow-sm'
+                    : 'text-ink-muted hover:text-ink'
                 }`}
               >
-                <tab.icon className="w-4 h-4 mr-2 shrink-0" />
+                <tab.icon className="w-4 h-4 mr-2 shrink-0" aria-hidden />
                 {tab.label}
               </button>
             ))}
@@ -93,115 +153,62 @@ export default function AdminDashboard() {
 
         {activeTab === 'overview' && (
           <div className="space-y-6">
-            {statsError && (
-              <div className="rounded-lg border border-red-200 bg-red-50 text-red-800 text-sm px-4 py-3">{statsError}</div>
-            )}
+            {statsError ? (
+              <NoticeCallout
+                title="Could not load overview"
+                tone="danger"
+                action={
+                  <button type="button" onClick={() => void loadStats()} className="tv-btn-secondary text-sm">
+                    Retry
+                  </button>
+                }
+              >
+                {statsError}
+              </NoticeCallout>
+            ) : null}
 
             <div className="flex items-center gap-2">
-              <LuxuryButton
-                variant="outline"
-                size="sm"
+              <button
+                type="button"
                 onClick={() => void loadStats()}
                 disabled={statsLoading}
-                className="inline-flex items-center gap-2"
+                className="tv-btn-secondary text-sm inline-flex items-center gap-2 disabled:opacity-50"
               >
                 {statsLoading ? <Loader2 className="w-4 h-4 animate-spin shrink-0" aria-hidden /> : null}
                 Refresh numbers
-              </LuxuryButton>
+              </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              <LuxuryCard variant="glass" className="p-6">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Suppliers</p>
-                    <p className="text-3xl font-bold text-gray-900 mt-1">
-                      {statsLoading ? '…' : stats?.total_suppliers ?? '—'}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-2">Total supplier profiles</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {metrics.map((m) => {
+                const Icon = m.icon;
+                return (
+                  <div
+                    key={m.label}
+                    className="rounded-2xl bg-paper-raised p-5 shadow-soft ring-1 ring-black/[0.06]"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">{m.label}</p>
+                        <p
+                          className={`mt-1.5 font-display tracking-tight tabular-nums ${
+                            m.valueClass ?? 'text-3xl text-ink'
+                          }`}
+                        >
+                          {m.value}
+                        </p>
+                        <p className="text-xs text-ink-muted mt-2 leading-relaxed">{m.hint}</p>
+                      </div>
+                      <div
+                        className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${m.accent}`}
+                        aria-hidden
+                      >
+                        <Icon className="w-5 h-5" />
+                      </div>
+                    </div>
                   </div>
-                  <div className="w-12 h-12 bg-sky-100 rounded-lg flex items-center justify-center shrink-0">
-                    <Store className="w-6 h-6 text-sky-600" />
-                  </div>
-                </div>
-              </LuxuryCard>
-
-              <LuxuryCard variant="glass" className="p-6">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Pending business review</p>
-                    <p className="text-3xl font-bold text-amber-800 mt-1">
-                      {statsLoading ? '…' : stats?.pending_business_submissions ?? '—'}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-2">Submitted, awaiting review</p>
-                  </div>
-                  <div className="w-12 h-12 bg-amber-100 rounded-lg flex items-center justify-center shrink-0">
-                    <ClipboardCheck className="w-6 h-6 text-amber-700" />
-                  </div>
-                </div>
-              </LuxuryCard>
-
-              <LuxuryCard variant="glass" className="p-6">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Pending payout review</p>
-                    <p className="text-3xl font-bold text-amber-800 mt-1">
-                      {statsLoading ? '…' : stats?.pending_payout_submissions ?? '—'}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-2">IBAN/BIC submitted</p>
-                  </div>
-                  <div className="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center shrink-0">
-                    <ListChecks className="w-6 h-6 text-emerald-700" />
-                  </div>
-                </div>
-              </LuxuryCard>
-
-              <LuxuryCard variant="glass" className="p-6">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Listings (published)</p>
-                    <p className="text-3xl font-bold text-gray-900 mt-1">
-                      {statsLoading ? '…' : stats?.published_listings ?? '—'}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-2">
-                      of {statsLoading ? '…' : stats?.total_listings ?? '—'} total (incl. drafts)
-                    </p>
-                  </div>
-                  <div className="w-12 h-12 bg-violet-100 rounded-lg flex items-center justify-center shrink-0">
-                    <BarChart3 className="w-6 h-6 text-violet-600" />
-                  </div>
-                </div>
-              </LuxuryCard>
-
-              <LuxuryCard variant="glass" className="p-6">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Registered customers</p>
-                    <p className="text-3xl font-bold text-gray-900 mt-1">
-                      {statsLoading ? '…' : stats?.registered_customers ?? '—'}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-2">Consumer profiles (site sign-ups)</p>
-                  </div>
-                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center shrink-0">
-                    <UserCircle className="w-6 h-6 text-blue-600" />
-                  </div>
-                </div>
-              </LuxuryCard>
-
-              <LuxuryCard variant="glass" className="p-6">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Visitors / traffic</p>
-                    <p className="text-lg font-semibold text-gray-700 mt-2">Use your host analytics</p>
-                    <p className="text-xs text-gray-500 mt-2">
-                      e.g. Vercel Analytics or Plausible — not stored in Supabase here.
-                    </p>
-                  </div>
-                  <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center shrink-0">
-                    <Users className="w-6 h-6 text-gray-500" />
-                  </div>
-                </div>
-              </LuxuryCard>
+                );
+              })}
             </div>
           </div>
         )}
