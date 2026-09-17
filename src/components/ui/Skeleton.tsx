@@ -16,7 +16,7 @@ export function Skeleton({ className = '', children }: SkeletonProps) {
 /** Card-shaped skeleton matching public tour cards (paper, no white border). */
 export function SkeletonCard() {
   return (
-    <div className="bg-paper-raised rounded-2xl overflow-hidden">
+    <div className="bg-paper-raised rounded-2xl overflow-hidden shadow-soft ring-1 ring-black/[0.06]">
       <Skeleton className="h-56 sm:h-64 w-full rounded-none" />
       <div className="p-4 space-y-3">
         <Skeleton className="h-5 w-3/4" />
@@ -60,6 +60,10 @@ export function SkeletonFeaturedHero() {
 export function SkeletonPageHero({ className = '' }: { className?: string }) {
   return (
     <div className={className} aria-hidden>
+      <div className="inline-flex items-center gap-2 rounded-2xl bg-finland/10 px-3 py-2 ring-1 ring-finland/15 mb-4">
+        <div className="h-5 w-5 rounded-md bg-finland/25 animate-pulse" />
+        <div className="h-3 w-20 rounded bg-black/[0.06] animate-pulse" />
+      </div>
       <Skeleton className="h-10 w-48" />
       <Skeleton className="mt-3 h-4 w-full max-w-md" />
     </div>
