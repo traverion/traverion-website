@@ -185,7 +185,7 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
               return (
                 <article
                   key={tour.id}
-                  className="rounded-2xl bg-paper-raised shadow-soft ring-1 ring-black/[0.06] transition-[box-shadow,ring-color] hover:ring-finland/20 hover:shadow-soft-lg"
+                  className="overflow-hidden rounded-2xl border-l-[3px] border-l-rose-400 bg-paper-raised shadow-soft ring-1 ring-black/[0.06] transition-[box-shadow,ring-color] hover:ring-rose-300/50 hover:shadow-soft-lg"
                 >
                   <div className="flex items-stretch gap-0">
                     <button
@@ -197,7 +197,7 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
                         <img
                           src={thumb}
                           alt=""
-                          className="h-20 w-20 sm:h-24 sm:w-24 rounded-xl object-cover shrink-0 bg-black/[0.04]"
+                          className="h-20 w-20 sm:h-24 sm:w-24 rounded-xl object-cover shrink-0 bg-black/[0.04] ring-1 ring-black/[0.06]"
                           width={96}
                           height={96}
                           loading="lazy"
@@ -205,14 +205,17 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
                         />
                       ) : (
                         <div
-                          className="flex h-20 w-20 sm:h-24 sm:w-24 shrink-0 items-center justify-center rounded-xl bg-finland/[0.06] ring-1 ring-finland/10"
+                          className="flex h-20 w-20 sm:h-24 sm:w-24 shrink-0 items-center justify-center rounded-xl bg-rose-50 ring-1 ring-rose-200/70"
                           aria-hidden
                         >
-                          <Heart className="h-7 w-7 text-finland/45" />
+                          <Heart className="h-7 w-7 text-rose-400 fill-rose-400/30" />
                         </div>
                       )}
                       <div className="min-w-0 flex-1">
-                        <h2 className="font-semibold text-ink line-clamp-2 leading-snug">{tour.title}</h2>
+                        <span className="inline-flex items-center rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-rose-800 ring-1 ring-rose-200/70">
+                          Saved
+                        </span>
+                        <h2 className="mt-1.5 font-semibold text-ink line-clamp-2 leading-snug">{tour.title}</h2>
                         <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-muted">
                           {place ? (
                             <span className="inline-flex min-w-0 items-center gap-1">
@@ -227,11 +230,11 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
                         </p>
                       </div>
                     </button>
-                    <div className="flex items-start border-l border-black/[0.05] p-2 sm:p-3">
+                    <div className="flex items-start border-l border-black/[0.05] bg-rose-50/40 p-2 sm:p-3">
                       <button
                         type="button"
                         onClick={() => void handleRemove(tour.id)}
-                        className="lux-flat rounded-xl p-2.5 text-ink-muted hover:bg-rose-50 hover:text-rose-800 active:scale-90"
+                        className="lux-flat rounded-xl p-2.5 text-rose-700 hover:bg-rose-100 hover:text-rose-900 active:scale-90"
                         title="Remove from wishlist"
                         aria-label={`Remove ${tour.title} from wishlist`}
                       >
