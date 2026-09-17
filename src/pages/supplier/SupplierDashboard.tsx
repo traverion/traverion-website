@@ -246,10 +246,13 @@ export default function SupplierDashboard({ onNavigateToBookings: _onNavigateToB
 
   return (
     <div className={`${SUPPLIER_PAGE_CLASS} motion-safe:animate-fade-in`}>
-      <header className="pt-2 sm:pt-8 mb-10 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+      <header className="mb-10 rounded-2xl bg-paper-raised p-5 sm:p-7 shadow-soft ring-1 ring-black/[0.06] flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div>
+          <div className="inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15 mb-3">
+            Today
+          </div>
           <p className="text-sm text-ink-muted mb-2">{dateLabel}</p>
-          <h1 className="font-display text-4xl sm:text-5xl text-ink">
+          <h1 className="font-display text-4xl sm:text-5xl text-ink tracking-tight">
             {firstName ? `${hello}, ${firstName}.` : hello}
           </h1>
         </div>
