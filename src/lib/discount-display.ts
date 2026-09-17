@@ -6,7 +6,7 @@ import {
   discountsApplicableToOption,
   getValidDiscount,
 } from '../data/supabase-discounts';
-import { participantPriceSummary, pickHeadlineOption } from './headline-price';
+import { participantPriceSummaryFromBookingOptions, pickHeadlineOption, pricedNamesFromBookingOptions } from './headline-price';
 import { formatMoney, normalizeCurrency } from './money';
 
 export function isSupabaseListingId(id: string): boolean {
@@ -73,7 +73,7 @@ function discountedHeadline(
     originalPrice: base,
     label,
     qualifier: picked.qualifier,
-    summary: participantPriceSummary(allOpts, (n) => formatMoney(n, currency)),
+    summary: participantPriceSummaryFromBookingOptions(allOpts, (n) => formatMoney(n, currency)),
   };
 }
 
@@ -93,7 +93,7 @@ export function getDisplayPriceForTour(
   const currency = normalizeCurrency(tour.price?.currency);
   const emptyMeta = {
     qualifier: null as string | null,
-    summary: participantPriceSummary(opts, (n) => formatMoney(n, currency)),
+    summary: participantPriceSummaryFromBookingOptions(opts, (n) => formatMoney(n, currency)),
   };
 
   if (opts.length === 0) {
@@ -102,9 +102,29 @@ export function getDisplayPriceForTour(
     return { price, originalPrice: fallbackBase, label, ...emptyMeta };
   }
 
-  const picked = pickHeadlineOption(opts);
+  const named = pricedNamesFromBookingOptions(opts);
+  const picked = pickHeadlineOption(named.length > 0 ? named : opts);
   if (picked.option && (picked.mode === 'participant-standard' || picked.mode === 'single')) {
-    return discountedHeadline(tour, picked.option, discounts, at, fallbackBase);
+    const host =
+      opts.find(
+        (o) =>
+          o.id &&
+          ((o.pricingMode === 'age_dependent' &&
+            (o.priceCategories ?? []).some(
+              (c) =>
+                !c.notPermitted &&
+                c.label.trim() === picked.option!.name.trim() &&
+                c.priceUsd === picked.option!.priceUsd
+            )) ||
+            (o.name.trim() === picked.option!.name.trim() && o.priceUsd === picked.option!.priceUsd))
+      ) ?? opts[0];
+    return discountedHeadline(
+      tour,
+      { id: host.id, name: picked.option.name, priceUsd: picked.option.priceUsd },
+      discounts,
+      at,
+      fallbackBase
+    );
   }
 
   let bestPrice = Infinity;
@@ -138,7 +158,8 @@ export function getDisplayPriceForTour(
 export function catalogHeadlineAmount(tour: TourPackage): number {
   const extras = parseListingExtras(tour.listingExtras as unknown);
   const opts = materializedBookingOptions(extras.bookingOptions);
-  const picked = pickHeadlineOption(opts);
+  const named = pricedNamesFromBookingOptions(opts);
+  const picked = pickHeadlineOption(named.length > 0 ? named : opts);
   if (picked.option && picked.option.priceUsd > 0) return picked.option.priceUsd;
   return tour.price?.startingFrom ?? 0;
 }

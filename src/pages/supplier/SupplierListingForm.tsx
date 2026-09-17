@@ -4,7 +4,6 @@ import { AlertCircle, Check, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { TourPackage } from '../../types/tour';
 import type { ListingBookingOption, ListingExtras, ScheduleStyle, VenueSetting } from '../../types/listingExtras';
 import {
-  type BookingOptionDurationUnit,
   formatBookingOptionDuration,
   getListingBookingOptionDurationIssue,
   materializedBookingOptions,
@@ -14,7 +13,10 @@ import {
   TRAVERION_STANDARD_CANCELLATION_POLICY,
 } from '../../types/listingExtras';
 import ListingImageFields from '../../components/supplier/ListingImageFields';
+import BookingOptionEditor from '../../components/supplier/BookingOptionEditor';
 import { useAuth } from '../../contexts/AuthContext';
+import { priceCategoryValidationMessages, summarizeOptionPricing } from '../../lib/price-categories';
+import { headlineStartingAmountFromBookingOptions } from '../../lib/headline-price';
 import {
   compactPhotoSlotsAndLabels,
   normalizePhotoSlots,
@@ -35,7 +37,6 @@ import {
   PARTNER_LISTING_PUBLISH_STEP_NOTE,
   PARTNER_LISTING_PUBLISH_STEP_TITLE,
 } from '../../lib/booking-confirmation-copy';
-import { headlineStartingAmount } from '../../lib/headline-price';
 import { DEFAULT_CURRENCY, formatMoney, normalizeCurrency } from '../../lib/money';
 import { STAY_AMENITY_PRESETS } from '../../lib/stay-amenities';
 import NoticeCallout from '../../components/NoticeCallout';
@@ -73,7 +74,7 @@ const EXPERIENCE_START_OPTIONS: {
   value: 'unspecified' | 'fixed_meeting_place' | 'operator_pickup' | 'either_available';
   label: string;
 }[] = [
-  { value: 'unspecified', label: 'Not sure yet — describe per option under Price' },
+  { value: 'unspecified', label: 'Not sure yet — describe per option under Options' },
   { value: 'fixed_meeting_place', label: 'Guests meet us at a fixed meeting point' },
   { value: 'operator_pickup', label: 'We pick guests up (for example from their accommodation area)' },
   { value: 'either_available', label: 'Both meeting at a set place and pickup are available' },
@@ -86,8 +87,6 @@ const INCLUDE_SLOT_COUNT = 6;
 const EXCLUDE_SLOT_COUNT = 6;
 const MAX_ACCESSIBILITY_LENGTH = 500;
 const MAX_TIMELINE_LENGTH = 800;
-
-const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 const WIZARD_STEP_COUNT = 4;
 
@@ -187,6 +186,7 @@ function createEmptyBookingOption(): ListingBookingOption {
       weekdays: [true, true, true, true, true, false, false],
       availabilityDateFrom: '',
       availabilityDateTo: '',
+      pricingMode: 'uniform',
     },
     newBookingOptionId()
   );
@@ -246,8 +246,10 @@ function isBookingOptionOkForStep(o: ListingBookingOption): boolean {
 /** Plain-language issues for the option editor (Continue uses isBookingOptionOkForStep). */
 function getBookingOptionValidationMessages(o: ListingBookingOption): string[] {
   const msg: string[] = [];
-  if (!o.name.trim()) msg.push('Add an option name (e.g. Small group tour).');
-    if (o.priceUsd <= 0) msg.push('Set a price greater than zero.');
+  if (!o.name.trim()) {
+    msg.push('Add an option name (e.g. Hotel pickup · 20:00 — not “Adult”).');
+  }
+  msg.push(...priceCategoryValidationMessages(o));
   const durIssue = getListingBookingOptionDurationIssue(o.duration);
   if (durIssue) msg.push(durIssue);
   if (o.pickupPlace.trim().length < 8) {
@@ -258,7 +260,7 @@ function getBookingOptionValidationMessages(o: ListingBookingOption): string[] {
   }
   if (o.maxSpotsPerSlot < 1) msg.push('Set max spots per departure or start time.');
   if (o.optionInfo.trim().length < 3) {
-    msg.push('Add a short note about this option (e.g. private, language, group size) — 3+ characters.');
+    msg.push('Add a short note about this option (e.g. pickup included, language, group size) — 3+ characters.');
   }
   if (!o.weekdays.some(Boolean)) msg.push('Choose at least one weekday when this option runs.');
   const df = o.availabilityDateFrom.trim();
@@ -422,7 +424,7 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
   const derivedStarting =
     isStay && Number.isFinite(stayNightly) && stayNightly > 0
       ? stayNightly
-      : headlineStartingAmount(activeOpts, 0);
+      : headlineStartingAmountFromBookingOptions(activeOpts, 0);
   const groupSizeStr = isStay
     ? Number.isFinite(stayMaxGuests) && stayMaxGuests >= 1
       ? `Up to ${stayMaxGuests} guests`
@@ -748,11 +750,11 @@ export default function SupplierListingForm({
   const steps = useMemo(
     () => [
       { id: 'the_experience' as StepId, label: 'Basics' },
-      { id: 'practical' as StepId, label: 'Place' },
-      { id: 'cost_options' as StepId, label: 'Price' },
+      { id: 'practical' as StepId, label: form.inventoryFamily === 'stay' || createFamily === 'stay' ? 'Place' : 'Details' },
+      { id: 'cost_options' as StepId, label: form.inventoryFamily === 'stay' || createFamily === 'stay' ? 'Price' : 'Options' },
       { id: 'photos' as StepId, label: 'Photos' },
     ],
-    []
+    [form.inventoryFamily, createFamily]
   );
 
   const stepGuidance = useMemo(() => {
@@ -763,10 +765,10 @@ export default function SupplierListingForm({
         : 'Title, language, and a clear description — what makes this worth booking.',
       stay
         ? 'Where is it, and what should guests know before they arrive?'
-        : 'Location, inclusions, and what travelers should expect on the day.',
+        : 'Location, inclusions, itinerary, and what travelers should expect on the day.',
       stay
         ? 'Set the nightly rate and guest capacity travelers will see.'
-        : 'Add booking options and prices travelers can choose from.',
+        : 'Create bookable options (pickup, time, private). Set Adult/Child prices inside each option — not as separate options.',
       'Add your strongest photo first — it becomes the cover in search.',
     ] as const;
   }, [form.inventoryFamily, createFamily]);
@@ -1217,7 +1219,7 @@ export default function SupplierListingForm({
             const photosRelated = blockers.some((b) =>
               /image|photo|gallery|hero|placeholder/i.test(b)
             );
-            const go = photosRelated ? 6 : 0;
+            const go = photosRelated ? steps.length - 1 : 0;
             writeWizardStepToStorage(editingId, go);
             setStepIdx(go);
             return;
@@ -1359,9 +1361,14 @@ export default function SupplierListingForm({
       <button type="button" tabIndex={-1} className="absolute inset-0 bg-ink/40 motion-safe:animate-fade-in" aria-label="Close option" onClick={closeOptionModal} />
       <div className="relative z-10 flex max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)))] w-full max-w-6xl flex-col overflow-hidden rounded-t-2xl bg-paper-raised shadow-xl ring-1 ring-black/[0.08] motion-safe:animate-slide-up sm:rounded-2xl sm:motion-safe:animate-none lg:max-w-7xl">
         <div className="flex shrink-0 items-start justify-between gap-3 border-b border-black/[0.06] px-4 py-3 sm:px-5">
-          <h2 id="supplier-option-modal-title" className="font-display text-2xl text-ink tracking-tight pr-8">
-            {optionModalEditingId ? 'Edit option' : 'New option'}
-          </h2>
+          <div className="min-w-0 pr-2">
+            <h2 id="supplier-option-modal-title" className="font-display text-2xl text-ink tracking-tight">
+              {optionModalEditingId ? 'Edit option' : 'New option'}
+            </h2>
+            <p className="mt-1 text-sm text-ink-muted leading-snug">
+              Option = what travelers select. Age prices (Adult / Child) are categories inside this option.
+            </p>
+          </div>
           <button
             type="button"
             onClick={closeOptionModal}
@@ -1372,264 +1379,13 @@ export default function SupplierListingForm({
           </button>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-          <div className="grid grid-cols-1 gap-6 p-4 sm:p-5 lg:grid-cols-2 lg:gap-8">
-            <div className="space-y-4 min-w-0">
-              <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-ink mb-1">Option name *</label>
-                <input
-                  type="text"
-                  value={optionDraft.name}
-                  onChange={(e) => patchOptionDraft({ name: e.target.value })}
-                  className="tv-input"
-                  placeholder="e.g. Small group tour · max 8"
-                />
-              </div>
-              <div id="supplier-listing-field-price">
-                <label className="block text-sm font-medium text-ink mb-1">Price ({listingCurrency}) *</label>
-                <input
-                  type="number"
-                  min={0}
-                  step={1}
-                  value={optionDraft.priceUsd || ''}
-                  onChange={(e) =>
-                    patchOptionDraft({ priceUsd: Math.max(0, Number(e.target.value) || 0) })
-                  }
-                  className="tv-input"
-                />
-              </div>
-              <div id="supplier-listing-field-pickup_timing">
-                <label className="block text-sm font-medium text-ink mb-1">Usual start time</label>
-                <input
-                  type="time"
-                  value={optionDraft.startTime}
-                  onChange={(e) => patchOptionDraft({ startTime: e.target.value })}
-                  className="tv-input w-full max-w-[12rem]"
-                />
-                <p className="text-xs text-ink-muted mt-1">Shown to guests; you can adjust on the booking.</p>
-              </div>
-              <div className="sm:col-span-2" id="supplier-listing-field-option-duration">
-                <label className="block text-sm font-medium text-ink mb-1">Duration for this option *</label>
-                {(() => {
-                  const durParts = parseBookingOptionDuration(optionDraft.duration);
-                  return (
-                    <>
-                      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:gap-3">
-                        <div className="min-w-0 flex-1">
-                          <label htmlFor="booking-option-duration-amount" className="sr-only">
-                            Duration amount
-                          </label>
-                          <input
-                            id="booking-option-duration-amount"
-                            type="number"
-                            min={0}
-                            step="any"
-                            inputMode="decimal"
-                            value={durParts.amount}
-                            onChange={(e) => {
-                              const next = e.target.value;
-                              patchOptionDraft({
-                                duration: formatBookingOptionDuration(next, durParts.unit),
-                              });
-                            }}
-                            className="tv-input"
-                            placeholder="e.g. 3"
-                          />
-                        </div>
-                        <div className="w-full shrink-0 sm:w-44">
-                          <label htmlFor="booking-option-duration-unit" className="sr-only">
-                            Duration unit
-                          </label>
-                          <select
-                            id="booking-option-duration-unit"
-                            value={durParts.unit}
-                            onChange={(e) => {
-                              const u = e.target.value as BookingOptionDurationUnit;
-                              patchOptionDraft({
-                                duration: formatBookingOptionDuration(durParts.amount, u),
-                              });
-                            }}
-                            className="tv-input"
-                          >
-                            <option value="minutes">Minutes</option>
-                            <option value="hours">Hours</option>
-                            <option value="days">Days</option>
-                          </select>
-                        </div>
-                      </div>
-                      <p className="text-xs text-ink-muted mt-2">
-                        Type a number, then choose minutes, hours, or days. Both are required — they are stored as text like{' '}
-                        <span className="font-medium text-ink">3 hours</span> or{' '}
-                        <span className="font-medium text-ink">90 minutes</span>.
-                      </p>
-                      {optionDraft.duration.trim() ? (
-                        <p className="text-xs text-ink-muted mt-1">
-                          Saved as:{' '}
-                          <span className="font-medium text-ink tabular-nums">{optionDraft.duration.trim()}</span>
-                          {durParts.amount === '' && optionDraft.duration.trim().length >= 2 && (
-                            <span className="block mt-1 text-amber-800">
-                              This text is kept as-is. Enter a number above to use minutes, hours, or days.
-                            </span>
-                          )}
-                        </p>
-                      ) : null}
-                    </>
-                  );
-                })()}
-              </div>
-              <div className="sm:col-span-2" id="supplier-listing-field-meeting">
-                <label className="block text-sm font-medium text-ink mb-1">Meeting or pickup place *</label>
-                <textarea
-                  value={optionDraft.pickupPlace}
-                  onChange={(e) => patchOptionDraft({ pickupPlace: e.target.value })}
-                  rows={3}
-                  className="tv-input"
-                  placeholder="Address, hotel zone, landmark, or how pickup is arranged for this option"
-                />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div id="supplier-listing-field-group">
-                  <label className="block text-sm font-medium text-ink mb-1">Min guests per booking *</label>
-                  <input
-                    type="number"
-                    min={1}
-                    value={optionDraft.minPersons || ''}
-                    onChange={(e) => {
-                      const nextMin = Math.max(1, Math.floor(Number(e.target.value) || 1));
-                      patchOptionDraft({
-                        minPersons: nextMin,
-                        maxPersons: Math.max(nextMin, optionDraft.maxPersons),
-                      });
-                    }}
-                    className="tv-input"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-ink mb-1">Max guests per booking *</label>
-                  <input
-                    type="number"
-                    min={1}
-                    value={optionDraft.maxPersons || ''}
-                    onChange={(e) =>
-                      patchOptionDraft({
-                        maxPersons: Math.max(
-                          optionDraft.minPersons,
-                          Math.floor(Number(e.target.value) || optionDraft.minPersons)
-                        ),
-                      })
-                    }
-                    className="tv-input"
-                  />
-                </div>
-              </div>
-              <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-ink mb-1">Max spots per start time *</label>
-                <input
-                  type="number"
-                  min={1}
-                  value={optionDraft.maxSpotsPerSlot || ''}
-                  onChange={(e) =>
-                    patchOptionDraft({
-                      maxSpotsPerSlot: Math.max(1, Math.floor(Number(e.target.value) || 1)),
-                    })
-                  }
-                  className="tv-input w-full max-w-xs"
-                />
-                <p className="text-xs text-ink-muted mt-1">Capacity for one departure or time slot.</p>
-              </div>
-              <div className="sm:col-span-2" id="supplier-listing-field-pickup">
-                <label className="block text-sm font-medium text-ink mb-1">Why choose this option *</label>
-                <textarea
-                  value={optionDraft.optionInfo}
-                  onChange={(e) => patchOptionDraft({ optionInfo: e.target.value })}
-                  rows={3}
-                  className="tv-input"
-                  placeholder="e.g. Private vehicle · English-speaking guide · shared bus · family-friendly"
-                />
-                <p className="text-xs text-ink-muted mt-1">Travelers see this under the option name. Say what is different from the other options.</p>
-              </div>
-              <div className="sm:col-span-2">
-                <p className="text-sm font-medium text-ink mb-2">Runs on these weekdays *</p>
-                <div className="flex flex-wrap gap-2">
-                  {WEEKDAY_LABELS.map((label, di) => (
-                    <button
-                      key={label}
-                      type="button"
-                      onClick={() => {
-                        const next = [...optionDraft.weekdays];
-                        next[di] = !next[di];
-                        patchOptionDraft({ weekdays: next });
-                      }}
-                      className={`lux-flat min-h-[40px] min-w-[2.75rem] rounded-full px-2.5 text-xs font-semibold transition-colors ${
-                        optionDraft.weekdays[di]
-                          ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
-                          : 'bg-paper text-ink-muted ring-1 ring-black/[0.06] hover:bg-finland/10 hover:text-finland'
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-ink mb-1">
-                    Starting date of the activity <span className="font-normal text-ink-muted">(optional)</span>
-                  </label>
-                  <input
-                    type="date"
-                    value={optionDraft.availabilityDateFrom}
-                    onChange={(e) => patchOptionDraft({ availabilityDateFrom: e.target.value })}
-                    className="tv-input w-full max-w-xs"
-                  />
-                  <p className="text-xs text-ink-muted mt-1">
-                    When this option first becomes bookable. Leave empty if there is no fixed start.
-                  </p>
-                </div>
-                <label className="flex cursor-pointer items-start gap-3 py-1 touch-manipulation">
-                  <input
-                    type="checkbox"
-                    checked={optionModalHasEndingDate}
-                    onChange={(e) => {
-                      const on = e.target.checked;
-                      setOptionModalHasEndingDate(on);
-                      if (!on) patchOptionDraft({ availabilityDateTo: '' });
-                    }}
-                    className="mt-0.5 h-5 w-5 rounded border-black/20 text-finland focus:ring-finland shrink-0"
-                  />
-                  <span>
-                    <span className="block text-sm font-medium text-ink">This activity has an ending date</span>
-                    <span className="block text-xs text-ink-muted mt-0.5">
-                      Use this for a fixed season or last day the option runs. Leave it off if the activity continues with no end
-                      date.
-                    </span>
-                  </span>
-                </label>
-                {optionModalHasEndingDate && (
-                  <div>
-                    <label className="block text-sm font-medium text-ink mb-1">Ending date *</label>
-                    <input
-                      type="date"
-                      value={optionDraft.availabilityDateTo}
-                      onChange={(e) => patchOptionDraft({ availabilityDateTo: e.target.value })}
-                      className="tv-input w-full max-w-xs"
-                    />
-                    <p className="text-xs text-ink-muted mt-1">Last day this option is offered (inclusive).</p>
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="space-y-3 text-xs text-ink-muted leading-relaxed lg:sticky lg:top-4 lg:self-start">
-              <p className="text-sm font-medium text-ink">Tips</p>
-              <ul className="list-disc space-y-2 pl-4">
-                <li>The lowest option price is shown as the &quot;from&quot; price on cards.</li>
-                <li>Meeting or pickup should be specific enough that guests know where to go.</li>
-                <li>
-                  Start date is optional; add an ending date only when the offer has a last day (e.g. season). Otherwise it runs
-                  with no fixed end.
-                </li>
-              </ul>
-            </div>
-          </div>
+          <BookingOptionEditor
+            option={optionDraft}
+            currencyLabel={listingCurrency}
+            hasEndingDate={optionModalHasEndingDate}
+            onHasEndingDateChange={setOptionModalHasEndingDate}
+            onChange={patchOptionDraft}
+          />
         </div>
         {optionModalErrors.length > 0 && (
           <div className="border-t border-red-100 bg-red-50 px-4 py-3 sm:px-5">
@@ -2505,25 +2261,43 @@ export default function SupplierListingForm({
           {stepIdx === 2 && form.inventoryFamily !== 'stay' && (
             <div id="supplier-listing-field-options" className="space-y-4 transition-all duration-300 ease-out opacity-100 translate-y-0">
               <div>
-                <h3 className="font-display text-xl text-ink">Options &amp; price</h3>
-                <p className="mt-1 text-sm text-ink-muted leading-relaxed">
-                  Add each price and schedule as its own option. Meeting, pickup, and capacity are filled in when you create or
-                  edit an option.
+                <h3 className="font-display text-xl text-ink">Options &amp; pricing</h3>
+                <p className="mt-1 text-sm text-ink-muted leading-relaxed max-w-2xl">
+                  Each <span className="font-medium text-ink">option</span> is a bookable variant (for example hotel pickup at
+                  20:00). Inside an option you set whether price is the same for everyone or depends on age (Adult, Child…).
+                  Do not create separate options named “Adult” and “Child”.
                 </p>
               </div>
-              <div className="divide-y divide-black/[0.06]">
+              <div className="space-y-3">
                 {materializedBookingOptions(form.bookingOptions).map((opt) => (
                   <div
                     key={opt.id}
-                    className="flex flex-wrap items-center justify-between gap-3 py-4"
+                    className="flex flex-wrap items-start justify-between gap-3 rounded-xl bg-paper-raised px-4 py-4 ring-1 ring-black/[0.06] hover:ring-finland/25 transition-colors"
                   >
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-ink truncate">
-                        {opt.name.trim() || 'Untitled option'}
-                      </p>
+                    <div className="min-w-0 space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-semibold text-ink truncate">
+                          {opt.name.trim() || 'Untitled option'}
+                        </p>
+                        {opt.isPrivate ? (
+                          <span className="rounded-full bg-ink/5 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ink">
+                            Private
+                          </span>
+                        ) : null}
+                        {opt.pricingMode === 'age_dependent' ? (
+                          <span className="rounded-full bg-finland/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-finland">
+                            Age pricing
+                          </span>
+                        ) : null}
+                      </div>
                       <p className="text-xs text-ink-muted tabular-nums">
-                        {formatMoney(opt.priceUsd, listingCurrency)} · {opt.duration.trim() || '—'}
+                        {summarizeOptionPricing(opt, (n) => formatMoney(n, listingCurrency))}
+                        {opt.startTime.trim() ? ` · ${opt.startTime}` : ''}
+                        {opt.duration.trim() ? ` · ${opt.duration.trim()}` : ''}
                       </p>
+                      {opt.pickupPlace.trim() ? (
+                        <p className="text-xs text-ink-faint line-clamp-1">{opt.pickupPlace.trim()}</p>
+                      ) : null}
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <button
@@ -2553,15 +2327,15 @@ export default function SupplierListingForm({
                 <button
                   type="button"
                   onClick={openOptionModalCreate}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg px-4 py-4 text-sm font-semibold text-finland hover:bg-finland/10 min-h-[48px]"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-4 text-sm font-semibold text-finland ring-1 ring-finland/30 hover:bg-finland/10 min-h-[52px]"
                 >
                   <Plus className="w-5 h-5 shrink-0" aria-hidden />
-                  Create new option
+                  Add option
                 </button>
               </div>
               {materializedBookingOptions(form.bookingOptions).length === 0 && (
                 <p className="text-xs text-ink-muted">
-                  Add at least one complete option to continue. The lowest price appears as &quot;from&quot; on listing cards.
+                  Add at least one complete option to continue. The adult or standard price appears as &quot;from&quot; on listing cards.
                 </p>
               )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">

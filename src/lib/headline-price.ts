@@ -1,10 +1,13 @@
 /**
  * Catalog “from” price is not always the cheapest booking option.
  *
- * Booking options are a generic list (name + price). Partners often use them as
- * participant types (Adult / Child) rather than product variants (Small group / Private).
- * Advertising the child price as “From …” without context is misleading.
+ * Booking options are product variants (pickup / time / private).
+ * Price categories (Adult / Child) live under an option when pricingMode is age_dependent.
+ * Legacy listings sometimes named options “Adult” / “Child” — still handled via name heuristics.
  */
+
+import type { ListingBookingOption } from '../types/listingExtras';
+import { activePriceCategories, optionPricingMode } from './price-categories';
 
 export type PricedNamedOption = {
   name: string;
@@ -52,6 +55,21 @@ function pricedOptions<T extends PricedNamedOption>(opts: T[]): T[] {
 
 function cheapest<T extends PricedNamedOption>(opts: T[]): T {
   return opts.reduce((a, b) => (a.priceUsd <= b.priceUsd ? a : b));
+}
+
+/** Flatten age-dependent categories into named prices for catalog summary. */
+export function pricedNamesFromBookingOptions(opts: ListingBookingOption[]): PricedNamedOption[] {
+  const out: PricedNamedOption[] = [];
+  for (const o of opts) {
+    if (optionPricingMode(o) === 'age_dependent') {
+      for (const c of activePriceCategories(o)) {
+        if (c.priceUsd > 0) out.push({ name: c.label, priceUsd: c.priceUsd });
+      }
+      continue;
+    }
+    if (o.priceUsd > 0 && o.name.trim()) out.push({ name: o.name, priceUsd: o.priceUsd });
+  }
+  return out;
 }
 
 /**
@@ -122,4 +140,29 @@ export function participantPriceSummary(
     .sort((a, b) => b.priceUsd - a.priceUsd)
     .map((o) => `${o.name.trim()} ${formatAmount(o.priceUsd)}`)
     .join(' · ');
+}
+
+/** Prefer structured price categories when present on booking options. */
+export function headlineStartingAmountFromBookingOptions(
+  opts: ListingBookingOption[],
+  fallback = 0
+): number {
+  const named = pricedNamesFromBookingOptions(opts);
+  if (named.length > 0) return headlineStartingAmount(named, fallback);
+  return headlineStartingAmount(
+    opts.map((o) => ({ name: o.name, priceUsd: o.priceUsd })),
+    fallback
+  );
+}
+
+export function participantPriceSummaryFromBookingOptions(
+  opts: ListingBookingOption[],
+  formatAmount: (n: number) => string
+): string | null {
+  const named = pricedNamesFromBookingOptions(opts);
+  if (named.length > 0) return participantPriceSummary(named, formatAmount);
+  return participantPriceSummary(
+    opts.map((o) => ({ name: o.name, priceUsd: o.priceUsd })),
+    formatAmount
+  );
 }

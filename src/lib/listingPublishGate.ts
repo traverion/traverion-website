@@ -2,6 +2,7 @@ import type { TourPackage } from '../types/tour';
 import { getListingBookingOptionDurationIssue, materializedBookingOptions } from '../types/listingExtras';
 import type { ListingBookingOption } from '../types/listingExtras';
 import { LISTING_PLACEHOLDER_IMAGE, MIN_LISTING_DESCRIPTION_LENGTH } from './listingQualityScore';
+import { priceCategoryValidationMessages } from './price-categories';
 
 function optionPublishIssues(
   o: ListingBookingOption,
@@ -11,8 +12,14 @@ function optionPublishIssues(
 ): string[] {
   const issues: string[] = [];
   const prefix = multi ? `Option ${index + 1}${o.name.trim() ? ` (“${o.name.trim()}”)` : ''}: ` : '';
-  if (!o.name.trim()) issues.push(`${prefix}Add a name (e.g. small group tour, bus tour).`.trim());
-  if (typeof o.priceUsd !== 'number' || o.priceUsd <= 0) issues.push(`${prefix}Set a price greater than zero.`.trim());
+  if (!o.name.trim()) {
+    issues.push(
+      `${prefix}Add a name for this bookable option (e.g. hotel pickup or 20:00 departure — not “Adult”).`.trim()
+    );
+  }
+  for (const m of priceCategoryValidationMessages(o)) {
+    issues.push(`${prefix}${m}`.trim());
+  }
   const durIssue = getListingBookingOptionDurationIssue(o.duration ?? '');
   if (durIssue) issues.push(`${prefix}${durIssue}`.trim());
   const meet = o.pickupPlace?.trim() ?? '';

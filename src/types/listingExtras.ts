@@ -12,11 +12,51 @@ export type VenueSetting = 'unspecified' | 'indoor' | 'outdoor' | 'mixed';
 
 export type ScheduleStyle = 'flexible' | 'fixed_slots' | 'on_request';
 
-/** One bookable variant of a listing (e.g. small group vs bus tour) with its own price, timing, and pickup. */
+/**
+ * Participant / ticket type under an OPTION (e.g. Adult, Child).
+ * Distinct from the option itself (Morning / Hotel pickup / Private).
+ */
+export type ListingPriceCategoryKind =
+  | 'adult'
+  | 'child'
+  | 'infant'
+  | 'youth'
+  | 'senior'
+  | 'participant';
+
+export type ListingPricingMode = 'uniform' | 'age_dependent';
+
+export type ListingPrivatePricing = 'per_person' | 'flat_group';
+
+export interface ListingPriceCategory {
+  id: string;
+  label: string;
+  kind: ListingPriceCategoryKind;
+  /** Inclusive age bounds; null = not specified. */
+  ageMin: number | null;
+  ageMax: number | null;
+  /** Unit price for this category (0 allowed when free, e.g. infants). */
+  priceUsd: number;
+  /** Category exists for coverage but cannot be booked. */
+  notPermitted?: boolean;
+  /** When false, quantity may still be collected but not count toward capacity (lap infants). */
+  countsTowardCapacity?: boolean;
+  /** Child/infant must be accompanied by an adult/senior on the booking. */
+  requiresAdult?: boolean;
+}
+
+/**
+ * One bookable PRODUCT OPTION (variant): e.g. hotel pickup vs meeting point, morning vs evening.
+ * Price categories (Adult/Child) live *inside* an option — they are not separate options.
+ */
 export interface ListingBookingOption {
   id: string;
   name: string;
-  /** Price in USD for this option. */
+  /**
+   * Headline / uniform unit price.
+   * When pricingMode is age_dependent, kept in sync with the adult (or primary) category
+   * for catalog and legacy single-unit checkout.
+   */
   priceUsd: number;
   /** Local start time HH:MM. */
   startTime: string;
@@ -36,6 +76,18 @@ export interface ListingBookingOption {
   availabilityDateFrom: string;
   /** Activity end YYYY-MM-DD when the offer has a fixed end (e.g. season); empty = no end date / runs ongoing. */
   availabilityDateTo: string;
+  /**
+   * uniform = one price per person (priceUsd).
+   * age_dependent = travelers pick quantities per priceCategories.
+   */
+  pricingMode?: ListingPricingMode;
+  priceCategories?: ListingPriceCategory[];
+  /** Traveler can book this option as a private group. */
+  isPrivate?: boolean;
+  /** How private bookings are priced when isPrivate. */
+  privatePricing?: ListingPrivatePricing;
+  /** Flat buy-out price when privatePricing is flat_group. */
+  privateGroupPriceUsd?: number;
 }
 
 export interface ListingExtras {
@@ -111,6 +163,76 @@ function normalizeWeekdays(raw: unknown): boolean[] {
   return out;
 }
 
+const PRICE_CATEGORY_KINDS: ListingPriceCategoryKind[] = [
+  'adult',
+  'child',
+  'infant',
+  'youth',
+  'senior',
+  'participant',
+];
+
+function normalizeAgeBound(raw: unknown): number | null {
+  if (typeof raw !== 'number' || !Number.isFinite(raw)) return null;
+  const n = Math.floor(raw);
+  if (n < 0 || n > 120) return null;
+  return n;
+}
+
+export function normalizeListingPriceCategory(raw: Record<string, unknown>, fallbackId: string): ListingPriceCategory {
+  const kindRaw = typeof raw.kind === 'string' ? raw.kind.trim().toLowerCase() : '';
+  const kind = (PRICE_CATEGORY_KINDS.includes(kindRaw as ListingPriceCategoryKind)
+    ? kindRaw
+    : 'participant') as ListingPriceCategoryKind;
+  const label =
+    typeof raw.label === 'string' && raw.label.trim()
+      ? raw.label.trim().slice(0, 40)
+      : kind === 'participant'
+        ? 'Participant'
+        : kind.charAt(0).toUpperCase() + kind.slice(1);
+  return {
+    id: typeof raw.id === 'string' && raw.id.trim() ? raw.id.trim() : fallbackId,
+    label,
+    kind,
+    ageMin: normalizeAgeBound(raw.ageMin),
+    ageMax: normalizeAgeBound(raw.ageMax),
+    priceUsd: typeof raw.priceUsd === 'number' && !Number.isNaN(raw.priceUsd) ? Math.max(0, raw.priceUsd) : 0,
+    notPermitted: Boolean(raw.notPermitted),
+    countsTowardCapacity: raw.countsTowardCapacity === false ? false : true,
+    requiresAdult: Boolean(raw.requiresAdult),
+  };
+}
+
+function normalizePriceCategories(raw: unknown): ListingPriceCategory[] | undefined {
+  if (!Array.isArray(raw) || raw.length === 0) return undefined;
+  const out = raw
+    .filter((x) => x != null && typeof x === 'object')
+    .map((x, i) => normalizeListingPriceCategory(x as Record<string, unknown>, `cat-${i}`))
+    .slice(0, 8);
+  return out.length > 0 ? out : undefined;
+}
+
+function syncHeadlinePriceFromCategories(
+  priceUsd: number,
+  pricingMode: ListingPricingMode | undefined,
+  cats: ListingPriceCategory[] | undefined,
+  isPrivate: boolean | undefined,
+  privatePricing: ListingPrivatePricing | undefined,
+  privateGroupPriceUsd: number | undefined
+): number {
+  if (isPrivate && privatePricing === 'flat_group' && typeof privateGroupPriceUsd === 'number' && privateGroupPriceUsd > 0) {
+    return privateGroupPriceUsd;
+  }
+  if (pricingMode === 'age_dependent' && cats?.length) {
+    const usable = cats.filter((c) => !c.notPermitted);
+    const adult = usable.find((c) => c.kind === 'adult' && c.priceUsd > 0);
+    if (adult) return adult.priceUsd;
+    const priced = usable.filter((c) => c.priceUsd > 0).sort((a, b) => b.priceUsd - a.priceUsd);
+    if (priced[0]) return priced[0].priceUsd;
+  }
+  return priceUsd;
+}
+
 export function normalizeListingBookingOption(raw: Record<string, unknown>, fallbackId: string): ListingBookingOption {
   const minP = typeof raw.minPersons === 'number' && raw.minPersons >= 1 ? Math.floor(raw.minPersons) : 1;
   let maxP = typeof raw.maxPersons === 'number' && raw.maxPersons >= minP ? Math.floor(raw.maxPersons) : Math.max(minP, 12);
@@ -118,10 +240,35 @@ export function normalizeListingBookingOption(raw: Record<string, unknown>, fall
     typeof raw.maxSpotsPerSlot === 'number' && raw.maxSpotsPerSlot >= 1
       ? Math.floor(raw.maxSpotsPerSlot)
       : maxP;
-  return {
+  const pricingMode: ListingPricingMode | undefined =
+    raw.pricingMode === 'age_dependent' ? 'age_dependent' : raw.pricingMode === 'uniform' ? 'uniform' : undefined;
+  const priceCategories = normalizePriceCategories(raw.priceCategories);
+  const isPrivate = Boolean(raw.isPrivate);
+  const privatePricing: ListingPrivatePricing | undefined =
+    raw.privatePricing === 'flat_group'
+      ? 'flat_group'
+      : raw.privatePricing === 'per_person'
+        ? 'per_person'
+        : isPrivate
+          ? 'per_person'
+          : undefined;
+  const privateGroupPriceUsd =
+    typeof raw.privateGroupPriceUsd === 'number' && !Number.isNaN(raw.privateGroupPriceUsd)
+      ? Math.max(0, raw.privateGroupPriceUsd)
+      : undefined;
+  let priceUsd = typeof raw.priceUsd === 'number' && !Number.isNaN(raw.priceUsd) ? Math.max(0, raw.priceUsd) : 0;
+  priceUsd = syncHeadlinePriceFromCategories(
+    priceUsd,
+    pricingMode,
+    priceCategories,
+    isPrivate,
+    privatePricing,
+    privateGroupPriceUsd
+  );
+  const out: ListingBookingOption = {
     id: typeof raw.id === 'string' && raw.id.trim() ? raw.id.trim() : fallbackId,
     name: typeof raw.name === 'string' ? raw.name : '',
-    priceUsd: typeof raw.priceUsd === 'number' && !Number.isNaN(raw.priceUsd) ? Math.max(0, raw.priceUsd) : 0,
+    priceUsd,
     startTime: typeof raw.startTime === 'string' ? raw.startTime : '',
     duration: typeof raw.duration === 'string' ? raw.duration : '',
     pickupPlace: typeof raw.pickupPlace === 'string' ? raw.pickupPlace : '',
@@ -133,6 +280,14 @@ export function normalizeListingBookingOption(raw: Record<string, unknown>, fall
     availabilityDateFrom: typeof raw.availabilityDateFrom === 'string' ? raw.availabilityDateFrom : '',
     availabilityDateTo: typeof raw.availabilityDateTo === 'string' ? raw.availabilityDateTo : '',
   };
+  if (pricingMode) out.pricingMode = pricingMode;
+  if (priceCategories) out.priceCategories = priceCategories;
+  if (isPrivate) {
+    out.isPrivate = true;
+    if (privatePricing) out.privatePricing = privatePricing;
+    if (privateGroupPriceUsd != null) out.privateGroupPriceUsd = privateGroupPriceUsd;
+  }
+  return out;
 }
 
 /**
@@ -140,15 +295,18 @@ export function normalizeListingBookingOption(raw: Record<string, unknown>, fall
  * These must not block Continue or publish checks.
  */
 export function isListingBookingOptionEffectivelyEmpty(o: ListingBookingOption): boolean {
+  const hasCats = (o.priceCategories ?? []).some((c) => c.label.trim() || c.priceUsd > 0);
   return (
     !o.name.trim() &&
     o.priceUsd <= 0 &&
+    !hasCats &&
     !o.duration.trim() &&
     !o.pickupPlace.trim() &&
     !o.optionInfo.trim() &&
     !o.startTime.trim() &&
     !o.availabilityDateFrom.trim() &&
-    !o.availabilityDateTo.trim()
+    !o.availabilityDateTo.trim() &&
+    !o.isPrivate
   );
 }
 
