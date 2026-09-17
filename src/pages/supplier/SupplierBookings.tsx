@@ -771,7 +771,9 @@ export default function SupplierBookings() {
                         <p className="mt-1 text-xs font-medium text-red-800">Awaiting traveler cancellation response</p>
                       ) : null}
                     </div>
-                    <span className="tv-btn-ghost shrink-0 pointer-events-none hidden sm:inline-flex">Open</span>
+                    <span className="tv-btn-ghost shrink-0 pointer-events-none inline-flex text-xs sm:text-sm">
+                      Open
+                    </span>
                   </button>
                 </article>
               );
