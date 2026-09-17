@@ -77,7 +77,7 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
       }}
       onClick={onSelect}
       onPointerEnter={prefetchTourDetailsPage}
-      className="group relative bg-paper-raised rounded-2xl overflow-hidden cursor-pointer shadow-none hover:shadow-soft-lg hover:-translate-y-0.5 transition-all duration-300 ease-[cubic-bezier(0.33,1,0.68,1)] motion-safe:animate-fade-in-up focus:outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2"
+      className="group relative bg-paper-raised rounded-2xl overflow-hidden cursor-pointer shadow-soft ring-1 ring-black/[0.06] hover:shadow-soft-lg hover:ring-finland/20 hover:-translate-y-0.5 transition-all duration-300 ease-[cubic-bezier(0.33,1,0.68,1)] motion-safe:animate-fade-in-up focus:outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2"
       style={{ animationDelay: `${Math.min(index * 45, 320)}ms` }}
       aria-label={`View ${tour.title}`}
     >
@@ -102,8 +102,17 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
         ) : null}
         <div className="absolute top-2.5 left-2.5 flex flex-wrap gap-1.5">
           {listingShowsFreeCancellation(tour) && (
-            <span className="bg-white/95 text-ink text-[11px] font-medium px-2 py-0.5 rounded-full">
+            <span className="bg-emerald-50/95 text-emerald-800 text-[11px] font-semibold px-2.5 py-1 rounded-full ring-1 ring-emerald-200/80 shadow-sm">
               Free cancellation
+            </span>
+          )}
+          {isStay ? (
+            <span className="bg-white/95 text-finland text-[11px] font-semibold px-2.5 py-1 rounded-full ring-1 ring-finland/20 shadow-sm">
+              Stay
+            </span>
+          ) : (
+            <span className="bg-white/95 text-finland text-[11px] font-semibold px-2.5 py-1 rounded-full ring-1 ring-finland/20 shadow-sm">
+              Tour
             </span>
           )}
         </div>
