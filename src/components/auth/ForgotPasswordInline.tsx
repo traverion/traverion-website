@@ -1,3 +1,5 @@
+import NoticeCallout from '../NoticeCallout';
+
 export type ForgotPasswordSendResult = { ok: true } | { ok: false; error: string };
 
 type Props = {
@@ -43,7 +45,9 @@ export default function ForgotPasswordInline({
 
       {successMessage ? (
         <div className="space-y-4">
-          <p className="text-sm text-ink">{successMessage}</p>
+          <NoticeCallout title="Check your email" tone="success">
+            {successMessage}
+          </NoticeCallout>
           <button type="button" onClick={onBack} className="tv-btn-primary w-full">
             Done
           </button>
@@ -67,11 +71,15 @@ export default function ForgotPasswordInline({
               aria-invalid={fieldError ? true : undefined}
               aria-describedby={fieldError ? `${emailInputId}-err` : undefined}
             />
-            {fieldError && (
-              <p id={`${emailInputId}-err`} className="mt-1.5 text-sm text-red-800" role="alert">
-                {fieldError}
-              </p>
-            )}
+            {fieldError ? (
+              <div className="mt-2">
+                <NoticeCallout title="Could not send link" tone="danger">
+                  <span id={`${emailInputId}-err`} role="alert">
+                    {fieldError}
+                  </span>
+                </NoticeCallout>
+              </div>
+            ) : null}
           </div>
           <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-1">
             <button type="button" onClick={onBack} disabled={sending} className="tv-btn-ghost disabled:opacity-50">
