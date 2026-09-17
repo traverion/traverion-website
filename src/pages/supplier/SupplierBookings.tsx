@@ -725,6 +725,14 @@ export default function SupplierBookings() {
                       </div>
                       <p className="mt-0.5 text-sm text-ink-muted truncate">{listingTitle}</p>
                       <p className="mt-1 text-sm text-ink-muted">
+                        {typeof booking.booking_number === 'number' && booking.booking_number > 0 ? (
+                          <>
+                            <span className="font-mono text-finland font-semibold tracking-wide">
+                              #{booking.booking_number}
+                            </span>
+                            {' · '}
+                          </>
+                        ) : null}
                         {dateLine}
                         {' · '}
                         {booking.guests} guest{booking.guests === 1 ? '' : 's'}
