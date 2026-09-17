@@ -23,6 +23,8 @@ import {
   SupplierEmptyState,
 } from '../../components/supplier/supplierUi';
 import { formatMoney } from '../../lib/money';
+import StatusChip from '../../components/StatusChip';
+import NoticeCallout from '../../components/NoticeCallout';
 
 function optionLabelForDiscount(tour: TourPackage, d: ListingDiscount): string {
   if (!d.booking_option_id?.trim()) return 'All options';
@@ -145,11 +147,11 @@ export default function SupplierDiscountsOffers() {
         }
       />
 
-      {!canEdit && (
-        <p className="text-sm text-amber-900 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+      {!canEdit ? (
+        <NoticeCallout title="View only" tone="warn">
           Your role can view offers but not create, edit, or delete them.
-        </p>
-      )}
+        </NoticeCallout>
+      ) : null}
 
       {error && (
         <ErrorState
@@ -175,11 +177,11 @@ export default function SupplierDiscountsOffers() {
         />
       ) : (
         <>
-          {publishedCount === 0 && canEdit && (
-            <div className="rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-sm text-amber-950">
+          {publishedCount === 0 && canEdit ? (
+            <NoticeCallout title="Publish a listing first" tone="warn">
               Publish at least one listing to create offers that appear on the public site.
-            </div>
-          )}
+            </NoticeCallout>
+          ) : null}
 
           <div>
             <div className="mb-6 flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1">
@@ -203,15 +205,20 @@ export default function SupplierDiscountsOffers() {
                 }
               />
             ) : (
-              <div className="divide-y divide-black/[0.06]">
+              <div className="space-y-3">
                 {rows.map(({ discount: d, listing }) => {
                   const st = offerStatus(d);
+                  const statusLabel = st === 'active' ? 'Active' : st === 'upcoming' ? 'Upcoming' : 'Ended';
+                  const statusTone = st === 'active' ? 'good' : st === 'upcoming' ? 'info' : 'neutral';
                   const pct =
                     d.type === 'percent'
                       ? `${Math.round(Number(d.value))}%`
                       : formatMoney(Number(d.value), listing.price?.currency);
                   return (
-                    <article key={d.id} className="py-4 w-full min-w-0 max-w-full space-y-3">
+                    <article
+                      key={d.id}
+                      className="rounded-2xl bg-paper-raised p-4 sm:p-5 shadow-soft ring-1 ring-black/[0.06] w-full min-w-0 max-w-full space-y-3"
+                    >
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between min-w-0">
                         <div className="flex gap-3 min-w-0 flex-1">
                           {listing.image?.trim() ? (
@@ -222,7 +229,7 @@ export default function SupplierDiscountsOffers() {
                             />
                           ) : (
                             <div
-                              className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl shrink-0 bg-black/[0.04] flex items-center justify-center text-ink-faint"
+                              className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl shrink-0 bg-finland/10 flex items-center justify-center text-finland"
                               aria-hidden
                             >
                               <MapPin className="w-6 h-6 sm:w-7 sm:h-7" />
@@ -233,9 +240,7 @@ export default function SupplierDiscountsOffers() {
                             <p className="text-sm text-ink-muted mt-1 break-words">{optionLabelForDiscount(listing, d)}</p>
                           </div>
                         </div>
-                        <span className="text-xs font-medium text-ink-muted shrink-0 self-start capitalize">
-                          {st === 'active' ? 'Active' : st === 'upcoming' ? 'Upcoming' : 'Ended'}
-                        </span>
+                        <StatusChip tone={statusTone}>{statusLabel}</StatusChip>
                       </div>
                       <div className="flex flex-col gap-1 text-sm text-ink-muted">
                         <p>
