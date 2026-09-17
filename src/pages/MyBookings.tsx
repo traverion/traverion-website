@@ -325,9 +325,14 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
     return (
       <div className="min-h-screen bg-paper tv-page">
         <div className="max-w-2xl mx-auto px-4 py-12 pb-16">
-          <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Trips</h1>
-          <p className="mt-2 text-ink-muted">Upcoming and past tours you booked.</p>
-          <div className="mt-10 max-w-md">
+          <header className="mb-8 rounded-2xl bg-paper-raised p-5 sm:p-7 shadow-soft ring-1 ring-black/[0.06]">
+            <div className="inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15 mb-3">
+              Your bookings
+            </div>
+            <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Trips</h1>
+            <p className="mt-2 text-sm text-ink-muted">Upcoming and past tours you booked.</p>
+          </header>
+          <div className="max-w-md rounded-2xl bg-paper-raised p-5 shadow-soft ring-1 ring-black/[0.06]">
             <h2 className="font-display text-2xl text-ink">Bookings unavailable</h2>
             <p className="mt-3 text-sm text-ink-muted">
               Booking history is available only in the live app setup.
@@ -336,14 +341,14 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
               <button
                 type="button"
                 onClick={() => onNavigate('packages')}
-                className="px-5 py-2.5 rounded-full bg-finland text-white font-medium hover:bg-finland-dark"
+                className="tv-btn-primary"
               >
                 Browse tours
               </button>
               <button
                 type="button"
                 onClick={() => onNavigate('contact')}
-                className="px-5 py-2.5 rounded-full text-ink-muted hover:text-ink"
+                className="tv-btn-ghost"
               >
                 Contact support
               </button>
@@ -361,10 +366,15 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
     return (
       <div className="min-h-screen bg-paper tv-page">
         <div className="max-w-xl mx-auto px-4 py-12 pb-16">
-          <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Trips</h1>
+          <header className="mb-6 rounded-2xl bg-paper-raised p-5 sm:p-7 shadow-soft ring-1 ring-black/[0.06]">
+            <div className="inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15 mb-3">
+              Your bookings
+            </div>
+            <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Trips</h1>
+          </header>
           <EmptyState
             icon={LogIn}
-            className="pt-6 pb-0"
+            className="pt-2 pb-0"
             title="Log in to see your trips"
             body="Bookings are tied to your traveler account. You have not signed in, so there is nothing to show."
             action={
@@ -388,10 +398,12 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   return (
     <div className="min-h-screen bg-paper tv-page">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-12 pb-16">
-        <div className="mb-8 rounded-3xl bg-finland/[0.04] p-5 sm:p-6 ring-1 ring-finland/10">
+        <div className="mb-8 rounded-2xl bg-paper-raised p-5 sm:p-7 shadow-soft ring-1 ring-black/[0.06]">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
-              <p className="text-[11px] uppercase tracking-[0.16em] text-finland/70 mb-1">Your bookings</p>
+              <div className="inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15 mb-3">
+                Your bookings
+              </div>
               <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Trips</h1>
               <p className="mt-2 text-sm text-ink-muted max-w-md">
                 Upcoming, past, and cancelled tours and stays — with payment and pickup status at a glance.
