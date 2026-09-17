@@ -416,7 +416,7 @@ function App() {
       'legal-notice': { title: 'Legal notice', description: 'Traverion operator information and legal contacts.' },
       affiliate: { title: 'Affiliate program', description: 'Partner with Traverion and earn commissions.' },
       'content-creator': { title: 'Content creators', description: 'Collaborate with Traverion on travel content.' },
-      destination: { title: 'Destination', description: 'Tours and activities in this destination.' },
+      destination: { title: 'Destination', description: 'Tours and stays in this destination from live operators.' },
       'inventory-reserved': {
         title: 'Experiences',
         description: 'Experiences is a reserved category, not mixed into Tours.',

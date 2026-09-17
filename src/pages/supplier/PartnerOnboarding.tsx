@@ -110,7 +110,7 @@ export default function PartnerOnboarding({
                 s.done
                   ? 'bg-emerald-50/60 ring-emerald-200/50'
                   : isNext
-                    ? 'bg-paper-raised ring-finland/25'
+                    ? 'bg-paper-raised ring-2 ring-finland/35 shadow-soft-lg'
                     : 'bg-paper-raised ring-black/[0.06]'
               }`}
             >
