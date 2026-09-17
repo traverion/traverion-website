@@ -110,7 +110,7 @@ export default function TourDatePicker({
             const disabled = state === 'past' || state === 'closed' || state === 'full';
             const cls =
               state === 'selected'
-                ? 'bg-ink text-paper-raised'
+                ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
                 : state === 'closed'
                   ? 'text-ink-faint/45'
                   : state === 'full'
@@ -137,7 +137,7 @@ export default function TourDatePicker({
         </div>
         <p className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-ink-faint">
           <span>
-            <span className="inline-block w-2 h-2 rounded-sm bg-ink align-middle mr-1" />
+            <span className="inline-block w-2 h-2 rounded-sm bg-finland align-middle mr-1" />
             Selected
           </span>
           <span>Open days are clickable. Faded days are not offered. Struck days are fully booked.</span>

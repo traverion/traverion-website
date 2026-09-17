@@ -4,7 +4,6 @@ import {
   MapPin,
   Users,
   Star,
-  Clock,
   Shield,
   Share2,
   CheckCircle,
@@ -78,6 +77,28 @@ import { formatMoney, normalizeCurrency } from '../lib/money';
 import { PriceHero } from '../components/PriceBreakdown';
 import NoticeCallout from '../components/NoticeCallout';
 
+function experienceLanguageLabel(code: string): string {
+  const labels: Record<string, string> = {
+    en: 'English',
+    es: 'Spanish',
+    fr: 'French',
+    de: 'German',
+    it: 'Italian',
+    pt: 'Portuguese',
+    fi: 'Finnish',
+    sv: 'Swedish',
+    nl: 'Dutch',
+    ja: 'Japanese',
+    zh: 'Chinese',
+    ko: 'Korean',
+    ar: 'Arabic',
+    hi: 'Hindi',
+    ru: 'Russian',
+  };
+  const key = code.trim().toLowerCase();
+  return labels[key] ?? code.trim();
+}
+
 function readSearchPrefill(): { date: string; guests: number } {
   if (typeof window === 'undefined') return { date: '', guests: 1 };
   const p = new URLSearchParams(window.location.search);
@@ -129,6 +150,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   const [selectedBookingVariant, setSelectedBookingVariant] = useState<TourBookingVariant | null>(null);
   const [participantMix, setParticipantMix] = useState<ParticipantMixSelection>({});
   const [variantChecking, setVariantChecking] = useState(false);
+  const [galleryLightboxOpen, setGalleryLightboxOpen] = useState(false);
   const [optionsAttentionPulse, setOptionsAttentionPulse] = useState(false);
   const [savedToWishlist, setSavedToWishlist] = useState(false);
   const [wishlistBusy, setWishlistBusy] = useState(false);
@@ -431,6 +453,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     }
     setBookingCardError(null);
     setSelectedBookingVariant(variant);
+    setBookingVariantsOpen(false);
     if (optionUsesAgePricing(variant.listingOption)) {
       setParticipantMix(emptyMixSelection(variant.listingOption!));
     } else {
@@ -586,154 +609,218 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
 
   return (
     <div className="min-h-screen bg-paper tv-page pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-0">
-      <section className="relative">
-        <div className="relative h-[28rem] lg:h-[70vh]">
-            <div
-              className={`absolute inset-0 bg-cover bg-center transition-all duration-1000 ${hasGallery ? '' : 'bg-ink/20'}`}
-              style={hasGallery ? { backgroundImage: `url(${images[Math.min(selectedImage, images.length - 1)]})` } : undefined}
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/20" />
-            <div className="absolute top-4 left-4 right-4 z-10 flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6">
+        <div className="flex items-center justify-between gap-3 mb-4 sm:mb-5">
+          <button
+            type="button"
+            onClick={onBack}
+            className="lux-flat inline-flex h-11 min-w-[2.75rem] items-center justify-center gap-2 rounded-full bg-paper-raised px-3.5 text-sm font-medium text-ink ring-1 ring-black/[0.06] hover:bg-black/[0.03]"
+          >
+            <ArrowLeft className="w-4 h-4" aria-hidden />
+            Tours
+          </button>
+          <div className="flex items-center gap-2">
+            {isSupabaseListingId(tour.id) && isSupabaseConfigured() ? (
               <button
                 type="button"
-                onClick={onBack}
-                    className="lux-flat inline-flex h-11 min-w-[2.75rem] items-center justify-center gap-2 rounded-full bg-black/35 px-3.5 text-sm font-medium text-white backdrop-blur-sm hover:bg-black/50"
+                className="lux-flat inline-flex h-11 w-11 items-center justify-center rounded-full bg-paper-raised text-ink ring-1 ring-black/[0.06] hover:bg-black/[0.03] disabled:opacity-60"
+                aria-label={savedToWishlist ? 'Remove from saved tours' : 'Save this tour'}
+                aria-pressed={savedToWishlist}
+                disabled={wishlistBusy}
+                onClick={handleToggleWishlist}
               >
-                <ArrowLeft className="w-4 h-4" />
-                Tours
+                <Heart
+                  size={18}
+                  className={`${savedToWishlist ? 'fill-finland text-finland' : ''} ${savePop ? 'tv-pop' : ''}`}
+                />
               </button>
-              <div className="flex items-center gap-2">
-                {isSupabaseListingId(tour.id) && isSupabaseConfigured() ? (
-                  <button
-                    type="button"
-                    className="lux-flat inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur-sm hover:bg-black/50 disabled:opacity-60"
-                    aria-label={savedToWishlist ? 'Remove from saved tours' : 'Save this tour'}
-                    aria-pressed={savedToWishlist}
-                    disabled={wishlistBusy}
-                    onClick={handleToggleWishlist}
-                  >
-                    <Heart
-                      size={18}
-                      className={`${savedToWishlist ? 'fill-white' : ''} ${savePop ? 'tv-pop' : ''}`}
-                    />
-                  </button>
-                ) : null}
+            ) : null}
+            <button
+              type="button"
+              className="lux-flat inline-flex h-11 w-11 items-center justify-center rounded-full bg-paper-raised text-ink ring-1 ring-black/[0.06] hover:bg-black/[0.03]"
+              aria-label={shareCopied ? 'Link copied' : 'Share'}
+              onClick={() => {
+                const url = window.location.href;
+                const title = tour.title;
+                const done = () => {
+                  setShareCopied(true);
+                  window.setTimeout(() => setShareCopied(false), 1400);
+                };
+                if (navigator.share) {
+                  void navigator.share({ title, url }).then(done).catch(() => {});
+                } else if (navigator.clipboard?.writeText) {
+                  void navigator.clipboard.writeText(url).then(done);
+                }
+              }}
+            >
+              {shareCopied ? <CheckCircle size={18} className="tv-pop text-finland" /> : <Share2 size={18} />}
+            </button>
+          </div>
+        </div>
+
+        <header className="mb-5 sm:mb-6 max-w-3xl">
+          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink-muted mb-2">
+            <span className="inline-flex items-center gap-1.5">
+              <MapPin size={14} className="shrink-0 text-finland" aria-hidden />
+              {tour.destination}
+            </span>
+            {review.score ? (
+              <>
+                <span className="text-ink-faint" aria-hidden>
+                  ·
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <Star size={14} className="text-finland fill-finland shrink-0" aria-hidden />
+                  <strong className="text-ink tabular-nums">{review.score}</strong>
+                  <span>
+                    ({review.count} {review.count === 1 ? 'review' : 'reviews'})
+                  </span>
+                </span>
+              </>
+            ) : null}
+            {supplierLegal?.operatorName ? (
+              <>
+                <span className="text-ink-faint" aria-hidden>
+                  ·
+                </span>
+                <span>Hosted by {supplierLegal.operatorName}</span>
+              </>
+            ) : null}
+          </p>
+          <h1 className="font-display text-3xl sm:text-4xl lg:text-[2.75rem] text-ink tracking-tight leading-[1.15]">
+            {tour.title}
+          </h1>
+          {tour.subtitle?.trim() ? (
+            <p className="mt-2 text-base sm:text-lg text-ink-muted leading-snug">{tour.subtitle.trim()}</p>
+          ) : null}
+        </header>
+
+        <div className="mb-6 sm:mb-8">
+          {hasGallery ? (
+            <div className="grid grid-cols-1 gap-2 sm:gap-3 lg:grid-cols-4 lg:grid-rows-2 lg:min-h-[22rem]">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedImage(0);
+                  setGalleryLightboxOpen(true);
+                }}
+                className="relative overflow-hidden rounded-2xl bg-ink/10 lg:col-span-2 lg:row-span-2 aspect-[4/3] lg:aspect-auto focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-finland"
+                aria-label={`Open gallery, photo 1 of ${images.length}`}
+              >
+                <img
+                  src={images[0]}
+                  alt=""
+                  className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 hover:scale-[1.02]"
+                />
+              </button>
+              {images.slice(1, 5).map((img, i) => (
                 <button
+                  key={img}
                   type="button"
-                  className="lux-flat inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur-sm hover:bg-black/50"
-                  aria-label={shareCopied ? 'Link copied' : 'Share'}
                   onClick={() => {
-                    const url = window.location.href;
-                    const title = tour.title;
-                    const done = () => {
-                      setShareCopied(true);
-                      window.setTimeout(() => setShareCopied(false), 1400);
-                    };
-                    if (navigator.share) {
-                      void navigator.share({ title, url }).then(done).catch(() => {});
-                    } else if (navigator.clipboard?.writeText) {
-                      void navigator.clipboard.writeText(url).then(done);
-                    }
+                    setSelectedImage(i + 1);
+                    setGalleryLightboxOpen(true);
                   }}
+                  className="relative hidden overflow-hidden rounded-xl bg-ink/10 aspect-[4/3] lg:block focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-finland"
+                  aria-label={`Open gallery, photo ${i + 2} of ${images.length}`}
                 >
-                  {shareCopied ? <CheckCircle size={18} className="tv-pop" /> : <Share2 size={18} />}
-                </button>
-              </div>
-            </div>
-            
-            {images.length > 1 ? (
-            <div className="absolute bottom-4 left-4 right-4 flex space-x-2 overflow-x-auto">
-              {images.map((img, index) => (
-                <button
-                  key={index}
-                  type="button"
-                  onClick={() => setSelectedImage(index)}
-                  aria-label={`Photo ${index + 1} of ${images.length}`}
-                  aria-current={selectedImage === index ? 'true' : undefined}
-                  className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-[transform,border-color,box-shadow] duration-200 ${
-                    selectedImage === index
-                      ? 'border-white shadow-lg scale-105'
-                      : 'border-white/50 hover:border-white/80'
-                  }`}
-                >
-                  <img src={img} alt="" className="w-full h-full object-cover" />
+                  <img src={img} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                  {i === 3 && images.length > 5 ? (
+                    <span className="absolute inset-0 flex items-center justify-center bg-ink/45 text-sm font-semibold text-white">
+                      +{images.length - 5} more
+                    </span>
+                  ) : null}
                 </button>
               ))}
+              {images.length > 1 ? (
+                <div className="flex gap-2 overflow-x-auto pb-1 lg:hidden -mx-1 px-1 snap-x snap-mandatory">
+                  {images.map((img, index) => (
+                    <button
+                      key={`m-${index}`}
+                      type="button"
+                      onClick={() => {
+                        setSelectedImage(index);
+                        setGalleryLightboxOpen(true);
+                      }}
+                      className={`relative shrink-0 snap-start overflow-hidden rounded-xl ${
+                        index === 0 ? 'hidden' : 'w-[42%] aspect-[4/3]'
+                      }`}
+                      aria-label={`Photo ${index + 1} of ${images.length}`}
+                    >
+                      <img src={img} alt="" className="h-full w-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              ) : null}
             </div>
-            ) : null}
+          ) : (
+            <div className="aspect-[21/9] rounded-2xl bg-ink/10" />
+          )}
+          {hasGallery ? (
+            <div className="mt-2 flex items-center justify-between gap-3">
+              <p className="text-xs text-ink-muted tabular-nums">
+                {images.length} {images.length === 1 ? 'photo' : 'photos'}
+              </p>
+              <button
+                type="button"
+                onClick={() => setGalleryLightboxOpen(true)}
+                className="text-xs font-semibold text-finland hover:underline"
+              >
+                View all photos
+              </button>
+            </div>
+          ) : null}
         </div>
-      </section>
 
-      {/* Content + Sticky booking widget */}
-      <section className="bg-paper py-8">
+        <dl className="mb-8 grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+          <div className="rounded-xl bg-paper-raised px-3.5 py-3 ring-1 ring-black/[0.05]">
+            <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">Duration</dt>
+            <dd className="mt-1 text-sm font-medium text-ink">{formatTourDurationDisplay(tour.duration)}</dd>
+          </div>
+          {tour.groupSize?.trim() && !/option/i.test(tour.groupSize) ? (
+            <div className="rounded-xl bg-paper-raised px-3.5 py-3 ring-1 ring-black/[0.05]">
+              <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">Group size</dt>
+              <dd className="mt-1 text-sm font-medium text-ink">{tour.groupSize.trim()}</dd>
+            </div>
+          ) : null}
+          {tour.experienceLanguage?.trim() ? (
+            <div className="rounded-xl bg-paper-raised px-3.5 py-3 ring-1 ring-black/[0.05]">
+              <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">Language</dt>
+              <dd className="mt-1 text-sm font-medium text-ink">
+                {experienceLanguageLabel(tour.experienceLanguage)}
+              </dd>
+            </div>
+          ) : null}
+          <div className="rounded-xl bg-paper-raised px-3.5 py-3 ring-1 ring-black/[0.05]">
+            <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
+              {tour.experienceStartStyle === 'operator_pickup' ? 'Pickup' : 'Meeting'}
+            </dt>
+            <dd className="mt-1 text-sm font-medium text-ink">
+              {tour.experienceStartStyle === 'operator_pickup'
+                ? 'Included'
+                : tour.experienceStartStyle === 'fixed_meeting_place'
+                  ? 'Meeting point'
+                  : tour.experienceStartStyle === 'either_available'
+                    ? 'Pickup or meet'
+                    : tour.meetingPoint?.trim()
+                      ? 'See details'
+                      : 'Confirmed after booking'}
+            </dd>
+          </div>
+          {listingShowsFreeCancellation(tour) ? (
+            <div className="rounded-xl bg-emerald-50/80 px-3.5 py-3 ring-1 ring-emerald-200/60 col-span-2 sm:col-span-1">
+              <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-emerald-800">Cancellation</dt>
+              <dd className="mt-1 text-sm font-medium text-emerald-950">Free within policy</dd>
+            </div>
+          ) : null}
+        </dl>
+      </div>
+
+      <section className="bg-paper pb-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Left: Title + description + stats (no pricing/CTA here on desktop; they're in sidebar) */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-10">
             <div className="lg:col-span-2 space-y-8">
-              <div className="rounded-2xl bg-paper-raised p-5 sm:p-7 shadow-soft ring-1 ring-black/[0.06]">
-                <h1 className="font-display text-3xl lg:text-5xl text-ink tracking-tight mb-3">{tour.title}</h1>
-                {tour.subtitle?.trim() && (
-                  <p className="text-lg text-ink-muted mb-4 leading-snug">{tour.subtitle.trim()}</p>
-                )}
-                <p className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-ink-muted mb-6">
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-finland/10 px-2.5 py-1 text-finland ring-1 ring-finland/15">
-                    <MapPin size={14} className="shrink-0" aria-hidden />
-                    {tour.destination}
-                  </span>
-                  {review.score ? (
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-paper px-2.5 py-1 ring-1 ring-black/[0.06] shadow-soft">
-                      <Star size={14} className="text-finland fill-finland shrink-0" aria-hidden />
-                      <strong className="text-ink">{review.score}</strong>
-                      <span>
-                        {review.count} {review.count === 1 ? 'review' : 'reviews'}
-                      </span>
-                    </span>
-                  ) : null}
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-paper px-2.5 py-1 ring-1 ring-black/[0.06] shadow-soft">
-                    <Clock size={14} className="shrink-0 text-finland" aria-hidden />
-                    {formatTourDurationDisplay(tour.duration)}
-                  </span>
-                  {tour.groupSize?.trim() ? (
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-paper px-2.5 py-1 ring-1 ring-black/[0.06] shadow-soft">
-                      <Users size={14} className="shrink-0 text-finland" aria-hidden />
-                      {tour.groupSize}
-                    </span>
-                  ) : null}
-                  {tour.experienceLanguage?.trim() ? (
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-paper px-2.5 py-1 ring-1 ring-black/[0.06] shadow-soft">
-                      {({
-                        en: 'English',
-                        es: 'Spanish',
-                        fr: 'French',
-                        de: 'German',
-                        it: 'Italian',
-                        pt: 'Portuguese',
-                        fi: 'Finnish',
-                        sv: 'Swedish',
-                      } as Record<string, string>)[tour.experienceLanguage.trim().toLowerCase()] ??
-                        tour.experienceLanguage.trim()}
-                    </span>
-                  ) : null}
-                  {tour.meetingPoint?.trim() ? (
-                    <span className="inline-flex items-center gap-1.5 truncate max-w-[18rem] rounded-full bg-paper px-2.5 py-1 ring-1 ring-black/[0.06] shadow-soft" title={tour.meetingPoint.trim()}>
-                      {tour.meetingPoint.trim()}
-                    </span>
-                  ) : null}
-                  {(() => {
-                    const { price, qualifier, summary } = getDisplayPriceForTour(tour, discountsByListing);
-                    const currency = normalizeCurrency(tour.price?.currency);
-                    const unit = qualifier ? `per ${qualifier}` : 'per person';
-                    return (
-                      <span className="inline-flex items-center rounded-full bg-finland px-2.5 py-1 text-white font-semibold tabular-nums shadow-sm ring-1 ring-finland/30">
-                        From {formatMoney(Number(price), currency)}
-                        <span className="ml-1 font-medium text-white/80"> {unit}</span>
-                        {summary ? (
-                          <span className="ml-2 font-medium text-white/80">{summary}</span>
-                        ) : null}
-                      </span>
-                    );
-                  })()}
-                </p>
+              <div>
                 <h2 className="font-display text-2xl text-ink mb-3">What you’ll do</h2>
                 <p className="text-ink leading-relaxed text-[15px]">{tour.description}</p>
               </div>
@@ -1207,6 +1294,115 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                       </NoticeCallout>
                     ) : null}
                   </div>
+                  {bookingVariantsOpen || selectedBookingVariant ? (
+                  <div
+                    ref={optionsSectionRef}
+                    id="tour-booking-variants-list"
+                    role="listbox"
+                    aria-label="Tour options"
+                    className={`overflow-hidden transition-all duration-300 ease-out motion-reduce:transition-none ${
+                      bookingVariantsOpen
+                        ? `max-h-[28rem] opacity-100 ${
+                            optionsAttentionPulse ? 'ring-1 ring-finland/25 rounded-2xl' : ''
+                          }`
+                        : 'max-h-0 opacity-0 pointer-events-none'
+                    }`}
+                    hidden={!bookingVariantsOpen}
+                    aria-hidden={!bookingVariantsOpen}
+                  >
+                    <p className="px-0.5 pb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
+                      Choose your option
+                    </p>
+                    <ul className="max-h-[22rem] space-y-2 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]">
+                      {tourVariants.map((v) => {
+                        const dayErr =
+                          v.listingOption && bookingDate.trim()
+                            ? optionRunsOnDate(v.listingOption, bookingDate.trim())
+                            : null;
+                        const selected = selectedBookingVariant?.id === v.id;
+                        const opt = v.listingOption;
+                        const groupLine =
+                          opt && opt.minPersons && opt.maxPersons
+                            ? opt.minPersons === opt.maxPersons
+                              ? `${opt.maxPersons} guests`
+                              : `${opt.minPersons}–${opt.maxPersons} guests`
+                            : null;
+                        return (
+                        <li key={v.id} role="option" aria-disabled={Boolean(dayErr)} aria-selected={selected}>
+                          <button
+                            type="button"
+                            disabled={Boolean(dayErr)}
+                            className={`w-full px-3.5 py-3.5 text-left rounded-xl ring-1 transition-all sm:py-4 ${
+                              dayErr
+                                ? 'opacity-50 cursor-not-allowed ring-black/[0.04]'
+                                : selected
+                                  ? 'bg-finland/[0.08] shadow-sm ring-2 ring-finland'
+                                  : 'bg-paper ring-black/[0.08] hover:bg-finland/5 hover:ring-finland/35 active:bg-finland/10'
+                            }`}
+                            onClick={() => handleSelectTourVariant(v)}
+                          >
+                            <span className="flex items-start gap-3">
+                              <span
+                                className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
+                                  selected
+                                    ? 'border-finland bg-finland text-white'
+                                    : 'border-black/20 bg-paper'
+                                }`}
+                                aria-hidden
+                              >
+                                {selected ? (
+                                  <CheckCircle className="h-3.5 w-3.5" />
+                                ) : null}
+                              </span>
+                              <span className="min-w-0 flex-1">
+                                <span className="flex items-start justify-between gap-3">
+                                  <span className="font-semibold text-ink">{v.label}</span>
+                                  <span className="text-sm font-semibold tabular-nums shrink-0 text-ink">
+                                    {optionUsesAgePricing(opt)
+                                      ? summarizeOptionPricing(opt!, (n) => formatMoney(n, tour.price?.currency))
+                                      : (
+                                        <>
+                                          {formatMoney(v.pricePerPerson, tour.price?.currency)}
+                                          <span className="block text-right text-xs font-normal text-ink-muted">
+                                            {optionUsesPrivateFlatPrice(opt) ? 'private group' : 'per person'}
+                                          </span>
+                                        </>
+                                      )}
+                                  </span>
+                                </span>
+                                {opt ? (
+                                  <span className="mt-1.5 block text-xs text-ink-muted">
+                                    {[
+                                      opt.duration.trim() || null,
+                                      groupLine,
+                                      opt.startTime.trim() ? `Starts ${opt.startTime}` : null,
+                                      opt.isPrivate ? 'Private' : null,
+                                      opt.pickupPlace.trim() || null,
+                                    ]
+                                      .filter(Boolean)
+                                      .join(' · ')}
+                                  </span>
+                                ) : null}
+                                {opt?.optionInfo?.trim() ? (
+                                  <span className="mt-1 block text-xs leading-snug text-ink-muted">
+                                    {opt.optionInfo.trim()}
+                                  </span>
+                                ) : v.subtitle ? (
+                                  <span className="mt-1 block text-xs leading-snug text-ink-muted">
+                                    {v.subtitle}
+                                  </span>
+                                ) : null}
+                                {dayErr ? <span className="mt-1 block text-xs text-red-700">{dayErr}</span> : null}
+                              </span>
+                            </span>
+                          </button>
+                        </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                  ) : null}
+
                   <div className="mt-3 space-y-1.5 text-xs text-ink-muted">
                     <p className="flex items-center gap-2">
                       <CheckCircle className="w-3.5 h-3.5 text-finland flex-shrink-0" />{' '}
@@ -1225,96 +1421,6 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
               </div>
             </div>
           </div>
-          {canBook ? (
-          <div
-            ref={optionsSectionRef}
-            id="tour-booking-variants-list"
-            role="listbox"
-            aria-label="Tour options"
-            className={`mt-4 lg:mt-6 overflow-hidden transition-all duration-300 ease-out motion-reduce:transition-none ${
-              bookingVariantsOpen
-                ? `max-h-[32rem] opacity-100 translate-y-0 ${
-                    optionsAttentionPulse ? 'ring-1 ring-finland/25 rounded-2xl' : ''
-                  }`
-                : 'max-h-0 opacity-0 -translate-y-2 pointer-events-none'
-            }`}
-            hidden={!bookingVariantsOpen}
-            aria-hidden={!bookingVariantsOpen}
-          >
-            <div className="px-1 pt-2 pb-1 text-[11px] uppercase tracking-[0.16em] text-ink-faint">Choose your option</div>
-            <ul className="max-h-[24rem] overflow-y-auto overscroll-contain py-1 [scrollbar-gutter:stable]">
-              {tourVariants.map((v) => {
-                const dayErr =
-                  v.listingOption && bookingDate.trim()
-                    ? optionRunsOnDate(v.listingOption, bookingDate.trim())
-                    : null;
-                const selected = selectedBookingVariant?.id === v.id;
-                const opt = v.listingOption;
-                const groupLine =
-                  opt && opt.minPersons && opt.maxPersons
-                    ? opt.minPersons === opt.maxPersons
-                      ? `${opt.maxPersons} guests`
-                      : `${opt.minPersons}–${opt.maxPersons} guests`
-                    : null;
-                return (
-                <li key={v.id} role="option" aria-disabled={Boolean(dayErr)} aria-selected={selected}>
-                  <button
-                    type="button"
-                    disabled={Boolean(dayErr)}
-                    className={`w-full px-4 py-3.5 text-left rounded-xl ring-1 transition-colors sm:py-4 ${
-                      dayErr
-                        ? 'opacity-50 cursor-not-allowed ring-black/[0.04]'
-                        : selected
-                          ? 'bg-finland text-white shadow-sm ring-finland/40'
-                          : 'ring-black/[0.08] hover:bg-finland/5 hover:ring-finland/30 active:bg-finland/10'
-                    }`}
-                    onClick={() => handleSelectTourVariant(v)}
-                  >
-                    <span className="flex items-start justify-between gap-3">
-                      <span className={`font-semibold ${selected ? 'text-white' : 'text-ink'}`}>{v.label}</span>
-                      <span className={`text-sm font-semibold tabular-nums shrink-0 ${selected ? 'text-white' : 'text-ink'}`}>
-                        {optionUsesAgePricing(opt)
-                          ? summarizeOptionPricing(opt!, (n) => formatMoney(n, tour.price?.currency))
-                          : (
-                            <>
-                              {formatMoney(v.pricePerPerson, tour.price?.currency)}
-                              <span className={`block text-right text-xs font-normal ${selected ? 'text-white/75' : 'text-ink-muted'}`}>
-                                {optionUsesPrivateFlatPrice(opt) ? 'private group' : 'per person'}
-                              </span>
-                            </>
-                          )}
-                      </span>
-                    </span>
-                    {opt ? (
-                      <span className={`mt-1.5 block text-xs ${selected ? 'text-white/75' : 'text-ink-muted'}`}>
-                        {[
-                          opt.duration.trim() || null,
-                          groupLine,
-                          opt.startTime.trim() ? `Starts ${opt.startTime}` : null,
-                          opt.pickupPlace.trim() || null,
-                          `Runs ${formatOptionWeekdays(opt.weekdays)}`,
-                        ]
-                          .filter(Boolean)
-                          .join(' · ')}
-                      </span>
-                    ) : null}
-                    {opt?.optionInfo?.trim() ? (
-                      <span className={`mt-1 block text-xs leading-snug ${selected ? 'text-white/80' : 'text-ink-muted'}`}>
-                        {opt.optionInfo.trim()}
-                      </span>
-                    ) : v.subtitle ? (
-                      <span className={`mt-1 block text-xs leading-snug ${selected ? 'text-white/80' : 'text-ink-muted'}`}>
-                        {v.subtitle}
-                      </span>
-                    ) : null}
-                    {dayErr ? <span className="mt-1 block text-xs text-red-200">{dayErr}</span> : null}
-                  </button>
-                </li>
-                );
-              })}
-            </ul>
-          </div>
-          ) : null}
         </div>
       </section>
 
@@ -1480,13 +1586,63 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
             >
               {variantChecking
                 ? 'Checking…'
-                : !bookingDate.trim()
-                  ? 'Pick a date'
-                  : bookingVariantsOpen
-                    ? 'Choose option'
-                    : 'See options'}
+                : selectedBookingVariant
+                  ? 'Continue'
+                  : !bookingDate.trim()
+                    ? 'Pick a date'
+                    : bookingVariantsOpen
+                      ? 'Choose option'
+                      : 'See options'}
             </button>
           </div>
+        </div>
+      ) : null}
+
+
+      {galleryLightboxOpen && hasGallery ? (
+        <div
+          className="fixed inset-0 z-[80] flex flex-col bg-ink/90"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Photo gallery"
+        >
+          <div className="flex items-center justify-between gap-3 px-4 py-3 text-white">
+            <p className="text-sm tabular-nums">
+              {Math.min(selectedImage, images.length - 1) + 1} / {images.length}
+            </p>
+            <button
+              type="button"
+              className="tv-btn-ghost text-white hover:bg-white/10"
+              onClick={() => setGalleryLightboxOpen(false)}
+            >
+              Close
+            </button>
+          </div>
+          <div className="relative flex flex-1 items-center justify-center px-4 pb-6">
+            <img
+              src={images[Math.min(selectedImage, images.length - 1)]}
+              alt=""
+              className="max-h-[min(78vh,900px)] max-w-full rounded-lg object-contain"
+            />
+          </div>
+          {images.length > 1 ? (
+            <div className="flex justify-center gap-2 overflow-x-auto px-4 pb-6">
+              {images.map((img, index) => (
+                <button
+                  key={`lb-${index}`}
+                  type="button"
+                  onClick={() => setSelectedImage(index)}
+                  aria-label={`Photo ${index + 1}`}
+                  aria-current={selectedImage === index ? 'true' : undefined}
+                  className={`h-14 w-14 shrink-0 overflow-hidden rounded-lg ring-2 ${
+                    selectedImage === index ? 'ring-white' : 'ring-transparent opacity-70 hover:opacity-100'
+                  }`}
+                >
+                  <img src={img} alt="" className="h-full w-full object-cover" />
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
       ) : null}
 
