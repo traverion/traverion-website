@@ -183,8 +183,11 @@ function ProfileSection({
   children: React.ReactNode;
 }) {
   return (
-    <section id={id} className="space-y-4">
+    <section id={id} className="space-y-4 rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]">
       <div>
+        <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15">
+          Settings
+        </div>
         <h2 className="font-display text-2xl text-ink tracking-tight">{title}</h2>
         {description ? <p className="mt-1 text-sm text-ink-muted leading-relaxed">{description}</p> : null}
       </div>
@@ -459,8 +462,10 @@ function BusinessProfilePage(p: Props) {
   const displayName = p.companyLegalName.trim() || p.operatorDisplayName || 'Your business';
 
   const profileTabClass = (active: boolean) =>
-    `lux-flat rounded-full px-3.5 py-1.5 text-sm font-medium ${
-      active ? 'bg-paper-raised text-ink shadow-sm' : 'text-ink-muted'
+    `lux-flat rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
+      active
+        ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
+        : 'text-ink-muted hover:bg-finland/10 hover:text-finland'
     }`;
 
   return (
@@ -473,7 +478,7 @@ function BusinessProfilePage(p: Props) {
           {busChip.label}
           {payChip ? ` · ${payChip.label}` : ''}
         </p>
-        <nav className="mt-6 flex gap-1 rounded-full bg-black/[0.04] p-1 w-fit" aria-label="Business profile sections">
+        <nav className="mt-6 flex gap-1 rounded-full bg-paper-raised p-1 w-fit shadow-soft ring-1 ring-black/[0.06]" aria-label="Business profile sections">
           <button
             type="button"
             className={profileTabClass(p.businessProfileTab === 'company')}
