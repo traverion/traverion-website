@@ -24,6 +24,7 @@ import { fetchConsumerProfile } from '../../data/supabase-consumer-profile';
 import { isValidEmailFormat } from '../../lib/authFormValidation';
 import ForgotPasswordInline, { type ForgotPasswordSendResult } from '../../components/auth/ForgotPasswordInline';
 import { AUTH_CONFIRMATION_EMAIL_REQUESTED, AUTH_PASSWORD_RESET_REQUESTED } from '../../lib/booking-confirmation-copy';
+import NoticeCallout from '../../components/NoticeCallout';
 
 /** Fire-and-forget welcome email (Edge Function dedupes via welcome_email_sent_at). */
 function sendSupplierWelcomeEmail(userId: string): void {
@@ -486,16 +487,31 @@ export default function SupplierAuth({
             />
           ) : (
           <form noValidate onSubmit={handleSubmit} className={`${compact ? 'space-y-4' : 'p-6 sm:p-8 space-y-4 sm:space-y-5'} motion-safe:animate-fade-in`} key={mode}>
-            {fieldErrors.form && (
-              <p className="text-sm text-red-800" role="alert">
+            {fieldErrors.form ? (
+              <NoticeCallout title="Could not continue" tone="danger">
                 {fieldErrors.form}
-              </p>
-            )}
-            {successMessage && (
-              <p className="text-sm text-ink" role="status">
+              </NoticeCallout>
+            ) : null}
+            {successMessage ? (
+              <NoticeCallout
+                title="Check your email"
+                tone="success"
+                action={
+                  mode === 'signin' && successMessage.toLowerCase().includes('confirm') ? (
+                    <button
+                      type="button"
+                      onClick={handleResendConfirmation}
+                      disabled={resendSending}
+                      className="tv-btn-secondary w-full disabled:opacity-50"
+                    >
+                      {resendSending ? 'Resending confirmation…' : 'Resend confirmation email'}
+                    </button>
+                  ) : undefined
+                }
+              >
                 {successMessage}
-              </p>
-            )}
+              </NoticeCallout>
+            ) : null}
             <div>
               <label className="block text-[11px] font-medium uppercase tracking-wide text-ink-muted mb-1.5" htmlFor="supplier-auth-email">
                 Email
@@ -679,16 +695,6 @@ export default function SupplierAuth({
                   </p>
                 )}
               </div>
-            )}
-            {mode === 'signin' && successMessage && successMessage.toLowerCase().includes('confirm') && (
-              <button
-                type="button"
-                onClick={handleResendConfirmation}
-                disabled={resendSending}
-                className="tv-btn-secondary w-full disabled:opacity-50"
-              >
-                {resendSending ? 'Resending confirmation…' : 'Resend confirmation email'}
-              </button>
             )}
             <button
               type="submit"
