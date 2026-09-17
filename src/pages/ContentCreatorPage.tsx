@@ -5,6 +5,7 @@ import { buildInquiryEmailSubject } from '../lib/contactEmailSubject';
 import { PARTNERSHIP_FORM_THANK_YOU, PARTNERSHIP_FORM_SUCCESS_HEADING, PARTNERSHIP_FORM_SUBMIT_ERROR } from '../lib/booking-confirmation-copy';
 import { CONTACT_PRESETS, takeContactPrefill } from '../lib/contactPrefill';
 import { required, validateEmail, maxLength } from '../lib/validation';
+import NoticeCallout from '../components/NoticeCallout';
 
 type ContentCreatorPageProps = {
   onNavigate?: (page: string) => void;
@@ -99,19 +100,24 @@ export default function ContentCreatorPage({ onNavigate }: ContentCreatorPagePro
       onNavigate={onNavigate}
     >
       {isSubmitted ? (
-        <div>
-          <h2>{PARTNERSHIP_FORM_SUCCESS_HEADING}</h2>
-          <p>{PARTNERSHIP_FORM_THANK_YOU}</p>
+        <div className="max-w-lg rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]">
+          <NoticeCallout title={PARTNERSHIP_FORM_SUCCESS_HEADING} tone="success">
+            {PARTNERSHIP_FORM_THANK_YOU}
+          </NoticeCallout>
         </div>
       ) : (
         <>
-          <p>For bookings and trip questions, use Contact in the footer — not this form.</p>
+          <div className="max-w-lg mb-6 rounded-2xl bg-finland/8 px-4 py-3 ring-1 ring-finland/15">
+            <p className="text-sm text-ink leading-relaxed">
+              For bookings and trip questions, use Contact in the footer — not this form.
+            </p>
+          </div>
           <form noValidate onSubmit={(e) => void handleSubmit(e)} className="space-y-4 max-w-lg">
-            {fieldErrors.form && (
-              <p className="text-sm text-red-800" role="alert">
+            {fieldErrors.form ? (
+              <NoticeCallout title="Could not submit application" tone="danger">
                 {fieldErrors.form}
-              </p>
-            )}
+              </NoticeCallout>
+            ) : null}
             <div>
               <label htmlFor="cc-name" className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">
                 Name
