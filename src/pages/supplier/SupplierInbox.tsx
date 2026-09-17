@@ -150,18 +150,19 @@ export default function SupplierInbox() {
                     window.history.replaceState({}, '', `${url.pathname}${url.search}`);
                   }}
                 >
-                  <div className="flex items-baseline justify-between gap-3">
-                    <p className="font-semibold text-ink truncate">
-                      {b.guest_name?.trim() || 'Traveler'} · {titles[b.listing_id] ?? 'Listing'}
-                    </p>
-                    <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-ink truncate">{b.guest_name?.trim() || 'Traveler'}</p>
+                      <p className="mt-0.5 text-sm text-ink-muted truncate">{titles[b.listing_id] ?? 'Listing'}</p>
+                    </div>
+                    <div className="flex flex-wrap items-center justify-end gap-1.5 shrink-0 max-w-[45%]">
                       {unread ? <StatusChip tone="warn">Unread</StatusChip> : null}
                       {showMoneyChip ? (
                         <StatusChip tone={toneForPaymentLabel(payLabel)}>{payLabel}</StatusChip>
                       ) : null}
                       {isClosed ? <StatusChip tone="neutral">Closed</StatusChip> : null}
                       {typeof b.booking_number === 'number' ? (
-                        <span className="text-xs text-ink-muted">#{b.booking_number}</span>
+                        <span className="text-xs font-mono text-finland">#{b.booking_number}</span>
                       ) : null}
                     </div>
                   </div>
