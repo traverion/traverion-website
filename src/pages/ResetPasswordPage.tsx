@@ -3,6 +3,7 @@ import { ArrowLeft } from 'lucide-react';
 import { BRAND_LOGO_SRC } from '../lib/brandAssets';
 import SetNewPasswordForm from '../components/auth/SetNewPasswordForm';
 import PartnerResetPasswordPage from '../components/supplier/PartnerResetPasswordPage';
+import NoticeCallout from '../components/NoticeCallout';
 import { publicSiteBaseUrl } from '../lib/publicSiteUrl';
 import { supabase } from '../lib/supabase';
 import { establishPasswordRecoverySession } from '../lib/passwordRecoveryFlow';
@@ -81,13 +82,17 @@ export default function ResetPasswordPage({ onNavigate }: ResetPasswordPageProps
 
   if (portal === 'invalid') {
     return (
-      <div className="min-h-screen bg-paper flex items-center justify-center px-4">
-        <div className="max-w-md w-full space-y-4">
-          <p className="font-display text-2xl text-ink tracking-tight">This reset link is not valid</p>
-          <p className="text-sm text-red-800" role="alert">
-            This page only works from the secure link in your password reset email.
-          </p>
-          <a href={loginHref} className="tv-btn-primary w-full inline-flex justify-center">
+      <div className="min-h-screen bg-paper flex flex-col items-center justify-center px-6 py-16">
+        <div className="w-full max-w-md rounded-2xl bg-paper-raised p-6 sm:p-8 shadow-soft-lg ring-1 ring-black/[0.06] text-center">
+          <img src={BRAND_LOGO_SRC} alt="Traverion" className="h-9 w-auto mx-auto mb-6 opacity-90" />
+          <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">Traveler account</p>
+          <h1 className="font-display text-2xl tracking-tight text-ink">This reset link is not valid</h1>
+          <div className="mt-4 text-left">
+            <NoticeCallout title="Open the email link" tone="danger">
+              This page only works from the secure link in your password reset email.
+            </NoticeCallout>
+          </div>
+          <a href={loginHref} className="tv-btn-primary w-full inline-flex justify-center mt-6">
             Back to traveler sign in
           </a>
         </div>

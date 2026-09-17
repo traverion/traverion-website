@@ -969,7 +969,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
 
             {/* Right: Sticky booking card */}
             <div className="lg:col-span-1">
-              <div id="tour-booking-panel" className="lg:sticky lg:top-24 bg-paper-raised rounded-2xl p-5 ring-1 ring-black/[0.06] lg:p-6">
+              <div id="tour-booking-panel" className="lg:sticky lg:top-24 h-fit scroll-mt-24 bg-paper-raised rounded-2xl p-5 shadow-soft-lg ring-1 ring-black/[0.06] lg:p-6">
                 {!canBook ? (
                   <div>
                     <p className="text-lg font-semibold text-ink">Not bookable yet</p>
