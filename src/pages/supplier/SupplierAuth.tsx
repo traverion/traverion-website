@@ -436,8 +436,28 @@ export default function SupplierAuth({
       )}
 
       <div className={`w-full ${compact ? '' : 'max-w-md sm:max-w-lg xl:max-w-xl 2xl:max-w-[28rem] mx-auto lg:mx-0 flex-shrink-0'}`}>
-        <div className={compact ? '' : 'overflow-hidden'}>
+        <div
+          className={
+            compact
+              ? ''
+              : 'rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft-lg ring-1 ring-black/[0.06]'
+          }
+        >
           <>
+          {!compact ? (
+            <div className="mb-5">
+              <div className="inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15 mb-3">
+                Traverion Partner
+              </div>
+              <p className="text-sm text-ink-muted leading-relaxed">
+                {mode === 'signin' && passwordResetPanel
+                  ? 'Reset access to your supplier workspace.'
+                  : mode === 'signin'
+                    ? 'Sign in to run listings, bookings, and the day.'
+                    : 'Create a partner account to list experiences.'}
+              </p>
+            </div>
+          ) : null}
           {!(mode === 'signin' && passwordResetPanel) && !compact && (
           <div className="flex gap-1 rounded-full bg-black/[0.04] p-1 mb-5 w-fit">
             <button
@@ -450,7 +470,7 @@ export default function SupplierAuth({
                 onModeChange?.('signin');
               }}
               className={`lux-flat rounded-full px-3.5 py-1.5 text-sm font-medium ${
-                mode === 'signin' ? 'bg-paper-raised text-ink shadow-sm' : 'text-ink-muted'
+                mode === 'signin' ? 'bg-white text-ink shadow-sm' : 'text-ink-muted'
               }`}
             >
               Log in
@@ -465,7 +485,7 @@ export default function SupplierAuth({
                 onModeChange?.('signup');
               }}
               className={`lux-flat rounded-full px-3.5 py-1.5 text-sm font-medium ${
-                mode === 'signup' ? 'bg-paper-raised text-ink shadow-sm' : 'text-ink-muted'
+                mode === 'signup' ? 'bg-white text-ink shadow-sm' : 'text-ink-muted'
               }`}
             >
               Sign up

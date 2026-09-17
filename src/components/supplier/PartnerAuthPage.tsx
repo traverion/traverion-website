@@ -69,16 +69,18 @@ export default function PartnerAuthPage({ mode, onAuthenticated, isSupabase }: P
         </div>
         <div className="flex-1 px-5 sm:px-8 pb-16 pt-4 sm:pt-8">
           <div className="mx-auto w-full max-w-md">
-            <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">Partner account</p>
-            <h1 className="font-display text-3xl sm:text-4xl tracking-tight mb-2 text-ink">
-              {mode === 'signin' ? 'Log in' : 'Create your partner account'}
-            </h1>
-            <p className="text-sm text-ink-muted mb-6 leading-relaxed">
-              {mode === 'signin'
-                ? 'This is the supplier product — listings, calendar, bookings, and money.'
-                : 'Step 1 of 2 — your account. Business details come next, after you confirm email.'}
-            </p>
             <div className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft-lg ring-1 ring-black/[0.06]">
+              <div className="inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15 mb-3">
+                Partner account
+              </div>
+              <h1 className="font-display text-3xl sm:text-4xl tracking-tight mb-2 text-ink">
+                {mode === 'signin' ? 'Log in' : 'Create your partner account'}
+              </h1>
+              <p className="text-sm text-ink-muted mb-6 leading-relaxed">
+                {mode === 'signin'
+                  ? 'This is the supplier product — listings, calendar, bookings, and money.'
+                  : 'Step 1 of 2 — your account. Business details come next, after you confirm email.'}
+              </p>
               <SupplierAuth
                 onAuthenticated={onAuthenticated}
                 isSupabase={isSupabase}
