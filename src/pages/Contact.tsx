@@ -110,16 +110,15 @@ export default function Contact({ onNavigate }: ContactProps) {
 
   return (
     <LegalPageShell
+      eyebrow="Support"
       title="Contact us"
       subtitle="Bookings, trips, and general questions. Affiliate and creator applications each have their own page in the footer."
       onNavigate={onNavigate}
     >
       {isSubmitted ? (
-        <div className="max-w-lg rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]">
-          <NoticeCallout title={CONTACT_FORM_SUCCESS_HEADING} tone="success">
-            {CONTACT_FORM_THANK_YOU}
-          </NoticeCallout>
-        </div>
+        <NoticeCallout title={CONTACT_FORM_SUCCESS_HEADING} tone="success">
+          {CONTACT_FORM_THANK_YOU}
+        </NoticeCallout>
       ) : (
         <>
           <p>

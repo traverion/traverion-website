@@ -6,6 +6,7 @@ type LegalPageShellProps = {
   title: string;
   subtitle?: string;
   lastUpdated?: string;
+  eyebrow?: string;
   onNavigate?: (page: string) => void;
   children: ReactNode;
 };
@@ -14,6 +15,7 @@ export default function LegalPageShell({
   title,
   subtitle,
   lastUpdated,
+  eyebrow,
   onNavigate,
   children,
 }: LegalPageShellProps) {
@@ -28,6 +30,9 @@ export default function LegalPageShell({
           <ArrowLeft className="w-4 h-4" aria-hidden />
           Back
         </button>
+        {eyebrow ? (
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">{eyebrow}</p>
+        ) : null}
         <h1 className="font-display text-3xl sm:text-5xl text-ink tracking-tight">{title}</h1>
         {subtitle ? (
           <p className="mt-3 text-base text-ink-muted max-w-xl leading-relaxed">{subtitle}</p>

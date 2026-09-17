@@ -129,6 +129,7 @@ export default function SupplierDiscountsOffers() {
   return (
     <div className={SUPPLIER_PAGE_CLASS}>
       <SupplierPageHero
+        badge="Promotions"
         icon={Tag}
         title="Offers"
         description="Time-limited percentage promotions on a listing option."
