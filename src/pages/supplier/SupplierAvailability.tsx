@@ -22,7 +22,7 @@ import {
 } from '../../lib/availability-ops';
 import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
-import { SUPPLIER_PAGE_CLASS, SupplierEmptyState } from '../../components/supplier/supplierUi';
+import { SUPPLIER_PAGE_CLASS, SupplierEmptyState, SupplierPageHero } from '../../components/supplier/supplierUi';
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 
@@ -203,16 +203,12 @@ export default function SupplierAvailability() {
 
   return (
     <div className={`${SUPPLIER_PAGE_CLASS} min-h-[70vh]`}>
-      <div className="mb-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Availability</p>
-            <h1 className="font-display text-3xl sm:text-5xl text-ink tracking-tight">Calendar</h1>
-            <p className="mt-2 text-sm text-ink-muted max-w-lg">
-              Tours: departures and capacity. Stays: nights booked or blocked. Open a listing to edit that day.
-            </p>
-          </div>
-          {!isSupabase || !user ? null : listings.length > 0 ? (
+      <SupplierPageHero
+        badge="Operations"
+        title="Calendar"
+        description="Tours: departures and capacity. Stays: nights booked or blocked. Open a listing to edit that day."
+        actions={
+          !isSupabase || !user || listings.length === 0 ? undefined : (
             <label className="block sm:min-w-[16rem]">
               <span className="sr-only">Listing</span>
               <select
@@ -241,9 +237,9 @@ export default function SupplierAvailability() {
                 <p className="mt-2 text-xs font-medium text-finland">Select a listing to edit daily caps</p>
               )}
             </label>
-          ) : null}
-        </div>
-      </div>
+          )
+        }
+      />
 
       {!isSupabase || !user ? (
         <p className="text-sm text-ink-muted">Sign in to manage availability.</p>
