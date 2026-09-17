@@ -6,7 +6,7 @@ import type { ListingDiscount } from '../data/supabase-discounts';
 import { getDisplayPriceForTour } from '../lib/discount-display';
 import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
 import { listingShowsFreeCancellation } from '../lib/listingTruth';
-import { formatTourDurationDisplay, parseListingExtras } from '../types/listingExtras';
+import { formatTourDurationDisplay, materializedBookingOptions, parseListingExtras } from '../types/listingExtras';
 import { listingIsFamily } from '../lib/inventory';
 import { formatMoney, normalizeCurrency } from '../lib/money';
 import { ListingCardRating } from './ListingCardRating';
@@ -51,16 +51,24 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
   const showStrikethrough = hasDiscount && originalPrice > fromAmount;
   const currency = normalizeCurrency(tour.price?.currency);
   const isStay = listingIsFamily(tour, 'stay');
-  const stay = isStay ? parseListingExtras(tour.listingExtras).stay : undefined;
+  const extras = parseListingExtras(tour.listingExtras);
+  const stay = isStay ? extras.stay : undefined;
   const stayNightly = stay?.nightlyPriceUsd && stay.nightlyPriceUsd > 0 ? stay.nightlyPriceUsd : fromAmount;
   const unitLabel = isStay ? 'per night' : qualifier ? `per ${qualifier}` : 'per person';
   const locationLine =
     [tour.city, tour.country].filter(Boolean).join(', ') || tour.destination || 'Various locations';
-  const durationLine = isStay
+  const bookingOpts = isStay ? [] : materializedBookingOptions(extras.bookingOptions);
+  const pickupIncluded =
+    !isStay &&
+    bookingOpts.some((o) => (o.pickupPlace ?? '').trim().length > 0 || /pickup/i.test(o.name));
+  const durationOnly = isStay
     ? stay?.maxGuests
       ? `Up to ${stay.maxGuests} guests`
       : tour.groupSize || ''
     : formatTourDurationDisplay(tour.duration || '');
+  const durationLine = [durationOnly || null, !isStay && pickupIncluded ? 'Pickup included' : null]
+    .filter(Boolean)
+    .join(' · ');
   const extraTags =
     tour.tags?.filter((t) => t !== 'free-cancellation' && t !== 'bestseller') ?? [];
   const heroSrc = listingHeroImageSrc(tour.image);
