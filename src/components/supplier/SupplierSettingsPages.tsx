@@ -37,6 +37,8 @@ import {
 import { supplierPortalPublicBaseUrl } from '../../lib/partnerHost';
 import { PARTNER_EMAIL_VERIFIED_PATH } from '../../lib/partnerPortalPaths';
 import { SUPPLIER_PAGE_CLASS, SupplierPageHero } from './supplierUi';
+import NoticeCallout from '../NoticeCallout';
+import StatusChip from '../StatusChip';
 import {
   PARTNER_BUSINESS_REVIEW_STATUS_NOTE,
   PARTNER_PAYOUT_REVIEW_STATUS_NOTE,
@@ -908,44 +910,70 @@ function BusinessProfilePage(p: Props) {
             </div>
           </ProfileSection>
 
-          <section className="space-y-3">
-            <h2 className="font-display text-2xl text-ink tracking-tight">Verification</h2>
+          <section className="space-y-3 rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="font-display text-2xl text-ink tracking-tight">Verification</h2>
+              <StatusChip
+                tone={
+                  p.verificationStatus.trim().toLowerCase() === 'verified'
+                    ? 'good'
+                    : p.verificationStatus.trim().toLowerCase() === 'rejected'
+                      ? 'bad'
+                      : businessInReviewQueue
+                        ? 'warn'
+                        : 'neutral'
+                }
+              >
+                {p.verificationStatus.trim().toLowerCase() === 'verified'
+                  ? 'Business verified'
+                  : p.verificationStatus.trim().toLowerCase() === 'rejected'
+                    ? 'Needs updates'
+                    : businessInReviewQueue
+                      ? 'In review'
+                      : 'Not submitted'}
+              </StatusChip>
+            </div>
             {p.verificationStatus.trim().toLowerCase() === 'verified' && (
-              <p className="text-sm text-ink-muted leading-relaxed">
+              <NoticeCallout
+                title={
+                  p.payoutVerificationStatus.trim().toLowerCase() === 'verified'
+                    ? 'Ready to publish'
+                    : 'Business approved'
+                }
+                tone="success"
+              >
                 {p.payoutVerificationStatus.trim().toLowerCase() === 'verified'
                   ? 'Your business details are approved and your payout (IBAN/BIC) is verified. You can publish listings when your tours meet listing quality checks.'
                   : 'Your business details are approved. You still need Traverion to verify your payout (IBAN/BIC) before you can publish listings.'}
-              </p>
+              </NoticeCallout>
             )}
             {p.verificationStatus.trim().toLowerCase() === 'rejected' && (
-              <div className="space-y-2">
-                <p className="text-sm text-red-800 leading-relaxed">
-                  Business verification was not approved. Update your details and documents, then save again.
-                </p>
+              <NoticeCallout title="Business verification was not approved" tone="danger">
+                <p>Update your details and documents, then save again.</p>
                 {p.businessVerificationFeedback.trim() ? (
-                  <p className="text-sm text-red-900 whitespace-pre-wrap">
-                    {p.businessVerificationFeedback.trim()}
-                  </p>
+                  <p className="mt-2 whitespace-pre-wrap">{p.businessVerificationFeedback.trim()}</p>
                 ) : null}
-              </div>
+              </NoticeCallout>
             )}
             {vBus !== 'verified' && vBus !== 'rejected' && businessInReviewQueue && (
-              <p className="text-sm text-ink-muted leading-relaxed">{PARTNER_BUSINESS_REVIEW_STATUS_NOTE}</p>
+              <NoticeCallout title="Under review" tone="info">
+                {PARTNER_BUSINESS_REVIEW_STATUS_NOTE}
+              </NoticeCallout>
             )}
             {vBus !== 'verified' && vBus !== 'rejected' && !businessInReviewQueue && !draftBusinessComplete && (
-              <div className="space-y-2">
-                <p className="text-sm text-ink-muted">Complete the sections above, then save to submit for review.</p>
-                <ul className="list-disc list-inside text-sm text-ink-muted space-y-1">
+              <NoticeCallout title="Complete your profile" tone="warn">
+                <p>Complete the sections above, then save to submit for review.</p>
+                <ul className="mt-2 list-disc list-inside space-y-1">
                   {businessProfileMissingReasons.map((line) => (
                     <li key={line}>{line}</li>
                   ))}
                 </ul>
-              </div>
+              </NoticeCallout>
             )}
             {vBus !== 'verified' && vBus !== 'rejected' && !businessInReviewQueue && draftBusinessComplete && (
-              <p className="text-sm text-ink-muted leading-relaxed">
+              <NoticeCallout title="Ready to submit" tone="info">
                 {PARTNER_BUSINESS_READY_TO_SUBMIT_NOTE}
-              </p>
+              </NoticeCallout>
             )}
           </section>
 
@@ -1101,22 +1129,26 @@ function BusinessProfilePage(p: Props) {
             </div>
 
             {p.payoutIban.trim() && p.payoutBic.trim() && vPay === 'verified' && (
-              <p className="text-sm text-ink-muted">{partnerPayoutVerifiedStatusNote(vBus === 'verified')}</p>
+              <NoticeCallout title="Payout verified" tone="success">
+                {partnerPayoutVerifiedStatusNote(vBus === 'verified')}
+              </NoticeCallout>
             )}
             {p.payoutIban.trim() && p.payoutBic.trim() && vPay === 'rejected' && (
-              <div className="space-y-2">
-                <p className="text-sm text-red-800">Update IBAN and BIC, then save again to resubmit.</p>
+              <NoticeCallout title="Payout details need an update" tone="danger">
+                <p>Update IBAN and BIC, then save again to resubmit.</p>
                 {p.payoutVerificationFeedback.trim() ? (
-                  <p className="text-sm text-red-900 whitespace-pre-wrap">{p.payoutVerificationFeedback.trim()}</p>
+                  <p className="mt-2 whitespace-pre-wrap">{p.payoutVerificationFeedback.trim()}</p>
                 ) : null}
-              </div>
+              </NoticeCallout>
             )}
             {p.payoutIban.trim() &&
               p.payoutBic.trim() &&
               vPay !== 'verified' &&
               vPay !== 'rejected' &&
               (p.payoutVerificationSubmittedAt ?? '').trim() !== '' && (
-                <p className="text-sm text-ink-muted">{PARTNER_PAYOUT_REVIEW_STATUS_NOTE}</p>
+                <NoticeCallout title="Payout under review" tone="info">
+                  {PARTNER_PAYOUT_REVIEW_STATUS_NOTE}
+                </NoticeCallout>
               )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
