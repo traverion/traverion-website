@@ -310,7 +310,12 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
       <section className="pb-12 sm:pb-16">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-end justify-between gap-3 mb-8">
-            <h2 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Tours</h2>
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15 mb-3">
+                Experiences
+              </div>
+              <h2 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Tours</h2>
+            </div>
             {!catalogLoading && !listingsError && allListings.length > 0 ? (
               <button type="button" onClick={() => goToPackages()} onPointerEnter={prefetchPackagesPage} className="lux-flat text-sm font-semibold text-finland">
                 All tours <ArrowRight className="w-4 h-4 inline" />
@@ -407,7 +412,12 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
       <section className="pb-16 sm:pb-24">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-end justify-between gap-3 mb-8">
-            <h2 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Stays</h2>
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15 mb-3">
+                Nights
+              </div>
+              <h2 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Stays</h2>
+            </div>
             {!catalogLoading && stayListings.length > 0 ? (
               <button type="button" onClick={() => goToStays()} className="lux-flat text-sm font-semibold text-finland">
                 All stays <ArrowRight className="w-4 h-4 inline" />
@@ -448,17 +458,22 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
 
       <section className="pb-20 sm:pb-28">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 border-t border-black/[0.06] pt-16">
-          <h2 className="font-display text-3xl sm:text-4xl text-ink tracking-tight mb-10">Why Traverion</h2>
-          <div className="grid sm:grid-cols-3 gap-10 text-[15px] leading-relaxed text-ink-muted">
-            <div>
+          <div className="mb-10">
+            <div className="inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15 mb-3">
+              Why book here
+            </div>
+            <h2 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Why Traverion</h2>
+          </div>
+          <div className="grid sm:grid-cols-3 gap-4 sm:gap-5 text-[15px] leading-relaxed text-ink-muted">
+            <div className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]">
               <p className="font-semibold text-ink mb-2">Real operators</p>
               <p>You book the people who run the day — not a brochure catalog. Price is confirmed at checkout.</p>
             </div>
-            <div>
+            <div className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]">
               <p className="font-semibold text-ink mb-2">Clear money</p>
               <p>Pay with Stripe. If checkout cannot start, you see an error. We never pretend a payment succeeded.</p>
             </div>
-            <div>
+            <div className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]">
               <p className="font-semibold text-ink mb-2">Tours and stays, separate</p>
               <p>Departures are not nights. Apartments are not tours. Each product keeps its own calendar and rules.</p>
             </div>
