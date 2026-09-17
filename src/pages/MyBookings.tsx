@@ -399,12 +399,12 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   return (
     <div className="min-h-screen bg-paper tv-page">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-12 pb-16">
-        <div className="mb-8">
+        <header className="mb-8 rounded-2xl bg-paper-raised p-5 sm:p-7 shadow-soft ring-1 ring-black/[0.06]">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Your bookings</p>
               <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Trips</h1>
-              <p className="mt-2 text-sm text-ink-muted max-w-md">
+              <p className="mt-2 text-sm text-ink-muted max-w-md leading-relaxed">
                 Manage upcoming, past, and cancelled tours and stays — payment, pickup, and references in one place.
               </p>
             </div>
@@ -428,7 +428,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
               </button>
             </div>
           </div>
-        </div>
+        </header>
 
         {loadError && (
           <ErrorState
