@@ -23,6 +23,12 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
   const [hasUnreadBookings, setHasUnreadBookings] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
+  /** Product pages already have browse nav — hide redundant primary CTA so it cannot cover booking controls. */
+  const showFindToursCta =
+    currentPage !== 'tour-details' &&
+    currentPage !== 'stay-details' &&
+    currentPage !== 'booking' &&
+    currentPage !== 'booking-confirmation';
 
   useDialogFocus(isMobileMenuOpen, mobileMenuRef, () => setIsMobileMenuOpen(false));
 
@@ -274,16 +280,18 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                 </div>
               )}
             </div>
-            <div className="hidden lg:block">
-              <button
-                type="button"
-                onClick={() => onNavigate('packages')}
-                onPointerEnter={prefetchPackagesPage}
-                className="tv-btn-primary h-10 px-5 text-sm"
-              >
-                Find tours
-              </button>
-            </div>
+            {showFindToursCta ? (
+              <div className="hidden lg:block">
+                <button
+                  type="button"
+                  onClick={() => onNavigate('packages')}
+                  onPointerEnter={prefetchPackagesPage}
+                  className="tv-btn-primary h-10 px-5 text-sm"
+                >
+                  Find tours
+                </button>
+              </div>
+            ) : null}
             <button
               type="button"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -425,15 +433,17 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                     </button>
                   </>
                 )}
-                <button
-                  onClick={() => {
-                    onNavigate('packages');
-                    setIsMobileMenuOpen(false);
-                  }}
-                  className="tv-btn-primary w-full justify-center"
-                >
-                  Find tours
-                </button>
+                {showFindToursCta ? (
+                  <button
+                    onClick={() => {
+                      onNavigate('packages');
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className="tv-btn-primary w-full justify-center"
+                  >
+                    Find tours
+                  </button>
+                ) : null}
               </div>
             </nav>
           </div>
