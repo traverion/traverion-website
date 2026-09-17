@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from 'react';
-import { Compass, Search } from 'lucide-react';
+import { Compass, Search, X } from 'lucide-react';
 import { usePublishedSupplierListings } from '../hooks/usePublishedSupplierListings';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { getAllListings } from '../data/listings';
@@ -198,6 +198,60 @@ export default function Stays({ onStaySelect }: Props) {
               : `${filtered.length} stay${filtered.length === 1 ? '' : 's'}`}
           </p>
         </form>
+
+        {(q.trim() || checkIn || checkOut || guests) ? (
+          <div className="mb-8 flex flex-wrap items-center gap-2" aria-label="Active filters">
+            {q.trim() ? (
+              <button
+                type="button"
+                onClick={() => setQ('')}
+                className="lux-flat inline-flex items-center gap-1.5 rounded-full bg-finland/10 px-3 py-1.5 text-xs font-semibold text-finland ring-1 ring-finland/20"
+              >
+                “{q.trim().slice(0, 36)}
+                {q.trim().length > 36 ? '…' : ''}” <X className="w-3.5 h-3.5" />
+              </button>
+            ) : null}
+            {checkIn ? (
+              <button
+                type="button"
+                onClick={() => setCheckIn('')}
+                className="lux-flat inline-flex items-center gap-1.5 rounded-full bg-finland/10 px-3 py-1.5 text-xs font-semibold text-finland ring-1 ring-finland/20"
+              >
+                In {checkIn} <X className="w-3.5 h-3.5" />
+              </button>
+            ) : null}
+            {checkOut ? (
+              <button
+                type="button"
+                onClick={() => setCheckOut('')}
+                className="lux-flat inline-flex items-center gap-1.5 rounded-full bg-finland/10 px-3 py-1.5 text-xs font-semibold text-finland ring-1 ring-finland/20"
+              >
+                Out {checkOut} <X className="w-3.5 h-3.5" />
+              </button>
+            ) : null}
+            {guests ? (
+              <button
+                type="button"
+                onClick={() => setGuests('')}
+                className="lux-flat inline-flex items-center gap-1.5 rounded-full bg-finland/10 px-3 py-1.5 text-xs font-semibold text-finland ring-1 ring-finland/20"
+              >
+                {guests} {guests === '1' ? 'guest' : 'guests'} <X className="w-3.5 h-3.5" />
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => {
+                setQ('');
+                setCheckIn('');
+                setCheckOut('');
+                setGuests('');
+              }}
+              className="lux-flat rounded-full bg-ink px-3 py-1.5 text-xs font-semibold text-paper-raised"
+            >
+              Clear all
+            </button>
+          </div>
+        ) : null}
 
         {error && supplierListings === null ? (
           <ErrorState
