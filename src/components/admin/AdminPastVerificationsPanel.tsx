@@ -3,6 +3,9 @@ import { History, Loader2, RefreshCw, ChevronDown, ChevronUp } from 'lucide-reac
 import { isSupabaseConfigured } from '../../lib/supabase';
 import { invokeAdminEdgeFunction } from '../../lib/adminEdgeFunction';
 import { AdminSupplierDetailSection, type AdminSupplierDetailPayload } from './AdminSupplierDetailSection';
+import NoticeCallout from '../NoticeCallout';
+import StatusChip from '../StatusChip';
+import EmptyState from '../EmptyState';
 
 type VerifiedRow = {
   id: string;
@@ -16,6 +19,15 @@ type VerifiedRow = {
   payout_verification_feedback: string | null;
   updated_at: string | null;
 };
+
+function humanStatus(status: string | null | undefined): string {
+  const s = (status ?? '').trim();
+  if (!s) return 'Not submitted';
+  if (s === 'pending') return 'Pending';
+  if (s === 'approved' || s === 'verified') return 'Approved';
+  if (s === 'rejected') return 'Rejected';
+  return s;
+}
 
 export default function AdminPastVerificationsPanel() {
   const [loading, setLoading] = useState(false);
@@ -70,33 +82,33 @@ export default function AdminPastVerificationsPanel() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+      <div className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]">
         <div className="flex items-start gap-3 mb-4">
-          <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
-            <History className="w-5 h-5 text-slate-700" aria-hidden />
+          <div className="w-10 h-10 rounded-xl bg-finland/10 flex items-center justify-center shrink-0">
+            <History className="w-5 h-5 text-finland" aria-hidden />
           </div>
           <div className="flex-1 min-w-0">
-            <h2 className="text-lg font-semibold text-gray-900">Past verifications</h2>
-            <p className="text-sm text-gray-600 mt-1">
+            <h2 className="font-display text-xl text-ink tracking-tight">Past verifications</h2>
+            <p className="text-sm text-ink-muted mt-1 leading-relaxed">
               Suppliers who are fully onboarded for payouts: both business identity and bank (payout) details are
               verified. Expand a row to see the full profile and verification files.
             </p>
           </div>
         </div>
 
-        {!baseConfigured && (
-          <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-            Set <code className="text-xs">VITE_SUPABASE_URL</code> and <code className="text-xs">VITE_SUPABASE_ANON_KEY</code>{' '}
-            in your env.
-          </p>
-        )}
+        {!baseConfigured ? (
+          <NoticeCallout title="Supabase not configured" tone="warn">
+            Set <code className="text-xs font-mono">VITE_SUPABASE_URL</code> and{' '}
+            <code className="text-xs font-mono">VITE_SUPABASE_ANON_KEY</code> in your env.
+          </NoticeCallout>
+        ) : null}
 
         <div className="mt-4">
           <button
             type="button"
             onClick={() => void loadList()}
             disabled={loading || !baseConfigured}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-sky-600 text-white text-sm font-medium hover:bg-sky-700 disabled:opacity-50"
+            className="tv-btn-primary text-sm inline-flex items-center gap-2 disabled:opacity-50"
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden /> : <RefreshCw className="w-4 h-4" aria-hidden />}
             Refresh list
@@ -104,17 +116,23 @@ export default function AdminPastVerificationsPanel() {
         </div>
       </div>
 
-      {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 text-red-800 text-sm px-4 py-3">{error}</div>
-      )}
+      {error ? (
+        <NoticeCallout title="Could not load list" tone="danger">
+          {error}
+        </NoticeCallout>
+      ) : null}
 
-      {items.length === 0 && !loading && (
-        <p className="text-sm text-gray-500">
-          No suppliers with both business and payout verification approved yet (or none returned).
-        </p>
-      )}
+      {items.length === 0 && !loading ? (
+        <div className="rounded-2xl bg-paper-raised px-4 py-2 shadow-soft ring-1 ring-black/[0.06]">
+          <EmptyState
+            icon={History}
+            title="No fully verified suppliers yet"
+            body="When a supplier has both business and payout verification approved, they appear here."
+          />
+        </div>
+      ) : null}
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         {items.map((row) => {
           const name = row.company_legal_name?.trim() || row.display_name?.trim() || row.id;
           const expanded = expandedId === row.id;
@@ -122,49 +140,49 @@ export default function AdminPastVerificationsPanel() {
           const detailLoading = detailLoadingId === row.id;
 
           return (
-            <div key={row.id} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm space-y-3">
+            <div key={row.id} className="rounded-2xl bg-paper-raised p-4 sm:p-5 shadow-soft ring-1 ring-black/[0.06] space-y-3">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <div>
-                  <p className="font-semibold text-gray-900">{name}</p>
-                  <p className="text-xs text-gray-500 font-mono mt-0.5">{row.id}</p>
+                  <p className="font-semibold text-ink">{name}</p>
+                  <p className="text-xs text-ink-faint font-mono mt-0.5">{row.id}</p>
                 </div>
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-ink-faint">
                   Updated {row.updated_at ? new Date(row.updated_at).toLocaleString() : '—'}
                 </p>
               </div>
 
               <div className="grid sm:grid-cols-2 gap-3 text-sm">
-                <div className="rounded-lg bg-emerald-50/80 border border-emerald-100 px-3 py-2">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-emerald-900">Business</p>
-                  <p className="text-gray-800 mt-1">
-                    Status: <span className="font-medium">{row.verification_status ?? '—'}</span>
-                  </p>
+                <div className="rounded-xl bg-emerald-50/70 ring-1 ring-emerald-200/60 px-3 py-2.5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-900/70">Business</p>
+                    <StatusChip tone="good">{humanStatus(row.verification_status)}</StatusChip>
+                  </div>
                 </div>
-                <div className="rounded-lg bg-slate-50 border border-slate-100 px-3 py-2">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">Payout</p>
-                  <p className="text-gray-800 mt-1">
-                    Status: <span className="font-medium">{row.payout_verification_status ?? '—'}</span>
-                  </p>
+                <div className="rounded-xl bg-finland/8 ring-1 ring-finland/15 px-3 py-2.5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint">Payout</p>
+                    <StatusChip tone="good">{humanStatus(row.payout_verification_status)}</StatusChip>
+                  </div>
                 </div>
               </div>
 
               <button
                 type="button"
                 onClick={() => void toggleExpand(row.id)}
-                className="inline-flex items-center gap-2 text-sm font-medium text-sky-700 hover:text-sky-900"
+                className="lux-flat inline-flex items-center gap-2 text-sm font-semibold text-finland"
               >
                 {expanded ? <ChevronUp className="w-4 h-4" aria-hidden /> : <ChevronDown className="w-4 h-4" aria-hidden />}
                 {expanded ? 'Hide full details' : 'View full profile & documents'}
               </button>
 
               {expanded && (
-                <div className="border-t border-gray-100 pt-4 space-y-4">
+                <div className="border-t border-black/[0.06] pt-4 space-y-4">
                   <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
                       onClick={() => void loadDetail(row.id, true)}
                       disabled={detailLoading}
-                      className="text-xs font-medium text-sky-700 hover:underline disabled:opacity-50"
+                      className="lux-flat text-xs font-semibold text-finland disabled:opacity-50"
                     >
                       Refresh signed document links
                     </button>
