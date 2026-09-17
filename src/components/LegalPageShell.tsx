@@ -38,7 +38,8 @@ export default function LegalPageShell({
           </p>
         ) : null}
         <div
-          className="mt-10 space-y-8 text-[15px] sm:text-base text-ink leading-relaxed
+          className="mt-10 rounded-2xl bg-paper-raised p-5 sm:p-8 shadow-soft ring-1 ring-black/[0.06]
+            space-y-8 text-[15px] sm:text-base text-ink leading-relaxed
             [&_h2]:font-display [&_h2]:text-2xl [&_h2]:text-ink [&_h2]:tracking-tight [&_h2]:mt-2 [&_h2]:mb-3
             [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-2
             [&_p]:text-ink-muted
