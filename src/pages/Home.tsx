@@ -226,18 +226,30 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
       </section>
 
       <section className="py-3 bg-paper">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-wrap gap-x-8 gap-y-1 text-sm text-ink-muted">
-          <span className="inline-flex items-center gap-2">
-            <ShieldCheck className="w-4 h-4 text-finland" aria-hidden />
-            {TRAVERION_STANDARD_CANCELLATION_POLICY.split('.')[0]}.
-          </span>
-          <span>Pay to confirm — Stripe checkout</span>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-wrap gap-x-6 gap-y-2 rounded-2xl bg-paper-raised px-4 py-3 text-sm text-ink-muted shadow-soft ring-1 ring-black/[0.06]">
+            <span className="inline-flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-finland" aria-hidden />
+              {TRAVERION_STANDARD_CANCELLATION_POLICY.split('.')[0]}.
+            </span>
+            <span className="inline-flex items-center gap-2">
+              <span className="h-1.5 w-1.5 rounded-full bg-finland" aria-hidden />
+              Pay to confirm — Stripe checkout
+            </span>
+          </div>
         </div>
       </section>
 
       <section className="py-12 sm:py-16">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="font-display text-3xl sm:text-4xl text-ink tracking-tight mb-8">Explore</h2>
+          <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15 mb-3">
+                Destinations
+              </div>
+              <h2 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Explore</h2>
+            </div>
+          </div>
           {catalogLoading ? (
             <SkeletonPlaceGrid count={6} />
           ) : placeChips.length > 0 ? (
@@ -257,7 +269,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                     onClick={() =>
                       searchFamily === 'stays' ? goToStays({ q: p.label }) : goToPackages({ destination: p.id })
                     }
-                    className="lux-flat relative h-56 sm:h-72 rounded-3xl overflow-hidden text-left group"
+                    className="lux-flat relative h-56 sm:h-72 rounded-3xl overflow-hidden text-left group shadow-soft ring-1 ring-black/[0.06]"
                   >
                     <img src={img} alt="" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-black/10" />
@@ -268,7 +280,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="relative h-72 rounded-3xl overflow-hidden">
+              <div className="relative h-72 rounded-3xl overflow-hidden shadow-soft ring-1 ring-black/[0.06]">
                 <img src={HERO_IMG.vacation} alt="" className="absolute inset-0 w-full h-full object-cover" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/75 to-transparent" />
                 <div className="absolute bottom-6 left-6 right-6 text-white">
