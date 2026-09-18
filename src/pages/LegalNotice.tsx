@@ -27,7 +27,7 @@ export default function LegalNotice({ onNavigate }: LegalNoticeProps) {
         <h2>Website operator</h2>
         <p>
           This website and the Traverion travel platform are operated by <strong>TRAVERION</strong> (Traverion Travel
-          Agency), based in Finland. We arrange and facilitate bookings for tours, activities, and related travel
+          Agency), based in Finland. We arrange and facilitate bookings for tours, activities, stays, and related travel
           services in line with our{' '}
           <a href="/terms" onClick={go('terms')}>
             General Terms and Conditions
