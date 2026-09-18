@@ -7,6 +7,11 @@ import {
   X,
   UserCircle2,
   Wallet,
+  ChevronDown,
+  MessageSquare,
+  Star,
+  Percent,
+  Car,
 } from 'lucide-react';
 import type { User } from '@supabase/supabase-js';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
@@ -137,6 +142,11 @@ type SupplierSection =
 type AccountShortcutTarget = 'company' | 'legal' | 'account' | 'security' | 'payout';
 type BusinessProfileTab = 'company' | 'legal';
 
+/**
+ * Mobile bottom-tab nav. Fixed at 5 slots — a phone's thumb-reachable bar has no room
+ * for more without crowding. Money must be one tap away; Calendar is operational core.
+ * Kept in sync with PARTNER_PRIMARY_NAV_SECTION_IDS below (guard throws if they drift).
+ */
 const PRIMARY_NAV: { id: SupplierSection; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'dashboard', label: 'Today', icon: LayoutDashboard },
   { id: 'bookings', label: 'Bookings', icon: Calendar },
@@ -151,6 +161,35 @@ if (
 ) {
   throw new Error('PRIMARY_NAV out of sync with PARTNER_PRIMARY_NAV_SECTION_IDS');
 }
+
+/**
+ * Desktop has the width mobile doesn't, so the top nav carries one more item than the
+ * mobile tab bar: Inbox is operational (unread guest messages), not an account setting,
+ * so it belongs in primary nav wherever there's room for it — not behind the avatar.
+ */
+const DESKTOP_PRIMARY_NAV: { id: SupplierSection; label: string; icon: typeof LayoutDashboard }[] = [
+  { id: 'dashboard', label: 'Today', icon: LayoutDashboard },
+  { id: 'bookings', label: 'Bookings', icon: Calendar },
+  { id: 'availability', label: 'Calendar', icon: CalendarDays },
+  { id: 'inbox', label: 'Inbox', icon: MessageSquare },
+  { id: 'listings', label: 'Listings', icon: MapPin },
+  { id: 'earnings', label: 'Money', icon: Wallet },
+];
+
+/**
+ * Day-to-day business operations — run less often than the primary nav but are still
+ * how a partner runs their business, not account/identity settings. Never nest these
+ * under the avatar: that menu is for who-you-are, not what-you-do.
+ */
+const BUSINESS_OPS_NAV: { id: SupplierSection; label: string; icon: typeof LayoutDashboard }[] = [
+  { id: 'inbox', label: 'Inbox', icon: MessageSquare },
+  { id: 'reviews', label: 'Reviews', icon: Star },
+  { id: 'discounts', label: 'Offers', icon: Percent },
+  { id: 'pickup', label: 'Pickup', icon: Car },
+];
+
+/** Desktop already shows Inbox in the primary row, so its "Business" dropdown covers the rest. */
+const DESKTOP_BUSINESS_NAV = BUSINESS_OPS_NAV.filter((item) => item.id !== 'inbox');
 
 const PATH_ALIASES: Record<string, SupplierSection> = {
   today: 'dashboard',
@@ -260,6 +299,7 @@ export default function SupplierLayout() {
   const [onboardingHasPayout, setOnboardingHasPayout] = useState(false);
   const [onboardingHasCompany, setOnboardingHasCompany] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [businessMenuOpen, setBusinessMenuOpen] = useState(false);
   const [mobileAccountOpen, setMobileAccountOpen] = useState(false);
   const mobileAccountRef = useRef<HTMLDivElement>(null);
   useDialogFocus(mobileAccountOpen, mobileAccountRef, () => setMobileAccountOpen(false));
@@ -287,13 +327,16 @@ export default function SupplierLayout() {
   partnerGateUserRef.current = user;
 
   useEffect(() => {
-    if (!accountMenuOpen) return;
+    if (!accountMenuOpen && !businessMenuOpen) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setAccountMenuOpen(false);
+      if (e.key === 'Escape') {
+        setAccountMenuOpen(false);
+        setBusinessMenuOpen(false);
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [accountMenuOpen]);
+  }, [accountMenuOpen, businessMenuOpen]);
 
   useEffect(() => {
     const client = supabase;
@@ -663,6 +706,7 @@ export default function SupplierLayout() {
     window.history.pushState({}, '', pathForSection(s));
     window.dispatchEvent(new PopStateEvent('popstate'));
     setAccountMenuOpen(false);
+    setBusinessMenuOpen(false);
     setMobileAccountOpen(false);
   };
 
@@ -704,6 +748,7 @@ export default function SupplierLayout() {
     consumePartnerReturnPath();
     setSigningOut(true);
     setAccountMenuOpen(false);
+    setBusinessMenuOpen(false);
     setMobileAccountOpen(false);
     void signOut().finally(() => {
       window.location.replace(PARTNER_LOGIN_PATH);
@@ -832,7 +877,7 @@ export default function SupplierLayout() {
             <span className="hidden sm:inline font-sans text-[11px] font-semibold tracking-[0.2em]">TRAVERION</span>
           </button>
           <nav className="hidden md:flex items-center gap-1 flex-1" aria-label="Primary">
-            {PRIMARY_NAV.map((item) => {
+            {DESKTOP_PRIMARY_NAV.map((item) => {
               const active = section === item.id;
               return (
                 <button
@@ -851,10 +896,56 @@ export default function SupplierLayout() {
               );
             })}
           </nav>
+          <div className="relative hidden md:block">
+            <button
+              type="button"
+              onClick={() => {
+                setBusinessMenuOpen((v) => !v);
+                setAccountMenuOpen(false);
+              }}
+              aria-current={DESKTOP_BUSINESS_NAV.some((i) => i.id === section) ? 'page' : undefined}
+              aria-expanded={businessMenuOpen}
+              aria-haspopup="menu"
+              aria-controls="partner-business-menu"
+              className={`lux-flat flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium transition-colors duration-150 ${
+                DESKTOP_BUSINESS_NAV.some((i) => i.id === section)
+                  ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
+                  : 'text-ink-muted hover:bg-finland/10 hover:text-finland'
+              }`}
+            >
+              Business
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-150 ${businessMenuOpen ? 'rotate-180' : ''}`} aria-hidden />
+            </button>
+            {businessMenuOpen && (
+              <div
+                id="partner-business-menu"
+                role="menu"
+                aria-label="Business"
+                className="absolute left-0 top-11 w-56 rounded-2xl bg-paper-raised shadow-soft-xl p-2 z-50 origin-top-left motion-safe:animate-slide-down"
+              >
+                {DESKTOP_BUSINESS_NAV.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => handleNavigate(item.id)}
+                    className={`lux-flat w-full flex items-center gap-2.5 text-left px-3 py-2 rounded-xl text-sm ${
+                      section === item.id ? 'bg-finland/10 text-finland font-medium' : 'hover:bg-paper'
+                    }`}
+                  >
+                    <item.icon className="w-4 h-4 shrink-0" strokeWidth={1.8} aria-hidden />
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <div className="relative ml-auto">
             <button
               type="button"
-              onClick={() => setAccountMenuOpen((v) => !v)}
+              onClick={() => {
+                setAccountMenuOpen((v) => !v);
+                setBusinessMenuOpen(false);
+              }}
               className="lux-flat hidden md:inline-flex h-9 w-9 items-center justify-center rounded-full bg-finland text-white text-xs font-semibold ring-1 ring-finland/25"
               aria-label="Account"
               aria-expanded={accountMenuOpen}
@@ -868,47 +959,9 @@ export default function SupplierLayout() {
                 id="partner-account-menu"
                 role="menu"
                 aria-label="Account"
-                className="absolute right-0 top-11 w-64 rounded-2xl bg-paper-raised shadow-soft-xl p-2 z-50 origin-top-right motion-safe:animate-slide-down"
+                className="absolute right-0 top-11 w-56 rounded-2xl bg-paper-raised shadow-soft-xl p-2 z-50 origin-top-right motion-safe:animate-slide-down"
               >
-                <p className="px-3 pt-2 pb-1 text-[10px] uppercase tracking-[0.16em] text-ink-faint">Business</p>
-                <button
-                  type="button"
-                  onClick={() => handleNavigate('inbox')}
-                  className={`lux-flat w-full text-left px-3 py-2 rounded-xl text-sm ${
-                    section === 'inbox' ? 'bg-finland/10 text-finland font-medium' : 'hover:bg-paper'
-                  }`}
-                >
-                  Inbox
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleNavigate('reviews')}
-                  className={`lux-flat w-full text-left px-3 py-2 rounded-xl text-sm ${
-                    section === 'reviews' ? 'bg-finland/10 text-finland font-medium' : 'hover:bg-paper'
-                  }`}
-                >
-                  Reviews
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleNavigate('discounts')}
-                  className={`lux-flat w-full text-left px-3 py-2 rounded-xl text-sm ${
-                    section === 'discounts' ? 'bg-finland/10 text-finland font-medium' : 'hover:bg-paper'
-                  }`}
-                >
-                  Offers
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleNavigate('pickup')}
-                  className={`lux-flat w-full text-left px-3 py-2 rounded-xl text-sm ${
-                    section === 'pickup' ? 'bg-finland/10 text-finland font-medium' : 'hover:bg-paper'
-                  }`}
-                >
-                  Pickup
-                </button>
-                <p className="px-3 pt-3 pb-1 text-[10px] uppercase tracking-[0.16em] text-ink-faint">Account</p>
-                <button type="button" onClick={() => openSettingsFocus('company')} className="lux-flat w-full text-left px-3 py-2 rounded-xl text-sm hover:bg-paper">Business</button>
+                <button type="button" onClick={() => openSettingsFocus('company')} className="lux-flat w-full text-left px-3 py-2 rounded-xl text-sm hover:bg-paper">Business profile</button>
                 <button type="button" onClick={() => openSettingsFocus('account')} className="lux-flat w-full text-left px-3 py-2 rounded-xl text-sm hover:bg-paper">Settings</button>
                 {!onboardingComplete && (
                   <button type="button" onClick={() => handleNavigate('onboarding')} className="lux-flat w-full text-left px-3 py-2 rounded-xl text-sm hover:bg-paper">Finish setup</button>
@@ -935,11 +988,20 @@ export default function SupplierLayout() {
             </button>
           </div>
           <div className="px-4 space-y-1">
-            <button type="button" onClick={() => handleNavigate('inbox')} className="lux-flat w-full text-left py-3.5 text-base">Inbox</button>
-            <button type="button" onClick={() => handleNavigate('reviews')} className="lux-flat w-full text-left py-3.5 text-base">Reviews</button>
-            <button type="button" onClick={() => handleNavigate('discounts')} className="lux-flat w-full text-left py-3.5 text-base">Offers</button>
-            <button type="button" onClick={() => handleNavigate('pickup')} className="lux-flat w-full text-left py-3.5 text-base">Pickup</button>
-            <button type="button" onClick={() => openSettingsFocus('company')} className="lux-flat w-full text-left py-3.5 text-base">Business</button>
+            <p className="pt-1 pb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint">Business</p>
+            {BUSINESS_OPS_NAV.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => handleNavigate(item.id)}
+                className="lux-flat w-full flex items-center gap-3 text-left py-3.5 text-base"
+              >
+                <item.icon className="w-5 h-5 shrink-0 text-ink-faint" strokeWidth={1.8} aria-hidden />
+                {item.label}
+              </button>
+            ))}
+            <p className="pt-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint">Account</p>
+            <button type="button" onClick={() => openSettingsFocus('company')} className="lux-flat w-full text-left py-3.5 text-base">Business profile</button>
             <button type="button" onClick={() => openSettingsFocus('account')} className="lux-flat w-full text-left py-3.5 text-base">Settings</button>
             {!onboardingComplete && (
               <button type="button" onClick={() => handleNavigate('onboarding')} className="lux-flat w-full text-left py-3.5 text-base">Finish setup</button>
