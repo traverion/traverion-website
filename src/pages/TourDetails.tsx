@@ -828,14 +828,22 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
               <div className="space-y-8">
                 {(() => {
                   const x = tour.listingExtras;
+                  const optionStartTimes = (x?.bookingOptions ?? [])
+                    .map((o) => String(o.startTime ?? '').trim())
+                    .filter(Boolean);
+                  const uniqueStarts = [...new Set(optionStartTimes)];
                   const scheduleLabel =
-                    x?.scheduleStyle === 'fixed_slots'
-                      ? 'Usually runs at set start times (see logistics on your booking in Trips).'
-                      : x?.scheduleStyle === 'on_request'
-                        ? 'Timing is arranged directly with the host after booking.'
-                        : x?.scheduleStyle === 'flexible'
-                          ? 'Timing is flexible unless your booking in Trips says otherwise.'
-                          : null;
+                    uniqueStarts.length > 0
+                      ? uniqueStarts.length === 1
+                        ? `Usually starts at ${uniqueStarts[0]} — choose a date to confirm.`
+                        : `Set start times available (${uniqueStarts.slice(0, 3).join(', ')}${uniqueStarts.length > 3 ? '…' : ''}) — choose a date to see options.`
+                      : x?.scheduleStyle === 'fixed_slots'
+                        ? 'Usually runs at set start times (see logistics on your booking in Trips).'
+                        : x?.scheduleStyle === 'on_request'
+                          ? 'Timing is arranged directly with the host after booking.'
+                          : x?.scheduleStyle === 'flexible'
+                            ? 'Timing is flexible unless your booking in Trips says otherwise.'
+                            : null;
                   const venueLabel =
                     x?.venueSetting === 'indoor'
                       ? 'Mostly indoor'
@@ -950,14 +958,23 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                             String(d.description ?? '').trim() ||
                             (d.activities ?? []).some((a) => String(a).trim())
                         )
-                        .map((day) => (
+                        .map((day, index, steps) => {
+                          const multiDay = steps.length > 1;
+                          const stepLabel = multiDay
+                            ? `Step ${index + 1}`
+                            : day.location?.trim()
+                              ? day.location.trim()
+                              : 'What happens';
+                          const locationSuffix =
+                            multiDay && day.location?.trim() ? ` · ${day.location.trim()}` : '';
+                          return (
                           <li
                             key={day.day}
                             className="rounded-xl bg-finland/[0.04] p-4 ring-1 ring-finland/10"
                           >
                             <p className="text-[11px] uppercase tracking-[0.16em] text-finland font-semibold mb-1">
-                              Day {day.day}
-                              {day.location?.trim() ? ` · ${day.location.trim()}` : ''}
+                              {stepLabel}
+                              {locationSuffix}
                             </p>
                             {day.title?.trim() ? (
                               <h3 className="font-semibold text-ink mb-2">{day.title.trim()}</h3>
@@ -976,7 +993,8 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                               </ul>
                             ) : null}
                           </li>
-                        ))}
+                          );
+                        })}
                     </ol>
                   </section>
                 ) : null}
