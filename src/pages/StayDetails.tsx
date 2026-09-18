@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, MapPin, Users } from 'lucide-react';
+import { ArrowLeft, MapPin } from 'lucide-react';
 import { getListingById, getListingByIdAsync } from '../data/listings';
 import { parseListingExtras } from '../types/listingExtras';
 import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
@@ -17,6 +17,7 @@ import { setPageMetaWithOg, setStayJsonLd, clearStayJsonLd } from '../lib/seo';
 import { formatMoney, normalizeCurrency } from '../lib/money';
 import PriceBreakdown, { PriceHero } from '../components/PriceBreakdown';
 import StayNightPicker from '../components/StayNightPicker';
+import GuestStepper from '../components/booking/GuestStepper';
 import NoticeCallout from '../components/NoticeCallout';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 import { CHECKOUT_HOLD_MINUTES } from '../lib/booking-hold';
@@ -319,11 +320,6 @@ export default function StayDetails({ stayId, onBack }: Props) {
               {typeof s?.beds === 'number' ? <li>{s.beds === 1 ? '1 bed' : `${s.beds} beds`}</li> : null}
               {typeof s?.bathrooms === 'number' ? (
                 <li>{s.bathrooms === 1 ? '1 bath' : `${s.bathrooms} baths`}</li>
-              ) : null}
-              {typeof s?.maxGuests === 'number' ? (
-                <li className="flex items-center gap-2">
-                  <Users className="w-4 h-4 text-finland" aria-hidden /> Up to {s.maxGuests} guests
-                </li>
               ) : null}
               </ul>
             </div>
