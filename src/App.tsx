@@ -404,7 +404,7 @@ function App() {
       'reset-password': { title: 'Set a new password', description: 'Choose a new password for your Traverion traveler account.' },
       'email-confirmed': { title: 'Email confirmed', description: 'Your Traverion traveler email was verified.' },
       account: { title: 'My account', description: 'Your profile, trips, and saved tours.' },
-      wishlist: { title: 'Wishlist', description: 'Tours and activities you have saved.' },
+      wishlist: { title: 'Wishlist', description: 'Tours and stays you have saved.' },
       bookings: { title: 'My bookings', description: 'View your tour and activity reservations and their status.' },
       'booking-confirmed': { title: 'Booking confirmed', description: 'Your tour payment was successful.' },
       blog: { title: 'Stories coming later', description: 'Traverion is not publishing editorial articles yet.' },
