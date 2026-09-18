@@ -35,6 +35,7 @@ import {
 import AvailabilityOptionsModal from '../components/booking/AvailabilityOptionsModal';
 import TourDatePicker from '../components/TourDatePicker';
 import GuestStepper from '../components/booking/GuestStepper';
+import ParticipantCategoryStepper from '../components/booking/ParticipantCategoryStepper';
 import { useDialogFocus } from '../hooks/useDialogFocus';
 import { analytics } from '../lib/analytics';
 import { setPageMetaWithOg } from '../lib/seo';
@@ -56,6 +57,14 @@ import {
   type BookingFlowStep,
   type TourBookingVariant,
 } from '../lib/booking-flow';
+import {
+  buildParticipantMixLines,
+  formatMixSummaryCompact,
+  optionUsesAgePricing,
+  totalGuestsFromMix,
+  validateParticipantMix,
+} from '../lib/participant-mix';
+import { activePriceCategories } from '../lib/price-categories';
 import { markBookingsUnread } from '../lib/customerBookingNotifications';
 import {
   BOOKING_CONTACT_EMAIL_FIELD_NOTE,
@@ -84,10 +93,17 @@ interface BookingPageProps {
 
 type Step = BookingFlowStep;
 
-function BookingProgress({ step, flow }: { step: Step; flow: 'page' | 'modal' }) {
+function BookingProgress({
+  step,
+  flow,
+}: {
+  step: Step;
+  flow: 'page' | 'modal' | 'variant';
+}) {
   if (step === 'done') return null;
   const labels = (['Trip', 'Contact', 'Pay'] as const);
-  const order: Step[] = flow === 'modal' ? ['review', 'contact', 'confirm'] : ['date-guests', 'contact', 'confirm'];
+  const order: Step[] =
+    flow === 'page' ? ['date-guests', 'contact', 'confirm'] : ['review', 'contact', 'confirm'];
   const currentIndex = Math.max(0, order.indexOf(step));
 
   return (
@@ -149,12 +165,17 @@ export default function BookingPage({
   const userRef = useRef(user);
   userRef.current = user;
   const flowMode = presentation === 'modal' ? 'modal' : 'page';
+  const hasPreselectedVariant = Boolean(selectedVariant);
+  const progressFlow: 'page' | 'modal' | 'variant' =
+    presentation === 'modal' || hasPreselectedVariant ? 'variant' : 'page';
   const [step, setStep] = useState<Step>(
     presentation === 'modal' || selectedVariant ? 'review' : 'date-guests'
   );
   const [date, setDate] = useState('');
   const [guests, setGuests] = useState(1);
-  const [participantMix] = useState<Record<string, number>>(() => initialParticipantMix ?? {});
+  const [participantMix, setParticipantMix] = useState<Record<string, number>>(
+    () => initialParticipantMix ?? {}
+  );
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
@@ -266,13 +287,17 @@ export default function BookingPage({
   useLayoutEffect(() => {
     hydratedRef.current = false;
     const bounds = getPartySizeBounds(tour);
-    if (presentation === 'modal') {
+    const startOnReview = presentation === 'modal' || Boolean(selectedVariant);
+    if (startOnReview) {
       profileHydratedRef.current = false;
       const nextDate = (initialDate?.trim() || '').trim();
       let nextGuests = typeof initialGuests === 'number' ? initialGuests : bounds.min;
       nextGuests = Math.min(bounds.max, Math.max(bounds.min, nextGuests));
       setDate(nextDate);
       setGuests(nextGuests);
+      if (initialParticipantMix && Object.keys(initialParticipantMix).length > 0) {
+        setParticipantMix(initialParticipantMix);
+      }
       setFirstName('');
       setLastName('');
       setPhone('');
@@ -314,7 +339,14 @@ export default function BookingPage({
     }
     hydratedRef.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- user is read once for initial email/draft sanitize
-  }, [tour.id, initialDate, initialGuests, presentation]);
+  }, [tour.id, initialDate, initialGuests, presentation, selectedVariant?.id]);
+
+  useEffect(() => {
+    const opt = selectedVariant?.listingOption;
+    if (!opt || !optionUsesAgePricing(opt)) return;
+    const next = totalGuestsFromMix(buildParticipantMixLines(opt, participantMix));
+    if (next > 0) setGuests(next);
+  }, [participantMix, selectedVariant]);
 
   useEffect(() => {
     if (!user?.id || !isSupabaseConfigured() || profileHydratedRef.current) return;
@@ -584,15 +616,25 @@ export default function BookingPage({
   };
 
   const dateDisplay = formatBookingDateDisplay(date.trim());
-  const summaryLineModal = `${dateDisplay || date || '—'} · ${guests} ${guests === 1 ? 'guest' : 'guests'}`;
+  const participantsSummary = quoted?.guestBreakdown?.length
+    ? quoted.guestBreakdown.map((r) => `${r.quantity} ${r.label}`).join(' · ')
+    : selectedVariant?.listingOption && optionUsesAgePricing(selectedVariant.listingOption)
+      ? formatMixSummaryCompact(
+          buildParticipantMixLines(selectedVariant.listingOption, participantMix)
+        ) || `${guests} ${guests === 1 ? 'guest' : 'guests'}`
+      : `${guests} ${guests === 1 ? 'guest' : 'guests'}`;
+  const summaryLineModal = `${dateDisplay || date || '—'} · ${participantsSummary}`;
 
-  const contactBackStep: Step = flowMode === 'modal' ? 'review' : 'date-guests';
+  const contactBackStep: Step =
+    flowMode === 'modal' || hasPreselectedVariant ? 'review' : 'date-guests';
+
+  const usesAgePricingOnVariant = optionUsesAgePricing(selectedVariant?.listingOption);
 
   const flowInner = (
     <>
-        {step === 'review' && presentation === 'modal' && selectedVariant && (
+        {step === 'review' && selectedVariant && (
           <div className="bg-paper-raised rounded-2xl p-6 sm:p-8 ring-1 ring-black/[0.06]">
-            <BookingProgress step={step} flow={flowMode} />
+            <BookingProgress step={step} flow={progressFlow} />
             <h2 className="font-display text-2xl text-ink mb-2">Your trip</h2>
             <p className="text-sm text-ink-muted mb-6">
               Confirm date, option, and participants. Next you will enter contact details, then pay on Stripe.
@@ -609,10 +651,7 @@ export default function BookingPage({
                 <span className="font-medium text-ink">Date</span> — {dateDisplay || date}
               </p>
               <p>
-                <span className="font-medium text-ink">Participants</span> —{' '}
-                {quoted?.guestBreakdown?.length
-                  ? quoted.guestBreakdown.map((r) => `${r.quantity} ${r.label}`).join(' · ')
-                  : `${guests} ${guests === 1 ? 'guest' : 'guests'}`}
+                <span className="font-medium text-ink">Participants</span> — {participantsSummary}
               </p>
               {selectedVariant.listingOption?.pickupPlace?.trim() ? (
                 <p>
@@ -621,6 +660,25 @@ export default function BookingPage({
                 </p>
               ) : null}
             </div>
+            {usesAgePricingOnVariant && selectedVariant.listingOption ? (
+              <div className="mb-6 space-y-2">
+                <p className="text-sm font-medium text-ink">Adjust participants</p>
+                {activePriceCategories(selectedVariant.listingOption).map((cat) => (
+                  <ParticipantCategoryStepper
+                    key={cat.id}
+                    category={cat}
+                    quantity={participantMix[cat.id] ?? 0}
+                    currency={currency}
+                    max={selectedVariant.listingOption!.maxPersons}
+                    onChange={(qty) => {
+                      setParticipantMix((prev) => ({ ...prev, [cat.id]: qty }));
+                      setError(null);
+                    }}
+                    onBoundaryAttempt={setError}
+                  />
+                ))}
+              </div>
+            ) : null}
             <div className="mb-6">
               <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint mb-2">Total</p>
               {quoted ? (
@@ -630,12 +688,12 @@ export default function BookingPage({
                   total={quoted.totalAmount}
                   originalTotal={quoted.originalUnitPrice * quoted.guests}
                   discountLabel={quoted.discountLabel}
-                  footnote={`${quoted.optionLabel} · ${quoted.guests === 1 ? '1 guest' : `${quoted.guests} guests`}`}
+                  footnote={`${quoted.optionLabel} · ${participantsSummary}`}
                 />
               ) : (
                 <div className="flex justify-between text-sm text-ink-muted">
                   <span>
-                    {formatMoney(pricePerPerson, currency)} × {guests} guests
+                    {participantsSummary}
                     {priceInfo.label ? (
                       <span className="block text-xs text-green-600 mt-1">{priceInfo.label}</span>
                     ) : null}
@@ -653,6 +711,13 @@ export default function BookingPage({
                 type="button"
                 onClick={() => {
                   setError(null);
+                  if (usesAgePricingOnVariant && selectedVariant.listingOption) {
+                    const mixErr = validateParticipantMix(selectedVariant.listingOption, participantMix);
+                    if (mixErr) {
+                      setError(mixErr);
+                      return;
+                    }
+                  }
                   if (priceInfo.quote && !priceInfo.quote.ok) {
                     setError(priceInfo.quote.error);
                     return;
@@ -669,7 +734,7 @@ export default function BookingPage({
 
         {step === 'date-guests' && (
           <div className="bg-paper-raised rounded-2xl p-6 sm:p-8 ring-1 ring-black/[0.06]">
-            <BookingProgress step={step} flow={flowMode} />
+            <BookingProgress step={step} flow={progressFlow} />
             <h2 className="text-xl font-semibold text-ink mb-6">Select date and guests</h2>
             <div className="space-y-4">
               <TourDatePicker
@@ -679,15 +744,35 @@ export default function BookingPage({
                 options={calendarOptions}
                 hint={weekdayHint}
               />
-              <GuestStepper
-                id="booking-flow-guests"
-                label="Number of guests"
-                value={guests}
-                min={partyBounds.min}
-                max={partyBounds.max}
-                onChange={setGuests}
-                onBoundaryAttempt={setError}
-              />
+              {usesAgePricingOnVariant && selectedVariant?.listingOption ? (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-ink">Participants</p>
+                  {activePriceCategories(selectedVariant.listingOption).map((cat) => (
+                    <ParticipantCategoryStepper
+                      key={cat.id}
+                      category={cat}
+                      quantity={participantMix[cat.id] ?? 0}
+                      currency={currency}
+                      max={selectedVariant.listingOption!.maxPersons}
+                      onChange={(qty) => {
+                        setParticipantMix((prev) => ({ ...prev, [cat.id]: qty }));
+                        setError(null);
+                      }}
+                      onBoundaryAttempt={setError}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <GuestStepper
+                  id="booking-flow-guests"
+                  label="Number of guests"
+                  value={guests}
+                  min={partyBounds.min}
+                  max={partyBounds.max}
+                  onChange={setGuests}
+                  onBoundaryAttempt={setError}
+                />
+              )}
             </div>
             {(error || quoteBlockReason) ? (
               <div className="mt-3">
@@ -706,8 +791,8 @@ export default function BookingPage({
                 </p>
                 <p className="text-xs text-ink-faint mt-0.5">
                   {quoted
-                    ? `${quoted.optionLabel} × ${quoted.guests} — no payment taken on this step.`
-                    : `${guests} × ${formatMoney(pricePerPerson, currency)} — no payment taken on this step.`}
+                    ? `${quoted.optionLabel} · ${participantsSummary} — no payment taken on this step.`
+                    : `${participantsSummary} — no payment taken on this step.`}
                 </p>
               </div>
               <button
@@ -724,7 +809,7 @@ export default function BookingPage({
 
         {step === 'contact' && (
           <div className="bg-paper-raised rounded-2xl p-6 sm:p-8 ring-1 ring-black/[0.06]">
-            <BookingProgress step={step} flow={flowMode} />
+            <BookingProgress step={step} flow={progressFlow} />
             <h2 className="text-xl font-semibold text-ink mb-2">Your details</h2>
             <p className="text-sm text-ink-muted mb-6 flex items-start gap-2">
               <Shield className="w-4 h-4 text-finland shrink-0 mt-0.5" aria-hidden />
@@ -754,11 +839,7 @@ export default function BookingPage({
                   ) : null}
                   <div className="flex justify-between gap-3">
                     <dt className="text-ink-faint">Participants</dt>
-                    <dd className="font-medium text-ink text-right">
-                      {quoted?.guestBreakdown?.length
-                        ? quoted.guestBreakdown.map((r) => `${r.quantity} ${r.label}`).join(' · ')
-                        : `${guests} ${guests === 1 ? 'guest' : 'guests'}`}
-                    </dd>
+                    <dd className="font-medium text-ink text-right">{participantsSummary}</dd>
                   </div>
                   {selectedVariant?.listingOption?.pickupPlace?.trim() ? (
                     <div className="flex justify-between gap-3">
@@ -909,7 +990,7 @@ export default function BookingPage({
 
         {step === 'confirm' && (
           <div className="bg-paper-raised rounded-2xl p-6 sm:p-8 ring-1 ring-black/[0.06]">
-            <BookingProgress step={step} flow={flowMode} />
+            <BookingProgress step={step} flow={progressFlow} />
             <h2 className="font-display text-2xl text-ink mb-2">Review &amp; pay</h2>
             <p className="text-sm text-ink-muted mb-6 flex items-start gap-2 rounded-xl bg-finland/5 ring-1 ring-finland/15 px-3 py-2.5">
               <ClipboardList className="w-4 h-4 text-finland shrink-0 mt-0.5" aria-hidden />
@@ -1024,7 +1105,10 @@ export default function BookingPage({
                 <>
                   <div className="flex justify-between text-sm text-ink">
                     <span>
-                      {formatMoney(pricePerPerson, currency)} × {guests} guests
+                      {participantsSummary}
+                      {!usesAgePricingOnVariant
+                        ? ` · ${formatMoney(pricePerPerson, currency)} each`
+                        : ''}
                     </span>
                     <span className="font-medium">{formatMoney(total, currency)}</span>
                   </div>
