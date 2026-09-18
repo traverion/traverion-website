@@ -13,18 +13,30 @@ export default function Blog({ onNavigate }: { onNavigate?: (page: string) => vo
     <LegalPageShell
       eyebrow="Explore"
       title="Stories coming later"
-      subtitle="We are not publishing travel articles yet. Browse live tours instead."
+      subtitle="We are not publishing travel articles yet. Browse live tours and stays instead."
       onNavigate={onNavigate}
     >
       <EmptyState
         icon={BookOpen}
         className="py-2"
         title="No stories yet"
-        body="When we publish guides, they will appear here. Until then, discover tours from independent operators."
+        body="When we publish guides, they will appear here. Until then, discover tours and stays from independent operators."
         action={
-          <a href="/packages" onClick={goTours} className="tv-btn-primary">
-            Browse tours
-          </a>
+          <div className="flex flex-wrap gap-2">
+            <a href="/packages" onClick={goTours} className="tv-btn-primary">
+              Browse tours
+            </a>
+            <a
+              href="/stays"
+              onClick={(e) => {
+                e.preventDefault();
+                onNavigate?.('stays');
+              }}
+              className="tv-btn-ghost"
+            >
+              Browse stays
+            </a>
+          </div>
         }
       />
     </LegalPageShell>

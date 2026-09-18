@@ -1,7 +1,7 @@
 import { ArrowRight, Search, ShieldCheck, Compass } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import { getAllListings } from '../data/listings';
-import { filterCatalogByFamily } from '../lib/inventory';
+import { filterCatalogByFamily, listingIsFamily } from '../lib/inventory';
 import { getDestinationsFromListings } from '../data/catalogMeta';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { usePublishedSupplierListings } from '../hooks/usePublishedSupplierListings';
@@ -309,22 +309,25 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                 const matches = [...allListings, ...stayListings].filter(
                   (t) =>
                     (t.city && t.city.toLowerCase() === p.label.toLowerCase()) ||
+                    (t.country && t.country.toLowerCase() === p.label.toLowerCase()) ||
                     (t.destination && t.destination.toLowerCase().includes(p.label.toLowerCase()))
                 );
                 const fromInventory = matches[0] ?? null;
                 const img = listingHeroImageSrc(fromInventory?.image) ?? HERO_IMG.vacation;
-                const tourCount = matches.filter((t) => (t.inventoryFamily ?? 'tour') !== 'stay').length;
-                const stayCount = matches.filter((t) => t.inventoryFamily === 'stay').length;
+                const tourCount = matches.filter((t) => listingIsFamily(t, 'tour')).length;
+                const stayCount = matches.filter((t) => listingIsFamily(t, 'stay')).length;
                 const countLabel =
                   searchFamily === 'stays'
                     ? stayCount > 0
                       ? `${stayCount} ${stayCount === 1 ? 'stay' : 'stays'}`
                       : null
-                    : tourCount > 0
-                      ? `${tourCount} ${tourCount === 1 ? 'tour' : 'tours'}`
-                      : matches.length > 0
-                        ? `${matches.length} listings`
-                        : null;
+                    : tourCount > 0 && stayCount > 0
+                      ? `${tourCount} ${tourCount === 1 ? 'tour' : 'tours'} · ${stayCount} ${stayCount === 1 ? 'stay' : 'stays'}`
+                      : tourCount > 0
+                        ? `${tourCount} ${tourCount === 1 ? 'tour' : 'tours'}`
+                        : stayCount > 0
+                          ? `${stayCount} ${stayCount === 1 ? 'stay' : 'stays'}`
+                          : null;
                 return (
                   <button
                     key={p.id}
