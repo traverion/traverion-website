@@ -1,8 +1,5 @@
 import { useEffect, useState } from 'react';
 import { Eye, EyeOff, Lock, User, Key, Loader2, ShieldAlert } from 'lucide-react';
-import LuxuryButton from '../ui/LuxuryButton';
-import LuxuryCard from '../ui/LuxuryCard';
-import LuxuryInput from '../ui/LuxuryInput';
 import { BRAND_LOGO_SRC } from '../../lib/brandAssets';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
@@ -254,12 +251,12 @@ export default function AdminStaffLogin() {
     authLoading || (isTraverionAdminHost() && !recoveryMode && !loginFormAllowed);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
-      <LuxuryCard variant="glass" className="w-full max-w-md p-8">
+    <div className="min-h-screen bg-paper flex items-center justify-center p-4">
+      <div className="tv-card w-full max-w-md p-8">
         <div className="text-center mb-8">
           <img src={BRAND_LOGO_SRC} alt="" className="h-16 w-16 object-contain mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-white mb-2">{recoveryMode ? 'Set a new password' : 'Sign in'}</h1>
-          <p className="text-gray-300 text-sm">
+          <h1 className="font-display text-2xl text-ink mb-2">{recoveryMode ? 'Set a new password' : 'Sign in'}</h1>
+          <p className="text-ink-muted text-sm">
             {recoveryMode
               ? 'Choose a new password, then sign in below.'
               : 'Private access. Authorized users only. There is no sign-up on this page.'}
@@ -267,8 +264,8 @@ export default function AdminStaffLogin() {
         </div>
 
         {showSpinnerOnly && (
-          <div className="flex flex-col items-center justify-center gap-3 py-12 text-gray-300">
-            <Loader2 className="w-10 h-10 animate-spin text-sky-400" aria-hidden />
+          <div className="flex flex-col items-center justify-center gap-3 py-12 text-ink-muted">
+            <Loader2 className="w-10 h-10 animate-spin text-finland" aria-hidden />
             <p className="text-sm text-center">
               {authLoading
                 ? 'Checking session…'
@@ -282,7 +279,7 @@ export default function AdminStaffLogin() {
         {!showSpinnerOnly && (
           <>
         {supabaseEnvPairing === 'mismatch' && (
-          <div className="mb-6 rounded-lg border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-left text-sm text-amber-100">
+          <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-left text-sm text-amber-900">
             <strong className="font-semibold">Configuration error:</strong> the anon key in this build does not
             match the project in <code className="text-xs opacity-90">VITE_SUPABASE_URL</code>. Update both values
             from the same Supabase project (Settings → API) in your host env, then redeploy. This is unrelated to
@@ -292,32 +289,38 @@ export default function AdminStaffLogin() {
 
         {recoveryMode ? (
           <form onSubmit={(e) => void handleRecoverySubmit(e)} className="space-y-6">
-            <LuxuryInput
-              type={isVisible ? 'text' : 'password'}
-              autoComplete="new-password"
-              placeholder="New password (min 8 characters)"
-            value={recoveryPassword}
-            onChange={(e) => {
-              setAccessDenied(false);
-              setRecoveryPassword(e.target.value);
-            }}
-              icon={<Lock className="w-5 h-5" />}
-              required
-              className="w-full"
-            />
-            <LuxuryInput
-              type={isVisible ? 'text' : 'password'}
-              autoComplete="new-password"
-              placeholder="Confirm new password"
-            value={recoveryConfirm}
-            onChange={(e) => {
-              setAccessDenied(false);
-              setRecoveryConfirm(e.target.value);
-            }}
-              icon={<Lock className="w-5 h-5" />}
-              required
-              className="w-full"
-            />
+            <div className="relative">
+              <Lock className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-ink-faint" aria-hidden />
+              <input
+                type={isVisible ? 'text' : 'password'}
+                autoComplete="new-password"
+                placeholder="New password (min 8 characters)"
+                value={recoveryPassword}
+                onChange={(e) => {
+                  setAccessDenied(false);
+                  setRecoveryPassword(e.target.value);
+                }}
+                required
+                className="tv-input w-full"
+                style={{ paddingLeft: '2.75rem' }}
+              />
+            </div>
+            <div className="relative">
+              <Lock className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-ink-faint" aria-hidden />
+              <input
+                type={isVisible ? 'text' : 'password'}
+                autoComplete="new-password"
+                placeholder="Confirm new password"
+                value={recoveryConfirm}
+                onChange={(e) => {
+                  setAccessDenied(false);
+                  setRecoveryConfirm(e.target.value);
+                }}
+                required
+                className="tv-input w-full"
+                style={{ paddingLeft: '2.75rem' }}
+              />
+            </div>
             {accessDenied && <StaffAccessDeniedBanner key={accessDeniedTick} />}
             {error && !accessDenied && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-3">
@@ -329,34 +332,36 @@ export default function AdminStaffLogin() {
                 <p className="text-emerald-800 text-sm">{successMessage}</p>
               </div>
             )}
-            <LuxuryButton
+            <button
               type="submit"
-              variant="gradient"
-              size="lg"
               disabled={recoverySubmitting || !recoveryPassword || !recoveryConfirm}
-              className="w-full"
+              className="tv-btn-primary w-full"
             >
               {recoverySubmitting ? 'Saving…' : 'Update password'}
-            </LuxuryButton>
+            </button>
           </form>
         ) : (
         <form onSubmit={(e) => void handleSubmit(e)} className="space-y-6">
-          <LuxuryInput
-            type="email"
-            autoComplete="username"
-            placeholder="Email"
-            value={credentials.email}
-            onChange={(e) => {
-              setAccessDenied(false);
-              setCredentials({ ...credentials, email: e.target.value });
-            }}
-            icon={<User className="w-5 h-5" />}
-            required
-            className="w-full"
-          />
+          <div className="relative">
+            <User className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-ink-faint" aria-hidden />
+            <input
+              type="email"
+              autoComplete="username"
+              placeholder="Email"
+              value={credentials.email}
+              onChange={(e) => {
+                setAccessDenied(false);
+                setCredentials({ ...credentials, email: e.target.value });
+              }}
+              required
+              className="tv-input w-full"
+              style={{ paddingLeft: '2.75rem' }}
+            />
+          </div>
 
           <div className="relative">
-            <LuxuryInput
+            <Lock className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-ink-faint" aria-hidden />
+            <input
               type={isVisible ? 'text' : 'password'}
               autoComplete="current-password"
               placeholder="Password"
@@ -365,14 +370,14 @@ export default function AdminStaffLogin() {
                 setAccessDenied(false);
                 setCredentials({ ...credentials, password: e.target.value });
               }}
-              icon={<Lock className="w-5 h-5" />}
               required
-              className="w-full pr-12"
+              className="tv-input w-full"
+              style={{ paddingLeft: '2.75rem', paddingRight: '2.75rem' }}
             />
             <button
               type="button"
               onClick={() => setIsVisible(!isVisible)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-faint hover:text-ink-muted"
               aria-label={isVisible ? 'Hide password' : 'Show password'}
             >
               {isVisible ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
@@ -391,12 +396,10 @@ export default function AdminStaffLogin() {
             </div>
           )}
 
-          <LuxuryButton
+          <button
             type="submit"
-            variant="gradient"
-            size="lg"
             disabled={isLoading || !credentials.email || !credentials.password}
-            className="w-full"
+            className="tv-btn-primary w-full"
           >
             {isLoading ? (
               <span className="flex items-center justify-center gap-2">
@@ -405,22 +408,22 @@ export default function AdminStaffLogin() {
               </span>
             ) : (
               <span className="flex items-center justify-center gap-2">
-                <Key className="w-5 h-5" />
+                <Key className="w-5 h-5" aria-hidden />
                 Continue
               </span>
             )}
-          </LuxuryButton>
+          </button>
         </form>
         )}
           </>
         )}
 
-        <p className="mt-8 text-center text-xs text-slate-400">
-          <a href={publicMarketingSiteUrl()} className="underline hover:text-slate-200">
+        <p className="mt-8 text-center text-xs text-ink-muted">
+          <a href={publicMarketingSiteUrl()} className="underline hover:text-ink">
             Back to public site
           </a>
         </p>
-      </LuxuryCard>
+      </div>
     </div>
   );
 }
