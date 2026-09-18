@@ -174,7 +174,7 @@ export default function Contact({ onNavigate }: ContactProps) {
               <legend className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-2">
                 What do you need help with?
               </legend>
-              <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Contact topic">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2" role="radiogroup" aria-label="Contact topic">
                 {TOPICS.map((t) => {
                   const selected = topic === t.id;
                   return (
@@ -184,14 +184,14 @@ export default function Contact({ onNavigate }: ContactProps) {
                       role="radio"
                       aria-checked={selected}
                       onClick={() => setTopic(t.id)}
-                      className={`tv-chip text-left transition-colors duration-150 ${
+                      className={`rounded-2xl px-3.5 py-3 text-left transition-all duration-150 min-h-11 ${
                         selected
                           ? 'bg-finland text-white shadow-sm ring-2 ring-finland/40'
-                          : 'bg-paper-raised text-ink ring-1 ring-black/[0.06] hover:bg-finland/10 hover:text-finland'
+                          : 'bg-paper-raised text-ink ring-1 ring-black/[0.06] hover:bg-finland/10 hover:text-finland hover:ring-finland/20'
                       }`}
                     >
-                      <span className="block font-semibold">{t.label}</span>
-                      <span className={`block text-[11px] mt-0.5 ${selected ? 'text-white/80' : 'text-ink-faint'}`}>
+                      <span className="block text-sm font-semibold">{t.label}</span>
+                      <span className={`block text-[11px] mt-0.5 leading-snug ${selected ? 'text-white/80' : 'text-ink-faint'}`}>
                         {t.hint}
                       </span>
                     </button>
