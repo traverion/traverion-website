@@ -53,8 +53,9 @@ export default function Terms({ onNavigate }: TermsProps) {
         <h2>Description of Services</h2>
         <p>
           TRAVERION provides an online platform to discover, compare, and book travel-related products and services
-          (including packages, tours, and related arrangements) offered by us and, where applicable, third-party
-          suppliers. We act as an intermediary or organiser as stated in your booking confirmation and applicable law.
+          (including tours, activities, and stays) offered by independent operators and, where applicable, other
+          third-party suppliers. We act as an intermediary or organiser as stated in your booking confirmation and
+          applicable law.
         </p>
         <p>
           <strong>Important:</strong> Final travel services are often delivered by airlines, hotels, transport
