@@ -307,9 +307,12 @@ export default function StayDetails({ stayId, onBack }: Props) {
               </div>
             ) : null}
             <div className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]">
-              <h2 className="font-display text-2xl mb-3">Sleeping</h2>
+              <h2 className="font-display text-2xl mb-3">About this place</h2>
               <ul className="space-y-2 text-ink-muted">
               {s?.propertyType ? <li>{s.propertyType}</li> : null}
+              {typeof s?.maxGuests === 'number' ? (
+                <li>Up to {s.maxGuests} guests</li>
+              ) : null}
               {typeof s?.bedrooms === 'number' ? (
                 <li>{s.bedrooms === 1 ? '1 bedroom' : `${s.bedrooms} bedrooms`}</li>
               ) : null}

@@ -101,7 +101,7 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
   useEffect(() => {
     if (!label) return;
     setPageMetaWithOg(
-      `${label} · Traverion`,
+      label,
       `Tours and stays in ${label}. ${tourListings.length} tour${tourListings.length !== 1 ? 's' : ''}${
         stayListings.length > 0
           ? `, ${stayListings.length} stay${stayListings.length !== 1 ? 's' : ''}`
