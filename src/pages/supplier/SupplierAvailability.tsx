@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CalendarDays, Ban } from 'lucide-react';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { fetchMyListings } from '../../data/supabase-listings';
@@ -22,11 +22,32 @@ import {
 } from '../../lib/availability-ops';
 import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
-import { SUPPLIER_PAGE_CLASS, SupplierEmptyState, SupplierPageHero } from '../../components/supplier/supplierUi';
+import {
+  SUPPLIER_PAGE_CLASS,
+  SupplierEmptyState,
+  SupplierModalHeader,
+  SupplierModalShell,
+  SupplierPageHero,
+} from '../../components/supplier/supplierUi';
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+const MAX_BULK_RANGE_DAYS = 366;
+
+/** Inclusive list of ISO dates from `fromIso` to `toIso`, capped so a bad range can't hang the tab. */
+function enumerateIsoDates(fromIso: string, toIso: string): string[] {
+  const out: string[] = [];
+  let cursor = new Date(`${fromIso}T00:00:00Z`).getTime();
+  const end = new Date(`${toIso}T00:00:00Z`).getTime();
+  if (!Number.isFinite(cursor) || !Number.isFinite(end)) return out;
+  while (cursor <= end && out.length < MAX_BULK_RANGE_DAYS) {
+    out.push(new Date(cursor).toISOString().slice(0, 10));
+    cursor += 24 * 60 * 60 * 1000;
+  }
+  return out;
+}
 
 function defaultSpots(listing: TourPackage | null): number {
   const opts = listing ? materializedBookingOptions(listing.listingExtras?.bookingOptions) : [];
@@ -47,6 +68,12 @@ export default function SupplierAvailability() {
   const [savingIso, setSavingIso] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<{ iso: string; capacity: string } | null>(null);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkFrom, setBulkFrom] = useState('');
+  const [bulkTo, setBulkTo] = useState('');
+  const [bulkCapacity, setBulkCapacity] = useState('0');
+  const [bulkSaving, setBulkSaving] = useState(false);
+  const [bulkError, setBulkError] = useState<string | null>(null);
   const daySheetRef = useRef<HTMLDivElement>(null);
   const closeDaySheet = useCallback(() => setEditing(null), []);
   useDialogFocus(editing !== null, daySheetRef, closeDaySheet);
@@ -188,6 +215,40 @@ export default function SupplierAvailability() {
     await loadCaps(listingId);
   };
 
+  const applyBulk = useCallback(async () => {
+    if (!listingId) return;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(bulkFrom) || !/^\d{4}-\d{2}-\d{2}$/.test(bulkTo)) {
+      setBulkError('Pick a start and end date.');
+      return;
+    }
+    if (bulkFrom > bulkTo) {
+      setBulkError('End date must be on or after the start date.');
+      return;
+    }
+    const dates = enumerateIsoDates(bulkFrom, bulkTo);
+    if (dates.length === 0) {
+      setBulkError('Pick a valid range.');
+      return;
+    }
+    const capacity = Math.max(0, Math.floor(Number(bulkCapacity) || 0));
+    setBulkSaving(true);
+    setBulkError(null);
+    const res = await upsertAvailability(
+      listingId,
+      dates.map((available_date) => ({ available_date, capacity }))
+    );
+    setBulkSaving(false);
+    if (!res.success) {
+      setBulkError(userFacingError(res.error, 'Could not save that range. Try again.'));
+      return;
+    }
+    setBulkOpen(false);
+    setBulkFrom('');
+    setBulkTo('');
+    setBulkCapacity('0');
+    await loadCaps(listingId);
+  }, [listingId, bulkFrom, bulkTo, bulkCapacity, loadCaps]);
+
   const monthLabel = new Date(Date.UTC(year, monthIndex0, 1)).toLocaleString('en-GB', {
     month: 'long',
     year: 'numeric',
@@ -302,6 +363,25 @@ export default function SupplierAvailability() {
               <ChevronRight className="w-5 h-5" />
             </button>
           </div>
+
+          {listingId ? (
+            <div className="mb-4 flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setBulkError(null);
+                  setBulkFrom('');
+                  setBulkTo('');
+                  setBulkCapacity('0');
+                  setBulkOpen(true);
+                }}
+                className="tv-btn-secondary inline-flex items-center gap-1.5 text-sm"
+              >
+                <Ban className="h-4 w-4" aria-hidden />
+                {stayCalendar ? 'Block a range of nights' : 'Edit multiple dates'}
+              </button>
+            </div>
+          ) : null}
 
           {error ? (
             <ErrorState
@@ -560,6 +640,84 @@ export default function SupplierAvailability() {
           )}
         </div>
       )}
+
+      {bulkOpen ? (
+        <SupplierModalShell onClose={() => (bulkSaving ? undefined : setBulkOpen(false))} maxWidth="md">
+          <SupplierModalHeader
+            icon={Ban}
+            title={stayCalendar ? 'Block a range of nights' : 'Edit multiple dates'}
+            subtitle={listing?.title}
+            onClose={() => setBulkOpen(false)}
+          />
+          <div className="space-y-4 p-4 sm:p-5">
+            <p className="text-sm text-ink-muted">
+              {stayCalendar
+                ? 'Block several nights at once \u2014 a maintenance week or a personal booking elsewhere. Clearing a night later returns it to available.'
+                : 'Set the same spot count across a date range at once \u2014 close for a holiday, or open extra departures for a busy stretch.'}
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[11px] font-medium uppercase tracking-wide text-ink-faint" htmlFor="bulk-from">
+                  From
+                </label>
+                <input
+                  id="bulk-from"
+                  type="date"
+                  value={bulkFrom}
+                  onChange={(e) => setBulkFrom(e.target.value)}
+                  className="tv-input mt-1 w-full"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-medium uppercase tracking-wide text-ink-faint" htmlFor="bulk-to">
+                  To
+                </label>
+                <input
+                  id="bulk-to"
+                  type="date"
+                  value={bulkTo}
+                  onChange={(e) => setBulkTo(e.target.value)}
+                  className="tv-input mt-1 w-full"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-[11px] font-medium uppercase tracking-wide text-ink-faint" htmlFor="bulk-capacity">
+                {stayCalendar ? 'Spots (0 blocks every night in range)' : 'Spots per day (0 closes every date in range)'}
+              </label>
+              <input
+                id="bulk-capacity"
+                type="number"
+                min={0}
+                max={99}
+                value={bulkCapacity}
+                onChange={(e) => setBulkCapacity(e.target.value)}
+                className="tv-input mt-1 w-24"
+              />
+            </div>
+            {bulkError ? <p className="text-sm text-red-700">{bulkError}</p> : null}
+            {bulkFrom && bulkTo && bulkFrom <= bulkTo ? (
+              <p className="text-xs text-ink-faint">
+                Applies to {enumerateIsoDates(bulkFrom, bulkTo).length} date
+                {enumerateIsoDates(bulkFrom, bulkTo).length === 1 ? '' : 's'}.
+              </p>
+            ) : null}
+            <div className="flex flex-wrap gap-2 pt-1">
+              <button
+                type="button"
+                disabled={bulkSaving}
+                onClick={() => void applyBulk()}
+                className="tv-btn-primary disabled:opacity-50"
+              >
+                {bulkSaving ? 'Saving\u2026' : 'Apply to range'}
+              </button>
+              <button type="button" onClick={() => setBulkOpen(false)} disabled={bulkSaving} className="tv-btn-ghost">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </SupplierModalShell>
+      ) : null}
     </div>
   );
 }
