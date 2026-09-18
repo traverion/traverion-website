@@ -56,7 +56,7 @@ type SupplierFieldKey =
 type SupplierFieldErrors = Partial<Record<SupplierFieldKey, string>>;
 
 const BENEFITS = [
-  { icon: MapPin, text: 'List once — your tours appear on Traverion for travelers worldwide' },
+  { icon: MapPin, text: 'List once — tours and stays appear on Traverion for travelers worldwide' },
   { icon: Users, text: 'No upfront cost — reach customers without listing fees' },
   { icon: CreditCard, text: 'Manage everything in one place — listings, bookings, payouts' },
 ];

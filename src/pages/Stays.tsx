@@ -17,6 +17,7 @@ import { STRIPE_CHECKOUT_CANCELLED_STAY_COPY, readStripeCheckoutReturnBanner } f
 import { stayAvailableForRequestedNights } from '../lib/stayOccupancy';
 import { fetchPublishedStayOccupiedRanges } from '../data/supabase-bookings';
 import type { TourPackage } from '../types/tour';
+import { formatStayNightHuman } from '../lib/stay-calendar';
 
 type Props = {
   onStaySelect: (stay: TourPackage) => void;
@@ -123,9 +124,9 @@ export default function Stays({ onStaySelect }: Props) {
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Browse</p>
           <h1 className="font-display text-4xl sm:text-5xl text-ink tracking-tight">Stays</h1>
           <p className="mt-3 text-ink-muted max-w-xl leading-relaxed">
-            Apartments and rooms from operators — not mixed into Tours. Dates are nights, not departures.
+            Places to stay from independent operators — separate from tours.
             {dateFilterActive
-              ? ' Results hide stays whose nights are already booked for your dates.'
+              ? ' Only stays free for your nights are shown.'
               : ''}
           </p>
         </header>
@@ -199,7 +200,7 @@ export default function Stays({ onStaySelect }: Props) {
           </div>
           <p className="self-center text-sm text-ink-muted px-3 py-2 sm:text-right">
             {catalogLoading || waitingOnOccupancy
-              ? 'Loading'
+              ? 'Loading…'
               : `${filtered.length} stay${filtered.length === 1 ? '' : 's'}`}
           </p>
         </form>
@@ -222,7 +223,7 @@ export default function Stays({ onStaySelect }: Props) {
                 onClick={() => setCheckIn('')}
                 className="lux-flat inline-flex items-center gap-1.5 rounded-full bg-finland/10 px-3 py-1.5 text-xs font-semibold text-finland ring-1 ring-finland/20"
               >
-                In {checkIn} <X className="w-3.5 h-3.5" />
+                In {formatStayNightHuman(checkIn)} <X className="w-3.5 h-3.5" />
               </button>
             ) : null}
             {checkOut ? (
@@ -231,7 +232,7 @@ export default function Stays({ onStaySelect }: Props) {
                 onClick={() => setCheckOut('')}
                 className="lux-flat inline-flex items-center gap-1.5 rounded-full bg-finland/10 px-3 py-1.5 text-xs font-semibold text-finland ring-1 ring-finland/20"
               >
-                Out {checkOut} <X className="w-3.5 h-3.5" />
+                Out {formatStayNightHuman(checkOut)} <X className="w-3.5 h-3.5" />
               </button>
             ) : null}
             {guests ? (
