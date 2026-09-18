@@ -108,9 +108,9 @@ function PartnerBusyScreen({ label }: { label: string }) {
           <div className="mt-3 h-4 w-72 max-w-full rounded bg-black/[0.04] animate-pulse" />
         </div>
         <div className="mt-10 space-y-3">
-          <div className="h-24 rounded-2xl bg-paper-raised shadow-soft ring-1 ring-black/[0.06] animate-pulse" />
-          <div className="h-24 rounded-2xl bg-paper-raised shadow-soft ring-1 ring-black/[0.06] animate-pulse" />
-          <div className="h-24 rounded-2xl bg-paper-raised shadow-soft ring-1 ring-black/[0.06] animate-pulse" />
+          <div className="tv-card h-24 animate-pulse" />
+          <div className="tv-card h-24 animate-pulse" />
+          <div className="tv-card h-24 animate-pulse" />
         </div>
       </div>
     </div>

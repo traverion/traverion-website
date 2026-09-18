@@ -889,6 +889,24 @@ a:focus-visible,
   outline: none;
   box-shadow: 0 0 0 2px rgba(0, 53, 128, 0.35);
 }
+
+/**
+ * Raised surface card. Phase 1 design-system audit found this exact composition
+ * (bg-paper-raised + rounded-2xl + shadow-soft + ring-1 ring-black/[0.06]) spelled
+ * out verbatim at 100+ call sites across Partner/Traveler/Admin. One class, one
+ * definition to keep consistent as surfaces are rebuilt — existing call sites are
+ * left as-is for now and migrate screen by screen rather than in one mass edit.
+ */
+.tv-card {
+  background: #fffcf8;
+  border-radius: 1rem;
+  box-shadow: 0 0 0 1px rgba(28, 25, 23, 0.06), 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+.tv-card-flat {
+  background: #fffcf8;
+  border-radius: 1rem;
+  box-shadow: 0 0 0 1px rgba(28, 25, 23, 0.06);
+}
 @keyframes tv-overlay-in {
   from { opacity: 0; }
   to { opacity: 1; }
