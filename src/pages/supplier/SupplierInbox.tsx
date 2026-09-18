@@ -20,6 +20,7 @@ import { PARTNER_INBOX_MESSAGE_DELIVERY_NOTE } from '../../lib/booking-confirmat
 import { bookingPaymentWasCollected, partnerPaymentLabel } from '../../lib/payment-states';
 import { partnerInboxListsBooking } from '../../lib/messaging-authorization';
 import StatusChip, { toneForPaymentLabel } from '../../components/StatusChip';
+import { formatBookingParticipantsLabel } from '../../lib/participant-mix';
 
 export default function SupplierInbox() {
   const { user, isSupabase } = useSupplierAuth();
@@ -174,6 +175,7 @@ export default function SupplierInbox() {
                           month: 'short',
                         })
                       : 'Date TBC'}
+                    {` · ${formatBookingParticipantsLabel(b)}`}
                     {last?.created_at
                       ? ` · ${new Date(last.created_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}`
                       : ''}
@@ -186,7 +188,8 @@ export default function SupplierInbox() {
                   <div className="mt-4 motion-safe:animate-fade-in">
                     <p className="mb-3 text-sm text-ink">
                       Booking {typeof b.booking_number === 'number' ? `#${b.booking_number}` : ''} ·{' '}
-                      {titles[b.listing_id] ?? 'Listing'} · {b.guest_name?.trim() || 'Traveler'}
+                      {titles[b.listing_id] ?? 'Listing'} · {b.guest_name?.trim() || 'Traveler'} ·{' '}
+                      {formatBookingParticipantsLabel(b)}
                     </p>
                     <BookingMessageThread
                       bookingId={b.id}
