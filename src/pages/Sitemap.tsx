@@ -1,7 +1,7 @@
 import LegalPageShell from '../components/LegalPageShell';
-import { supplierPortalHref } from '../lib/partnerHost';
+import { supplierPortalLandingHref } from '../lib/partnerHost';
 
-const partnerPortalLoginHref = supplierPortalHref('/login');
+const partnerPortalHomeHref = supplierPortalLandingHref();
 
 type SitemapLink = { label: string; page?: string; href?: string };
 
@@ -46,7 +46,7 @@ const SECTIONS: SitemapSection[] = [
     items: [
       { label: 'Become an affiliate', page: 'affiliate' },
       { label: 'Become a content creator', page: 'content-creator' },
-      { label: 'Become a supplier', href: partnerPortalLoginHref },
+      { label: 'Become a supplier', href: partnerPortalHomeHref },
     ],
   },
 ];
@@ -70,7 +70,7 @@ export default function Sitemap({ onNavigate }: SitemapProps) {
     >
       <div className="not-prose mb-8 rounded-2xl bg-finland/8 px-4 py-3 ring-1 ring-finland/15">
         <p className="text-sm text-ink leading-relaxed m-0">
-          Jump to any section below. Supplier login opens the partner portal in the same window.
+          Jump to any section below. Become a supplier opens the Traverion Partner overview.
         </p>
       </div>
 
