@@ -93,7 +93,7 @@ function PartnerTermsContent() {
       <Section title="Who these terms apply to">
         <p>
           These Partner Terms of Service govern your use of the Traverion partner portal and your relationship with
-          Traverion as a tour or activity supplier (&quot;Partner&quot;, &quot;you&quot;). They are separate from the{' '}
+          Traverion as a tour, activity, or stay supplier (&quot;Partner&quot;, &quot;you&quot;). They are separate from the{' '}
           <a href={publicSiteBaseUrl()} className={navLink}>
             traveler-facing site
           </a>{' '}
@@ -103,7 +103,7 @@ function PartnerTermsContent() {
       </Section>
       <Section title="The platform">
         <p>
-          Traverion provides an online marketplace where Partners publish listings for tours and activities. Traverion
+          Traverion provides an online marketplace where Partners publish listings for tours, activities, and stays. Traverion
           may display your content, process bookings in line with platform rules, and facilitate communication between
           you and travelers. {PARTNER_TERMS_MATERIAL_CHANGES_NOTE}
         </p>

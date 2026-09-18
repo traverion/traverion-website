@@ -331,7 +331,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
               Your bookings
             </div>
             <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Trips</h1>
-            <p className="mt-2 text-sm text-ink-muted">Upcoming and past tours you booked.</p>
+            <p className="mt-2 text-sm text-ink-muted">Upcoming and past tours and stays you booked.</p>
           </header>
           <div className="max-w-md rounded-2xl bg-paper-raised p-5 shadow-soft ring-1 ring-black/[0.06]">
             <h2 className="font-display text-2xl text-ink">Bookings unavailable</h2>
@@ -372,6 +372,9 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
               Your bookings
             </div>
             <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Trips</h1>
+            <p className="mt-2 text-sm text-ink-muted leading-relaxed max-w-md">
+              Manage upcoming, past, and cancelled tours and stays after you sign in.
+            </p>
           </header>
           <EmptyState
             icon={LogIn}

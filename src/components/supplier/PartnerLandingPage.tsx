@@ -2,6 +2,7 @@
  * Partner marketing landing — distinct from /login and /signup.
  */
 import { BedDouble, CalendarDays, Compass, CreditCard, MapPin, Store } from 'lucide-react';
+import { useEffect } from 'react';
 import { BRAND_LOGO_SRC } from '../../lib/brandAssets';
 import { publicSiteBaseUrl } from '../../lib/publicSiteUrl';
 import { HERO_IMG } from '../../lib/heroImages';
@@ -10,6 +11,7 @@ import { supplierPortalLandingHref } from '../../lib/partnerHost';
 import { PARTNER_LANDING_LIST_NOTE, PARTNER_LANDING_GET_PAID_NOTE, PARTNER_LANDING_HOW_PUBLISH_NOTE } from '../../lib/booking-confirmation-copy';
 import PartnerPortalFooter from './PartnerPortalFooter';
 import SkipLink from '../SkipLink';
+import { setPageMetaWithOg } from '../../lib/seo';
 
 const CAPABILITIES = [
   {
@@ -36,6 +38,13 @@ const CAPABILITIES = [
 
 export default function PartnerLandingPage() {
   const traveler = publicSiteBaseUrl();
+
+  useEffect(() => {
+    setPageMetaWithOg(
+      'Partner',
+      'Sell tours and stays on Traverion. List products, run the day, and get paid with Stripe.'
+    );
+  }, []);
 
   return (
     <div className="min-h-[100dvh] bg-paper text-ink flex flex-col">
