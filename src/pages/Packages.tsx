@@ -650,10 +650,11 @@ export default function Packages({ onTourSelect }: PackagesProps) {
                       <button
                         key={chip.id}
                         type="button"
+                        aria-pressed={selectedDestination === chip.id}
                         onClick={() => setSelectedDestination(chip.id)}
                         className={`tv-chip transition-colors duration-150 ${
                           selectedDestination === chip.id
-                            ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
+                            ? 'bg-finland text-white shadow-sm ring-2 ring-finland/40'
                             : 'bg-paper text-ink hover:bg-finland/10 hover:text-finland'
                         }`}
                       >
@@ -669,10 +670,11 @@ export default function Packages({ onTourSelect }: PackagesProps) {
                       <button
                         key={chip.id}
                         type="button"
+                        aria-pressed={priceRange === chip.id}
                         onClick={() => setPriceRange(chip.id)}
                         className={`tv-chip transition-colors duration-150 ${
                           priceRange === chip.id
-                            ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
+                            ? 'bg-finland text-white shadow-sm ring-2 ring-finland/40'
                             : 'bg-paper text-ink hover:bg-finland/10 hover:text-finland'
                         }`}
                       >
@@ -688,10 +690,11 @@ export default function Packages({ onTourSelect }: PackagesProps) {
                       <button
                         key={tag.id}
                         type="button"
+                        aria-pressed={selectedTags.includes(tag.id)}
                         onClick={() => toggleTag(tag.id)}
                         className={`tv-chip transition-colors duration-150 ${
                           selectedTags.includes(tag.id)
-                            ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
+                            ? 'bg-finland text-white shadow-sm ring-2 ring-finland/40'
                             : 'bg-paper text-ink hover:bg-finland/10 hover:text-finland'
                         }`}
                       >

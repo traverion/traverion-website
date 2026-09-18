@@ -120,8 +120,7 @@ export default function EmailConfirmedSuccess() {
             </div>
             <h1 className="font-display text-2xl sm:text-3xl text-ink tracking-tight">Email verified</h1>
             <p className="mt-3 text-sm text-ink-muted leading-relaxed">
-              Your Traverion traveler account is ready. For security, you will be signed out here—then sign in on the
-              next screen with the email and password you created.
+              Your traveler account is ready. You’ll sign in next with the email and password you created.
             </p>
             <p className="text-sm font-medium text-finland mt-4 tabular-nums">
               Redirecting to sign in in {secondsLeft}s…
