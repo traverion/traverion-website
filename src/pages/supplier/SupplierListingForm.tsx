@@ -1668,17 +1668,25 @@ export default function SupplierListingForm({
         </div>
 
         {publishBlockers && publishBlockers.length > 0 && (
-          <div className="mx-4 shrink-0 sm:mx-6 mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
-            <p className="font-medium text-amber-900">Finish these before publishing</p>
-            <ul className="mt-2 list-disc list-inside space-y-1">
+          <div className="mx-4 shrink-0 sm:mx-6 mt-3 rounded-2xl bg-amber-50 p-3.5 sm:p-4 text-sm text-amber-950 ring-1 ring-amber-200/80">
+            <p className="font-semibold text-amber-900">Finish these before publishing</p>
+            <ul className="mt-2.5 space-y-1.5">
               {publishBlockers.map((line) => (
-                <li key={line}>{line}</li>
+                <li key={line}>
+                  <button
+                    type="button"
+                    className="lux-flat text-left text-sm text-amber-950/90 hover:text-ink underline-offset-2 hover:underline"
+                    onClick={() => jumpToPublishBlocker(line)}
+                  >
+                    {line}
+                  </button>
+                </li>
               ))}
             </ul>
             <button
               type="button"
               onClick={() => setPublishBlockers(null)}
-              className="mt-2 text-xs font-medium text-finland hover:underline"
+              className="mt-3 text-xs font-medium text-finland hover:underline"
             >
               Dismiss
             </button>

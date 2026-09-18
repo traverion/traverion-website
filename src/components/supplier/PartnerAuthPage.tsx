@@ -2,11 +2,13 @@
  * Dedicated partner log in / sign up — branded split shell (parity with traveler AuthPage).
  * Form logic stays in SupplierAuth.
  */
+import { useEffect } from 'react';
 import { BRAND_LOGO_SRC } from '../../lib/brandAssets';
 import { publicSiteBaseUrl } from '../../lib/publicSiteUrl';
 import { HERO_IMG } from '../../lib/heroImages';
 import { PARTNER_LOGIN_PATH, PARTNER_SIGNUP_PATH } from '../../lib/partnerPortalPaths';
 import { supplierPortalLandingHref } from '../../lib/partnerHost';
+import { setPageMetaWithOg } from '../../lib/seo';
 import SupplierAuth from '../../pages/supplier/SupplierAuth';
 import SkipLink from '../SkipLink';
 
@@ -20,13 +22,20 @@ export default function PartnerAuthPage({ mode, onAuthenticated, isSupabase }: P
   const traveler = publicSiteBaseUrl();
   const landing = supplierPortalLandingHref();
 
+  useEffect(() => {
+    setPageMetaWithOg(
+      mode === 'signin' ? 'Partner log in' : 'Partner sign up',
+      'Traverion Partner — listings, calendar, bookings, and money for operators.'
+    );
+  }, [mode]);
+
   return (
     <div className="min-h-[100dvh] bg-paper text-ink flex flex-col lg:flex-row">
       <SkipLink />
       <aside className="relative isolate overflow-hidden lg:w-[44%] lg:min-h-[100dvh] lg:sticky lg:top-0 lg:self-start">
         <div className="relative h-44 sm:h-52 lg:h-[100dvh] min-h-[11rem]">
           <img
-            src={HERO_IMG.thailand}
+            src={HERO_IMG.vacation}
             alt=""
             className="absolute inset-0 h-full w-full object-cover"
             width={1200}
