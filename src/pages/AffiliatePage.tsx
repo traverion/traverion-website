@@ -109,6 +109,22 @@ export default function AffiliatePage({ onNavigate }: AffiliatePageProps) {
               This form is only for partnership requests. It is kept separate from general customer enquiries.
             </p>
           </div>
+          <div className="not-prose max-w-lg mb-8 grid gap-2 sm:grid-cols-3">
+            {[
+              { n: '01', t: 'Apply', d: 'Tell us about your audience and channels.' },
+              { n: '02', t: 'Share', d: 'We review fit, then share tracking links if approved.' },
+              { n: '03', t: 'Earn', d: 'Commission on confirmed paid bookings — not invented payouts.' },
+            ].map((s) => (
+              <div
+                key={s.n}
+                className="rounded-2xl bg-paper-raised px-3.5 py-3 shadow-soft ring-1 ring-black/[0.06]"
+              >
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-finland">{s.n}</p>
+                <p className="mt-1 text-sm font-semibold text-ink">{s.t}</p>
+                <p className="mt-0.5 text-xs text-ink-muted leading-snug">{s.d}</p>
+              </div>
+            ))}
+          </div>
           <form noValidate onSubmit={(e) => void handleSubmit(e)} className="space-y-4 max-w-lg">
             {fieldErrors.form ? (
               <NoticeCallout title="Could not submit application" tone="danger">
