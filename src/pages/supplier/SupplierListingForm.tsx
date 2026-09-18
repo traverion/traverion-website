@@ -2642,7 +2642,7 @@ export default function SupplierListingForm({
                   type="button"
                   onClick={() => void runSubmit('draft')}
                   disabled={submitting || draftCloseBusy || form.status === 'published'}
-                  className="touch-manipulation tv-btn-secondary flex-1 sm:flex-none disabled:opacity-50"
+                  className="touch-manipulation tv-btn-secondary sm:flex-none disabled:opacity-50"
                 >
                   {submitting ? 'Saving…' : 'Save draft'}
                 </button>
@@ -2686,7 +2686,7 @@ export default function SupplierListingForm({
                         !isStepSatisfied(steps.length - 1, form) ||
                         !lastStepSubmitArmed
                       }
-                      className="touch-manipulation tv-btn-secondary flex-1 sm:flex-none disabled:opacity-50"
+                      className="touch-manipulation tv-btn-secondary sm:flex-none disabled:opacity-50"
                     >
                       {submitting ? 'Saving…' : 'Save as draft'}
                     </button>
@@ -2709,14 +2709,6 @@ export default function SupplierListingForm({
                 )}
               </div>
             )}
-            <button
-              type="button"
-              disabled={draftCloseBusy || submitting}
-              onClick={() => void handleCloseIntent()}
-              className="touch-manipulation tv-btn-ghost flex-1 sm:flex-none disabled:opacity-50"
-            >
-              {draftCloseBusy ? 'Saving draft…' : 'Cancel'}
-            </button>
           </div>
         </div>
       </form>
