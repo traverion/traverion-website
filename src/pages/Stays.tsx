@@ -1,5 +1,6 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import { Compass, Search, X } from 'lucide-react';
+import { useDialogFocus } from '../hooks/useDialogFocus';
 import { usePublishedSupplierListings } from '../hooks/usePublishedSupplierListings';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { getAllListings } from '../data/listings';
@@ -45,6 +46,10 @@ export default function Stays({ onStaySelect }: Props) {
   const [checkIn, setCheckIn] = useState(() => new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search).get('date') ?? '');
   const [checkOut, setCheckOut] = useState(() => new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search).get('checkout') ?? '');
   const [guests, setGuests] = useState(() => new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search).get('guests') ?? '');
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const mobileSearchSheetRef = useRef<HTMLDivElement>(null);
+  const closeMobileSearch = useCallback(() => setMobileSearchOpen(false), []);
+  useDialogFocus(mobileSearchOpen, mobileSearchSheetRef, closeMobileSearch);
   const [occupiedByListing, setOccupiedByListing] = useState<Record<
     string,
     { checkIn: string; checkOut: string }[]
@@ -117,6 +122,20 @@ export default function Stays({ onStaySelect }: Props) {
 
   const waitingOnOccupancy = dateFilterActive && isSupabaseConfigured() && (occupancyLoading || occupiedByListing === null);
 
+  const mobileSearchSummary = useMemo(() => {
+    const where = q.trim() || 'Anywhere';
+    let whenLabel = 'Any dates';
+    if (checkIn && checkOut) whenLabel = `${formatStayNightHuman(checkIn)} → ${formatStayNightHuman(checkOut)}`;
+    else if (checkIn) whenLabel = formatStayNightHuman(checkIn);
+    const guestN = Number.parseInt(guests, 10);
+    const whoLabel = guests.trim() ? `${guests} ${guestN === 1 ? 'guest' : 'guests'}` : 'Add guests';
+    return { where, whenLabel, whoLabel };
+  }, [q, checkIn, checkOut, guests]);
+
+  const resultsCountNode = catalogLoading || waitingOnOccupancy
+    ? <span className="inline-block h-4 w-16 rounded bg-black/[0.06] animate-pulse" aria-hidden />
+    : `${filtered.length} stay${filtered.length === 1 ? '' : 's'}`;
+
   return (
     <div className="min-h-screen bg-paper tv-page">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-12 pb-16 motion-safe:animate-fade-in">
@@ -138,74 +157,195 @@ export default function Stays({ onStaySelect }: Props) {
           </div>
         ) : null}
 
-        <form
-          className="mb-10 grid grid-cols-1 sm:grid-cols-[1.2fr_1fr_1fr_0.85fr_auto] gap-1 bg-paper-raised rounded-2xl sm:rounded-full p-2 sm:p-1.5 shadow-soft-lg ring-1 ring-black/[0.06] max-w-4xl"
-          onSubmit={(e) => e.preventDefault()}
-          aria-label="Search stays"
-        >
-          <div className="relative min-w-0 rounded-xl sm:rounded-full px-3.5 py-2 hover:bg-black/[0.03] focus-within:ring-2 focus-within:ring-finland/25">
-            <label htmlFor="stays-q" className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
-              Where
-            </label>
-            <div className="relative">
-              <Search className="absolute left-0 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-faint pointer-events-none" />
+        <div className="mb-10 max-w-4xl">
+          {/* Mobile: compact trigger → dedicated search sheet */}
+          <button
+            type="button"
+            onClick={() => setMobileSearchOpen(true)}
+            className="sm:hidden w-full flex items-center gap-3 rounded-2xl bg-paper-raised text-ink px-4 py-3.5 shadow-soft-lg ring-1 ring-black/[0.06] text-left active:scale-[0.99] transition-transform"
+            aria-haspopup="dialog"
+            aria-expanded={mobileSearchOpen}
+          >
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-finland text-white" aria-hidden>
+              <Search className="w-4 h-4" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[15px] font-semibold text-ink truncate">{mobileSearchSummary.where}</span>
+              <span className="mt-0.5 block text-sm text-ink-muted truncate">
+                {mobileSearchSummary.whenLabel}
+                <span className="mx-1.5 text-ink-faint" aria-hidden>
+                  ·
+                </span>
+                {mobileSearchSummary.whoLabel}
+              </span>
+            </span>
+          </button>
+          <p className="sm:hidden mt-2 px-1 text-sm text-ink-muted">{resultsCountNode}</p>
+
+          {/* Desktop / tablet: integrated search bar */}
+          <form
+            className="hidden sm:grid grid-cols-[1.2fr_1fr_1fr_0.85fr_auto] gap-1 bg-paper-raised rounded-full p-1.5 shadow-soft-lg ring-1 ring-black/[0.06]"
+            onSubmit={(e) => e.preventDefault()}
+            aria-label="Search stays"
+          >
+            <div className="relative min-w-0 rounded-full px-3.5 py-2 hover:bg-black/[0.03] focus-within:ring-2 focus-within:ring-finland/25">
+              <label htmlFor="stays-q" className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
+                Where
+              </label>
+              <div className="relative">
+                <Search className="absolute left-0 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-faint pointer-events-none" />
+                <input
+                  id="stays-q"
+                  type="search"
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                  placeholder="City or stay"
+                  className="w-full h-9 pl-6 pr-2 border-0 text-ink placeholder:text-ink-muted focus:ring-0 text-[15px] bg-transparent"
+                />
+              </div>
+            </div>
+            <div className="relative min-w-0 rounded-full px-3.5 py-2 hover:bg-black/[0.03] focus-within:ring-2 focus-within:ring-finland/25">
+              <label htmlFor="stays-in" className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
+                Check-in
+              </label>
               <input
-                id="stays-q"
-                type="search"
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder="City or stay"
-                className="w-full h-9 pl-6 pr-2 border-0 text-ink placeholder:text-ink-muted focus:ring-0 text-[15px] bg-transparent"
+                id="stays-in"
+                type="date"
+                value={checkIn}
+                onChange={(e) => setCheckIn(e.target.value)}
+                className="w-full h-9 border-0 text-ink focus:ring-0 text-[15px] bg-transparent"
               />
             </div>
+            <div className="relative min-w-0 rounded-full px-3.5 py-2 hover:bg-black/[0.03] focus-within:ring-2 focus-within:ring-finland/25">
+              <label htmlFor="stays-out" className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
+                Check-out
+              </label>
+              <input
+                id="stays-out"
+                type="date"
+                value={checkOut}
+                onChange={(e) => setCheckOut(e.target.value)}
+                className="w-full h-9 border-0 text-ink focus:ring-0 text-[15px] bg-transparent"
+              />
+            </div>
+            <div className="relative min-w-0 rounded-full px-3.5 py-2 hover:bg-black/[0.03] focus-within:ring-2 focus-within:ring-finland/25">
+              <label htmlFor="stays-guests" className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
+                Guests
+              </label>
+              <input
+                id="stays-guests"
+                type="number"
+                min={1}
+                max={99}
+                value={guests}
+                onChange={(e) => setGuests(e.target.value)}
+                placeholder="Guests"
+                className="w-full h-9 border-0 text-ink placeholder:text-ink-muted focus:ring-0 text-[15px] bg-transparent"
+              />
+            </div>
+            <p className="self-center text-sm text-ink-muted px-3 py-2 sm:text-right">{resultsCountNode}</p>
+          </form>
+        </div>
+
+        {mobileSearchOpen && (
+          <div ref={mobileSearchSheetRef} className="tv-sheet-overlay sm:hidden">
+            <button type="button" tabIndex={-1} className="absolute inset-0" aria-label="Close search" onClick={closeMobileSearch} />
+            <aside
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="stays-mobile-search-title"
+              className="tv-sheet-panel relative flex max-h-[min(92dvh,40rem)] flex-col overflow-hidden motion-safe:animate-slide-up"
+            >
+              <div className="mb-5 flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland">Search</p>
+                  <h2 id="stays-mobile-search-title" className="font-display text-2xl text-ink tracking-tight mt-1">
+                    Find a stay
+                  </h2>
+                </div>
+                <button type="button" onClick={closeMobileSearch} className="lux-tap-target p-2 -mr-1" aria-label="Close">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="min-h-0 flex-1 overflow-y-auto space-y-1 rounded-2xl bg-black/[0.02] p-1 ring-1 ring-black/[0.04]">
+                <div className="relative min-w-0 rounded-xl px-3.5 py-2 hover:bg-black/[0.03] focus-within:ring-2 focus-within:ring-finland/25">
+                  <label htmlFor="stays-sheet-q" className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
+                    Where
+                  </label>
+                  <div className="relative">
+                    <Search className="absolute left-0 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-faint pointer-events-none" />
+                    <input
+                      id="stays-sheet-q"
+                      type="search"
+                      value={q}
+                      onChange={(e) => setQ(e.target.value)}
+                      placeholder="City or stay"
+                      className="w-full h-9 pl-6 pr-2 border-0 text-ink placeholder:text-ink-muted focus:ring-0 text-[15px] bg-transparent"
+                    />
+                  </div>
+                </div>
+                <div className="relative min-w-0 rounded-xl px-3.5 py-2 hover:bg-black/[0.03] focus-within:ring-2 focus-within:ring-finland/25">
+                  <label htmlFor="stays-sheet-in" className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
+                    Check-in
+                  </label>
+                  <input
+                    id="stays-sheet-in"
+                    type="date"
+                    value={checkIn}
+                    onChange={(e) => setCheckIn(e.target.value)}
+                    className="w-full h-9 border-0 text-ink focus:ring-0 text-[15px] bg-transparent"
+                  />
+                </div>
+                <div className="relative min-w-0 rounded-xl px-3.5 py-2 hover:bg-black/[0.03] focus-within:ring-2 focus-within:ring-finland/25">
+                  <label htmlFor="stays-sheet-out" className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
+                    Check-out
+                  </label>
+                  <input
+                    id="stays-sheet-out"
+                    type="date"
+                    value={checkOut}
+                    onChange={(e) => setCheckOut(e.target.value)}
+                    className="w-full h-9 border-0 text-ink focus:ring-0 text-[15px] bg-transparent"
+                  />
+                </div>
+                <div className="relative min-w-0 rounded-xl px-3.5 py-2 hover:bg-black/[0.03] focus-within:ring-2 focus-within:ring-finland/25">
+                  <label htmlFor="stays-sheet-guests" className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
+                    Guests
+                  </label>
+                  <input
+                    id="stays-sheet-guests"
+                    type="number"
+                    min={1}
+                    max={99}
+                    value={guests}
+                    onChange={(e) => setGuests(e.target.value)}
+                    placeholder="Guests"
+                    className="w-full h-9 border-0 text-ink placeholder:text-ink-muted focus:ring-0 text-[15px] bg-transparent"
+                  />
+                </div>
+              </div>
+              <div className="mt-5 flex gap-2 shrink-0">
+                {(q.trim() || checkIn || checkOut || guests) ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setQ('');
+                      setCheckIn('');
+                      setCheckOut('');
+                      setGuests('');
+                    }}
+                    className="tv-btn-secondary flex-1"
+                  >
+                    Clear
+                  </button>
+                ) : null}
+                <button type="button" onClick={closeMobileSearch} className="tv-btn-primary flex-1">
+                  Show {filtered.length}
+                </button>
+              </div>
+            </aside>
           </div>
-          <div className="relative min-w-0 rounded-xl sm:rounded-full px-3.5 py-2 hover:bg-black/[0.03] focus-within:ring-2 focus-within:ring-finland/25">
-            <label htmlFor="stays-in" className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
-              Check-in
-            </label>
-            <input
-              id="stays-in"
-              type="date"
-              value={checkIn}
-              onChange={(e) => setCheckIn(e.target.value)}
-              className="w-full h-9 border-0 text-ink focus:ring-0 text-[15px] bg-transparent"
-            />
-          </div>
-          <div className="relative min-w-0 rounded-xl sm:rounded-full px-3.5 py-2 hover:bg-black/[0.03] focus-within:ring-2 focus-within:ring-finland/25">
-            <label htmlFor="stays-out" className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
-              Check-out
-            </label>
-            <input
-              id="stays-out"
-              type="date"
-              value={checkOut}
-              onChange={(e) => setCheckOut(e.target.value)}
-              className="w-full h-9 border-0 text-ink focus:ring-0 text-[15px] bg-transparent"
-            />
-          </div>
-          <div className="relative min-w-0 rounded-xl sm:rounded-full px-3.5 py-2 hover:bg-black/[0.03] focus-within:ring-2 focus-within:ring-finland/25">
-            <label htmlFor="stays-guests" className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
-              Guests
-            </label>
-            <input
-              id="stays-guests"
-              type="number"
-              min={1}
-              max={99}
-              value={guests}
-              onChange={(e) => setGuests(e.target.value)}
-              placeholder="Guests"
-              className="w-full h-9 border-0 text-ink placeholder:text-ink-muted focus:ring-0 text-[15px] bg-transparent"
-            />
-          </div>
-          <p className="self-center text-sm text-ink-muted px-3 py-2 sm:text-right">
-            {catalogLoading || waitingOnOccupancy
-              ? (
-                <span className="inline-block h-4 w-16 rounded bg-black/[0.06] animate-pulse" aria-hidden />
-              )
-              : `${filtered.length} stay${filtered.length === 1 ? '' : 's'}`}
-          </p>
-        </form>
+        )}
 
         {(q.trim() || checkIn || checkOut || guests) ? (
           <div className="mb-8 flex flex-wrap items-center gap-2" aria-label="Active filters">
