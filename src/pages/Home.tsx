@@ -1,5 +1,5 @@
-import { ArrowRight, Search, ShieldCheck, Compass } from 'lucide-react';
-import { useState, useEffect, useMemo } from 'react';
+import { ArrowRight, Search, ShieldCheck, Compass, X } from 'lucide-react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { getAllListings } from '../data/listings';
 import { filterCatalogByFamily, listingIsFamily } from '../lib/inventory';
 import { getDestinationsFromListings } from '../data/catalogMeta';
@@ -20,6 +20,7 @@ import { HERO_IMG } from '../lib/heroImages';
 import { prefetchPackagesPage } from '../lib/routePrefetch';
 import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
 import { addCalendarDays } from '../lib/stayOccupancy';
+import { useDialogFocus } from '../hooks/useDialogFocus';
 
 const TAG_LABELS: Record<string, string> = {
   'free-cancellation': 'Free cancellation',
@@ -61,6 +62,10 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
   const allListings = useMemo(() => filterCatalogByFamily(catalogBase, 'tour'), [catalogBase]);
   const stayListings = useMemo(() => filterCatalogByFamily(catalogBase, 'stay'), [catalogBase]);
   const [searchFamily, setSearchFamily] = useState<'tours' | 'stays'>('tours');
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const mobileSearchSheetRef = useRef<HTMLDivElement>(null);
+  const closeMobileSearch = useCallback(() => setMobileSearchOpen(false), []);
+  useDialogFocus(mobileSearchOpen, mobileSearchSheetRef, closeMobileSearch);
 
   const placeChips = useMemo(() => {
     return getDestinationsFromListings([...allListings, ...stayListings])
@@ -142,9 +147,144 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
 
   const submitSearch = (e: React.FormEvent) => {
     e.preventDefault();
+    setMobileSearchOpen(false);
     if (searchFamily === 'stays') goToStays();
     else goToPackages();
   };
+
+  const mobileSearchSummary = useMemo(() => {
+    const where = searchTerm.trim() || 'Anywhere';
+    let whenLabel = 'Any date';
+    if (searchFamily === 'stays') {
+      if (when && checkout) whenLabel = `${when} → ${checkout}`;
+      else if (when) whenLabel = when;
+    } else if (when) {
+      whenLabel = when;
+    }
+    const whoLabel = who.trim()
+      ? `${who} ${searchFamily === 'stays' ? (Number(who) === 1 ? 'guest' : 'guests') : Number(who) === 1 ? 'traveler' : 'travelers'}`
+      : searchFamily === 'stays'
+        ? 'Add guests'
+        : 'Add travelers';
+    return { where, whenLabel, whoLabel };
+  }, [searchTerm, when, checkout, who, searchFamily]);
+
+  const familyTabs = (variant: 'hero' | 'sheet') => (
+    <div
+      className={
+        variant === 'hero'
+          ? 'flex gap-1 rounded-full bg-white/15 p-1 w-fit ring-1 ring-white/20 backdrop-blur-sm'
+          : 'flex gap-1 rounded-full bg-black/[0.04] p-1 w-full ring-1 ring-black/[0.06]'
+      }
+      role="tablist"
+      aria-label="What to search"
+    >
+      <button
+        type="button"
+        role="tab"
+        aria-selected={searchFamily === 'tours'}
+        onClick={() => setSearchFamily('tours')}
+        className={`lux-flat rounded-full px-4 py-1.5 text-sm font-medium transition-colors flex-1 sm:flex-none ${
+          searchFamily === 'tours'
+            ? variant === 'hero'
+              ? 'bg-white text-ink shadow-sm ring-2 ring-white'
+              : 'bg-paper-raised text-ink shadow-sm ring-2 ring-finland/30'
+            : variant === 'hero'
+              ? 'text-white/80 hover:bg-white/10 hover:text-white'
+              : 'text-ink-muted hover:bg-black/[0.04] hover:text-ink'
+        }`}
+      >
+        Tours
+      </button>
+      <button
+        type="button"
+        role="tab"
+        aria-selected={searchFamily === 'stays'}
+        onClick={() => setSearchFamily('stays')}
+        className={`lux-flat rounded-full px-4 py-1.5 text-sm font-medium transition-colors flex-1 sm:flex-none ${
+          searchFamily === 'stays'
+            ? variant === 'hero'
+              ? 'bg-white text-ink shadow-sm ring-2 ring-white'
+              : 'bg-paper-raised text-ink shadow-sm ring-2 ring-finland/30'
+            : variant === 'hero'
+              ? 'text-white/80 hover:bg-white/10 hover:text-white'
+              : 'text-ink-muted hover:bg-black/[0.04] hover:text-ink'
+        }`}
+      >
+        Stays
+      </button>
+    </div>
+  );
+
+  const searchFields = (idPrefix: string) => (
+    <>
+      <div className="relative min-w-0 rounded-xl sm:rounded-full px-3.5 py-2 hover:bg-black/[0.03] focus-within:bg-black/[0.03] focus-within:ring-2 focus-within:ring-finland/25 transition-colors">
+        <label htmlFor={`${idPrefix}-search`} className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
+          Where
+        </label>
+        <div className="relative">
+          <Search className="absolute left-0 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-faint pointer-events-none" />
+          <input
+            id={`${idPrefix}-search`}
+            type="search"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder={searchFamily === 'stays' ? 'City or stay' : 'City or tour'}
+            className="w-full h-9 pl-6 pr-2 border-0 text-ink placeholder:text-ink-muted focus:ring-0 text-[15px] bg-transparent"
+          />
+        </div>
+      </div>
+      <div className="relative min-w-0 rounded-xl sm:rounded-full px-3.5 py-2 hover:bg-black/[0.03] focus-within:bg-black/[0.03] focus-within:ring-2 focus-within:ring-finland/25 transition-colors">
+        <label htmlFor={`${idPrefix}-when`} className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
+          {searchFamily === 'stays' ? 'Check-in' : 'Date'}
+        </label>
+        <input
+          id={`${idPrefix}-when`}
+          type="date"
+          value={when}
+          onChange={(e) => {
+            const next = e.target.value;
+            setWhen(next);
+            if (checkout && next && checkout <= next) {
+              setCheckout(addCalendarDays(next, 1));
+            }
+          }}
+          className="w-full h-9 border-0 text-ink focus:ring-0 text-[15px] bg-transparent"
+        />
+      </div>
+      {searchFamily === 'stays' ? (
+        <div className="relative min-w-0 rounded-xl sm:rounded-full px-3.5 py-2 hover:bg-black/[0.03] focus-within:bg-black/[0.03] focus-within:ring-2 focus-within:ring-finland/25 transition-colors">
+          <label htmlFor={`${idPrefix}-checkout`} className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
+            Check-out
+          </label>
+          <input
+            id={`${idPrefix}-checkout`}
+            type="date"
+            value={checkout}
+            min={when ? addCalendarDays(when, 1) : undefined}
+            onChange={(e) => setCheckout(e.target.value)}
+            className="w-full h-9 border-0 text-ink focus:ring-0 text-[15px] bg-transparent"
+          />
+        </div>
+      ) : null}
+      <div className="relative min-w-0 rounded-xl sm:rounded-full px-3.5 py-2 hover:bg-black/[0.03] focus-within:bg-black/[0.03] focus-within:ring-2 focus-within:ring-finland/25 transition-colors">
+        <label htmlFor={`${idPrefix}-who`} className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
+          {searchFamily === 'stays' ? 'Guests' : 'Travelers'}
+        </label>
+        <input
+          id={`${idPrefix}-who`}
+          type="number"
+          min={1}
+          max={99}
+          inputMode="numeric"
+          value={who}
+          onChange={(e) => setWho(e.target.value)}
+          placeholder="Guests"
+          className="w-full h-9 border-0 text-ink placeholder:text-ink-muted focus:ring-0 text-[15px] bg-transparent"
+        />
+      </div>
+    </>
+  );
 
   return (
     <div className="min-h-screen bg-paper">
@@ -161,122 +301,94 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
           <p className="page-hero-subtitle text-base sm:text-lg mb-7 max-w-lg font-normal text-white/90">
             Independent operators. Live availability. Pay on Stripe to confirm.
           </p>
-          <div
-            className="flex gap-1 rounded-full bg-white/15 p-1 mb-3 w-fit ring-1 ring-white/20 backdrop-blur-sm"
-            role="tablist"
-            aria-label="What to search"
-          >
+
+          {/* Mobile: compact trigger → dedicated search sheet */}
+          <div className="sm:hidden space-y-3 max-w-3xl">
+            {familyTabs('hero')}
             <button
               type="button"
-              role="tab"
-              aria-selected={searchFamily === 'tours'}
-              onClick={() => setSearchFamily('tours')}
-              className={`lux-flat rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-                searchFamily === 'tours'
-                  ? 'bg-white text-ink shadow-sm ring-2 ring-white'
-                  : 'text-white/80 hover:bg-white/10 hover:text-white'
-              }`}
+              onClick={() => setMobileSearchOpen(true)}
+              onPointerEnter={prefetchPackagesPage}
+              className="w-full flex items-center gap-3 rounded-2xl bg-paper-raised text-ink px-4 py-3.5 shadow-soft-xl ring-1 ring-black/[0.06] text-left active:scale-[0.99] transition-transform"
+              aria-haspopup="dialog"
+              aria-expanded={mobileSearchOpen}
             >
-              Tours
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={searchFamily === 'stays'}
-              onClick={() => setSearchFamily('stays')}
-              className={`lux-flat rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-                searchFamily === 'stays'
-                  ? 'bg-white text-ink shadow-sm ring-2 ring-white'
-                  : 'text-white/80 hover:bg-white/10 hover:text-white'
-              }`}
-            >
-              Stays
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-finland text-white" aria-hidden>
+                <Search className="w-4 h-4" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[15px] font-semibold text-ink truncate">{mobileSearchSummary.where}</span>
+                <span className="mt-0.5 block text-sm text-ink-muted truncate">
+                  {mobileSearchSummary.whenLabel}
+                  <span className="mx-1.5 text-ink-faint" aria-hidden>
+                    ·
+                  </span>
+                  {mobileSearchSummary.whoLabel}
+                </span>
+              </span>
             </button>
           </div>
-          <form
-            onSubmit={submitSearch}
-            onPointerEnter={prefetchPackagesPage}
-            className={`bg-paper-raised text-ink rounded-2xl sm:rounded-full p-2 sm:p-1.5 grid grid-cols-1 gap-1 max-w-3xl shadow-soft-xl ring-1 ring-black/[0.06] ${
-              searchFamily === 'stays'
-                ? 'sm:grid-cols-[1.2fr_0.9fr_0.9fr_0.75fr_auto]'
-                : 'sm:grid-cols-[1.4fr_1fr_0.85fr_auto]'
-            }`}
-            aria-label={searchFamily === 'stays' ? 'Search stays' : 'Search tours'}
-          >
-            <div className="relative min-w-0 rounded-xl sm:rounded-full px-3.5 py-2 hover:bg-black/[0.03] focus-within:bg-black/[0.03] focus-within:ring-2 focus-within:ring-finland/25 transition-colors">
-              <label htmlFor="home-search" className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
-                Where
-              </label>
-              <div className="relative">
-                <Search className="absolute left-0 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-faint pointer-events-none" />
-                <input
-                  id="home-search"
-                  type="search"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder={searchFamily === 'stays' ? 'City or stay' : 'City or tour'}
-                  className="w-full h-9 pl-6 pr-2 border-0 text-ink placeholder:text-ink-muted focus:ring-0 text-[15px] bg-transparent"
-                />
-              </div>
-            </div>
-            <div className="relative min-w-0 rounded-xl sm:rounded-full px-3.5 py-2 hover:bg-black/[0.03] focus-within:bg-black/[0.03] focus-within:ring-2 focus-within:ring-finland/25 transition-colors">
-              <label htmlFor="home-when" className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
-                {searchFamily === 'stays' ? 'Check-in' : 'Date'}
-              </label>
-              <input
-                id="home-when"
-                type="date"
-                value={when}
-                onChange={(e) => {
-                  const next = e.target.value;
-                  setWhen(next);
-                  if (checkout && next && checkout <= next) {
-                    setCheckout(addCalendarDays(next, 1));
-                  }
-                }}
-                className="w-full h-9 border-0 text-ink focus:ring-0 text-[15px] bg-transparent"
-              />
-            </div>
-            {searchFamily === 'stays' ? (
-              <div className="relative min-w-0 rounded-xl sm:rounded-full px-3.5 py-2 hover:bg-black/[0.03] focus-within:bg-black/[0.03] focus-within:ring-2 focus-within:ring-finland/25 transition-colors">
-                <label htmlFor="home-checkout" className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
-                  Check-out
-                </label>
-                <input
-                  id="home-checkout"
-                  type="date"
-                  value={checkout}
-                  min={when ? addCalendarDays(when, 1) : undefined}
-                  onChange={(e) => setCheckout(e.target.value)}
-                  className="w-full h-9 border-0 text-ink focus:ring-0 text-[15px] bg-transparent"
-                />
-              </div>
-            ) : null}
-            <div className="relative min-w-0 rounded-xl sm:rounded-full px-3.5 py-2 hover:bg-black/[0.03] focus-within:bg-black/[0.03] focus-within:ring-2 focus-within:ring-finland/25 transition-colors">
-              <label htmlFor="home-who" className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
-                {searchFamily === 'stays' ? 'Guests' : 'Travelers'}
-              </label>
-              <input
-                id="home-who"
-                type="number"
-                min={1}
-                max={99}
-                inputMode="numeric"
-                value={who}
-                onChange={(e) => setWho(e.target.value)}
-                placeholder="Guests"
-                className="w-full h-9 border-0 text-ink placeholder:text-ink-muted focus:ring-0 text-[15px] bg-transparent"
-              />
-            </div>
-            <button
-              type="submit"
-              className="h-12 sm:h-14 sm:self-center px-7 rounded-xl sm:rounded-full bg-finland text-white font-semibold hover:bg-finland-dark shadow-sm"
+
+          {/* Desktop: integrated search bar */}
+          <div className="hidden sm:block space-y-3">
+            {familyTabs('hero')}
+            <form
+              onSubmit={submitSearch}
+              onPointerEnter={prefetchPackagesPage}
+              className={`bg-paper-raised text-ink rounded-full p-1.5 grid gap-1 max-w-3xl shadow-soft-xl ring-1 ring-black/[0.06] ${
+                searchFamily === 'stays'
+                  ? 'grid-cols-[1.2fr_0.9fr_0.9fr_0.75fr_auto]'
+                  : 'grid-cols-[1.4fr_1fr_0.85fr_auto]'
+              }`}
+              aria-label={searchFamily === 'stays' ? 'Search stays' : 'Search tours'}
             >
-              Search
-            </button>
-          </form>
+              {searchFields('home')}
+              <button
+                type="submit"
+                className="h-14 self-center px-7 rounded-full bg-finland text-white font-semibold hover:bg-finland-dark shadow-sm"
+              >
+                Search
+              </button>
+            </form>
+          </div>
         </div>
       </section>
+
+      {mobileSearchOpen ? (
+        <div ref={mobileSearchSheetRef} className="tv-sheet-overlay z-[80] sm:hidden">
+          <button type="button" tabIndex={-1} className="absolute inset-0" aria-label="Close search" onClick={closeMobileSearch} />
+          <aside
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="home-mobile-search-title"
+            className="tv-sheet-panel relative flex max-h-[min(92dvh,40rem)] flex-col overflow-hidden motion-safe:animate-slide-up"
+          >
+            <div className="mb-5 flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland">Search</p>
+                <h2 id="home-mobile-search-title" className="font-display text-2xl text-ink tracking-tight mt-1">
+                  {searchFamily === 'stays' ? 'Find a stay' : 'Find a tour'}
+                </h2>
+              </div>
+              <button type="button" onClick={closeMobileSearch} className="lux-tap-target p-2 -mr-1" aria-label="Close">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="mb-4">{familyTabs('sheet')}</div>
+            <form onSubmit={submitSearch} className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
+              <div className="space-y-1 rounded-2xl bg-black/[0.02] p-1 ring-1 ring-black/[0.04]">{searchFields('home-sheet')}</div>
+              <div className="mt-auto pt-5 space-y-2">
+                <button type="submit" className="tv-btn-primary w-full h-12">
+                  Search {searchFamily === 'stays' ? 'stays' : 'tours'}
+                </button>
+                <button type="button" onClick={closeMobileSearch} className="tv-btn-ghost w-full h-11 text-ink-muted">
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </aside>
+        </div>
+      ) : null}
 
       <section className="py-4 bg-paper">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
