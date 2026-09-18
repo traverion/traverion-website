@@ -12,6 +12,7 @@ import {
   Star,
   Percent,
   Car,
+  TrendingUp,
 } from 'lucide-react';
 import type { User } from '@supabase/supabase-js';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
@@ -72,6 +73,7 @@ import {
 } from '../../lib/partnerReturnPath';
 
 const SupplierEarnings = lazy(() => import('../../pages/supplier/SupplierEarnings'));
+const SupplierPerformance = lazy(() => import('../../pages/supplier/SupplierPerformance'));
 const SupplierInbox = lazy(() => import('../../pages/supplier/SupplierInbox'));
 const SupplierReviews = lazy(() => import('../../pages/supplier/SupplierReviews'));
 const SupplierPickupPlanner = lazy(() => import('../../pages/supplier/SupplierPickupPlanner'));
@@ -136,6 +138,7 @@ type SupplierSection =
   | 'discounts'
   | 'reviews'
   | 'pickup'
+  | 'performance'
   | 'business-profile'
   | 'account-settings'
   | 'change-password';
@@ -186,6 +189,7 @@ const BUSINESS_OPS_NAV: { id: SupplierSection; label: string; icon: typeof Layou
   { id: 'reviews', label: 'Reviews', icon: Star },
   { id: 'discounts', label: 'Offers', icon: Percent },
   { id: 'pickup', label: 'Pickup', icon: Car },
+  { id: 'performance', label: 'Performance', icon: TrendingUp },
 ];
 
 /** Desktop already shows Inbox in the primary row, so its "Business" dropdown covers the rest. */
@@ -205,6 +209,7 @@ const PATH_ALIASES: Record<string, SupplierSection> = {
   discounts: 'discounts',
   reviews: 'reviews',
   pickup: 'pickup',
+  performance: 'performance',
   'business-profile': 'business-profile',
   'account-settings': 'account-settings',
   'change-password': 'change-password',
@@ -1053,6 +1058,7 @@ export default function SupplierLayout() {
           {section === 'discounts' && <SupplierDiscountsOffers />}
           {section === 'reviews' && <SupplierReviews />}
           {section === 'pickup' && <SupplierPickupPlanner />}
+          {section === 'performance' && <SupplierPerformance />}
           {section === 'change-password' && (
             <SupplierChangePassword
               onBack={() => handleNavigate('account-settings')}
