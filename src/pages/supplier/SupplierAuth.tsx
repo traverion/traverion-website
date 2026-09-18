@@ -419,7 +419,7 @@ export default function SupplierAuth({
           List once. Reach travelers everywhere.
         </h1>
         <p className="text-base sm:text-lg text-ink-muted mb-8 max-w-prose leading-relaxed">
-          Add your tours to Traverion. Travelers find them, book them, and you run the day.
+          Add your tours and stays to Traverion. Travelers find them, book them, and you run the day.
         </p>
         <ul className="space-y-3">
           {BENEFITS.map(({ icon: Icon, text }) => (

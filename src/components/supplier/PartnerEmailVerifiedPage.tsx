@@ -1,4 +1,4 @@
-import { useLayoutEffect, useState } from 'react';
+import { useLayoutEffect, useState, useEffect } from 'react';
 import { CheckCircle2 } from 'lucide-react';
 import { BRAND_LOGO_SRC } from '../../lib/brandAssets';
 import { supabase } from '../../lib/supabase';
@@ -8,6 +8,7 @@ import {
   PARTNER_LOGIN_PATH,
   PARTNER_APP_BASE,
 } from '../../lib/partnerPortalPaths';
+import { setPageMetaWithOg } from '../../lib/seo';
 
 type Phase = 'checking' | 'verified' | 'already' | 'invalid' | 'unconfigured';
 
@@ -18,6 +19,10 @@ type Phase = 'checking' | 'verified' | 'already' | 'invalid' | 'unconfigured';
  */
 export default function PartnerEmailVerifiedPage() {
   const [phase, setPhase] = useState<Phase>('checking');
+
+  useEffect(() => {
+    setPageMetaWithOg('Partner email', 'Confirm your Traverion Partner email to open your workspace.');
+  }, []);
 
   useLayoutEffect(() => {
     if (!supabase) {
@@ -112,7 +117,10 @@ export default function PartnerEmailVerifiedPage() {
       </header>
       <main className="flex-1 flex items-center justify-center px-5 pb-16">
         <div className="w-full max-w-md rounded-2xl bg-paper-raised p-6 sm:p-8 shadow-soft-lg ring-1 ring-black/[0.06] text-center">
-          <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">Traverion Partner</p>
+          <div className="inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15 mb-3">
+            Partner account
+          </div>
+          <p className="sr-only">Traverion Partner</p>
           {phase === 'checking' && (
             <div aria-busy="true" aria-label="Confirming your email">
               <h1 className="font-display text-2xl sm:text-3xl text-ink tracking-tight">Confirming your email</h1>
