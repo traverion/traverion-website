@@ -111,6 +111,22 @@ export default function ContentCreatorPage({ onNavigate }: ContentCreatorPagePro
               For bookings and trip questions, use Contact in the footer — not this form.
             </p>
           </div>
+          <div className="not-prose max-w-lg mb-8 grid gap-2 sm:grid-cols-3">
+            {[
+              { n: '01', t: 'Pitch', d: 'Share your channels and collaboration ideas.' },
+              { n: '02', t: 'Review', d: 'We read every application — fit matters more than follower count.' },
+              { n: '03', t: 'Create', d: 'Approved creators work with Traverion on real inventory, not demos.' },
+            ].map((s) => (
+              <div
+                key={s.n}
+                className="rounded-2xl bg-paper-raised px-3.5 py-3 shadow-soft ring-1 ring-black/[0.06]"
+              >
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-finland">{s.n}</p>
+                <p className="mt-1 text-sm font-semibold text-ink">{s.t}</p>
+                <p className="mt-0.5 text-xs text-ink-muted leading-snug">{s.d}</p>
+              </div>
+            ))}
+          </div>
           <form noValidate onSubmit={(e) => void handleSubmit(e)} className="space-y-4 max-w-lg">
             {fieldErrors.form ? (
               <NoticeCallout title="Could not submit application" tone="danger">
