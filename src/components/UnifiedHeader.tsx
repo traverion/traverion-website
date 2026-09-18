@@ -28,7 +28,9 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
     currentPage !== 'tour-details' &&
     currentPage !== 'stay-details' &&
     currentPage !== 'booking' &&
-    currentPage !== 'booking-confirmation';
+    currentPage !== 'booking-confirmation' &&
+    currentPage !== 'packages' &&
+    currentPage !== 'stays';
 
   useDialogFocus(isMobileMenuOpen, mobileMenuRef, () => setIsMobileMenuOpen(false));
 
