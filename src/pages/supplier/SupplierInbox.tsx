@@ -106,7 +106,7 @@ export default function SupplierInbox() {
         <SupplierEmptyState
           icon={MessageSquare}
           title="No booking conversations yet"
-          body="When a traveler pays for one of your listings, you can message them here about that booking."
+          body="When a traveler pays for one of your tours or stays, you can message them here about that booking."
           action={
             <button type="button" className="tv-btn-primary" onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings`)}>
               Open bookings
