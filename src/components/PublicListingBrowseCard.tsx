@@ -61,12 +61,18 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
   const pickupIncluded =
     !isStay &&
     bookingOpts.some((o) => (o.pickupPlace ?? '').trim().length > 0 || /pickup/i.test(o.name));
+  const privateOnly =
+    !isStay && bookingOpts.length > 0 && bookingOpts.every((o) => Boolean(o.isPrivate));
   const durationOnly = isStay
     ? stay?.maxGuests
       ? `Up to ${stay.maxGuests} guests`
       : tour.groupSize || ''
     : formatTourDurationDisplay(tour.duration || '');
-  const durationLine = [durationOnly || null, !isStay && pickupIncluded ? 'Pickup included' : null]
+  const durationLine = [
+    durationOnly || null,
+    !isStay && pickupIncluded ? 'Pickup included' : null,
+    privateOnly ? 'Private tour' : null,
+  ]
     .filter(Boolean)
     .join(' · ');
   const extraTags =
@@ -114,6 +120,11 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
               Free cancellation
             </span>
           )}
+          {privateOnly ? (
+            <span className="bg-ink/90 text-white text-[11px] font-semibold px-2.5 py-1 rounded-full shadow-sm">
+              Private
+            </span>
+          ) : null}
           {isStay ? (
             <span className="bg-white/95 text-finland text-[11px] font-semibold px-2.5 py-1 rounded-full ring-1 ring-finland/20 shadow-sm">
               {stay?.propertyType?.trim() || 'Stay'}
