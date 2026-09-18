@@ -95,7 +95,7 @@ export default function AffiliatePage({ onNavigate }: AffiliatePageProps) {
     <LegalPageShell
       eyebrow="Work with us"
       title="Become an affiliate"
-      subtitle="Earn when your audience books tours through Traverion."
+      subtitle="Earn when your audience books tours and stays through Traverion."
       onNavigate={onNavigate}
     >
       {isSubmitted ? (
