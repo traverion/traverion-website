@@ -225,8 +225,8 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
                 setProfileMessage(null);
                 void (async () => {
                   const digits = normalizeConsumerPhone(phone).replace(/\D/g, '');
-                  if (digits.length < 9) {
-                    setProfileMessage({ kind: 'err', text: 'Enter a valid phone number (at least 9 digits).' });
+                  if (digits.length > 0 && digits.length < 9) {
+                    setProfileMessage({ kind: 'err', text: 'Enter a valid phone number (at least 9 digits), or leave it blank.' });
                     setProfileSaving(false);
                     return;
                   }
