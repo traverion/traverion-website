@@ -53,42 +53,42 @@ export const fi = {
     viewAll: 'Näytä Kaikki Matkat',
   },
 
-  // Packages Page
+  // Packages Page (legacy keys — live Tours browse uses Packages.tsx)
   packages: {
     hero: {
-      badge: '✨ Premium Matkakokemukset',
-      title: 'Lomamatkat',
-      subtitle: 'Uppoudu meidän huolella suunniteltuun poikkeuksellisten matkakokemusten kokoelmaan, joka kattaa Kaakkois-Aasian lumoavimmat kohteet',
+      badge: 'Retket & aktiviteetit',
+      title: 'Retket',
+      subtitle: 'Eläviä kokemuksia itsenäisiltä operaattoreilta — päivämäärät, vaihtoehdot ja hinnat, joihin voit luottaa.',
     },
     filters: {
-      title: 'Suodata & Hae Matkoja',
-      search: 'Hae kohteita, matkoja tai avainsanoja...',
+      title: 'Suodata & hae',
+      search: 'Hae kohteita, retkiä tai avainsanoja…',
       region: 'Alue',
       price: 'Hintaluokka',
-      categories: 'Erikoiskategoriat',
-      all: 'Kaikki Matkat',
-      popular: '🔥 Suosittu',
-      discounted: '💰 Alennus',
+      categories: 'Kategoriat',
+      all: 'Kaikki retket',
+      popular: 'Suosittu',
+      discounted: 'Tarjouksessa',
     },
-    results: 'Näytetään {count} matka{plural}',
+    results: 'Näytetään {count} retki{plural}',
     compare: 'Vertaa ({count})',
     clearFilters: 'Tyhjennä kaikki suodattimet',
   },
 
-  // Blog Page
+  // Blog Page (reitti säilyy; artikkeleita ei julkaista vielä)
   blog: {
     hero: {
-      badge: '🎯 Matkatarinamme',
-      title: 'Matkavinkit',
-      subtitle: 'Sukella mukaan meidän 6 poikkeuksellisen luksusmatkan kiehtoviin tarinoihin ja eksklusiivisiin oivalluksiin, joista jokainen on matkataiteen mestariteos Vietnamin, Thaimaan ja Kambodžan kautta',
+      badge: 'Tarinat',
+      title: 'Tarinat tulossa myöhemmin',
+      subtitle: 'Emme julkaise vielä matkakirjoituksia. Selaa sen sijaan live-retkiä ja majoituksia.',
     },
-    search: 'Hae artikkeleita...',
+    search: 'Hae…',
     categories: {
-      all: 'Kaikki Artikkelit',
-      vietnam: 'Vietnam-matkat',
-      thailand: 'Thaimaa-matkat',
-      cambodia: 'Kambodža-matkat',
-      indochina: 'Indokiina-matkat',
+      all: 'Kaikki',
+      vietnam: 'Vietnam',
+      thailand: 'Thaimaa',
+      cambodia: 'Kambodža',
+      indochina: 'Kaakkois-Aasia',
     },
   },
 

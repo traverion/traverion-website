@@ -53,42 +53,42 @@ export const en = {
     viewAll: 'View All Tours',
   },
 
-  // Packages Page
+  // Packages Page (legacy translation keys — live Tours browse uses Packages.tsx copy)
   packages: {
     hero: {
-      badge: '✨ Premium Travel Experiences',
-      title: 'Holiday Packages',
-      subtitle: 'Immerse yourself in our meticulously crafted collection of extraordinary travel experiences, spanning the most enchanting destinations across Southeast Asia',
+      badge: 'Tours & activities',
+      title: 'Tours',
+      subtitle: 'Live experiences from independent operators — dates, options, and prices you can trust.',
     },
     filters: {
-      title: 'Filter & Search Packages',
-      search: 'Search destinations, tours, or keywords...',
+      title: 'Filter & search',
+      search: 'Search destinations, tours, or keywords…',
       region: 'Region',
-      price: 'Price Range',
-      categories: 'Special Categories',
-      all: 'All Packages',
-      popular: '🔥 Popular',
-      discounted: '💰 Discounted',
+      price: 'Price range',
+      categories: 'Categories',
+      all: 'All tours',
+      popular: 'Popular',
+      discounted: 'On offer',
     },
-    results: 'Showing {count} package{plural}',
+    results: 'Showing {count} tour{plural}',
     compare: 'Compare ({count})',
     clearFilters: 'Clear all filters',
   },
 
-  // Blog Page
+  // Blog Page (route kept; editorial stories not published yet)
   blog: {
     hero: {
-      badge: '🎯 Our Tour Stories',
-      title: 'Tour Insights',
-      subtitle: 'Delve into the captivating stories and exclusive insights behind our 6 extraordinary luxury tour packages, each a masterpiece of travel artistry across Vietnam, Thailand, and Cambodia',
+      badge: 'Stories',
+      title: 'Stories coming later',
+      subtitle: 'We are not publishing travel articles yet. Browse live tours and stays instead.',
     },
-    search: 'Search articles...',
+    search: 'Search…',
     categories: {
-      all: 'All Posts',
-      vietnam: 'Vietnam Tours',
-      thailand: 'Thailand Tours',
-      cambodia: 'Cambodia Tours',
-      indochina: 'Indochina Tours',
+      all: 'All',
+      vietnam: 'Vietnam',
+      thailand: 'Thailand',
+      cambodia: 'Cambodia',
+      indochina: 'Southeast Asia',
     },
   },
 
