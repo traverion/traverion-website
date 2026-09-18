@@ -9,6 +9,7 @@ import {
   Map,
   Compass,
   Home,
+  Copy,
 } from 'lucide-react';
 import { TourPackage } from '../../types/tour';
 import { getSupplierListings, setSupplierListings } from '../../data/listings';
@@ -89,6 +90,7 @@ export default function SupplierListings() {
   const [listingPendingDeactivate, setListingPendingDeactivate] = useState<TourPackage | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [deactivateBusy, setDeactivateBusy] = useState(false);
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   /** Verified profile + complete business details + payout saved — required to add or publish tours. */
   const [canPostNewListing, setCanPostNewListing] = useState(false);
   const [profileGateMessage, setProfileGateMessage] = useState<string | null>(null);
@@ -548,6 +550,38 @@ export default function SupplierListings() {
       setError(userFacingError(e, 'Could not remove listing. Try again.'));
     } finally {
       setDeleteBusy(false);
+    }
+  };
+
+  const handleDuplicateListing = async (listing: TourPackage) => {
+    if (!canEditListings || duplicatingId) return;
+    setDuplicatingId(listing.id);
+    setError(null);
+    const freshId =
+      typeof crypto !== 'undefined' && 'randomUUID' in crypto
+        ? crypto.randomUUID()
+        : `local-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    const duplicate: TourPackage = {
+      ...listing,
+      id: freshId,
+      status: 'draft',
+      title: `${listing.title} (copy)`,
+    };
+    try {
+      if (isSupabase && user) {
+        const res = await insertListing(duplicate, user.id);
+        if (!res.ok) {
+          setError(userFacingError(res.error, 'Could not duplicate listing. Try again.'));
+          return;
+        }
+      } else {
+        setSupplierListings([...getSupplierListings(), duplicate]);
+      }
+      refresh();
+    } catch (e) {
+      setError(userFacingError(e, 'Could not duplicate listing. Try again.'));
+    } finally {
+      setDuplicatingId(null);
     }
   };
 
@@ -1121,6 +1155,19 @@ export default function SupplierListings() {
                   }}
                 >
                   Edit
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  disabled={duplicatingId === menuListing.id}
+                  className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-ink hover:bg-paper disabled:opacity-50"
+                  onClick={() => {
+                    closeListingActionsMenu();
+                    void handleDuplicateListing(menuListing);
+                  }}
+                >
+                  <Copy className="h-4 w-4 shrink-0" aria-hidden />
+                  {duplicatingId === menuListing.id ? 'Duplicating\u2026' : 'Duplicate'}
                 </button>
                 {menuIsLive ? (
                   <button
