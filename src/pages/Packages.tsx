@@ -17,7 +17,7 @@ import { getPartySizeBounds } from '../lib/booking-flow';
 import { tourDateLacksCapacityForParty } from '../lib/tour-calendar';
 import { listingTourCapacityFromOptions } from '../lib/availability-ops';
 import { fetchAvailabilityByListingId, fetchPublishedTourPaidGuests } from '../data/supabase-availability';
-import { parseListingExtras } from '../types/listingExtras';
+import { parseListingExtras, materializedBookingOptions } from '../types/listingExtras';
 import { SkeletonCardGrid } from '../components/ui/Skeleton';
 import { PublicListingBrowseCard } from '../components/PublicListingBrowseCard';
 import { supplierPortalLandingHref } from '../lib/partnerHost';
@@ -71,6 +71,7 @@ function parsePackagesSearchParams(search: string): {
   price: string;
   date: string;
   guests: string;
+  privateOnly: boolean;
 } {
   const params = new URLSearchParams(search);
   const tagsParam = params.get('tags');
@@ -82,6 +83,7 @@ function parsePackagesSearchParams(search: string): {
     price: params.get('price') ?? 'all',
     date: params.get('date') ?? '',
     guests: params.get('guests') ?? '',
+    privateOnly: params.get('private') === '1',
   };
 }
 
@@ -93,6 +95,7 @@ function buildPackagesSearchParams(state: {
   priceRange: string;
   date: string;
   guests: string;
+  privateOnly: boolean;
 }): string {
   const p = new URLSearchParams();
   if (state.searchTerm) p.set('q', state.searchTerm);
@@ -102,8 +105,14 @@ function buildPackagesSearchParams(state: {
   if (state.priceRange !== 'all') p.set('price', state.priceRange);
   if (state.date) p.set('date', state.date);
   if (state.guests) p.set('guests', state.guests);
+  if (state.privateOnly) p.set('private', '1');
   const s = p.toString();
   return s ? `?${s}` : '';
+}
+
+function listingIsPrivateOnly(tour: TourPackage): boolean {
+  const opts = materializedBookingOptions(parseListingExtras(tour.listingExtras).bookingOptions);
+  return opts.length > 0 && opts.every((o) => Boolean(o.isPrivate));
 }
 
 export default function Packages({ onTourSelect }: PackagesProps) {
@@ -117,6 +126,7 @@ export default function Packages({ onTourSelect }: PackagesProps) {
   const [priceRange, setPriceRange] = useState(initialFilters.price);
   const [filterDate, setFilterDate] = useState(initialFilters.date);
   const [filterGuests, setFilterGuests] = useState(initialFilters.guests);
+  const [privateOnly, setPrivateOnly] = useState(initialFilters.privateOnly);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const filterSheetRef = useRef<HTMLDivElement>(null);
   const closeMobileFilters = useCallback(() => setMobileFiltersOpen(false), []);
@@ -147,6 +157,7 @@ export default function Packages({ onTourSelect }: PackagesProps) {
     setPriceRange(parsed.price);
     setFilterDate(parsed.date);
     setFilterGuests(parsed.guests);
+    setPrivateOnly(parsed.privateOnly);
   }, []);
 
   useEffect(() => {
@@ -190,12 +201,13 @@ export default function Packages({ onTourSelect }: PackagesProps) {
       priceRange,
       date: filterDate,
       guests: filterGuests,
+      privateOnly,
     });
     const newUrl = `${window.location.pathname}${query}`;
     if (window.location.pathname + window.location.search !== newUrl) {
       window.history.replaceState({}, '', newUrl);
     }
-  }, [searchTerm, selectedDestination, selectedTags, sortBy, priceRange, filterDate, filterGuests]);
+  }, [searchTerm, selectedDestination, selectedTags, sortBy, priceRange, filterDate, filterGuests, privateOnly]);
 
   const allListings = useMemo(() => {
     const base =
@@ -341,7 +353,17 @@ export default function Packages({ onTourSelect }: PackagesProps) {
           });
         }
       }
-      return matchesSearch && matchesDest && matchesTag && matchesPrice && matchesDate && matchesGuests && matchesCapacity;
+      const matchesPrivate = !privateOnly || listingIsPrivateOnly(tour);
+      return (
+        matchesSearch &&
+        matchesDest &&
+        matchesTag &&
+        matchesPrice &&
+        matchesDate &&
+        matchesGuests &&
+        matchesCapacity &&
+        matchesPrivate
+      );
     });
 
     if (sortBy === 'price-asc') list = [...list].sort((a, b) => catalogHeadlineAmount(a) - catalogHeadlineAmount(b));
@@ -360,6 +382,7 @@ export default function Packages({ onTourSelect }: PackagesProps) {
     sortBy,
     filterDate,
     filterGuests,
+    privateOnly,
     ratingSortScore,
     dateCapacityByListing,
   ]);
@@ -370,7 +393,8 @@ export default function Packages({ onTourSelect }: PackagesProps) {
     selectedTags.length > 0 ||
     priceRange !== 'all' ||
     filterDate !== '' ||
-    filterGuests !== '';
+    filterGuests !== '' ||
+    privateOnly;
 
   const clearAllFilters = () => {
     setSearchTerm('');
@@ -380,6 +404,7 @@ export default function Packages({ onTourSelect }: PackagesProps) {
     setSortBy('recommended');
     setFilterDate('');
     setFilterGuests('');
+    setPrivateOnly(false);
   };
 
   const toggleTag = (tagId: string) => {
@@ -403,7 +428,8 @@ export default function Packages({ onTourSelect }: PackagesProps) {
   const extraFilterCount =
     (selectedDestination !== 'all' ? 1 : 0) +
     selectedTags.length +
-    (priceRange !== 'all' ? 1 : 0);
+    (priceRange !== 'all' ? 1 : 0) +
+    (privateOnly ? 1 : 0);
 
   return (
     <div className="min-h-screen bg-paper tv-page">
@@ -569,6 +595,15 @@ export default function Packages({ onTourSelect }: PackagesProps) {
                 {filterGuests} {filterGuests === '1' ? 'guest' : 'guests'} <X className="w-3.5 h-3.5" />
               </button>
             )}
+            {privateOnly && (
+              <button
+                type="button"
+                onClick={() => setPrivateOnly(false)}
+                className="lux-flat inline-flex items-center gap-1.5 rounded-full bg-finland/10 px-3 py-1.5 text-xs font-semibold text-finland ring-1 ring-finland/20"
+              >
+                Private tours <X className="w-3.5 h-3.5" />
+              </button>
+            )}
             <button type="button" onClick={clearAllFilters} className="lux-flat rounded-full bg-finland px-3 py-1.5 text-xs font-semibold text-white shadow-sm ring-1 ring-finland/30">
               Clear all
             </button>
@@ -686,6 +721,18 @@ export default function Packages({ onTourSelect }: PackagesProps) {
                 <div>
                   <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">Details</p>
                   <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      aria-pressed={privateOnly}
+                      onClick={() => setPrivateOnly((v) => !v)}
+                      className={`tv-chip transition-colors duration-150 ${
+                        privateOnly
+                          ? 'bg-finland text-white shadow-sm ring-2 ring-finland/40'
+                          : 'bg-paper text-ink hover:bg-finland/10 hover:text-finland'
+                      }`}
+                    >
+                      Private tours
+                    </button>
                     {TAG_OPTIONS.map((tag) => (
                       <button
                         key={tag.id}

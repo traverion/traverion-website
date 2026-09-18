@@ -13,7 +13,18 @@ type ContactProps = {
 
 type FieldKey = 'name' | 'email' | 'message' | 'form';
 
+type ContactTopic = 'booking' | 'trip' | 'payment' | 'partner' | 'general';
+
+const TOPICS: { id: ContactTopic; label: string; hint: string }[] = [
+  { id: 'booking', label: 'Booking help', hint: 'Before you pay or while choosing dates' },
+  { id: 'trip', label: 'My trip', hint: 'Confirmed booking, dates, pickup' },
+  { id: 'payment', label: 'Payment', hint: 'Stripe charge, receipt, refund status' },
+  { id: 'partner', label: 'Partner / supplier', hint: 'Listing, payouts, portal access' },
+  { id: 'general', label: 'Something else', hint: 'General questions about Traverion' },
+];
+
 export default function Contact({ onNavigate }: ContactProps) {
+  const [topic, setTopic] = useState<ContactTopic>('general');
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -41,13 +52,24 @@ export default function Contact({ onNavigate }: ContactProps) {
     } catch {
       /* ignore */
     }
-    const topic = new URLSearchParams(window.location.search).get('topic');
-    if (topic === 'affiliate') {
+    const params = new URLSearchParams(window.location.search);
+    const topicParam = params.get('topic');
+    if (topicParam === 'affiliate') {
       onNavigate?.('affiliate');
       return;
     }
-    if (topic === 'creator' || topic === 'content-creator') {
+    if (topicParam === 'creator' || topicParam === 'content-creator') {
       onNavigate?.('content-creator');
+      return;
+    }
+    if (
+      topicParam === 'booking' ||
+      topicParam === 'trip' ||
+      topicParam === 'payment' ||
+      topicParam === 'partner' ||
+      topicParam === 'general'
+    ) {
+      setTopic(topicParam);
     }
   }, [onNavigate]);
 
@@ -80,8 +102,8 @@ export default function Contact({ onNavigate }: ContactProps) {
         name: formData.name,
         email: formData.email,
         phone: formData.phone || undefined,
-        subject: buildInquiryEmailSubject('general', ''),
-        message: formData.message,
+        subject: buildInquiryEmailSubject('general', TOPICS.find((t) => t.id === topic)?.label ?? 'Contact form message'),
+        message: `[${TOPICS.find((t) => t.id === topic)?.label ?? 'General'}]\n\n${formData.message}`,
         inquiry_type: 'general',
         status: 'new',
       };
@@ -112,7 +134,7 @@ export default function Contact({ onNavigate }: ContactProps) {
     <LegalPageShell
       eyebrow="Support"
       title="Contact us"
-      subtitle="Bookings, trips, and general questions. Affiliate and creator applications each have their own page in the footer."
+      subtitle="Bookings, trips, payments, and partner questions. Affiliate and creator applications each have their own page in the footer."
       onNavigate={onNavigate}
     >
       {isSubmitted ? (
@@ -141,12 +163,43 @@ export default function Contact({ onNavigate }: ContactProps) {
             anytime. Email <a href="mailto:info@traverion.com">info@traverion.com</a>.
           </p>
 
-          <form noValidate onSubmit={(e) => void handleSubmit(e)} className="space-y-4 max-w-lg">
+          <form noValidate onSubmit={(e) => void handleSubmit(e)} className="space-y-5 max-w-lg">
             {fieldErrors.form ? (
               <NoticeCallout title="Could not send message" tone="danger">
                 {fieldErrors.form}
               </NoticeCallout>
             ) : null}
+
+            <fieldset>
+              <legend className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-2">
+                What do you need help with?
+              </legend>
+              <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Contact topic">
+                {TOPICS.map((t) => {
+                  const selected = topic === t.id;
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      onClick={() => setTopic(t.id)}
+                      className={`tv-chip text-left transition-colors duration-150 ${
+                        selected
+                          ? 'bg-finland text-white shadow-sm ring-2 ring-finland/40'
+                          : 'bg-paper-raised text-ink ring-1 ring-black/[0.06] hover:bg-finland/10 hover:text-finland'
+                      }`}
+                    >
+                      <span className="block font-semibold">{t.label}</span>
+                      <span className={`block text-[11px] mt-0.5 ${selected ? 'text-white/80' : 'text-ink-faint'}`}>
+                        {t.hint}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </fieldset>
+
             <div>
               <label htmlFor="contact-name" className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">
                 Name
@@ -219,6 +272,13 @@ export default function Contact({ onNavigate }: ContactProps) {
                 rows={8}
                 className="tv-input min-h-[10rem] resize-y py-3"
                 aria-invalid={fieldErrors.message ? true : undefined}
+                placeholder={
+                  topic === 'trip'
+                    ? 'Include your booking reference if you have one.'
+                    : topic === 'payment'
+                      ? 'Include the amount, date, and booking reference if you have them.'
+                      : undefined
+                }
               />
               {fieldErrors.message && (
                 <p className="mt-1.5 text-sm text-red-800" role="alert">
