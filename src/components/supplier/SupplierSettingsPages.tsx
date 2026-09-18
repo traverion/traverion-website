@@ -472,7 +472,7 @@ function BusinessProfilePage(p: Props) {
     <div className={SUPPLIER_PAGE_CLASS}>
       <SupplierPageHero
         title={displayName}
-        description="Company details, payouts, and legal documents guests see when they book your tours."
+        description="Company details, payouts, and legal documents guests see when they book your tours and stays."
       >
         <p className="mt-3 text-sm text-ink-muted">
           {busChip.label}
