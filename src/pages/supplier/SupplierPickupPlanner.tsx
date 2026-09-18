@@ -34,6 +34,7 @@ import { inventoryFamilyFromListing } from '../../lib/inventory';
 import { partnerPickupAllowsForceCancel, partnerManualConfirmBlock } from '../../lib/cancellation-policy';
 import { PARTNER_CANCEL_REQUEST_REFUND_POLICY } from '../../lib/booking-confirmation-copy';
 import NoticeCallout from '../../components/NoticeCallout';
+import { formatBookingParticipantsLabel } from '../../lib/participant-mix';
 
 function toYmd(d: Date): string {
   const y = d.getFullYear();
@@ -122,7 +123,7 @@ function PlannerBookingCard({
   showActivityDate,
   onOpen,
 }: PlannerBookingCardProps) {
-  const guestsN = Number(booking.guests ?? 0);
+  const participants = formatBookingParticipantsLabel(booking);
   const activityParsed = booking.booking_date ? parseYmdLocal(booking.booking_date) : null;
   const actDate =
     showActivityDate && activityParsed
@@ -130,6 +131,8 @@ function PlannerBookingCard({
       : null;
   const times = bookingTimesLine(booking);
   const guide = guideScheduleSummary(guideMeta);
+  const ref =
+    typeof booking.booking_number === 'number' ? `#${booking.booking_number}` : null;
 
   return (
     <button
@@ -147,10 +150,13 @@ function PlannerBookingCard({
         <p className="font-semibold text-ink truncate">{booking.guest_name ?? booking.guest_email ?? 'Guest'}</p>
         <span className="text-xs font-medium capitalize text-ink-muted shrink-0">{booking.status}</span>
       </div>
-      <p className="mt-0.5 text-sm text-ink-muted truncate">{listingTitle}</p>
+      <p className="mt-0.5 text-sm text-ink-muted truncate">
+        {ref ? `${ref} · ` : ''}
+        {listingTitle}
+      </p>
       <p className="mt-1 text-sm text-ink-muted">
         {actDate ? `${actDate} · ` : ''}
-        {guestsN} guest{guestsN === 1 ? '' : 's'}
+        {participants}
         {times ? ` · ${times}` : ''}
       </p>
       {guide ? <p className="mt-1 line-clamp-1 text-xs text-ink-faint">{guide}</p> : null}
@@ -555,9 +561,12 @@ export default function SupplierPickupPlanner() {
             {' · '}
             <span className="capitalize">{selectedBooking.status}</span>
             {' · '}
-            {selectedBooking.guests ?? '—'} guest{(selectedBooking.guests ?? 0) === 1 ? '' : 's'}
+            {formatBookingParticipantsLabel(selectedBooking)}
             {bookingTimesLine(selectedBooking) ? ` · ${bookingTimesLine(selectedBooking)}` : ''}
           </p>
+          {typeof selectedBooking.booking_number === 'number' ? (
+            <p className="mt-1 text-xs text-ink-faint">Booking #{selectedBooking.booking_number}</p>
+          ) : null}
         </div>
 
         <div className="space-y-8 max-w-2xl">
@@ -569,6 +578,10 @@ export default function SupplierPickupPlanner() {
             {selectedBooking.guest_name && selectedBooking.guest_email ? (
               <p className="mt-0.5 text-sm text-ink-muted break-all">{selectedBooking.guest_email}</p>
             ) : null}
+            <p className="mt-3 text-sm text-ink">
+              <span className="text-ink-faint uppercase tracking-[0.12em] text-[10px] block mb-1">Participants</span>
+              {formatBookingParticipantsLabel(selectedBooking)}
+            </p>
             <p className="mt-3 text-sm text-ink-muted whitespace-pre-wrap">
               {selectedBooking.special_requests || 'No special requests or address notes.'}
             </p>

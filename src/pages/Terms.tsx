@@ -96,11 +96,11 @@ export default function Terms({ onNavigate }: TermsProps) {
 
       <section>
         <h2>Booking terms</h2>
-        <p>When booking travel packages with TRAVERION:</p>
+        <p>When booking tours or stays on Traverion:</p>
         <ul>
           <li>All bookings are subject to availability</li>
           <li>Prices are subject to change until payment is confirmed as stated at checkout</li>
-          <li>Payment terms, deposits, and instalments vary by package and destination</li>
+          <li>Payment is charged according to the amount shown at checkout</li>
           <li>
             Cancellation, change, and refund rules are those in your booking confirmation and any supplier-specific
             terms

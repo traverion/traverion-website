@@ -5,6 +5,7 @@ describe('partner pickup CSV', () => {
   it('exports payment_label Paid for confirmed paid trips and Pending for unpaid holds', () => {
     expect(PARTNER_PICKUP_CSV_HEADER).toContain('payment_label');
     expect(PARTNER_PICKUP_CSV_HEADER).toContain('payment_status');
+    expect(PARTNER_PICKUP_CSV_HEADER).toContain('participants');
     const paid = partnerPickupCsvValues(
       {
         status: 'confirmed',
@@ -12,8 +13,12 @@ describe('partner pickup CSV', () => {
         amount_paid: 189,
         booking_date: '2026-09-11',
         booking_number: 5,
-        guests: 2,
+        guests: 3,
         guest_name: 'Guest',
+        guest_breakdown: [
+          { label: 'Adult', quantity: 2 },
+          { label: 'Child', quantity: 1 },
+        ],
       },
       'Aurora tour',
       '09:00',
@@ -23,8 +28,10 @@ describe('partner pickup CSV', () => {
     );
     const labelIdx = PARTNER_PICKUP_CSV_HEADER.indexOf('payment_label');
     const payIdx = PARTNER_PICKUP_CSV_HEADER.indexOf('payment_status');
+    const paxIdx = PARTNER_PICKUP_CSV_HEADER.indexOf('participants');
     expect(paid[labelIdx]).toBe('Paid');
     expect(paid[payIdx]).toBe('paid');
+    expect(paid[paxIdx]).toBe('2 Adult · 1 Child');
 
     const unpaid = partnerPickupCsvValues(
       {
@@ -42,5 +49,6 @@ describe('partner pickup CSV', () => {
     );
     expect(unpaid[labelIdx].toLowerCase()).not.toBe('paid');
     expect(unpaid[payIdx]).toBe('pending');
+    expect(unpaid[paxIdx]).toBe('1 guest');
   });
 });

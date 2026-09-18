@@ -174,7 +174,7 @@ export default function SupplierEarnings() {
       <SupplierPageHero
         badge="Earnings"
         title="Money"
-        description="What travelers paid, and what Traverion has paid you. Payouts are manual — this page never invents a transfer."
+        description="Traveler payments collected, fees & adjustments, and what Traverion has paid you. Payouts are manual — this page never invents a transfer."
       />
 
       {error && (
@@ -197,23 +197,30 @@ export default function SupplierEarnings() {
             <p className={`font-display text-5xl sm:text-6xl tabular-nums tracking-tight ${available < 0 ? 'text-red-800' : 'text-ink'}`}>
               {formatMoney(available, primaryCurrency)}
             </p>
-            <p className="mt-4 text-sm text-ink-muted">
-              Collected{' '}
-              <span className="tabular-nums font-semibold text-ink">
-                {formatMoney(gross, primaryCurrency)}
-              </span>
-              {fees !== 0 ? (
-                <>
-                  {' '}
-                  · fees & adjustments{' '}
-                  <span className="tabular-nums font-semibold text-ink">{formatMoney(fees, primaryCurrency)}</span>
-                </>
-              ) : null}
-              <span className="text-ink-faint">
-                {' '}
-                · paid traveler bookings only. Refunded payments are excluded. Payouts are manual.
-              </span>
-            </p>
+            <dl className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-4 border-t border-black/[0.06] pt-5">
+              <div>
+                <dt className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">Collected</dt>
+                <dd className="mt-1 text-lg font-semibold tabular-nums text-ink">
+                  {formatMoney(gross, primaryCurrency)}
+                </dd>
+                <p className="mt-0.5 text-xs text-ink-faint">Paid traveler bookings</p>
+              </div>
+              <div>
+                <dt className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">Fees &amp; adjustments</dt>
+                <dd className={`mt-1 text-lg font-semibold tabular-nums ${fees < 0 ? 'text-red-800' : 'text-ink'}`}>
+                  {formatMoney(fees, primaryCurrency)}
+                </dd>
+                <p className="mt-0.5 text-xs text-ink-faint">Ledger only — never invented</p>
+              </div>
+              <div>
+                <dt className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">Paid out to date</dt>
+                <dd className="mt-1 text-lg font-semibold tabular-nums text-ink">
+                  {formatMoney(paid, primaryCurrency)}
+                </dd>
+                <p className="mt-0.5 text-xs text-ink-faint">{PARTNER_MONEY_PAID_OUT_TO_DATE_NOTE}</p>
+              </div>
+            </dl>
+            <p className="mt-4 text-sm text-ink-muted max-w-lg">{nextPayoutLabel}</p>
             {available < 0 ? (
               <div className="mt-4 max-w-lg">
                 <NoticeCallout title={PARTNER_MONEY_NEGATIVE_BALANCE_LABEL} tone="danger">
@@ -226,7 +233,6 @@ export default function SupplierEarnings() {
                 {payoutProgressPct}% {PARTNER_MONEY_THRESHOLD_PROGRESS_SUFFIX}
               </p>
             ) : null}
-            <p className="mt-4 text-sm text-ink-muted max-w-lg">{nextPayoutLabel}</p>
             {refundDueBookings.length > 0 ? (
               <div className="mt-6 max-w-lg">
                 <NoticeCallout title="Refund due" tone="warn">
@@ -248,11 +254,6 @@ export default function SupplierEarnings() {
                 </NoticeCallout>
               </div>
             ) : null}
-            <p className="mt-6 text-sm text-ink-muted">
-              Paid out to date{' '}
-              <span className="tabular-nums font-semibold text-ink">{formatMoney(paid, primaryCurrency)}</span>
-              <span className="block text-xs text-ink-faint mt-1">{PARTNER_MONEY_PAID_OUT_TO_DATE_NOTE}</span>
-            </p>
             <button
               type="button"
               onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/business-profile#supplier-business-payout`)}

@@ -1,4 +1,5 @@
 import { partnerPaymentLabel, normalizePaymentStatus, type MoneyBookingRow } from './payment-states';
+import { formatBookingParticipantsLabel } from './participant-mix';
 
 export type PartnerPickupCsvRow = MoneyBookingRow & {
   booking_date?: string | null;
@@ -6,6 +7,8 @@ export type PartnerPickupCsvRow = MoneyBookingRow & {
   guest_name?: string | null;
   guest_email?: string | null;
   guests?: number | null;
+  guest_breakdown?: { label?: string; quantity?: number }[] | null;
+  special_requests?: string | null;
   booking_number?: number | null;
 };
 
@@ -18,6 +21,7 @@ export const PARTNER_PICKUP_CSV_HEADER = [
   'payment_label',
   'listing_title',
   'guest',
+  'participants',
   'guests',
   'start_time',
   'pickup_time',
@@ -41,6 +45,7 @@ export function partnerPickupCsvValues(
     partnerPaymentLabel(b),
     listingTitle,
     b.guest_name ?? b.guest_email ?? '',
+    formatBookingParticipantsLabel(b),
     b.guests != null ? String(b.guests) : '',
     startHm,
     pickupHm,

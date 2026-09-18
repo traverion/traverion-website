@@ -364,7 +364,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                     When a tour is published, it appears here for travelers to book.
                   </p>
                   <a href={supplierPortalLandingHref()} className="tv-btn-primary bg-white text-ink hover:bg-paper">
-                    List your tours
+                    List your tours and stays
                   </a>
                 </div>
               </div>
@@ -433,7 +433,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
               body="Nothing is live on Traverion right now. That is normal — we do not fill this page with sample listings. When an operator publishes, tours appear here."
               action={
                 <a href={supplierPortalLandingHref()} className="tv-btn-primary inline-flex">
-                  List your tours
+                  List your tours and stays
                 </a>
               }
             />

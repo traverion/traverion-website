@@ -20,7 +20,7 @@ export default function Privacy({ onNavigate }: PrivacyProps) {
         <h2>Information we collect</h2>
         <p>We collect information you provide directly to us, such as when you:</p>
         <ul>
-          <li>Book travel packages or request quotes</li>
+          <li>Book tours, stays, or request support</li>
           <li>Create an account or contact us</li>
           <li>Subscribe to our newsletter</li>
           <li>Participate in surveys or promotions</li>
@@ -36,7 +36,7 @@ export default function Privacy({ onNavigate }: PrivacyProps) {
           <li>Process transactions and show related status in Trips</li>
           <li>Attempt technical notices and support messages when delivery channels allow</li>
           <li>Respond to your comments and questions</li>
-          <li>Provide personalized travel recommendations</li>
+          <li>Provide personalized recommendations when we have enough signal</li>
         </ul>
         <p>{PRIVACY_COMMUNICATIONS_NOTE}</p>
       </section>
