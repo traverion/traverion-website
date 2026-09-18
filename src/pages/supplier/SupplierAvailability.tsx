@@ -332,10 +332,10 @@ export default function SupplierAvailability() {
             ) : (
               <>
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="h-2.5 w-2.5 rounded-full bg-finland ring-1 ring-finland/30" /> Guests
+                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 ring-1 ring-emerald-500/30" /> Open
                 </span>
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 ring-1 ring-emerald-500/30" /> Cap open
+                  <span className="h-2.5 w-2.5 rounded-full bg-finland ring-1 ring-finland/30" /> Booked
                 </span>
                 <span className="inline-flex items-center gap-1.5">
                   <span className="h-2.5 w-2.5 rounded-full bg-rose-500 ring-1 ring-rose-600/30" /> Full
