@@ -100,7 +100,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
     return (
       <div className="min-h-screen bg-paper tv-page">
         <div className="max-w-xl mx-auto px-4 py-12">
-          <header className="mb-6 rounded-2xl bg-paper-raised p-5 sm:p-7 shadow-soft ring-1 ring-black/[0.06]">
+          <header className="mb-6 tv-card p-5 sm:p-7">
             <div className="inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15 mb-3">
               Traveler
             </div>
@@ -129,7 +129,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
     return (
       <div className="min-h-screen bg-paper tv-page">
         <div className="max-w-xl mx-auto px-4 py-12">
-          <header className="mb-6 rounded-2xl bg-paper-raised p-5 sm:p-7 shadow-soft ring-1 ring-black/[0.06]">
+          <header className="mb-6 tv-card p-5 sm:p-7">
             <div className="inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15 mb-3">
               Traveler
             </div>
@@ -194,7 +194,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
   return (
     <div className="min-h-screen bg-paper tv-page">
       <div className="max-w-2xl mx-auto px-4 sm:px-6 py-12 pb-16">
-        <header className="mb-10 rounded-2xl bg-paper-raised p-5 sm:p-7 shadow-soft ring-1 ring-black/[0.06]">
+        <header className="mb-10 tv-card p-5 sm:p-7">
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Traveler</p>
           <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Account</h1>
           <p className="mt-2 text-sm text-ink-muted truncate" title={user.email ?? undefined}>
@@ -209,7 +209,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
           <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint mb-4">Profile</h2>
           {profileLoading ? (
             <div
-              className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]"
+              className="tv-card p-5 sm:p-6"
               aria-busy="true"
               aria-label="Loading profile"
             >
@@ -217,7 +217,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
             </div>
           ) : (
             <form
-              className="space-y-4 max-w-lg rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]"
+              className="space-y-4 max-w-lg tv-card p-5 sm:p-6"
               onSubmit={(e) => {
                 e.preventDefault();
                 if (!user?.id) return;

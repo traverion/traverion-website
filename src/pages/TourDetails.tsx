@@ -926,7 +926,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                 })()}
 
                 {tour.highlights.filter((h) => String(h).trim()).length > 0 ? (
-                  <section className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]">
+                  <section className="tv-card p-5 sm:p-6">
                     <h2 className="font-display text-2xl text-ink mb-5">Highlights</h2>
                     <ul className="space-y-3">
                       {tour.highlights
@@ -971,7 +971,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                     }
                   }
                   return (
-                  <section className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]">
+                  <section className="tv-card p-5 sm:p-6">
                     <h2 className="font-display text-2xl text-ink mb-5">Itinerary</h2>
                     <ol className="space-y-6">
                       {itinerarySteps
@@ -1018,7 +1018,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                 })()}
 
                 {(tour.includes.some((s) => String(s).trim()) || tour.excludes.some((s) => String(s).trim())) ? (
-                  <section className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06] space-y-8">
+                  <section className="tv-card p-5 sm:p-6 space-y-8">
                     {tour.includes.some((s) => String(s).trim()) ? (
                       <div className="rounded-2xl bg-emerald-50/70 p-4 sm:p-5 ring-1 ring-emerald-200/60">
                         <h2 className="font-display text-2xl text-ink mb-4">What’s included</h2>
@@ -1072,7 +1072,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                 ) : null}
 
                 {weekdayHint ? (
-                  <section className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]">
+                  <section className="tv-card p-5 sm:p-6">
                     <h2 className="font-display text-2xl text-ink mb-3">Availability</h2>
                     <p className="text-ink-muted leading-relaxed">{weekdayHint}. Choose a date on the right to see live options.</p>
                   </section>
@@ -1106,7 +1106,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                 ) : null}
 
                 {supplierLegal && (
-                  <section className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]">
+                  <section className="tv-card p-5 sm:p-6">
                     <h2 className="font-display text-2xl text-ink mb-4">Operator</h2>
                     <div className="flex items-center gap-4">
                     {supplierLegal.business_logo_url ? (

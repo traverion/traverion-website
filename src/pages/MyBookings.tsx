@@ -326,14 +326,14 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
     return (
       <div className="min-h-screen bg-paper tv-page">
         <div className="max-w-2xl mx-auto px-4 py-12 pb-16">
-          <header className="mb-8 rounded-2xl bg-paper-raised p-5 sm:p-7 shadow-soft ring-1 ring-black/[0.06]">
+          <header className="mb-8 tv-card p-5 sm:p-7">
             <div className="inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15 mb-3">
               Your bookings
             </div>
             <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Trips</h1>
             <p className="mt-2 text-sm text-ink-muted">Upcoming and past tours and stays you booked.</p>
           </header>
-          <div className="max-w-md rounded-2xl bg-paper-raised p-5 shadow-soft ring-1 ring-black/[0.06]">
+          <div className="max-w-md tv-card p-5">
             <h2 className="font-display text-2xl text-ink">Bookings unavailable</h2>
             <p className="mt-3 text-sm text-ink-muted">
               Booking history is available only in the live app setup.
@@ -367,7 +367,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
     return (
       <div className="min-h-screen bg-paper tv-page">
         <div className="max-w-xl mx-auto px-4 py-12 pb-16">
-          <header className="mb-6 rounded-2xl bg-paper-raised p-5 sm:p-7 shadow-soft ring-1 ring-black/[0.06]">
+          <header className="mb-6 tv-card p-5 sm:p-7">
             <div className="inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15 mb-3">
               Your bookings
             </div>
@@ -402,7 +402,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   return (
     <div className="min-h-screen bg-paper tv-page">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-12 pb-16">
-        <header className="mb-8 rounded-2xl bg-paper-raised p-5 sm:p-7 shadow-soft ring-1 ring-black/[0.06]">
+        <header className="mb-8 tv-card p-5 sm:p-7">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Your bookings</p>

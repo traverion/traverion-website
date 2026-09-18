@@ -665,21 +665,21 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
             A marketplace for independent operators — clear booking truth, honest money, separate product types.
           </p>
           <div className="grid sm:grid-cols-3 gap-6 sm:gap-8">
-            <div className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]">
+            <div className="tv-card p-5 sm:p-6">
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">01</p>
               <p className="font-semibold text-ink mb-2">Real operators</p>
               <p className="text-[15px] leading-relaxed text-ink-muted">
                 You book the people who run the day. Price is confirmed at checkout — not guessed on the card.
               </p>
             </div>
-            <div className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]">
+            <div className="tv-card p-5 sm:p-6">
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">02</p>
               <p className="font-semibold text-ink mb-2">Clear money</p>
               <p className="text-[15px] leading-relaxed text-ink-muted">
                 Pay with Stripe. Trips is your confirmation of record — we do not invent email receipts.
               </p>
             </div>
-            <div className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]">
+            <div className="tv-card p-5 sm:p-6">
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">03</p>
               <p className="font-semibold text-ink mb-2">Tours ≠ stays</p>
               <p className="text-[15px] leading-relaxed text-ink-muted">
