@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { X, ChevronRight, ChevronLeft, Tag, Calendar, Percent } from 'lucide-react';
+import { X, ChevronRight, ChevronLeft, Tag, Calendar, Percent, Check } from 'lucide-react';
 import type { TourPackage } from '../../types/tour';
 import { parseListingExtras, materializedBookingOptions } from '../../types/listingExtras';
 import type { ListingDiscount } from '../../data/supabase-discounts';
@@ -13,6 +13,8 @@ import {
   SUPPLIER_DISCOUNT_MAX_RANGE_DAYS,
 } from '../../data/supabase-discounts';
 import { formatMoney, normalizeCurrency } from '../../lib/money';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
+import { SUPPLIER_MODAL_OVERLAY_CLASS, SUPPLIER_MODAL_PANEL_CLASS } from './supplierUi';
 
 const LISTING_WIDE_VALUE = '__listing_wide__';
 
@@ -39,6 +41,11 @@ export default function DiscountOfferWizardModal({ open, onClose, listings, edit
   const [percent, setPercent] = useState(SUPPLIER_DISCOUNT_PERCENT_MIN);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const closeSafe = useCallback(() => {
+    if (!submitting) onClose();
+  }, [onClose, submitting]);
+  useDialogFocus(open, panelRef, closeSafe);
 
   const selectedTour = useMemo(
     () => listings.find((l) => l.id === listingId),
@@ -167,76 +174,75 @@ export default function DiscountOfferWizardModal({ open, onClose, listings, edit
 
   if (!open) return null;
 
+  const optionLabel =
+    optionId === LISTING_WIDE_VALUE
+      ? 'All options'
+      : bookingOptions.find((o) => o.id === optionId)?.name?.trim() || '—';
+
   const shell = (
-    <div className="fixed inset-0 z-[90] flex items-end sm:items-center justify-center p-0 sm:p-4 sm:pt-[max(1rem,env(safe-area-inset-top))]">
-      <button
-        type="button"
-        className="absolute inset-0 bg-slate-900/35 backdrop-blur-md"
-        aria-label="Close"
-        onClick={() => !submitting && onClose()}
-      />
+    <div ref={panelRef} className={`${SUPPLIER_MODAL_OVERLAY_CLASS} z-[90]`}>
+      <button type="button" tabIndex={-1} className="absolute inset-0" aria-label="Close" onClick={closeSafe} />
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="discount-wizard-title"
-        className="relative z-[91] flex w-full max-w-lg max-h-[min(calc(100dvh_-_env(safe-area-inset-bottom)),92dvh)] sm:max-h-[min(92dvh,720px)] flex-col rounded-t-2xl sm:rounded-2xl bg-white shadow-2xl border border-gray-200 overflow-hidden motion-safe:animate-slide-up sm:motion-safe:animate-none"
+        className={`${SUPPLIER_MODAL_PANEL_CLASS} z-[91] flex max-h-[min(92dvh,40rem)] w-full max-w-lg flex-col`}
       >
-        <div className="flex items-center justify-between gap-2 sm:gap-3 px-3 py-2.5 sm:px-4 sm:py-3 border-b border-gray-100 bg-gradient-to-br from-slate-50/90 to-white shrink-0">
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="w-9 h-9 rounded-xl bg-finland/10 text-finland flex items-center justify-center shrink-0">
-              <Tag className="w-4 h-4" aria-hidden />
-            </div>
+        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-black/[0.06] px-4 py-3.5 sm:px-5">
+          <div className="flex min-w-0 items-start gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-finland/10 text-finland" aria-hidden>
+              <Tag className="w-4 h-4" />
+            </span>
             <div className="min-w-0">
-              <h2 id="discount-wizard-title" className="text-base font-semibold text-gray-900 truncate">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland">Offers</p>
+              <h2 id="discount-wizard-title" className="font-display text-xl text-ink tracking-tight mt-0.5">
                 {editing ? 'Edit offer' : 'New discount offer'}
               </h2>
-              <p className="text-[11px] text-gray-500">
-                Step {step + 1} of 3 · shown on Traverion when dates are active
+              <p className="text-sm text-ink-muted mt-0.5">
+                Step {step + 1} of 3 · live on Traverion while dates are active
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => !submitting && onClose()}
-            className="lux-tap-target p-2 rounded-lg text-gray-500 hover:bg-gray-200 min-h-[44px] min-w-[44px] inline-flex items-center justify-center"
-            aria-label="Close"
-          >
+          <button type="button" onClick={closeSafe} className="lux-tap-target p-2 -mr-1 text-ink-muted hover:text-ink" aria-label="Close">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="flex gap-1 px-3 py-1.5 sm:px-4 sm:py-2 border-b border-gray-100 bg-white shrink-0">
+        <div className="flex shrink-0 gap-1.5 px-4 py-2.5 sm:px-5" aria-hidden>
           {[0, 1, 2].map((i) => (
             <div
               key={i}
-              className={`h-1 flex-1 rounded-full transition-colors ${i <= step ? 'bg-finland' : 'bg-gray-200'}`}
+              className={`h-1 flex-1 rounded-full transition-colors ${i <= step ? 'bg-finland' : 'bg-black/[0.08]'}`}
             />
           ))}
         </div>
 
-        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 py-3 sm:px-4 sm:py-4 space-y-3 sm:space-y-4">
-          {error && (
-            <p className="text-sm text-red-800" role="alert">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-3 sm:px-5 sm:py-4">
+          {error ? (
+            <p className="rounded-xl bg-red-50 px-3 py-2.5 text-sm text-red-900 ring-1 ring-red-200/80" role="alert">
               {error}
             </p>
-          )}
+          ) : null}
 
           {step === 0 && (
             <div className="space-y-4">
-              <p className="text-sm text-gray-600">
-                Pick the tour and the priced option guests book. The discount applies only to that option’s price on the site.
+              <p className="text-sm text-ink-muted leading-relaxed">
+                Choose the listing and the booking option travelers select. The discount applies only to that option’s price.
               </p>
               <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Listing</label>
+                <label htmlFor="offer-listing" className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
+                  Listing
+                </label>
                 <select
+                  id="offer-listing"
                   value={listingId}
                   onChange={(e) => {
                     setListingId(e.target.value);
                     setOptionId('');
                   }}
-                  className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm bg-white"
+                  className="tv-input"
                 >
-                  <option value="">Select a tour…</option>
+                  <option value="">Select a listing…</option>
                   {listings.map((l) => (
                     <option key={l.id} value={l.id}>
                       {l.title}
@@ -245,32 +251,76 @@ export default function DiscountOfferWizardModal({ open, onClose, listings, edit
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-                  Booking option
-                </label>
+                <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">Booking option</p>
                 {!selectedTour ? (
-                  <p className="text-sm text-gray-500">Choose a listing first.</p>
+                  <p className="text-sm text-ink-muted">Choose a listing first.</p>
                 ) : bookingOptions.length === 0 ? (
-                  <p className="text-sm text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
-                    This listing has no bookable options yet. Add options under <strong>Cost &amp; options</strong> in the listing
-                    editor, then return here.
+                  <p className="rounded-xl bg-amber-50 px-3 py-2.5 text-sm text-amber-950 ring-1 ring-amber-200/80">
+                    This listing has no bookable options yet. Add options under Cost &amp; options in the listing editor, then return here.
                   </p>
                 ) : (
-                  <select
-                    value={optionId}
-                    onChange={(e) => setOptionId(e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm bg-white"
-                  >
-                    <option value="">Select an option…</option>
-                    {editing && (
-                      <option value={LISTING_WIDE_VALUE}>All options (legacy)</option>
-                    )}
-                    {bookingOptions.map((o) => (
-                      <option key={o.id} value={o.id}>
-                        {o.name.trim() || 'Option'} · {formatMoney(o.priceUsd, normalizeCurrency(selectedTour.price?.currency))} per person
-                      </option>
-                    ))}
-                  </select>
+                  <div className="space-y-2" role="radiogroup" aria-label="Booking option">
+                    {editing ? (
+                      <button
+                        type="button"
+                        role="radio"
+                        aria-checked={optionId === LISTING_WIDE_VALUE}
+                        onClick={() => setOptionId(LISTING_WIDE_VALUE)}
+                        className={`lux-flat flex w-full items-start gap-3 rounded-xl px-3.5 py-3 text-left transition-colors ring-1 ${
+                          optionId === LISTING_WIDE_VALUE
+                            ? 'bg-finland/10 ring-2 ring-finland shadow-sm'
+                            : 'bg-paper-raised ring-black/[0.08] hover:bg-black/[0.03]'
+                        }`}
+                      >
+                        <span
+                          className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
+                            optionId === LISTING_WIDE_VALUE ? 'border-finland bg-finland text-white' : 'border-black/20'
+                          }`}
+                          aria-hidden
+                        >
+                          {optionId === LISTING_WIDE_VALUE ? <Check className="w-3 h-3" strokeWidth={3} /> : null}
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block text-sm font-semibold text-ink">All options (legacy)</span>
+                          <span className="mt-0.5 block text-xs text-ink-muted">Keep only if editing an older listing-wide offer.</span>
+                        </span>
+                      </button>
+                    ) : null}
+                    {bookingOptions.map((o) => {
+                      const selected = optionId === o.id;
+                      const price = formatMoney(o.priceUsd, normalizeCurrency(selectedTour.price?.currency));
+                      return (
+                        <button
+                          key={o.id}
+                          type="button"
+                          role="radio"
+                          aria-checked={selected}
+                          onClick={() => setOptionId(o.id)}
+                          className={`lux-flat flex w-full items-start gap-3 rounded-xl px-3.5 py-3 text-left transition-colors ring-1 ${
+                            selected
+                              ? 'bg-finland/10 ring-2 ring-finland shadow-sm'
+                              : 'bg-paper-raised ring-black/[0.08] hover:bg-black/[0.03]'
+                          }`}
+                        >
+                          <span
+                            className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
+                              selected ? 'border-finland bg-finland text-white' : 'border-black/20'
+                            }`}
+                            aria-hidden
+                          >
+                            {selected ? <Check className="w-3 h-3" strokeWidth={3} /> : null}
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="flex items-baseline justify-between gap-2">
+                              <span className="text-sm font-semibold text-ink">{o.name.trim() || 'Option'}</span>
+                              <span className="shrink-0 text-sm font-semibold tabular-nums text-ink">{price}</span>
+                            </span>
+                            <span className="mt-0.5 block text-xs text-ink-muted">Per person · travelers see this discounted price</span>
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
             </div>
@@ -280,28 +330,35 @@ export default function DiscountOfferWizardModal({ open, onClose, listings, edit
             <div className="space-y-4">
               <div className="flex items-center gap-2 text-finland">
                 <Calendar className="w-4 h-4" aria-hidden />
-                <p className="text-sm font-medium text-gray-900">When is this offer valid?</p>
+                <p className="text-sm font-semibold text-ink">When is this offer valid?</p>
               </div>
-              <p className="text-sm text-gray-600">
-                Use inclusive dates. Maximum span: <strong>{SUPPLIER_DISCOUNT_MAX_RANGE_DAYS} days</strong> per offer.
+              <p className="text-sm text-ink-muted leading-relaxed">
+                Inclusive dates. Maximum span: <strong className="text-ink font-semibold">{SUPPLIER_DISCOUNT_MAX_RANGE_DAYS} days</strong> per
+                offer.
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">From</label>
+                  <label htmlFor="offer-from" className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
+                    From
+                  </label>
                   <input
+                    id="offer-from"
                     type="date"
                     value={validFrom}
                     onChange={(e) => setValidFrom(e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm"
+                    className="tv-input"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Until</label>
+                  <label htmlFor="offer-until" className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
+                    Until
+                  </label>
                   <input
+                    id="offer-until"
                     type="date"
                     value={validUntil}
                     onChange={(e) => setValidUntil(e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm"
+                    className="tv-input"
                   />
                 </div>
               </div>
@@ -309,11 +366,11 @@ export default function DiscountOfferWizardModal({ open, onClose, listings, edit
           )}
 
           {step === 2 && editing?.type === 'fixed' && (
-            <div className="space-y-4">
-              <p className="text-sm font-medium text-gray-900">Fixed amount offer</p>
-              <p className="text-sm text-gray-600">
-                This older promotion uses a fixed dollar amount. You can change dates and which option it applies to; the amount
-                stays <strong className="text-finland">${Number(editing.value)}</strong> off.
+            <div className="space-y-3">
+              <p className="text-sm font-semibold text-ink">Fixed amount offer</p>
+              <p className="text-sm text-ink-muted leading-relaxed">
+                This older promotion uses a fixed amount. You can change dates and which option it applies to; the amount stays{' '}
+                <strong className="text-finland">${Number(editing.value)}</strong> off.
               </p>
             </div>
           )}
@@ -322,15 +379,15 @@ export default function DiscountOfferWizardModal({ open, onClose, listings, edit
             <div className="space-y-4">
               <div className="flex items-center gap-2 text-finland">
                 <Percent className="w-4 h-4" aria-hidden />
-                <p className="text-sm font-medium text-gray-900">Discount amount</p>
+                <p className="text-sm font-semibold text-ink">Discount amount</p>
               </div>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-ink-muted">
                 Between {SUPPLIER_DISCOUNT_PERCENT_MIN}% and {SUPPLIER_DISCOUNT_PERCENT_MAX}% off the option price.
               </p>
-              <div className="rounded-xl border border-gray-200 bg-gray-50/80 p-4 space-y-3">
+              <div className="space-y-3 rounded-2xl bg-black/[0.03] p-4 ring-1 ring-black/[0.06]">
                 <div className="flex items-baseline justify-between gap-2">
-                  <span className="text-3xl font-bold text-finland tabular-nums">{percent}%</span>
-                  <span className="text-sm text-gray-500">off</span>
+                  <span className="font-display text-4xl tracking-tight text-finland tabular-nums">{percent}%</span>
+                  <span className="text-sm text-ink-muted">off</span>
                 </div>
                 <input
                   type="range"
@@ -340,31 +397,34 @@ export default function DiscountOfferWizardModal({ open, onClose, listings, edit
                   value={percent}
                   onChange={(e) => setPercent(Number(e.target.value))}
                   className="w-full accent-finland"
+                  aria-label="Discount percent"
                 />
-                <div className="flex justify-between text-xs text-gray-500 tabular-nums">
+                <div className="flex justify-between text-xs text-ink-faint tabular-nums">
                   <span>{SUPPLIER_DISCOUNT_PERCENT_MIN}%</span>
                   <span>{SUPPLIER_DISCOUNT_PERCENT_MAX}%</span>
                 </div>
               </div>
-              <div className="text-xs text-gray-500 rounded-lg border border-gray-100 bg-white px-3 py-2 space-y-1">
+              <div className="space-y-1.5 rounded-xl bg-paper-raised px-3.5 py-3 text-sm ring-1 ring-black/[0.06]">
                 <p>
-                  <span className="font-medium text-gray-700">Listing:</span> {selectedTour?.title ?? '—'}
+                  <span className="text-ink-muted">Listing</span>
+                  <span className="mt-0.5 block font-medium text-ink">{selectedTour?.title ?? '—'}</span>
                 </p>
                 <p>
-                  <span className="font-medium text-gray-700">Option:</span>{' '}
-                  {optionId === LISTING_WIDE_VALUE
-                    ? 'All options'
-                    : bookingOptions.find((o) => o.id === optionId)?.name || '—'}
+                  <span className="text-ink-muted">Option</span>
+                  <span className="mt-0.5 block font-medium text-ink">{optionLabel}</span>
                 </p>
                 <p>
-                  <span className="font-medium text-gray-700">Dates:</span> {validFrom || '—'} → {validUntil || '—'}
+                  <span className="text-ink-muted">Dates</span>
+                  <span className="mt-0.5 block font-medium text-ink tabular-nums">
+                    {validFrom || '—'} → {validUntil || '—'}
+                  </span>
                 </p>
               </div>
             </div>
           )}
         </div>
 
-        <div className="flex flex-col-reverse sm:flex-row sm:justify-between gap-2 px-3 py-2.5 sm:px-4 sm:py-3 border-t border-gray-100 bg-gray-50/90 shrink-0 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-black/[0.06] bg-paper px-4 py-3 sm:flex-row sm:justify-between sm:px-5 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           <button
             type="button"
             onClick={() => {
@@ -375,7 +435,7 @@ export default function DiscountOfferWizardModal({ open, onClose, listings, edit
               }
             }}
             disabled={submitting}
-            className="touch-manipulation inline-flex items-center justify-center gap-1 min-h-[44px] px-4 py-2.5 rounded-xl border border-gray-300 text-gray-800 text-sm font-medium hover:bg-white disabled:opacity-50"
+            className="tv-btn-ghost inline-flex min-h-[44px] items-center justify-center gap-1"
           >
             {step === 0 ? (
               'Cancel'
@@ -411,7 +471,7 @@ export default function DiscountOfferWizardModal({ open, onClose, listings, edit
                 }
                 setStep((s) => s + 1);
               }}
-              className="touch-manipulation inline-flex items-center justify-center gap-1 min-h-[44px] px-4 py-2.5 rounded-xl bg-finland text-white text-sm font-semibold hover:bg-finland-dark disabled:opacity-50"
+              className="tv-btn-primary inline-flex min-h-[44px] items-center justify-center gap-1"
             >
               Next
               <ChevronRight className="w-4 h-4" />
@@ -421,7 +481,7 @@ export default function DiscountOfferWizardModal({ open, onClose, listings, edit
               type="button"
               disabled={submitting}
               onClick={() => void handleSubmit()}
-              className="touch-manipulation inline-flex items-center justify-center min-h-[44px] px-4 py-2.5 rounded-xl bg-finland text-white text-sm font-semibold hover:bg-finland-dark disabled:opacity-50"
+              className="tv-btn-primary inline-flex min-h-[44px] items-center justify-center"
             >
               {submitting ? 'Saving…' : editing ? 'Save changes' : 'Create offer'}
             </button>
