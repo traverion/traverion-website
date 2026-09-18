@@ -132,7 +132,7 @@ export default function SupplierDiscountsOffers() {
         badge="Promotions"
         icon={Tag}
         title="Offers"
-        description="Time-limited percentage promotions on a listing option."
+        description="Limited-time percentage discounts on a listing option. Travelers see the lower price on Traverion."
         actions={
           canEdit ? (
             <button

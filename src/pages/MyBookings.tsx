@@ -566,16 +566,21 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                 }
                 body={
                   tripView === 'upcoming'
-                    ? 'Nothing is scheduled. If you have trips, they may be under Past. Book a tour to add one here.'
+                    ? 'Nothing is scheduled yet. Book a tour or stay to see it here.'
                     : tripView === 'past'
                       ? 'You have no completed trips in this list yet. That is normal until a booked date has passed.'
                       : 'You have no cancelled or refunded trips. Trips that still show Refund due appear here until Stripe records a refund.'
                 }
                 action={
                   tripView === 'upcoming' ? (
-                    <button type="button" onClick={() => onNavigate('packages')} className="tv-btn-primary">
-                      Browse tours
-                    </button>
+                    <div className="flex flex-wrap gap-2">
+                      <button type="button" onClick={() => onNavigate('packages')} className="tv-btn-primary">
+                        Browse tours
+                      </button>
+                      <button type="button" onClick={() => onNavigate('stays')} className="tv-btn-ghost">
+                        Browse stays
+                      </button>
+                    </div>
                   ) : undefined
                 }
               />
