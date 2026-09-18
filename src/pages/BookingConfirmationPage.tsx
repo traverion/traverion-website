@@ -282,6 +282,12 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
           <button type="button" onClick={() => onNavigate('stays')} className="tv-btn-ghost w-full justify-center mt-2">
             Browse stays
           </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!sessionId) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-6 py-16 bg-paper">
         <div className="w-full max-w-md rounded-2xl bg-paper-raised p-6 sm:p-8 shadow-soft-lg ring-1 ring-black/[0.06] text-center">
