@@ -172,9 +172,16 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
               title="Nothing published here yet"
               body={`Nothing is live in ${label} right now. That is normal until an operator lists a tour or stay for this place.`}
               action={
-                <button type="button" onClick={onBack} className="tv-btn-primary">
-                  View all tours
-                </button>
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" onClick={onBack} className="tv-btn-primary">
+                    Browse tours
+                  </button>
+                  {onNavigate ? (
+                    <button type="button" onClick={() => onNavigate('stays')} className="tv-btn-ghost">
+                      Browse stays
+                    </button>
+                  ) : null}
+                </div>
               }
             />
           </div>
