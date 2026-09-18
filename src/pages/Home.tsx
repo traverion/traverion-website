@@ -279,7 +279,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
           inputMode="numeric"
           value={who}
           onChange={(e) => setWho(e.target.value)}
-          placeholder="Guests"
+          placeholder={searchFamily === 'stays' ? 'Guests' : 'Travelers'}
           className="w-full h-9 border-0 text-ink placeholder:text-ink-muted focus:ring-0 text-[15px] bg-transparent"
         />
       </div>
