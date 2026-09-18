@@ -564,7 +564,13 @@ export default function StayDetails({ stayId, onBack }: Props) {
                   disabled={!quoteOk || paying || selectionOccupied}
                   onClick={startStayCheckout}
                 >
-                  {paying ? 'Opening checkout…' : 'Continue to payment'}
+                  {selectionOccupied
+                    ? 'Dates unavailable'
+                    : paying
+                      ? 'Opening checkout…'
+                      : quoteOk
+                        ? 'Continue to payment'
+                        : 'Select dates'}
                 </button>
                 <p className="mt-3 text-xs text-ink-muted leading-relaxed">
                   Price is confirmed on the server. If checkout cannot start, you will see an error — never a fake success.
