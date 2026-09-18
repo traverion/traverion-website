@@ -613,7 +613,7 @@ function App() {
       case 'admin':
         if (typeof window !== 'undefined' && isPublicTraverionMarketingHost()) {
           return (
-            <div className="min-h-screen flex flex-col items-center justify-center gap-2 bg-slate-900 text-gray-300">
+            <div className="min-h-screen flex flex-col items-center justify-center gap-2 bg-paper text-ink-muted">
               <p className="text-sm">Redirecting…</p>
             </div>
           );
