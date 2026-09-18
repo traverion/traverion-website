@@ -410,18 +410,19 @@ export default function StayDetails({ stayId, onBack }: Props) {
               {' → '}
               {checkOut ? formatStayNightHuman(checkOut) : 'Check-out'}
             </p>
-            <label className="mt-3 block text-sm font-medium text-ink" htmlFor="stay-guests">
-              Guests
-            </label>
-            <input
-              id="stay-guests"
-              type="number"
-              min={1}
-              max={maxGuests}
-              value={guests}
-              onChange={(e) => setGuests(Number(e.target.value) || 1)}
-              className="tv-input mt-1 w-full"
-            />
+            <div className="mt-3">
+              <GuestStepper
+                id="stay-guests"
+                value={guests}
+                min={1}
+                max={maxGuests}
+                onChange={(next) => {
+                  setGuests(next);
+                  setPayError(null);
+                }}
+                label="Guests"
+              />
+            </div>
             {nights != null && nights < minNights ? (
               <div className="mt-3">
                 <NoticeCallout title="Minimum stay not met" tone="warn">
