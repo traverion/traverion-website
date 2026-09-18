@@ -169,7 +169,7 @@ export default function SupplierDiscountsOffers() {
         <SupplierEmptyState
           icon={MapPin}
           title="No listings yet"
-          body="Offers attach to a published listing. You have no listings yet, so this page is empty. That is expected until you create one."
+          body="Offers attach to a published tour or stay. You have no listings yet, so this page is empty. That is expected until you create one."
           action={
             <button type="button" onClick={goToListings} className="tv-btn-primary">
               Open listings

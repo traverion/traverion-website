@@ -173,7 +173,7 @@ export default function SupplierReviews() {
         <SupplierEmptyState
           icon={Star}
           title="No reviews yet"
-          body="Guests have not rated a listing yet. That is normal for new products. Feedback appears here after a trip."
+          body="Guests have not rated a tour or stay yet. That is normal for new products. Feedback appears here after a trip."
         />
       ) : (
         <div className="space-y-4 sm:space-y-5">
