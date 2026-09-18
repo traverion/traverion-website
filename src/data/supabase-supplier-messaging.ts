@@ -26,6 +26,7 @@ type SupplierEventType =
   | 'booking_cancelled'
   | 'new_review'
   | 'supplier_welcome'
+  | 'verification_submitted'
   | 'guest_message'
   | 'booking_detail_changed'
   | 'host_schedule_updated'
@@ -57,6 +58,8 @@ export async function notifySupplierEvent(params: {
   bookingNumber?: number;
   /** booking_cancelled: unpaid checkout — no Refund due copy */
   unpaidCheckout?: boolean;
+  /** Explicit idempotency key for Edge Function dedupe */
+  idempotencyKey?: string;
 }): Promise<{ success: boolean; notified?: number; error?: string }> {
   if (!supabase) return { success: false, error: 'Supabase not configured' };
   const { data, error } = await supabase.functions.invoke('notify-supplier-event', {

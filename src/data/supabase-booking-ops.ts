@@ -176,9 +176,14 @@ export async function notifyTravelerCancellationRequest(params: {
       emailKind: 'cancellation_requested_by_supplier',
       fieldDiffs: [
         { label: 'Reason', before: 'Active booking', after: params.reasonLabel },
-        { label: 'What you should do', before: '—', after: 'Open Trips and respond to the cancellation request.' },
+        {
+          label: 'What you should do',
+          before: '—',
+          after: 'Open Trips: Accept cancellation, or Decline to keep the booking.',
+        },
       ],
       publicSiteUrl: publicSiteBaseUrl(),
+      idempotencyKey: `customer:cancellation_requested_by_supplier:${params.bookingId}`,
     },
   });
 }

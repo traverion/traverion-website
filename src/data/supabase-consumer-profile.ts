@@ -1,6 +1,7 @@
 import type { User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { normalizePhoneNumber } from '../lib/phoneNormalize';
+import { publicSiteBaseUrl } from '../lib/publicSiteUrl';
 
 function normalizePhone(phone: string): string {
   return normalizePhoneNumber(phone);
@@ -84,8 +85,14 @@ export async function saveConsumerProfile(
 export async function ensureConsumerProfile(
   userId: string,
   payload?: { display_name?: string | null; contact_phone?: string | null }
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; created?: boolean }> {
   if (!supabase) return { success: false, error: 'Not configured' };
+
+  const { data: existing } = await supabase
+    .from('consumer_profiles')
+    .select('id, welcome_email_sent_at')
+    .eq('id', userId)
+    .maybeSingle();
 
   const normalizedPhone = payload?.contact_phone ? normalizePhone(payload.contact_phone) : '';
   const row = {
@@ -96,7 +103,45 @@ export async function ensureConsumerProfile(
 
   const { error } = await supabase.from('consumer_profiles').upsert(row, { onConflict: 'id' });
   if (error) return { success: false, error: error.message };
-  return { success: true };
+
+  const isNew = !existing;
+  const needsWelcome = isNew || !(existing as { welcome_email_sent_at?: string | null } | null)?.welcome_email_sent_at;
+  if (needsWelcome) {
+    void maybeSendTravelerWelcome(userId);
+  }
+
+  return { success: true, created: isNew };
+}
+
+/** Fire-and-forget traveler welcome (Edge Function dedupes via log + welcome_email_sent_at). */
+async function maybeSendTravelerWelcome(userId: string): Promise<void> {
+  if (!supabase) return;
+  try {
+    const { data: auth } = await supabase.auth.getUser();
+    const email = auth.user?.email?.trim().toLowerCase();
+    if (!email || auth.user?.id !== userId) return;
+    const name =
+      (auth.user.user_metadata as { customer_first_name?: string } | undefined)?.customer_first_name?.trim() ||
+      undefined;
+    const { data } = await supabase.functions.invoke('notify-customer-booking', {
+      body: {
+        customerEmail: email,
+        customerName: name,
+        emailKind: 'traveler_welcome',
+        publicSiteUrl: publicSiteBaseUrl(),
+        idempotencyKey: `customer:traveler_welcome:${userId}`,
+      },
+    });
+    if (data?.success) {
+      await supabase
+        .from('consumer_profiles')
+        .update({ welcome_email_sent_at: new Date().toISOString() })
+        .eq('id', userId)
+        .is('welcome_email_sent_at', null);
+    }
+  } catch {
+    /* non-fatal */
+  }
 }
 
 export { normalizePhone as normalizeConsumerPhone };

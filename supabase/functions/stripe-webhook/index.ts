@@ -373,10 +373,17 @@ serve(async (req) => {
           booking_date?: string | null;
           check_out?: string | null;
           guests?: number | null;
+          guest_email?: string | null;
+          guest_name?: string | null;
+          booking_number?: number | null;
+          amount_paid?: number | null;
+          currency?: string | null;
         } | null = null;
         const byPi = await admin
           .from('bookings')
-          .select('id, payment_status, listing_id, booking_date, check_out, guests')
+          .select(
+            'id, payment_status, listing_id, booking_date, check_out, guests, guest_email, guest_name, booking_number, amount_paid, currency'
+          )
           .eq('payment_intent_id', paymentIntentId)
           .maybeSingle();
         booking = byPi.data;
@@ -393,7 +400,9 @@ serve(async (req) => {
           if (metaBookingId) {
             const byMeta = await admin
               .from('bookings')
-              .select('id, payment_status, listing_id, booking_date, check_out, guests')
+              .select(
+                'id, payment_status, listing_id, booking_date, check_out, guests, guest_email, guest_name, booking_number, amount_paid, currency'
+              )
               .eq('id', metaBookingId)
               .maybeSingle();
             booking = byMeta.data;
@@ -491,6 +500,59 @@ serve(async (req) => {
             p_booking_id: booking.id,
           });
           if (reverseErr) throw new Error(reverseErr.message);
+
+          // Notify traveler only after payment_status is actually refunded (not on partial).
+          const guestEmail = (booking.guest_email ?? '').trim().toLowerCase();
+          if (guestEmail && supabaseUrl && serviceRoleKey) {
+            let listingTitle = 'Your experience';
+            if (booking.listing_id) {
+              const { data: lt } = await admin
+                .from('listings')
+                .select('title')
+                .eq('id', booking.listing_id)
+                .maybeSingle();
+              if (lt?.title?.trim()) listingTitle = lt.title.trim();
+            }
+            try {
+              await fetch(`${supabaseUrl}/functions/v1/notify-customer-booking`, {
+                method: 'POST',
+                headers: {
+                  Authorization: `Bearer ${serviceRoleKey}`,
+                  apikey: serviceRoleKey,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  customerEmail: guestEmail,
+                  customerName: booking.guest_name ?? undefined,
+                  listingTitle,
+                  bookingId: booking.id,
+                  bookingNumber:
+                    typeof booking.booking_number === 'number' ? booking.booking_number : undefined,
+                  bookingDate: booking.booking_date ?? undefined,
+                  guests: typeof booking.guests === 'number' ? booking.guests : undefined,
+                  totalAmount:
+                    typeof refundAmount === 'number'
+                      ? refundAmount
+                      : typeof booking.amount_paid === 'number'
+                        ? booking.amount_paid
+                        : undefined,
+                  currency: currency || booking.currency || 'EUR',
+                  emailKind: 'refund_completed',
+                  publicSiteUrl: Deno.env.get('PUBLIC_SITE_URL') ?? 'https://www.traverion.com',
+                  idempotencyKey: `customer:refund_completed:${booking.id}`,
+                }),
+              });
+            } catch (emailErr) {
+              console.error(
+                JSON.stringify({
+                  source: 'stripe-webhook',
+                  eventId: event.id,
+                  bookingId: booking.id,
+                  emailError: emailErr instanceof Error ? emailErr.message : 'refund email failed',
+                })
+              );
+            }
+          }
         }
         await admin.from('booking_payment_events').insert({
           booking_id: booking.id,

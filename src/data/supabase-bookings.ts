@@ -597,6 +597,19 @@ export async function updateBookingSchedule(
 
   const guestEmail = (prior.guest_email ?? '').trim().toLowerCase();
   if (guestEmail) {
+    const priorPickupEmpty = !String(prior.pickup_time ?? '').trim();
+    const nextPickupSet = Boolean(String(nextPickupPg ?? '').trim());
+    let emailKind: 'pickup_confirmed' | 'pickup_changed' | 'host_updated_schedule' =
+      'host_updated_schedule';
+    if (pickupChanged && priorPickupEmpty && nextPickupSet && !startChanged) {
+      emailKind = 'pickup_confirmed';
+    } else if (pickupChanged && !priorPickupEmpty) {
+      emailKind = 'pickup_changed';
+    } else if (pickupChanged && priorPickupEmpty && nextPickupSet && startChanged) {
+      // First pickup + start change: treat as pickup confirmed with schedule diffs
+      emailKind = 'pickup_confirmed';
+    }
+
     void supabase.functions.invoke('notify-customer-booking', {
       body: {
         customerEmail: guestEmail,
@@ -605,9 +618,10 @@ export async function updateBookingSchedule(
         bookingId,
         bookingNumber: ord,
         bookingDate: prior.booking_date ?? undefined,
-        emailKind: 'host_updated_schedule',
+        emailKind,
         fieldDiffs,
         publicSiteUrl: publicSiteBaseUrl(),
+        idempotencyKey: `customer:${emailKind}:${bookingId}:${fieldDiffs.map((d) => d.after).join('|').slice(0, 80)}`,
       },
     });
   }

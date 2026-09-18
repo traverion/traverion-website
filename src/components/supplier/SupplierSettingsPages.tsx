@@ -37,6 +37,7 @@ import {
 import { supplierPortalPublicBaseUrl } from '../../lib/partnerHost';
 import { PARTNER_EMAIL_VERIFIED_PATH } from '../../lib/partnerPortalPaths';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
+import { notifySupplierEvent } from '../../data/supabase-supplier-messaging';
 import { SUPPLIER_PAGE_CLASS, SupplierPageHero } from './supplierUi';
 import NoticeCallout from '../NoticeCallout';
 import StatusChip from '../StatusChip';
@@ -1075,6 +1076,12 @@ function BusinessProfilePage(p: Props) {
                         p.setBusinessVerificationFeedback('');
                         p.setCompanyMessage('success');
                         p.onCompanyProfileSaved();
+                        void notifySupplierEvent({
+                          supplierId: p.user.id,
+                          eventType: 'verification_submitted',
+                          portalBaseUrl: supplierPortalPublicBaseUrl(),
+                          idempotencyKey: `supplier:verification_submitted:${p.user.id}:${submittedNow.slice(0, 16)}`,
+                        });
               } else {
                 p.setCompanyMessage('error');
               }

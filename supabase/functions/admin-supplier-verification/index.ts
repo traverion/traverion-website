@@ -495,6 +495,7 @@ serve(async (req) => {
         verification_status: 'rejected',
         business_verification_feedback: fb,
         business_verified_email_sent_at: null,
+        verification_submitted_email_sent_at: null,
         updated_at: now,
       })
       .eq('id', supplierId);

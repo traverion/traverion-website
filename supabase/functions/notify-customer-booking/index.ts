@@ -8,18 +8,30 @@ import {
 } from '../_shared/transactional-html.ts';
 import { buildReceiptPdfBytes, uint8ToBase64 } from '../_shared/receipt-pdf.ts';
 import { clientErrorForEmailProvider } from '../_shared/email-provider-error.ts';
+import {
+  adminClientFromEnv,
+  claimTransactionalSend,
+  recordTransactionalSend,
+  sendResendEmail,
+} from '../_shared/transactional-email.ts';
 
 type EmailKind =
   | 'booking_request'
   | 'booking_confirmed_paid'
   | 'your_details_updated'
   | 'host_updated_schedule'
+  | 'pickup_confirmed'
+  | 'pickup_changed'
   | 'booking_cancelled'
   | 'cancellation_requested_by_supplier'
   | 'cancellation_accepted'
   | 'cancellation_declined'
   | 'new_booking_message'
-  | 'pickup_action_required';
+  | 'pickup_action_required'
+  | 'traveler_welcome'
+  | 'refund_completed'
+  | 'experience_reminder'
+  | 'review_request';
 
 type Payload = {
   customerEmail: string;
@@ -44,6 +56,14 @@ type Payload = {
   publicSiteUrl?: string;
   /** booking_cancelled: true when no Stripe money was collected (unpaid checkout). */
   unpaidCheckout?: boolean;
+  /** Explicit idempotency key; defaults to kind:bookingId or kind:email. */
+  idempotencyKey?: string;
+  /** Meeting / pickup place label when known (reminder / pickup emails). */
+  meetingPoint?: string;
+  /** Supplier / operator display name when known. */
+  supplierName?: string;
+  /** booking_cancelled / refund: truthful refund line for body. */
+  refundStatusNote?: string;
 };
 
 function json(body: unknown, status = 200): Response {
@@ -129,10 +149,14 @@ function subjectForKind(kind: EmailKind, title: string, refDigits?: string): str
       return `${tag}We saved your booking details — ${t}`;
     case 'host_updated_schedule':
       return `${tag}Updated meeting times — ${t}`;
+    case 'pickup_confirmed':
+      return `${tag}Pickup time confirmed — ${t}`;
+    case 'pickup_changed':
+      return `${tag}Pickup details changed — ${t}`;
     case 'booking_cancelled':
       return `${tag}Booking cancelled — ${t}`;
     case 'cancellation_requested_by_supplier':
-      return `Action needed: supplier requested cancellation — ${tag}${t}`;
+      return `Action needed: supplier cannot operate this booking — ${tag}${t}`;
     case 'cancellation_accepted':
       return `${tag}Cancellation confirmed — ${t}`;
     case 'cancellation_declined':
@@ -141,6 +165,14 @@ function subjectForKind(kind: EmailKind, title: string, refDigits?: string): str
       return `${tag}New message about your booking — ${t}`;
     case 'pickup_action_required':
       return `${tag}Pickup details still needed — ${t}`;
+    case 'traveler_welcome':
+      return 'Welcome to Traverion';
+    case 'refund_completed':
+      return `${tag}Refund completed — ${t}`;
+    case 'experience_reminder':
+      return `${tag}Reminder: your experience is tomorrow — ${t}`;
+    case 'review_request':
+      return `${tag}How was your experience? — ${t}`;
     default:
       return `${tag}Booking received — ${t}`;
   }
@@ -179,6 +211,27 @@ serve(async (req) => {
       typeof body.totalAmount === 'number' && Number.isFinite(body.totalAmount) && body.totalAmount >= 0
         ? body.totalAmount
         : undefined;
+
+    const admin = adminClientFromEnv();
+    const idempotencyKey =
+      (typeof body.idempotencyKey === 'string' && body.idempotencyKey.trim()) ||
+      (body.bookingId
+        ? `customer:${kind}:${body.bookingId}`
+        : `customer:${kind}:${to}`);
+
+    if (admin) {
+      const claim = await claimTransactionalSend(admin, {
+        idempotencyKey,
+        channel: 'customer',
+        templateKey: kind,
+        entityType: body.bookingId ? 'booking' : kind === 'traveler_welcome' ? 'consumer' : undefined,
+        entityId: body.bookingId ?? (kind === 'traveler_welcome' ? to : undefined),
+        cooldownSeconds: kind === 'new_booking_message' ? 900 : undefined,
+      });
+      if (claim.action === 'skip') {
+        return json({ success: true, skipped: true, reason: claim.reason, idempotencyKey });
+      }
+    }
 
     const diffs = Array.isArray(body.fieldDiffs)
       ? body.fieldDiffs.filter(
@@ -238,11 +291,11 @@ serve(async (req) => {
           'This was an unpaid checkout. No payment was collected. Trips keeps the cancelled record if you need it.'
         : 'When a refund applies, Trips shows Refund due until Stripe records Refunded. Traverion does not send Stripe refunds automatically. Timing then depends on your bank.';
     } else if (kind === 'cancellation_requested_by_supplier') {
-      headline = 'Action needed: cancellation request';
-      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">The host requested to cancel this booking. Open Trips to review the reason and accept or decline. Traverion will not cancel automatically if you do not respond.</p>`;
+      headline = 'Action needed on your booking';
+      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">The supplier can no longer operate this booking as planned. Your reservation is <strong>not cancelled yet</strong>. Open Trips to accept the cancellation (refund due when payment was collected) or keep the booking if you decline.</p>`;
       if (diffs.length) extraHtml = fieldDiffTableHtml(diffs);
       footerNote =
-        'If you accept, a full refund is due. Status becomes Refunded only after Stripe records it. Traverion does not send refunds automatically.';
+        'If you accept, a full refund is due when you paid online. Status becomes Refunded only after Stripe records it. Traverion does not send refunds automatically.';
     } else if (kind === 'cancellation_accepted') {
       headline = 'Cancellation confirmed';
       intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">You accepted the host’s cancellation request. This booking is cancelled. A refund is due; it is recorded when Stripe processes it — Traverion does not refund automatically.</p>`;
@@ -266,6 +319,44 @@ serve(async (req) => {
       footerNote =
         // Keep in sync with TRAVELER_PICKUP_ACTION_EMAIL_NOTE in booking-confirmation-copy.ts
         'Pickup and meeting details appear in Trips when the host confirms them. Traverion does not treat email delivery as proof you received an update.';
+    } else if (kind === 'pickup_confirmed') {
+      headline = 'Pickup time confirmed';
+      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your host confirmed the pickup time for this booking. Details below — also visible in Trips.</p>`;
+      if (diffs.length) extraHtml = fieldDiffTableHtml(diffs);
+      if (body.meetingPoint?.trim()) {
+        extraHtml += `<p style="margin:12px 0 0;font-size:14px;color:#111827;"><strong>Meeting / pickup place:</strong> ${escapeHtml(body.meetingPoint.trim())}</p>`;
+      }
+      footerNote = 'Times appear in Trips. Traverion does not treat email delivery as proof you received this update.';
+    } else if (kind === 'pickup_changed') {
+      headline = 'Pickup details changed';
+      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your host updated pickup or meeting details. Compare previous → new below.</p>`;
+      extraHtml = fieldDiffTableHtml(diffs);
+      footerNote = 'Updated times appear in Trips. Contact the host in Trips if you need help.';
+    } else if (kind === 'traveler_welcome') {
+      headline = 'Welcome to Traverion';
+      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your traveler account is ready. Browse experiences, book securely, and manage trips in one place.</p>`;
+      footerNote = 'You can update your profile anytime from Account.';
+    } else if (kind === 'refund_completed') {
+      headline = 'Your refund is complete';
+      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Stripe has recorded a full refund for this booking. Timing to your bank depends on your card issuer.</p>`;
+      if (typeof amount === 'number') {
+        extraHtml = `<p style="margin:0;font-size:14px;color:#374151;"><strong>Refunded:</strong> ${escapeHtml(currency)} ${amount.toFixed(2)}</p>`;
+      }
+      footerNote =
+        body.refundStatusNote?.trim() ||
+        'Trips shows Refunded for this booking. Traverion does not treat email delivery as proof of bank settlement.';
+    } else if (kind === 'experience_reminder') {
+      headline = 'Your experience is tomorrow';
+      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">This is a reminder for your upcoming Traverion booking. Final known details are below.</p>`;
+      if (body.meetingPoint?.trim()) {
+        extraHtml = `<p style="margin:0;font-size:14px;color:#111827;"><strong>Meeting / pickup:</strong> ${escapeHtml(body.meetingPoint.trim())}</p>`;
+      }
+      if (diffs.length) extraHtml += fieldDiffTableHtml(diffs);
+      footerNote = 'Open Trips for the latest pickup or meeting updates from your host.';
+    } else if (kind === 'review_request') {
+      headline = 'How was your experience?';
+      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Thanks for traveling with Traverion. If you completed <strong>${escapeHtml(title)}</strong>, a short review helps other travelers.</p>`;
+      footerNote = 'You can leave a review from the experience page after a completed booking.';
     } else {
       headline = 'We received your booking request';
       intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your request is recorded for <strong>${escapeHtml(title)}</strong>. Complete payment when prompted in the app, or wait for confirmation if no payment is required.</p>`;
@@ -277,16 +368,25 @@ serve(async (req) => {
         'Watch Trips for payment and confirmation status. Traverion does not treat email delivery as proof of a later confirmation.';
     }
 
-    const bookingCta = body.bookingId
-      ? `${publicSiteUrl}/trips?booking=${encodeURIComponent(body.bookingId)}`
-      : `${publicSiteUrl}/trips`;
+    const bookingCta =
+      kind === 'traveler_welcome'
+        ? `${publicSiteUrl}/`
+        : kind === 'review_request' && body.bookingId
+          ? `${publicSiteUrl}/trips?booking=${encodeURIComponent(body.bookingId)}`
+          : body.bookingId
+            ? `${publicSiteUrl}/trips?booking=${encodeURIComponent(body.bookingId)}`
+            : `${publicSiteUrl}/trips`;
     const ctaLabel =
       kind === 'cancellation_requested_by_supplier'
-        ? 'Review cancellation request'
+        ? 'Choose in Trips'
         : kind === 'new_booking_message'
           ? 'Open message'
-          : kind === 'pickup_action_required'
+          : kind === 'pickup_action_required' || kind === 'pickup_confirmed' || kind === 'pickup_changed'
             ? 'Open booking'
+          : kind === 'traveler_welcome'
+            ? 'Explore Traverion'
+          : kind === 'review_request'
+            ? 'Open Trips'
             : 'Manage booking';
     const detailRows = buildDetailRows(body);
     const html = wrapCustomerDocument({
@@ -340,34 +440,54 @@ serve(async (req) => {
       }
     }
 
-    const resendPayload: Record<string, unknown> = {
+    const sent = await sendResendEmail({
+      apiKey,
       from: fromEmail,
       to: [to],
       subject: subjectForKind(kind, title, refDigits || undefined),
       text,
       html,
-    };
-    if (attachments.length) resendPayload.attachments = attachments;
-
-    const resendResp = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(resendPayload),
+      attachments: attachments.length ? attachments : undefined,
     });
-    const resendJson: any = await resendResp.json();
-    if (!resendResp.ok) {
+
+    if (!sent.ok) {
       console.error('notify-customer-booking: email provider rejected request', {
-        status: resendResp.status,
+        status: sent.status,
+        kind,
+        idempotencyKey,
       });
+      if (admin) {
+        await recordTransactionalSend(admin, {
+          idempotencyKey,
+          channel: 'customer',
+          templateKey: kind,
+          recipientEmail: to,
+          entityType: body.bookingId ? 'booking' : undefined,
+          entityId: body.bookingId,
+          status: 'failed',
+          errorMessage: sent.error,
+        });
+      }
       return json(
-        { success: false, error: clientErrorForEmailProvider(resendResp.status, resendJson?.message) },
+        { success: false, error: clientErrorForEmailProvider(sent.status, sent.error) },
         500,
       );
     }
-    return json({ success: true, providerMessageId: resendJson?.id ?? null });
+
+    if (admin) {
+      await recordTransactionalSend(admin, {
+        idempotencyKey,
+        channel: 'customer',
+        templateKey: kind,
+        recipientEmail: to,
+        entityType: body.bookingId ? 'booking' : kind === 'traveler_welcome' ? 'consumer' : undefined,
+        entityId: body.bookingId ?? undefined,
+        providerMessageId: sent.id,
+        status: 'sent',
+      });
+    }
+
+    return json({ success: true, providerMessageId: sent.id ?? null, idempotencyKey });
   } catch (e) {
     return json({ success: false, error: e instanceof Error ? e.message : 'Unknown error' }, 500);
   }

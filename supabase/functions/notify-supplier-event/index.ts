@@ -7,12 +7,18 @@ import {
   fieldDiffTableHtml,
   type FieldDiff,
 } from '../_shared/transactional-html.ts';
+import {
+  claimTransactionalSend,
+  recordTransactionalSend,
+  sendResendEmail,
+} from '../_shared/transactional-email.ts';
 
 type EventType =
   | 'new_booking'
   | 'booking_cancelled'
   | 'new_review'
   | 'supplier_welcome'
+  | 'verification_submitted'
   | 'guest_message'
   | 'booking_detail_changed'
   /** Copy of schedule change you saved — guest is notified separately */
@@ -45,6 +51,8 @@ type Payload = {
   bookingNumber?: number;
   /** booking_cancelled: true when traveler cancelled an unpaid checkout. */
   unpaidCheckout?: boolean;
+  /** Explicit idempotency key. */
+  idempotencyKey?: string;
 };
 
 function json(body: unknown, status = 200): Response {
@@ -64,6 +72,9 @@ function logoUrl(base: string): string {
 
 function eventSubject(payload: Payload): string {
   if (payload.eventType === 'supplier_welcome') return 'Welcome to Traverion for suppliers';
+  if (payload.eventType === 'verification_submitted') {
+    return 'We received your Traverion business verification';
+  }
   const listing = payload.listingTitle ?? 'your listing';
   const refTag =
     typeof payload.bookingNumber === 'number' && payload.bookingNumber > 0
@@ -74,7 +85,9 @@ function eventSubject(payload: Payload): string {
     return `${refTag}New booking: ${listing}`;
   }
   if (payload.eventType === 'booking_cancelled') return `${refTag}Booking cancelled: ${listing}`;
-  if (payload.eventType === 'cancellation_accepted') return `${refTag}Cancellation accepted: ${listing}`;
+  if (payload.eventType === 'cancellation_accepted') {
+    return `${refTag}Traveler accepted cancellation: ${listing}`;
+  }
   if (payload.eventType === 'cancellation_declined') return `${refTag}Traveler declined cancellation: ${listing}`;
   if (payload.eventType === 'guest_message') {
     if (payload.fieldDiffs?.length) return `${refTag}Guest updated booking details: ${listing}`;
@@ -101,6 +114,18 @@ function eventBody(payload: Payload): string {
       '— Traverion',
     ].join('\n');
   }
+  if (payload.eventType === 'verification_submitted') {
+    const base = siteBase(payload);
+    return [
+      'Traverion received your business verification submission.',
+      '',
+      'Our team will review your details and registration document. Status updates appear in partner Settings — Traverion does not treat email as the decision.',
+      '',
+      `Open Settings: ${base}/partner/settings`,
+      '',
+      '— Traverion',
+    ].join('\n');
+  }
   const listing = payload.listingTitle ?? 'Listing';
   const lines: string[] = [];
   if (payload.eventType === 'host_schedule_updated') {
@@ -115,6 +140,12 @@ function eventBody(payload: Payload): string {
       payload.unpaidCheckout === true
         ? 'No payment was collected. The hold is released; nothing is Refund due.'
         : 'When a refund applies, traveler status is Refund due until Stripe records a refund — Traverion does not send refunds automatically.',
+    );
+  } else if (payload.eventType === 'cancellation_accepted') {
+    lines.push('Traveler chose cancellation after your cancellation request.');
+    lines.push(`Listing: ${listing}`);
+    lines.push(
+      'This booking is cancelled. Traveler refund is due until Stripe records Refunded — Traverion does not refund automatically.',
     );
   } else {
     lines.push(`Event: ${payload.eventType}`);
@@ -177,6 +208,21 @@ ${bodyText}
 </td></tr></table></body></html>`;
   }
 
+  if (payload.eventType === 'verification_submitted') {
+    const settingsUrl = `${base}/partner/settings`;
+    return `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f4f6f8;font-family:system-ui,-apple-system,sans-serif;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f6f8;padding:24px 12px;">
+<tr><td align="center">
+<table role="presentation" width="560" cellspacing="0" cellpadding="0" style="background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
+<tr><td style="padding:28px 28px 12px;text-align:center;"><img src="${logo}" width="200" height="auto" alt="Traverion" style="display:block;margin:0 auto;max-width:85%;height:auto;border:0;"/></td></tr>
+<tr><td style="padding:8px 32px 8px;font-size:20px;font-weight:700;color:#003580;font-family:Georgia,serif;">Verification received</td></tr>
+<tr><td style="padding:0 32px 16px;font-size:14px;line-height:1.5;color:#4b5563;">Traverion successfully received your business verification submission. Our team will review it. Status updates appear in Settings.</td></tr>
+<tr><td style="padding:0 32px 32px;"><a href="${settingsUrl}" style="display:inline-block;padding:12px 20px;background:#003580;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">Open Settings</a></td></tr>
+</table>
+<p style="font-size:12px;color:#9ca3af;margin-top:16px;"><a href="${base}" style="color:#003580;">traverion.com</a></p>
+</td></tr></table></body></html>`;
+  }
+
   const listing = escapeHtml(payload.listingTitle ?? 'Your listing');
   let headline = 'Notification';
   let sub = '';
@@ -200,9 +246,9 @@ ${bodyText}
         ? 'The traveler cancelled an unpaid checkout. No payment was collected. The hold is released; nothing is Refund due. Check Bookings if you need the record.'
         : 'The traveler cancelled this booking. When a refund applies, traveler status is Refund due until Stripe records a refund — Traverion does not send refunds automatically. Inventory is released; check Bookings and Money.';
   } else if (payload.eventType === 'cancellation_accepted') {
-    headline = 'Cancellation accepted';
+    headline = 'Traveler chose cancellation';
     sub =
-      'The traveler accepted your cancellation request. The booking is cancelled. Traveler status is Refund due until Stripe records a refund — Traverion does not send refunds automatically. Inventory is released; any supplier fee is on Money.';
+      'The traveler accepted your cancellation request (they chose cancel, not to keep the booking). The booking is cancelled. Traveler status is Refund due until Stripe records a refund — Traverion does not send refunds automatically.';
   } else if (payload.eventType === 'cancellation_declined') {
     headline = 'Traveler declined cancellation';
     // Keep in sync with SUPPLIER_CANCELLATION_DECLINED_NOTIFY_SUB
@@ -356,6 +402,35 @@ serve(async (req) => {
       }
     }
 
+    if (payload.eventType === 'verification_submitted') {
+      const { data: prof } = await admin
+        .from('supplier_profiles')
+        .select('verification_submitted_email_sent_at')
+        .eq('id', payload.supplierId)
+        .maybeSingle();
+      if (prof?.verification_submitted_email_sent_at) {
+        return json({ success: true, skipped: true, notified: 0 });
+      }
+    }
+
+    const idempotencyKey =
+      (typeof payload.idempotencyKey === 'string' && payload.idempotencyKey.trim()) ||
+      (payload.bookingId
+        ? `supplier:${payload.eventType}:${payload.bookingId}`
+        : `supplier:${payload.eventType}:${payload.supplierId}`);
+
+    const claim = await claimTransactionalSend(admin, {
+      idempotencyKey,
+      channel: 'supplier',
+      templateKey: payload.eventType,
+      entityType: payload.bookingId ? 'booking' : 'supplier_profile',
+      entityId: payload.bookingId ?? payload.supplierId,
+      cooldownSeconds: payload.eventType === 'guest_message' ? 900 : undefined,
+    });
+    if (claim.action === 'skip') {
+      return json({ success: true, skipped: true, reason: claim.reason, notified: 0, idempotencyKey });
+    }
+
     const recipients = new Set<string>();
 
     const { data: teamRows } = await admin
@@ -383,37 +458,59 @@ serve(async (req) => {
     const textBody = eventBody(payload);
     const htmlBody = eventHtml(payload);
 
-    const resendResp = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: fromEmail,
-        to: [...recipients],
-        subject: eventSubject(payload),
-        text: textBody,
-        html: htmlBody,
-      }),
+    const sent = await sendResendEmail({
+      apiKey,
+      from: fromEmail,
+      to: [...recipients],
+      subject: eventSubject(payload),
+      text: textBody,
+      html: htmlBody,
     });
-    const resendJson: any = await resendResp.json();
-    if (!resendResp.ok) {
-      return json({ success: false, error: resendJson?.message ?? 'Resend error' }, 500);
+
+    if (!sent.ok) {
+      await recordTransactionalSend(admin, {
+        idempotencyKey,
+        channel: 'supplier',
+        templateKey: payload.eventType,
+        recipientEmail: [...recipients].join(','),
+        entityType: payload.bookingId ? 'booking' : 'supplier_profile',
+        entityId: payload.bookingId ?? payload.supplierId,
+        status: 'failed',
+        errorMessage: sent.error,
+      });
+      return json({ success: false, error: 'Email could not be sent. Delivery is not available right now.' }, 500);
     }
 
+    await recordTransactionalSend(admin, {
+      idempotencyKey,
+      channel: 'supplier',
+      templateKey: payload.eventType,
+      recipientEmail: [...recipients].join(','),
+      entityType: payload.bookingId ? 'booking' : 'supplier_profile',
+      entityId: payload.bookingId ?? payload.supplierId,
+      providerMessageId: sent.id,
+      status: 'sent',
+    });
+
+    const now = new Date().toISOString();
     if (payload.eventType === 'supplier_welcome') {
-      const now = new Date().toISOString();
       await admin
         .from('supplier_profiles')
         .update({ welcome_email_sent_at: now, updated_at: now })
         .eq('id', payload.supplierId);
     }
+    if (payload.eventType === 'verification_submitted') {
+      await admin
+        .from('supplier_profiles')
+        .update({ verification_submitted_email_sent_at: now, updated_at: now })
+        .eq('id', payload.supplierId);
+    }
 
     return json({
       success: true,
-      providerMessageId: resendJson?.id ?? null,
+      providerMessageId: sent.id ?? null,
       notified: recipients.size,
+      idempotencyKey,
     });
   } catch (e) {
     return json({ success: false, error: e instanceof Error ? e.message : 'Unknown error' }, 500);
