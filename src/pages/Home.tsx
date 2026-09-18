@@ -173,7 +173,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
               onClick={() => setSearchFamily('tours')}
               className={`lux-flat rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
                 searchFamily === 'tours'
-                  ? 'bg-white text-ink shadow-sm'
+                  ? 'bg-white text-ink shadow-sm ring-2 ring-white'
                   : 'text-white/80 hover:bg-white/10 hover:text-white'
               }`}
             >
@@ -186,7 +186,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
               onClick={() => setSearchFamily('stays')}
               className={`lux-flat rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
                 searchFamily === 'stays'
-                  ? 'bg-white text-ink shadow-sm'
+                  ? 'bg-white text-ink shadow-sm ring-2 ring-white'
                   : 'text-white/80 hover:bg-white/10 hover:text-white'
               }`}
             >
