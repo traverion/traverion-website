@@ -267,16 +267,25 @@ export default function BookingPage({
 
   useEffect(() => {
     if (presentation === 'modal') return;
+    const fromLabel = optionUsesAgePricing(selectedVariant?.listingOption) ? 'per adult' : 'per person';
     setPageMetaWithOg(
       `Book: ${tour.title}`,
-      `Reserve ${tour.title}. From ${formatMoney(fallbackBasePrice, currency)} per person.`,
+      `Reserve ${tour.title}. From ${formatMoney(fallbackBasePrice, currency)} ${fromLabel}.`,
       {
         title: `Book: ${tour.title}`,
         image: tour.image,
         type: 'website',
       }
     );
-  }, [presentation, tour.id, tour.title, tour.image, fallbackBasePrice, currency]);
+  }, [
+    presentation,
+    tour.id,
+    tour.title,
+    tour.image,
+    fallbackBasePrice,
+    currency,
+    selectedVariant?.listingOption,
+  ]);
 
   useEffect(() => {
     if (user?.email) {
