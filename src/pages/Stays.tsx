@@ -200,7 +200,9 @@ export default function Stays({ onStaySelect }: Props) {
           </div>
           <p className="self-center text-sm text-ink-muted px-3 py-2 sm:text-right">
             {catalogLoading || waitingOnOccupancy
-              ? 'Loading…'
+              ? (
+                <span className="inline-block h-4 w-16 rounded bg-black/[0.06] animate-pulse" aria-hidden />
+              )
               : `${filtered.length} stay${filtered.length === 1 ? '' : 's'}`}
           </p>
         </form>

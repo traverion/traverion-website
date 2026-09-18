@@ -300,15 +300,27 @@ export default function BookingOptionEditor({
                     key={row.value}
                     type="button"
                     onClick={() => setPricingMode(row.value)}
-                    className={`rounded-xl px-4 py-3 text-left transition-colors min-h-[72px] ring-1 ${
+                    className={`rounded-xl px-4 py-3 text-left transition-all min-h-[72px] ring-1 ${
                       selected
                         ? 'bg-finland/[0.08] ring-2 ring-finland shadow-sm'
                         : 'bg-paper-raised ring-black/[0.06] hover:bg-finland/[0.04] hover:ring-finland/30'
                     }`}
                     aria-pressed={selected}
                   >
-                    <span className="block text-sm font-semibold text-ink">{row.title}</span>
-                    <span className="block text-xs text-ink-muted mt-0.5">{row.hint}</span>
+                    <span className="flex items-start gap-3">
+                      <span
+                        className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
+                          selected ? 'border-finland bg-finland' : 'border-black/20 bg-paper'
+                        }`}
+                        aria-hidden
+                      >
+                        {selected ? <span className="h-2 w-2 rounded-full bg-white" /> : null}
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block text-sm font-semibold text-ink">{row.title}</span>
+                        <span className="block text-xs text-ink-muted mt-0.5">{row.hint}</span>
+                      </span>
+                    </span>
                   </button>
                 );
               })}
