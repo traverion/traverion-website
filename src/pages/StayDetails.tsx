@@ -576,6 +576,16 @@ export default function StayDetails({ stayId, onBack }: Props) {
                   Price is confirmed on the server. If checkout cannot start, you will see an error — never a fake success.
                 </p>
               </>
+            ) : !quoteOk ? (
+              <button
+                type="button"
+                className="tv-btn-primary w-full mt-4"
+                onClick={() => {
+                  document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }}
+              >
+                Select dates
+              </button>
             ) : (
               <a
                 href={travelerLoginHref('stays')}
@@ -625,6 +635,16 @@ export default function StayDetails({ stayId, onBack }: Props) {
                     ? 'Opening…'
                     : 'Continue to payment'
                   : 'Select dates'}
+            </button>
+          ) : !quoteOk ? (
+            <button
+              type="button"
+              className="tv-btn-primary shrink-0"
+              onClick={() => {
+                document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+            >
+              Select dates
             </button>
           ) : (
             <a
