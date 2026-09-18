@@ -105,7 +105,13 @@ export default function SupplierChangePassword({ onBack, userEmail, isSupabase, 
       <SupplierPageHero
         title="Change password"
         description="Enter your current password, then your new password twice. Your session stays active after a successful change."
-      />
+      >
+        {userEmail.trim() ? (
+          <p className="mt-3 text-sm text-ink-muted truncate" title={userEmail}>
+            Signed in as {userEmail.trim()}
+          </p>
+        ) : null}
+      </SupplierPageHero>
 
       <div className="max-w-xl space-y-5 rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]">
         {!isSupabase ? (
