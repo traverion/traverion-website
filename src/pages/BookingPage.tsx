@@ -616,19 +616,19 @@ export default function BookingPage({
   };
 
   const dateDisplay = formatBookingDateDisplay(date.trim());
+  const usesAgePricingOnVariant = optionUsesAgePricing(selectedVariant?.listingOption);
   const participantsSummary = quoted?.guestBreakdown?.length
     ? quoted.guestBreakdown.map((r) => `${r.quantity} ${r.label}`).join(' · ')
-    : selectedVariant?.listingOption && optionUsesAgePricing(selectedVariant.listingOption)
+    : selectedVariant?.listingOption && usesAgePricingOnVariant
       ? formatMixSummaryCompact(
           buildParticipantMixLines(selectedVariant.listingOption, participantMix)
         ) || `${guests} ${guests === 1 ? 'guest' : 'guests'}`
       : `${guests} ${guests === 1 ? 'guest' : 'guests'}`;
+  const priceFromQualifier = usesAgePricingOnVariant ? 'per adult' : 'per person';
   const summaryLineModal = `${dateDisplay || date || '—'} · ${participantsSummary}`;
 
   const contactBackStep: Step =
     flowMode === 'modal' || hasPreselectedVariant ? 'review' : 'date-guests';
-
-  const usesAgePricingOnVariant = optionUsesAgePricing(selectedVariant?.listingOption);
 
   const flowInner = (
     <>
@@ -1213,7 +1213,7 @@ export default function BookingPage({
               <div className="absolute bottom-2 left-3 right-3 text-white">
                 <p className="line-clamp-2 font-display text-base font-semibold leading-tight tracking-tight sm:text-lg">{tour.title}</p>
                 <p className="text-[11px] text-white/90">
-                  {formatTourDurationDisplay(tour.duration)} · From {formatMoney(pricePerPerson, currency)}/person
+                  {formatTourDurationDisplay(tour.duration)} · From {formatMoney(pricePerPerson, currency)}/{priceFromQualifier === 'per adult' ? 'adult' : 'person'}
                 </p>
               </div>
             </div>
@@ -1251,7 +1251,8 @@ export default function BookingPage({
                 <div className="absolute bottom-3 left-3 right-3 text-white">
                   <h1 className="font-display text-xl sm:text-2xl tracking-tight">{tour.title}</h1>
                   <p className="mt-1 text-sm text-white/90">
-                    {formatTourDurationDisplay(tour.duration)} · From {formatMoney(pricePerPerson, currency)} per person
+                    {formatTourDurationDisplay(tour.duration)} · From {formatMoney(pricePerPerson, currency)}{' '}
+                    {priceFromQualifier}
                   </p>
                 </div>
               </div>
