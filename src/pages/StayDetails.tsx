@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, MapPin } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { ArrowLeft, MapPin, Heart } from 'lucide-react';
 import { getListingById, getListingByIdAsync } from '../data/listings';
 import { parseListingExtras } from '../types/listingExtras';
 import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
@@ -29,6 +29,9 @@ import {
   STAY_LISTING_CONFIRMATION_NOTE,
 } from '../lib/booking-confirmation-copy';
 import { listingShowsFreeCancellation } from '../lib/listingTruth';
+import { isSupabaseConfigured } from '../lib/supabase';
+import { isSupabaseListingId } from '../lib/discount-display';
+import { fetchWishlistListingIds, toggleWishlist } from '../data/supabase-wishlist';
 
 type Props = {
   stayId: string;
@@ -49,7 +52,9 @@ function readStayPrefill(): { checkIn: string; checkOut: string; guests: number 
 }
 
 export default function StayDetails({ stayId, onBack }: Props) {
-  const { user } = useAuth();
+  const { user, requestAuth } = useAuth();
+  const userRef = useRef(user);
+  userRef.current = user;
   const [stay, setStay] = useState<TourPackage | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [checkIn, setCheckIn] = useState(() => readStayPrefill().checkIn);
@@ -62,6 +67,9 @@ export default function StayDetails({ stayId, onBack }: Props) {
   const [guestPhone, setGuestPhone] = useState('');
   const [hostName, setHostName] = useState<string | null>(null);
   const [occupiedRanges, setOccupiedRanges] = useState<{ checkIn: string; checkOut: string }[]>([]);
+  const [savedToWishlist, setSavedToWishlist] = useState(false);
+  const [wishlistBusy, setWishlistBusy] = useState(false);
+  const [savePop, setSavePop] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -80,6 +88,58 @@ export default function StayDetails({ stayId, onBack }: Props) {
       cancelled = true;
     };
   }, [stayId]);
+
+  useEffect(() => {
+    if (!user?.id || !stay?.id || !isSupabaseListingId(stay.id) || !isSupabaseConfigured()) {
+      setSavedToWishlist(false);
+      return;
+    }
+    let cancelled = false;
+    fetchWishlistListingIds(user.id)
+      .then((ids) => {
+        if (!cancelled) setSavedToWishlist(ids.includes(stay.id));
+      })
+      .catch(() => {
+        if (!cancelled) setSavedToWishlist(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, stay?.id]);
+
+  const handleToggleWishlist = useCallback(() => {
+    if (!stay?.id || !isSupabaseListingId(stay.id) || !isSupabaseConfigured()) return;
+    const listingId = stay.id;
+    const run = async () => {
+      const uid = userRef.current?.id;
+      if (!uid) return;
+      const previous = savedToWishlist;
+      const next = !previous;
+      setSavedToWishlist(next);
+      if (next) {
+        setSavePop(true);
+        window.setTimeout(() => setSavePop(false), 280);
+      }
+      setWishlistBusy(true);
+      try {
+        const res = await toggleWishlist(uid, listingId);
+        if (res.error) {
+          setSavedToWishlist(previous);
+        } else {
+          setSavedToWishlist(res.inWishlist);
+        }
+      } catch {
+        setSavedToWishlist(previous);
+      } finally {
+        setWishlistBusy(false);
+      }
+    };
+    if (!user) {
+      requestAuth({ onSuccess: () => void run() });
+      return;
+    }
+    void run();
+  }, [stay?.id, user, requestAuth, savedToWishlist]);
 
   useEffect(() => {
     if (!stay) {
@@ -221,10 +281,27 @@ export default function StayDetails({ stayId, onBack }: Props) {
   return (
     <div className="min-h-screen bg-paper tv-page pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-0">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
-        <button type="button" onClick={onBack} className="tv-btn-ghost mb-6 -ml-2">
-          <ArrowLeft className="w-4 h-4" aria-hidden />
-          Back to stays
-        </button>
+        <div className="mb-6 flex items-center justify-between gap-3">
+          <button type="button" onClick={onBack} className="tv-btn-ghost -ml-2">
+            <ArrowLeft className="w-4 h-4" aria-hidden />
+            Back to stays
+          </button>
+          {isSupabaseListingId(stay.id) && isSupabaseConfigured() ? (
+            <button
+              type="button"
+              className="lux-flat inline-flex h-11 w-11 items-center justify-center rounded-full bg-paper-raised text-ink ring-1 ring-black/[0.06] hover:bg-black/[0.03] disabled:opacity-60"
+              aria-label={savedToWishlist ? 'Remove from saved stays' : 'Save this stay'}
+              aria-pressed={savedToWishlist}
+              disabled={wishlistBusy}
+              onClick={handleToggleWishlist}
+            >
+              <Heart
+                size={18}
+                className={`${savedToWishlist ? 'fill-finland text-finland' : ''} ${savePop ? 'tv-pop' : ''}`}
+              />
+            </button>
+          ) : null}
+        </div>
         {hero ? (
           <img
             src={hero}
