@@ -454,6 +454,12 @@ function App() {
     if (isStaticConsumerPage(page) && !isStaticConsumerPage(currentPage)) {
       rememberProductReturn(currentPage, `${window.location.pathname}${window.location.search}`);
     }
+    if (page.startsWith('destinations/') || page.startsWith('/destinations/')) {
+      const slug = page.replace(/^\/?destinations\//, '').split(/[?#]/)[0] || null;
+      setDestinationSlug(slug);
+      setCurrentPage('destination');
+      return;
+    }
     if (page === 'stays') {
       const returnStay = takeTravelerReturnStay();
       if (returnStay) {

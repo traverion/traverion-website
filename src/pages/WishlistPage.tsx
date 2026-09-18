@@ -113,16 +113,24 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
             title="Log in to see saved experiences"
             body="Wishlist is tied to your traveler account. Sign in to save tours and stays while you browse."
             action={
-              <button
-                type="button"
-                onClick={() => {
-                  window.history.pushState({}, '', travelerLoginHref('wishlist'));
-                  onNavigate('auth');
-                }}
-                className="tv-btn-primary"
-              >
-                Log in
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.history.pushState({}, '', travelerLoginHref('wishlist'));
+                    onNavigate('auth');
+                  }}
+                  className="tv-btn-primary"
+                >
+                  Log in
+                </button>
+                <button type="button" onClick={() => onNavigate('packages')} className="tv-btn-ghost">
+                  Browse tours
+                </button>
+                <button type="button" onClick={() => onNavigate('stays')} className="tv-btn-ghost">
+                  Browse stays
+                </button>
+              </div>
             }
           />
         </div>
@@ -170,9 +178,14 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
             title="Nothing saved yet"
             body="Your wishlist is empty because you have not saved a tour or stay. Save one while browsing and it will show up here."
             action={
-              <button type="button" onClick={() => onNavigate('packages')} className="tv-btn-primary">
-                Browse experiences
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" onClick={() => onNavigate('packages')} className="tv-btn-primary">
+                  Browse tours
+                </button>
+                <button type="button" onClick={() => onNavigate('stays')} className="tv-btn-ghost">
+                  Browse stays
+                </button>
+              </div>
             }
           />
         ) : (

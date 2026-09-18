@@ -445,9 +445,13 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                     key={p.id}
                     type="button"
                     onClick={() =>
-                      searchFamily === 'stays' ? goToStays({ q: p.label }) : goToPackages({ destination: p.id })
+                      searchFamily === 'stays'
+                        ? goToStays({ q: p.label })
+                        : onNavigate
+                          ? onNavigate(`destinations/${p.id}`)
+                          : goToPackages({ destination: p.id })
                     }
-                    className="lux-flat relative aspect-[4/5] sm:aspect-[5/4] rounded-2xl overflow-hidden text-left group shadow-soft ring-1 ring-black/[0.06]"
+                    className="lux-flat relative aspect-[4/5] sm:aspect-[5/4] rounded-2xl overflow-hidden text-left group shadow-soft ring-1 ring-black/[0.06] focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2"
                   >
                     <img
                       src={img}

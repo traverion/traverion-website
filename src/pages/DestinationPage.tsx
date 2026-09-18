@@ -14,6 +14,8 @@ import { fetchDiscountsByListingIds } from '../data/supabase-discounts';
 import { isSupabaseListingId } from '../lib/discount-display';
 import { filterCatalogByFamily } from '../lib/inventory';
 import { PublicListingBrowseCard } from '../components/PublicListingBrowseCard';
+import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
+import { HERO_IMG } from '../lib/heroImages';
 
 const TAG_LABELS: Record<string, string> = {
   'free-cancellation': 'Free cancellation',
@@ -110,6 +112,24 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
     );
   }, [label, tourListings.length, stayListings.length]);
 
+  const heroSrc = useMemo(() => {
+    const first = listings[0];
+    return listingHeroImageSrc(first?.image) ?? HERO_IMG.vacation;
+  }, [listings]);
+
+  const countLine = useMemo(() => {
+    return [
+      tourListings.length > 0
+        ? `${tourListings.length} ${tourListings.length === 1 ? 'tour' : 'tours'}`
+        : null,
+      stayListings.length > 0
+        ? `${stayListings.length} ${stayListings.length === 1 ? 'stay' : 'stays'}`
+        : null,
+    ]
+      .filter(Boolean)
+      .join(' · ');
+  }, [tourListings.length, stayListings.length]);
+
   if (!slug) {
     if (onNavigate) onNavigate('packages');
     return null;
@@ -117,41 +137,32 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
 
   return (
     <div className="min-h-screen bg-paper tv-page">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-12 pb-16 motion-safe:animate-fade-in">
-        <button
-          type="button"
-          onClick={onBack}
-          className="tv-btn-ghost mb-6 -ml-2"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to browse
-        </button>
-        <header className="mb-8 rounded-2xl bg-paper-raised p-5 sm:p-7 shadow-soft ring-1 ring-black/[0.06]">
-          <div className="inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15">
+      <section className="relative text-white min-h-[min(42dvh,22rem)] sm:min-h-[min(48dvh,26rem)] flex flex-col justify-end overflow-hidden">
+        <div className="page-hero-media" aria-hidden>
+          <img src={heroSrc} alt="" decoding="async" width={1600} height={900} className="object-cover" />
+        </div>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-black/20" aria-hidden />
+        <div className="relative z-10 w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-8 sm:pb-10 pt-16">
+          <button type="button" onClick={onBack} className="lux-flat mb-6 inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1.5 text-sm text-white/90 ring-1 ring-white/20 backdrop-blur-sm hover:bg-white/25">
+            <ArrowLeft className="w-4 h-4" />
+            Back to browse
+          </button>
+          <p className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/80 mb-2">
             <MapPin className="h-3.5 w-3.5" aria-hidden />
             Destination
-          </div>
-          <h1 className="mt-3 font-display text-4xl sm:text-5xl text-ink tracking-tight">{label}</h1>
+          </p>
+          <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl tracking-tight leading-[1.05]">{label}</h1>
           {catalogLoading ? (
-            <Skeleton className="mt-3 h-4 w-40" />
+            <Skeleton className="mt-3 h-4 w-40 bg-white/20" />
           ) : listings.length > 0 ? (
-            <p className="mt-3 text-ink-muted">
-              {[
-                tourListings.length > 0
-                  ? `${tourListings.length} ${tourListings.length === 1 ? 'tour' : 'tours'}`
-                  : null,
-                stayListings.length > 0
-                  ? `${stayListings.length} ${stayListings.length === 1 ? 'stay' : 'stays'}`
-                  : null,
-              ]
-                .filter(Boolean)
-                .join(' · ')}
-            </p>
+            <p className="mt-3 text-base text-white/85">{countLine}</p>
           ) : (
-            <p className="mt-3 text-ink-muted">Browse when operators publish here.</p>
+            <p className="mt-3 text-base text-white/85">Browse when operators publish here.</p>
           )}
-        </header>
+        </div>
+      </section>
 
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-10 pb-16 motion-safe:animate-fade-in">
         {listingsError && supplierListings === null ? (
           <ErrorState
             className="py-8"
@@ -165,31 +176,34 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
             <SkeletonCardGrid count={6} />
           </div>
         ) : listings.length === 0 ? (
-          <div className="rounded-2xl bg-paper-raised px-6 py-2 shadow-soft ring-1 ring-black/[0.06] sm:px-8">
-            <EmptyState
-              className="py-10 sm:py-12 max-w-lg"
-              icon={MapPin}
-              title="Nothing published here yet"
-              body={`Nothing is live in ${label} right now. That is normal until an operator lists a tour or stay for this place.`}
-              action={
-                <div className="flex flex-wrap gap-2">
-                  <button type="button" onClick={onBack} className="tv-btn-primary">
-                    Browse tours
+          <EmptyState
+            className="py-10 sm:py-12 max-w-lg"
+            icon={MapPin}
+            title="Nothing published here yet"
+            body={`Nothing is live in ${label} right now. That is normal until an operator lists a tour or stay for this place.`}
+            action={
+              <div className="flex flex-wrap gap-2">
+                <button type="button" onClick={onBack} className="tv-btn-primary">
+                  Browse tours
+                </button>
+                {onNavigate ? (
+                  <button type="button" onClick={() => onNavigate('stays')} className="tv-btn-ghost">
+                    Browse stays
                   </button>
-                  {onNavigate ? (
-                    <button type="button" onClick={() => onNavigate('stays')} className="tv-btn-ghost">
-                      Browse stays
-                    </button>
-                  ) : null}
-                </div>
-              }
-            />
-          </div>
+                ) : null}
+              </div>
+            }
+          />
         ) : (
           <div className="space-y-12">
             {tourListings.length > 0 ? (
               <section>
-                <h2 className="font-display text-2xl text-ink tracking-tight mb-5">Tours</h2>
+                <div className="mb-5 flex flex-wrap items-end justify-between gap-2">
+                  <h2 className="font-display text-2xl sm:text-3xl text-ink tracking-tight">Tours</h2>
+                  <p className="text-sm text-ink-muted">
+                    {tourListings.length} {tourListings.length === 1 ? 'experience' : 'experiences'} in {label}
+                  </p>
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                   {tourListings.map((tour, index) => (
                     <PublicListingBrowseCard
@@ -209,7 +223,12 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
             ) : null}
             {stayListings.length > 0 ? (
               <section>
-                <h2 className="font-display text-2xl text-ink tracking-tight mb-5">Stays</h2>
+                <div className="mb-5 flex flex-wrap items-end justify-between gap-2">
+                  <h2 className="font-display text-2xl sm:text-3xl text-ink tracking-tight">Stays</h2>
+                  <p className="text-sm text-ink-muted">
+                    {stayListings.length} {stayListings.length === 1 ? 'place' : 'places'} to stay
+                  </p>
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                   {stayListings.map((stay, index) => (
                     <PublicListingBrowseCard
