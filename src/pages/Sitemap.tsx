@@ -15,6 +15,7 @@ const SECTIONS: SitemapSection[] = [
       { label: 'Tours', page: 'packages' },
       { label: 'Stays', page: 'stays' },
       { label: 'Trips', page: 'bookings' },
+      { label: 'Wishlist', page: 'wishlist' },
       { label: 'Contact', page: 'contact' },
     ],
   },
@@ -24,7 +25,7 @@ const SECTIONS: SitemapSection[] = [
       { label: 'Sign in / Sign up', href: '/log-in?next=account' },
       { label: 'My account', page: 'account' },
       { label: 'Wishlist', page: 'wishlist' },
-      { label: 'My bookings', page: 'bookings' },
+      { label: 'Trips', page: 'bookings' },
     ],
   },
   {
