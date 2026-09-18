@@ -942,22 +942,39 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                   </section>
                 ) : null}
 
-                {(tour.itinerary ?? []).some(
-                  (d) =>
-                    String(d.title ?? '').trim() ||
-                    String(d.description ?? '').trim() ||
-                    (d.activities ?? []).some((a) => String(a).trim())
-                ) ? (
+                {(() => {
+                  const itinerarySteps = (tour.itinerary ?? []).filter(
+                    (d) =>
+                      String(d.title ?? '').trim() ||
+                      String(d.description ?? '').trim() ||
+                      (d.activities ?? []).some((a) => String(a).trim())
+                  );
+                  if (itinerarySteps.length === 0) return null;
+                  // Hide a single auto-filled step that only repeats the tour title/description.
+                  if (itinerarySteps.length === 1) {
+                    const only = itinerarySteps[0];
+                    const titleDup =
+                      String(only.title ?? '')
+                        .trim()
+                        .toLowerCase() === String(tour.title ?? '').trim().toLowerCase();
+                    const stepDesc = String(only.description ?? '').trim().toLowerCase();
+                    const tourDesc = String(tour.description ?? '').trim().toLowerCase();
+                    const descDup = !stepDesc || stepDesc === tourDesc;
+                    const activityTexts = (only.activities ?? [])
+                      .map((a) => String(a).trim())
+                      .filter(Boolean);
+                    const onlyGenericActivity =
+                      activityTexts.length === 0 ||
+                      (activityTexts.length === 1 && /^(tour|experience|activity)$/i.test(activityTexts[0]));
+                    if (titleDup && descDup && onlyGenericActivity) {
+                      return null;
+                    }
+                  }
+                  return (
                   <section className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]">
                     <h2 className="font-display text-2xl text-ink mb-5">Itinerary</h2>
                     <ol className="space-y-6">
-                      {(tour.itinerary ?? [])
-                        .filter(
-                          (d) =>
-                            String(d.title ?? '').trim() ||
-                            String(d.description ?? '').trim() ||
-                            (d.activities ?? []).some((a) => String(a).trim())
-                        )
+                      {itinerarySteps
                         .map((day, index, steps) => {
                           const multiDay = steps.length > 1;
                           const stepLabel = multiDay
@@ -997,7 +1014,8 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                         })}
                     </ol>
                   </section>
-                ) : null}
+                  );
+                })()}
 
                 {(tour.includes.some((s) => String(s).trim()) || tour.excludes.some((s) => String(s).trim())) ? (
                   <section className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06] space-y-8">
@@ -1191,8 +1209,14 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                     onChange={(next) => {
                       setBookingDate(next);
                       setBookingCardError(null);
-                      setBookingVariantsOpen(false);
                       setSelectedBookingVariant(null);
+                      const dateCheck = dateNotInPast(next.trim());
+                      if (dateCheck.valid && isListingVisibleToTravelers(tour.status)) {
+                        setBookingVariantsOpen(true);
+                        scrollToOptionsSection();
+                      } else {
+                        setBookingVariantsOpen(false);
+                      }
                     }}
                     options={calendarOptions}
                     soldOutDates={soldOutDates}
@@ -1208,7 +1232,13 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                         disabled={variantChecking || bookingModalOpen}
                         className="tv-btn-primary w-full disabled:opacity-60"
                       >
-                        {variantChecking ? 'Checking…' : bookingVariantsOpen ? 'Hide options' : 'See available options'}
+                        {variantChecking
+                          ? 'Checking…'
+                          : bookingVariantsOpen
+                            ? 'Hide options'
+                            : bookingDate.trim()
+                              ? 'Choose an option'
+                              : 'Pick a date first'}
                         <ChevronDown
                           className={`h-5 w-5 shrink-0 transition-transform duration-200 ease-out ${bookingVariantsOpen ? 'rotate-180' : ''}`}
                           aria-hidden
@@ -1216,7 +1246,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                       </button>
                       {bookingVariantsOpen && (
                         <p className="mt-1.5 text-xs text-finland font-medium">
-                          Select one option below — then choose participants.
+                          Select one option — then choose participants.
                         </p>
                       )}
                     </>

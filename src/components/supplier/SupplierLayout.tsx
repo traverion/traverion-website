@@ -977,7 +977,7 @@ export default function SupplierLayout() {
               onTours={() => handleNavigate('listings')}
               businessDone={onboardingHasCompany}
               payoutDone={onboardingHasPayout}
-              hasTour={(onboardingListingCount ?? 0) > 0}
+              hasListing={(onboardingListingCount ?? 0) > 0}
             />
           )}
           {section === 'dashboard' && (

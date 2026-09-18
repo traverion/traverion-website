@@ -72,9 +72,8 @@ export default function About({ onNavigate }: AboutProps) {
 
       <p>
         We believe travel should feel exciting and simple from the first search to the final booking confirmation, with
-        fair cancellation terms and responsive support along the way. Whether you are planning a multi-day route through
-        Indochina or a single-day experience in one city, we work to surface options that match how you actually like to
-        travel.
+        fair cancellation terms and responsive support along the way. Whether you are planning a week of tours in one city
+        or a stay that anchors a longer trip, we work to surface options that match how you actually like to travel.
       </p>
 
       <div className="not-prose mt-8">

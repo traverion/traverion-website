@@ -36,6 +36,7 @@ import { rememberProductReturn, isStaticConsumerPage } from './lib/navReturn';
 import { takeTravelerReturnStay } from './lib/travelerAuthLinks';
 import type { TourPackage as TourPackageType } from './types/tour';
 import { SkeletonCardGrid, SkeletonPageHero } from './components/ui/Skeleton';
+import { HERO_IMG } from './lib/heroImages';
 
 const Blog = lazy(() => import('./pages/Blog'));
 const BookingConfirmationPage = lazy(() => import('./pages/BookingConfirmationPage'));
@@ -619,23 +620,42 @@ function App() {
       case 'not-found':
         return (
           <div className="min-h-screen bg-paper tv-page">
-            <div className="max-w-lg mx-auto px-4 py-16 sm:py-24">
-              <div className="rounded-2xl bg-paper-raised p-6 sm:p-8 shadow-soft-lg ring-1 ring-black/[0.06] text-center">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-3">404</p>
-                <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Page not found</h1>
-                <p className="mt-3 text-sm text-ink-muted leading-relaxed max-w-sm mx-auto">
-                  This address is not a Traverion page. Check the link, or continue from Home, Tours, or Stays.
-                </p>
-                <div className="mt-8 flex flex-wrap justify-center gap-2">
-                  <button type="button" className="tv-btn-primary" onClick={() => handleNavigate('home')}>
-                    Go home
-                  </button>
-                  <button type="button" className="tv-btn-secondary" onClick={() => handleNavigate('packages')}>
-                    Browse tours
-                  </button>
-                  <button type="button" className="tv-btn-ghost" onClick={() => handleNavigate('stays')}>
-                    Browse stays
-                  </button>
+            <div className="max-w-3xl mx-auto px-4 py-12 sm:py-20">
+              <div className="overflow-hidden rounded-2xl bg-paper-raised shadow-soft-lg ring-1 ring-black/[0.06]">
+                <div className="relative h-40 sm:h-48">
+                  <img
+                    src={HERO_IMG.vacation}
+                    alt=""
+                    className="absolute inset-0 h-full w-full object-cover"
+                    width={1200}
+                    height={480}
+                    decoding="async"
+                  />
+                  <div
+                    className="absolute inset-0 bg-gradient-to-t from-finland-dark/80 via-finland/40 to-ink/20"
+                    aria-hidden
+                  />
+                  <div className="relative z-10 flex h-full flex-col justify-end p-5 sm:p-7">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/80">404</p>
+                    <h1 className="font-display text-3xl sm:text-4xl text-white tracking-tight">Page not found</h1>
+                  </div>
+                </div>
+                <div className="p-5 sm:p-7">
+                  <p className="text-sm text-ink-muted leading-relaxed max-w-lg">
+                    This address is not a Traverion page. Continue from Home, or browse live tours and stays from
+                    operators.
+                  </p>
+                  <div className="mt-6 flex flex-wrap gap-2">
+                    <button type="button" className="tv-btn-primary" onClick={() => handleNavigate('home')}>
+                      Go home
+                    </button>
+                    <button type="button" className="tv-btn-secondary" onClick={() => handleNavigate('packages')}>
+                      Browse tours
+                    </button>
+                    <button type="button" className="tv-btn-ghost" onClick={() => handleNavigate('stays')}>
+                      Browse stays
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

@@ -16,7 +16,8 @@ type PartnerOnboardingProps = {
   onTours: () => void;
   businessDone: boolean;
   payoutDone: boolean;
-  hasTour: boolean;
+  /** True when the partner already has at least one tour or stay draft/listing. */
+  hasListing: boolean;
 };
 
 export default function PartnerOnboarding({
@@ -26,7 +27,7 @@ export default function PartnerOnboarding({
   onTours,
   businessDone,
   payoutDone,
-  hasTour,
+  hasListing,
 }: PartnerOnboardingProps) {
   const steps = [
     {
@@ -49,9 +50,9 @@ export default function PartnerOnboarding({
       n: '03',
       title: 'First listing',
       body: PARTNER_FIRST_LISTING_STEP_NOTE,
-      done: hasTour,
+      done: hasListing,
       action: onTours,
-      cta: hasTour ? 'Open listings' : 'Create listing',
+      cta: hasListing ? 'Open listings' : 'Create listing',
     },
   ];
 
