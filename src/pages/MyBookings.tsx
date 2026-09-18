@@ -956,6 +956,9 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                     ? ` · #${cancelConfirm.booking_number}`
                     : ''}
                 </p>
+                <p className="mt-1.5 text-sm text-ink">
+                  {formatBookingParticipantsLabel(cancelConfirm)}
+                </p>
               </div>
               {travelerSelfCancelIsUnpaidCheckout(cancelConfirm) ? (
                 <div className="mt-4 rounded-2xl bg-finland/[0.06] px-4 py-3.5 ring-1 ring-finland/15">
