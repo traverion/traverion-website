@@ -46,12 +46,20 @@ export default function Cookies({ onNavigate }: CookiesProps) {
       </section>
 
       <section>
+        <h2>Preference center</h2>
+        <p>
+          Traverion does not yet ship an in-app cookie preference center. Use your browser settings to block or delete
+          non-essential cookies. Essential cookies required for sign-in and checkout cannot be turned off without
+          breaking those flows.
+        </p>
+      </section>
+
+      <section>
         <h2>Managing cookies</h2>
         <p>You can control and manage cookies in several ways:</p>
         <ul>
           <li>Use your browser settings to block or delete cookies</li>
-          <li>Use our cookie preference center (if available)</li>
-          <li>Opt out of specific cookie categories</li>
+          <li>Opt out of analytics or marketing tools via the vendor&apos;s own controls when we enable them</li>
         </ul>
         <p>Blocking certain cookies may affect the functionality of our website.</p>
       </section>

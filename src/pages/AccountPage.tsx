@@ -1,5 +1,5 @@
 /**
- * Consumer hub: profile, trips, and saved tours.
+ * Consumer hub: profile, trips, and saved tours and stays.
  */
 import { useState, useEffect, useCallback } from 'react';
 import {
