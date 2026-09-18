@@ -36,6 +36,7 @@ import {
 } from '../../lib/supplierVerificationLocks';
 import { supplierPortalPublicBaseUrl } from '../../lib/partnerHost';
 import { PARTNER_EMAIL_VERIFIED_PATH } from '../../lib/partnerPortalPaths';
+import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import { SUPPLIER_PAGE_CLASS, SupplierPageHero } from './supplierUi';
 import NoticeCallout from '../NoticeCallout';
 import StatusChip from '../StatusChip';
@@ -568,13 +569,13 @@ function BusinessProfilePage(p: Props) {
                         const { publicUrl, error: upErr } = await uploadSupplierBusinessLogo(p.user.id, file);
                         if (upErr || !publicUrl) {
                           setLogoUploading(false);
-                          setLogoError(upErr ?? 'Upload failed.');
+                          setLogoError(userFacingError(upErr ?? 'Upload failed.', USER_ERROR.upload));
                           return;
                         }
                         const res = await patchSupplierProfile(p.user.id, { business_logo_url: publicUrl });
                         setLogoUploading(false);
                         if (res.success) p.setBusinessLogoUrl(publicUrl);
-                        else setLogoError(res.error ?? 'Could not save photo URL.');
+                        else setLogoError(userFacingError(res.error ?? 'Could not save photo URL.', USER_ERROR.upload));
                       }}
                     />
                     <div className="flex flex-wrap gap-2">
@@ -836,7 +837,9 @@ function BusinessProfilePage(p: Props) {
                       const { path, error: upErr } = await uploadSupplierVerificationDocument(p.user.id, file);
                       if (upErr || !path) {
                         setCompanyRegUploading(false);
-                        setDocError(upErr ?? 'Upload failed.');
+                        setDocError(
+                          userFacingError(upErr ?? 'Upload failed.', USER_ERROR.verificationUpload)
+                        );
                         return;
                       }
                       setCompanyRegDisplayName(file.name.trim() || verificationDocumentBasename(path));
@@ -846,7 +849,13 @@ function BusinessProfilePage(p: Props) {
                       setCompanyRegUploading(false);
                       if (res.success) {
                         p.setCompanyRegistrationPath(path);
-                      } else setDocError(res.error ?? 'Could not save document.');
+                      } else {
+                        // Avoid orphaned storage object when the profile row could not be updated.
+                        await removeSupplierVerificationDocumentFile(path);
+                        setDocError(
+                          userFacingError(res.error ?? 'Could not save document.', USER_ERROR.verificationUpload)
+                        );
+                      }
                     }}
                   />
                   <div className="flex flex-wrap items-center gap-2">
@@ -893,7 +902,11 @@ function BusinessProfilePage(p: Props) {
                             if (res.success) {
                               p.setCompanyRegistrationPath('');
                               setCompanyRegDisplayName('');
-                            } else setDocError(res.error ?? 'Could not remove file.');
+                            } else {
+                              setDocError(
+                                userFacingError(res.error ?? 'Could not remove file.', USER_ERROR.verificationUpload)
+                              );
+                            }
                           }}
                         >
                           Remove

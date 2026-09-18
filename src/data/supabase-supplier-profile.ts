@@ -41,6 +41,10 @@ export type SupplierProfileRow = {
   payment_cycle: 'monthly' | 'biweekly' | null;
   payout_threshold_min: number | null;
   welcome_email_sent_at: string | null;
+  /** Set when approval email was delivered (admin retry idempotency). */
+  business_verified_email_sent_at?: string | null;
+  /** Set when rejection email was delivered (admin retry idempotency). */
+  business_rejected_email_sent_at?: string | null;
   /** Public Storage URL; shown on tour page and supplier dashboard */
   business_logo_url: string | null;
   /** Private bucket path for ID proof */
@@ -54,6 +58,70 @@ export type SupplierProfileRow = {
 const SUPPLIER_LOGO_BUCKET = 'supplier-logos';
 const VERIFICATION_BUCKET = 'supplier-verification';
 
+const VERIFICATION_MIME: Record<string, 'pdf' | 'jpg' | 'png' | 'webp'> = {
+  'application/pdf': 'pdf',
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+};
+
+/**
+ * Resolve a live authenticated user id for Storage RLS (path must be auth.uid()/…).
+ * Storage sends the anon key when no session exists — that yields
+ * "new row violates row-level security policy".
+ */
+async function requireAuthenticatedUserId(
+  expectedUserId?: string
+): Promise<{ userId: string } | { error: string }> {
+  if (!supabase) return { error: 'Supabase not configured' };
+
+  const sessionResult = await supabase.auth.getSession();
+  let session = sessionResult.data.session;
+  if (sessionResult.error) {
+    console.warn('[Traverion] auth.getSession failed before upload:', sessionResult.error.message);
+  }
+
+  if (!session?.access_token) {
+    const refreshed = await supabase.auth.refreshSession();
+    if (refreshed.error) {
+      console.warn('[Traverion] auth.refreshSession failed before upload:', refreshed.error.message);
+    }
+    session = refreshed.data.session;
+  }
+
+  if (!session?.access_token || !session.user?.id) {
+    return { error: 'Your session ended. Sign in again to continue.' };
+  }
+
+  const {
+    data: { user },
+    error: userErr,
+  } = await supabase.auth.getUser();
+  if (userErr || !user?.id) {
+    console.warn('[Traverion] auth.getUser failed before upload:', userErr?.message);
+    return { error: 'Your session ended. Sign in again to continue.' };
+  }
+
+  if (expectedUserId && expectedUserId !== user.id) {
+    console.warn('[Traverion] upload userId mismatch', { expectedUserId, authUid: user.id });
+    return { error: 'Your session ended. Sign in again to continue.' };
+  }
+
+  return { userId: user.id };
+}
+
+function verificationExtFromFile(file: File): 'pdf' | 'jpg' | 'png' | 'webp' | null {
+  const fromMime = VERIFICATION_MIME[file.type];
+  if (fromMime) return fromMime;
+  // Mobile Safari often sends an empty MIME type; fall back to extension.
+  const name = file.name.trim().toLowerCase();
+  if (name.endsWith('.pdf')) return 'pdf';
+  if (name.endsWith('.jpg') || name.endsWith('.jpeg')) return 'jpg';
+  if (name.endsWith('.png')) return 'png';
+  if (name.endsWith('.webp')) return 'webp';
+  return null;
+}
+
 /** Upload business registration proof (PDF or image). Returns storage path for DB. */
 export async function uploadSupplierVerificationDocument(
   userId: string,
@@ -62,28 +130,34 @@ export async function uploadSupplierVerificationDocument(
   if (!supabase) return { path: null, error: 'Supabase not configured' };
   const max = 5 * 1024 * 1024;
   if (file.size > max) return { path: null, error: 'File must be 5 MB or smaller.' };
-  const allowed = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
-  if (!allowed.includes(file.type)) return { path: null, error: 'Use PDF, JPEG, PNG, or WebP.' };
+  const ext = verificationExtFromFile(file);
+  if (!ext) return { path: null, error: 'Use PDF, JPEG, PNG, or WebP.' };
 
-  const ext =
-    file.type === 'application/pdf'
-      ? 'pdf'
-      : file.type === 'image/jpeg'
-        ? 'jpg'
-        : file.type === 'image/png'
-          ? 'png'
-          : 'webp';
-  const path = `${userId}/company-registration.${ext}`;
+  const auth = await requireAuthenticatedUserId(userId);
+  if ('error' in auth) return { path: null, error: auth.error };
+
+  const contentType =
+    ext === 'pdf'
+      ? 'application/pdf'
+      : ext === 'jpg'
+        ? 'image/jpeg'
+        : ext === 'png'
+          ? 'image/png'
+          : 'image/webp';
+  const path = `${auth.userId}/company-registration.${ext}`;
   const originalName =
     file.name.trim().slice(0, 200) || `company-registration.${ext}`;
 
   const { error: upErr } = await supabase.storage.from(VERIFICATION_BUCKET).upload(path, file, {
     upsert: true,
-    contentType: file.type,
+    contentType,
     cacheControl: '3600',
     metadata: { original_filename: originalName },
   });
-  if (upErr) return { path: null, error: upErr.message };
+  if (upErr) {
+    console.warn('[Traverion] supplier-verification upload failed:', upErr.message, { path });
+    return { path: null, error: upErr.message };
+  }
   return { path };
 }
 
@@ -166,22 +240,36 @@ export async function uploadSupplierBusinessLogo(
   const max = 2 * 1024 * 1024;
   if (file.size > max) return { publicUrl: null, error: 'Image must be 2 MB or smaller.' };
   const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-  if (!allowed.includes(file.type)) return { publicUrl: null, error: 'Use JPEG, PNG, WebP, or GIF.' };
+  let mime = file.type;
+  if (!allowed.includes(mime)) {
+    const name = file.name.trim().toLowerCase();
+    if (name.endsWith('.jpg') || name.endsWith('.jpeg')) mime = 'image/jpeg';
+    else if (name.endsWith('.png')) mime = 'image/png';
+    else if (name.endsWith('.webp')) mime = 'image/webp';
+    else if (name.endsWith('.gif')) mime = 'image/gif';
+    else return { publicUrl: null, error: 'Use JPEG, PNG, WebP, or GIF.' };
+  }
+
+  const auth = await requireAuthenticatedUserId(userId);
+  if ('error' in auth) return { publicUrl: null, error: auth.error };
 
   const ext =
-    file.type === 'image/jpeg'
+    mime === 'image/jpeg'
       ? 'jpg'
-      : file.type === 'image/png'
+      : mime === 'image/png'
         ? 'png'
-        : file.type === 'image/webp'
+        : mime === 'image/webp'
           ? 'webp'
           : 'gif';
-  const path = `${userId}/business-logo.${ext}`;
+  const path = `${auth.userId}/business-logo.${ext}`;
 
   const { error: upErr } = await supabase.storage
     .from(SUPPLIER_LOGO_BUCKET)
-    .upload(path, file, { upsert: true, contentType: file.type, cacheControl: '3600' });
-  if (upErr) return { publicUrl: null, error: upErr.message };
+    .upload(path, file, { upsert: true, contentType: mime, cacheControl: '3600' });
+  if (upErr) {
+    console.warn('[Traverion] supplier-logos upload failed:', upErr.message, { path });
+    return { publicUrl: null, error: upErr.message };
+  }
 
   const { data } = supabase.storage.from(SUPPLIER_LOGO_BUCKET).getPublicUrl(path);
   return { publicUrl: data.publicUrl };
@@ -316,14 +404,18 @@ export async function patchSupplierProfile(
   patch: Record<string, unknown>
 ): Promise<{ success: boolean; error?: string }> {
   if (!supabase) return { success: false, error: 'Supabase not configured' };
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('supplier_profiles')
     .update({
       ...patch,
       updated_at: new Date().toISOString(),
     })
-    .eq('id', userId);
+    .eq('id', userId)
+    .select('id')
+    .maybeSingle();
   if (error) return { success: false, error: error.message };
+  // RLS-denied updates return zero rows with no error — treat as failure (no false success).
+  if (!data) return { success: false, error: 'Supplier profile not found' };
   return { success: true };
 }
 

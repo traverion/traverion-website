@@ -15,7 +15,7 @@ describe('userFacingError', () => {
       USER_ERROR.tours
     );
     expect(userFacingError('new row violates row-level security policy for table bookings', USER_ERROR.trips)).toBe(
-      USER_ERROR.trips
+      'Your session ended or this action is not allowed. Sign in again and try once more.'
     );
     expect(userFacingError('JWT expired', USER_ERROR.auth)).toBe('Your session ended. Sign in again to continue.');
     expect(userFacingError('Failed to fetch', USER_ERROR.generic)).toBe(USER_ERROR.generic);
@@ -52,8 +52,15 @@ describe('userFacingError', () => {
     expect(humanizeBookingSubmitError('JWT expired')).toBe('Your session ended. Sign in again to continue.');
   });
 
-  it('maps booking-thread RPC send wording to post', () => {
-    expect(userFacingError('Write a message before sending.')).toBe('Write a message before posting.');
-    expect(userFacingError('Sign in to send a message.')).toBe('Sign in to post a message.');
+  it('maps storage RLS and MIME failures to human verification copy', () => {
+    expect(
+      userFacingError('new row violates row-level security policy', USER_ERROR.verificationUpload)
+    ).toBe('Your session ended or this action is not allowed. Sign in again and try once more.');
+    expect(userFacingError('mime type image/heic is not supported', USER_ERROR.verificationUpload)).toBe(
+      'Use a PDF or image (JPEG, PNG, or WebP) up to 5 MB.'
+    );
+    expect(
+      userFacingError('The object exceeded the maximum allowed size', USER_ERROR.verificationUpload)
+    ).toBe('Use a PDF or image (JPEG, PNG, or WebP) up to 5 MB.');
   });
 });

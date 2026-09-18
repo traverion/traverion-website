@@ -23,6 +23,8 @@ export const USER_ERROR = {
   pickup: 'We could not load pickups. Check your connection and try again.',
   today: 'We could not load today. Check your connection and try again.',
   upload: 'That photo could not be uploaded. Try another image, or try again.',
+  verificationUpload:
+    'We could not upload your verification document. Check your connection and try again.',
   listingSave: 'Could not save this listing. Check your connection and try again.',
   checkout: 'Could not start checkout. Check your connection and try again.',
   review: 'Could not submit your review. Try again in a moment.',
@@ -47,6 +49,14 @@ const KNOWN_HUMAN: Array<{ test: RegExp; copy: string }> = [
   {
     test: /jwt expired|invalid jwt|auth session missing|refresh_token_not_found/i,
     copy: 'Your session ended. Sign in again to continue.',
+  },
+  {
+    test: /new row violates row-level security|row-level security policy/i,
+    copy: 'Your session ended or this action is not allowed. Sign in again and try once more.',
+  },
+  {
+    test: /mime type .+ is not supported|object exceeded the maximum allowed size/i,
+    copy: 'Use a PDF or image (JPEG, PNG, or WebP) up to 5 MB.',
   },
   {
     test: /not enough capacity|no capacity left/i,

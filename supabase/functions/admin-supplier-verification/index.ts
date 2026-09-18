@@ -18,12 +18,92 @@ const cors = {
 };
 
 const SIGNED_URL_TTL = 3600;
+const PARTNER_PORTAL = 'https://partner.traverion.com';
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: { ...cors, 'Content-Type': 'application/json' },
   });
+}
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function verificationDecisionHtml(opts: {
+  headline: string;
+  sub: string;
+  businessName: string;
+  ctaLabel: string;
+  ctaHref: string;
+}): string {
+  const logo = `${PARTNER_PORTAL}/traverionlogotransparent.png?v=3`;
+  return `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f4f6f8;font-family:system-ui,-apple-system,sans-serif;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f6f8;padding:24px 12px;">
+<tr><td align="center">
+<table role="presentation" width="560" cellspacing="0" cellpadding="0" style="background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
+<tr><td style="padding:28px 28px 12px;text-align:center;background:#ffffff;">
+<img src="${logo}" width="200" height="auto" alt="Traverion" style="display:block;margin:0 auto;max-width:85%;height:auto;border:0;"/>
+</td></tr>
+<tr><td style="padding:8px 32px 8px;font-size:20px;font-weight:700;color:#003580;font-family:Georgia,serif;">${escapeHtml(opts.headline)}</td></tr>
+<tr><td style="padding:0 32px 16px;font-size:14px;line-height:1.5;color:#4b5563;">${escapeHtml(opts.sub)}</td></tr>
+<tr><td style="padding:0 32px 24px;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-top:1px solid #e5e7eb;padding-top:16px;">
+<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;vertical-align:top;">Business</td><td style="padding:6px 0;font-size:14px;color:#111827;font-weight:600;">${escapeHtml(opts.businessName)}</td></tr>
+</table>
+</td></tr>
+<tr><td style="padding:0 32px 32px;">
+<a href="${escapeHtml(opts.ctaHref)}" style="display:inline-block;padding:12px 20px;background:#003580;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">${escapeHtml(opts.ctaLabel)}</a>
+</td></tr>
+</table>
+<p style="font-size:12px;color:#9ca3af;margin-top:16px;">You are receiving this because you manage a supplier account on Traverion.</p>
+<p style="font-size:12px;color:#9ca3af;"><a href="https://www.traverion.com" style="color:#003580;">traverion.com</a></p>
+</td></tr></table></body></html>`;
+}
+
+async function resolveSupplierRecipientEmail(
+  admin: ReturnType<typeof createClient>,
+  supplierId: string
+): Promise<string | null> {
+  const { data } = await admin.auth.admin.getUserById(supplierId);
+  const email = data?.user?.email?.trim();
+  return email || null;
+}
+
+async function sendResendEmail(opts: {
+  to: string;
+  subject: string;
+  text: string;
+  html: string;
+}): Promise<{ ok: true; id: string | null } | { ok: false; error: string }> {
+  const apiKey = Deno.env.get('RESEND_API_KEY');
+  const fromEmail = Deno.env.get('SUPPLIER_EMAIL_FROM') ?? 'Traverion <no-reply@traverion.com>';
+  if (!apiKey) return { ok: false, error: 'RESEND_API_KEY not configured' };
+
+  const resendResp = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: fromEmail,
+      to: [opts.to],
+      subject: opts.subject,
+      text: opts.text,
+      html: opts.html,
+    }),
+  });
+  const resendJson = (await resendResp.json().catch(() => ({}))) as { message?: string; id?: string };
+  if (!resendResp.ok) {
+    return { ok: false, error: resendJson?.message ?? `Resend HTTP ${resendResp.status}` };
+  }
+  return { ok: true, id: resendJson?.id ?? null };
 }
 
 type Body = {
@@ -200,14 +280,14 @@ serve(async (req) => {
     if (bizRes.error) return json({ error: bizRes.error.message }, 500);
     if (payRes.error) return json({ error: payRes.error.message }, 500);
 
-    const map = new Map<string, any>();
+    const map = new Map<string, Record<string, unknown>>();
     for (const row of bizRes.data ?? []) map.set(row.id, { ...row });
     for (const row of payRes.data ?? []) {
       const prev = map.get(row.id);
       map.set(row.id, prev ? { ...prev, ...row } : { ...row });
     }
     const items = Array.from(map.values()).sort(
-      (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+      (a, b) => new Date(String(b.updated_at)).getTime() - new Date(String(a.updated_at)).getTime()
     );
     return json({ items });
   }
@@ -314,30 +394,173 @@ serve(async (req) => {
   if (!supplierId) return json({ error: 'supplierId required' }, 400);
 
   if (body.action === 'approve_business') {
+    const { data: before, error: beforeErr } = await admin
+      .from('supplier_profiles')
+      .select(
+        'id, display_name, company_legal_name, verification_status, business_verified_email_sent_at, business_rejected_email_sent_at'
+      )
+      .eq('id', supplierId)
+      .maybeSingle();
+    if (beforeErr) return json({ error: beforeErr.message }, 500);
+    if (!before) return json({ error: 'Supplier not found' }, 404);
+
+    const now = new Date().toISOString();
     const { error } = await admin
       .from('supplier_profiles')
       .update({
         verification_status: 'verified',
         business_verification_feedback: null,
-        updated_at: new Date().toISOString(),
+        business_rejected_email_sent_at: null,
+        updated_at: now,
       })
       .eq('id', supplierId);
     if (error) return json({ error: error.message }, 500);
-    return json({ ok: true });
+
+    const alreadyEmailed =
+      before.verification_status === 'verified' && Boolean(before.business_verified_email_sent_at);
+    if (alreadyEmailed) {
+      return json({ ok: true, email: { sent: false, skipped: true, reason: 'already_sent' } });
+    }
+
+    const to = await resolveSupplierRecipientEmail(admin, supplierId);
+    if (!to) {
+      console.error('[approve_business] no supplier email', supplierId);
+      return json({
+        ok: true,
+        email: { sent: false, skipped: false, error: 'No supplier email on auth user' },
+      });
+    }
+
+    const businessName =
+      (typeof before.company_legal_name === 'string' && before.company_legal_name.trim()) ||
+      (typeof before.display_name === 'string' && before.display_name.trim()) ||
+      'your business';
+    const subject = 'Your Traverion business is verified';
+    const text = [
+      `Good news — ${businessName} is verified on Traverion.`,
+      '',
+      'You can continue using partner features that require a verified business profile (including publishing listings once payout details are also verified).',
+      '',
+      `Open your partner portal: ${PARTNER_PORTAL}/partner`,
+      '',
+      '— Traverion',
+    ].join('\n');
+    const html = verificationDecisionHtml({
+      headline: 'Your business is verified',
+      sub: 'Traverion has approved your business profile. You can continue with partner features that require verification.',
+      businessName,
+      ctaLabel: 'Open partner portal',
+      ctaHref: `${PARTNER_PORTAL}/partner`,
+    });
+
+    const sent = await sendResendEmail({ to, subject, text, html });
+    if (!sent.ok) {
+      console.error('[approve_business] email failed', supplierId, sent.error);
+      return json({
+        ok: true,
+        email: { sent: false, skipped: false, error: sent.error },
+      });
+    }
+
+    const { error: markErr } = await admin
+      .from('supplier_profiles')
+      .update({ business_verified_email_sent_at: now, updated_at: now })
+      .eq('id', supplierId);
+    if (markErr) {
+      console.error('[approve_business] could not mark email sent', supplierId, markErr.message);
+    }
+
+    return json({
+      ok: true,
+      email: { sent: true, skipped: false, providerMessageId: sent.id, to },
+    });
   }
 
   if (body.action === 'reject_business') {
     const fb = typeof body.feedback === 'string' ? body.feedback.trim() || null : null;
+    const { data: before, error: beforeErr } = await admin
+      .from('supplier_profiles')
+      .select(
+        'id, display_name, company_legal_name, verification_status, business_rejected_email_sent_at'
+      )
+      .eq('id', supplierId)
+      .maybeSingle();
+    if (beforeErr) return json({ error: beforeErr.message }, 500);
+    if (!before) return json({ error: 'Supplier not found' }, 404);
+
+    const now = new Date().toISOString();
     const { error } = await admin
       .from('supplier_profiles')
       .update({
         verification_status: 'rejected',
         business_verification_feedback: fb,
-        updated_at: new Date().toISOString(),
+        business_verified_email_sent_at: null,
+        updated_at: now,
       })
       .eq('id', supplierId);
     if (error) return json({ error: error.message }, 500);
-    return json({ ok: true });
+
+    const alreadyEmailed =
+      before.verification_status === 'rejected' && Boolean(before.business_rejected_email_sent_at);
+    if (alreadyEmailed) {
+      return json({ ok: true, email: { sent: false, skipped: true, reason: 'already_sent' } });
+    }
+
+    const to = await resolveSupplierRecipientEmail(admin, supplierId);
+    if (!to) {
+      console.error('[reject_business] no supplier email', supplierId);
+      return json({
+        ok: true,
+        email: { sent: false, skipped: false, error: 'No supplier email on auth user' },
+      });
+    }
+
+    const businessName =
+      (typeof before.company_legal_name === 'string' && before.company_legal_name.trim()) ||
+      (typeof before.display_name === 'string' && before.display_name.trim()) ||
+      'your business';
+    const feedbackLine = fb
+      ? `Traverion note: ${fb}`
+      : 'Please review your business details and registration document in Settings, then submit again.';
+    const subject = 'Update needed for your Traverion business verification';
+    const text = [
+      `Traverion could not verify ${businessName} yet.`,
+      '',
+      feedbackLine,
+      '',
+      `Update your profile: ${PARTNER_PORTAL}/partner/settings`,
+      '',
+      '— Traverion',
+    ].join('\n');
+    const html = verificationDecisionHtml({
+      headline: 'Verification needs an update',
+      sub: feedbackLine,
+      businessName,
+      ctaLabel: 'Review business settings',
+      ctaHref: `${PARTNER_PORTAL}/partner/settings`,
+    });
+
+    const sent = await sendResendEmail({ to, subject, text, html });
+    if (!sent.ok) {
+      console.error('[reject_business] email failed', supplierId, sent.error);
+      return json({
+        ok: true,
+        email: { sent: false, skipped: false, error: sent.error },
+      });
+    }
+
+    const { error: markErr } = await admin
+      .from('supplier_profiles')
+      .update({ business_rejected_email_sent_at: now, updated_at: now })
+      .eq('id', supplierId);
+    if (markErr) {
+      console.error('[reject_business] could not mark email sent', supplierId, markErr.message);
+    }
+
+    return json({
+      ok: true,
+      email: { sent: true, skipped: false, providerMessageId: sent.id, to },
+    });
   }
 
   if (body.action === 'approve_payout') {
