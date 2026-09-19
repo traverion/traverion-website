@@ -157,10 +157,18 @@ export default function SupplierEarnings() {
   const nextPayoutLabel = PARTNER_MONEY_PAYOUT_STATUS_NOTE;
 
   const exportCsv = () => {
+    const collectedForExport =
+      filteredEarnings.length === 0
+        ? paidBookings.map((b) => ({
+            ...b,
+            listing_title: listingTitles[b.listing_id] ?? null,
+          }))
+        : [];
     if (
       !partnerMoneyCsvHasExportableRows({
         payouts: filteredEarnings,
         refundDue: refundDueBookings,
+        collected: collectedForExport,
         ledger,
       })
     ) {
@@ -174,6 +182,7 @@ export default function SupplierEarnings() {
     const body = buildPartnerMoneyCsvRows({
       payouts: filteredEarnings,
       refundDue: refundDueBookings,
+      collected: collectedForExport,
       ledger,
       ledgerKindLabel,
     });
@@ -192,6 +201,7 @@ export default function SupplierEarnings() {
   const canExportMoney = partnerMoneyCsvHasExportableRows({
     payouts: filteredEarnings,
     refundDue: refundDueBookings,
+    collected: filteredEarnings.length === 0 ? paidBookings : [],
     ledger,
   });
 

@@ -51,4 +51,42 @@ describe('partner money CSV', () => {
     expect(rows[2]![0]).toBe('ledger');
     expect(rows[2]![7]).toBe('Cancellation fee');
   });
+
+  it('exports collected bookings when payout periods are empty so Export matches the UI list', () => {
+    expect(
+      partnerMoneyCsvHasExportableRows({
+        payouts: [],
+        refundDue: [],
+        collected: [{ id: 'b5' }],
+        ledger: [],
+      })
+    ).toBe(true);
+    const rows = buildPartnerMoneyCsvRows({
+      payouts: [],
+      refundDue: [],
+      collected: [
+        {
+          id: 'b5',
+          booking_number: 5,
+          status: 'confirmed',
+          payment_status: 'paid',
+          amount_paid: 189,
+          currency: 'EUR',
+          booking_date: '2026-09-11',
+          guest_name: 'Ada',
+          listing_title: 'Aurora tour',
+          checkout_session_id: 'cs_test_abc',
+        },
+      ],
+      ledger: [],
+      ledgerKindLabel: (k) => k,
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]![0]).toBe('collected');
+    expect(rows[0]![4]).toBe('5');
+    expect(rows[0]![5]).toBe('189');
+    expect(rows[0]![7]).toBe('Collected');
+    expect(rows[0]![8].toLowerCase()).toContain('collected, not paid out');
+    expect(rows[0]![8].toLowerCase()).toContain('stripe test');
+  });
 });

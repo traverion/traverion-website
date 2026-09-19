@@ -1,5 +1,6 @@
 import { partnerPaymentLabel, type MoneyBookingRow } from './payment-states';
 import { PARTNER_MONEY_PERIOD_NOT_PAID_OUT_LABEL } from './booking-confirmation-copy';
+import { isStripeTestCheckoutSession } from './money';
 
 export const PARTNER_MONEY_CSV_HEADER = [
   'row_kind',
@@ -38,10 +39,20 @@ export type PartnerMoneyRefundDueCsvInput = MoneyBookingRow & {
   booking_number?: number | null;
 };
 
-/** Unified Money export: payout periods + Refund due bookings + ledger adjustments. */
+export type PartnerMoneyCollectedCsvInput = MoneyBookingRow & {
+  id: string;
+  booking_number?: number | null;
+  booking_date?: string | null;
+  guest_name?: string | null;
+  listing_title?: string | null;
+  checkout_session_id?: string | null;
+};
+
+/** Unified Money export: payout periods + Refund due + collected bookings + ledger adjustments. */
 export function buildPartnerMoneyCsvRows(input: {
   payouts: PartnerMoneyPayoutCsvInput[];
   refundDue: PartnerMoneyRefundDueCsvInput[];
+  collected?: PartnerMoneyCollectedCsvInput[];
   ledger: PartnerMoneyLedgerCsvInput[];
   ledgerKindLabel: (kind: string) => string;
 }): string[][] {
@@ -80,6 +91,27 @@ export function buildPartnerMoneyCsvRows(input: {
       '',
     ]);
   }
+  for (const b of input.collected ?? []) {
+    const who = (b.listing_title ?? b.guest_name ?? 'Guest').trim() || 'Guest';
+    const detailBits = [
+      who,
+      b.booking_date ?? '',
+      isStripeTestCheckoutSession(b.checkout_session_id) ? 'Stripe TEST' : '',
+      'collected, not paid out',
+    ].filter(Boolean);
+    rows.push([
+      'collected',
+      '',
+      '',
+      b.id,
+      typeof b.booking_number === 'number' ? String(b.booking_number) : '',
+      b.amount_paid != null ? String(b.amount_paid) : '',
+      b.currency ?? '',
+      'Collected',
+      detailBits.join(' · '),
+      '',
+    ]);
+  }
   for (const e of input.ledger) {
     rows.push([
       'ledger',
@@ -100,7 +132,13 @@ export function buildPartnerMoneyCsvRows(input: {
 export function partnerMoneyCsvHasExportableRows(input: {
   payouts: unknown[];
   refundDue: unknown[];
+  collected?: unknown[];
   ledger: unknown[];
 }): boolean {
-  return input.payouts.length > 0 || input.refundDue.length > 0 || input.ledger.length > 0;
+  return (
+    input.payouts.length > 0 ||
+    input.refundDue.length > 0 ||
+    (input.collected?.length ?? 0) > 0 ||
+    input.ledger.length > 0
+  );
 }
