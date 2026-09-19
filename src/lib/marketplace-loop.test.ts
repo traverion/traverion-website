@@ -8,6 +8,7 @@ import {
   previousBookedCount,
   remainingCapacity,
   partnerTourRemainingSpots,
+  partnerTourDaySpotDisplay,
 } from './availability-ops';
 import { quoteBooking } from './booking-quote';
 import { isListingVisibleToTravelers } from './product-workflows';
@@ -70,6 +71,33 @@ describe('availability ops', () => {
     const staleBookedColumn = 8;
     expect(partnerTourRemainingSpots(8, staleBookedColumn)).toBe(0);
     expect(partnerTourRemainingSpots(8, 0)).not.toBe(partnerTourRemainingSpots(8, staleBookedColumn));
+  });
+
+  it('hides partner tour spots on days the product does not depart even if a cap row exists', () => {
+    expect(
+      partnerTourDaySpotDisplay({
+        offered: false,
+        savedCapacity: 8,
+        defaultCapacity: 8,
+        occupyingGuests: 0,
+      })
+    ).toEqual({ capacity: null, remaining: null });
+    expect(
+      partnerTourDaySpotDisplay({
+        offered: false,
+        savedCapacity: 0,
+        defaultCapacity: 8,
+        occupyingGuests: 0,
+      })
+    ).toEqual({ capacity: null, remaining: null });
+    expect(
+      partnerTourDaySpotDisplay({
+        offered: true,
+        savedCapacity: 8,
+        defaultCapacity: 12,
+        occupyingGuests: 2,
+      })
+    ).toEqual({ capacity: 8, remaining: 6 });
   });
 
   it('builds a Monday-first month grid', () => {

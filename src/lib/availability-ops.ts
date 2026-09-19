@@ -31,6 +31,27 @@ export function partnerTourRemainingSpots(capacity: number, occupyingGuests: num
   return remainingCapacity(capacity, occupyingGuests);
 }
 
+/**
+ * Partner tour month cells: never show "spots left" / Full on days the product does not depart.
+ * A listing_availability row on a closed weekday does not open traveler booking.
+ */
+export function partnerTourDaySpotDisplay(params: {
+  offered: boolean;
+  savedCapacity: number | null | undefined;
+  defaultCapacity: number;
+  occupyingGuests: number;
+}): { capacity: number | null; remaining: number | null } {
+  if (!params.offered) return { capacity: null, remaining: null };
+  const capacity =
+    typeof params.savedCapacity === 'number' && Number.isFinite(params.savedCapacity)
+      ? Math.max(0, Math.floor(params.savedCapacity))
+      : params.defaultCapacity;
+  return {
+    capacity,
+    remaining: partnerTourRemainingSpots(capacity, params.occupyingGuests),
+  };
+}
+
 export type MonthCell = {
   iso: string;
   day: number;

@@ -13,13 +13,13 @@ import {
 } from '../../data/supabase-availability';
 import { materializedBookingOptions } from '../../types/listingExtras';
 import type { TourPackage } from '../../types/tour';
-import { optionRunsOnDate } from '../../lib/booking-quote';
+import { listingRunsOnDate } from '../../lib/booking-quote';
 import { inventoryFamilyFromListing } from '../../lib/inventory';
 import { nightsOccupiedByStay, stayRangeFromBooking, partnerStayDayKind, partnerStayCalendarOccupiesNight } from '../../lib/stayOccupancy';
 import {
   buildMonthCells,
   defaultCapacityForOpenDay,
-  partnerTourRemainingSpots,
+  partnerTourDaySpotDisplay,
 } from '../../lib/availability-ops';
 import { navigateSupplierUrl, openSupplierBooking } from '../../lib/supplierPortalNavigation';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
@@ -183,11 +183,7 @@ export default function SupplierAvailability() {
     setMonthIndex0(d.getUTCMonth());
   };
 
-  const listingOpenOn = (item: TourPackage, iso: string) => {
-    const opts = materializedBookingOptions(item.listingExtras?.bookingOptions);
-    if (opts.length === 0) return true;
-    return opts.some((o) => optionRunsOnDate(o, iso) === null);
-  };
+  const listingOpenOn = (item: TourPackage, iso: string) => listingRunsOnDate(item, iso);
 
   const weekdayOpen = (iso: string) => {
     if (viewingAll) return listings.some((item) => listingOpenOn(item, iso));
@@ -475,12 +471,17 @@ export default function SupplierAvailability() {
               const stayKind = stayCalendar
                 ? partnerStayDayKind({ occupying: Boolean(occupying), capacity: cap?.capacity })
                 : null;
-              const tourCapacity = !stayCalendar && listing
-                ? (cap?.capacity ?? (open ? defaultSpots(listing) : null))
-                : null;
-              const remaining = tourCapacity != null
-                ? partnerTourRemainingSpots(tourCapacity, occupying?.guests ?? 0)
-                : null;
+              const tourSpots =
+                !stayCalendar && listing
+                  ? partnerTourDaySpotDisplay({
+                      offered: open,
+                      savedCapacity: cap?.capacity,
+                      defaultCapacity: defaultSpots(listing),
+                      occupyingGuests: occupying?.guests ?? 0,
+                    })
+                  : { capacity: null, remaining: null };
+              const tourCapacity = tourSpots.capacity;
+              const remaining = tourSpots.remaining;
               const isToday = cell.iso === localTodayIso;
               const isEditing = editing?.iso === cell.iso;
               const busy = savingIso === cell.iso;
@@ -501,7 +502,7 @@ export default function SupplierAvailability() {
                         ? `${dateLabel}, ${remaining} of ${tourCapacity} spots left`
                         : open
                           ? `${dateLabel}, ${stayCalendar ? 'available' : 'open'}`
-                          : dateLabel;
+                          : `${dateLabel}, not offered`;
               return (
                 <button
                   key={cell.iso}
@@ -531,9 +532,9 @@ export default function SupplierAvailability() {
                           ? 'bg-paper-raised ring-finland/25 shadow-soft'
                           : occupying || stayKind === 'occupied'
                             ? 'bg-finland/15 ring-finland/20'
-                        : stayKind === 'blocked' || remaining === 0
+                        : stayKind === 'blocked' || (open && remaining === 0)
                           ? 'bg-rose-50 ring-rose-200/70'
-                          : cap || (open && stayCalendar)
+                          : (cap && (stayCalendar || open)) || (open && stayCalendar)
                           ? 'bg-emerald-50/80 ring-emerald-200/50'
                           : open
                           ? 'bg-paper-raised/80 ring-black/[0.05] hover:bg-emerald-50/60'
@@ -554,7 +555,9 @@ export default function SupplierAvailability() {
                   ) : cell.inMonth && open ? (
                     <span className="mt-0.5 block text-[10px] leading-tight text-ink-faint">{stayCalendar ? 'Available' : 'Open'}</span>
                   ) : cell.inMonth ? (
-                    <span className="mt-0.5 block text-[10px] leading-tight text-ink-faint">—</span>
+                    <span className="mt-0.5 block text-[10px] leading-tight text-ink-faint">
+                      {cap && !stayCalendar ? 'Not offered' : '—'}
+                    </span>
                   ) : null}
                 </button>
               );
@@ -638,6 +641,12 @@ export default function SupplierAvailability() {
                 </>
               ) : (
                 <>
+              {!weekdayOpen(editing.iso) ? (
+                <p className="mt-4 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-950 ring-1 ring-amber-200/80">
+                  No departures this day per your option schedule. A saved cap does not open traveler
+                  booking — clear the cap or adjust options on the listing.
+                </p>
+              ) : null}
               <p className="mt-5 text-sm text-ink-muted">
                 Daily cap is optional. Clearing it returns the date to weekday rules.
               </p>
@@ -694,7 +703,7 @@ export default function SupplierAvailability() {
             <p className="text-sm text-ink-muted">
               {stayCalendar
                 ? 'Block several nights at once \u2014 a maintenance week or a personal booking elsewhere. Clear range returns nights to available.'
-                : 'Set the same spot count across a date range at once \u2014 close for a holiday, or open extra departures for a busy stretch. Clear range removes daily overrides.'}
+                : 'Set the same spot count across a date range at once \u2014 close for a holiday, or open extra departures for a busy stretch. Clear range removes daily overrides. Caps never override weekday or season rules on the traveler calendar.'}
             </p>
             <div className="grid grid-cols-2 gap-3">
               <div>
