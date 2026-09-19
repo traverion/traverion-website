@@ -64,6 +64,8 @@ import { inventoryFamilyFromListing } from '../../lib/inventory';
 import { parseStayCheckOutFromNotes, nightsOccupiedByStay, stayRangeFromBooking } from '../../lib/stayOccupancy';
 import { partnerBookingIsLiveTrip, bookingIsCancelledTrip, partnerBookingIsOperatingTrip, partnerBookingNeedsLook, partnerBookingIsUnpaidCheckout, partnerBookingShowsCancelAction } from '../../lib/trip-views';
 import { formatStayNightHuman } from '../../lib/stay-calendar';
+import { partnerBookingHasPickupAttention } from '../../lib/pickup-completeness';
+import { openSupplierPickup } from '../../lib/supplierPortalNavigation';
 
 const BOOKINGS_PAGE_SIZE = 10;
 
@@ -73,6 +75,8 @@ type ListingBookingMeta = {
   location: string;
   duration: string;
   family: ReturnType<typeof inventoryFamilyFromListing>;
+  meetingPoint: string | null;
+  pickupInstructions: string | null;
 };
 
 function buildListingMeta(listing: TourPackage): ListingBookingMeta {
@@ -88,6 +92,8 @@ function buildListingMeta(listing: TourPackage): ListingBookingMeta {
     location,
     duration: listing.duration || '—',
     family: inventoryFamilyFromListing(listing),
+    meetingPoint: listing.meetingPoint?.trim() || null,
+    pickupInstructions: listing.pickupInstructions?.trim() || null,
   };
 }
 
@@ -314,7 +320,8 @@ export default function SupplierBookings() {
         if (!partnerBookingIsUnpaidCheckout(b)) return false;
       }
       if (opsFilter === 'pickup') {
-        if (isStay || bookingIsCancelledTrip(b) || !isPaidPaymentStatus(b.payment_status) || b.pickup_time) return false;
+        const meta = listingMeta[b.listing_id];
+        if (!partnerBookingHasPickupAttention(b, meta?.meetingPoint, meta?.pickupInstructions)) return false;
       }
       if (opsFilter === 'cancel') {
         if (!openCancels[b.id]) return false;
@@ -563,7 +570,7 @@ export default function SupplierBookings() {
             {([
               ['all', 'All states'],
               ['unpaid', 'Unpaid'],
-              ['pickup', 'Pickup missing'],
+              ['pickup', 'Pickup details'],
               ['cancel', 'Cancellation'],
               ['refund_due', 'Refund due'],
             ] as const).map(([id, label]) => (
@@ -728,12 +735,11 @@ export default function SupplierBookings() {
                 : formatActivityDateLong(booking.booking_date, startHm);
               const paidLabel = formatBookingMoney(booking.amount_paid, booking.currency);
               const needsAck = partnerBookingNeedsLook(booking);
-              const pickupGap =
-                meta?.family !== 'stay' &&
-                !stayOut &&
-                isPaidPaymentStatus(booking.payment_status) &&
-                !bookingIsCancelledTrip(booking) &&
-                !booking.pickup_time;
+              const pickupGap = partnerBookingHasPickupAttention(
+                booking,
+                meta?.meetingPoint,
+                meta?.pickupInstructions
+              );
               const openCancel = openCancels[booking.id];
               const pay = (booking.payment_status ?? '').trim().toLowerCase();
               const statusAccent =
@@ -790,7 +796,7 @@ export default function SupplierBookings() {
                         <p className="mt-1 text-xs font-medium text-finland">Needs a look</p>
                       ) : null}
                       {pickupGap ? (
-                        <p className="mt-1 text-xs font-medium text-amber-800">Pickup missing ⚠</p>
+                        <p className="mt-1 text-xs font-medium text-amber-800">Pickup details missing</p>
                       ) : null}
                       {openCancel ? (
                         <p className="mt-1 text-xs font-medium text-red-800">Awaiting traveler cancellation response</p>
@@ -884,12 +890,11 @@ export default function SupplierBookings() {
               : formatActivityDateLong(booking.booking_date, startHm);
             const paidLabel = formatBookingMoney(booking.amount_paid, booking.currency);
             const needsAck = partnerBookingNeedsLook(booking);
-            const pickupGap =
-              !isStay &&
-              !stayOut &&
-              isPaidPaymentStatus(booking.payment_status) &&
-              !bookingIsCancelledTrip(booking) &&
-              !booking.pickup_time;
+            const pickupGap = partnerBookingHasPickupAttention(
+              booking,
+              meta?.meetingPoint,
+              meta?.pickupInstructions
+            );
             const busy = updatingId === booking.id;
             const refLabel =
               typeof booking.booking_number === 'number' && booking.booking_number > 0
@@ -986,12 +991,14 @@ export default function SupplierBookings() {
                   </dl>
 
                   {pickupGap ? (
-                    <NoticeCallout title="Pickup time missing" tone="warn">
-                      <p>This paid tour has no pickup time yet.</p>
+                    <NoticeCallout title="Pickup details missing" tone="warn">
+                      <p>
+                        Add a pickup time or complete listing meeting/pickup notes so guests know where to be.
+                      </p>
                       <button
                         type="button"
                         className="mt-2 text-sm font-semibold text-finland hover:underline"
-                        onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/pickup`)}
+                        onClick={() => openSupplierPickup(booking.id)}
                       >
                         Open Pickup planner
                       </button>

@@ -3,6 +3,7 @@ import {
   bookingIsStayNight,
   bookingNeedsPickupCopy,
   listingPickupCopyIncomplete,
+  partnerBookingHasPickupAttention,
 } from './pickup-completeness';
 
 describe('pickup completeness', () => {
@@ -30,5 +31,26 @@ describe('pickup completeness', () => {
     expect(bookingNeedsPickupCopy(tourThin, 'Meet', '')).toBe(true);
     expect(bookingNeedsPickupCopy(tourTimed, 'Meet', '')).toBe(false);
     expect(bookingNeedsPickupCopy(tourTimed, '', '')).toBe(false);
+  });
+
+  it('aligns Bookings pickup attention with paid + listing copy truth', () => {
+    const paidThin = {
+      status: 'confirmed',
+      payment_status: 'paid',
+      check_out: null,
+      special_requests: null,
+      pickup_time: null,
+    };
+    const paidCompleteListing = { ...paidThin };
+    const unpaidThin = { ...paidThin, payment_status: 'pending' };
+    expect(partnerBookingHasPickupAttention(paidThin, 'Meet', '')).toBe(true);
+    expect(
+      partnerBookingHasPickupAttention(
+        paidCompleteListing,
+        'Hotel lobby, 07:30, look for the Traverion sign',
+        'Van'
+      )
+    ).toBe(false);
+    expect(partnerBookingHasPickupAttention(unpaidThin, 'Meet', '')).toBe(false);
   });
 });

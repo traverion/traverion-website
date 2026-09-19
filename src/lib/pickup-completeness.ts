@@ -1,4 +1,5 @@
 import { parseStayCheckOutFromNotes } from './stayOccupancy';
+import { isPaidPaymentStatus } from './payment-states';
 
 /** Listing-level pickup copy is incomplete when meeting + pickup notes are too thin to operate. */
 export function listingPickupCopyIncomplete(meetingPoint: string | null | undefined, pickupInstructions: string | null | undefined): boolean {
@@ -36,4 +37,22 @@ export function bookingNeedsPickupCopy(
   if (bookingIsStayNight(b)) return false;
   if ((b.pickup_time ?? '').toString().trim()) return false;
   return listingPickupCopyIncomplete(meetingPoint, pickupInstructions);
+}
+
+/** Paid operating tour with missing pickup details — Bookings ops chip / row / detail must match Today. */
+export function partnerBookingHasPickupAttention(
+  b: {
+    status?: string | null;
+    payment_status?: string | null;
+    check_out?: string | null;
+    special_requests?: string | null;
+    pickup_time?: string | null;
+  },
+  meetingPoint: string | null | undefined,
+  pickupInstructions: string | null | undefined
+): boolean {
+  const st = (b.status ?? '').trim().toLowerCase();
+  if (st === 'cancelled') return false;
+  if (!isPaidPaymentStatus(b.payment_status)) return false;
+  return bookingNeedsPickupCopy(b, meetingPoint, pickupInstructions);
 }
