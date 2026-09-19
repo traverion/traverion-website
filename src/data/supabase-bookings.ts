@@ -3,6 +3,7 @@ import { publicSiteBaseUrl } from '../lib/publicSiteUrl';
 import { supplierPortalPublicBaseUrl } from '../lib/partnerHost';
 import { notifySupplierEvent } from './supabase-supplier-messaging';
 import { hmToPgTime, pgTimeToHm } from './supabase-listings';
+import { upsertBookingPickupNoteOverrides } from '../lib/booking-notes';
 import { travelerSelfCancelBlock, travelerSelfCancelError, travelerSelfCancelIsUnpaidCheckout, partnerBookingStatusRewriteBlock, partnerManualConfirmBlock, partnerManualConfirmError } from '../lib/cancellation-policy';
 import {
   TRAVELER_SELF_CANCEL_EMAIL_DIFF_FULL_REFUND,
@@ -643,6 +644,37 @@ export async function updateBookingSchedule(
   }
 
   return { ok: true };
+}
+
+/** Persist per-booking meeting / pickup instruction overrides in special_requests. */
+export async function updateBookingPickupCopy(
+  bookingId: string,
+  params: { meetingPoint: string; pickupInstructions: string }
+): Promise<{ ok: boolean; error?: string; special_requests?: string }> {
+  if (!supabase) return { ok: false, error: 'Supabase not configured' };
+
+  const { data: prior, error: priorErr } = await supabase
+    .from('bookings')
+    .select('special_requests, status, payment_status')
+    .eq('id', bookingId)
+    .maybeSingle();
+  if (priorErr || !prior) return { ok: false, error: priorErr?.message || 'This booking is not available.' };
+  const closed = travelerSelfCancelBlock(prior);
+  if (closed !== 'none') {
+    return { ok: false, error: travelerSelfCancelError(closed) };
+  }
+
+  const nextNotes = upsertBookingPickupNoteOverrides(
+    prior.special_requests,
+    params.meetingPoint,
+    params.pickupInstructions
+  );
+  const { error } = await supabase
+    .from('bookings')
+    .update({ special_requests: nextNotes || null })
+    .eq('id', bookingId);
+  if (error) return { ok: false, error: error.message || 'Could not save pickup details.' };
+  return { ok: true, special_requests: nextNotes };
 }
 
 /** Acknowledge a booking (supplier confirms receipt). */

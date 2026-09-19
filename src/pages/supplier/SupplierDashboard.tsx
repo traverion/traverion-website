@@ -241,6 +241,7 @@ export default function SupplierDashboard() {
         );
         const copy = resolveBookingPickupCopy({
           bookingOptionId: b.booking_option_id,
+          specialRequests: b.special_requests,
           listingMeetingPoint: listing?.meetingPoint,
           listingPickupInstructions: listing?.pickupInstructions,
           bookingOptions: opts,

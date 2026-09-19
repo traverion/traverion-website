@@ -17,6 +17,7 @@ import {
   updateBookingStatus,
   acknowledgeBooking,
   updateBookingSchedule,
+  updateBookingPickupCopy,
 } from '../../data/supabase-bookings';
 import { fetchMyListings, fetchListingById, pgTimeToHm } from '../../data/supabase-listings';
 import type { BookingRow } from '../../data/supabase-bookings';
@@ -30,6 +31,7 @@ import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import { partnerBookingIsLiveTrip, partnerBookingIsOperatingTrip, partnerBookingNeedsLook } from '../../lib/trip-views';
 import { PARTNER_PICKUP_CSV_HEADER, partnerPickupCsvValues } from '../../lib/partner-pickup-csv';
 import { bookingIsStayNight, bookingNeedsPickupCopy, resolveBookingPickupCopy } from '../../lib/pickup-completeness';
+import { guestFacingBookingNotes } from '../../lib/booking-notes';
 import { parseListingExtras, materializedBookingOptions } from '../../types/listingExtras';
 import { inventoryFamilyFromListing } from '../../lib/inventory';
 import { partnerPickupAllowsForceCancel, partnerManualConfirmBlock } from '../../lib/cancellation-policy';
@@ -191,6 +193,7 @@ export default function SupplierPickupPlanner() {
   const [showSearch, setShowSearch] = useState(false);
   const [dateSectionOpen, setDateSectionOpen] = useState<Record<string, boolean>>({});
   const [scheduleDraft, setScheduleDraft] = useState({ start: '', pickup: '' });
+  const [pickupCopyDraft, setPickupCopyDraft] = useState({ meeting: '', instructions: '' });
   const [actionFeedback, setActionFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const load = useCallback(async () => {
@@ -321,6 +324,7 @@ export default function SupplierPickupPlanner() {
     (b: BookingRow) =>
       resolveBookingPickupCopy({
         bookingOptionId: b.booking_option_id,
+        specialRequests: b.special_requests,
         listingMeetingPoint: meetingPoints[b.listing_id],
         listingPickupInstructions: pickupInstructions[b.listing_id],
         bookingOptions: optionsByListing[b.listing_id],
@@ -387,7 +391,37 @@ export default function SupplierPickupPlanner() {
       start: selectedBooking.start_time ? pgTimeToHm(selectedBooking.start_time) ?? '' : '',
       pickup: selectedBooking.pickup_time ? pgTimeToHm(selectedBooking.pickup_time) ?? '' : '',
     });
-  }, [selectedBooking?.id, selectedBooking?.start_time, selectedBooking?.pickup_time]);
+    const copy = pickupCopyFor(selectedBooking);
+    setPickupCopyDraft({ meeting: copy.meetingPoint, instructions: copy.pickupInstructions });
+  }, [
+    selectedBooking?.id,
+    selectedBooking?.start_time,
+    selectedBooking?.pickup_time,
+    selectedBooking?.special_requests,
+    pickupCopyFor,
+  ]);
+
+  const handleSavePickupCopy = async () => {
+    if (!canEditBookings || !selectedBooking || !partnerBookingIsOperatingTrip(selectedBooking)) return;
+    setUpdatingId(selectedBooking.id);
+    const res = await updateBookingPickupCopy(selectedBooking.id, {
+      meetingPoint: pickupCopyDraft.meeting,
+      pickupInstructions: pickupCopyDraft.instructions,
+    });
+    if (res.ok) {
+      setBookings((prev) =>
+        prev.map((b) =>
+          b.id === selectedBooking.id
+            ? { ...b, special_requests: res.special_requests ?? b.special_requests }
+            : b
+        )
+      );
+      showActionFeedback('success', 'Pickup location saved for this booking.');
+    } else {
+      showActionFeedback('error', res.error || 'Could not save pickup location. Try again.');
+    }
+    setUpdatingId(null);
+  };
 
   useEffect(() => {
     if (!selectedBookingId) {
@@ -633,7 +667,8 @@ export default function SupplierPickupPlanner() {
               {formatBookingParticipantsLabel(selectedBooking)}
             </p>
             <p className="mt-3 text-sm text-ink-muted whitespace-pre-wrap">
-              {selectedBooking.special_requests || 'No special requests or address notes.'}
+              {guestFacingBookingNotes(selectedBooking.special_requests) ||
+                'No special requests or address notes.'}
             </p>
           </div>
 
@@ -699,23 +734,48 @@ export default function SupplierPickupPlanner() {
             </div>
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div>
-              <h2 className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">Meeting point</h2>
-              <p className="text-sm text-ink whitespace-pre-wrap">
-                {pickupCopyFor(selectedBooking).meetingPoint || (
-                  <span className="text-amber-800">Missing — edit on listing option</span>
-                )}
-              </p>
+          <div className="space-y-3">
+            <h2 className="text-[11px] uppercase tracking-[0.16em] text-ink-faint">Pickup location for this booking</h2>
+            <p className="text-xs text-ink-muted leading-snug">
+              Overrides the listing option for this guest only. Leave blank fields to clear the override after save
+              (catalog option copy returns).
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1">
+                  Meeting point
+                </label>
+                <textarea
+                  className="tv-input min-h-[72px] text-sm"
+                  value={pickupCopyDraft.meeting}
+                  disabled={!canEditBookings || !partnerBookingIsOperatingTrip(selectedBooking)}
+                  onChange={(e) => setPickupCopyDraft((d) => ({ ...d, meeting: e.target.value }))}
+                  placeholder="Hotel lobby / gate / address"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1">
+                  Pickup instructions
+                </label>
+                <textarea
+                  className="tv-input min-h-[72px] text-sm"
+                  value={pickupCopyDraft.instructions}
+                  disabled={!canEditBookings || !partnerBookingIsOperatingTrip(selectedBooking)}
+                  onChange={(e) => setPickupCopyDraft((d) => ({ ...d, instructions: e.target.value }))}
+                  placeholder="Look for the van / call on arrival"
+                />
+              </div>
             </div>
-            <div>
-              <h2 className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">Pickup instructions</h2>
-              <p className="text-sm text-ink whitespace-pre-wrap">
-                {pickupCopyFor(selectedBooking).pickupInstructions || (
-                  <span className="text-amber-800">Missing — edit on listing option</span>
-                )}
-              </p>
-            </div>
+            {partnerBookingIsOperatingTrip(selectedBooking) ? (
+              <button
+                type="button"
+                onClick={() => void handleSavePickupCopy()}
+                disabled={!canEditBookings || updatingId === selectedBooking.id}
+                className="tv-btn-secondary disabled:opacity-50"
+              >
+                {updatingId === selectedBooking.id ? 'Saving…' : 'Save pickup location'}
+              </button>
+            ) : null}
           </div>
 
           {partnerBookingIsOperatingTrip(selectedBooking) && (

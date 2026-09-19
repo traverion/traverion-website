@@ -94,4 +94,34 @@ describe('pickup completeness', () => {
       )
     ).toBe(false);
   });
+
+  it('prefers per-booking note overrides over option and listing copy', () => {
+    const opts = [
+      { id: 'a', pickupPlace: 'Hotel lobby, 07:30, look for the Traverion sign', optionInfo: 'Van A' },
+    ];
+    const notes = 'meeting_point: Private villa gate\npickup_instructions: Call +358 on arrival for the guide';
+    const resolved = resolveBookingPickupCopy({
+      bookingOptionId: 'a',
+      specialRequests: notes,
+      listingMeetingPoint: 'Meet',
+      listingPickupInstructions: '',
+      bookingOptions: opts,
+    });
+    expect(resolved.meetingPoint).toBe('Private villa gate');
+    expect(resolved.pickupInstructions).toBe('Call +358 on arrival for the guide');
+    expect(
+      partnerBookingHasPickupAttention(
+        {
+          status: 'confirmed',
+          payment_status: 'paid',
+          pickup_time: null,
+          booking_option_id: 'a',
+          special_requests: notes,
+        },
+        'Meet',
+        '',
+        opts
+      )
+    ).toBe(false);
+  });
 });
