@@ -433,9 +433,9 @@ export default function SupplierReviews() {
                     </div>
 
                     {replies[r.id] && !editingReplyIds.has(r.id) ? (
-                      <div className="mt-4 rounded-xl bg-finland/8 px-4 py-3 ring-1 ring-finland/15">
+                      <div className="mt-3 rounded-lg border border-finland/15 border-l-[3px] border-l-finland bg-finland/[0.04] px-3 py-2.5">
                         <div className="flex items-start justify-between gap-3">
-                          <p className="text-sm font-medium text-ink mb-1">Your reply</p>
+                          <p className="text-xs font-semibold text-ink">Your reply</p>
                           <button
                             type="button"
                             onClick={() => startEditingReply(r.id)}
@@ -444,19 +444,19 @@ export default function SupplierReviews() {
                             Edit reply
                           </button>
                         </div>
-                        <p className="text-ink-muted">{replies[r.id].reply_text}</p>
-                        <p className="text-xs text-ink-faint mt-1">
+                        <p className="mt-0.5 text-sm text-ink-muted leading-snug">{replies[r.id].reply_text}</p>
+                        <p className="text-[11px] text-ink-faint mt-1">
                           {new Date(replies[r.id].created_at).toLocaleDateString()}
                         </p>
                       </div>
                     ) : !reviewHasWrittenFeedback(r) ? (
-                      <p className="mt-4 text-sm text-ink-muted">
+                      <p className="mt-3 text-xs text-ink-muted">
                         Replies are available when the guest leaves a title or written comment with their rating.
                       </p>
                     ) : (
-                      <div className="mt-4">
-                        <label className="block text-sm font-medium text-ink mb-1">
-                          <MessageSquare className="w-4 h-4 inline mr-1" />
+                      <div className="mt-3">
+                        <label className="block text-xs font-medium text-ink mb-1">
+                          <MessageSquare className="w-3.5 h-3.5 inline mr-1" />
                           Reply
                         </label>
                         <textarea
@@ -464,7 +464,7 @@ export default function SupplierReviews() {
                           onChange={(e) => setReplyText((prev) => ({ ...prev, [r.id]: e.target.value }))}
                           placeholder="Thank the customer or answer a question..."
                           rows={2}
-                          className="tv-input"
+                          className="tv-input text-sm"
                         />
                         <div className="mt-2 flex items-center gap-2">
                           <button
