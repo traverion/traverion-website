@@ -85,3 +85,16 @@ export function openSupplierPickup(bookingId?: string): void {
   q.set('booking', bookingId);
   navigateSupplierUrl(`${path}?${q.toString()}`);
 }
+
+/** Open Reviews with optional reply filter and highlighted review card. */
+export function openSupplierReviews(opts?: {
+  reviewId?: string;
+  reply?: 'unreplied' | 'replied' | 'all';
+}): void {
+  const path = `${PARTNER_APP_BASE}/reviews`;
+  const q = new URLSearchParams();
+  if (opts?.reply && opts.reply !== 'all') q.set('reply', opts.reply);
+  if (opts?.reviewId) q.set('highlight', opts.reviewId);
+  const qs = q.toString();
+  navigateSupplierUrl(qs ? `${path}?${qs}` : path);
+}

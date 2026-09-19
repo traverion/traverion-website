@@ -4,6 +4,7 @@ import { stayRangeFromBooking } from '../lib/stayOccupancy';
 import { notifySupplierEvent } from './supabase-supplier-messaging';
 import { inventoryFamilyFromListing, type InventoryFamily } from '../lib/inventory';
 import { parseListingExtras } from '../types/listingExtras';
+import { reviewHasWrittenFeedback } from '../lib/review-feedback';
 
 export type ReviewRow = {
   id: string;
@@ -247,6 +248,15 @@ export async function getReviewRepliesByReviewIds(reviewIds: string[]): Promise<
   const out: Record<string, ReviewReplyRow> = {};
   (data ?? []).forEach((r: ReviewReplyRow) => { out[r.review_id] = r; });
   return out;
+}
+
+/** Count written reviews that still need a supplier reply (Today attention). */
+export async function countUnrepliedWrittenReviewsForSupplier(supplierId: string): Promise<number> {
+  const list = await fetchReviewsForSupplierListings(supplierId);
+  const written = list.filter(reviewHasWrittenFeedback);
+  if (written.length === 0) return 0;
+  const replies = await getReviewRepliesByReviewIds(written.map((r) => r.id));
+  return written.filter((r) => !replies[r.id]).length;
 }
 
 /** Supplier replies to a review (one reply per review). */

@@ -22,13 +22,7 @@ import {
 } from '../../data/supabase-reviews';
 import type { InventoryFamily } from '../../lib/inventory';
 import { openSupplierListingEditor } from '../../lib/supplierPortalNavigation';
-
-/** Star-only reviews have no title or comment; suppliers cannot reply and they do not count as “need reply”. */
-function reviewHasWrittenFeedback(r: ReviewDisplay & { listing_title?: string }): boolean {
-  const title = (r.title ?? '').trim();
-  const comment = (r.comment ?? '').trim();
-  return title.length > 0 || comment.length > 0;
-}
+import { reviewHasWrittenFeedback, reviewNeedsSupplierReply } from '../../lib/review-feedback';
 
 function familyLabel(family: InventoryFamily | undefined): 'Stay' | 'Tour' {
   return family === 'stay' ? 'Stay' : 'Tour';
@@ -86,17 +80,30 @@ export default function SupplierReviews() {
     load();
   }, [load]);
 
-  const readHighlightFromUrl = useCallback(() => {
-    const id = new URLSearchParams(window.location.search).get('highlight');
+  const readFiltersFromUrl = useCallback(() => {
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get('highlight');
     setHighlightReviewId(id && id.length > 0 ? id : null);
+    const reply = params.get('reply');
+    if (reply === 'unreplied' || reply === 'replied' || reply === 'all') {
+      setFilterReply(reply);
+    }
   }, []);
 
   useEffect(() => {
-    readHighlightFromUrl();
-    const onPop = () => readHighlightFromUrl();
+    readFiltersFromUrl();
+    const onPop = () => readFiltersFromUrl();
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
-  }, [readHighlightFromUrl]);
+  }, [readFiltersFromUrl]);
+
+  const syncReplyFilterToUrl = useCallback((next: 'all' | 'unreplied' | 'replied') => {
+    setFilterReply(next);
+    const url = new URL(window.location.href);
+    if (next === 'all') url.searchParams.delete('reply');
+    else url.searchParams.set('reply', next);
+    window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+  }, []);
 
   const listingOptions = useMemo(() => {
     const m = new Map<string, string>();
@@ -106,6 +113,11 @@ export default function SupplierReviews() {
     return [...m.entries()].sort((a, b) => a[1].localeCompare(b[1]));
   }, [reviews]);
 
+  const unrepliedWrittenCount = useMemo(
+    () => reviews.filter((r) => reviewNeedsSupplierReply(r, replies)).length,
+    [reviews, replies]
+  );
+
   const filteredReviews = useMemo(() => {
     return reviews.filter((r) => {
       if (filterListingId && r.listing_id !== filterListingId) return false;
@@ -113,7 +125,7 @@ export default function SupplierReviews() {
       if (filterFamily === 'tour' && r.listing_family === 'stay') return false;
       if (filterRating !== '' && Number(r.rating) !== filterRating) return false;
       if (filterReply === 'unreplied') {
-        if (!reviewHasWrittenFeedback(r) || replies[r.id]) return false;
+        if (!reviewNeedsSupplierReply(r, replies)) return false;
       }
       if (filterReply === 'replied') {
         if (!replies[r.id]) return false;
@@ -127,11 +139,20 @@ export default function SupplierReviews() {
 
   useEffect(() => {
     if (!highlightReviewId || loading) return;
+    const inFiltered = filteredReviews.some((r) => r.id === highlightReviewId);
+    const inAll = reviews.some((r) => r.id === highlightReviewId);
+    if (!inFiltered && inAll) {
+      setFilterListingId('');
+      setFilterFamily('all');
+      setFilterRating('');
+      syncReplyFilterToUrl('all');
+      return;
+    }
     const el = document.getElementById(`supplier-review-card-${highlightReviewId}`);
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
-  }, [highlightReviewId, loading, filteredReviews]);
+  }, [highlightReviewId, loading, filteredReviews, reviews, syncReplyFilterToUrl]);
 
   const handleSubmitReply = async (reviewId: string) => {
     if (!user) return;
@@ -172,7 +193,7 @@ export default function SupplierReviews() {
     setFilterListingId('');
     setFilterFamily('all');
     setFilterRating('');
-    setFilterReply('all');
+    syncReplyFilterToUrl('all');
   };
 
   if (!user) return null;
@@ -182,7 +203,11 @@ export default function SupplierReviews() {
       <SupplierPageHero
         badge="Operations"
         title="Reviews"
-        description="What guests said about your tours and stays. Reply to written reviews."
+        description={
+          unrepliedWrittenCount > 0
+            ? `${unrepliedWrittenCount} written review${unrepliedWrittenCount === 1 ? '' : 's'} need a reply.`
+            : 'What guests said about your tours and stays. Reply to written reviews.'
+        }
       />
 
       {error && (
@@ -263,7 +288,7 @@ export default function SupplierReviews() {
               <label className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Reply status</label>
               <select
                 value={filterReply}
-                onChange={(e) => setFilterReply(e.target.value as typeof filterReply)}
+                onChange={(e) => syncReplyFilterToUrl(e.target.value as typeof filterReply)}
                 className="tv-input w-full"
               >
                 <option value="all">All reviews</option>
@@ -302,7 +327,7 @@ export default function SupplierReviews() {
           ) : (
             <div className="space-y-3 sm:space-y-4">
               {filteredReviews.map((r) => {
-                const needsReply = reviewHasWrittenFeedback(r) && !replies[r.id];
+                const needsReply = reviewNeedsSupplierReply(r, replies);
                 const isHighlighted = highlightReviewId === r.id;
                 const kind = familyLabel(r.listing_family);
                 return (

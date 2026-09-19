@@ -11,11 +11,12 @@ import {
   fetchCancellationRequestsForBookings,
   fetchBookingMessages,
 } from '../../data/supabase-booking-ops';
+import { countUnrepliedWrittenReviewsForSupplier } from '../../data/supabase-reviews';
 import { bookingNeedsPickupCopy, bookingIsStayNight, resolveBookingPickupCopy } from '../../lib/pickup-completeness';
 import { bookingPaymentWasCollected, isRefundDueBooking } from '../../lib/payment-states';
 import type { TourPackage } from '../../types/tour';
 import SupplierPortalNoticePanel from '../../components/supplier/SupplierPortalNoticePanel';
-import { navigateSupplierUrl, openSupplierInbox, openSupplierPickup } from '../../lib/supplierPortalNavigation';
+import { navigateSupplierUrl, openSupplierInbox, openSupplierPickup, openSupplierReviews } from '../../lib/supplierPortalNavigation';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { formatMoney } from '../../lib/money';
 import { bookingOccupiesInventory } from '../../lib/booking-hold';
@@ -83,6 +84,7 @@ export default function SupplierDashboard() {
   const [profile, setProfile] = useState<Awaited<ReturnType<typeof fetchSupplierProfile>> | null>(null);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [firstUnreadBookingId, setFirstUnreadBookingId] = useState<string | null>(null);
+  const [unrepliedReviewCount, setUnrepliedReviewCount] = useState(0);
   const [dashboardLoading, setDashboardLoading] = useState(false);
   const [dashboardError, setDashboardError] = useState<string | null>(null);
 
@@ -98,6 +100,7 @@ export default function SupplierDashboard() {
       setProfile(null);
       setUnreadMessageCount(0);
       setFirstUnreadBookingId(null);
+      setUnrepliedReviewCount(0);
       setDashboardError(null);
       setDashboardLoading(false);
       return;
@@ -108,6 +111,7 @@ export default function SupplierDashboard() {
       fetchMyListings(uid),
       fetchBookingsForSupplier(uid),
       fetchSupplierProfile(uid),
+      countUnrepliedWrittenReviewsForSupplier(uid),
     ]);
     const failures: string[] = [];
     const noteFailure = (key: string) => {
@@ -143,6 +147,11 @@ export default function SupplierDashboard() {
     } else {
       noteFailure('profile');
       setProfile(null);
+    }
+    if (settled[3].status === 'fulfilled') {
+      setUnrepliedReviewCount(settled[3].value);
+    } else {
+      setUnrepliedReviewCount(0);
     }
 
     // Unread traveler messages on paid bookings (same depth Inbox uses).
@@ -264,7 +273,8 @@ export default function SupplierDashboard() {
     pickupGaps.length +
     openCancelCount +
     refundDueCount +
-    unreadMessageCount;
+    unreadMessageCount +
+    unrepliedReviewCount;
 
   const todayEmptyCopy = partnerTodayEmptyScheduleCopy(attentionCount);
 
@@ -385,6 +395,14 @@ export default function SupplierDashboard() {
             {unreadMessageCount > 0 && (
               <AttentionRow tone="info" onClick={() => openSupplierInbox(firstUnreadBookingId ?? undefined)}>
                 {unreadMessageCount} unread traveler message{unreadMessageCount === 1 ? '' : 's'}
+              </AttentionRow>
+            )}
+            {unrepliedReviewCount > 0 && (
+              <AttentionRow
+                tone="info"
+                onClick={() => openSupplierReviews({ reply: 'unreplied' })}
+              >
+                {unrepliedReviewCount} review{unrepliedReviewCount === 1 ? '' : 's'} need a reply
               </AttentionRow>
             )}
             {pendingBookings.length > 0 && (
