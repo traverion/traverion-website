@@ -16,7 +16,7 @@ import { bookingNeedsPickupCopy, bookingIsStayNight, resolveBookingPickupCopy } 
 import { bookingPaymentWasCollected, isRefundDueBooking } from '../../lib/payment-states';
 import type { TourPackage } from '../../types/tour';
 import SupplierPortalNoticePanel from '../../components/supplier/SupplierPortalNoticePanel';
-import { navigateSupplierUrl, openSupplierInbox, openSupplierPickup, openSupplierReviews } from '../../lib/supplierPortalNavigation';
+import { navigateSupplierUrl, openSupplierCalendar, openSupplierInbox, openSupplierPickup, openSupplierReviews } from '../../lib/supplierPortalNavigation';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { formatMoney } from '../../lib/money';
 import { bookingOccupiesInventory } from '../../lib/booking-hold';
@@ -217,6 +217,12 @@ export default function SupplierDashboard() {
       guests: v.guests,
     }));
   }, [todayDepartures, listingTitlesById]);
+
+  /** When today’s work is on one listing, Calendar opens that listing ready to edit. */
+  const calendarFocusListingId = useMemo(() => {
+    if (todayScheduleRows.length === 1) return todayScheduleRows[0].listingId;
+    return undefined;
+  }, [todayScheduleRows]);
 
   const pendingBookings = useMemo(
     () => supplierBookings.filter((b) => partnerBookingIsActiveUnpaidCheckout(b)),
