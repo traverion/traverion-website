@@ -130,7 +130,7 @@ const CANCELLATION_REASONS = SUPPLIER_CANCELLATION_REASON_CODES.map((id) => ({
 
 /** refund_choice values only — never label these “Full refund” as if Stripe already paid out. */
 type RefundChoice = 'full_refund' | 'no_refund' | 'reschedule';
-type BookingView = 'today' | 'upcoming' | 'past' | 'all';
+type BookingView = 'today' | 'tomorrow' | 'upcoming' | 'past' | 'all';
 type OpsFilter = 'all' | 'unpaid' | 'pickup' | 'cancel' | 'refund_due';
 
 function bookingPaginationRange(totalPages: number, current: number): (number | 'ellipsis')[] {
@@ -211,7 +211,7 @@ export default function SupplierBookings() {
   const [view, setView] = useState<BookingView>(() => {
     if (typeof window === 'undefined') return 'all';
     const v = new URLSearchParams(window.location.search).get('view');
-    return v === 'today' || v === 'upcoming' || v === 'past' || v === 'all' ? v : 'all';
+    return v === 'today' || v === 'tomorrow' || v === 'upcoming' || v === 'past' || v === 'all' ? v : 'all';
   });
   const [opsFilter, setOpsFilter] = useState<OpsFilter>('all');
   const [filterListingId, setFilterListingId] = useState(() => {
@@ -295,7 +295,7 @@ export default function SupplierBookings() {
         if (ops === 'all') setOpsFilter('all');
       }
       const v = params.get('view');
-      if (v === 'today' || v === 'upcoming' || v === 'past' || v === 'all') {
+      if (v === 'today' || v === 'tomorrow' || v === 'upcoming' || v === 'past' || v === 'all') {
         if (!(ops === 'refund_due' || ops === 'unpaid' || ops === 'cancel')) setView(v);
       }
       const listing = (params.get('listing') ?? '').trim();
@@ -358,6 +358,11 @@ export default function SupplierBookings() {
   }, []);
 
   const todayIso = new Date().toISOString().slice(0, 10);
+  const tomorrowIso = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().slice(0, 10);
+  })();
 
   const filteredBookings = useMemo(() => {
     const q = filterQuery.trim().toLowerCase();
@@ -366,14 +371,15 @@ export default function SupplierBookings() {
       const meta = listingMeta[b.listing_id];
       const isStay = meta?.family === 'stay' || Boolean(b.check_out);
       const stayRange = isStay ? stayRangeFromBooking(b) : null;
-      if (view === 'today') {
+      if (view === 'today' || view === 'tomorrow') {
+        const dayIso = view === 'today' ? todayIso : tomorrowIso;
         if (opsFilter === 'refund_due' || opsFilter === 'unpaid' || opsFilter === 'cancel') {
           /* Ops filters are money/hold/cancel work — not schedule-scoped. */
         } else if (!partnerBookingIsOperatingTrip(b)) {
           return false;
         } else if (stayRange) {
-          if (!nightsOccupiedByStay(stayRange.checkIn, stayRange.checkOut).includes(todayIso)) return false;
-        } else if (b.booking_date !== todayIso) {
+          if (!nightsOccupiedByStay(stayRange.checkIn, stayRange.checkOut).includes(dayIso)) return false;
+        } else if (b.booking_date !== dayIso) {
           return false;
         }
       }
@@ -450,7 +456,7 @@ export default function SupplierBookings() {
       });
     }
     return rows;
-  }, [bookings, filterDateFrom, filterDateTo, filterListingId, filterQuery, listingMeta, todayIso, view, opsFilter, openCancels]);
+  }, [bookings, filterDateFrom, filterDateTo, filterListingId, filterQuery, listingMeta, todayIso, tomorrowIso, view, opsFilter, openCancels]);
 
   const totalPages = Math.max(1, Math.ceil(filteredBookings.length / BOOKINGS_PAGE_SIZE));
   const safePage = Math.min(Math.max(bookingsListPage, 1), totalPages);
