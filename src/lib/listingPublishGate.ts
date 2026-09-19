@@ -139,3 +139,24 @@ export function getListingPublishBlockers(listing: TourPackage, todayIso?: strin
   }
   return out;
 }
+
+/**
+ * Draft list cards: never say “Ready for travelers” while publish blockers remain.
+ * Health % can still look high when gallery/options fail the gate.
+ */
+export function partnerListingDraftPublishSubtitle(
+  listing: TourPackage,
+  todayIso?: string
+): { blockers: string[]; subtitle: string; readyToPublish: boolean } {
+  const blockers = getListingPublishBlockers(listing, todayIso);
+  if (blockers.length === 0) {
+    return { blockers, subtitle: 'Ready for travelers', readyToPublish: true };
+  }
+  const n = blockers.length;
+  const first = blockers[0] ?? 'Finish required fields';
+  return {
+    blockers,
+    subtitle: `${n} before publish · ${first}`,
+    readyToPublish: false,
+  };
+}

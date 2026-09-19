@@ -35,7 +35,7 @@ import {
 import { canManageBookings } from '../../lib/supplierTeamRoles';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { publicStayListingUrl, publicTourListingUrl } from '../../lib/publicSiteUrl';
-import { getListingPublishBlockers } from '../../lib/listingPublishGate';
+import { getListingPublishBlockers, partnerListingDraftPublishSubtitle } from '../../lib/listingPublishGate';
 import {
   PARTNER_LISTINGS_BUSINESS_REVIEW_NOTE,
   PARTNER_LISTINGS_PAYOUT_REVIEW_NOTE,
@@ -999,12 +999,30 @@ export default function SupplierListings() {
                 healthPct < 100
                   ? computeListingQualityPartnerFocus(listing).checks.find((c) => c.earned < c.max)?.tip ?? null
                   : null;
+              const draftPublish = !isLive ? partnerListingDraftPublishSubtitle(listing) : null;
+              const readinessLine = draftPublish
+                ? draftPublish.readyToPublish
+                  ? healthTip ?? draftPublish.subtitle
+                  : draftPublish.subtitle
+                : healthTip
+                  ? healthTip
+                  : 'Ready for travelers';
               const healthTone =
-                healthPct >= 85 ? 'text-emerald-800' : healthPct >= 60 ? 'text-amber-900' : 'text-rose-800';
+                healthPct >= 85 && (!draftPublish || draftPublish.readyToPublish)
+                  ? 'text-emerald-800'
+                  : healthPct >= 60 || (draftPublish && !draftPublish.readyToPublish)
+                    ? 'text-amber-900'
+                    : 'text-rose-800';
               const healthBar =
-                healthPct >= 85 ? 'bg-emerald-500' : healthPct >= 60 ? 'bg-amber-500' : 'bg-rose-400';
+                healthPct >= 85 && (!draftPublish || draftPublish.readyToPublish)
+                  ? 'bg-emerald-500'
+                  : healthPct >= 60 || (draftPublish && !draftPublish.readyToPublish)
+                    ? 'bg-amber-500'
+                    : 'bg-rose-400';
               const cardAccent = !isLive
-                ? 'border-l-[3px] border-l-slate-400'
+                ? draftPublish && !draftPublish.readyToPublish
+                  ? 'border-l-[3px] border-l-amber-500'
+                  : 'border-l-[3px] border-l-slate-400'
                 : healthPct >= 85
                   ? 'border-l-[3px] border-l-emerald-500'
                   : healthPct >= 60
@@ -1041,6 +1059,11 @@ export default function SupplierListings() {
                               Published
                             </span>
                           ) : null}
+                          {draftPublish && !draftPublish.readyToPublish ? (
+                            <StatusChip tone="warn">
+                              {draftPublish.blockers.length} before publish
+                            </StatusChip>
+                          ) : null}
                         </div>
                         <h2 className="mt-1.5 font-sans text-base font-semibold text-ink leading-snug line-clamp-2">
                           {listing.title}
@@ -1063,11 +1086,13 @@ export default function SupplierListings() {
                           </div>
                           <span className={`text-xs font-semibold tabular-nums shrink-0 ${healthTone}`}>{healthPct}%</span>
                         </div>
-                        {healthTip ? (
-                          <p className="mt-1 text-xs leading-snug text-ink-muted line-clamp-1">{healthTip}</p>
-                        ) : (
-                          <p className="mt-1 text-xs text-ink-muted">Ready for travelers</p>
-                        )}
+                        <p
+                          className={`mt-1 text-xs leading-snug line-clamp-2 ${
+                            draftPublish && !draftPublish.readyToPublish ? 'text-amber-900' : 'text-ink-muted'
+                          }`}
+                        >
+                          {readinessLine}
+                        </p>
                       </div>
                     </button>
                     <div className="flex shrink-0 flex-wrap items-center gap-2 border-t border-black/[0.06] pt-3 sm:flex-col sm:items-stretch sm:justify-center sm:border-t-0 sm:border-l sm:pl-4 sm:pt-0">
@@ -1079,11 +1104,15 @@ export default function SupplierListings() {
                           title={
                             !canPostNewListing
                               ? 'Business verification and payout verification (IBAN + BIC) required.'
-                              : 'Publish this listing on Traverion for travelers to book.'
+                              : draftPublish && !draftPublish.readyToPublish
+                                ? `${draftPublish.blockers.length} item${draftPublish.blockers.length === 1 ? '' : 's'} still block publish.`
+                                : 'Publish this listing on Traverion for travelers to book.'
                           }
                           className="lux-flat inline-flex min-h-9 items-center justify-center rounded-full bg-finland px-3.5 text-xs font-semibold text-white hover:bg-finland/90 disabled:opacity-40"
                         >
-                          Publish
+                          {draftPublish && !draftPublish.readyToPublish
+                            ? `Publish (${draftPublish.blockers.length})`
+                            : 'Publish'}
                         </button>
                       ) : null}
                       {isLive ? (

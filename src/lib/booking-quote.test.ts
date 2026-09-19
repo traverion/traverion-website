@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { clientAmountConflictsWithQuote, formatOptionWeekdays, listingRunsOnDate, quoteBooking, quoteStayNights, stayQuotePriceLines, tourQuotePriceLines, weekdayIndexMondayFirst } from './booking-quote';
 import type { TourPackage } from '../types/tour';
 import type { ListingBookingOption } from '../types/listingExtras';
-import { getListingPublishBlockers } from './listingPublishGate';
+import { getListingPublishBlockers, partnerListingDraftPublishSubtitle } from './listingPublishGate';
 import { parsePathname } from './appRouting';
 
 function option(partial: Partial<ListingBookingOption> & Pick<ListingBookingOption, 'id' | 'name' | 'priceUsd'>): ListingBookingOption {
@@ -330,6 +330,23 @@ describe('getListingPublishBlockers', () => {
       })
     );
     expect(ready).toEqual([]);
+  });
+
+  it('does not call a photo-short draft Ready for travelers on the list subtitle', () => {
+    const almost = tour({
+      subtitle: 'Northern lights by snowmobile with a local guide',
+      description: 'A'.repeat(120),
+      image: 'https://example.com/real.jpg',
+      listingExtras: {
+        bookingOptions: [option({ id: 'opt-small', name: 'Small group', priceUsd: 149 })],
+        galleryImageUrls: ['https://example.com/2.jpg'],
+      },
+    });
+    const tip = partnerListingDraftPublishSubtitle(almost);
+    expect(tip.readyToPublish).toBe(false);
+    expect(tip.blockers.length).toBeGreaterThan(0);
+    expect(tip.subtitle.toLowerCase()).toContain('before publish');
+    expect(tip.subtitle.toLowerCase()).not.toContain('ready for travelers');
   });
 
   it('blocks an option whose season already ended', () => {
