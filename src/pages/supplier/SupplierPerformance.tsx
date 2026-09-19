@@ -44,7 +44,11 @@ export default function SupplierPerformance() {
   const [bookings, setBookings] = useState<BookingRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [windowKey, setWindowKey] = useState<WindowKey>('30d');
+  const [windowKey, setWindowKey] = useState<WindowKey>(() => {
+    const w = new URLSearchParams(window.location.search).get('window');
+    if (w === '30d' || w === '90d' || w === 'all') return w;
+    return '30d';
+  });
 
   const load = useCallback(async () => {
     const uid = user?.id;
