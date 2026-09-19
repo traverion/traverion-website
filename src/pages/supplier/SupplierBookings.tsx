@@ -815,7 +815,22 @@ export default function SupplierBookings() {
           body={
             opsFilter === 'unpaid'
               ? 'No unpaid checkouts match these filters. Live holds appear first when present; expired holds stay here until you clear them.'
-              : 'You have bookings, but none match this tab, date range, or search. That is a filter — not a missing page.'
+              : view === 'tomorrow'
+                ? 'No tours or stays on tomorrow’s schedule. Switch to Upcoming or All to see the rest.'
+                : view === 'today'
+                  ? 'Nothing on today’s schedule. Check Tomorrow or Upcoming if guests are arriving later.'
+                  : 'You have bookings, but none match this tab, date range, or search. That is a filter — not a missing page.'
+          }
+          action={
+            view === 'today' || view === 'tomorrow' ? (
+              <button
+                type="button"
+                onClick={() => writeBookingsSearchToUrl({ view: 'all' })}
+                className="tv-btn-secondary"
+              >
+                Show all bookings
+              </button>
+            ) : undefined
           }
         />
       ) : (
