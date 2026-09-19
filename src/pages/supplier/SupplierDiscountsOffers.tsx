@@ -23,6 +23,7 @@ import {
   SupplierEmptyState,
 } from '../../components/supplier/supplierUi';
 import { formatMoney } from '../../lib/money';
+import { localYmd } from '../../lib/local-ymd';
 import StatusChip from '../../components/StatusChip';
 import NoticeCallout from '../../components/NoticeCallout';
 import { listingIsFamily } from '../../lib/inventory';
@@ -50,7 +51,7 @@ function formatDate(iso: string | null): string {
 }
 
 function offerStatus(d: ListingDiscount): 'upcoming' | 'active' | 'ended' {
-  const t = new Date().toISOString().slice(0, 10);
+  const t = localYmd();
   if (d.valid_until && t > d.valid_until) return 'ended';
   if (d.valid_from && t < d.valid_from) return 'upcoming';
   return 'active';
