@@ -14,7 +14,7 @@ import { isCollectedBooking, isRefundDueBooking } from '../../lib/payment-states
 import { isCollectedEarningKind } from '../../lib/supplier-ledger-balance';
 import { fetchMyListings } from '../../data/supabase-listings';
 import { fetchSupplierLedger, type SupplierLedgerEntry } from '../../data/supabase-booking-ops';
-import { PARTNER_MONEY_PAYOUT_STATUS_NOTE, PARTNER_MONEY_PAID_OUT_TO_DATE_NOTE, PARTNER_MONEY_EMPTY_TITLE, PARTNER_MONEY_EMPTY_BODY, PARTNER_MONEY_LOAD_ERROR_TITLE, PARTNER_MONEY_FILTER_EMPTY_BODY, PARTNER_MONEY_AVAILABLE_BALANCE_LABEL, PARTNER_MONEY_NEGATIVE_BALANCE_LABEL, PARTNER_MONEY_NEGATIVE_BALANCE_NOTE, PARTNER_MONEY_PERIOD_NOT_PAID_OUT_LABEL, PARTNER_MONEY_THRESHOLD_PREFERENCE_NOTE } from '../../lib/booking-confirmation-copy';
+import { PARTNER_MONEY_PAYOUT_STATUS_NOTE, PARTNER_MONEY_EMPTY_TITLE, PARTNER_MONEY_EMPTY_BODY, PARTNER_MONEY_LOAD_ERROR_TITLE, PARTNER_MONEY_FILTER_EMPTY_BODY, PARTNER_MONEY_AVAILABLE_BALANCE_LABEL, PARTNER_MONEY_NEGATIVE_BALANCE_LABEL, PARTNER_MONEY_NEGATIVE_BALANCE_NOTE, PARTNER_MONEY_PERIOD_NOT_PAID_OUT_LABEL, PARTNER_MONEY_THRESHOLD_PREFERENCE_NOTE } from '../../lib/booking-confirmation-copy';
 import NoticeCallout from '../../components/NoticeCallout';
 import StatusChip from '../../components/StatusChip';
 import {
@@ -324,41 +324,38 @@ export default function SupplierEarnings() {
               return (
                 <section
                   key={s.currency}
-                  className="mb-12 rounded-2xl bg-paper-raised p-5 sm:p-7 shadow-soft ring-1 ring-black/[0.06]"
+                  className="mb-8 border-b border-black/[0.06] pb-6"
                 >
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-ink-faint mb-2">
+                  <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-1">
                     {moneyByCurrency.length > 1 ? `${s.currency} · ` : ''}
                     {s.available < 0 ? PARTNER_MONEY_NEGATIVE_BALANCE_LABEL : PARTNER_MONEY_AVAILABLE_BALANCE_LABEL}
                   </p>
                   <p
-                    className={`font-display text-5xl sm:text-6xl tabular-nums tracking-tight ${s.available < 0 ? 'text-red-800' : 'text-ink'}`}
+                    className={`font-display text-3xl sm:text-4xl tabular-nums tracking-tight ${s.available < 0 ? 'text-red-800' : 'text-ink'}`}
                   >
                     {formatMoney(s.available, s.currency)}
                   </p>
-                  <dl className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-4 border-t border-black/[0.06] pt-5">
+                  <dl className="mt-4 grid grid-cols-3 gap-3 border-t border-black/[0.06] pt-4">
                     <div>
-                      <dt className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">Collected</dt>
-                      <dd className="mt-1 text-lg font-semibold tabular-nums text-ink">
+                      <dt className="text-[10px] uppercase tracking-[0.12em] text-ink-faint">Collected</dt>
+                      <dd className="mt-0.5 text-sm font-semibold tabular-nums text-ink">
                         {formatMoney(s.gross, s.currency)}
                       </dd>
-                      <p className="mt-0.5 text-xs text-ink-faint">Paid traveler bookings</p>
                     </div>
                     <div>
-                      <dt className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">Fees &amp; adjustments</dt>
-                      <dd className={`mt-1 text-lg font-semibold tabular-nums ${s.fees < 0 ? 'text-red-800' : 'text-ink'}`}>
+                      <dt className="text-[10px] uppercase tracking-[0.12em] text-ink-faint">Fees</dt>
+                      <dd className={`mt-0.5 text-sm font-semibold tabular-nums ${s.fees < 0 ? 'text-red-800' : 'text-ink'}`}>
                         {formatMoney(s.fees, s.currency)}
                       </dd>
-                      <p className="mt-0.5 text-xs text-ink-faint">Ledger only — never invented</p>
                     </div>
                     <div>
-                      <dt className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">Paid out to date</dt>
-                      <dd className="mt-1 text-lg font-semibold tabular-nums text-ink">
+                      <dt className="text-[10px] uppercase tracking-[0.12em] text-ink-faint">Paid out</dt>
+                      <dd className="mt-1 text-sm font-semibold tabular-nums text-ink">
                         {formatMoney(s.paid, s.currency)}
                       </dd>
-                      <p className="mt-0.5 text-xs text-ink-faint">{PARTNER_MONEY_PAID_OUT_TO_DATE_NOTE}</p>
                     </div>
                   </dl>
-                  <p className="mt-4 text-sm text-ink-muted max-w-lg">{nextPayoutLabel}</p>
+                  <p className="mt-3 text-xs text-ink-muted max-w-lg">{nextPayoutLabel}</p>
                   {s.available < 0 ? (
                     <div className="mt-4 max-w-lg">
                       <NoticeCallout title={PARTNER_MONEY_NEGATIVE_BALANCE_LABEL} tone="danger">
