@@ -186,12 +186,12 @@ function ProfileSection({
   children: React.ReactNode;
 }) {
   return (
-    <section id={id} className="space-y-3 rounded-xl bg-paper-raised p-4 sm:p-5 shadow-soft ring-1 ring-black/[0.06]">
+    <section id={id} className="space-y-2.5 rounded-lg border border-black/[0.06] bg-paper px-3.5 py-3">
       <div>
-        <h2 className="text-base font-semibold text-ink tracking-tight">{title}</h2>
-        {description ? <p className="mt-0.5 text-sm text-ink-muted leading-snug">{description}</p> : null}
+        <h2 className="text-sm font-semibold text-ink tracking-tight">{title}</h2>
+        {description ? <p className="mt-0.5 text-xs text-ink-muted leading-snug">{description}</p> : null}
       </div>
-      <div className="space-y-3">{children}</div>
+      <div className="space-y-2.5">{children}</div>
     </section>
   );
 }
