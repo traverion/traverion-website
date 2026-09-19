@@ -66,6 +66,7 @@ import { partnerBookingIsLiveTrip, bookingIsCancelledTrip, partnerBookingIsOpera
 import { formatStayNightHuman } from '../../lib/stay-calendar';
 import { partnerBookingHasPickupAttention } from '../../lib/pickup-completeness';
 import { openSupplierPickup } from '../../lib/supplierPortalNavigation';
+import { parseListingExtras, materializedBookingOptions } from '../../types/listingExtras';
 
 const BOOKINGS_PAGE_SIZE = 10;
 
@@ -77,6 +78,7 @@ type ListingBookingMeta = {
   family: ReturnType<typeof inventoryFamilyFromListing>;
   meetingPoint: string | null;
   pickupInstructions: string | null;
+  bookingOptions: Array<{ id: string; pickupPlace: string; optionInfo: string }>;
 };
 
 function buildListingMeta(listing: TourPackage): ListingBookingMeta {
@@ -86,6 +88,13 @@ function buildListingMeta(listing: TourPackage): ListingBookingMeta {
     [listing.city, listing.country ?? listing.destination].filter(Boolean).join(', ') ||
     listing.destination ||
     '—';
+  const opts = materializedBookingOptions(
+    parseListingExtras(listing.listingExtras as unknown).bookingOptions
+  ).map((o) => ({
+    id: o.id,
+    pickupPlace: o.pickupPlace,
+    optionInfo: o.optionInfo,
+  }));
   return {
     title: listing.title,
     imageUrl,
@@ -94,6 +103,7 @@ function buildListingMeta(listing: TourPackage): ListingBookingMeta {
     family: inventoryFamilyFromListing(listing),
     meetingPoint: listing.meetingPoint?.trim() || null,
     pickupInstructions: listing.pickupInstructions?.trim() || null,
+    bookingOptions: opts,
   };
 }
 
@@ -319,7 +329,15 @@ export default function SupplierBookings() {
       }
       if (opsFilter === 'pickup') {
         const meta = listingMeta[b.listing_id];
-        if (!partnerBookingHasPickupAttention(b, meta?.meetingPoint, meta?.pickupInstructions)) return false;
+        if (
+          !partnerBookingHasPickupAttention(
+            b,
+            meta?.meetingPoint,
+            meta?.pickupInstructions,
+            meta?.bookingOptions
+          )
+        )
+          return false;
       }
       if (opsFilter === 'cancel') {
         if (!openCancels[b.id]) return false;
@@ -736,7 +754,8 @@ export default function SupplierBookings() {
               const pickupGap = partnerBookingHasPickupAttention(
                 booking,
                 meta?.meetingPoint,
-                meta?.pickupInstructions
+                meta?.pickupInstructions,
+                meta?.bookingOptions
               );
               const openCancel = openCancels[booking.id];
               const pay = (booking.payment_status ?? '').trim().toLowerCase();
@@ -891,7 +910,8 @@ export default function SupplierBookings() {
             const pickupGap = partnerBookingHasPickupAttention(
               booking,
               meta?.meetingPoint,
-              meta?.pickupInstructions
+              meta?.pickupInstructions,
+              meta?.bookingOptions
             );
             const busy = updatingId === booking.id;
             const refLabel =

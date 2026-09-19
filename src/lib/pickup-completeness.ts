@@ -39,6 +39,30 @@ export function bookingNeedsPickupCopy(
   return listingPickupCopyIncomplete(meetingPoint, pickupInstructions);
 }
 
+/** Resolve meeting/pickup copy for a booking from its option when possible. */
+export function resolveBookingPickupCopy(params: {
+  bookingOptionId?: string | null;
+  listingMeetingPoint?: string | null;
+  listingPickupInstructions?: string | null;
+  bookingOptions?: Array<{ id: string; pickupPlace?: string; optionInfo?: string }> | null;
+}): { meetingPoint: string; pickupInstructions: string } {
+  const oid = (params.bookingOptionId ?? '').trim();
+  const opts = params.bookingOptions ?? [];
+  if (oid) {
+    const opt = opts.find((o) => o.id === oid);
+    if (opt) {
+      return {
+        meetingPoint: (opt.pickupPlace ?? '').trim(),
+        pickupInstructions: (opt.optionInfo ?? '').trim(),
+      };
+    }
+  }
+  return {
+    meetingPoint: (params.listingMeetingPoint ?? '').trim(),
+    pickupInstructions: (params.listingPickupInstructions ?? '').trim(),
+  };
+}
+
 /** Paid operating tour with missing pickup details — Bookings ops chip / row / detail must match Today. */
 export function partnerBookingHasPickupAttention(
   b: {
@@ -47,12 +71,20 @@ export function partnerBookingHasPickupAttention(
     check_out?: string | null;
     special_requests?: string | null;
     pickup_time?: string | null;
+    booking_option_id?: string | null;
   },
   meetingPoint: string | null | undefined,
-  pickupInstructions: string | null | undefined
+  pickupInstructions: string | null | undefined,
+  bookingOptions?: Array<{ id: string; pickupPlace?: string; optionInfo?: string }> | null
 ): boolean {
   const st = (b.status ?? '').trim().toLowerCase();
   if (st === 'cancelled') return false;
   if (!isPaidPaymentStatus(b.payment_status)) return false;
-  return bookingNeedsPickupCopy(b, meetingPoint, pickupInstructions);
+  const resolved = resolveBookingPickupCopy({
+    bookingOptionId: b.booking_option_id,
+    listingMeetingPoint: meetingPoint,
+    listingPickupInstructions: pickupInstructions,
+    bookingOptions,
+  });
+  return bookingNeedsPickupCopy(b, resolved.meetingPoint, resolved.pickupInstructions);
 }

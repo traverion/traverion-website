@@ -11,7 +11,7 @@ import {
   fetchCancellationRequestsForBookings,
   fetchBookingMessages,
 } from '../../data/supabase-booking-ops';
-import { bookingNeedsPickupCopy, bookingIsStayNight } from '../../lib/pickup-completeness';
+import { bookingNeedsPickupCopy, bookingIsStayNight, resolveBookingPickupCopy } from '../../lib/pickup-completeness';
 import { bookingPaymentWasCollected, isRefundDueBooking } from '../../lib/payment-states';
 import type { TourPackage } from '../../types/tour';
 import SupplierPortalNoticePanel from '../../components/supplier/SupplierPortalNoticePanel';
@@ -25,6 +25,7 @@ import { formatBookingParticipantsLabel } from '../../lib/participant-mix';
 import { pgTimeToHm } from '../../data/supabase-listings';
 import { stayRangeFromBooking } from '../../lib/stayOccupancy';
 import { PARTNER_INBOX_MESSAGE_FETCH_CAP } from '../../lib/partner-inbox-cap';
+import { parseListingExtras, materializedBookingOptions } from '../../types/listingExtras';
 
 type AttentionTone = 'danger' | 'warn' | 'info';
 
@@ -235,7 +236,16 @@ export default function SupplierDashboard() {
         if (!bookingOccupiesInventory(b) || !bookingPaymentWasCollected(b.payment_status)) return false;
         if (!b.booking_date || b.booking_date < todayYmd) return false;
         const listing = listingsById[b.listing_id];
-        return bookingNeedsPickupCopy(b, listing?.meetingPoint, listing?.pickupInstructions);
+        const opts = materializedBookingOptions(
+          parseListingExtras(listing?.listingExtras as unknown).bookingOptions
+        );
+        const copy = resolveBookingPickupCopy({
+          bookingOptionId: b.booking_option_id,
+          listingMeetingPoint: listing?.meetingPoint,
+          listingPickupInstructions: listing?.pickupInstructions,
+          bookingOptions: opts,
+        });
+        return bookingNeedsPickupCopy(b, copy.meetingPoint, copy.pickupInstructions);
       }),
     [supplierBookings, listingsById, todayYmd]
   );

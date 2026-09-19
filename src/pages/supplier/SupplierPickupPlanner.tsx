@@ -29,7 +29,8 @@ import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import { partnerBookingIsLiveTrip, partnerBookingIsOperatingTrip, partnerBookingNeedsLook } from '../../lib/trip-views';
 import { PARTNER_PICKUP_CSV_HEADER, partnerPickupCsvValues } from '../../lib/partner-pickup-csv';
-import { bookingIsStayNight, bookingNeedsPickupCopy } from '../../lib/pickup-completeness';
+import { bookingIsStayNight, bookingNeedsPickupCopy, resolveBookingPickupCopy } from '../../lib/pickup-completeness';
+import { parseListingExtras, materializedBookingOptions } from '../../types/listingExtras';
 import { inventoryFamilyFromListing } from '../../lib/inventory';
 import { partnerPickupAllowsForceCancel, partnerManualConfirmBlock } from '../../lib/cancellation-policy';
 import { PARTNER_CANCEL_REQUEST_REFUND_POLICY } from '../../lib/booking-confirmation-copy';
@@ -172,6 +173,9 @@ export default function SupplierPickupPlanner() {
   const [listingTitles, setListingTitles] = useState<Record<string, string>>({});
   const [meetingPoints, setMeetingPoints] = useState<Record<string, string>>({});
   const [pickupInstructions, setPickupInstructions] = useState<Record<string, string>>({});
+  const [optionsByListing, setOptionsByListing] = useState<
+    Record<string, Array<{ id: string; pickupPlace: string; optionInfo: string }>>
+  >({});
   const [listingGuideMeta, setListingGuideMeta] = useState<Record<string, ListingGuideMeta>>({});
   const [stayListingIds, setStayListingIds] = useState<Set<string>>(() => new Set());
   const [loading, setLoading] = useState(true);
@@ -205,20 +209,39 @@ export default function SupplierPickupPlanner() {
       const titles: Record<string, string> = {};
       const points: Record<string, string> = {};
       const instructions: Record<string, string> = {};
+      const optionsMap: Record<string, Array<{ id: string; pickupPlace: string; optionInfo: string }>> = {};
       const guideMeta: Record<string, ListingGuideMeta> = {};
       const stayIds = new Set<string>();
-      listings.forEach((l) => {
+      const absorbListing = (l: {
+        id: string;
+        title: string;
+        meetingPoint?: string | null;
+        pickupInstructions?: string | null;
+        listingExtras?: unknown;
+        duration?: string | null;
+        bestTime?: string | null;
+        startLocation?: string | null;
+        defaultStartTime?: string | null;
+        pickupWindowMinutesBeforeMin?: number | null;
+        pickupWindowMinutesBeforeMax?: number | null;
+      }) => {
         titles[l.id] = l.title;
         points[l.id] = l.meetingPoint?.trim() ?? '';
         instructions[l.id] = l.pickupInstructions?.trim() ?? '';
+        optionsMap[l.id] = materializedBookingOptions(
+          parseListingExtras(l.listingExtras as unknown).bookingOptions
+        ).map((o) => ({ id: o.id, pickupPlace: o.pickupPlace, optionInfo: o.optionInfo }));
         guideMeta[l.id] = {
           duration: l.duration?.trim() || '—',
           bestTime: l.bestTime?.trim() || '—',
           startLocation: l.startLocation?.trim() || '—',
-          defaultStartTime: l.defaultStartTime,
+          defaultStartTime: l.defaultStartTime ?? undefined,
           pickupWindowMin: l.pickupWindowMinutesBeforeMin ?? 0,
           pickupWindowMax: l.pickupWindowMinutesBeforeMax ?? 30,
         };
+      };
+      listings.forEach((l) => {
+        absorbListing(l);
         if (inventoryFamilyFromListing(l) === 'stay') stayIds.add(l.id);
       });
       const listingIds = [...new Set(bookingsList.map((b) => b.listing_id))];
@@ -226,17 +249,7 @@ export default function SupplierPickupPlanner() {
         if (titles[lid]) continue;
         const listing = await fetchListingById(lid);
         if (listing) {
-          titles[lid] = listing.title;
-          points[lid] = listing.meetingPoint?.trim() ?? '';
-          instructions[lid] = listing.pickupInstructions?.trim() ?? '';
-          guideMeta[lid] = {
-            duration: listing.duration?.trim() || '—',
-            bestTime: listing.bestTime?.trim() || '—',
-            startLocation: listing.startLocation?.trim() || '—',
-            defaultStartTime: listing.defaultStartTime,
-            pickupWindowMin: listing.pickupWindowMinutesBeforeMin ?? 0,
-            pickupWindowMax: listing.pickupWindowMinutesBeforeMax ?? 30,
-          };
+          absorbListing(listing);
           if (inventoryFamilyFromListing(listing) === 'stay') stayIds.add(lid);
         }
       }
@@ -250,6 +263,7 @@ export default function SupplierPickupPlanner() {
       setListingTitles(titles);
       setMeetingPoints(points);
       setPickupInstructions(instructions);
+      setOptionsByListing(optionsMap);
       setListingGuideMeta(guideMeta);
     } catch (e) {
       setError(userFacingError(e, USER_ERROR.pickup));
@@ -303,10 +317,23 @@ export default function SupplierPickupPlanner() {
     [filtered]
   );
 
-  const needsPickupInfo = useCallback(
+  const pickupCopyFor = useCallback(
     (b: BookingRow) =>
-      bookingNeedsPickupCopy(b, meetingPoints[b.listing_id], pickupInstructions[b.listing_id]),
-    [meetingPoints, pickupInstructions]
+      resolveBookingPickupCopy({
+        bookingOptionId: b.booking_option_id,
+        listingMeetingPoint: meetingPoints[b.listing_id],
+        listingPickupInstructions: pickupInstructions[b.listing_id],
+        bookingOptions: optionsByListing[b.listing_id],
+      }),
+    [meetingPoints, pickupInstructions, optionsByListing]
+  );
+
+  const needsPickupInfo = useCallback(
+    (b: BookingRow) => {
+      const copy = pickupCopyFor(b);
+      return bookingNeedsPickupCopy(b, copy.meetingPoint, copy.pickupInstructions);
+    },
+    [pickupCopyFor]
   );
 
   const listBookings = useMemo(() => {
@@ -435,18 +462,19 @@ export default function SupplierPickupPlanner() {
 
   const exportCsv = () => {
     const escape = (s: string) => `"${String(s).replace(/"/g, '""')}"`;
-    const rows = listBookings.map((b) =>
-      partnerPickupCsvValues(
+    const rows = listBookings.map((b) => {
+      const copy = pickupCopyFor(b);
+      return partnerPickupCsvValues(
         b,
         listingTitles[b.listing_id] ?? '',
         b.start_time ? pgTimeToHm(b.start_time) ?? '' : '',
         b.pickup_time ? pgTimeToHm(b.pickup_time) ?? '' : '',
-        meetingPoints[b.listing_id] ?? '',
-        pickupInstructions[b.listing_id] ?? ''
+        copy.meetingPoint,
+        copy.pickupInstructions
       )
         .map((c) => escape(c))
-        .join(',')
-    );
+        .join(',');
+    });
     const csv = [PARTNER_PICKUP_CSV_HEADER.join(','), ...rows].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -675,16 +703,16 @@ export default function SupplierPickupPlanner() {
             <div>
               <h2 className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">Meeting point</h2>
               <p className="text-sm text-ink whitespace-pre-wrap">
-                {meetingPoints[selectedBooking.listing_id] || (
-                  <span className="text-amber-800">Missing — edit on listing</span>
+                {pickupCopyFor(selectedBooking).meetingPoint || (
+                  <span className="text-amber-800">Missing — edit on listing option</span>
                 )}
               </p>
             </div>
             <div>
               <h2 className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">Pickup instructions</h2>
               <p className="text-sm text-ink whitespace-pre-wrap">
-                {pickupInstructions[selectedBooking.listing_id] || (
-                  <span className="text-amber-800">Missing — edit on listing</span>
+                {pickupCopyFor(selectedBooking).pickupInstructions || (
+                  <span className="text-amber-800">Missing — edit on listing option</span>
                 )}
               </p>
             </div>

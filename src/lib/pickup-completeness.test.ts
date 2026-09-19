@@ -4,6 +4,7 @@ import {
   bookingNeedsPickupCopy,
   listingPickupCopyIncomplete,
   partnerBookingHasPickupAttention,
+  resolveBookingPickupCopy,
 } from './pickup-completeness';
 
 describe('pickup completeness', () => {
@@ -52,5 +53,45 @@ describe('pickup completeness', () => {
       )
     ).toBe(false);
     expect(partnerBookingHasPickupAttention(unpaidThin, 'Meet', '')).toBe(false);
+  });
+
+  it('resolves pickup copy from the booked option when present', () => {
+    const opts = [
+      { id: 'a', pickupPlace: 'Hotel lobby, 07:30, look for the Traverion sign', optionInfo: 'Van A' },
+      { id: 'b', pickupPlace: 'Meet', optionInfo: '' },
+    ];
+    const fromB = resolveBookingPickupCopy({
+      bookingOptionId: 'b',
+      listingMeetingPoint: opts[0]!.pickupPlace,
+      listingPickupInstructions: opts[0]!.optionInfo,
+      bookingOptions: opts,
+    });
+    expect(fromB.meetingPoint).toBe('Meet');
+    expect(
+      partnerBookingHasPickupAttention(
+        {
+          status: 'confirmed',
+          payment_status: 'paid',
+          pickup_time: null,
+          booking_option_id: 'b',
+        },
+        opts[0]!.pickupPlace,
+        opts[0]!.optionInfo,
+        opts
+      )
+    ).toBe(true);
+    expect(
+      partnerBookingHasPickupAttention(
+        {
+          status: 'confirmed',
+          payment_status: 'paid',
+          pickup_time: null,
+          booking_option_id: 'a',
+        },
+        'Meet',
+        '',
+        opts
+      )
+    ).toBe(false);
   });
 });
