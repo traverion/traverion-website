@@ -3,6 +3,7 @@ import { getListingBookingOptionDurationIssue, materializedBookingOptions } from
 import type { ListingBookingOption } from '../types/listingExtras';
 import { LISTING_PLACEHOLDER_IMAGE, MIN_LISTING_DESCRIPTION_LENGTH } from './listingQualityScore';
 import { priceCategoryValidationMessages } from './price-categories';
+import { localYmd } from './local-ymd';
 
 function optionPublishIssues(
   o: ListingBookingOption,
@@ -54,7 +55,7 @@ function optionPublishIssues(
  * Human-readable blockers before publishing a listing. Keeps the bar reasonable for a first tour.
  */
 export function getListingPublishBlockers(listing: TourPackage, todayIso?: string): string[] {
-  const today = todayIso ?? new Date().toISOString().slice(0, 10);
+  const today = todayIso ?? localYmd();
   const out: string[] = [];
   const isStay = listing.listingExtras?.inventoryFamily === 'stay';
   const title = listing.title?.trim() ?? '';
