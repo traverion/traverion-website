@@ -241,6 +241,17 @@ export default function SupplierReviews() {
             ? `${unrepliedWrittenCount} written review${unrepliedWrittenCount === 1 ? '' : 's'} need a reply.`
             : 'What guests said about your tours and stays. Reply to written reviews.'
         }
+        actions={
+          unrepliedWrittenCount > 0 ? (
+            <button
+              type="button"
+              onClick={() => writeFiltersToUrl({ reply: 'unreplied' })}
+              className="tv-btn-secondary text-sm"
+            >
+              Needs reply · {unrepliedWrittenCount}
+            </button>
+          ) : undefined
+        }
       />
 
       {error && (
@@ -330,7 +341,7 @@ export default function SupplierReviews() {
               </select>
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2 mb-8">
+          <div className="flex flex-wrap items-center gap-2 mb-4">
             {hasActiveFilters ? (
               <>
                 <button type="button" onClick={clearFilters} className="tv-btn-ghost">
@@ -358,7 +369,7 @@ export default function SupplierReviews() {
               }
             />
           ) : (
-            <div className="space-y-3 sm:space-y-4">
+            <div className="space-y-2.5 sm:space-y-3">
               {filteredReviews.map((r) => {
                 const needsReply = reviewNeedsSupplierReply(r, replies);
                 const isHighlighted = highlightReviewId === r.id;
@@ -367,7 +378,7 @@ export default function SupplierReviews() {
                   <article
                     key={r.id}
                     id={`supplier-review-card-${r.id}`}
-                    className={`overflow-hidden rounded-2xl bg-paper-raised p-4 sm:p-5 shadow-soft ring-1 ring-black/[0.06] ${
+                    className={`overflow-hidden rounded-xl bg-paper-raised p-3.5 sm:p-4 shadow-soft ring-1 ring-black/[0.06] ${
                       needsReply
                         ? 'border-l-[3px] border-l-amber-500'
                         : replies[r.id]
