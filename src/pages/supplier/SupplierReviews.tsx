@@ -41,6 +41,7 @@ export default function SupplierReviews() {
   const [filterListingId, setFilterListingId] = useState('');
   const [filterRating, setFilterRating] = useState<number | ''>('');
   const [filterReply, setFilterReply] = useState<'all' | 'unreplied' | 'replied'>('all');
+  const [editingReplyIds, setEditingReplyIds] = useState<Set<string>>(new Set());
 
   const load = useCallback(async () => {
     const uid = user?.id;
@@ -127,10 +128,30 @@ export default function SupplierReviews() {
     const res = await submitReviewReply(reviewId, user.id, text);
     setReplyingId(null);
     if (res.success) {
+      setEditingReplyIds((prev) => {
+        if (!prev.has(reviewId)) return prev;
+        const next = new Set(prev);
+        next.delete(reviewId);
+        return next;
+      });
       load();
     } else {
       setReplyError(userFacingError(res.error, 'Could not save that reply. Try again.'));
     }
+  };
+
+  const startEditingReply = (reviewId: string) => {
+    setEditingReplyIds((prev) => new Set(prev).add(reviewId));
+  };
+
+  const cancelEditingReply = (reviewId: string) => {
+    setEditingReplyIds((prev) => {
+      if (!prev.has(reviewId)) return prev;
+      const next = new Set(prev);
+      next.delete(reviewId);
+      return next;
+    });
+    setReplyText((prev) => ({ ...prev, [reviewId]: replies[reviewId]?.reply_text ?? '' }));
   };
 
   const clearFilters = () => {
@@ -307,9 +328,18 @@ export default function SupplierReviews() {
                 </div>
               </div>
 
-              {replies[r.id] ? (
+              {replies[r.id] && !editingReplyIds.has(r.id) ? (
                 <div className="mt-4 rounded-xl bg-finland/8 px-4 py-3 ring-1 ring-finland/15">
-                  <p className="text-sm font-medium text-ink mb-1">Your reply</p>
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="text-sm font-medium text-ink mb-1">Your reply</p>
+                    <button
+                      type="button"
+                      onClick={() => startEditingReply(r.id)}
+                      className="text-xs font-semibold text-finland hover:underline shrink-0"
+                    >
+                      Edit reply
+                    </button>
+                  </div>
                   <p className="text-ink-muted">{replies[r.id].reply_text}</p>
                   <p className="text-xs text-ink-faint mt-1">
                     {new Date(replies[r.id].created_at).toLocaleDateString()}
@@ -332,15 +362,27 @@ export default function SupplierReviews() {
                     rows={2}
                     className="tv-input"
                   />
-                  <button
-                    type="button"
-                    disabled={replyingId === r.id || !(replyText[r.id] ?? '').trim()}
-                    onClick={() => handleSubmitReply(r.id)}
-                    className="tv-btn-primary mt-2 inline-flex items-center gap-1.5 disabled:opacity-50"
-                  >
-                    <Check className="w-3.5 h-3.5" />
-                    {replyingId === r.id ? 'Saving…' : 'Save reply'}
-                  </button>
+                  <div className="mt-2 flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={replyingId === r.id || !(replyText[r.id] ?? '').trim()}
+                      onClick={() => handleSubmitReply(r.id)}
+                      className="tv-btn-primary inline-flex items-center gap-1.5 disabled:opacity-50"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      {replyingId === r.id ? 'Saving…' : replies[r.id] ? 'Save changes' : 'Save reply'}
+                    </button>
+                    {replies[r.id] && editingReplyIds.has(r.id) ? (
+                      <button
+                        type="button"
+                        disabled={replyingId === r.id}
+                        onClick={() => cancelEditingReply(r.id)}
+                        className="tv-btn-ghost disabled:opacity-50"
+                      >
+                        Cancel
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
               )}
             </article>
