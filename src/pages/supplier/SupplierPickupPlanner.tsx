@@ -38,6 +38,12 @@ import { partnerPickupAllowsForceCancel, partnerManualConfirmBlock } from '../..
 import { PARTNER_CANCEL_REQUEST_REFUND_POLICY } from '../../lib/booking-confirmation-copy';
 import NoticeCallout from '../../components/NoticeCallout';
 import { formatBookingParticipantsLabel } from '../../lib/participant-mix';
+import { partnerPaymentLabel } from '../../lib/payment-states';
+import {
+  formatPartnerCheckoutHoldLabel,
+  partnerUnpaidCheckoutHoldsInventory,
+} from '../../lib/booking-hold';
+import { partnerBookingIsUnpaidCheckout } from '../../lib/trip-views';
 
 function toYmd(d: Date): string {
   const y = d.getFullYear();
@@ -114,6 +120,7 @@ type PlannerBookingCardProps = {
   missingPickup: boolean;
   urgentSoon?: boolean;
   showActivityDate?: boolean;
+  selected?: boolean;
   onOpen: () => void;
 };
 
@@ -124,6 +131,7 @@ function PlannerBookingCard({
   missingPickup,
   urgentSoon,
   showActivityDate,
+  selected,
   onOpen,
 }: PlannerBookingCardProps) {
   const participants = formatBookingParticipantsLabel(booking);
@@ -136,34 +144,57 @@ function PlannerBookingCard({
   const guide = guideScheduleSummary(guideMeta);
   const ref =
     typeof booking.booking_number === 'number' ? `#${booking.booking_number}` : null;
+  const payLabel = partnerPaymentLabel(booking);
+  const holdLine = partnerBookingIsUnpaidCheckout(booking)
+    ? formatPartnerCheckoutHoldLabel(booking)
+    : null;
+  const holdLive = partnerUnpaidCheckoutHoldsInventory(booking);
+  const accent = urgentSoon
+    ? 'border-l-red-500'
+    : missingPickup
+      ? 'border-l-amber-500'
+      : holdLine && holdLive
+        ? 'border-l-amber-400'
+        : holdLine
+          ? 'border-l-black/15'
+          : 'border-l-finland';
 
   return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className="lux-flat w-full py-4 text-left"
+    <article
+      className={`overflow-hidden rounded-xl bg-paper-raised ring-1 ring-black/[0.06] border-l-[3px] ${accent} ${
+        selected ? 'ring-finland/35 shadow-soft' : ''
+      } ${missingPickup || urgentSoon ? 'ring-amber-200/70' : ''}`}
     >
-      {urgentSoon && (
-        <p className="mb-1 text-xs font-medium text-red-700">Starts within 24 hours — pickup details still incomplete</p>
-      )}
-      {!urgentSoon && missingPickup && (
-        <p className="mb-1 text-xs font-medium text-amber-800">Pickup details still incomplete</p>
-      )}
-      <div className="flex items-baseline justify-between gap-3">
-        <p className="font-semibold text-ink truncate">{booking.guest_name ?? booking.guest_email ?? 'Guest'}</p>
-        <span className="text-xs font-medium capitalize text-ink-muted shrink-0">{booking.status}</span>
-      </div>
-      <p className="mt-0.5 text-sm text-ink-muted truncate">
-        {ref ? `${ref} · ` : ''}
-        {listingTitle}
-      </p>
-      <p className="mt-1 text-sm text-ink-muted">
-        {actDate ? `${actDate} · ` : ''}
-        {participants}
-        {times ? ` · ${times}` : ''}
-      </p>
-      {guide ? <p className="mt-1 line-clamp-1 text-xs text-ink-faint">{guide}</p> : null}
-    </button>
+      <button type="button" onClick={onOpen} className="lux-flat w-full px-3 py-2.5 sm:px-3.5 sm:py-3 text-left">
+        {urgentSoon ? (
+          <p className="mb-1 text-[11px] font-medium text-red-700">
+            Starts within 24 hours — pickup details still incomplete
+          </p>
+        ) : null}
+        {!urgentSoon && missingPickup ? (
+          <p className="mb-1 text-[11px] font-medium text-amber-800">Pickup details still incomplete</p>
+        ) : null}
+        <div className="flex items-baseline justify-between gap-3">
+          <p className="font-semibold text-ink truncate">{booking.guest_name ?? booking.guest_email ?? 'Guest'}</p>
+          <span className="text-xs font-medium text-ink-muted shrink-0">{payLabel}</span>
+        </div>
+        <p className="mt-0.5 text-sm text-ink-muted truncate">
+          {ref ? `${ref} · ` : ''}
+          {listingTitle}
+        </p>
+        <p className="mt-1 text-sm text-ink-muted">
+          {actDate ? `${actDate} · ` : ''}
+          {participants}
+          {times ? ` · ${times}` : ''}
+        </p>
+        {holdLine ? (
+          <p className={`mt-1 text-[11px] font-medium ${holdLive ? 'text-amber-900' : 'text-ink-faint'}`}>
+            {holdLine}
+          </p>
+        ) : null}
+        {guide ? <p className="mt-1 line-clamp-1 text-[11px] text-ink-faint">{guide}</p> : null}
+      </button>
+    </article>
   );
 }
 
@@ -635,19 +666,28 @@ export default function SupplierPickupPlanner() {
 
         {actionFeedbackBanner}
 
-        <div className="mt-6 mb-10 rounded-2xl bg-paper-raised p-5 sm:p-7 shadow-soft ring-1 ring-black/[0.06]">
+        <div className="mt-6 mb-8 rounded-2xl bg-paper-raised p-4 sm:p-5 shadow-soft ring-1 ring-black/[0.06]">
           <div className="inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15 mb-3">
             Pickup details
           </div>
-          <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">{listingTitle}</h1>
+          <h1 className="font-display text-2xl sm:text-3xl text-ink tracking-tight">{listingTitle}</h1>
           <p className="mt-2 text-sm text-ink-muted">
             {selectedBooking.guest_name ?? selectedBooking.guest_email ?? 'Guest'} · {activityDate}
             {' · '}
-            <span className="capitalize">{selectedBooking.status}</span>
+            {partnerPaymentLabel(selectedBooking)}
             {' · '}
             {formatBookingParticipantsLabel(selectedBooking)}
             {bookingTimesLine(selectedBooking) ? ` · ${bookingTimesLine(selectedBooking)}` : ''}
           </p>
+          {partnerBookingIsUnpaidCheckout(selectedBooking) ? (
+            <p
+              className={`mt-1.5 text-xs font-medium ${
+                partnerUnpaidCheckoutHoldsInventory(selectedBooking) ? 'text-amber-900' : 'text-ink-faint'
+              }`}
+            >
+              {formatPartnerCheckoutHoldLabel(selectedBooking)}
+            </p>
+          ) : null}
           {typeof selectedBooking.booking_number === 'number' ? (
             <p className="mt-1 text-xs text-ink-faint">Booking #{selectedBooking.booking_number}</p>
           ) : null}
@@ -1089,7 +1129,7 @@ export default function SupplierPickupPlanner() {
           }
         />
       ) : (
-        <div className="space-y-10">
+        <div className="space-y-8">
           {bookingsGroupedByDate.orderedKeys.map((ymd) => {
             const sectionOpen = dateSectionOpen[ymd] !== false;
             const dayRows = bookingsGroupedByDate.byDay.get(ymd) ?? [];
@@ -1108,7 +1148,7 @@ export default function SupplierPickupPlanner() {
                   className="lux-flat flex w-full items-baseline justify-between gap-3 py-2 text-left"
                 >
                   <div className="min-w-0">
-                    <p className="font-display text-xl sm:text-2xl text-ink tracking-tight">
+                    <p className="font-display text-lg sm:text-xl text-ink tracking-tight">
                       {formatPickupSectionDate(ymd)}
                     </p>
                     <p className="mt-0.5 text-sm text-ink-muted">
@@ -1130,7 +1170,7 @@ export default function SupplierPickupPlanner() {
                   }`}
                 >
                   <div className="overflow-hidden">
-                    <div className="divide-y divide-black/[0.06]">
+                    <div className="space-y-2 pt-1">
                       {dayRows.map((b) => {
                         const missing = needsPickupInfo(b);
                         const hrs = hoursUntilBookingDayStart(b.booking_date);
@@ -1143,6 +1183,7 @@ export default function SupplierPickupPlanner() {
                             guideMeta={listingGuideMeta[b.listing_id]}
                             missingPickup={missing}
                             urgentSoon={urgentSoon}
+                            selected={selectedBookingId === b.id}
                             onOpen={() => setSelectedBookingAndUrl(b.id)}
                           />
                         );
@@ -1167,7 +1208,7 @@ export default function SupplierPickupPlanner() {
                 className="lux-flat flex w-full items-baseline justify-between gap-3 py-2 text-left"
               >
                 <div>
-                  <p className="font-display text-xl sm:text-2xl text-ink tracking-tight">No activity date</p>
+                  <p className="font-display text-lg sm:text-xl text-ink tracking-tight">No activity date</p>
                   <p className="mt-0.5 text-sm text-ink-muted">
                     {bookingsGroupedByDate.noDate.length} booking
                     {bookingsGroupedByDate.noDate.length === 1 ? '' : 's'}
@@ -1186,7 +1227,7 @@ export default function SupplierPickupPlanner() {
                 }`}
               >
                 <div className="overflow-hidden">
-                  <div className="divide-y divide-black/[0.06]">
+                  <div className="space-y-2 pt-1">
                     {bookingsGroupedByDate.noDate.map((b) => (
                       <PlannerBookingCard
                         key={b.id}
@@ -1194,6 +1235,7 @@ export default function SupplierPickupPlanner() {
                         listingTitle={listingTitles[b.listing_id] ?? 'Listing'}
                         guideMeta={listingGuideMeta[b.listing_id]}
                         missingPickup={needsPickupInfo(b)}
+                        selected={selectedBookingId === b.id}
                         onOpen={() => setSelectedBookingAndUrl(b.id)}
                       />
                     ))}
