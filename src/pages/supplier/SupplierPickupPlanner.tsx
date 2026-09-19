@@ -738,12 +738,10 @@ export default function SupplierPickupPlanner() {
 
         {actionFeedbackBanner}
 
-        <div className="mt-6 mb-8 rounded-2xl bg-paper-raised p-4 sm:p-5 shadow-soft ring-1 ring-black/[0.06]">
-          <div className="inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15 mb-3">
-            Pickup details
-          </div>
-          <h1 className="font-display text-2xl sm:text-3xl text-ink tracking-tight">{listingTitle}</h1>
-          <p className="mt-2 text-sm text-ink-muted">
+        <div className="mt-6 mb-6 rounded-xl bg-paper-raised p-3.5 sm:p-4 shadow-soft ring-1 ring-black/[0.06]">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-1.5">Pickup detail</p>
+          <h1 className="font-display text-xl sm:text-2xl text-ink tracking-tight">{listingTitle}</h1>
+          <p className="mt-1.5 text-sm text-ink-muted">
             {selectedBooking.guest_name ?? selectedBooking.guest_email ?? 'Guest'} · {activityDate}
             {' · '}
             {partnerPaymentLabel(selectedBooking)}
@@ -765,7 +763,7 @@ export default function SupplierPickupPlanner() {
           ) : null}
         </div>
 
-        <div className="space-y-8 max-w-2xl">
+        <div className="space-y-6 max-w-2xl">
           <div>
             <h2 className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">Guest</h2>
             <p className="font-semibold text-ink">
