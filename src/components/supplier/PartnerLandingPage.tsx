@@ -158,8 +158,8 @@ export default function PartnerLandingPage() {
             <div className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]">
               <h2 className="font-display text-2xl sm:text-3xl tracking-tight mb-3">A business product</h2>
               <p className="text-ink-muted leading-relaxed m-0">
-                Listings, calendar, bookings, and payout details live in one partner account. Travelers never see this.
-                Partners never land in a traveler trip inbox by accident.
+                Listings, calendar, bookings, and Money live in one partner account. Travelers never see this.
+                Partners never land in a traveler trip inbox by accident. Payouts stay manual until Traverion enables them.
               </p>
             </div>
           </div>
