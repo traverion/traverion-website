@@ -89,9 +89,9 @@ const EXCLUDE_SLOT_COUNT = 6;
 const MAX_ACCESSIBILITY_LENGTH = 500;
 const MAX_TIMELINE_LENGTH = 800;
 
-/** Stay: 4 steps. Tour: 5 steps (Review at the end). */
-function wizardStepCount(isStay: boolean): number {
-  return isStay ? 4 : 5;
+/** Stay and tour both end on Review (publish readiness). */
+function wizardStepCount(_isStay: boolean): number {
+  return 5;
 }
 
 function wizardStepStorageKey(editingId: string | null, isStay: boolean) {
@@ -630,7 +630,7 @@ function isStepSatisfied(idx: number, form: ListingFormState): boolean {
     // Draft Continue still allows one photo so partners are not trapped mid-wizard.
     return listingPhotosReadyToPublish(form);
   }
-  if (idx === 4 && !isStay) {
+  if (idx === 4) {
     // Review — allow Continue/Save when prior steps are complete enough to publish or draft-save
     return isStepSatisfied(0, form) && isStepSatisfied(1, form) && isStepSatisfied(2, form) && isStepSatisfied(3, form);
   }
@@ -784,6 +784,7 @@ export default function SupplierListingForm({
         { id: 'practical' as StepId, label: 'Location' },
         { id: 'cost_options' as StepId, label: 'Pricing' },
         { id: 'photos' as StepId, label: 'Photos' },
+        { id: 'review' as StepId, label: 'Review' },
       ];
     }
     return [
@@ -803,6 +804,7 @@ export default function SupplierListingForm({
         'Where is it, and what should guests know before they arrive?',
         'Nightly rate, rooms, and capacity — priced for the whole stay, not per person.',
         'Add your strongest photo first — it becomes the cover in search.',
+        'Check what’s ready, fix gaps, then save as draft or publish.',
       ] as const;
     }
     return [
@@ -859,24 +861,31 @@ export default function SupplierListingForm({
     if (stepIdx === 3) {
       return [{ id: 'supplier-listing-field-photos', label: 'Photos' }];
     }
-    if (stepIdx === 4 && !stay) {
+    if (stepIdx === 4) {
       return [{ id: 'supplier-listing-field-review', label: 'Completeness' }];
     }
     return [{ id: 'supplier-listing-field-photos', label: 'Photos' }];
   }, [stepIdx, form.inventoryFamily]);
 
-  // Tour review step: jump links into prior sections via step navigation
-  const reviewJumpTargets = useMemo(
-    () =>
-      [
-        { step: 0, label: 'Basics' },
-        { step: 0, label: 'Content' },
+  // Review step: jump links into prior sections via step navigation
+  const reviewJumpTargets = useMemo(() => {
+    const stay = form.inventoryFamily === 'stay' || createFamily === 'stay';
+    if (stay) {
+      return [
+        { step: 0, label: 'Property' },
         { step: 1, label: 'Location' },
-        { step: 2, label: 'Options & pricing' },
+        { step: 2, label: 'Pricing & rooms' },
         { step: 3, label: 'Photos' },
-      ] as const,
-    []
-  );
+      ] as const;
+    }
+    return [
+      { step: 0, label: 'Basics' },
+      { step: 0, label: 'Content' },
+      { step: 1, label: 'Location' },
+      { step: 2, label: 'Options & pricing' },
+      { step: 3, label: 'Photos' },
+    ] as const;
+  }, [form.inventoryFamily, createFamily]);
 
   const jumpToEditorSection = useCallback((id: string) => {
     const el = document.getElementById(id);
@@ -940,7 +949,7 @@ export default function SupplierListingForm({
       gallery: photos,
       hero: photos,
       photos: photos,
-      review: stay ? 3 : 4,
+      review: 4,
     };
   }, [form.inventoryFamily]);
 
@@ -2591,15 +2600,49 @@ export default function SupplierListingForm({
             );
           })()}
 
-          {stepIdx === 4 && form.inventoryFamily !== 'stay' && createFamily !== 'stay' && (
+          {stepIdx === 4 && (
             <div id="supplier-listing-field-review" className="space-y-6">
               <div>
                 <h3 className="font-display text-xl text-ink">Review &amp; publish</h3>
                 <p className="mt-1 text-sm text-ink-muted leading-relaxed max-w-2xl">
-                  Options are versions of this experience. Adult and Child prices belong inside an option — not as separate
-                  options. Fix anything incomplete below, then save or publish.
+                  {form.inventoryFamily === 'stay' || createFamily === 'stay'
+                    ? 'Check property details, pricing, and photos. Fix anything incomplete below, then save or publish.'
+                    : 'Options are versions of this experience. Adult and Child prices belong inside an option — not as separate options. Fix anything incomplete below, then save or publish.'}
                 </p>
               </div>
+              {form.inventoryFamily === 'stay' || createFamily === 'stay' ? (
+                <ul className="space-y-2">
+                  {reviewJumpTargets.map((jump) => {
+                    const ready = isStepSatisfied(jump.step, form);
+                    const softOk = canContinueListingStep(jump.step, form);
+                    const tone = ready
+                      ? 'bg-emerald-50 ring-emerald-200/80 text-emerald-950'
+                      : softOk
+                        ? 'bg-amber-50 ring-amber-200/80 text-amber-950'
+                        : 'bg-paper ring-black/[0.06] text-ink';
+                    return (
+                      <li key={`${jump.step}-${jump.label}`}>
+                        <button
+                          type="button"
+                          onClick={() => setStepIdxPersisted(jump.step)}
+                          className={`lux-flat flex w-full items-start justify-between gap-3 rounded-xl px-4 py-3.5 text-left ring-1 ${tone}`}
+                        >
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold">
+                              {ready ? '✓ ' : softOk ? '! ' : '○ '}
+                              {jump.label}
+                            </p>
+                            <p className="mt-1 text-xs opacity-80">
+                              {ready ? 'Ready for publish' : softOk ? 'Draft OK — finish before publish' : 'Needs attention'}
+                            </p>
+                          </div>
+                          <span className="text-xs font-medium shrink-0 opacity-70">Edit</span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
               <ul className="space-y-2">
                 {builderSections.map((section) => {
                   const jump =
@@ -2644,17 +2687,26 @@ export default function SupplierListingForm({
                   );
                 })}
               </ul>
+              )}
               <div className="rounded-xl bg-finland/[0.05] px-4 py-4 ring-1 ring-finland/15">
                 <p className="font-medium text-ink">
                   {form.status === 'published' ? 'Update your live listing' : PARTNER_LISTING_PUBLISH_STEP_TITLE}
                 </p>
                 <p className="mt-2 text-sm text-ink-muted leading-relaxed">{PARTNER_LISTING_PUBLISH_STEP_NOTE}</p>
-                {listingBuilderReadyToPublish(form) ? (
+                {publishBlockersPreview.length === 0 ? (
                   <p className="mt-3 text-sm font-medium text-emerald-800">All sections look ready to publish.</p>
                 ) : (
-                  <p className="mt-3 text-sm font-medium text-amber-900">
-                    Finish the incomplete sections above before publishing. You can always save a draft.
-                  </p>
+                  <div className="mt-3 space-y-1.5">
+                    <p className="text-sm font-medium text-amber-900">
+                      {publishBlockersPreview.length} item{publishBlockersPreview.length === 1 ? '' : 's'} still needed before
+                      publish. You can always save a draft.
+                    </p>
+                    <ul className="list-disc pl-4 text-xs text-amber-950/90 space-y-0.5">
+                      {publishBlockersPreview.slice(0, 4).map((line) => (
+                        <li key={line}>{line}</li>
+                      ))}
+                    </ul>
+                  </div>
                 )}
               </div>
             </div>
