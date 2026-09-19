@@ -120,27 +120,27 @@ export default function SupplierListings() {
   }, [listings, workspaceFilter]);
 
   const startNewTour = useCallback(() => {
-    if (!canEditListings || !canPostNewListing) return;
+    if (!canEditListings) return;
     setShowCreateChooser(false);
     setCreateFamily('tour');
     setEditingId(null);
     setShowForm(true);
     setFormFocusSection(null);
-  }, [canEditListings, canPostNewListing]);
+  }, [canEditListings]);
 
   const startNewStay = useCallback(() => {
-    if (!canEditListings || !canPostNewListing) return;
+    if (!canEditListings) return;
     setShowCreateChooser(false);
     setCreateFamily('stay');
     setEditingId(null);
     setShowForm(true);
     setFormFocusSection(null);
-  }, [canEditListings, canPostNewListing]);
+  }, [canEditListings]);
 
   const openCreateChooser = useCallback(() => {
-    if (!canEditListings || !canPostNewListing) return;
+    if (!canEditListings) return;
     setShowCreateChooser(true);
-  }, [canEditListings, canPostNewListing]);
+  }, [canEditListings]);
 
   const showFormRef = useRef(false);
   const editorHistoryPushedRef = useRef(false);
@@ -661,12 +661,12 @@ export default function SupplierListings() {
           <button
             type="button"
             onClick={openCreateChooser}
-            disabled={!canEditListings || !canPostNewListing}
+            disabled={!canEditListings}
             title={
               !canEditListings
                 ? 'Your role can view listings but cannot add new ones.'
                 : !canPostNewListing
-                  ? 'Traverion must approve your business and your payout (IBAN + BIC) before you can add a listing.'
+                  ? 'You can draft listings now. Publishing requires Traverion-approved business and payout verification.'
                   : undefined
             }
             className="tv-btn-primary w-full md:w-auto"
@@ -720,23 +720,20 @@ export default function SupplierListings() {
       {canEditListings && !canPostNewListing && (
         <div className="p-4 rounded-2xl bg-paper-raised ring-1 ring-black/[0.06] text-ink text-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
+            <p className="font-semibold text-ink">You can draft listings now</p>
             {missingBusinessDetails && (
-              <p className="font-semibold text-ink">Missing information</p>
+              <p className="mt-2 font-medium text-ink">Publishing still needs a complete business profile</p>
             )}
             {missingPayoutForPublish && !missingBusinessDetails && (
-              <p className="font-semibold text-ink">
+              <p className="mt-2 font-medium text-ink">
                 {!payoutOnFile
-                  ? 'Payout bank details required'
+                  ? 'Publishing still needs payout bank details'
                   : (payoutVerificationStatus ?? '').trim().toLowerCase() === 'rejected'
-                    ? 'Payout verification needs an update'
-                    : 'Payout verification in progress'}
+                    ? 'Payout verification needs an update before publishing'
+                    : 'Payout verification in progress — required before publishing'}
               </p>
             )}
-            <p
-              className={
-                missingBusinessDetails || missingPayoutForPublish ? 'mt-2' : ''
-              }
-            >
+            <p className="mt-2">
               {profileGateMessage}
             </p>
             {!missingBusinessDetails && verificationStatus && (
@@ -814,7 +811,7 @@ export default function SupplierListings() {
                 className="tv-btn-primary"
               >
                 <Pencil className="w-4 h-4" />
-                Edit tour
+                Edit listing
               </button>
               <button
                 type="button"
@@ -955,12 +952,12 @@ export default function SupplierListings() {
             <button
               type="button"
               onClick={openCreateChooser}
-              disabled={!canEditListings || !canPostNewListing}
+              disabled={!canEditListings}
               title={
                 !canEditListings
                   ? 'Your role cannot add listings.'
                   : !canPostNewListing
-                    ? 'Business verification and payout verification (IBAN + BIC) required.'
+                    ? 'You can draft now. Publishing needs business and payout verification.'
                     : undefined
               }
               className="tv-btn-primary"

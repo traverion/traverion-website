@@ -27,10 +27,12 @@ import { getDisplayPriceForTour, isSupabaseListingId } from '../lib/discount-dis
 import {
   fetchReviewsByListingId,
   getReviewAggregateForListing,
+  getReviewRepliesByReviewIds,
   submitReview,
   userHasCompletedBookingForListing,
   userHasReviewedListing,
   type ReviewDisplay,
+  type ReviewReplyRow,
 } from '../data/supabase-reviews';
 import { fetchSupplierPublicLegal } from '../data/supabase-supplier-profile';
 import { setPageMetaWithOg, setTourJsonLd, clearTourJsonLd } from '../lib/seo';
@@ -121,6 +123,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   const [tourLoadError, setTourLoadError] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState(0);
   const [reviews, setReviews] = useState<ReviewDisplay[]>([]);
+  const [reviewReplies, setReviewReplies] = useState<Record<string, ReviewReplyRow>>({});
   const [reviewAggregate, setReviewAggregate] = useState<{ rating: number; count: number } | null>(null);
   const [canLeaveReview, setCanLeaveReview] = useState(false);
   const [hasReviewed, setHasReviewed] = useState(false);
@@ -345,7 +348,11 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
 
   const loadReviews = useCallback(() => {
     if (!tourId || !isSupabaseConfigured()) return;
-    fetchReviewsByListingId(tourId).then(setReviews);
+    void fetchReviewsByListingId(tourId).then(async (rows) => {
+      setReviews(rows);
+      const replies = await getReviewRepliesByReviewIds(rows.map((r) => r.id));
+      setReviewReplies(replies);
+    });
     getReviewAggregateForListing(tourId).then(setReviewAggregate);
   }, [tourId]);
 
@@ -1521,6 +1528,14 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                 </div>
                 {r.title && <p className="font-medium text-ink mb-1">{r.title}</p>}
                 <p className="text-ink">{r.comment}</p>
+                {reviewReplies[r.id]?.reply_text ? (
+                  <div className="mt-3 rounded-xl bg-finland/[0.04] px-3.5 py-3 ring-1 ring-finland/10">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-finland mb-1">
+                      Response from the operator
+                    </p>
+                    <p className="text-sm text-ink leading-relaxed">{reviewReplies[r.id]!.reply_text}</p>
+                  </div>
+                ) : null}
               </div>
             ))}
           </div>

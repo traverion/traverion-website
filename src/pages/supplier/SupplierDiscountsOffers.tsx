@@ -25,6 +25,7 @@ import {
 import { formatMoney } from '../../lib/money';
 import StatusChip from '../../components/StatusChip';
 import NoticeCallout from '../../components/NoticeCallout';
+import { listingIsFamily } from '../../lib/inventory';
 
 function optionLabelForDiscount(tour: TourPackage, d: ListingDiscount): string {
   if (!d.booking_option_id?.trim()) return 'All options';
@@ -124,7 +125,11 @@ export default function SupplierDiscountsOffers() {
     if (ok) void loadAll();
   };
 
-  const publishedCount = useMemo(() => listings.filter((l) => l.status !== 'draft').length, [listings]);
+  const offerableListings = useMemo(
+    () => listings.filter((l) => l.status !== 'draft' && !listingIsFamily(l, 'stay')),
+    [listings]
+  );
+  const publishedCount = offerableListings.length;
 
   return (
     <div className={SUPPLIER_PAGE_CLASS}>
@@ -132,7 +137,7 @@ export default function SupplierDiscountsOffers() {
         badge="Operations"
         icon={Tag}
         title="Offers"
-        description="Limited-time percentage discounts on a listing option. Travelers see the lower price on Traverion."
+        description="Limited-time percentage discounts on a tour booking option. Travelers see the lower price on Traverion tour checkout. Stay (accommodation) discounts are not supported yet."
         actions={
           canEdit ? (
             <button
@@ -169,7 +174,7 @@ export default function SupplierDiscountsOffers() {
         <SupplierEmptyState
           icon={MapPin}
           title="No listings yet"
-          body="Offers attach to a published tour or stay. You have no listings yet, so this page is empty. That is expected until you create one."
+          body="Offers attach to a published tour with booking options. You have no listings yet, so this page is empty. That is expected until you create one."
           action={
             <button type="button" onClick={goToListings} className="tv-btn-primary">
               Open listings
@@ -179,8 +184,9 @@ export default function SupplierDiscountsOffers() {
       ) : (
         <>
           {publishedCount === 0 && canEdit ? (
-            <NoticeCallout title="Publish a listing first" tone="warn">
-              Publish at least one listing to create offers that appear on the public site.
+            <NoticeCallout title="Publish a tour first" tone="warn">
+              Offers apply to tour booking options on the public site. Stays do not support percentage discounts yet —
+              publish at least one tour with options to create an offer.
             </NoticeCallout>
           ) : null}
 
@@ -291,7 +297,7 @@ export default function SupplierDiscountsOffers() {
           setWizardOpen(false);
           setEditingDiscount(null);
         }}
-        listings={listings}
+        listings={offerableListings}
         editing={editingDiscount}
         onSaved={() => void loadAll()}
       />

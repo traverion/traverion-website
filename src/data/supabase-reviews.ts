@@ -1,6 +1,9 @@
 import { supabase } from '../lib/supabase';
 import { supplierPortalPublicBaseUrl } from '../lib/partnerHost';
+import { stayRangeFromBooking } from '../lib/stayOccupancy';
 import { notifySupplierEvent } from './supabase-supplier-messaging';
+import { inventoryFamilyFromListing, type InventoryFamily } from '../lib/inventory';
+import { parseListingExtras } from '../types/listingExtras';
 
 export type ReviewRow = {
   id: string;
@@ -148,7 +151,7 @@ export async function userHasCompletedBookingForListing(
 
   const { data, error } = await supabase
     .from('bookings')
-    .select('id, booking_date, start_time')
+    .select('id, booking_date, start_time, check_out, nights, special_requests')
     .eq('listing_id', listingId)
     .eq('guest_email', userEmail)
     .eq('status', 'confirmed')
@@ -156,10 +159,25 @@ export async function userHasCompletedBookingForListing(
     .limit(50);
   if (error || !data?.length) return { canReview: false };
 
-  const eligible = data.find((b: { id: string; booking_date: string | null; start_time?: string | null }) => {
-    const startMs = toStartMs(b.booking_date, b.start_time ?? null);
-    return startMs != null && nowMs > startMs;
-  });
+  const eligible = data.find(
+    (b: {
+      id: string;
+      booking_date: string | null;
+      start_time?: string | null;
+      check_out?: string | null;
+      nights?: number | null;
+      special_requests?: string | null;
+    }) => {
+      const stay = stayRangeFromBooking(b);
+      if (stay) {
+        // Stay: eligible after checkout day begins (local date boundary).
+        const checkoutMs = new Date(`${stay.checkOut}T00:00:00`).getTime();
+        return Number.isFinite(checkoutMs) && nowMs >= checkoutMs;
+      }
+      const startMs = toStartMs(b.booking_date, b.start_time ?? null);
+      return startMs != null && nowMs > startMs;
+    }
+  );
   if (!eligible) return { canReview: false };
   return { canReview: true, bookingId: eligible.id };
 }
@@ -177,9 +195,14 @@ export async function userHasReviewedListing(userId: string, listingId: string):
 }
 
 /** Fetch all reviews for a supplier's listings (for supplier portal). Throws on Supabase error. */
-export async function fetchReviewsForSupplierListings(supplierId: string): Promise<(ReviewDisplay & { listing_title?: string })[]> {
+export async function fetchReviewsForSupplierListings(
+  supplierId: string
+): Promise<(ReviewDisplay & { listing_title?: string; listing_family?: InventoryFamily })[]> {
   if (!supabase) return [];
-  const { data: listings, error: listErr } = await supabase.from('listings').select('id, title').eq('supplier_id', supplierId);
+  const { data: listings, error: listErr } = await supabase
+    .from('listings')
+    .select('id, title, listing_extras')
+    .eq('supplier_id', supplierId);
   if (listErr) throw new Error(listErr.message);
   const ids = (listings ?? []).map((l: { id: string }) => l.id);
   if (ids.length === 0) return [];
@@ -189,13 +212,19 @@ export async function fetchReviewsForSupplierListings(supplierId: string): Promi
     .in('listing_id', ids)
     .order('created_at', { ascending: false });
   if (error) throw new Error(error.message);
-  const byListingId: Record<string, string> = {};
-  (listings ?? []).forEach((l: { id: string; title: string }) => { byListingId[l.id] = l.title; });
+  const byListingId: Record<string, { title: string; family: InventoryFamily }> = {};
+  (listings ?? []).forEach((l: { id: string; title: string; listing_extras?: unknown }) => {
+    byListingId[l.id] = {
+      title: l.title,
+      family: inventoryFamilyFromListing({ listingExtras: parseListingExtras(l.listing_extras) }),
+    };
+  });
   return (data ?? []).map((r: ReviewRow) => ({
     ...r,
     images: Array.isArray(r.images) ? r.images : [],
     verified: !!r.booking_id,
-    listing_title: byListingId[r.listing_id],
+    listing_title: byListingId[r.listing_id]?.title,
+    listing_family: byListingId[r.listing_id]?.family ?? 'tour',
   }));
 }
 
