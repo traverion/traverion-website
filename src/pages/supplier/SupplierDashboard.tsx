@@ -24,6 +24,7 @@ import { partnerTodayEmptyScheduleCopy } from '../../lib/partner-today-copy';
 import { formatBookingParticipantsLabel } from '../../lib/participant-mix';
 import { pgTimeToHm } from '../../data/supabase-listings';
 import { stayRangeFromBooking } from '../../lib/stayOccupancy';
+import { PARTNER_INBOX_MESSAGE_FETCH_CAP } from '../../lib/partner-inbox-cap';
 
 type AttentionTone = 'danger' | 'warn' | 'info';
 
@@ -143,10 +144,10 @@ export default function SupplierDashboard() {
       setProfile(null);
     }
 
-    // Unread traveler messages on paid bookings (same signal Inbox uses).
+    // Unread traveler messages on paid bookings (same depth Inbox uses).
     const paidForMsgs = bookingsForUnread
       .filter((b) => bookingPaymentWasCollected(b.payment_status))
-      .slice(0, 40);
+      .slice(0, PARTNER_INBOX_MESSAGE_FETCH_CAP);
     const unreadFlags = await Promise.all(
       paidForMsgs.map(async (b) => {
         const msgs = await fetchBookingMessages(b.id);

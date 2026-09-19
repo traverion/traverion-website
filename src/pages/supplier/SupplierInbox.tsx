@@ -22,10 +22,10 @@ import { bookingPaymentWasCollected, partnerPaymentLabel } from '../../lib/payme
 import { partnerInboxListsBooking } from '../../lib/messaging-authorization';
 import StatusChip, { toneForPaymentLabel } from '../../components/StatusChip';
 import { formatBookingParticipantsLabel } from '../../lib/participant-mix';
+import { PARTNER_INBOX_MESSAGE_FETCH_CAP } from '../../lib/partner-inbox-cap';
 
 /** Message previews are only fetched for the most recent N paid bookings; older
  * closed/cancelled threads beyond this may not show here. See olderConversationsHidden. */
-const INBOX_MESSAGE_FETCH_CAP = 80;
 
 function readBookingIdFromUrl(): string | null {
   const id = new URLSearchParams(window.location.search).get('booking');
@@ -61,13 +61,13 @@ export default function SupplierInbox() {
       const openIds = new Set(cancels.filter((c) => c.status === 'requested').map((c) => c.booking_id));
       setOpenCancelIds(openIds);
       const lasts: Record<string, BookingMessageRow> = {};
-      const withMessagesFetched = collected.slice(0, INBOX_MESSAGE_FETCH_CAP);
+      const withMessagesFetched = collected.slice(0, PARTNER_INBOX_MESSAGE_FETCH_CAP);
       // Always fetch the deep-linked booking so Today → Inbox ?booking= works beyond the cap.
       if (deepLinkId && !withMessagesFetched.some((b) => b.id === deepLinkId)) {
         const deep = collected.find((b) => b.id === deepLinkId);
         if (deep) withMessagesFetched.push(deep);
       }
-      setOlderConversationsHidden(collected.length > INBOX_MESSAGE_FETCH_CAP);
+      setOlderConversationsHidden(collected.length > PARTNER_INBOX_MESSAGE_FETCH_CAP);
       await Promise.all(
         withMessagesFetched.map(async (b) => {
           const msgs = await fetchBookingMessages(b.id);
@@ -160,7 +160,7 @@ export default function SupplierInbox() {
       />
       {olderConversationsHidden ? (
         <NoticeCallout title="Showing your most recent paid bookings" tone="info">
-          You have more than {INBOX_MESSAGE_FETCH_CAP} paid bookings, so this Inbox only checks messages for the {INBOX_MESSAGE_FETCH_CAP}
+          You have more than {PARTNER_INBOX_MESSAGE_FETCH_CAP} paid bookings, so this Inbox only checks messages for the {PARTNER_INBOX_MESSAGE_FETCH_CAP}
           most recent ones. A closed or cancelled booking older than that won't appear here even if it has a message
           history — open it from Bookings instead.
         </NoticeCallout>
@@ -193,7 +193,7 @@ export default function SupplierInbox() {
           }
         />
       ) : (
-        <ul className="divide-y divide-black/[0.06] rounded-xl bg-paper-raised ring-1 ring-black/[0.05] overflow-hidden">
+        <ul className="divide-y divide-slate-100 rounded-lg bg-white ring-1 ring-slate-200/90 overflow-hidden">
           {threads.map((b) => {
             const open = openId === b.id;
             const last = lastByBooking[b.id];
@@ -208,10 +208,10 @@ export default function SupplierInbox() {
                 openCancellation: openCancelIds.has(b.id),
               }) === 'closed';
             return (
-              <li key={b.id} className={`${open ? 'bg-finland/[0.03]' : ''} ${unread ? 'bg-amber-50/50' : ''}`}>
+              <li key={b.id} className={`${open ? 'bg-finland/[0.04]' : ''} ${unread ? 'bg-amber-50/40' : ''}`}>
                 <button
                   type="button"
-                  className="lux-flat w-full text-left px-4 py-3.5"
+                  className="partner-row-interact lux-flat w-full text-left px-3.5 py-2.5"
                   onClick={() => {
                     const opening = !open;
                     setOpenBookingId(opening ? b.id : null, { markReadLocal: opening });
