@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { MessageSquare } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { fetchBookingsForSupplier, type BookingRow } from '../../data/supabase-bookings';
-import { fetchMyListings } from '../../data/supabase-listings';
+import { fetchMyListings, pgTimeToHm } from '../../data/supabase-listings';
 import {
   fetchBookingMessages,
   fetchCancellationRequestsForBookings,
@@ -10,7 +10,14 @@ import {
   messagingComposeBlock,
   type BookingMessageRow,
 } from '../../data/supabase-booking-ops';
-import { SUPPLIER_PAGE_CLASS, SupplierEmptyState, SupplierListSkeleton, SupplierPageHero } from '../../components/supplier/supplierUi';
+import {
+  SUPPLIER_PAGE_CLASS,
+  SupplierEmptyState,
+  SupplierListSkeleton,
+  SupplierModalHeader,
+  SupplierModalShell,
+  SupplierPageHero,
+} from '../../components/supplier/supplierUi';
 import NoticeCallout from '../../components/NoticeCallout';
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
@@ -43,6 +50,17 @@ export default function SupplierInbox() {
   const [error, setError] = useState<string | null>(null);
   const [olderConversationsHidden, setOlderConversationsHidden] = useState(false);
   const [deepLinkMissing, setDeepLinkMissing] = useState(false);
+  const [mobileSheet, setMobileSheet] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia('(max-width: 767px)').matches : false
+  );
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)');
+    const onChange = () => setMobileSheet(mq.matches);
+    onChange();
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
 
   const load = useCallback(async () => {
     const uid = user?.id;
@@ -151,6 +169,76 @@ export default function SupplierInbox() {
     [openId, threads]
   );
 
+  useEffect(() => {
+    if (!openId || loading) return;
+    const el = document.getElementById(`supplier-inbox-row-${openId}`);
+    el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, [openId, loading, threads]);
+
+  const renderThreadBody = (b: BookingRow) => {
+    const startHm = pgTimeToHm(b.start_time);
+    const pickupHm = pgTimeToHm(b.pickup_time);
+    const timeBits = [startHm ? `Start ${startHm}` : null, pickupHm ? `Pickup ${pickupHm}` : null]
+      .filter(Boolean)
+      .join(' · ');
+    return (
+      <>
+        <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+          <p className="text-sm text-ink">
+            Booking {typeof b.booking_number === 'number' ? `#${b.booking_number}` : ''} ·{' '}
+            {titles[b.listing_id] ?? 'Listing'} · {b.guest_name?.trim() || 'Traveler'} ·{' '}
+            {formatBookingParticipantsLabel(b)}
+            {b.booking_date
+              ? ` · ${new Date(`${b.booking_date}T12:00:00`).toLocaleDateString(undefined, {
+                  weekday: 'short',
+                  day: 'numeric',
+                  month: 'short',
+                })}`
+              : ''}
+            {timeBits ? ` · ${timeBits}` : ''}
+          </p>
+          <button
+            type="button"
+            className="tv-btn-ghost shrink-0 -mr-2"
+            onClick={() => openSupplierBooking(b.id)}
+          >
+            Open in Bookings
+          </button>
+        </div>
+        {openCancelIds.has(b.id) ? (
+          <NoticeCallout title="Cancellation pending" tone="warn">
+            A cancellation request is waiting on the traveler. You can still message them about this booking.
+          </NoticeCallout>
+        ) : null}
+        <BookingMessageThread
+          bookingId={b.id}
+          canCompose={bookingAllowsMessaging({
+            status: b.status,
+            payment_status: b.payment_status,
+            openCancellation: openCancelIds.has(b.id),
+          })}
+          composeBlock={
+            messagingComposeBlock({
+              status: b.status,
+              payment_status: b.payment_status,
+              openCancellation: openCancelIds.has(b.id),
+            }) === 'closed'
+              ? 'closed'
+              : 'unpaid'
+          }
+          viewerRole="supplier"
+          listingTitle={titles[b.listing_id] ?? 'Listing'}
+          listingId={b.listing_id}
+          supplierId={user?.id}
+          customerEmail={b.guest_email}
+          customerName={b.guest_name}
+          bookingNumber={typeof b.booking_number === 'number' ? b.booking_number : undefined}
+          bookingDate={b.booking_date}
+        />
+      </>
+    );
+  };
+
   return (
     <div className={SUPPLIER_PAGE_CLASS}>
       <SupplierPageHero
@@ -208,10 +296,15 @@ export default function SupplierInbox() {
                 openCancellation: openCancelIds.has(b.id),
               }) === 'closed';
             return (
-              <li key={b.id} className={`${open ? 'bg-finland/[0.04]' : ''} ${unread ? 'bg-amber-50/40' : ''}`}>
+              <li
+                key={b.id}
+                id={`supplier-inbox-row-${b.id}`}
+                className={`${open && !mobileSheet ? 'bg-finland/[0.04]' : ''} ${unread ? 'bg-amber-50/40' : ''}`}
+              >
                 <button
                   type="button"
                   className="partner-row-interact lux-flat w-full text-left px-3.5 py-2.5"
+                  aria-expanded={open}
                   onClick={() => {
                     const opening = !open;
                     setOpenBookingId(opening ? b.id : null, { markReadLocal: opening });
@@ -235,6 +328,7 @@ export default function SupplierInbox() {
                       {showMoneyChip ? (
                         <StatusChip tone={toneForPaymentLabel(payLabel)}>{payLabel}</StatusChip>
                       ) : null}
+                      {openCancelIds.has(b.id) ? <StatusChip tone="warn">Cancel pending</StatusChip> : null}
                       {isClosed ? <StatusChip tone="neutral">Closed</StatusChip> : null}
                       {typeof b.booking_number === 'number' ? (
                         <span className="text-xs font-mono text-finland">#{b.booking_number}</span>
@@ -250,6 +344,7 @@ export default function SupplierInbox() {
                         })
                       : 'Date TBC'}
                     {` · ${formatBookingParticipantsLabel(b)}`}
+                    {pgTimeToHm(b.start_time) ? ` · ${pgTimeToHm(b.start_time)}` : ''}
                     {last?.created_at
                       ? ` · ${new Date(last.created_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}`
                       : ''}
@@ -258,54 +353,9 @@ export default function SupplierInbox() {
                     {last?.body ?? 'No messages yet — open to write about this booking.'}
                   </p>
                 </button>
-                {open ? (
-                  <div className="px-4 pb-4 motion-safe:animate-fade-in border-t border-black/[0.04]">
-                    <div className="mb-3 pt-3 flex flex-wrap items-start justify-between gap-2">
-                      <p className="text-sm text-ink">
-                        Booking {typeof b.booking_number === 'number' ? `#${b.booking_number}` : ''} ·{' '}
-                        {titles[b.listing_id] ?? 'Listing'} · {b.guest_name?.trim() || 'Traveler'} ·{' '}
-                        {formatBookingParticipantsLabel(b)}
-                        {b.booking_date
-                          ? ` · ${new Date(`${b.booking_date}T12:00:00`).toLocaleDateString(undefined, {
-                              weekday: 'short',
-                              day: 'numeric',
-                              month: 'short',
-                            })}`
-                          : ''}
-                      </p>
-                      <button
-                        type="button"
-                        className="tv-btn-ghost shrink-0 -mr-2"
-                        onClick={() => openSupplierBooking(b.id)}
-                      >
-                        Open in Bookings
-                      </button>
-                    </div>
-                    <BookingMessageThread
-                      bookingId={b.id}
-                      canCompose={bookingAllowsMessaging({
-                        status: b.status,
-                        payment_status: b.payment_status,
-                        openCancellation: openCancelIds.has(b.id),
-                      })}
-                      composeBlock={
-                        messagingComposeBlock({
-                          status: b.status,
-                          payment_status: b.payment_status,
-                          openCancellation: openCancelIds.has(b.id),
-                        }) === 'closed'
-                          ? 'closed'
-                          : 'unpaid'
-                      }
-                      viewerRole="supplier"
-                      listingTitle={titles[b.listing_id] ?? 'Listing'}
-                      listingId={b.listing_id}
-                      supplierId={user?.id}
-                      customerEmail={b.guest_email}
-                      customerName={b.guest_name}
-                      bookingNumber={typeof b.booking_number === 'number' ? b.booking_number : undefined}
-                      bookingDate={b.booking_date}
-                    />
+                {open && !mobileSheet ? (
+                  <div className="px-4 pb-4 motion-safe:animate-fade-in border-t border-black/[0.04] pt-3">
+                    {renderThreadBody(b)}
                   </div>
                 ) : null}
               </li>
@@ -313,6 +363,19 @@ export default function SupplierInbox() {
           })}
         </ul>
       )}
+      {mobileSheet && openBooking ? (
+        <SupplierModalShell onClose={() => setOpenBookingId(null)} maxWidth="lg">
+          <SupplierModalHeader
+            icon={MessageSquare}
+            title={openBooking.guest_name?.trim() || 'Traveler'}
+            subtitle={titles[openBooking.listing_id] ?? 'Listing'}
+            onClose={() => setOpenBookingId(null)}
+          />
+          <div className="p-4 sm:p-5 space-y-3 max-h-[min(70vh,32rem)] overflow-y-auto">
+            {renderThreadBody(openBooking)}
+          </div>
+        </SupplierModalShell>
+      ) : null}
       {!loading && openId && !openBooking && !deepLinkMissing && threads.length > 0 ? (
         <NoticeCallout title="Thread not in this list" tone="info">
           The booking from the link is not among the conversations above. Try Bookings or clear filters by reopening Inbox.
