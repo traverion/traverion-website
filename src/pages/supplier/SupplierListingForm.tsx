@@ -2708,6 +2708,13 @@ export default function SupplierListingForm({
                     </ul>
                   </div>
                 )}
+                {(form.inventoryFamily === 'stay' || createFamily === 'stay') &&
+                !form.stayAmenities.trim() ? (
+                  <p className="mt-3 text-xs text-ink-muted leading-snug">
+                    Tip: add amenities on Pricing so travelers see Wi‑Fi, parking, and other basics — optional for
+                    publish, expected by guests.
+                  </p>
+                ) : null}
               </div>
             </div>
           )}
