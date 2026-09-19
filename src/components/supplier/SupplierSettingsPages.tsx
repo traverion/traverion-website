@@ -940,9 +940,9 @@ function BusinessProfilePage(p: Props) {
             </div>
           </ProfileSection>
 
-          <section className="space-y-3 rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]">
+          <section className="space-y-2.5 rounded-lg border border-black/[0.06] bg-paper px-3.5 py-3">
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="font-display text-2xl text-ink tracking-tight">Verification</h2>
+              <h2 className="text-sm font-semibold text-ink tracking-tight">Verification</h2>
               <StatusChip
                 tone={
                   p.verificationStatus.trim().toLowerCase() === 'verified'

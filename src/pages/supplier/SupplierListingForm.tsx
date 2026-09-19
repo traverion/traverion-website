@@ -1799,11 +1799,13 @@ export default function SupplierListingForm({
           )}
 
           {stepIdx === 0 && form.inventoryFamily !== 'stay' && (
-            <div className="space-y-4 transition-all duration-300 ease-out opacity-100 translate-y-0">
+            <div className="space-y-3 transition-all duration-300 ease-out opacity-100 translate-y-0">
               <div id="supplier-listing-field-category">
                 <label className="block text-sm font-medium text-ink mb-1">Category *</label>
-                <p className="text-xs text-ink-muted mb-3">Choose the option that best describes what you sell. You can add more detail in later steps.</p>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <p className="text-xs text-ink-muted mb-2">
+                  Choose the option that best describes what you sell. You can add more detail in later steps.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   {EXPERIENCE_KIND_OPTIONS.map((opt) => {
                     const selected = form.experienceKind === opt.id;
                     return (
@@ -1811,18 +1813,24 @@ export default function SupplierListingForm({
                         key={opt.id}
                         type="button"
                         onClick={() => setForm((f) => ({ ...f, experienceKind: opt.id }))}
-                        className={`text-left rounded-xl border-2 p-4 transition-colors min-h-[120px] ${
+                        className={`text-left rounded-lg border p-3 transition-colors min-h-[5.5rem] ${
                           selected
                             ? 'border-finland bg-finland/5 ring-1 ring-finland/20'
-                            : 'border-black/[0.08] bg-paper-raised hover:border-black/[0.12] hover:bg-paper'
+                            : 'border-black/[0.08] bg-paper hover:border-black/[0.12]'
                         }`}
                       >
                         <span className="block text-sm font-semibold text-ink">{opt.title}</span>
-                        <span className="mt-2 block text-xs text-ink-muted leading-relaxed">{opt.description}</span>
+                        <span className="mt-1 block text-xs text-ink-muted leading-snug">{opt.description}</span>
                       </button>
                     );
                   })}
                 </div>
+                {form.experienceKind === 'transportation' ? (
+                  <p className="mt-2 text-xs text-ink-muted leading-snug rounded-lg border border-black/[0.06] border-l-[3px] border-l-amber-500 bg-paper px-3 py-2">
+                    Transfers use the same tour listing tools (options, start times, capacity). There is no separate
+                    dispatch board yet — set meeting points and pickup notes clearly for travelers.
+                  </p>
+                ) : null}
               </div>
             </div>
           )}
