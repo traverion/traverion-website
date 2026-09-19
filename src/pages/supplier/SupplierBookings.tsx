@@ -1066,31 +1066,34 @@ export default function SupplierBookings() {
                   subtitle={`${listingTitle} · ${refLabel}`}
                   onClose={() => setSelectedBookingId(null)}
                 />
-                <div className="space-y-5 p-4 sm:p-5">
-                  <div className="flex items-start gap-4">
+                <div className="space-y-4 p-4 sm:p-5">
+                  <div className="flex items-start gap-3">
                     {meta?.imageUrl ? (
                       <img
                         src={meta.imageUrl}
                         alt=""
-                        className="h-20 w-20 sm:h-24 sm:w-24 rounded-2xl object-cover shrink-0"
+                        className="h-14 w-14 sm:h-16 sm:w-16 rounded-lg object-cover shrink-0 ring-1 ring-black/[0.06]"
                       />
                     ) : (
-                      <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-2xl bg-black/[0.04] shrink-0" aria-hidden />
+                      <div
+                        className="h-14 w-14 sm:h-16 sm:w-16 rounded-lg bg-black/[0.04] shrink-0 ring-1 ring-black/[0.06]"
+                        aria-hidden
+                      />
                     )}
                     <div className="min-w-0 flex-1">
-                      <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize ring-1 ${bookingStatusClass(booking.status, booking.payment_status)}`}>
+                      <span className={`inline-flex rounded-md px-2 py-0.5 text-[11px] font-semibold capitalize ring-1 ${bookingStatusClass(booking.status, booking.payment_status)}`}>
                         {partnerPaymentLabel(booking)}
                       </span>
-                      <p className="mt-2 font-sans text-base font-semibold text-ink">{listingTitle}</p>
+                      <p className="mt-1.5 text-sm font-semibold text-ink truncate">{listingTitle}</p>
                       {meta ? (
-                        <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm text-ink-muted">
+                        <p className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-xs text-ink-muted">
                           <span className="inline-flex items-center gap-1">
-                            <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                            <MapPin className="h-3 w-3 shrink-0" aria-hidden />
                             {meta.location}
                           </span>
                           {!isStay ? (
                             <span className="inline-flex items-center gap-1">
-                              <Clock className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                              <Clock className="h-3 w-3 shrink-0" aria-hidden />
                               {meta.duration}
                             </span>
                           ) : null}
@@ -1099,7 +1102,7 @@ export default function SupplierBookings() {
                     </div>
                   </div>
 
-                  <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                  <dl className="grid grid-cols-2 gap-x-3 gap-y-2.5 text-sm">
                     {isStay && stayOut ? (
                       <>
                         <div>
