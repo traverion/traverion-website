@@ -655,7 +655,7 @@ export default function SupplierListings() {
       setError(null);
       if (newStatus === 'published') {
         setJustPublishedId(listing.id);
-        window.setTimeout(() => setJustPublishedId((id) => (id === listing.id ? null : id)), 420);
+        window.setTimeout(() => setJustPublishedId((id) => (id === listing.id ? null : id)), 8000);
       }
       loadListings();
       window.dispatchEvent(new Event('traverion:supplier-onboarding-refresh'));

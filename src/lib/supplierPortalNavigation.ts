@@ -63,15 +63,13 @@ export function openSupplierBooking(bookingId?: string): void {
 }
 
 /** Open partner inbox and optionally expand a booking thread. */
-export function openSupplierInbox(bookingId?: string): void {
+export function openSupplierInbox(bookingId?: string, opts?: { unreadOnly?: boolean }): void {
   const path = `${PARTNER_APP_BASE}/inbox`;
-  if (!bookingId) {
-    navigateSupplierUrl(path);
-    return;
-  }
   const q = new URLSearchParams();
-  q.set('booking', bookingId);
-  navigateSupplierUrl(`${path}?${q.toString()}`);
+  if (bookingId) q.set('booking', bookingId);
+  if (opts?.unreadOnly) q.set('unread', '1');
+  const qs = q.toString();
+  navigateSupplierUrl(qs ? `${path}?${qs}` : path);
 }
 
 /** Open pickup planner and optionally open a booking detail. */

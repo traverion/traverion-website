@@ -342,7 +342,7 @@ export default function SupplierDashboard() {
         <div className="flex flex-wrap items-center gap-2 self-start sm:self-end">
           <button
             type="button"
-            onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/calendar`)}
+            onClick={() => openSupplierCalendar(calendarFocusListingId)}
             className="partner-nav-item lux-flat inline-flex h-9 items-center rounded-md border border-slate-200 bg-white px-3.5 text-[13px] font-medium text-slate-700 hover:border-slate-300 hover:bg-slate-50"
           >
             Calendar
@@ -399,7 +399,7 @@ export default function SupplierDashboard() {
               </AttentionRow>
             )}
             {unreadMessageCount > 0 && (
-              <AttentionRow tone="info" onClick={() => openSupplierInbox(firstUnreadBookingId ?? undefined)}>
+              <AttentionRow tone="info" onClick={() => openSupplierInbox(firstUnreadBookingId ?? undefined, { unreadOnly: true })}>
                 {unreadMessageCount} unread traveler message{unreadMessageCount === 1 ? '' : 's'}
               </AttentionRow>
             )}
@@ -453,7 +453,7 @@ export default function SupplierDashboard() {
             {attentionCount === 0 ? (
               <button
                 type="button"
-                onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/calendar`)}
+                onClick={() => openSupplierCalendar(calendarFocusListingId)}
                 className="partner-nav-item lux-flat shrink-0 rounded-md border border-slate-200 px-3 py-1.5 text-[12px] font-medium text-slate-700 hover:bg-slate-50"
               >
                 Calendar
