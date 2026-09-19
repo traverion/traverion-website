@@ -9,9 +9,10 @@ import { fetchBookingsForSupplier, type BookingRow } from '../../data/supabase-b
 import { fetchSupplierProfile } from '../../data/supabase-supplier-profile';
 import {
   fetchCancellationRequestsForBookings,
+  fetchBookingMessages,
 } from '../../data/supabase-booking-ops';
 import { listingPickupCopyIncomplete, bookingIsStayNight } from '../../lib/pickup-completeness';
-import { isPaidPaymentStatus, isRefundDueBooking } from '../../lib/payment-states';
+import { bookingPaymentWasCollected, isPaidPaymentStatus, isRefundDueBooking } from '../../lib/payment-states';
 import type { TourPackage } from '../../types/tour';
 import SupplierPortalNoticePanel from '../../components/supplier/SupplierPortalNoticePanel';
 import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
@@ -73,6 +74,7 @@ export default function SupplierDashboard() {
   >([]);
   const [supplierBookings, setSupplierBookings] = useState<BookingRow[]>([]);
   const [profile, setProfile] = useState<Awaited<ReturnType<typeof fetchSupplierProfile>> | null>(null);
+  const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [dashboardLoading, setDashboardLoading] = useState(false);
   const [dashboardError, setDashboardError] = useState<string | null>(null);
 
@@ -86,6 +88,7 @@ export default function SupplierDashboard() {
       setSupplierBookings([]);
       setOpenCancels([]);
       setProfile(null);
+      setUnreadMessageCount(0);
       setDashboardError(null);
       setDashboardLoading(false);
       return;
@@ -114,8 +117,10 @@ export default function SupplierDashboard() {
       setListingTitlesById({});
       setListingsById({});
     }
+    let bookingsForUnread: BookingRow[] = [];
     if (settled[1].status === 'fulfilled') {
       setSupplierBookings(settled[1].value);
+      bookingsForUnread = settled[1].value;
       const ids = settled[1].value.map((b) => b.id);
       const reqs = await fetchCancellationRequestsForBookings(ids);
       setOpenCancels(reqs.filter((r) => r.status === 'requested'));
@@ -130,6 +135,21 @@ export default function SupplierDashboard() {
       noteFailure('profile');
       setProfile(null);
     }
+
+    // Unread traveler messages on paid bookings (same signal Inbox uses).
+    const paidForMsgs = bookingsForUnread
+      .filter((b) => bookingPaymentWasCollected(b.payment_status))
+      .slice(0, 40);
+    let unread = 0;
+    await Promise.all(
+      paidForMsgs.map(async (b) => {
+        const msgs = await fetchBookingMessages(b.id);
+        const last = msgs[msgs.length - 1];
+        if (last && last.sender_role === 'traveler' && !last.read_by_supplier_at) unread += 1;
+      })
+    );
+    setUnreadMessageCount(unread);
+
     if (failures.length > 0) {
       const critical = failures.includes('bookings');
       setDashboardError(critical ? USER_ERROR.bookings : USER_ERROR.today);
@@ -228,7 +248,8 @@ export default function SupplierDashboard() {
     (verificationNeedsAction ? 1 : 0) +
     pickupGaps.length +
     openCancelCount +
-    refundDueCount;
+    refundDueCount +
+    unreadMessageCount;
 
   const todayEmptyCopy = partnerTodayEmptyScheduleCopy(attentionCount);
 
@@ -237,7 +258,7 @@ export default function SupplierDashboard() {
       [...supplierBookings]
         .filter((b) => partnerBookingIsOperatingTrip(b))
         .sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? ''))
-        .slice(0, 3),
+        .slice(0, 4),
     [supplierBookings]
   );
 
@@ -249,13 +270,27 @@ export default function SupplierDashboard() {
     month: 'long',
   });
 
-  const upcoming = supplierBookings
-    .filter((b) => partnerBookingIsUpcomingSchedule(b, todayYmd))
-    .sort((a, b) => (a.booking_date ?? '').localeCompare(b.booking_date ?? ''))
-    .slice(0, 4);
+  const weekAhead = useMemo(() => {
+    const [y, m, d] = todayYmd.split('-').map(Number);
+    const end = new Date(y!, m! - 1, d!);
+    end.setDate(end.getDate() + 7);
+    const endYmd = localYmd(end);
+    return supplierBookings
+      .filter((b) => {
+        if (!partnerBookingIsUpcomingSchedule(b, todayYmd)) return false;
+        const bd = b.booking_date ?? '';
+        return bd > todayYmd && bd <= endYmd;
+      })
+      .sort((a, b) => (a.booking_date ?? '').localeCompare(b.booking_date ?? ''))
+      .slice(0, 8);
+  }, [supplierBookings, todayYmd]);
+
+  const upcoming = weekAhead.slice(0, 6);
 
   const hour = now.getHours();
   const hello = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+
+  const todayGuestTotal = todayScheduleRows.reduce((s, r) => s + r.guests, 0);
 
   return (
     <div className={`${SUPPLIER_PAGE_CLASS} motion-safe:animate-fade-in`}>
@@ -268,16 +303,27 @@ export default function SupplierDashboard() {
           <p className="mt-1.5 text-sm text-ink-muted max-w-lg leading-relaxed">
             {attentionCount > 0
               ? `${attentionCount} item${attentionCount === 1 ? '' : 's'} need your attention.`
-              : 'Your operational starting point for today.'}
+              : todayDepartures.length > 0
+                ? `${todayDepartures.length} departure${todayDepartures.length === 1 ? '' : 's'} · ${todayGuestTotal} guest${todayGuestTotal === 1 ? '' : 's'} today.`
+                : 'Your operational starting point for today.'}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/listings?new=1`)}
-          className={`${attentionCount > 0 ? 'tv-btn-ghost' : 'tv-btn-primary'} self-start`}
-        >
-          New listing
-        </button>
+        <div className="flex flex-wrap gap-2 self-start">
+          <button
+            type="button"
+            onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/calendar`)}
+            className="tv-btn-ghost"
+          >
+            Calendar
+          </button>
+          <button
+            type="button"
+            onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/listings?new=1`)}
+            className={`${attentionCount > 0 ? 'tv-btn-ghost' : 'tv-btn-primary'}`}
+          >
+            New listing
+          </button>
+        </div>
       </header>
 
       {dashboardError && (
@@ -315,6 +361,11 @@ export default function SupplierDashboard() {
             {pickupGaps.length > 0 && (
               <AttentionRow tone="warn" onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/pickup`)}>
                 {pickupGaps.length} paid booking{pickupGaps.length === 1 ? '' : 's'} missing pickup details
+              </AttentionRow>
+            )}
+            {unreadMessageCount > 0 && (
+              <AttentionRow tone="info" onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/inbox`)}>
+                {unreadMessageCount} unread traveler message{unreadMessageCount === 1 ? '' : 's'}
               </AttentionRow>
             )}
             {pendingBookings.length > 0 && (
@@ -413,7 +464,16 @@ export default function SupplierDashboard() {
 
       {upcoming.length > 0 && (
         <section className="mb-8">
-          <h2 className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-3">What’s next</h2>
+          <div className="mb-3 flex items-baseline justify-between gap-3">
+            <h2 className="text-[11px] uppercase tracking-[0.16em] text-ink-faint">Next 7 days</h2>
+            <button
+              type="button"
+              onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings`)}
+              className="text-xs font-semibold text-finland hover:underline"
+            >
+              All bookings
+            </button>
+          </div>
           <ul className="divide-y divide-black/[0.06] rounded-xl bg-paper-raised ring-1 ring-black/[0.05] px-3.5">
             {upcoming.map((b) => (
               <li key={b.id}>
@@ -422,8 +482,13 @@ export default function SupplierDashboard() {
                   onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings?booking=${b.id}`)}
                   className="lux-flat flex w-full flex-col gap-0.5 py-3.5 text-left sm:flex-row sm:items-baseline sm:justify-between"
                 >
-                  <span className="font-semibold text-ink">{listingTitlesById[b.listing_id] ?? 'Tour'}</span>
-                  <span className="text-sm text-ink-muted">
+                  <span className="font-semibold text-ink min-w-0 truncate">
+                    {listingTitlesById[b.listing_id] ?? 'Tour'}
+                    {b.guest_name?.trim() ? (
+                      <span className="font-normal text-ink-muted"> · {b.guest_name.trim()}</span>
+                    ) : null}
+                  </span>
+                  <span className="text-sm text-ink-muted shrink-0">
                     {new Date(`${b.booking_date}T12:00:00`).toLocaleDateString(undefined, {
                       weekday: 'short',
                       day: 'numeric',

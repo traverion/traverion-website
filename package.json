@@ -13,7 +13,9 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit -p tsconfig.app.json"
+    "typecheck": "tsc --noEmit -p tsconfig.app.json",
+    "partner-demo:seed": "node scripts/partner-demo-seed.cjs",
+    "partner-demo:reset": "node scripts/partner-demo-reset.cjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",

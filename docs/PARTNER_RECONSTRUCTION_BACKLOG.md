@@ -23,7 +23,9 @@ These issues are **deferred**. Do **not** solve them during the Partner visual/I
 - cross-account email collisions  
 - redirects, session restoration, email templates, account-type context, error states  
 
-**Status:** DEFERRED — do not fix in Phase 1 Partner visual mission.
+**Status:** DEFERRED — do not fix in Partner visual / demo missions unless it blocks seeding.
+
+**Reconfirmed 2026-09-19 during Partner demo fixture work:** still recorded; not solved.
 
 ---
 
