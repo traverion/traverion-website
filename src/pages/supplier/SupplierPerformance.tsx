@@ -10,7 +10,6 @@ import {
   SupplierEmptyState,
   SupplierStatSkeletonGrid,
   SupplierListSkeleton,
-  SUPPLIER_STAT_GRID_CLASS,
 } from '../../components/supplier/supplierUi';
 import ErrorState from '../../components/ErrorState';
 import { isCollectedBooking } from '../../lib/payment-states';
@@ -267,37 +266,37 @@ export default function SupplierPerformance() {
           <p className="text-xs text-ink-muted -mb-4">
             Window uses booking created date (checkout time), not departure date.
           </p>
-          <div className={SUPPLIER_STAT_GRID_CLASS}>
-            <div className="tv-card p-4 sm:p-5">
-              <p className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">Paid bookings</p>
-              <p className="mt-1.5 font-display text-3xl text-ink tabular-nums">{totals.bookingsCount}</p>
-              <p className="text-xs text-ink-muted mt-2">{activeWindow.label.toLowerCase()}</p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+            <div className="rounded-lg border border-black/[0.06] bg-paper px-3 py-2.5">
+              <p className="text-[10px] uppercase tracking-[0.12em] text-ink-faint">Paid bookings</p>
+              <p className="mt-0.5 font-display text-xl text-ink tabular-nums">{totals.bookingsCount}</p>
+              <p className="text-[11px] text-ink-muted mt-0.5">{activeWindow.label.toLowerCase()}</p>
             </div>
-            <div className="tv-card p-4 sm:p-5">
-              <p className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">Guests</p>
-              <p className="mt-1.5 font-display text-3xl text-ink tabular-nums">{totals.guestsCount}</p>
-              <p className="text-xs text-ink-muted mt-2">
-                across {listingCountInWindow} listing{listingCountInWindow === 1 ? '' : 's'}
+            <div className="rounded-lg border border-black/[0.06] bg-paper px-3 py-2.5">
+              <p className="text-[10px] uppercase tracking-[0.12em] text-ink-faint">Guests</p>
+              <p className="mt-0.5 font-display text-xl text-ink tabular-nums">{totals.guestsCount}</p>
+              <p className="text-[11px] text-ink-muted mt-0.5">
+                {listingCountInWindow} listing{listingCountInWindow === 1 ? '' : 's'}
               </p>
             </div>
             {revenueByCurrency.map((r) => (
-              <div key={`revenue-${r.currency}`} className="tv-card p-4 sm:p-5">
-                <p className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">
-                  Revenue collected{isMultiCurrency ? ` (${r.currency})` : ''}
+              <div key={`revenue-${r.currency}`} className="rounded-lg border border-black/[0.06] bg-paper px-3 py-2.5">
+                <p className="text-[10px] uppercase tracking-[0.12em] text-ink-faint">
+                  Revenue{isMultiCurrency ? ` (${r.currency})` : ''}
                 </p>
-                <p className="mt-1.5 font-display text-3xl text-ink tabular-nums">{formatMoney(r.revenue, r.currency)}</p>
-                <p className="text-xs text-ink-muted mt-2">paid bookings, refunds excluded</p>
+                <p className="mt-0.5 font-display text-xl text-ink tabular-nums">{formatMoney(r.revenue, r.currency)}</p>
+                <p className="text-[11px] text-ink-muted mt-0.5">paid · no refunds</p>
               </div>
             ))}
             {revenueByCurrency.map((r) => (
-              <div key={`avg-${r.currency}`} className="tv-card p-4 sm:p-5">
-                <p className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">
-                  Avg. booking value{isMultiCurrency ? ` (${r.currency})` : ''}
+              <div key={`avg-${r.currency}`} className="rounded-lg border border-black/[0.06] bg-paper px-3 py-2.5">
+                <p className="text-[10px] uppercase tracking-[0.12em] text-ink-faint">
+                  Avg. booking{isMultiCurrency ? ` (${r.currency})` : ''}
                 </p>
-                <p className="mt-1.5 font-display text-3xl text-ink tabular-nums">
+                <p className="mt-0.5 font-display text-xl text-ink tabular-nums">
                   {formatMoney(r.count > 0 ? r.revenue / r.count : 0, r.currency)}
                 </p>
-                <p className="text-xs text-ink-muted mt-2">per paid booking</p>
+                <p className="text-[11px] text-ink-muted mt-0.5">per paid booking</p>
               </div>
             ))}
           </div>
