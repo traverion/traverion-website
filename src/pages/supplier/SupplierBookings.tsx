@@ -62,7 +62,7 @@ import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { inventoryFamilyFromListing } from '../../lib/inventory';
 import { parseStayCheckOutFromNotes, nightsOccupiedByStay, stayRangeFromBooking } from '../../lib/stayOccupancy';
-import { partnerBookingIsLiveTrip, bookingIsCancelledTrip, partnerBookingIsOperatingTrip, partnerBookingNeedsLook, partnerBookingIsUnpaidCheckout, partnerBookingShowsCancelAction } from '../../lib/trip-views';
+import { partnerBookingIsLiveTrip, bookingIsCancelledTrip, partnerBookingIsOperatingTrip, partnerBookingNeedsLook, partnerBookingIsUnpaidCheckout, partnerBookingShowsCancelAction, partnerBookingIsPastSchedule } from '../../lib/trip-views';
 import { formatStayNightHuman } from '../../lib/stay-calendar';
 import { partnerBookingHasPickupAttention } from '../../lib/pickup-completeness';
 import { openSupplierPickup } from '../../lib/supplierPortalNavigation';
@@ -310,9 +310,7 @@ export default function SupplierBookings() {
       if (view === 'past') {
         if (opsFilter === 'refund_due' || opsFilter === 'unpaid' || opsFilter === 'cancel') {
           /* keep */
-        } else if (stayRange) {
-          if (stayRange.checkOut > todayIso && partnerBookingIsOperatingTrip(b)) return false;
-        } else if (!b.booking_date || b.booking_date >= todayIso) {
+        } else if (!partnerBookingIsPastSchedule(b, todayIso)) {
           return false;
         }
       }
@@ -754,14 +752,14 @@ export default function SupplierBookings() {
                 <article
                   key={booking.id}
                   id={`supplier-booking-row-${booking.id}`}
-                  className={`overflow-hidden rounded-2xl bg-paper-raised shadow-soft ring-1 ring-black/[0.06] ${statusAccent} ${
-                    highlightBookingId === booking.id ? 'ring-finland/30 shadow-soft-lg' : ''
+                  className={`overflow-hidden rounded-xl bg-white ring-1 ring-slate-200/90 ${statusAccent} ${
+                    highlightBookingId === booking.id ? 'ring-finland/35' : ''
                   }`}
                 >
                   <button
                     type="button"
                     onClick={() => setSelectedBookingId(booking.id)}
-                    className="lux-flat flex w-full min-w-0 items-center gap-4 p-3.5 sm:p-4 text-left"
+                    className="lux-flat flex w-full min-w-0 items-center gap-3 px-3 py-2.5 text-left sm:px-3.5 sm:py-3"
                   >
                     {meta?.imageUrl ? (
                       <img

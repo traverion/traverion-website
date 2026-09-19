@@ -7,6 +7,7 @@ import {
   partnerBookingNeedsLook,
   partnerBookingIsTodaySchedule,
   partnerBookingIsUpcomingSchedule,
+  partnerBookingIsPastSchedule,
   travelerTripIsLive,
   travelerBookingNeedsPayNow,
   travelerTripReferenceLabel,
@@ -175,6 +176,36 @@ describe('trip list views', () => {
     expect(partnerBookingIsUpcomingSchedule(stay, '2026-09-19')).toBe(true);
     expect(partnerBookingIsUpcomingSchedule(stay, '2026-09-20')).toBe(false);
     expect(partnerBookingIsUpcomingSchedule(stay, '2026-09-21')).toBe(false);
+  });
+
+  it('puts only finished stays in Past — not cancelled mid-stays', () => {
+    const midCancelled = {
+      status: 'cancelled',
+      payment_status: 'paid',
+      booking_date: '2026-09-20',
+      check_out: '2026-09-25',
+    };
+    const finishedCancelled = {
+      status: 'cancelled',
+      payment_status: 'paid',
+      booking_date: '2026-09-10',
+      check_out: '2026-09-12',
+    };
+    const operatingFinished = {
+      status: 'confirmed',
+      payment_status: 'paid',
+      booking_date: '2026-09-10',
+      check_out: '2026-09-12',
+    };
+    expect(partnerBookingIsPastSchedule(midCancelled, '2026-09-22')).toBe(false);
+    expect(partnerBookingIsPastSchedule(finishedCancelled, '2026-09-22')).toBe(true);
+    expect(partnerBookingIsPastSchedule(operatingFinished, '2026-09-22')).toBe(true);
+    expect(
+      partnerBookingIsPastSchedule(
+        { status: 'cancelled', payment_status: 'paid', booking_date: '2026-09-30' },
+        '2026-09-22'
+      )
+    ).toBe(false);
   });
 
   it('sorts Refund due cancelled trips before other cancelled rows', () => {

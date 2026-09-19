@@ -142,6 +142,17 @@ export function partnerBookingIsUpcomingSchedule(
   return Boolean(date) && date > todayIso;
 }
 
+/** Partner Bookings Past: schedule finished (tour date or stay checkout ≤ today). Includes cancelled history. */
+export function partnerBookingIsPastSchedule(b: PartnerScheduleBooking, todayIso: string): boolean {
+  if (bookingIsStayNight(b)) {
+    const stay = stayRangeFromBooking(b);
+    if (!stay) return false;
+    return stay.checkOut <= todayIso;
+  }
+  const date = (b.booking_date ?? '').trim();
+  return Boolean(date) && date < todayIso;
+}
+
 /** Upcoming and Past are for active trips + traveler-recoverable failed holds. Refunded → Cancelled. */
 export function bookingMatchesTripView(
   b: { status?: string | null; payment_status?: string | null; booking_date?: string | null },
