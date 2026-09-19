@@ -135,17 +135,17 @@ export default function PartnerOnboarding({
           return (
             <li
               key={s.n}
-              className={`rounded-xl p-3.5 sm:p-4 shadow-soft ring-1 transition-colors ${
+              className={`rounded-lg border px-3 py-2.5 transition-colors ${
                 s.done
-                  ? 'bg-emerald-50/60 ring-emerald-200/50'
+                  ? 'border-emerald-200/80 bg-emerald-50/50'
                   : isNext
-                    ? 'bg-paper-raised ring-2 ring-finland/35'
-                    : 'bg-paper-raised ring-black/[0.06]'
+                    ? 'border-finland/40 bg-paper ring-1 ring-finland/25'
+                    : 'border-black/[0.06] bg-paper'
               }`}
             >
-              <div className="flex gap-3 items-start">
+              <div className="flex gap-2.5 items-start">
                 <span
-                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-semibold ${
+                  className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[11px] font-semibold ${
                     s.done
                       ? 'bg-emerald-600 text-white'
                       : isNext
@@ -154,11 +154,11 @@ export default function PartnerOnboarding({
                   }`}
                   aria-hidden
                 >
-                  {s.done ? <Check className="w-4 h-4" strokeWidth={2.5} /> : s.n}
+                  {s.done ? <Check className="w-3.5 h-3.5" strokeWidth={2.5} /> : s.n}
                 </span>
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-wrap items-center gap-2 mb-0.5">
-                    <h2 className="font-sans text-base font-semibold text-ink">{s.title}</h2>
+                    <h2 className="text-sm font-semibold text-ink">{s.title}</h2>
                     <StatusChip tone={s.done ? 'good' : isNext ? 'warn' : 'neutral'}>
                       {s.done ? 'Done' : isNext ? 'Up next' : 'To do'}
                     </StatusChip>
