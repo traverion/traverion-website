@@ -50,6 +50,11 @@ export default function SupplierEarnings() {
     const s = new URLSearchParams(window.location.search).get('status');
     return s === 'pending' || s === 'paid' ? s : 'all';
   });
+  const [listWindow, setListWindow] = useState<'30d' | '90d' | 'all'>(() => {
+    if (typeof window === 'undefined') return 'all';
+    const w = new URLSearchParams(window.location.search).get('window');
+    return w === '30d' || w === '90d' || w === 'all' ? w : 'all';
+  });
 
   const setStatusFilterAndUrl = useCallback((next: 'all' | 'pending' | 'paid') => {
     setStatusFilter(next);
@@ -60,10 +65,22 @@ export default function SupplierEarnings() {
     window.history.replaceState({}, '', `${url.pathname}${url.search}`);
   }, []);
 
+  const setListWindowAndUrl = useCallback((next: '30d' | '90d' | 'all') => {
+    setListWindow(next);
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    if (next === 'all') url.searchParams.delete('window');
+    else url.searchParams.set('window', next);
+    window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+  }, []);
+
   useEffect(() => {
     const syncFromUrl = () => {
-      const s = new URLSearchParams(window.location.search).get('status');
+      const params = new URLSearchParams(window.location.search);
+      const s = params.get('status');
       setStatusFilter(s === 'pending' || s === 'paid' ? s : 'all');
+      const w = params.get('window');
+      setListWindow(w === '30d' || w === '90d' || w === 'all' ? w : 'all');
     };
     window.addEventListener('popstate', syncFromUrl);
     return () => window.removeEventListener('popstate', syncFromUrl);
@@ -114,6 +131,37 @@ export default function SupplierEarnings() {
     const nonCancelled = earnings.filter((e) => e.status !== 'cancelled');
     return statusFilter === 'all' ? nonCancelled : nonCancelled.filter((e) => e.status === statusFilter);
   }, [earnings, statusFilter]);
+
+  /** List/export window only — hero balances stay all-time truth. */
+  const paidBookingsInWindow = useMemo(() => {
+    const days = listWindow === '30d' ? 30 : listWindow === '90d' ? 90 : null;
+    if (days == null) return paidBookings;
+    const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+    return paidBookings.filter((b) => {
+      const t = b.created_at ? new Date(b.created_at).getTime() : NaN;
+      return Number.isFinite(t) && t >= cutoff;
+    });
+  }, [paidBookings, listWindow]);
+
+  const ledgerInWindow = useMemo(() => {
+    const days = listWindow === '30d' ? 30 : listWindow === '90d' ? 90 : null;
+    if (days == null) return ledger;
+    const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+    return ledger.filter((e) => {
+      const t = e.created_at ? new Date(e.created_at).getTime() : NaN;
+      return Number.isFinite(t) && t >= cutoff;
+    });
+  }, [ledger, listWindow]);
+
+  const filteredEarningsInWindow = useMemo(() => {
+    const days = listWindow === '30d' ? 30 : listWindow === '90d' ? 90 : null;
+    if (days == null) return filteredEarnings;
+    const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+    return filteredEarnings.filter((e) => {
+      const t = e.created_at ? new Date(e.created_at).getTime() : NaN;
+      return Number.isFinite(t) && t >= cutoff;
+    });
+  }, [filteredEarnings, listWindow]);
 
   type CurrencyMoney = {
     currency: string;
@@ -180,18 +228,18 @@ export default function SupplierEarnings() {
 
   const exportCsv = () => {
     const collectedForExport =
-      filteredEarnings.length === 0
-        ? paidBookings.map((b) => ({
+      filteredEarningsInWindow.length === 0
+        ? paidBookingsInWindow.map((b) => ({
             ...b,
             listing_title: listingTitles[b.listing_id] ?? null,
           }))
         : [];
     if (
       !partnerMoneyCsvHasExportableRows({
-        payouts: filteredEarnings,
+        payouts: filteredEarningsInWindow,
         refundDue: refundDueBookings,
         collected: collectedForExport,
-        ledger,
+        ledger: ledgerInWindow,
       })
     ) {
       return;
@@ -202,10 +250,10 @@ export default function SupplierEarnings() {
       return s;
     };
     const body = buildPartnerMoneyCsvRows({
-      payouts: filteredEarnings,
+      payouts: filteredEarningsInWindow,
       refundDue: refundDueBookings,
       collected: collectedForExport,
-      ledger,
+      ledger: ledgerInWindow,
       ledgerKindLabel,
     });
     const csv = [PARTNER_MONEY_CSV_HEADER.join(','), ...body.map((cols) => cols.map(escape).join(','))].join(
@@ -221,10 +269,10 @@ export default function SupplierEarnings() {
   };
 
   const canExportMoney = partnerMoneyCsvHasExportableRows({
-    payouts: filteredEarnings,
+    payouts: filteredEarningsInWindow,
     refundDue: refundDueBookings,
-    collected: filteredEarnings.length === 0 ? paidBookings : [],
-    ledger,
+    collected: filteredEarningsInWindow.length === 0 ? paidBookingsInWindow : [],
+    ledger: ledgerInWindow,
   });
 
   const hasMoney =
@@ -368,10 +416,31 @@ export default function SupplierEarnings() {
             />
           ) : (
           <section>
-            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
               <h2 className="text-[11px] uppercase tracking-[0.18em] text-ink-faint">
-                {filteredEarnings.length > 0 ? 'Payout periods' : 'Collected'}
+                {filteredEarningsInWindow.length > 0 ? 'Payout periods' : 'Collected'}
               </h2>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {(['30d', '90d', 'all'] as const).map((w) => (
+                  <button
+                    key={w}
+                    type="button"
+                    onClick={() => setListWindowAndUrl(w)}
+                    className={`lux-flat rounded-md px-2.5 py-1 text-xs font-semibold ring-1 transition-colors ${
+                      listWindow === w
+                        ? 'bg-finland text-white ring-finland'
+                        : 'bg-transparent text-ink-muted ring-black/[0.08] hover:text-ink'
+                    }`}
+                  >
+                    {w === '30d' ? '30d' : w === '90d' ? '90d' : 'All time'}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <p className="mb-3 text-xs text-ink-faint">
+              List and export use this window. Available balance above stays all-time.
+            </p>
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <div className="flex flex-wrap items-center gap-1 rounded-full bg-paper-raised p-1 shadow-soft ring-1 ring-black/[0.06]">
                 {(['all', 'pending', 'paid'] as const).map((s) => (
                   <button
@@ -401,11 +470,11 @@ export default function SupplierEarnings() {
                 Export
               </button>
             </div>
-            {ledger.length > 0 ? (
+            {ledgerInWindow.length > 0 ? (
               <div className="mb-8">
                 <h3 className="text-[11px] uppercase tracking-[0.18em] text-ink-faint mb-2">Ledger</h3>
               <ul className="space-y-1.5">
-                {ledger.map((e) => (
+                {ledgerInWindow.map((e) => (
                   <li
                     key={e.id}
                     className="rounded-xl bg-paper-raised px-3 py-2.5 shadow-soft ring-1 ring-black/[0.06] flex items-baseline justify-between gap-3"
@@ -428,10 +497,10 @@ export default function SupplierEarnings() {
               </ul>
               </div>
             ) : null}
-            {filteredEarnings.length === 0 ? (
-              statusFilter === 'all' && paidBookings.length > 0 ? (
+            {filteredEarningsInWindow.length === 0 ? (
+              statusFilter === 'all' && paidBookingsInWindow.length > 0 ? (
                 <ul className="space-y-1.5">
-                  {paidBookings.map((b) => (
+                  {paidBookingsInWindow.map((b) => (
                     <li key={b.id}>
                       <button
                         type="button"
@@ -468,7 +537,7 @@ export default function SupplierEarnings() {
               )
             ) : (
               <ul className="space-y-1.5">
-                {filteredEarnings.map((e) => (
+                {filteredEarningsInWindow.map((e) => (
                   <li
                     key={e.id}
                     className="rounded-xl bg-paper-raised px-3 py-2.5 shadow-soft ring-1 ring-black/[0.06] flex items-baseline justify-between gap-3"
