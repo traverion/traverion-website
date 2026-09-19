@@ -433,17 +433,17 @@ export default function SupplierAvailability() {
         />
       ) : (
         <div>
-          <div className="flex items-center justify-between gap-3 mb-6">
+          <div className="flex items-center justify-between gap-3 mb-4">
             <button
               type="button"
               onClick={() => shiftMonth(-1)}
-              className="lux-flat inline-flex h-11 w-11 items-center justify-center rounded-full text-ink hover:bg-paper-raised"
+              className="lux-flat inline-flex h-9 w-9 items-center justify-center rounded-md text-ink hover:bg-paper-raised"
               aria-label="Previous month"
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
             <div className="text-center">
-              <p className="font-display text-xl sm:text-3xl text-ink tabular-nums">{monthLabel}</p>
+              <p className="font-display text-lg sm:text-2xl text-ink tabular-nums">{monthLabel}</p>
               <button
                 type="button"
                 onClick={() => {
@@ -451,7 +451,7 @@ export default function SupplierAvailability() {
                   setYear(n.getFullYear());
                   setMonthIndex0(n.getMonth());
                 }}
-                className="lux-flat mt-1 text-xs font-semibold text-finland"
+                className="lux-flat mt-0.5 text-xs font-semibold text-finland"
               >
                 Today
               </button>
@@ -459,7 +459,7 @@ export default function SupplierAvailability() {
             <button
               type="button"
               onClick={() => shiftMonth(1)}
-              className="lux-flat inline-flex h-11 w-11 items-center justify-center rounded-full text-ink hover:bg-paper-raised"
+              className="lux-flat inline-flex h-9 w-9 items-center justify-center rounded-md text-ink hover:bg-paper-raised"
               aria-label="Next month"
             >
               <ChevronRight className="w-5 h-5" />
