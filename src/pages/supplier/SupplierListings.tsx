@@ -10,6 +10,7 @@ import {
   Compass,
   Home,
   Copy,
+  Search,
 } from 'lucide-react';
 import { TourPackage } from '../../types/tour';
 import { getSupplierListings, setSupplierListings } from '../../data/listings';
@@ -46,6 +47,12 @@ import { catalogHeadlineAmount } from '../../lib/discount-display';
 import { pickHeadlineOption } from '../../lib/headline-price';
 import { materializedBookingOptions, parseListingExtras } from '../../types/listingExtras';
 import { inventoryFamilyFromListing, PARTNER_CREATE_INVENTORY } from '../../lib/inventory';
+import {
+  filterPartnerListings,
+  parsePartnerListingsWorkspaceFilter,
+  partnerListingsWorkspaceCounts,
+  type PartnerListingsWorkspaceFilter,
+} from '../../lib/partner-listings-filter';
 import { normalizeListingForDraftSave } from '../../lib/listingDraftUtils';
 import { SkeletonListItem } from '../../components/ui/Skeleton';
 import ErrorState from '../../components/ErrorState';
@@ -74,7 +81,14 @@ export default function SupplierListings() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formFocusSection, setFormFocusSection] = useState<string | null>(null);
   const [listings, setListings] = useState<TourPackage[]>([]);
-  const [workspaceFilter, setWorkspaceFilter] = useState<'all' | 'tour' | 'stay' | 'draft' | 'published'>('all');
+  const [workspaceFilter, setWorkspaceFilter] = useState<PartnerListingsWorkspaceFilter>(() => {
+    if (typeof window === 'undefined') return 'all';
+    return parsePartnerListingsWorkspaceFilter(new URLSearchParams(window.location.search).get('filter'));
+  });
+  const [listQuery, setListQuery] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    return (new URLSearchParams(window.location.search).get('q') ?? '').trim();
+  });
   const [showCreateChooser, setShowCreateChooser] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -107,17 +121,41 @@ export default function SupplierListings() {
   const closeCreateChooser = useCallback(() => setShowCreateChooser(false), []);
   useDialogFocus(showCreateChooser, createChooserRef, closeCreateChooser);
 
-  const filteredListings = useMemo(() => {
-    return listings.filter((listing) => {
-      const family = inventoryFamilyFromListing(listing);
-      const isLive = listing.status !== 'draft';
-      if (workspaceFilter === 'tour') return family === 'tour';
-      if (workspaceFilter === 'stay') return family === 'stay';
-      if (workspaceFilter === 'draft') return !isLive;
-      if (workspaceFilter === 'published') return isLive;
-      return true;
-    });
-  }, [listings, workspaceFilter]);
+  const filteredListings = useMemo(
+    () => filterPartnerListings(listings, workspaceFilter, listQuery),
+    [listings, workspaceFilter, listQuery]
+  );
+
+  const workspaceCounts = useMemo(() => partnerListingsWorkspaceCounts(listings), [listings]);
+
+  const setWorkspaceFilterAndUrl = useCallback((next: PartnerListingsWorkspaceFilter) => {
+    setWorkspaceFilter(next);
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    if (next === 'all') url.searchParams.delete('filter');
+    else url.searchParams.set('filter', next);
+    window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+  }, []);
+
+  const setListQueryAndUrl = useCallback((next: string) => {
+    setListQuery(next);
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    const trimmed = next.trim();
+    if (!trimmed) url.searchParams.delete('q');
+    else url.searchParams.set('q', trimmed);
+    window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+  }, []);
+
+  useEffect(() => {
+    const syncFromUrl = () => {
+      const params = new URLSearchParams(window.location.search);
+      setWorkspaceFilter(parsePartnerListingsWorkspaceFilter(params.get('filter')));
+      setListQuery((params.get('q') ?? '').trim());
+    };
+    window.addEventListener('popstate', syncFromUrl);
+    return () => window.removeEventListener('popstate', syncFromUrl);
+  }, []);
 
   const startNewTour = useCallback(() => {
     if (!canEditListings) return;
@@ -678,30 +716,47 @@ export default function SupplierListings() {
       />
 
       {listings.length > 0 && !showForm ? (
-        <div className="flex flex-wrap gap-x-1 gap-y-2 mb-6 border-b border-black/[0.06]" role="tablist" aria-label="Listing filters">
-          {([
-            { id: 'all', label: 'All' },
-            { id: 'tour', label: 'Tours' },
-            { id: 'stay', label: 'Stays' },
-            { id: 'draft', label: 'Draft' },
-            { id: 'published', label: 'Live' },
-          ] as const).map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              role="tab"
-              aria-selected={workspaceFilter === tab.id}
-              onClick={() => setWorkspaceFilter(tab.id)}
-              className={`lux-flat relative px-3.5 py-2.5 text-sm font-medium transition-colors ${
-                workspaceFilter === tab.id ? 'text-finland' : 'text-ink-muted hover:text-ink'
-              }`}
-            >
-              {tab.label}
-              {workspaceFilter === tab.id ? (
-                <span className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-finland" aria-hidden />
-              ) : null}
-            </button>
-          ))}
+        <div className="mb-6 space-y-3">
+          <label className="relative block">
+            <span className="sr-only">Search listings</span>
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint" aria-hidden />
+            <input
+              type="search"
+              value={listQuery}
+              onChange={(e) => setListQueryAndUrl(e.target.value)}
+              placeholder="Search title or place"
+              className="tv-input w-full pl-9"
+              autoComplete="off"
+            />
+          </label>
+          <div className="flex flex-wrap gap-x-1 gap-y-2 border-b border-black/[0.06]" role="tablist" aria-label="Listing filters">
+            {([
+              { id: 'all', label: 'All' },
+              { id: 'tour', label: 'Tours' },
+              { id: 'stay', label: 'Stays' },
+              { id: 'draft', label: 'Draft' },
+              { id: 'published', label: 'Live' },
+            ] as const).map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={workspaceFilter === tab.id}
+                onClick={() => setWorkspaceFilterAndUrl(tab.id)}
+                className={`lux-flat relative px-3.5 py-2.5 text-sm font-medium transition-colors ${
+                  workspaceFilter === tab.id ? 'text-finland' : 'text-ink-muted hover:text-ink'
+                }`}
+              >
+                {tab.label}
+                <span className="ml-1.5 text-xs font-semibold text-ink-faint tabular-nums">
+                  {workspaceCounts[tab.id]}
+                </span>
+                {workspaceFilter === tab.id ? (
+                  <span className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-finland" aria-hidden />
+                ) : null}
+              </button>
+            ))}
+          </div>
         </div>
       ) : null}
 
@@ -971,9 +1026,20 @@ export default function SupplierListings() {
         <SupplierEmptyState
           icon={Map}
           title="Nothing in this view"
-          body="You have listings, but none match this filter. Clear it to see everything."
+          body={
+            listQuery.trim()
+              ? 'No listings match this search and filter. Clear search or switch tabs.'
+              : 'You have listings, but none match this filter. Clear it to see everything.'
+          }
           action={
-            <button type="button" onClick={() => setWorkspaceFilter('all')} className="tv-btn-secondary">
+            <button
+              type="button"
+              onClick={() => {
+                setListQueryAndUrl('');
+                setWorkspaceFilterAndUrl('all');
+              }}
+              className="tv-btn-secondary"
+            >
               Show all listings
             </button>
           }
