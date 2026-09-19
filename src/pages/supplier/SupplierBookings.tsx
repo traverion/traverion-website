@@ -640,6 +640,7 @@ export default function SupplierBookings() {
           <div className="mt-5 flex flex-wrap gap-x-1 gap-y-2 border-b border-black/[0.06]" role="tablist" aria-label="Schedule">
             {([
               ['today', 'Today'],
+              ['tomorrow', 'Tomorrow'],
               ['upcoming', 'Upcoming'],
               ['past', 'Past'],
               ['all', 'All'],
