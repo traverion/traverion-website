@@ -169,10 +169,20 @@ export default function SupplierAvailability() {
       setBookings(mineBookings.filter((b) => partnerStayCalendarOccupiesNight(b)));
       setListingId((prev) => {
         if (prev && mine.some((l) => l.id === prev)) return prev;
-        const fromUrl = new URLSearchParams(window.location.search).get('listing');
+        const fromUrl = (new URLSearchParams(window.location.search).get('listing') ?? '').trim();
         if (fromUrl && mine.some((l) => l.id === fromUrl)) return fromUrl;
+        if (mine.length === 1) return mine[0]!.id;
         return '';
       });
+      // Keep URL honest when we auto-focus the only listing.
+      if (typeof window !== 'undefined' && mine.length === 1) {
+        const only = mine[0]!.id;
+        const url = new URL(window.location.href);
+        if (url.searchParams.get('listing') !== only) {
+          url.searchParams.set('listing', only);
+          window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+        }
+      }
     } catch (e) {
       setError(userFacingError(e, USER_ERROR.calendar));
     } finally {
