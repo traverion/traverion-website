@@ -82,6 +82,23 @@ export default function SupplierPerformance() {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    const onPop = () => {
+      const w = new URLSearchParams(window.location.search).get('window');
+      if (w === '30d' || w === '90d' || w === 'all') setWindowKey(w);
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
+  const setWindowAndUrl = (next: WindowKey) => {
+    setWindowKey(next);
+    const url = new URL(window.location.href);
+    if (next === '30d') url.searchParams.delete('window');
+    else url.searchParams.set('window', next);
+    window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+  };
+
   const activeWindow = WINDOW_OPTIONS.find((w) => w.id === windowKey) ?? WINDOW_OPTIONS[0];
 
   const collectedInWindow = useMemo(() => {
@@ -187,7 +204,7 @@ export default function SupplierPerformance() {
                 type="button"
                 role="tab"
                 aria-selected={windowKey === opt.id}
-                onClick={() => setWindowKey(opt.id)}
+                onClick={() => setWindowAndUrl(opt.id)}
                 className={`lux-flat px-3 py-1.5 rounded-full text-sm font-medium transition-colors duration-150 ${
                   windowKey === opt.id
                     ? 'bg-finland text-white shadow-sm'
