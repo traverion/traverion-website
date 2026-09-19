@@ -58,6 +58,13 @@ function offerStatus(d: ListingDiscount): 'upcoming' | 'active' | 'ended' {
 
 type OfferRow = { discount: ListingDiscount; listing: TourPackage };
 
+type OfferStatusFilter = 'all' | 'active' | 'upcoming' | 'ended' | 'unsupported';
+
+function parseOfferStatusFilter(raw: string | null | undefined): OfferStatusFilter {
+  if (raw === 'active' || raw === 'upcoming' || raw === 'ended' || raw === 'unsupported') return raw;
+  return 'all';
+}
+
 export default function SupplierDiscountsOffers() {
   const { user, isSupabase } = useSupplierAuth();
   const { role } = useSupplierRole();
@@ -68,6 +75,27 @@ export default function SupplierDiscountsOffers() {
   const [error, setError] = useState<string | null>(null);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [editingDiscount, setEditingDiscount] = useState<ListingDiscount | null>(null);
+  const [statusFilter, setStatusFilter] = useState<OfferStatusFilter>(() => {
+    if (typeof window === 'undefined') return 'all';
+    return parseOfferStatusFilter(new URLSearchParams(window.location.search).get('status'));
+  });
+
+  const setStatusFilterAndUrl = useCallback((next: OfferStatusFilter) => {
+    setStatusFilter(next);
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    if (next === 'all') url.searchParams.delete('status');
+    else url.searchParams.set('status', next);
+    window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+  }, []);
+
+  useEffect(() => {
+    const syncFromUrl = () => {
+      setStatusFilter(parseOfferStatusFilter(new URLSearchParams(window.location.search).get('status')));
+    };
+    window.addEventListener('popstate', syncFromUrl);
+    return () => window.removeEventListener('popstate', syncFromUrl);
+  }, []);
 
   const loadAll = useCallback(async () => {
     const uid = user?.id;
@@ -155,6 +183,17 @@ export default function SupplierDiscountsOffers() {
     [rows]
   );
 
+  const filteredRows = useMemo(() => {
+    return rows.filter(({ discount, listing }) => {
+      const stayUnsupported = partnerOfferListingIsStayUnsupported(listing);
+      if (statusFilter === 'unsupported') return stayUnsupported;
+      if (stayUnsupported) return statusFilter === 'all';
+      const st = offerStatus(discount);
+      if (statusFilter === 'all') return true;
+      return st === statusFilter;
+    });
+  }, [rows, statusFilter]);
+
   return (
     <div className={SUPPLIER_PAGE_CLASS}>
       <SupplierPageHero
@@ -215,7 +254,7 @@ export default function SupplierDiscountsOffers() {
           ) : null}
 
           <div>
-            <div className="mb-6 flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1">
+            <div className="mb-4 flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1">
               <h2 className="font-display text-2xl text-ink tracking-tight">Your offers</h2>
               <p className="text-sm text-ink-muted">
                 {rows.length} total · {activeTourOffers} active on tours
@@ -224,6 +263,37 @@ export default function SupplierDiscountsOffers() {
                   : ''}
               </p>
             </div>
+
+            {rows.length > 0 ? (
+              <div className="mb-5 flex flex-wrap gap-1.5" role="tablist" aria-label="Offer status">
+                {(
+                  [
+                    { id: 'all', label: 'All' },
+                    { id: 'active', label: 'Active' },
+                    { id: 'upcoming', label: 'Upcoming' },
+                    { id: 'ended', label: 'Ended' },
+                    ...(unsupportedStayOffers > 0
+                      ? ([{ id: 'unsupported', label: 'Not on checkout' }] as const)
+                      : []),
+                  ] as const
+                ).map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={statusFilter === tab.id}
+                    onClick={() => setStatusFilterAndUrl(tab.id)}
+                    className={`lux-flat rounded-md px-3 py-1.5 text-xs font-semibold ring-1 transition-colors ${
+                      statusFilter === tab.id
+                        ? 'bg-finland text-white ring-finland'
+                        : 'bg-transparent text-ink-muted ring-black/[0.08] hover:text-ink hover:ring-black/[0.14]'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            ) : null}
 
             {rows.length === 0 ? (
               <SupplierEmptyState
@@ -238,9 +308,20 @@ export default function SupplierDiscountsOffers() {
                   ) : undefined
                 }
               />
+            ) : filteredRows.length === 0 ? (
+              <SupplierEmptyState
+                icon={Tag}
+                title="Nothing in this view"
+                body="No offers match this status filter."
+                action={
+                  <button type="button" onClick={() => setStatusFilterAndUrl('all')} className="tv-btn-secondary">
+                    Show all offers
+                  </button>
+                }
+              />
             ) : (
-              <div className="space-y-3">
-                {rows.map(({ discount: d, listing }) => {
+              <div className="space-y-2">
+                {filteredRows.map(({ discount: d, listing }) => {
                   const stayUnsupported = partnerOfferListingIsStayUnsupported(listing);
                   const st = offerStatus(d);
                   const statusLabel = stayUnsupported
@@ -264,7 +345,7 @@ export default function SupplierDiscountsOffers() {
                   return (
                     <article
                       key={d.id}
-                      className={`rounded-2xl bg-paper-raised p-4 sm:p-5 shadow-soft ring-1 ring-black/[0.06] w-full min-w-0 max-w-full space-y-3 ${
+                      className={`rounded-xl bg-paper-raised p-3.5 sm:p-4 shadow-soft ring-1 ring-black/[0.06] w-full min-w-0 max-w-full space-y-2.5 ${
                         stayUnsupported ? 'border-l-[3px] border-l-amber-500' : ''
                       }`}
                     >
