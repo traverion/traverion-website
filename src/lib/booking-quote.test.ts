@@ -387,7 +387,12 @@ describe('getListingPublishBlockers', () => {
         excludes: [],
         listingExtras: {
           inventoryFamily: 'stay',
-          stay: { nightlyPriceUsd: 120, maxGuests: 4 },
+          stay: {
+            nightlyPriceUsd: 120,
+            maxGuests: 4,
+            checkInTime: '16:00',
+            checkOutTime: '11:00',
+          },
           galleryImageUrls: [
             'https://example.com/2.jpg',
             'https://example.com/3.jpg',
@@ -397,6 +402,29 @@ describe('getListingPublishBlockers', () => {
       })
     );
     expect(stayReady).toEqual([]);
+  });
+
+  it('blocks a stay missing check-in or check-out times', () => {
+    const missingTimes = getListingPublishBlockers(
+      tour({
+        subtitle: 'Quiet apartment near the harbour',
+        description: 'A'.repeat(120),
+        image: 'https://example.com/real.jpg',
+        includes: [],
+        excludes: [],
+        listingExtras: {
+          inventoryFamily: 'stay',
+          stay: { nightlyPriceUsd: 120, maxGuests: 4 },
+          galleryImageUrls: [
+            'https://example.com/2.jpg',
+            'https://example.com/3.jpg',
+            'https://example.com/4.jpg',
+          ],
+        },
+      })
+    );
+    expect(missingTimes.some((m) => m.toLowerCase().includes('check-in'))).toBe(true);
+    expect(missingTimes.some((m) => m.toLowerCase().includes('check-out'))).toBe(true);
   });
 });
 

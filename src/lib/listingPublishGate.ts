@@ -87,6 +87,14 @@ export function getListingPublishBlockers(listing: TourPackage, todayIso?: strin
     if (typeof stay?.maxGuests !== 'number' || stay.maxGuests < 1) {
       out.push('Set how many guests the property can host.');
     }
+    const checkIn = (stay?.checkInTime ?? '').trim();
+    const checkOut = (stay?.checkOutTime ?? '').trim();
+    if (!/^\d{2}:\d{2}$/.test(checkIn)) {
+      out.push('Set a check-in time so guests know when they can arrive.');
+    }
+    if (!/^\d{2}:\d{2}$/.test(checkOut)) {
+      out.push('Set a check-out time so guests know when to leave.');
+    }
   } else if (bookingOptions.length > 0) {
     for (let i = 0; i < bookingOptions.length; i++) {
       out.push(...optionPublishIssues(bookingOptions[i], i, bookingOptions.length > 1, today));

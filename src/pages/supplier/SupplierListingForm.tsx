@@ -611,7 +611,16 @@ function isStepSatisfied(idx: number, form: ListingFormState): boolean {
     if (form.inventoryFamily === 'stay') {
       const nightly = Number.parseFloat(form.stayNightly);
       const maxG = Number.parseInt(form.stayMaxGuests, 10);
-      return Number.isFinite(nightly) && nightly > 0 && Number.isFinite(maxG) && maxG >= 1;
+      const checkIn = form.stayCheckIn.trim();
+      const checkOut = form.stayCheckOut.trim();
+      return (
+        Number.isFinite(nightly) &&
+        nightly > 0 &&
+        Number.isFinite(maxG) &&
+        maxG >= 1 &&
+        /^\d{2}:\d{2}$/.test(checkIn) &&
+        /^\d{2}:\d{2}$/.test(checkOut)
+      );
     }
     const active = materializedBookingOptions(form.bookingOptions);
     return active.length >= 1 && active.every(isBookingOptionOkForStep);
@@ -2269,6 +2278,7 @@ export default function SupplierListingForm({
                     value={form.stayCheckIn}
                     onChange={(e) => setForm((f) => ({ ...f, stayCheckIn: e.target.value }))}
                     className="tv-input mt-1 w-full"
+                    required
                   />
                 </label>
                 <label className="block text-sm">
@@ -2278,6 +2288,7 @@ export default function SupplierListingForm({
                     value={form.stayCheckOut}
                     onChange={(e) => setForm((f) => ({ ...f, stayCheckOut: e.target.value }))}
                     className="tv-input mt-1 w-full"
+                    required
                   />
                 </label>
               </div>
