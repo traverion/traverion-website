@@ -11,6 +11,7 @@ import {
   type BookingMessageRow,
 } from '../../data/supabase-booking-ops';
 import { SUPPLIER_PAGE_CLASS, SupplierEmptyState, SupplierListSkeleton, SupplierPageHero } from '../../components/supplier/supplierUi';
+import NoticeCallout from '../../components/NoticeCallout';
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
@@ -22,6 +23,10 @@ import { partnerInboxListsBooking } from '../../lib/messaging-authorization';
 import StatusChip, { toneForPaymentLabel } from '../../components/StatusChip';
 import { formatBookingParticipantsLabel } from '../../lib/participant-mix';
 
+/** Message previews are only fetched for the most recent N paid bookings; older
+ * closed/cancelled threads beyond this may not show here. See olderConversationsHidden. */
+const INBOX_MESSAGE_FETCH_CAP = 80;
+
 export default function SupplierInbox() {
   const { user, isSupabase } = useSupplierAuth();
   const [bookings, setBookings] = useState<BookingRow[]>([]);
@@ -31,6 +36,7 @@ export default function SupplierInbox() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [olderConversationsHidden, setOlderConversationsHidden] = useState(false);
 
   const load = useCallback(async () => {
     const uid = user?.id;
@@ -48,8 +54,10 @@ export default function SupplierInbox() {
       const openIds = new Set(cancels.filter((c) => c.status === 'requested').map((c) => c.booking_id));
       setOpenCancelIds(openIds);
       const lasts: Record<string, BookingMessageRow> = {};
+      const withMessagesFetched = collected.slice(0, INBOX_MESSAGE_FETCH_CAP);
+      setOlderConversationsHidden(collected.length > INBOX_MESSAGE_FETCH_CAP);
       await Promise.all(
-        collected.slice(0, 80).map(async (b) => {
+        withMessagesFetched.map(async (b) => {
           const msgs = await fetchBookingMessages(b.id);
           if (msgs.length) lasts[b.id] = msgs[msgs.length - 1]!;
         })
@@ -98,6 +106,13 @@ export default function SupplierInbox() {
         title="Inbox"
         description={`Messages about paid bookings. Closed and Refund due trips stay here if they already have a thread. ${PARTNER_INBOX_MESSAGE_DELIVERY_NOTE}`}
       />
+      {olderConversationsHidden ? (
+        <NoticeCallout title="Showing your most recent paid bookings" tone="info">
+          You have more than {INBOX_MESSAGE_FETCH_CAP} paid bookings, so this Inbox only checks messages for the {INBOX_MESSAGE_FETCH_CAP}
+          most recent ones. A closed or cancelled booking older than that won't appear here even if it has a message
+          history — open it from Bookings instead.
+        </NoticeCallout>
+      ) : null}
       {error ? (
         <ErrorState className="py-6" title="Inbox unavailable" body={error} retry={{ onClick: () => void load() }} />
       ) : null}
@@ -144,7 +159,17 @@ export default function SupplierInbox() {
                   type="button"
                   className="lux-flat w-full text-left"
                   onClick={() => {
-                    setOpenId(open ? null : b.id);
+                    const opening = !open;
+                    setOpenId(opening ? b.id : null);
+                    if (opening) {
+                      // Opening a thread fires markBookingMessagesRead (see BookingMessageThread).
+                      // Clear the Unread chip locally now so it doesn't wait for a full reload.
+                      setLastByBooking((prev) => {
+                        const cur = prev[b.id];
+                        if (!cur || cur.sender_role !== 'traveler' || cur.read_by_supplier_at) return prev;
+                        return { ...prev, [b.id]: { ...cur, read_by_supplier_at: new Date().toISOString() } };
+                      });
+                    }
                     const url = new URL(window.location.href);
                     if (open) url.searchParams.delete('booking');
                     else url.searchParams.set('booking', b.id);
