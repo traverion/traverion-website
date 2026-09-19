@@ -166,17 +166,25 @@ function csvEscape(value: unknown): string {
   return s;
 }
 
-function downloadBookingsCsv(rows: BookingRow[], listingTitles: Record<string, string>): void {
-  const lines = rows.map((b) =>
-    partnerBookingCsvValues(
+function downloadBookingsCsv(
+  rows: BookingRow[],
+  listingMeta: Record<string, ListingBookingMeta>
+): void {
+  const lines = rows.map((b) => {
+    const meta = listingMeta[b.listing_id];
+    const isStay = meta?.family === 'stay' || Boolean(b.check_out);
+    const stayRange = isStay ? stayRangeFromBooking(b) : null;
+    const nights = stayRange ? nightsOccupiedByStay(stayRange.checkIn, stayRange.checkOut).length : 0;
+    return partnerBookingCsvValues(
       b,
-      listingTitles[b.listing_id] ?? '',
+      meta?.title ?? '',
       b.start_time ? pgTimeToHm(b.start_time) ?? '' : '',
-      b.pickup_time ? pgTimeToHm(b.pickup_time) ?? '' : ''
+      b.pickup_time ? pgTimeToHm(b.pickup_time) ?? '' : '',
+      { inventory: isStay ? 'stay' : 'tour', nights: nights > 0 ? nights : null }
     )
       .map(csvEscape)
-      .join(',')
-  );
+      .join(',');
+  });
   const csv = [PARTNER_BOOKINGS_CSV_HEADER.join(','), ...lines].join('\n');
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
@@ -552,12 +560,7 @@ export default function SupplierBookings() {
             </button>
             <button
               type="button"
-              onClick={() =>
-                downloadBookingsCsv(
-                  filteredBookings,
-                  Object.fromEntries(Object.entries(listingMeta).map(([id, m]) => [id, m.title]))
-                )
-              }
+              onClick={() => downloadBookingsCsv(filteredBookings, listingMeta)}
               disabled={filteredBookings.length === 0}
               className="tv-btn-ghost disabled:opacity-50"
             >

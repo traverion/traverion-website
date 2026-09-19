@@ -8,6 +8,7 @@ export type PartnerBookingCsvRow = MoneyBookingRow & {
   guest_email?: string | null;
   guests?: number | null;
   booking_date?: string | null;
+  check_out?: string | null;
   start_time?: string | null;
   pickup_time?: string | null;
   acknowledged_at?: string | null;
@@ -22,10 +23,13 @@ export const PARTNER_BOOKINGS_CSV_HEADER = [
   'booking_number',
   'listing_id',
   'listing_title',
+  'inventory',
   'guest_name',
   'guest_email',
   'guests',
   'booking_date',
+  'check_out',
+  'nights',
   'start_time',
   'pickup_time',
   'status',
@@ -44,19 +48,28 @@ export function partnerBookingCsvValues(
   b: PartnerBookingCsvRow,
   listingTitle: string,
   startHm: string,
-  pickupHm: string
+  pickupHm: string,
+  opts?: { inventory?: 'tour' | 'stay'; nights?: number | null }
 ): string[] {
+  const inventory = opts?.inventory ?? (b.check_out ? 'stay' : 'tour');
+  const nights =
+    opts?.nights != null && Number.isFinite(opts.nights) && opts.nights > 0
+      ? String(Math.floor(opts.nights))
+      : '';
   return [
     b.id,
     typeof b.booking_number === 'number' ? String(b.booking_number) : '',
     b.listing_id ?? '',
     listingTitle,
+    inventory,
     b.guest_name ?? '',
     b.guest_email ?? '',
     b.guests != null ? String(b.guests) : '',
     b.booking_date ?? '',
+    b.check_out ?? '',
+    nights,
     startHm,
-    pickupHm,
+    inventory === 'stay' ? '' : pickupHm,
     b.status ?? '',
     normalizePaymentStatus(b.payment_status),
     partnerPaymentLabel(b),
