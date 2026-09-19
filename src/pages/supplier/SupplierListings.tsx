@@ -117,6 +117,7 @@ export default function SupplierListings() {
   const [payoutOnFile, setPayoutOnFile] = useState(false);
   const [publishGate, setPublishGate] = useState<{ listingId: string; title: string; blockers: string[] } | null>(null);
   const [justPublishedId, setJustPublishedId] = useState<string | null>(null);
+  const [justDuplicatedId, setJustDuplicatedId] = useState<string | null>(null);
   const [createFamily, setCreateFamily] = useState<'tour' | 'stay'>('tour');
   const createChooserRef = useRef<HTMLDivElement>(null);
   const closeCreateChooser = useCallback(() => setShowCreateChooser(false), []);
@@ -616,6 +617,9 @@ export default function SupplierListings() {
       } else {
         setSupplierListings([...getSupplierListings(), duplicate]);
       }
+      setWorkspaceFilterAndUrl('draft');
+      setJustDuplicatedId(freshId);
+      window.setTimeout(() => setJustDuplicatedId((id) => (id === freshId ? null : id)), 8000);
       refresh();
     } catch (e) {
       setError(userFacingError(e, 'Could not duplicate listing. Try again.'));
@@ -1128,6 +1132,11 @@ export default function SupplierListings() {
                               Published · Calendar
                             </button>
                           ) : null}
+                          {justDuplicatedId === listing.id ? (
+                            <span className="rounded-full bg-finland/10 px-2 py-0.5 text-[11px] font-semibold text-finland ring-1 ring-finland/20">
+                              Draft copy
+                            </span>
+                          ) : null}
                           {draftPublish && !draftPublish.readyToPublish ? (
                             <StatusChip tone="warn">
                               {draftPublish.blockers.length} before publish
@@ -1276,7 +1285,7 @@ export default function SupplierListings() {
                   }}
                 >
                   <Copy className="h-4 w-4 shrink-0" aria-hidden />
-                  {duplicatingId === menuListing.id ? 'Duplicating\u2026' : 'Duplicate'}
+                  {duplicatingId === menuListing.id ? 'Duplicating\u2026' : 'Duplicate as draft'}
                 </button>
                 {menuIsLive ? (
                   <button
