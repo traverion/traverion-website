@@ -1390,7 +1390,10 @@ export default function SupplierListings() {
                 <div className="p-4 sm:p-6 overflow-y-auto pb-[max(1rem,env(safe-area-inset-bottom))]">
                 <p className="text-sm text-ink-muted leading-relaxed">
                   <span className="font-medium text-ink">{listingPendingDeactivate.title}</span> will be hidden from
-                  travelers. Existing bookings stay. New checkouts stop until you publish it again.
+                  travelers. Existing bookings stay.
+                  {inventoryFamilyFromListing(listingPendingDeactivate) === 'stay'
+                    ? ' New stay checkouts stop until you publish it again.'
+                    : ' New checkouts stop until you publish it again.'}
                 </p>
                 <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                   <button

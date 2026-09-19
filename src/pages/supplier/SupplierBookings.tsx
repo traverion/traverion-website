@@ -1081,23 +1081,41 @@ export default function SupplierBookings() {
                   </div>
 
                   <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                    <div>
-                      <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">
-                        {isStay ? 'Stay dates' : 'When'}
-                      </dt>
-                      <dd className="mt-0.5 text-ink">{whenLabel}</dd>
-                    </div>
+                    {isStay && stayOut ? (
+                      <>
+                        <div>
+                          <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">
+                            Check-in
+                          </dt>
+                          <dd className="mt-0.5 text-ink">{formatStayNightHuman(booking.booking_date ?? '')}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">
+                            Check-out
+                          </dt>
+                          <dd className="mt-0.5 text-ink">{formatStayNightHuman(stayOut)}</dd>
+                        </div>
+                      </>
+                    ) : (
+                      <div>
+                        <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">When</dt>
+                        <dd className="mt-0.5 text-ink">{whenLabel}</dd>
+                      </div>
+                    )}
                     <div>
                       <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">
                         {isStay ? 'Guests' : 'Participants'}
                       </dt>
-                      <dd className="mt-0.5 text-ink">
-                        {formatBookingParticipantsLabel(booking)}
-                        {isStay && stayNightCount > 0
-                          ? ` · ${stayNightCount} night${stayNightCount === 1 ? '' : 's'}`
-                          : ''}
-                      </dd>
+                      <dd className="mt-0.5 text-ink">{formatBookingParticipantsLabel(booking)}</dd>
                     </div>
+                    {isStay && stayNightCount > 0 ? (
+                      <div>
+                        <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Nights</dt>
+                        <dd className="mt-0.5 text-ink tabular-nums">
+                          {stayNightCount} night{stayNightCount === 1 ? '' : 's'}
+                        </dd>
+                      </div>
+                    ) : null}
                     {isStay && (meta?.stayCheckInTime || meta?.stayCheckOutTime) ? (
                       <div className="sm:col-span-2">
                         <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">
