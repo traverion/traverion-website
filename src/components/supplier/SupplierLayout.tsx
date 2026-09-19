@@ -1047,9 +1047,7 @@ export default function SupplierLayout() {
               hasListing={(onboardingListingCount ?? 0) > 0}
             />
           )}
-          {section === 'dashboard' && (
-            <SupplierDashboard onNavigateToBookings={() => handleNavigate('bookings')} />
-          )}
+          {section === 'dashboard' && <SupplierDashboard />}
           {section === 'listings' && <SupplierListings />}
           {section === 'availability' && <SupplierAvailability />}
           {section === 'bookings' && <SupplierBookings />}

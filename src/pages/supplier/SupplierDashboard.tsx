@@ -23,10 +23,6 @@ import { partnerTodayEmptyScheduleCopy } from '../../lib/partner-today-copy';
 import { formatBookingParticipantsLabel } from '../../lib/participant-mix';
 import { pgTimeToHm } from '../../data/supabase-listings';
 
-interface SupplierDashboardProps {
-  onNavigateToBookings?: () => void;
-}
-
 type AttentionTone = 'danger' | 'warn' | 'info';
 
 const ATTENTION_TONE: Record<AttentionTone, string> = {
@@ -65,7 +61,7 @@ function localYmd(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
-export default function SupplierDashboard({ onNavigateToBookings: _onNavigateToBookings }: SupplierDashboardProps) {
+export default function SupplierDashboard() {
   const { user, isSupabase } = useSupplierAuth();
   /** Published / live on Traverion only — drafts excluded (see My listings for all rows). */
   const [publishedListingsCount, setPublishedListingsCount] = useState<number | null>(null);
@@ -191,11 +187,17 @@ export default function SupplierDashboard({ onNavigateToBookings: _onNavigateToB
     [supplierBookings]
   );
 
+  /**
+   * profile starts null (before the first fetch resolves, or if that one fetch in the
+   * Promise.allSettled batch fails while bookings/listings still succeed) — defaulting to
+   * "needs action" in that case falsely tells an already-verified supplier to finish
+   * onboarding. Only flag this once we actually have profile data saying otherwise.
+   */
   const verificationNeedsAction = useMemo(() => {
-    const v = (profile?.verification_status ?? '').trim().toLowerCase();
-    if (v === 'verified') return false;
-    return true;
-  }, [profile?.verification_status]);
+    if (!profile) return false;
+    const v = (profile.verification_status ?? '').trim().toLowerCase();
+    return v !== 'verified';
+  }, [profile]);
 
   const pickupGaps = useMemo(
     () =>
