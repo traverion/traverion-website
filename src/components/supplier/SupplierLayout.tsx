@@ -831,7 +831,7 @@ export default function SupplierLayout() {
   }
 
   return (
-    <div className="partner-app-shell min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden bg-paper text-ink">
+    <div className="partner-app-shell min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden bg-white text-slate-900">
       <SkipLink />
       {appStripeIsTestMode() ? (
         <p className="bg-amber-500 text-ink text-center text-[11px] font-semibold tracking-wide px-3 py-1.5">
@@ -853,26 +853,26 @@ export default function SupplierLayout() {
         />
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-30 border-b border-black/[0.06] bg-paper-raised/95 backdrop-blur-md pt-[env(safe-area-inset-top)]">
-            <div className="flex h-14 items-center gap-3 px-4 sm:px-6">
+          <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/95 backdrop-blur-md pt-[env(safe-area-inset-top)]">
+            <div className="flex h-12 items-center gap-3 px-4 sm:px-6">
               <button
                 type="button"
                 onClick={() => handleNavigate('dashboard')}
                 className="lux-flat md:hidden flex items-center gap-2 shrink-0"
                 aria-label="Partner home"
               >
-                <img src={BRAND_LOGO_SRC} alt="" className="h-8 w-8 object-contain" />
-                <span className="font-sans text-[11px] font-semibold tracking-[0.2em]">TRAVERION</span>
+                <img src={BRAND_LOGO_SRC} alt="" className="h-7 w-7 object-contain" />
+                <span className="font-sans text-[10px] font-semibold tracking-[0.18em] text-slate-800">TRAVERION</span>
               </button>
               <div className="hidden md:block min-w-0">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint">Partner</p>
-                <p className="truncate text-sm font-semibold text-ink">{operatorDisplayName}</p>
+                <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-slate-400">Partner</p>
+                <p className="truncate text-[13px] font-medium text-slate-800">{operatorDisplayName}</p>
               </div>
               <div className="relative ml-auto">
                 <button
                   type="button"
                   onClick={() => setAccountMenuOpen((v) => !v)}
-                  className="lux-flat hidden md:inline-flex h-9 w-9 items-center justify-center rounded-full bg-finland text-white text-xs font-semibold ring-1 ring-finland/25"
+                  className="partner-nav-item lux-flat hidden md:inline-flex h-8 w-8 items-center justify-center rounded-full bg-finland text-white text-[11px] font-semibold"
                   aria-label="Account"
                   aria-expanded={accountMenuOpen}
                   aria-haspopup="menu"
@@ -885,17 +885,17 @@ export default function SupplierLayout() {
                     id="partner-account-menu"
                     role="menu"
                     aria-label="Account"
-                    className="absolute right-0 top-11 w-64 rounded-xl bg-paper-raised shadow-soft-xl ring-1 ring-black/[0.06] p-2 z-50 origin-top-right motion-safe:animate-slide-down"
+                    className="absolute right-0 top-10 w-64 rounded-lg bg-white shadow-[0_8px_30px_rgba(15,23,42,0.08)] ring-1 ring-slate-200/80 p-1.5 z-50 origin-top-right motion-safe:animate-slide-down"
                   >
                     {supplierEmail ? (
-                      <p className="px-3 py-2 text-xs text-ink-muted truncate border-b border-black/[0.06] mb-1">
+                      <p className="px-2.5 py-2 text-xs text-slate-500 truncate border-b border-slate-100 mb-1">
                         {supplierEmail}
                       </p>
                     ) : null}
                     <button
                       type="button"
                       onClick={() => openSettingsFocus('account')}
-                      className="lux-flat w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-paper"
+                      className="partner-nav-item lux-flat w-full text-left px-2.5 py-2 rounded-md text-[13px] text-slate-700 hover:bg-slate-50"
                     >
                       Account settings
                     </button>
@@ -903,7 +903,7 @@ export default function SupplierLayout() {
                       <button
                         type="button"
                         onClick={() => handleNavigate('onboarding')}
-                        className="lux-flat w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-paper"
+                        className="partner-nav-item lux-flat w-full text-left px-2.5 py-2 rounded-md text-[13px] text-slate-700 hover:bg-slate-50"
                       >
                         Finish setup
                       </button>
@@ -911,7 +911,7 @@ export default function SupplierLayout() {
                     <button
                       type="button"
                       onClick={handlePartnerSignOut}
-                      className="lux-flat w-full text-left px-3 py-2 rounded-lg text-sm text-red-700 hover:bg-paper"
+                      className="partner-nav-item lux-flat w-full text-left px-2.5 py-2 rounded-md text-[13px] text-rose-700 hover:bg-rose-50"
                     >
                       Log out
                     </button>
@@ -924,45 +924,45 @@ export default function SupplierLayout() {
           {mobileAccountOpen && (
             <div
               ref={mobileAccountRef}
-              className="md:hidden fixed inset-0 z-50 bg-paper pt-[env(safe-area-inset-top)] motion-safe:animate-fade-in"
+              className="md:hidden fixed inset-0 z-50 bg-white pt-[env(safe-area-inset-top)] motion-safe:animate-fade-in"
               role="dialog"
               aria-modal="true"
               aria-labelledby="partner-more-title"
             >
-              <div className="flex items-center justify-between px-4 py-3 border-b border-black/[0.06]">
-                <h2 id="partner-more-title" className="font-display text-2xl">More</h2>
-                <button type="button" onClick={() => setMobileAccountOpen(false)} className="lux-tap-target p-2" aria-label="Close">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200/80">
+                <h2 id="partner-more-title" className="text-[17px] font-semibold text-slate-900">More</h2>
+                <button type="button" onClick={() => setMobileAccountOpen(false)} className="lux-tap-target p-2 text-slate-500" aria-label="Close">
                   <X className="w-5 h-5" />
                 </button>
               </div>
               <div className="px-4 pb-10 overflow-y-auto max-h-[calc(100dvh-3.5rem)]">
                 {PARTNER_MORE_GROUPS.map((group) => (
                   <div key={group.id} className="pt-4">
-                    <p className="pb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint">{group.label}</p>
+                    <p className="pb-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-slate-400">{group.label}</p>
                     {group.items.map((item) => (
                       <button
                         key={item.id}
                         type="button"
                         onClick={() => handleNavigate(item.id as SupplierSection)}
-                        className={`lux-flat w-full flex items-center gap-3 text-left py-3.5 text-base ${
-                          section === item.id ? 'text-finland font-semibold' : ''
+                        className={`partner-nav-item lux-flat w-full flex items-center gap-3 text-left rounded-md px-2 py-3 text-[15px] ${
+                          section === item.id ? 'bg-finland/[0.07] text-finland font-medium' : 'text-slate-700'
                         }`}
                       >
-                        <item.icon className="w-5 h-5 shrink-0 text-ink-faint" strokeWidth={1.8} aria-hidden />
+                        <item.icon className={`w-4 h-4 shrink-0 ${section === item.id ? 'text-finland' : 'text-slate-400'}`} strokeWidth={1.7} aria-hidden />
                         {item.label}
                       </button>
                     ))}
                   </div>
                 ))}
                 <div className="pt-4">
-                  <p className="pb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint">Account</p>
-                  {supplierEmail ? <p className="py-2 text-sm text-ink-muted truncate">{supplierEmail}</p> : null}
+                  <p className="pb-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-slate-400">Account</p>
+                  {supplierEmail ? <p className="px-2 py-2 text-[13px] text-slate-500 truncate">{supplierEmail}</p> : null}
                   {!onboardingComplete && (
-                    <button type="button" onClick={() => handleNavigate('onboarding')} className="lux-flat w-full text-left py-3.5 text-base">
+                    <button type="button" onClick={() => handleNavigate('onboarding')} className="partner-nav-item lux-flat w-full text-left rounded-md px-2 py-3 text-[15px] text-slate-700">
                       Finish setup
                     </button>
                   )}
-                  <button type="button" onClick={handlePartnerSignOut} className="lux-flat w-full text-left py-3.5 text-base text-red-700">
+                  <button type="button" onClick={handlePartnerSignOut} className="partner-nav-item lux-flat w-full text-left rounded-md px-2 py-3 text-[15px] text-rose-700">
                     Log out
                   </button>
                 </div>
@@ -1132,7 +1132,7 @@ export default function SupplierLayout() {
       </div>
 
       <nav
-        className="partner-bottom-nav md:hidden fixed bottom-0 inset-x-0 z-40 bg-paper-raised/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)] border-t border-black/[0.06] shadow-[0_-4px_24px_rgba(0,0,0,0.04)]"
+        className="partner-bottom-nav md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)] border-t border-slate-200/80"
         aria-label="Primary"
       >
         <div className="flex items-stretch justify-around max-w-lg mx-auto px-1">
@@ -1144,15 +1144,15 @@ export default function SupplierLayout() {
                 type="button"
                 onClick={() => handleNavigate(tab.id)}
                 aria-current={active ? 'page' : undefined}
-                className={`lux-flat relative flex flex-1 flex-col items-center justify-center gap-0.5 py-2 min-h-[52px] ${
-                  active ? 'text-finland' : 'text-ink-faint'
+                className={`partner-nav-item lux-flat relative flex flex-1 flex-col items-center justify-center gap-0.5 py-2 min-h-[52px] ${
+                  active ? 'text-finland' : 'text-slate-400'
                 }`}
               >
                 {active ? (
-                  <span className="absolute inset-x-3 top-0 h-0.5 rounded-full bg-finland" aria-hidden />
+                  <span className="absolute inset-x-4 top-0 h-[2px] rounded-full bg-finland" aria-hidden />
                 ) : null}
-                <tab.icon className="w-5 h-5" strokeWidth={active ? 2.4 : 1.8} aria-hidden />
-                <span className="text-[10px] font-semibold">{tab.label}</span>
+                <tab.icon className="w-[18px] h-[18px]" strokeWidth={active ? 2.2 : 1.6} aria-hidden />
+                <span className="text-[10px] font-medium tracking-wide">{tab.label}</span>
               </button>
             );
           })}
@@ -1161,28 +1161,28 @@ export default function SupplierLayout() {
             onClick={() => setMobileAccountOpen(true)}
             aria-expanded={mobileAccountOpen}
             aria-haspopup="dialog"
-            className={`lux-flat flex flex-1 flex-col items-center justify-center gap-0.5 py-2 min-h-[52px] ${
+            className={`partner-nav-item lux-flat flex flex-1 flex-col items-center justify-center gap-0.5 py-2 min-h-[52px] ${
               mobileAccountOpen ||
               ['inbox', 'reviews', 'discounts', 'pickup', 'performance', 'business-profile', 'account-settings'].includes(
                 section
               )
                 ? 'text-finland'
-                : 'text-ink-faint'
+                : 'text-slate-400'
             }`}
           >
             <UserCircle2
-              className="w-5 h-5"
+              className="w-[18px] h-[18px]"
               strokeWidth={
                 mobileAccountOpen ||
                 ['inbox', 'reviews', 'discounts', 'pickup', 'performance', 'business-profile', 'account-settings'].includes(
                   section
                 )
-                  ? 2.4
-                  : 1.8
+                  ? 2.2
+                  : 1.6
               }
               aria-hidden
             />
-            <span className="text-[10px] font-semibold">More</span>
+            <span className="text-[10px] font-medium tracking-wide">More</span>
           </button>
         </div>
       </nav>

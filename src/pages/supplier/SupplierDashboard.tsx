@@ -26,10 +26,10 @@ import { pgTimeToHm } from '../../data/supabase-listings';
 
 type AttentionTone = 'danger' | 'warn' | 'info';
 
-const ATTENTION_TONE: Record<AttentionTone, string> = {
-  danger: 'bg-rose-50 ring-1 ring-rose-200/80 text-rose-950 hover:bg-rose-100/90',
-  warn: 'bg-amber-50 ring-1 ring-amber-200/80 text-amber-950 hover:bg-amber-100/90',
-  info: 'bg-finland/[0.07] ring-1 ring-finland/20 text-ink hover:bg-finland/[0.11]',
+const ATTENTION_ACCENT: Record<AttentionTone, string> = {
+  danger: 'bg-rose-500',
+  warn: 'bg-amber-500',
+  info: 'bg-slate-300',
 };
 
 function AttentionRow({
@@ -42,14 +42,18 @@ function AttentionRow({
   children: ReactNode;
 }) {
   return (
-    <li>
+    <li className="border-b border-slate-100 last:border-b-0">
       <button
         type="button"
         onClick={onClick}
-        className={`lux-flat group flex min-h-12 w-full items-center justify-between gap-3 rounded-2xl px-4 py-3.5 text-left text-sm font-medium ${ATTENTION_TONE[tone]}`}
+        className="partner-row-interact lux-flat group flex min-h-11 w-full items-center gap-3 px-3 py-2.5 text-left"
       >
-        <span className="min-w-0 leading-snug">{children}</span>
-        <ChevronRight className="h-4 w-4 shrink-0 opacity-50 transition-transform group-hover:translate-x-0.5" aria-hidden />
+        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${ATTENTION_ACCENT[tone]}`} aria-hidden />
+        <span className="min-w-0 flex-1 text-[14px] font-medium leading-snug text-slate-800">{children}</span>
+        <ChevronRight
+          className="h-3.5 w-3.5 shrink-0 text-slate-300 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-slate-500"
+          aria-hidden
+        />
       </button>
     </li>
   );
@@ -294,13 +298,13 @@ export default function SupplierDashboard() {
 
   return (
     <div className={`${SUPPLIER_PAGE_CLASS} motion-safe:animate-fade-in`}>
-      <header className="mb-8 pb-5 border-b border-black/[0.06] flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint mb-1.5">{dateLabel}</p>
-          <h1 className="font-display text-[1.85rem] sm:text-[2.25rem] leading-tight text-ink tracking-tight">
+      <header className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-400 mb-1">{dateLabel}</p>
+          <h1 className="font-display text-[1.625rem] sm:text-[1.875rem] font-semibold leading-tight tracking-tight text-slate-900">
             {firstName ? `${hello}, ${firstName}` : hello}
           </h1>
-          <p className="mt-1.5 text-sm text-ink-muted max-w-lg leading-relaxed">
+          <p className="mt-1.5 text-[14px] text-slate-500 max-w-xl leading-relaxed">
             {attentionCount > 0
               ? `${attentionCount} item${attentionCount === 1 ? '' : 's'} need your attention.`
               : todayDepartures.length > 0
@@ -308,18 +312,22 @@ export default function SupplierDashboard() {
                 : 'Your operational starting point for today.'}
           </p>
         </div>
-        <div className="flex flex-wrap gap-2 self-start">
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-end">
           <button
             type="button"
             onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/calendar`)}
-            className="tv-btn-ghost"
+            className="partner-nav-item lux-flat inline-flex h-9 items-center rounded-md border border-slate-200 bg-white px-3.5 text-[13px] font-medium text-slate-700 hover:border-slate-300 hover:bg-slate-50"
           >
             Calendar
           </button>
           <button
             type="button"
             onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/listings?new=1`)}
-            className={`${attentionCount > 0 ? 'tv-btn-ghost' : 'tv-btn-primary'}`}
+            className={`partner-nav-item lux-flat inline-flex h-9 items-center rounded-md px-3.5 text-[13px] font-medium ${
+              attentionCount > 0
+                ? 'border border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
+                : 'bg-finland text-white hover:bg-finland-dark'
+            }`}
           >
             New listing
           </button>
@@ -337,8 +345,8 @@ export default function SupplierDashboard() {
 
       {attentionCount > 0 && (
         <section className="mb-8">
-          <h2 className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-3">Needs attention</h2>
-          <ul className="space-y-2">
+          <h2 className="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-400 mb-2">Needs attention</h2>
+          <ul className="partner-surface-panel overflow-hidden">
             {openCancelCount > 0 && (
               <AttentionRow
                 tone="danger"
@@ -390,36 +398,35 @@ export default function SupplierDashboard() {
         </section>
       )}
 
-      <section className="mb-8">
+      <section className="mb-9">
         <div className="mb-3 flex items-baseline justify-between gap-3">
-          <h2 className="text-[11px] uppercase tracking-[0.16em] text-ink-faint">Today’s departures</h2>
+          <h2 className="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-400">Today’s departures</h2>
           {todayDepartures.length > 0 ? (
-            <span className="text-xs text-ink-muted tabular-nums">
-              {todayDepartures.length} booking{todayDepartures.length === 1 ? '' : 's'} ·{' '}
-              {todayScheduleRows.reduce((s, r) => s + r.guests, 0)} guests
+            <span className="text-[13px] text-slate-500 tabular-nums">
+              {todayDepartures.length} booking{todayDepartures.length === 1 ? '' : 's'} · {todayGuestTotal} guests
             </span>
           ) : null}
         </div>
         {dashboardLoading && publishedListingsCount === null ? (
           <SupplierListSkeleton rows={3} />
         ) : todayDepartures.length === 0 ? (
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-black/[0.025] px-3.5 py-3.5 ring-1 ring-black/[0.05]">
+          <div className="partner-surface-panel flex flex-wrap items-center justify-between gap-3 px-4 py-3.5">
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-ink">{todayEmptyCopy.title}</p>
-              <p className="text-xs text-ink-muted mt-0.5 leading-snug">{todayEmptyCopy.body}</p>
+              <p className="text-[14px] font-medium text-slate-800">{todayEmptyCopy.title}</p>
+              <p className="text-[13px] text-slate-500 mt-0.5 leading-snug">{todayEmptyCopy.body}</p>
             </div>
             {attentionCount === 0 ? (
               <button
                 type="button"
                 onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/calendar`)}
-                className="tv-btn-ghost text-xs shrink-0"
+                className="partner-nav-item lux-flat shrink-0 rounded-md border border-slate-200 px-3 py-1.5 text-[12px] font-medium text-slate-700 hover:bg-slate-50"
               >
                 Calendar
               </button>
             ) : null}
           </div>
         ) : (
-          <ul className="divide-y divide-black/[0.06] rounded-xl bg-paper-raised ring-1 ring-black/[0.05] px-3.5">
+          <ul className="partner-surface-panel overflow-hidden divide-y divide-slate-100">
             {todayDepartures.map((b) => {
               const startHm = pgTimeToHm(b.start_time) || pgTimeToHm(b.pickup_time) || null;
               const pickupMissing = pickupGaps.some((g) => g.id === b.id);
@@ -428,32 +435,34 @@ export default function SupplierDashboard() {
                   <button
                     type="button"
                     onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings?booking=${b.id}`)}
-                    className="lux-flat group flex w-full items-start justify-between gap-3 py-3.5 text-left hover:bg-finland/[0.03] -mx-1 px-1 rounded-lg"
+                    className="partner-row-interact lux-flat group grid w-full grid-cols-[3.25rem_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-0.5 px-3.5 py-3.5 text-left sm:grid-cols-[4rem_minmax(0,1fr)_auto]"
                   >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                        {startHm ? (
-                          <span className="text-sm font-semibold tabular-nums text-finland">{startHm}</span>
-                        ) : (
-                          <span className="text-xs font-medium text-ink-faint">Time TBD</span>
-                        )}
-                        <span className="font-semibold text-ink truncate">
-                          {listingTitlesById[b.listing_id] ?? 'Tour'}
-                        </span>
-                      </div>
-                      <p className="mt-0.5 text-xs text-ink-muted">
+                    <span className="pt-0.5 text-[15px] font-semibold tabular-nums tracking-tight text-finland">
+                      {startHm ?? '—'}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-[15px] font-semibold text-slate-900 truncate">
+                        {listingTitlesById[b.listing_id] ?? 'Tour'}
+                      </span>
+                      <span className="mt-0.5 block text-[13px] text-slate-500">
                         {typeof b.booking_number === 'number' && b.booking_number > 0 ? (
-                          <span className="font-mono text-finland">#{b.booking_number}</span>
+                          <span className="font-mono text-finland/90">#{b.booking_number}</span>
                         ) : null}
                         {typeof b.booking_number === 'number' && b.booking_number > 0 ? ' · ' : null}
                         {formatBookingParticipantsLabel(b)}
                         {b.guest_name ? ` · ${b.guest_name}` : ''}
-                      </p>
+                      </span>
                       {pickupMissing ? (
-                        <p className="mt-1 text-xs font-medium text-amber-800">Pickup details missing</p>
+                        <span className="mt-1 inline-flex items-center gap-1.5 text-[12px] font-medium text-amber-700">
+                          <span className="h-1 w-1 rounded-full bg-amber-500" aria-hidden />
+                          Pickup details missing
+                        </span>
                       ) : null}
-                    </div>
-                    <ChevronRight className="h-4 w-4 shrink-0 mt-1 opacity-40 group-hover:opacity-70" aria-hidden />
+                    </span>
+                    <ChevronRight
+                      className="mt-1 h-4 w-4 shrink-0 text-slate-300 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-slate-500"
+                      aria-hidden
+                    />
                   </button>
                 </li>
               );
@@ -464,31 +473,31 @@ export default function SupplierDashboard() {
 
       {upcoming.length > 0 && (
         <section className="mb-8">
-          <div className="mb-3 flex items-baseline justify-between gap-3">
-            <h2 className="text-[11px] uppercase tracking-[0.16em] text-ink-faint">Next 7 days</h2>
+          <div className="mb-2.5 flex items-baseline justify-between gap-3">
+            <h2 className="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-400">Next 7 days</h2>
             <button
               type="button"
               onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings`)}
-              className="text-xs font-semibold text-finland hover:underline"
+              className="partner-nav-item text-[12px] font-medium text-finland hover:text-finland-dark"
             >
               All bookings
             </button>
           </div>
-          <ul className="divide-y divide-black/[0.06] rounded-xl bg-paper-raised ring-1 ring-black/[0.05] px-3.5">
+          <ul className="partner-surface-panel overflow-hidden divide-y divide-slate-100">
             {upcoming.map((b) => (
               <li key={b.id}>
                 <button
                   type="button"
                   onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings?booking=${b.id}`)}
-                  className="lux-flat flex w-full flex-col gap-0.5 py-3.5 text-left sm:flex-row sm:items-baseline sm:justify-between"
+                  className="partner-row-interact lux-flat flex w-full flex-col gap-0.5 px-3.5 py-3 text-left sm:flex-row sm:items-baseline sm:justify-between"
                 >
-                  <span className="font-semibold text-ink min-w-0 truncate">
+                  <span className="text-[14px] font-medium text-slate-900 min-w-0 truncate">
                     {listingTitlesById[b.listing_id] ?? 'Tour'}
                     {b.guest_name?.trim() ? (
-                      <span className="font-normal text-ink-muted"> · {b.guest_name.trim()}</span>
+                      <span className="font-normal text-slate-500"> · {b.guest_name.trim()}</span>
                     ) : null}
                   </span>
-                  <span className="text-sm text-ink-muted shrink-0">
+                  <span className="text-[13px] text-slate-500 shrink-0">
                     {new Date(`${b.booking_date}T12:00:00`).toLocaleDateString(undefined, {
                       weekday: 'short',
                       day: 'numeric',
@@ -504,13 +513,13 @@ export default function SupplierDashboard() {
       )}
 
       {attentionCount === 0 && !dashboardLoading && (
-        <p className="mb-8 text-sm text-ink-muted leading-snug">Nothing needs your attention right now.</p>
+        <p className="mb-8 text-[14px] text-slate-500 leading-snug">Nothing needs your attention right now.</p>
       )}
 
       {recentBookings.length > 0 && (
         <section className="mb-8">
-          <h2 className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-3">Recent bookings</h2>
-          <ul className="divide-y divide-black/[0.06] rounded-xl bg-paper-raised ring-1 ring-black/[0.05] px-3.5">
+          <h2 className="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-400 mb-2.5">Recent bookings</h2>
+          <ul className="partner-surface-panel overflow-hidden divide-y divide-slate-100">
             {recentBookings.map((b) => {
               const paid =
                 b.amount_paid != null &&
@@ -524,13 +533,13 @@ export default function SupplierDashboard() {
                   <button
                     type="button"
                     onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings?booking=${b.id}`)}
-                    className="lux-flat flex w-full flex-col gap-0.5 py-3.5 text-left sm:flex-row sm:items-baseline sm:justify-between"
+                    className="partner-row-interact lux-flat flex w-full flex-col gap-0.5 px-3.5 py-3 text-left sm:flex-row sm:items-baseline sm:justify-between"
                   >
                     <span className="min-w-0">
-                      <span className="font-semibold text-ink block truncate">
+                      <span className="text-[14px] font-medium text-slate-900 block truncate">
                         {b.guest_name?.trim() || listingTitlesById[b.listing_id] || 'New booking'}
                       </span>
-                      <span className="text-xs text-ink-muted mt-0.5 block">
+                      <span className="text-[13px] text-slate-500 mt-0.5 block">
                         {listingTitlesById[b.listing_id] && b.guest_name?.trim()
                           ? listingTitlesById[b.listing_id]
                           : null}
@@ -538,7 +547,9 @@ export default function SupplierDashboard() {
                         {formatBookingParticipantsLabel(b)}
                       </span>
                     </span>
-                    {money ? <span className="text-sm tabular-nums text-ink-muted shrink-0">{money}</span> : null}
+                    {money ? (
+                      <span className="text-[13px] tabular-nums text-slate-500 shrink-0">{money}</span>
+                    ) : null}
                   </button>
                 </li>
               );

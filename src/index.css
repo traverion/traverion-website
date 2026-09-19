@@ -5,6 +5,21 @@
 @layer utilities {
   .partner-app-shell {
     -webkit-tap-highlight-color: transparent;
+    --partner-bg: #ffffff;
+    --partner-surface: #ffffff;
+    --partner-surface-muted: #fafafa;
+    --partner-border: rgba(15, 23, 42, 0.08);
+    --partner-ink: #0f172a;
+    --partner-ink-muted: #64748b;
+    --partner-ink-faint: #94a3b8;
+    --partner-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    background-color: var(--partner-bg);
+    color: var(--partner-ink);
+  }
+
+  .partner-app-shell .bg-paper,
+  .partner-app-shell .bg-paper-raised {
+    background-color: var(--partner-surface);
   }
 
   .partner-sidebar {
@@ -12,7 +27,42 @@
     top: 0;
     height: 100dvh;
     max-height: 100dvh;
+    background-color: var(--partner-surface);
   }
+
+  .partner-surface-panel {
+    background-color: var(--partner-surface);
+    border: 1px solid var(--partner-border);
+    border-radius: 0.5rem;
+    box-shadow: var(--partner-shadow);
+  }
+
+  .partner-nav-item {
+    transition: background-color 180ms cubic-bezier(0.22, 1, 0.36, 1),
+      color 180ms cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 180ms cubic-bezier(0.22, 1, 0.36, 1),
+      border-color 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .partner-row-interact {
+    transition: background-color 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .partner-row-interact:hover {
+    background-color: rgba(15, 23, 42, 0.025);
+  }
+
+  .partner-row-interact:focus-visible,
+  .partner-nav-item:focus-visible {
+    outline: 2px solid #003580;
+    outline-offset: 2px;
+  }
+}
+
+/* Kill traveler-site beige bleed while Partner shell is mounted */
+html:has(.partner-app-shell),
+html:has(.partner-app-shell) body {
+  background-color: #ffffff !important;
 }
 
 /* Partner listing editor portals to body and sets data-partner-overlay. Keep .partner-bottom-nav at z-40 so it stays above listing cards; do not raise main above it. */
