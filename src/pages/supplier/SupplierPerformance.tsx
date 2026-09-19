@@ -115,15 +115,33 @@ export default function SupplierPerformance() {
     return [...byListing.values()].sort((a, b) => b.revenue - a.revenue);
   }, [collectedInWindow, titleByListingId]);
 
+  /** Revenue is never blended across currencies (this platform genuinely supports several) —
+   * bucket by currency so every revenue figure always names a real, single currency. */
+  type CurrencyStat = { currency: string; revenue: number; count: number };
+  const revenueByCurrency: CurrencyStat[] = useMemo(() => {
+    const byCurrency = new Map<string, CurrencyStat>();
+    for (const b of collectedInWindow) {
+      const code = normalizeCurrency(b.currency);
+      const cur = byCurrency.get(code) ?? { currency: code, revenue: 0, count: 0 };
+      cur.revenue += Number(b.amount_paid ?? 0);
+      cur.count += 1;
+      byCurrency.set(code, cur);
+    }
+    return [...byCurrency.values()].sort((a, b) => b.revenue - a.revenue);
+  }, [collectedInWindow]);
+
+  const revenueTotalByCurrency = useMemo(
+    () => new Map(revenueByCurrency.map((r) => [r.currency, r.revenue])),
+    [revenueByCurrency]
+  );
+
   const totals = useMemo(() => {
     const bookingsCount = collectedInWindow.length;
     const guestsCount = collectedInWindow.reduce((sum, b) => sum + (b.guests ?? 0), 0);
-    const revenue = collectedInWindow.reduce((sum, b) => sum + Number(b.amount_paid ?? 0), 0);
-    const currency = normalizeCurrency(collectedInWindow[0]?.currency);
-    const avgBookingValue = bookingsCount > 0 ? revenue / bookingsCount : 0;
-    return { bookingsCount, guestsCount, revenue, currency, avgBookingValue };
+    return { bookingsCount, guestsCount };
   }, [collectedInWindow]);
 
+  const isMultiCurrency = revenueByCurrency.length > 1;
   const topListing = listingRows[0] ?? null;
 
   return (
@@ -201,17 +219,34 @@ export default function SupplierPerformance() {
               <p className="mt-1.5 font-display text-3xl text-ink tabular-nums">{totals.guestsCount}</p>
               <p className="text-xs text-ink-muted mt-2">across {listingRows.length} listing{listingRows.length === 1 ? '' : 's'}</p>
             </div>
-            <div className="tv-card p-4 sm:p-5">
-              <p className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">Revenue collected</p>
-              <p className="mt-1.5 font-display text-3xl text-ink tabular-nums">{formatMoney(totals.revenue, totals.currency)}</p>
-              <p className="text-xs text-ink-muted mt-2">paid bookings, refunds excluded</p>
-            </div>
-            <div className="tv-card p-4 sm:p-5">
-              <p className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">Avg. booking value</p>
-              <p className="mt-1.5 font-display text-3xl text-ink tabular-nums">{formatMoney(totals.avgBookingValue, totals.currency)}</p>
-              <p className="text-xs text-ink-muted mt-2">per collected booking</p>
-            </div>
+            {revenueByCurrency.map((r) => (
+              <div key={`revenue-${r.currency}`} className="tv-card p-4 sm:p-5">
+                <p className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">
+                  Revenue collected{isMultiCurrency ? ` (${r.currency})` : ''}
+                </p>
+                <p className="mt-1.5 font-display text-3xl text-ink tabular-nums">{formatMoney(r.revenue, r.currency)}</p>
+                <p className="text-xs text-ink-muted mt-2">paid bookings, refunds excluded</p>
+              </div>
+            ))}
+            {revenueByCurrency.map((r) => (
+              <div key={`avg-${r.currency}`} className="tv-card p-4 sm:p-5">
+                <p className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">
+                  Avg. booking value{isMultiCurrency ? ` (${r.currency})` : ''}
+                </p>
+                <p className="mt-1.5 font-display text-3xl text-ink tabular-nums">
+                  {formatMoney(r.count > 0 ? r.revenue / r.count : 0, r.currency)}
+                </p>
+                <p className="text-xs text-ink-muted mt-2">per collected booking</p>
+              </div>
+            ))}
           </div>
+
+          {isMultiCurrency && (
+            <p className="text-xs text-ink-muted -mt-4">
+              Bookings in this window span {revenueByCurrency.length} currencies — revenue is never converted or
+              blended between them.
+            </p>
+          )}
 
           {topListing && listingRows.length > 1 && (
             <div className="flex items-center gap-2 text-sm text-ink-muted">
@@ -227,7 +262,8 @@ export default function SupplierPerformance() {
             <h2 className="text-[11px] uppercase tracking-[0.18em] text-ink-faint mb-3">By listing</h2>
             <ul className="space-y-2.5">
               {listingRows.map((row) => {
-                const share = totals.revenue > 0 ? Math.round((row.revenue / totals.revenue) * 100) : 0;
+                const currencyTotal = revenueTotalByCurrency.get(row.currency) ?? 0;
+                const share = currencyTotal > 0 ? Math.round((row.revenue / currencyTotal) * 100) : 0;
                 return (
                   <li key={row.listingId} className="tv-card p-4 sm:p-5">
                     <div className="flex flex-wrap items-start justify-between gap-3">
