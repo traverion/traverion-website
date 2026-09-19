@@ -86,6 +86,18 @@ export function openSupplierPickup(bookingId?: string): void {
   navigateSupplierUrl(`${path}?${q.toString()}`);
 }
 
+/** Open Calendar and optionally focus a listing for edit. */
+export function openSupplierCalendar(listingId?: string): void {
+  const path = `${PARTNER_APP_BASE}/calendar`;
+  if (!listingId) {
+    navigateSupplierUrl(path);
+    return;
+  }
+  const q = new URLSearchParams();
+  q.set('listing', listingId);
+  navigateSupplierUrl(`${path}?${q.toString()}`);
+}
+
 /** Open Reviews with optional reply filter and highlighted review card. */
 export function openSupplierReviews(opts?: {
   reviewId?: string;

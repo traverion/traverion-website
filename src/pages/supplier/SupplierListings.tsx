@@ -11,6 +11,7 @@ import {
   Home,
   Copy,
   Search,
+  CalendarDays,
 } from 'lucide-react';
 import { TourPackage } from '../../types/tour';
 import { getSupplierListings, setSupplierListings } from '../../data/listings';
@@ -27,7 +28,7 @@ import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import SupplierListingForm, { type ListingEditorSaveResult } from './SupplierListingForm';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
-import { navigateSupplierUrl, openSupplierListingEditor } from '../../lib/supplierPortalNavigation';
+import { navigateSupplierUrl, openSupplierListingEditor, openSupplierCalendar } from '../../lib/supplierPortalNavigation';
 import {
   isSupplierBusinessProfileComplete,
   isSupplierPayoutConfigured,
@@ -1249,6 +1250,18 @@ export default function SupplierListings() {
                   }}
                 >
                   Edit
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-ink hover:bg-paper"
+                  onClick={() => {
+                    closeListingActionsMenu();
+                    openSupplierCalendar(menuListing.id);
+                  }}
+                >
+                  <CalendarDays className="h-4 w-4 shrink-0" aria-hidden />
+                  Calendar
                 </button>
                 <button
                   type="button"

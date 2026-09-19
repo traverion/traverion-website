@@ -64,7 +64,10 @@ export default function SupplierAvailability() {
   const [year, setYear] = useState(today.getFullYear());
   const [monthIndex0, setMonthIndex0] = useState(today.getMonth());
   const [listings, setListings] = useState<TourPackage[]>([]);
-  const [listingId, setListingId] = useState<string>('');
+  const [listingId, setListingId] = useState<string>(() => {
+    if (typeof window === 'undefined') return '';
+    return (new URLSearchParams(window.location.search).get('listing') ?? '').trim();
+  });
   const [rows, setRows] = useState<AvailabilityRow[]>([]);
   const [bookings, setBookings] = useState<BookingRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -195,6 +198,33 @@ export default function SupplierAvailability() {
   useEffect(() => {
     void loadListings();
   }, [loadListings]);
+
+  const setListingIdAndUrl = useCallback((next: string) => {
+    setListingId(next);
+    setEditing(null);
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    if (!next) url.searchParams.delete('listing');
+    else url.searchParams.set('listing', next);
+    window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+  }, []);
+
+  useEffect(() => {
+    const syncFromUrl = () => {
+      const fromUrl = (new URLSearchParams(window.location.search).get('listing') ?? '').trim();
+      setListingId((prev) => (prev === fromUrl ? prev : fromUrl));
+      setEditing(null);
+    };
+    window.addEventListener('popstate', syncFromUrl);
+    return () => window.removeEventListener('popstate', syncFromUrl);
+  }, []);
+
+  useEffect(() => {
+    if (!listings.length) return;
+    if (listingId && !listings.some((l) => l.id === listingId)) {
+      setListingIdAndUrl('');
+    }
+  }, [listings, listingId, setListingIdAndUrl]);
 
   useEffect(() => {
     if (listingId && monthFromIso && monthToIso) void loadCaps(listingId, monthFromIso, monthToIso);
@@ -339,8 +369,7 @@ export default function SupplierAvailability() {
                 id="availability-listing"
                 value={listingId}
                 onChange={(e) => {
-                  setEditing(null);
-                  setListingId(e.target.value);
+                  setListingIdAndUrl(e.target.value);
                 }}
                 className="tv-input"
               >
