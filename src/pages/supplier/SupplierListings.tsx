@@ -762,26 +762,23 @@ export default function SupplierListings() {
       ) : null}
 
       {!canEditListings && (
-        <div className="rounded-2xl bg-amber-50/90 p-4 sm:p-5 text-ink text-sm shadow-soft ring-1 ring-amber-200/70">
-          <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-amber-100/80 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-amber-900 ring-1 ring-amber-200/80">
-            Permissions
-          </div>
+        <div className="mb-4 rounded-lg border border-amber-200/80 border-l-[3px] border-l-amber-500 bg-amber-50/70 px-3.5 py-3 text-sm text-ink">
           <p className="font-semibold text-ink">View-only access</p>
-          <p className="mt-1 text-ink-muted leading-relaxed">
-            You can browse listings on this page. Creating, editing, or publishing requires an owner, manager, or ops role.
+          <p className="mt-0.5 text-xs text-ink-muted leading-snug">
+            Browse listings here. Creating, editing, or publishing needs an owner, manager, or ops role.
           </p>
         </div>
       )}
 
       {canEditListings && !canPostNewListing && (
-        <div className="p-4 rounded-2xl bg-paper-raised ring-1 ring-black/[0.06] text-ink text-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
+        <div className="mb-4 flex flex-col gap-3 rounded-lg border border-black/[0.06] bg-paper px-3.5 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
             <p className="font-semibold text-ink">You can draft listings now</p>
             {missingBusinessDetails && (
-              <p className="mt-2 font-medium text-ink">Publishing still needs a complete business profile</p>
+              <p className="mt-1 text-xs font-medium text-ink">Publishing still needs a complete business profile</p>
             )}
             {missingPayoutForPublish && !missingBusinessDetails && (
-              <p className="mt-2 font-medium text-ink">
+              <p className="mt-1 text-xs font-medium text-ink">
                 {!payoutOnFile
                   ? 'Publishing still needs payout bank details'
                   : (payoutVerificationStatus ?? '').trim().toLowerCase() === 'rejected'
@@ -789,11 +786,9 @@ export default function SupplierListings() {
                     : 'Payout verification in progress — required before publishing'}
               </p>
             )}
-            <p className="mt-2">
-              {profileGateMessage}
-            </p>
+            <p className="mt-1 text-xs text-ink-muted leading-snug">{profileGateMessage}</p>
             {!missingBusinessDetails && verificationStatus && (
-              <p className="mt-1 text-xs text-ink-faint">
+              <p className="mt-1 text-[11px] text-ink-faint">
                 Business: <span className="font-semibold text-ink">{verificationStatusLabel(verificationStatus)}</span>
                 {payoutOnFile ? (
                   <>
@@ -806,12 +801,12 @@ export default function SupplierListings() {
                 ) : null}
               </p>
             )}
-            <div className="mt-2 flex flex-wrap items-center gap-2">
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
               {missingBusinessDetails && (
                 <button
                   type="button"
                   onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/business-profile#supplier-business-company`)}
-                  className="tv-btn-ghost text-sm"
+                  className="tv-btn-ghost text-xs"
                 >
                   Complete business profile
                 </button>
@@ -820,7 +815,7 @@ export default function SupplierListings() {
                 <button
                   type="button"
                   onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/business-profile#supplier-business-payout`)}
-                  className="tv-btn-ghost text-sm"
+                  className="tv-btn-ghost text-xs"
                 >
                   {payoutOnFile ? 'Payment & payouts' : 'Add IBAN & BIC'}
                 </button>
@@ -829,7 +824,7 @@ export default function SupplierListings() {
                 <button
                   type="button"
                   onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/business-profile#supplier-business-company`)}
-                  className="tv-btn-ghost text-sm"
+                  className="tv-btn-ghost text-xs"
                 >
                   Business profile & verification
                 </button>
@@ -847,11 +842,11 @@ export default function SupplierListings() {
       )}
 
       {publishGate && (
-        <div className="p-4 rounded-2xl bg-paper-raised ring-1 ring-black/[0.06] text-ink text-sm">
-          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-            <div>
-              <p className="font-medium text-ink">Complete these before publishing “{publishGate.title}”</p>
-              <ul className="mt-2 list-disc list-inside space-y-1 text-ink-muted">
+        <div className="mb-4 rounded-lg border border-black/[0.06] border-l-[3px] border-l-amber-500 bg-paper px-3.5 py-3 text-sm text-ink">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <p className="font-semibold text-ink">Complete these before publishing “{publishGate.title}”</p>
+              <ul className="mt-1.5 list-disc list-inside space-y-0.5 text-xs text-ink-muted">
                 {publishGate.blockers.map((line) => (
                   <li key={line}>{line}</li>
                 ))}
