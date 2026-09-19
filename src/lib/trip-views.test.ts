@@ -194,7 +194,8 @@ describe('trip list views', () => {
     expect(partnerBookingIsTodaySchedule(stay, '2026-09-20')).toBe(true);
     expect(partnerBookingIsTodaySchedule(stay, '2026-09-21')).toBe(true);
     expect(partnerBookingIsTodaySchedule(stay, '2026-09-22')).toBe(true);
-    expect(partnerBookingIsTodaySchedule(stay, '2026-09-23')).toBe(false);
+    expect(partnerBookingIsTodaySchedule(stay, '2026-09-23')).toBe(true);
+    expect(partnerBookingIsTodaySchedule(stay, '2026-09-24')).toBe(false);
     expect(partnerBookingIsUpcomingSchedule(stay, '2026-09-19')).toBe(true);
     expect(partnerBookingIsUpcomingSchedule(stay, '2026-09-20')).toBe(false);
     expect(partnerBookingIsUpcomingSchedule(stay, '2026-09-21')).toBe(false);
@@ -222,6 +223,8 @@ describe('trip list views', () => {
     expect(partnerBookingIsPastSchedule(midCancelled, '2026-09-22')).toBe(false);
     expect(partnerBookingIsPastSchedule(finishedCancelled, '2026-09-22')).toBe(true);
     expect(partnerBookingIsPastSchedule(operatingFinished, '2026-09-22')).toBe(true);
+    expect(partnerBookingIsPastSchedule(operatingFinished, '2026-09-12')).toBe(false);
+    expect(partnerBookingIsTodaySchedule(operatingFinished, '2026-09-12')).toBe(true);
     expect(
       partnerBookingIsPastSchedule(
         { status: 'cancelled', payment_status: 'paid', booking_date: '2026-09-30' },

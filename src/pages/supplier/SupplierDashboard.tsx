@@ -25,6 +25,7 @@ import { partnerTodayEmptyScheduleCopy } from '../../lib/partner-today-copy';
 import { formatBookingParticipantsLabel } from '../../lib/participant-mix';
 import { pgTimeToHm } from '../../data/supabase-listings';
 import { stayRangeFromBooking } from '../../lib/stayOccupancy';
+import { formatStayNightHuman } from '../../lib/stay-calendar';
 import { PARTNER_INBOX_MESSAGE_FETCH_CAP } from '../../lib/partner-inbox-cap';
 import { parseListingExtras, materializedBookingOptions } from '../../types/listingExtras';
 
@@ -479,7 +480,9 @@ export default function SupplierDashboard() {
               const timeLabel = isStay
                 ? stay && stay.checkIn === todayYmd
                   ? 'In'
-                  : 'Stay'
+                  : stay && stay.checkOut === todayYmd
+                    ? 'Out'
+                    : 'Stay'
                 : (startHm ?? '—');
               const fallbackTitle = isStay ? 'Stay' : 'Tour';
               return (
@@ -503,7 +506,9 @@ export default function SupplierDashboard() {
                         {typeof b.booking_number === 'number' && b.booking_number > 0 ? ' · ' : null}
                         {formatBookingParticipantsLabel(b)}
                         {b.guest_name ? ` · ${b.guest_name}` : ''}
-                        {isStay && stay ? ` · ${stay.checkIn} → ${stay.checkOut}` : ''}
+                        {isStay && stay
+                          ? ` · ${formatStayNightHuman(stay.checkIn)} → ${formatStayNightHuman(stay.checkOut)}`
+                          : ''}
                       </span>
                       {pickupMissing ? (
                         <span className="mt-1 inline-flex items-center gap-1.5 text-[12px] font-medium text-amber-700">

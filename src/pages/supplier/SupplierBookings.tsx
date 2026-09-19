@@ -62,7 +62,7 @@ import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { inventoryFamilyFromListing } from '../../lib/inventory';
 import { parseStayCheckOutFromNotes, nightsOccupiedByStay, stayRangeFromBooking } from '../../lib/stayOccupancy';
-import { partnerBookingIsLiveTrip, bookingIsCancelledTrip, partnerBookingIsOperatingTrip, partnerBookingNeedsLook, partnerBookingIsUnpaidCheckout, partnerBookingIsActiveUnpaidCheckout, partnerBookingShowsCancelAction, partnerBookingIsPastSchedule } from '../../lib/trip-views';
+import { partnerBookingIsLiveTrip, bookingIsCancelledTrip, partnerBookingIsOperatingTrip, partnerBookingNeedsLook, partnerBookingIsUnpaidCheckout, partnerBookingIsActiveUnpaidCheckout, partnerBookingShowsCancelAction, partnerBookingIsPastSchedule, partnerStayTouchesScheduleDay } from '../../lib/trip-views';
 import { formatPartnerCheckoutHoldLabel, partnerUnpaidCheckoutHoldsInventory } from '../../lib/booking-hold';
 import { formatStayNightHuman } from '../../lib/stay-calendar';
 import { partnerBookingHasPickupAttention } from '../../lib/pickup-completeness';
@@ -378,7 +378,7 @@ export default function SupplierBookings() {
         } else if (!partnerBookingIsOperatingTrip(b)) {
           return false;
         } else if (stayRange) {
-          if (!nightsOccupiedByStay(stayRange.checkIn, stayRange.checkOut).includes(dayIso)) return false;
+          if (!partnerStayTouchesScheduleDay(stayRange.checkIn, stayRange.checkOut, dayIso)) return false;
         } else if (b.booking_date !== dayIso) {
           return false;
         }

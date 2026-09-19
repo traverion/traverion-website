@@ -121,8 +121,13 @@ type PartnerScheduleBooking = {
 
 /** Partner Today: occupying operating trips on this local date — not refunded or cancelled.
  * Tours: departure date === today.
- * Stays: today is an occupied night in [checkIn, checkOut).
+ * Stays: today is an occupied night in [checkIn, checkOut), or check-out day (host still has ops).
  */
+export function partnerStayTouchesScheduleDay(checkIn: string, checkOut: string, dayIso: string): boolean {
+  if (checkOut === dayIso) return true;
+  return nightsOccupiedByStay(checkIn, checkOut).includes(dayIso);
+}
+
 export function partnerBookingIsTodaySchedule(
   b: PartnerScheduleBooking,
   todayIso: string,
@@ -133,7 +138,7 @@ export function partnerBookingIsTodaySchedule(
   if (bookingIsStayNight(b)) {
     const stay = stayRangeFromBooking(b);
     if (!stay) return false;
-    return nightsOccupiedByStay(stay.checkIn, stay.checkOut).includes(todayIso);
+    return partnerStayTouchesScheduleDay(stay.checkIn, stay.checkOut, todayIso);
   }
   return (b.booking_date ?? '').trim() === todayIso;
 }
@@ -155,12 +160,12 @@ export function partnerBookingIsUpcomingSchedule(
   return Boolean(date) && date > todayIso;
 }
 
-/** Partner Bookings Past: schedule finished (tour date or stay checkout ≤ today). Includes cancelled history. */
+/** Partner Bookings Past: schedule finished (tour date before today, or stay after check-out day). Includes cancelled history. */
 export function partnerBookingIsPastSchedule(b: PartnerScheduleBooking, todayIso: string): boolean {
   if (bookingIsStayNight(b)) {
     const stay = stayRangeFromBooking(b);
     if (!stay) return false;
-    return stay.checkOut <= todayIso;
+    return stay.checkOut < todayIso;
   }
   const date = (b.booking_date ?? '').trim();
   return Boolean(date) && date < todayIso;
