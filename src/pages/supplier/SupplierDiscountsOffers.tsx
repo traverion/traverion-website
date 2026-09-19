@@ -203,15 +203,19 @@ export default function SupplierDiscountsOffers() {
         description="Limited-time percentage discounts on a tour booking option. Travelers see the lower price on Traverion tour checkout. Stay (accommodation) discounts are not supported yet."
         actions={
           canEdit ? (
-            <button
-              type="button"
-              onClick={openNew}
-              disabled={listings.length === 0}
-              title={listings.length === 0 ? 'Add a listing first' : undefined}
-              className="tv-btn-primary"
-            >
-              {publishedCount > 0 ? 'New offer' : 'New discount offer'}
-            </button>
+            listings.length === 0 ? (
+              <button type="button" onClick={goToListings} className="tv-btn-primary">
+                Create a listing
+              </button>
+            ) : publishedCount === 0 ? (
+              <button type="button" onClick={goToListings} className="tv-btn-primary">
+                Publish a tour
+              </button>
+            ) : (
+              <button type="button" onClick={openNew} className="tv-btn-primary">
+                New offer
+              </button>
+            )
           ) : undefined
         }
       />
@@ -299,12 +303,22 @@ export default function SupplierDiscountsOffers() {
               <SupplierEmptyState
                 icon={Tag}
                 title="No offers yet"
-                body="You have listings, but no timed discounts. That is normal. Create one on a published tour and it will show on the public product page."
+                body={
+                  publishedCount === 0
+                    ? 'Offers only apply to published tours with booking options. Publish a tour first — stay listings cannot use percentage discounts yet.'
+                    : 'You have listings, but no timed discounts. That is normal. Create one on a published tour and it will show on the public product page.'
+                }
                 action={
                   canEdit ? (
-                    <button type="button" onClick={openNew} className="tv-btn-primary">
-                      New offer
-                    </button>
+                    publishedCount === 0 ? (
+                      <button type="button" onClick={goToListings} className="tv-btn-primary">
+                        Open listings
+                      </button>
+                    ) : (
+                      <button type="button" onClick={openNew} className="tv-btn-primary">
+                        New offer
+                      </button>
+                    )
                   ) : undefined
                 }
               />
