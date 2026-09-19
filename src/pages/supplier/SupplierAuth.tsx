@@ -58,7 +58,10 @@ type SupplierFieldErrors = Partial<Record<SupplierFieldKey, string>>;
 const BENEFITS = [
   { icon: MapPin, text: 'List once — tours and stays appear on Traverion for travelers worldwide' },
   { icon: Users, text: 'No upfront cost — reach customers without listing fees' },
-  { icon: CreditCard, text: 'Manage everything in one place — listings, bookings, payouts' },
+  {
+    icon: CreditCard,
+    text: 'Manage listings, bookings, and Money in one place — payouts stay manual until Traverion enables them',
+  },
 ];
 
 export default function SupplierAuth({

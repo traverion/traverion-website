@@ -107,7 +107,8 @@ export default function PartnerLandingPage() {
         <section className="max-w-5xl mx-auto px-5 sm:px-8 py-16 sm:py-20">
           <h2 className="font-display text-3xl sm:text-4xl tracking-tight mb-3">What Traverion does</h2>
           <p className="text-ink-muted max-w-xl mb-10 leading-relaxed">
-            One partner product for listing, day-of ops, marketplace sales, and payouts.
+            One partner product for listing, day-of ops, marketplace sales, and Money — payouts stay manual until
+            Traverion enables them.
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
             {CAPABILITIES.map(({ eyebrow, icon: Icon, body }) => (
@@ -170,7 +171,7 @@ export default function PartnerLandingPage() {
           <ol className="grid gap-3 sm:grid-cols-3 list-none m-0 p-0">
             {[
               'Create a partner account with your work email.',
-              'Add the business details travelers and payouts need.',
+              'Add business and bank details Traverion needs before payouts can be enabled.',
               PARTNER_LANDING_HOW_PUBLISH_NOTE,
             ].map((text, i) => (
               <li
