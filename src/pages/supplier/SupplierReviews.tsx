@@ -165,7 +165,7 @@ export default function SupplierReviews() {
   return (
     <div className={SUPPLIER_PAGE_CLASS}>
       <SupplierPageHero
-        badge="Guest feedback"
+        badge="Operations"
         title="Reviews"
         description="What guests said about your tours and stays. Reply to written reviews."
       />

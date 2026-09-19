@@ -265,9 +265,9 @@ export default function SupplierAvailability() {
   return (
     <div className={`${SUPPLIER_PAGE_CLASS} min-h-[70vh]`}>
       <SupplierPageHero
-        badge="Operations"
+        badge="Operate"
         title="Calendar"
-        description="Tours: departures and capacity. Stays: nights booked or blocked. Open a listing to edit that day."
+        description="Availability, capacity, blocked dates, and bookings by day. Select a listing to edit."
         actions={
           !isSupabase || !user || listings.length === 0 ? undefined : (
             <label className="block sm:min-w-[16rem]">

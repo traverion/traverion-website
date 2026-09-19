@@ -102,7 +102,7 @@ export default function SupplierInbox() {
   return (
     <div className={SUPPLIER_PAGE_CLASS}>
       <SupplierPageHero
-        badge="Messages"
+        badge="Operate"
         title="Inbox"
         description={`Messages about paid bookings. Closed and Refund due trips stay here if they already have a thread. ${PARTNER_INBOX_MESSAGE_DELIVERY_NOTE}`}
       />
@@ -130,7 +130,7 @@ export default function SupplierInbox() {
           }
         />
       ) : (
-        <ul className="space-y-3">
+        <ul className="divide-y divide-black/[0.06] rounded-xl bg-paper-raised ring-1 ring-black/[0.05] overflow-hidden">
           {threads.map((b) => {
             const open = openId === b.id;
             const last = lastByBooking[b.id];
@@ -145,19 +145,10 @@ export default function SupplierInbox() {
                 openCancellation: openCancelIds.has(b.id),
               }) === 'closed';
             return (
-              <li
-                key={b.id}
-                className={`overflow-hidden rounded-2xl bg-paper-raised p-4 sm:p-5 shadow-soft ring-1 ring-black/[0.06] ${
-                  unread
-                    ? 'border-l-[3px] border-l-amber-500'
-                    : isClosed
-                      ? 'border-l-[3px] border-l-slate-400'
-                      : 'border-l-[3px] border-l-finland'
-                } ${open ? 'ring-finland/25 shadow-soft-lg' : ''} ${unread ? 'ring-amber-200/80' : ''}`}
-              >
+              <li key={b.id} className={`${open ? 'bg-finland/[0.03]' : ''} ${unread ? 'bg-amber-50/50' : ''}`}>
                 <button
                   type="button"
-                  className="lux-flat w-full text-left"
+                  className="lux-flat w-full text-left px-4 py-3.5"
                   onClick={() => {
                     const opening = !open;
                     setOpenId(opening ? b.id : null);
@@ -178,11 +169,19 @@ export default function SupplierInbox() {
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="font-semibold text-ink truncate">{b.guest_name?.trim() || 'Traveler'}</p>
-                      <p className="mt-0.5 text-sm text-ink-muted truncate">{titles[b.listing_id] ?? 'Listing'}</p>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span
+                          className={`h-2 w-2 shrink-0 rounded-full ${unread ? 'bg-amber-500' : 'bg-transparent'}`}
+                          aria-hidden={!unread}
+                          aria-label={unread ? 'Unread' : undefined}
+                        />
+                        <p className={`truncate ${unread ? 'font-semibold text-ink' : 'font-medium text-ink'}`}>
+                          {b.guest_name?.trim() || 'Traveler'}
+                        </p>
+                      </div>
+                      <p className="mt-0.5 text-sm text-ink-muted truncate pl-4">{titles[b.listing_id] ?? 'Listing'}</p>
                     </div>
                     <div className="flex flex-wrap items-center justify-end gap-1.5 shrink-0 max-w-[45%]">
-                      {unread ? <StatusChip tone="warn">Unread</StatusChip> : null}
                       {showMoneyChip ? (
                         <StatusChip tone={toneForPaymentLabel(payLabel)}>{payLabel}</StatusChip>
                       ) : null}
@@ -192,7 +191,7 @@ export default function SupplierInbox() {
                       ) : null}
                     </div>
                   </div>
-                  <p className="mt-0.5 text-xs text-ink-faint">
+                  <p className="mt-0.5 text-xs text-ink-faint pl-4">
                     {b.booking_date
                       ? new Date(`${b.booking_date}T12:00:00`).toLocaleDateString(undefined, {
                           weekday: 'short',
@@ -205,13 +204,13 @@ export default function SupplierInbox() {
                       ? ` · ${new Date(last.created_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}`
                       : ''}
                   </p>
-                  <p className="mt-1 text-sm text-ink-muted line-clamp-2">
+                  <p className="mt-1 text-sm text-ink-muted line-clamp-2 pl-4">
                     {last?.body ?? 'No messages yet — open to write about this booking.'}
                   </p>
                 </button>
                 {open ? (
-                  <div className="mt-4 motion-safe:animate-fade-in">
-                    <p className="mb-3 text-sm text-ink">
+                  <div className="px-4 pb-4 motion-safe:animate-fade-in border-t border-black/[0.04]">
+                    <p className="mb-3 pt-3 text-sm text-ink">
                       Booking {typeof b.booking_number === 'number' ? `#${b.booking_number}` : ''} ·{' '}
                       {titles[b.listing_id] ?? 'Listing'} · {b.guest_name?.trim() || 'Traveler'} ·{' '}
                       {formatBookingParticipantsLabel(b)}

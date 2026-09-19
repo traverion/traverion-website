@@ -791,7 +791,7 @@ export default function SupplierPickupPlanner() {
             <button
               type="button"
               onClick={exportCsv}
-              className="lux-flat inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm text-ink-muted hover:text-ink"
+              className="tv-btn-ghost"
             >
               <Download className="h-4 w-4" aria-hidden />
               Export

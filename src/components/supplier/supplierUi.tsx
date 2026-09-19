@@ -16,11 +16,11 @@ export const SUPPLIER_STAT_GRID_CLASS =
 
 /** Three-up summary chips in page heroes (bookings, pickup, etc.). */
 export const SUPPLIER_HERO_STAT_GRID_CLASS =
-  'mt-5 grid w-full min-w-0 grid-cols-3 gap-2 sm:gap-3 border-t border-black/[0.06] pt-5';
+  'mt-5 grid w-full min-w-0 grid-cols-3 gap-2 sm:gap-3 border-t border-black/[0.06] pt-4';
 
 /** Two-up summary chips in page heroes (reviews, etc.). */
 export const SUPPLIER_HERO_STAT_GRID_2_CLASS =
-  'mt-5 grid w-full min-w-0 grid-cols-2 gap-2 sm:gap-3 border-t border-black/[0.06] pt-5';
+  'mt-5 grid w-full min-w-0 grid-cols-2 gap-2 sm:gap-3 border-t border-black/[0.06] pt-4';
 
 export const SUPPLIER_MODAL_OVERLAY_CLASS = 'tv-sheet-overlay';
 
@@ -35,25 +35,27 @@ type SupplierPageHeroProps = {
   description: ReactNode;
   actions?: ReactNode;
   children?: ReactNode;
-  /** Optional chip above the title (defaults to Partner workspace). */
-  badge?: string;
+  /** Optional eyebrow above the title. Omit for cleaner operational pages. */
+  badge?: string | null;
 };
 
-export function SupplierPageHero({ title, description, actions, children, badge = 'Partner workspace' }: SupplierPageHeroProps) {
+export function SupplierPageHero({ title, description, actions, children, badge = null }: SupplierPageHeroProps) {
   return (
-    <div className="mb-8 rounded-2xl bg-paper-raised p-5 sm:p-7 shadow-soft ring-1 ring-black/[0.06]">
+    <header className="mb-6 sm:mb-8 pb-5 border-b border-black/[0.06]">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
-          <div className="inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15 mb-3">
-            {badge}
-          </div>
-          <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">{title}</h1>
-          {description ? <p className="mt-2 text-sm sm:text-base text-ink-muted max-w-xl leading-relaxed">{description}</p> : null}
+          {badge ? (
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint">{badge}</p>
+          ) : null}
+          <h1 className="font-display text-[1.75rem] sm:text-[2rem] leading-tight text-ink tracking-tight">{title}</h1>
+          {description ? (
+            <p className="mt-1.5 text-sm text-ink-muted max-w-2xl leading-relaxed">{description}</p>
+          ) : null}
         </div>
-        {actions ? <div className="shrink-0">{actions}</div> : null}
+        {actions ? <div className="shrink-0 flex flex-wrap items-center gap-2">{actions}</div> : null}
       </div>
       {children}
-    </div>
+    </header>
   );
 }
 

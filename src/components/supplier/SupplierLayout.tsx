@@ -7,12 +7,6 @@ import {
   X,
   UserCircle2,
   Wallet,
-  ChevronDown,
-  MessageSquare,
-  Star,
-  Percent,
-  Car,
-  TrendingUp,
 } from 'lucide-react';
 import type { User } from '@supabase/supabase-js';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
@@ -24,6 +18,8 @@ import SupplierBookings from '../../pages/supplier/SupplierBookings';
 import SupplierAvailability from '../../pages/supplier/SupplierAvailability';
 import PartnerAuthPage from './PartnerAuthPage';
 import PartnerLandingPage from './PartnerLandingPage';
+import PartnerSidebar from './PartnerSidebar';
+import { PARTNER_MORE_GROUPS, PARTNER_SIDEBAR_GROUPS } from '../../lib/partnerNav';
 import {
   authUserHasPartnerSignupMetadata,
   ensureSupplierProfile,
@@ -165,36 +161,6 @@ if (
   throw new Error('PRIMARY_NAV out of sync with PARTNER_PRIMARY_NAV_SECTION_IDS');
 }
 
-/**
- * Desktop has the width mobile doesn't, so the top nav carries one more item than the
- * mobile tab bar: Inbox is operational (unread guest messages), not an account setting,
- * so it belongs in primary nav wherever there's room for it — not behind the avatar.
- */
-const DESKTOP_PRIMARY_NAV: { id: SupplierSection; label: string; icon: typeof LayoutDashboard }[] = [
-  { id: 'dashboard', label: 'Today', icon: LayoutDashboard },
-  { id: 'bookings', label: 'Bookings', icon: Calendar },
-  { id: 'availability', label: 'Calendar', icon: CalendarDays },
-  { id: 'inbox', label: 'Inbox', icon: MessageSquare },
-  { id: 'listings', label: 'Listings', icon: MapPin },
-  { id: 'earnings', label: 'Money', icon: Wallet },
-];
-
-/**
- * Day-to-day business operations — run less often than the primary nav but are still
- * how a partner runs their business, not account/identity settings. Never nest these
- * under the avatar: that menu is for who-you-are, not what-you-do.
- */
-const BUSINESS_OPS_NAV: { id: SupplierSection; label: string; icon: typeof LayoutDashboard }[] = [
-  { id: 'inbox', label: 'Inbox', icon: MessageSquare },
-  { id: 'reviews', label: 'Reviews', icon: Star },
-  { id: 'discounts', label: 'Offers', icon: Percent },
-  { id: 'pickup', label: 'Pickup', icon: Car },
-  { id: 'performance', label: 'Performance', icon: TrendingUp },
-];
-
-/** Desktop already shows Inbox in the primary row, so its "Business" dropdown covers the rest. */
-const DESKTOP_BUSINESS_NAV = BUSINESS_OPS_NAV.filter((item) => item.id !== 'inbox');
-
 const PATH_ALIASES: Record<string, SupplierSection> = {
   today: 'dashboard',
   tours: 'listings',
@@ -304,7 +270,7 @@ export default function SupplierLayout() {
   const [onboardingHasPayout, setOnboardingHasPayout] = useState(false);
   const [onboardingHasCompany, setOnboardingHasCompany] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
-  const [businessMenuOpen, setBusinessMenuOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileAccountOpen, setMobileAccountOpen] = useState(false);
   const mobileAccountRef = useRef<HTMLDivElement>(null);
   useDialogFocus(mobileAccountOpen, mobileAccountRef, () => setMobileAccountOpen(false));
@@ -332,16 +298,13 @@ export default function SupplierLayout() {
   partnerGateUserRef.current = user;
 
   useEffect(() => {
-    if (!accountMenuOpen && !businessMenuOpen) return;
+    if (!accountMenuOpen) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setAccountMenuOpen(false);
-        setBusinessMenuOpen(false);
-      }
+      if (e.key === 'Escape') setAccountMenuOpen(false);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [accountMenuOpen, businessMenuOpen]);
+  }, [accountMenuOpen]);
 
   useEffect(() => {
     const client = supabase;
@@ -599,6 +562,8 @@ export default function SupplierLayout() {
     setOnboardingListingCount(listings.length);
     setOnboardingHasPayout(isSupplierPayoutConfigured(profile));
     setOnboardingHasCompany(isSupplierBusinessProfileComplete(profile));
+    setProfileDisplayName((profile?.display_name ?? '').trim());
+    setCompanyLegalName((profile?.company_legal_name ?? '').trim());
     setVerificationStatus((profile?.verification_status ?? '').trim());
     setVerificationSubmittedAt(
       profile?.verification_submitted_at ? String(profile.verification_submitted_at) : ''
@@ -711,7 +676,6 @@ export default function SupplierLayout() {
     window.history.pushState({}, '', pathForSection(s));
     window.dispatchEvent(new PopStateEvent('popstate'));
     setAccountMenuOpen(false);
-    setBusinessMenuOpen(false);
     setMobileAccountOpen(false);
   };
 
@@ -753,7 +717,6 @@ export default function SupplierLayout() {
     consumePartnerReturnPath();
     setSigningOut(true);
     setAccountMenuOpen(false);
-    setBusinessMenuOpen(false);
     setMobileAccountOpen(false);
     void signOut().finally(() => {
       window.location.replace(PARTNER_LOGIN_PATH);
@@ -875,303 +838,298 @@ export default function SupplierLayout() {
           Stripe TEST — payments and Money rows are sandbox, not live charges.
         </p>
       ) : null}
-      <header className="sticky top-0 z-30 border-b border-black/[0.06] bg-paper-raised/95 backdrop-blur-md pt-[env(safe-area-inset-top)] shadow-soft">
-        <div className="mx-auto flex h-14 max-w-6xl items-center gap-6 px-4 sm:px-6">
-          <button type="button" onClick={() => handleNavigate('dashboard')} className="lux-flat flex items-center gap-2 shrink-0" aria-label="Partner home">
-            <img src={BRAND_LOGO_SRC} alt="" className="h-8 w-8 object-contain" />
-            <span className="hidden sm:inline font-sans text-[11px] font-semibold tracking-[0.2em]">TRAVERION</span>
-          </button>
-          <nav className="hidden md:flex items-center gap-1 flex-1" aria-label="Primary">
-            {DESKTOP_PRIMARY_NAV.map((item) => {
-              const active = section === item.id;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => handleNavigate(item.id)}
-                  aria-current={active ? 'page' : undefined}
-                  className={`lux-flat px-3 py-1.5 rounded-full text-sm font-medium transition-colors duration-150 ${
-                    active
-                      ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
-                      : 'text-ink-muted hover:bg-finland/10 hover:text-finland'
-                  }`}
-                >
-                  {item.label}
-                </button>
-              );
-            })}
-          </nav>
-          <div className="relative hidden md:block">
-            <button
-              type="button"
-              onClick={() => {
-                setBusinessMenuOpen((v) => !v);
-                setAccountMenuOpen(false);
-              }}
-              aria-current={DESKTOP_BUSINESS_NAV.some((i) => i.id === section) ? 'page' : undefined}
-              aria-expanded={businessMenuOpen}
-              aria-haspopup="menu"
-              aria-controls="partner-business-menu"
-              className={`lux-flat flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium transition-colors duration-150 ${
-                DESKTOP_BUSINESS_NAV.some((i) => i.id === section)
-                  ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
-                  : 'text-ink-muted hover:bg-finland/10 hover:text-finland'
-              }`}
-            >
-              Business
-              <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-150 ${businessMenuOpen ? 'rotate-180' : ''}`} aria-hidden />
-            </button>
-            {businessMenuOpen && (
-              <div
-                id="partner-business-menu"
-                role="menu"
-                aria-label="Business"
-                className="absolute left-0 top-11 w-56 rounded-2xl bg-paper-raised shadow-soft-xl p-2 z-50 origin-top-left motion-safe:animate-slide-down"
-              >
-                {DESKTOP_BUSINESS_NAV.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => handleNavigate(item.id)}
-                    className={`lux-flat w-full flex items-center gap-2.5 text-left px-3 py-2 rounded-xl text-sm ${
-                      section === item.id ? 'bg-finland/10 text-finland font-medium' : 'hover:bg-paper'
-                    }`}
-                  >
-                    <item.icon className="w-4 h-4 shrink-0" strokeWidth={1.8} aria-hidden />
-                    {item.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          <div className="relative ml-auto">
-            <button
-              type="button"
-              onClick={() => {
-                setAccountMenuOpen((v) => !v);
-                setBusinessMenuOpen(false);
-              }}
-              className="lux-flat hidden md:inline-flex h-9 w-9 items-center justify-center rounded-full bg-finland text-white text-xs font-semibold ring-1 ring-finland/25"
-              aria-label="Account"
-              aria-expanded={accountMenuOpen}
-              aria-haspopup="menu"
-              aria-controls="partner-account-menu"
-            >
-              {(user?.email ?? user?.id ?? 'S').slice(0, 1).toUpperCase()}
-            </button>
-            {accountMenuOpen && (
-              <div
-                id="partner-account-menu"
-                role="menu"
-                aria-label="Account"
-                className="absolute right-0 top-11 w-56 rounded-2xl bg-paper-raised shadow-soft-xl p-2 z-50 origin-top-right motion-safe:animate-slide-down"
-              >
-                <button type="button" onClick={() => openSettingsFocus('company')} className="lux-flat w-full text-left px-3 py-2 rounded-xl text-sm hover:bg-paper">Business profile</button>
-                <button type="button" onClick={() => openSettingsFocus('account')} className="lux-flat w-full text-left px-3 py-2 rounded-xl text-sm hover:bg-paper">Settings</button>
-                {!onboardingComplete && (
-                  <button type="button" onClick={() => handleNavigate('onboarding')} className="lux-flat w-full text-left px-3 py-2 rounded-xl text-sm hover:bg-paper">Finish setup</button>
-                )}
-                <button type="button" onClick={handlePartnerSignOut} className="lux-flat w-full text-left px-3 py-2 rounded-xl text-sm text-red-700 hover:bg-paper">Log out</button>
-              </div>
-            )}
-          </div>
-        </div>
-      </header>
 
-      {mobileAccountOpen && (
-        <div
-          ref={mobileAccountRef}
-          className="md:hidden fixed inset-0 z-50 bg-paper pt-[env(safe-area-inset-top)] motion-safe:animate-fade-in"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="partner-more-title"
-        >
-          <div className="flex items-center justify-between px-4 py-3">
-            <h2 id="partner-more-title" className="font-display text-2xl">Account</h2>
-            <button type="button" onClick={() => setMobileAccountOpen(false)} className="lux-tap-target p-2" aria-label="Close">
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-          <div className="px-4 space-y-1">
-            <p className="pt-1 pb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint">Business</p>
-            {BUSINESS_OPS_NAV.map((item) => (
+      <div className="flex min-h-[100dvh]">
+        <PartnerSidebar
+          groups={PARTNER_SIDEBAR_GROUPS}
+          activeSection={section}
+          businessLabel={operatorDisplayName}
+          onNavigate={(id) => handleNavigate(id as SupplierSection)}
+          onHome={() => handleNavigate('dashboard')}
+          showFinishSetup={!onboardingComplete}
+          onFinishSetup={() => handleNavigate('onboarding')}
+          collapsed={sidebarCollapsed}
+          onToggleCollapsed={() => setSidebarCollapsed((v) => !v)}
+        />
+
+        <div className="flex min-w-0 flex-1 flex-col">
+          <header className="sticky top-0 z-30 border-b border-black/[0.06] bg-paper-raised/95 backdrop-blur-md pt-[env(safe-area-inset-top)]">
+            <div className="flex h-14 items-center gap-3 px-4 sm:px-6">
               <button
-                key={item.id}
                 type="button"
-                onClick={() => handleNavigate(item.id)}
-                className="lux-flat w-full flex items-center gap-3 text-left py-3.5 text-base"
+                onClick={() => handleNavigate('dashboard')}
+                className="lux-flat md:hidden flex items-center gap-2 shrink-0"
+                aria-label="Partner home"
               >
-                <item.icon className="w-5 h-5 shrink-0 text-ink-faint" strokeWidth={1.8} aria-hidden />
-                {item.label}
+                <img src={BRAND_LOGO_SRC} alt="" className="h-8 w-8 object-contain" />
+                <span className="font-sans text-[11px] font-semibold tracking-[0.2em]">TRAVERION</span>
               </button>
-            ))}
-            <p className="pt-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint">Account</p>
-            <button type="button" onClick={() => openSettingsFocus('company')} className="lux-flat w-full text-left py-3.5 text-base">Business profile</button>
-            <button type="button" onClick={() => openSettingsFocus('account')} className="lux-flat w-full text-left py-3.5 text-base">Settings</button>
-            {!onboardingComplete && (
-              <button type="button" onClick={() => handleNavigate('onboarding')} className="lux-flat w-full text-left py-3.5 text-base">Finish setup</button>
-            )}
-            <button type="button" onClick={handlePartnerSignOut} className="lux-flat w-full text-left py-3.5 text-base text-red-700">Log out</button>
-          </div>
-        </div>
-      )}
-
-      <main
-        id="main-content"
-        tabIndex={-1}
-        className={`mx-auto w-full max-w-6xl min-w-0 px-4 sm:px-6 pt-4 pb-[max(1.5rem,calc(5.25rem+env(safe-area-inset-bottom)))] lg:pb-16 outline-none ${section === 'availability' ? 'max-w-none lg:px-10' : ''}`}
-      >
-        <div className="lux-page-enter w-full min-w-0">
-          <Suspense fallback={<PartnerSectionFallback />}>
-          {unknownPartnerPath ? (
-            <div className="py-16 max-w-md">
-              <h1 className="font-display text-3xl text-ink">This page is not available</h1>
-              <p className="mt-3 text-ink-muted leading-relaxed">
-                Team and Integrations are not part of Partner yet, so those addresses do not open a workspace.
-                Use Today, Listings, Calendar, Bookings, or More.
-              </p>
-              <button type="button" className="tv-btn-primary mt-8" onClick={() => handleNavigate('dashboard')}>
-                Back to Today
-              </button>
+              <div className="hidden md:block min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint">Partner</p>
+                <p className="truncate text-sm font-semibold text-ink">{operatorDisplayName}</p>
+              </div>
+              <div className="relative ml-auto">
+                <button
+                  type="button"
+                  onClick={() => setAccountMenuOpen((v) => !v)}
+                  className="lux-flat hidden md:inline-flex h-9 w-9 items-center justify-center rounded-full bg-finland text-white text-xs font-semibold ring-1 ring-finland/25"
+                  aria-label="Account"
+                  aria-expanded={accountMenuOpen}
+                  aria-haspopup="menu"
+                  aria-controls="partner-account-menu"
+                >
+                  {(user?.email ?? user?.id ?? 'S').slice(0, 1).toUpperCase()}
+                </button>
+                {accountMenuOpen && (
+                  <div
+                    id="partner-account-menu"
+                    role="menu"
+                    aria-label="Account"
+                    className="absolute right-0 top-11 w-64 rounded-xl bg-paper-raised shadow-soft-xl ring-1 ring-black/[0.06] p-2 z-50 origin-top-right motion-safe:animate-slide-down"
+                  >
+                    {supplierEmail ? (
+                      <p className="px-3 py-2 text-xs text-ink-muted truncate border-b border-black/[0.06] mb-1">
+                        {supplierEmail}
+                      </p>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => openSettingsFocus('account')}
+                      className="lux-flat w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-paper"
+                    >
+                      Account settings
+                    </button>
+                    {!onboardingComplete && (
+                      <button
+                        type="button"
+                        onClick={() => handleNavigate('onboarding')}
+                        className="lux-flat w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-paper"
+                      >
+                        Finish setup
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={handlePartnerSignOut}
+                      className="lux-flat w-full text-left px-3 py-2 rounded-lg text-sm text-red-700 hover:bg-paper"
+                    >
+                      Log out
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
-          ) : (
-          <>
-          {section === 'onboarding' && (
-            <PartnerOnboarding
-              onSkip={() => handleNavigate('dashboard')}
-              onBusiness={() => openSettingsFocus('company')}
-              onPayout={() => openSettingsFocus('payout')}
-              onTours={() => handleNavigate('listings')}
-              businessDone={onboardingHasCompany}
-              payoutDone={onboardingHasPayout}
-              hasListing={(onboardingListingCount ?? 0) > 0}
-            />
+          </header>
+
+          {mobileAccountOpen && (
+            <div
+              ref={mobileAccountRef}
+              className="md:hidden fixed inset-0 z-50 bg-paper pt-[env(safe-area-inset-top)] motion-safe:animate-fade-in"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="partner-more-title"
+            >
+              <div className="flex items-center justify-between px-4 py-3 border-b border-black/[0.06]">
+                <h2 id="partner-more-title" className="font-display text-2xl">More</h2>
+                <button type="button" onClick={() => setMobileAccountOpen(false)} className="lux-tap-target p-2" aria-label="Close">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="px-4 pb-10 overflow-y-auto max-h-[calc(100dvh-3.5rem)]">
+                {PARTNER_MORE_GROUPS.map((group) => (
+                  <div key={group.id} className="pt-4">
+                    <p className="pb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint">{group.label}</p>
+                    {group.items.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => handleNavigate(item.id as SupplierSection)}
+                        className={`lux-flat w-full flex items-center gap-3 text-left py-3.5 text-base ${
+                          section === item.id ? 'text-finland font-semibold' : ''
+                        }`}
+                      >
+                        <item.icon className="w-5 h-5 shrink-0 text-ink-faint" strokeWidth={1.8} aria-hidden />
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                ))}
+                <div className="pt-4">
+                  <p className="pb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint">Account</p>
+                  {supplierEmail ? <p className="py-2 text-sm text-ink-muted truncate">{supplierEmail}</p> : null}
+                  {!onboardingComplete && (
+                    <button type="button" onClick={() => handleNavigate('onboarding')} className="lux-flat w-full text-left py-3.5 text-base">
+                      Finish setup
+                    </button>
+                  )}
+                  <button type="button" onClick={handlePartnerSignOut} className="lux-flat w-full text-left py-3.5 text-base text-red-700">
+                    Log out
+                  </button>
+                </div>
+              </div>
+            </div>
           )}
-          {section === 'dashboard' && <SupplierDashboard />}
-          {section === 'listings' && <SupplierListings />}
-          {section === 'availability' && <SupplierAvailability />}
-          {section === 'bookings' && <SupplierBookings />}
-          {section === 'inbox' && <SupplierInbox />}
-          {section === 'earnings' && <SupplierEarnings />}
-          {section === 'discounts' && <SupplierDiscountsOffers />}
-          {section === 'reviews' && <SupplierReviews />}
-          {section === 'pickup' && <SupplierPickupPlanner />}
-          {section === 'performance' && <SupplierPerformance />}
-          {section === 'change-password' && (
-            <SupplierChangePassword
-              onBack={() => handleNavigate('account-settings')}
-              userEmail={supplierEmail}
-              isSupabase={isSupabase}
-              supabase={supabase}
-            />
-          )}
-          {(section === 'business-profile' || section === 'account-settings') && (
-            <SupplierSettingsPages
-              variant={section === 'account-settings' ? 'account-settings' : 'business-profile'}
-              user={user as User | null}
-              isSupabase={isSupabase}
-              supabase={supabase}
-              supplierEmail={supplierEmail}
-              supplierEmailVerified={supplierEmailVerified}
-              verificationSending={verificationSending}
-              verificationMessage={verificationMessage}
-              setVerificationMessage={setVerificationMessage}
-              setVerificationSending={setVerificationSending}
-              handleNavigate={(s) => handleNavigate(s as SupplierSection)}
-              businessProfileTab={businessProfileTab}
-              setBusinessProfileTab={setBusinessProfileTab}
-              payoutIban={payoutIban}
-              setPayoutIban={setPayoutIban}
-              payoutBic={payoutBic}
-              setPayoutBic={setPayoutBic}
-              payoutVerificationStatus={payoutVerificationStatus}
-              payoutVerificationSubmittedAt={payoutVerificationSubmittedAt}
-              setPayoutVerificationStatus={setPayoutVerificationStatus}
-              setPayoutVerificationSubmittedAt={setPayoutVerificationSubmittedAt}
-              businessVerificationFeedback={businessVerificationFeedback}
-              payoutVerificationFeedback={payoutVerificationFeedback}
-              setBusinessVerificationFeedback={setBusinessVerificationFeedback}
-              setPayoutVerificationFeedback={setPayoutVerificationFeedback}
-              paymentCycle={paymentCycle}
-              setPaymentCycle={setPaymentCycle}
-              payoutThreshold={payoutThreshold}
-              setPayoutThreshold={setPayoutThreshold}
-              payoutSaving={payoutSaving}
-              payoutMessage={payoutMessage}
-              setPayoutSaving={setPayoutSaving}
-              setPayoutMessage={setPayoutMessage}
-              updateSupplierPayout={updateSupplierPayout}
-              businessType={businessType}
-              setBusinessType={setBusinessType}
-              companyLegalName={companyLegalName}
-              setCompanyLegalName={setCompanyLegalName}
-              companyRegistrationNumber={companyRegistrationNumber}
-              setCompanyRegistrationNumber={setCompanyRegistrationNumber}
-              managingDirectors={managingDirectors}
-              setManagingDirectors={setManagingDirectors}
-              addressStreet={addressStreet}
-              setAddressStreet={setAddressStreet}
-              addressCountry={addressCountry}
-              setAddressCountry={setAddressCountry}
-              addressCity={addressCity}
-              setAddressCity={setAddressCity}
-              addressPostalCode={addressPostalCode}
-              setAddressPostalCode={setAddressPostalCode}
-              taxId={taxId}
-              setTaxId={setTaxId}
-              vatId={vatId}
-              setVatId={setVatId}
-              verificationStatus={verificationStatus}
-              verificationSubmittedAt={verificationSubmittedAt}
-              setVerificationSubmittedAt={setVerificationSubmittedAt}
-              businessTypeAtLastFetch={businessTypeAtLastFetch}
-              companySaving={companySaving}
-              companyMessage={companyMessage}
-              setCompanySaving={setCompanySaving}
-              setCompanyMessage={setCompanyMessage}
-              updateSupplierCompanyProfile={updateSupplierCompanyProfile}
-              insurancePolicyNumber={insurancePolicyNumber}
-              setInsurancePolicyNumber={setInsurancePolicyNumber}
-              insuranceCoverage={insuranceCoverage}
-              setInsuranceCoverage={setInsuranceCoverage}
-              insuranceStart={insuranceStart}
-              setInsuranceStart={setInsuranceStart}
-              insuranceEnd={insuranceEnd}
-              setInsuranceEnd={setInsuranceEnd}
-              insuranceProvider={insuranceProvider}
-              setInsuranceProvider={setInsuranceProvider}
-              privacyPolicyText={privacyPolicyText}
-              setPrivacyPolicyText={setPrivacyPolicyText}
-              termsConditionsText={termsConditionsText}
-              setTermsConditionsText={setTermsConditionsText}
-              legalSaving={legalSaving}
-              legalMessage={legalMessage}
-              setLegalSaving={setLegalSaving}
-              setLegalMessage={setLegalMessage}
-              legalDocModal={legalDocModal}
-              setLegalDocModal={setLegalDocModal}
-              operatorDisplayName={operatorDisplayName}
-              fillPrivacyTemplate={fillPrivacyTemplate}
-              fillTermsTemplate={fillTermsTemplate}
-              businessLogoUrl={businessLogoUrl}
-              setBusinessLogoUrl={setBusinessLogoUrl}
-              companyRegistrationPath={companyRegistrationPath}
-              setCompanyRegistrationPath={setCompanyRegistrationPath}
-              setVerificationStatus={setVerificationStatus}
-              onCompanyProfileSaved={() => {
-                setBusinessTypeAtLastFetch(businessType);
-                void refreshSupplierOnboardingSignals();
-              }}
-              onPayoutSaved={() => {
-                void refreshSupplierOnboardingSignals();
-              }}
-            />
-          )}
-          </>
-          )}
-          </Suspense>
+
+          <main
+            id="main-content"
+            tabIndex={-1}
+            className={`mx-auto w-full max-w-6xl min-w-0 flex-1 px-4 sm:px-6 pt-5 pb-[max(1.5rem,calc(5.25rem+env(safe-area-inset-bottom)))] md:pb-12 outline-none ${
+              section === 'availability' ? 'max-w-none lg:px-8' : ''
+            }`}
+          >
+            <div className="lux-page-enter w-full min-w-0">
+              <Suspense fallback={<PartnerSectionFallback />}>
+                {unknownPartnerPath ? (
+                  <div className="py-16 max-w-md">
+                    <h1 className="font-display text-3xl text-ink">This page is not available</h1>
+                    <p className="mt-3 text-ink-muted leading-relaxed">
+                      Team and Integrations are not part of Partner yet, so those addresses do not open a workspace.
+                      Use Today, Calendar, Bookings, Listings, or More.
+                    </p>
+                    <button type="button" className="tv-btn-primary mt-8" onClick={() => handleNavigate('dashboard')}>
+                      Back to Today
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    {section === 'onboarding' && (
+                      <PartnerOnboarding
+                        onSkip={() => handleNavigate('dashboard')}
+                        onBusiness={() => openSettingsFocus('company')}
+                        onPayout={() => openSettingsFocus('payout')}
+                        onTours={() => handleNavigate('listings')}
+                        businessDone={onboardingHasCompany}
+                        payoutDone={onboardingHasPayout}
+                        hasListing={(onboardingListingCount ?? 0) > 0}
+                      />
+                    )}
+                    {section === 'dashboard' && <SupplierDashboard />}
+                    {section === 'listings' && <SupplierListings />}
+                    {section === 'availability' && <SupplierAvailability />}
+                    {section === 'bookings' && <SupplierBookings />}
+                    {section === 'inbox' && <SupplierInbox />}
+                    {section === 'earnings' && <SupplierEarnings />}
+                    {section === 'discounts' && <SupplierDiscountsOffers />}
+                    {section === 'reviews' && <SupplierReviews />}
+                    {section === 'pickup' && <SupplierPickupPlanner />}
+                    {section === 'performance' && <SupplierPerformance />}
+                    {section === 'change-password' && (
+                      <SupplierChangePassword
+                        onBack={() => handleNavigate('account-settings')}
+                        userEmail={supplierEmail}
+                        isSupabase={isSupabase}
+                        supabase={supabase}
+                      />
+                    )}
+                    {(section === 'business-profile' || section === 'account-settings') && (
+                      <SupplierSettingsPages
+                        variant={section === 'account-settings' ? 'account-settings' : 'business-profile'}
+                        user={user as User | null}
+                        isSupabase={isSupabase}
+                        supabase={supabase}
+                        supplierEmail={supplierEmail}
+                        supplierEmailVerified={supplierEmailVerified}
+                        verificationSending={verificationSending}
+                        verificationMessage={verificationMessage}
+                        setVerificationMessage={setVerificationMessage}
+                        setVerificationSending={setVerificationSending}
+                        handleNavigate={(s) => handleNavigate(s as SupplierSection)}
+                        businessProfileTab={businessProfileTab}
+                        setBusinessProfileTab={setBusinessProfileTab}
+                        payoutIban={payoutIban}
+                        setPayoutIban={setPayoutIban}
+                        payoutBic={payoutBic}
+                        setPayoutBic={setPayoutBic}
+                        payoutVerificationStatus={payoutVerificationStatus}
+                        payoutVerificationSubmittedAt={payoutVerificationSubmittedAt}
+                        setPayoutVerificationStatus={setPayoutVerificationStatus}
+                        setPayoutVerificationSubmittedAt={setPayoutVerificationSubmittedAt}
+                        businessVerificationFeedback={businessVerificationFeedback}
+                        payoutVerificationFeedback={payoutVerificationFeedback}
+                        setBusinessVerificationFeedback={setBusinessVerificationFeedback}
+                        setPayoutVerificationFeedback={setPayoutVerificationFeedback}
+                        paymentCycle={paymentCycle}
+                        setPaymentCycle={setPaymentCycle}
+                        payoutThreshold={payoutThreshold}
+                        setPayoutThreshold={setPayoutThreshold}
+                        payoutSaving={payoutSaving}
+                        payoutMessage={payoutMessage}
+                        setPayoutSaving={setPayoutSaving}
+                        setPayoutMessage={setPayoutMessage}
+                        updateSupplierPayout={updateSupplierPayout}
+                        businessType={businessType}
+                        setBusinessType={setBusinessType}
+                        companyLegalName={companyLegalName}
+                        setCompanyLegalName={setCompanyLegalName}
+                        companyRegistrationNumber={companyRegistrationNumber}
+                        setCompanyRegistrationNumber={setCompanyRegistrationNumber}
+                        managingDirectors={managingDirectors}
+                        setManagingDirectors={setManagingDirectors}
+                        addressStreet={addressStreet}
+                        setAddressStreet={setAddressStreet}
+                        addressCountry={addressCountry}
+                        setAddressCountry={setAddressCountry}
+                        addressCity={addressCity}
+                        setAddressCity={setAddressCity}
+                        addressPostalCode={addressPostalCode}
+                        setAddressPostalCode={setAddressPostalCode}
+                        taxId={taxId}
+                        setTaxId={setTaxId}
+                        vatId={vatId}
+                        setVatId={setVatId}
+                        verificationStatus={verificationStatus}
+                        verificationSubmittedAt={verificationSubmittedAt}
+                        setVerificationSubmittedAt={setVerificationSubmittedAt}
+                        businessTypeAtLastFetch={businessTypeAtLastFetch}
+                        companySaving={companySaving}
+                        companyMessage={companyMessage}
+                        setCompanySaving={setCompanySaving}
+                        setCompanyMessage={setCompanyMessage}
+                        updateSupplierCompanyProfile={updateSupplierCompanyProfile}
+                        insurancePolicyNumber={insurancePolicyNumber}
+                        setInsurancePolicyNumber={setInsurancePolicyNumber}
+                        insuranceCoverage={insuranceCoverage}
+                        setInsuranceCoverage={setInsuranceCoverage}
+                        insuranceStart={insuranceStart}
+                        setInsuranceStart={setInsuranceStart}
+                        insuranceEnd={insuranceEnd}
+                        setInsuranceEnd={setInsuranceEnd}
+                        insuranceProvider={insuranceProvider}
+                        setInsuranceProvider={setInsuranceProvider}
+                        privacyPolicyText={privacyPolicyText}
+                        setPrivacyPolicyText={setPrivacyPolicyText}
+                        termsConditionsText={termsConditionsText}
+                        setTermsConditionsText={setTermsConditionsText}
+                        legalSaving={legalSaving}
+                        legalMessage={legalMessage}
+                        setLegalSaving={setLegalSaving}
+                        setLegalMessage={setLegalMessage}
+                        legalDocModal={legalDocModal}
+                        setLegalDocModal={setLegalDocModal}
+                        operatorDisplayName={operatorDisplayName}
+                        fillPrivacyTemplate={fillPrivacyTemplate}
+                        fillTermsTemplate={fillTermsTemplate}
+                        businessLogoUrl={businessLogoUrl}
+                        setBusinessLogoUrl={setBusinessLogoUrl}
+                        companyRegistrationPath={companyRegistrationPath}
+                        setCompanyRegistrationPath={setCompanyRegistrationPath}
+                        setVerificationStatus={setVerificationStatus}
+                        onCompanyProfileSaved={() => {
+                          setBusinessTypeAtLastFetch(businessType);
+                          void refreshSupplierOnboardingSignals();
+                        }}
+                        onPayoutSaved={() => {
+                          void refreshSupplierOnboardingSignals();
+                        }}
+                      />
+                    )}
+                  </>
+                )}
+              </Suspense>
+            </div>
+          </main>
         </div>
-      </main>
+      </div>
 
       <nav
         className="partner-bottom-nav md:hidden fixed bottom-0 inset-x-0 z-40 bg-paper-raised/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)] border-t border-black/[0.06] shadow-[0_-4px_24px_rgba(0,0,0,0.04)]"
@@ -1204,10 +1162,26 @@ export default function SupplierLayout() {
             aria-expanded={mobileAccountOpen}
             aria-haspopup="dialog"
             className={`lux-flat flex flex-1 flex-col items-center justify-center gap-0.5 py-2 min-h-[52px] ${
-              mobileAccountOpen ? 'text-finland' : 'text-ink-faint'
+              mobileAccountOpen ||
+              ['inbox', 'reviews', 'discounts', 'pickup', 'performance', 'business-profile', 'account-settings'].includes(
+                section
+              )
+                ? 'text-finland'
+                : 'text-ink-faint'
             }`}
           >
-            <UserCircle2 className="w-5 h-5" strokeWidth={mobileAccountOpen ? 2.4 : 1.8} aria-hidden />
+            <UserCircle2
+              className="w-5 h-5"
+              strokeWidth={
+                mobileAccountOpen ||
+                ['inbox', 'reviews', 'discounts', 'pickup', 'performance', 'business-profile', 'account-settings'].includes(
+                  section
+                )
+                  ? 2.4
+                  : 1.8
+              }
+              aria-hidden
+            />
             <span className="text-[10px] font-semibold">More</span>
           </button>
         </div>

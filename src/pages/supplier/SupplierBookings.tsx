@@ -476,15 +476,16 @@ export default function SupplierBookings() {
   return (
     <div className={SUPPLIER_PAGE_CLASS}>
       <SupplierPageHero
+        badge="Operate"
         title="Bookings"
-        description="Guests, tours, dates, and what needs a decision."
+        description="Scan guests, products, dates, payment truth, and actions that need a decision."
         actions={
           bookings.length > 0 ? (
           <div className="flex flex-wrap items-center justify-end gap-2">
             <button
               type="button"
               onClick={() => void load()}
-              className="lux-flat inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm text-ink-muted hover:text-ink"
+              className="tv-btn-ghost"
             >
               <RefreshCw className="h-4 w-4" aria-hidden />
               Refresh
@@ -498,7 +499,7 @@ export default function SupplierBookings() {
                 )
               }
               disabled={filteredBookings.length === 0}
-              className="lux-flat inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm text-ink-muted hover:text-ink disabled:opacity-50"
+              className="tv-btn-ghost disabled:opacity-50"
             >
               <Download className="h-4 w-4" aria-hidden />
               Export
@@ -508,7 +509,7 @@ export default function SupplierBookings() {
         }
       >
         {bookings.length > 0 && (
-          <div className="mt-6 flex gap-1 rounded-full bg-paper-raised p-1 w-fit max-w-full overflow-x-auto shadow-soft ring-1 ring-black/[0.06]">
+          <div className="mt-5 flex flex-wrap gap-x-1 gap-y-2 border-b border-black/[0.06]" role="tablist" aria-label="Schedule">
             {([
               ['today', 'Today'],
               ['upcoming', 'Upcoming'],
@@ -518,24 +519,23 @@ export default function SupplierBookings() {
               <button
                 key={id}
                 type="button"
+                role="tab"
+                aria-selected={view === id}
                 onClick={() => setView(id)}
-                className={`lux-flat rounded-full px-3.5 py-2 min-h-11 text-sm font-medium shrink-0 transition-colors ${
-                  view === id
-                    ? id === 'today'
-                      ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
-                      : id === 'past'
-                        ? 'bg-stone-700 text-white shadow-sm'
-                        : 'bg-finland/90 text-white shadow-sm'
-                    : 'text-ink-muted hover:bg-finland/10 hover:text-finland'
+                className={`lux-flat relative px-3.5 py-2.5 text-sm font-medium transition-colors ${
+                  view === id ? 'text-finland' : 'text-ink-muted hover:text-ink'
                 }`}
               >
                 {label}
+                {view === id ? (
+                  <span className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-finland" aria-hidden />
+                ) : null}
               </button>
             ))}
           </div>
         )}
         {bookings.length > 0 && (
-          <div className="mt-3 flex gap-1 rounded-full bg-paper-raised p-1 w-fit max-w-full overflow-x-auto shadow-soft ring-1 ring-black/[0.06]">
+          <div className="mt-3 flex flex-wrap gap-2" role="group" aria-label="Operational filters">
             {([
               ['all', 'All states'],
               ['unpaid', 'Unpaid'],
@@ -547,14 +547,14 @@ export default function SupplierBookings() {
                 key={id}
                 type="button"
                 onClick={() => setOpsFilterAndUrl(id)}
-                className={`lux-flat rounded-full px-3.5 py-2 min-h-11 text-sm font-medium shrink-0 transition-colors ${
+                className={`lux-flat rounded-md px-3 py-1.5 text-xs font-semibold ring-1 transition-colors ${
                   opsFilter === id
-                    ? id === 'unpaid' || id === 'pickup' || id === 'refund_due'
-                      ? 'bg-amber-500 text-white shadow-sm'
-                      : id === 'cancel'
-                        ? 'bg-rose-600 text-white shadow-sm'
-                        : 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
-                    : 'text-ink-muted hover:bg-finland/10 hover:text-finland'
+                    ? id === 'cancel'
+                      ? 'bg-rose-600 text-white ring-rose-600'
+                      : id === 'unpaid' || id === 'pickup' || id === 'refund_due'
+                        ? 'bg-amber-500 text-white ring-amber-500'
+                        : 'bg-finland text-white ring-finland'
+                    : 'bg-transparent text-ink-muted ring-black/[0.08] hover:text-ink hover:ring-black/[0.14]'
                 }`}
               >
                 {label}

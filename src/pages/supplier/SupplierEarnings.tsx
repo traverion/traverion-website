@@ -209,7 +209,7 @@ export default function SupplierEarnings() {
   return (
     <div className={SUPPLIER_PAGE_CLASS}>
       <SupplierPageHero
-        badge="Earnings"
+        badge="Insights"
         title="Money"
         description="Traveler payments collected, fees & adjustments, and what Traverion has paid you. Payouts are manual — this page never invents a transfer."
       />
@@ -228,14 +228,14 @@ export default function SupplierEarnings() {
       ) : error ? null : (
         <>
           {moneyByCurrency.length === 0 ? (
-            <section className="mb-12 rounded-2xl bg-paper-raised p-5 sm:p-7 shadow-soft ring-1 ring-black/[0.06]">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-ink-faint mb-2">
+            <section className="mb-10 pb-6 border-b border-black/[0.06]">
+              <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">
                 {PARTNER_MONEY_AVAILABLE_BALANCE_LABEL}
               </p>
-              <p className="font-display text-5xl sm:text-6xl tabular-nums tracking-tight text-ink">
+              <p className="font-display text-4xl sm:text-5xl tabular-nums tracking-tight text-ink">
                 {formatMoney(0, primaryCurrency)}
               </p>
-              <p className="mt-4 text-sm text-ink-muted max-w-lg">{nextPayoutLabel}</p>
+              <p className="mt-3 text-sm text-ink-muted max-w-lg">{nextPayoutLabel}</p>
               <button
                 type="button"
                 onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/business-profile#supplier-business-payout`)}

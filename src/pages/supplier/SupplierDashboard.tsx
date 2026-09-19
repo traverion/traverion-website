@@ -259,15 +259,17 @@ export default function SupplierDashboard() {
 
   return (
     <div className={`${SUPPLIER_PAGE_CLASS} motion-safe:animate-fade-in`}>
-      <header className="mb-10 rounded-2xl bg-paper-raised p-5 sm:p-7 shadow-soft ring-1 ring-black/[0.06] flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+      <header className="mb-8 pb-5 border-b border-black/[0.06] flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div>
-          <div className="inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15 mb-3">
-            Today
-          </div>
-          <p className="text-sm text-ink-muted mb-2">{dateLabel}</p>
-          <h1 className="font-display text-4xl sm:text-5xl text-ink tracking-tight">
-            {firstName ? `${hello}, ${firstName}.` : hello}
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint mb-1.5">{dateLabel}</p>
+          <h1 className="font-display text-[1.85rem] sm:text-[2.25rem] leading-tight text-ink tracking-tight">
+            {firstName ? `${hello}, ${firstName}` : hello}
           </h1>
+          <p className="mt-1.5 text-sm text-ink-muted max-w-lg leading-relaxed">
+            {attentionCount > 0
+              ? `${attentionCount} item${attentionCount === 1 ? '' : 's'} need your attention.`
+              : 'Your operational starting point for today.'}
+          </p>
         </div>
         <button
           type="button"
@@ -288,9 +290,9 @@ export default function SupplierDashboard() {
       )}
 
       {attentionCount > 0 && (
-        <section className="mb-10 rounded-3xl bg-rose-50/40 p-5 sm:p-6 ring-1 ring-rose-100/80">
-          <h2 className="text-[11px] uppercase tracking-[0.18em] text-rose-800/70 mb-4">Needs attention</h2>
-          <ul className="space-y-2.5">
+        <section className="mb-8">
+          <h2 className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-3">Needs attention</h2>
+          <ul className="space-y-2">
             {openCancelCount > 0 && (
               <AttentionRow
                 tone="danger"
@@ -337,9 +339,9 @@ export default function SupplierDashboard() {
         </section>
       )}
 
-      <section className="mb-8 rounded-2xl bg-paper-raised p-4 sm:p-5 shadow-soft ring-1 ring-black/[0.06]">
+      <section className="mb-8">
         <div className="mb-3 flex items-baseline justify-between gap-3">
-          <h2 className="text-[11px] uppercase tracking-[0.18em] text-ink-faint">Today’s departures</h2>
+          <h2 className="text-[11px] uppercase tracking-[0.16em] text-ink-faint">Today’s departures</h2>
           {todayDepartures.length > 0 ? (
             <span className="text-xs text-ink-muted tabular-nums">
               {todayDepartures.length} booking{todayDepartures.length === 1 ? '' : 's'} ·{' '}
@@ -350,7 +352,7 @@ export default function SupplierDashboard() {
         {dashboardLoading && publishedListingsCount === null ? (
           <SupplierListSkeleton rows={3} />
         ) : todayDepartures.length === 0 ? (
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-finland/[0.04] px-3.5 py-3 ring-1 ring-finland/10">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-black/[0.025] px-3.5 py-3.5 ring-1 ring-black/[0.05]">
             <div className="min-w-0">
               <p className="text-sm font-semibold text-ink">{todayEmptyCopy.title}</p>
               <p className="text-xs text-ink-muted mt-0.5 leading-snug">{todayEmptyCopy.body}</p>
@@ -366,7 +368,7 @@ export default function SupplierDashboard() {
             ) : null}
           </div>
         ) : (
-          <ul className="divide-y divide-black/[0.06]">
+          <ul className="divide-y divide-black/[0.06] rounded-xl bg-paper-raised ring-1 ring-black/[0.05] px-3.5">
             {todayDepartures.map((b) => {
               const startHm = pgTimeToHm(b.start_time) || pgTimeToHm(b.pickup_time) || null;
               const pickupMissing = pickupGaps.some((g) => g.id === b.id);
@@ -397,10 +399,10 @@ export default function SupplierDashboard() {
                         {b.guest_name ? ` · ${b.guest_name}` : ''}
                       </p>
                       {pickupMissing ? (
-                        <p className="mt-1 text-xs font-medium text-amber-800">Pickup missing</p>
+                        <p className="mt-1 text-xs font-medium text-amber-800">Pickup details missing</p>
                       ) : null}
                     </div>
-                    <ChevronRight className="h-4 w-4 shrink-0 text-ink-faint mt-1 transition-transform group-hover:translate-x-0.5" aria-hidden />
+                    <ChevronRight className="h-4 w-4 shrink-0 mt-1 opacity-40 group-hover:opacity-70" aria-hidden />
                   </button>
                 </li>
               );
@@ -410,15 +412,15 @@ export default function SupplierDashboard() {
       </section>
 
       {upcoming.length > 0 && (
-        <section className="mb-10">
-          <h2 className="text-[11px] uppercase tracking-[0.18em] text-ink-faint mb-4">Upcoming</h2>
-          <ul className="space-y-2.5">
+        <section className="mb-8">
+          <h2 className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-3">What’s next</h2>
+          <ul className="divide-y divide-black/[0.06] rounded-xl bg-paper-raised ring-1 ring-black/[0.05] px-3.5">
             {upcoming.map((b) => (
               <li key={b.id}>
                 <button
                   type="button"
                   onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings?booking=${b.id}`)}
-                  className="lux-flat flex w-full flex-col gap-1 rounded-2xl bg-paper-raised px-4 py-3.5 text-left shadow-soft ring-1 ring-black/[0.05] sm:flex-row sm:items-baseline sm:justify-between"
+                  className="lux-flat flex w-full flex-col gap-0.5 py-3.5 text-left sm:flex-row sm:items-baseline sm:justify-between"
                 >
                   <span className="font-semibold text-ink">{listingTitlesById[b.listing_id] ?? 'Tour'}</span>
                   <span className="text-sm text-ink-muted">
@@ -437,15 +439,13 @@ export default function SupplierDashboard() {
       )}
 
       {attentionCount === 0 && !dashboardLoading && (
-        <p className="mb-8 text-sm text-ink-muted leading-snug">
-          ✓ Nothing needs your attention right now.
-        </p>
+        <p className="mb-8 text-sm text-ink-muted leading-snug">Nothing needs your attention right now.</p>
       )}
 
       {recentBookings.length > 0 && (
-        <section className="mb-10">
-          <h2 className="text-[11px] uppercase tracking-[0.18em] text-ink-faint mb-4">Recent</h2>
-          <ul className="space-y-2">
+        <section className="mb-8">
+          <h2 className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-3">Recent bookings</h2>
+          <ul className="divide-y divide-black/[0.06] rounded-xl bg-paper-raised ring-1 ring-black/[0.05] px-3.5">
             {recentBookings.map((b) => {
               const paid =
                 b.amount_paid != null &&
@@ -459,7 +459,7 @@ export default function SupplierDashboard() {
                   <button
                     type="button"
                     onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings?booking=${b.id}`)}
-                    className="lux-flat flex w-full flex-col gap-1 rounded-2xl bg-paper-raised px-4 py-3.5 text-left shadow-soft ring-1 ring-black/[0.05] hover:ring-finland/20 sm:flex-row sm:items-baseline sm:justify-between"
+                    className="lux-flat flex w-full flex-col gap-0.5 py-3.5 text-left sm:flex-row sm:items-baseline sm:justify-between"
                   >
                     <span className="min-w-0">
                       <span className="font-semibold text-ink block truncate">

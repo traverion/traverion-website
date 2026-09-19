@@ -245,8 +245,9 @@ function AccountSettingsPage(p: Props) {
   return (
     <div className={SUPPLIER_PAGE_CLASS}>
       <SupplierPageHero
+        badge="Business"
         title="Account"
-        description="Sign-in email and password for this supplier portal."
+        description="Personal sign-in for this Partner workspace — separate from business identity."
       >
         <p className="mt-3 text-sm text-ink-muted">
           {p.supplierEmailVerified ? 'Email verified' : 'Email not verified'}
@@ -464,23 +465,22 @@ function BusinessProfilePage(p: Props) {
   const displayName = p.companyLegalName.trim() || p.operatorDisplayName || 'Your business';
 
   const profileTabClass = (active: boolean) =>
-    `lux-flat rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
-      active
-        ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
-        : 'text-ink-muted hover:bg-finland/10 hover:text-finland'
+    `lux-flat relative px-3.5 py-2.5 text-sm font-medium transition-colors ${
+      active ? 'text-finland' : 'text-ink-muted hover:text-ink'
     }`;
 
   return (
     <div className={SUPPLIER_PAGE_CLASS}>
       <SupplierPageHero
+        badge="Business"
         title={displayName}
-        description="Company details, payouts, and legal documents guests see when they book your tours and stays."
+        description="Company details, payout preferences, and legal documents guests see when they book."
       >
         <p className="mt-3 text-sm text-ink-muted">
           {busChip.label}
           {payChip ? ` · ${payChip.label}` : ''}
         </p>
-        <nav className="mt-6 flex gap-1 rounded-full bg-paper-raised p-1 w-fit shadow-soft ring-1 ring-black/[0.06]" aria-label="Business profile sections">
+        <nav className="mt-5 flex gap-x-1 border-b border-black/[0.06]" aria-label="Business profile sections">
           <button
             type="button"
             className={profileTabClass(p.businessProfileTab === 'company')}
@@ -490,6 +490,9 @@ function BusinessProfilePage(p: Props) {
             }}
           >
             Company & payouts
+            {p.businessProfileTab === 'company' ? (
+              <span className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-finland" aria-hidden />
+            ) : null}
           </button>
           <button
             type="button"
@@ -500,6 +503,9 @@ function BusinessProfilePage(p: Props) {
             }}
           >
             Legal
+            {p.businessProfileTab === 'legal' ? (
+              <span className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-finland" aria-hidden />
+            ) : null}
           </button>
         </nav>
       </SupplierPageHero>

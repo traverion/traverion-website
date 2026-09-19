@@ -654,6 +654,7 @@ export default function SupplierListings() {
   return (
     <div className={SUPPLIER_PAGE_CLASS}>
       <SupplierPageHero
+        badge="Operate"
         title="Listings"
         description="Tours and stays you operate — health, status, and publish actions at a glance. Drafts stay private until you publish."
         actions={
@@ -677,7 +678,7 @@ export default function SupplierListings() {
       />
 
       {listings.length > 0 && !showForm ? (
-        <div className="flex flex-wrap gap-1 mb-8 rounded-full bg-paper-raised p-1 w-fit max-w-full shadow-soft ring-1 ring-black/[0.06]" role="tablist" aria-label="Listing filters">
+        <div className="flex flex-wrap gap-x-1 gap-y-2 mb-6 border-b border-black/[0.06]" role="tablist" aria-label="Listing filters">
           {([
             { id: 'all', label: 'All' },
             { id: 'tour', label: 'Tours' },
@@ -691,13 +692,14 @@ export default function SupplierListings() {
               role="tab"
               aria-selected={workspaceFilter === tab.id}
               onClick={() => setWorkspaceFilter(tab.id)}
-              className={`lux-flat rounded-full px-3.5 py-2 min-h-11 text-sm font-medium transition-colors ${
-                workspaceFilter === tab.id
-                  ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
-                  : 'text-ink-muted hover:bg-finland/10 hover:text-finland'
+              className={`lux-flat relative px-3.5 py-2.5 text-sm font-medium transition-colors ${
+                workspaceFilter === tab.id ? 'text-finland' : 'text-ink-muted hover:text-ink'
               }`}
             >
               {tab.label}
+              {workspaceFilter === tab.id ? (
+                <span className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-finland" aria-hidden />
+              ) : null}
             </button>
           ))}
         </div>

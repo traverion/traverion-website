@@ -147,11 +147,12 @@ export default function SupplierPerformance() {
   return (
     <div className={SUPPLIER_PAGE_CLASS}>
       <SupplierPageHero
+        badge="Insights"
         icon={TrendingUp}
         title="Performance"
         description="Which listings are actually earning, based on completed bookings — not estimates or site-traffic guesses."
         actions={
-          <div className="flex items-center gap-1 rounded-full bg-paper p-1 ring-1 ring-black/[0.06]" role="tablist" aria-label="Time range">
+          <div className="flex items-center gap-1 rounded-md bg-paper p-1 ring-1 ring-black/[0.06]" role="tablist" aria-label="Time range">
             {WINDOW_OPTIONS.map((opt) => (
               <button
                 key={opt.id}
