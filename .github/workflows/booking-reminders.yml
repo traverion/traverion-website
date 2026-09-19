@@ -1,0 +1,102 @@
+# Daily booking reminders + review requests via Supabase Edge Function
+# send-booking-reminders.
+#
+# Finland local time (Europe/Helsinki):
+#   EET  = UTC+2 (winter)
+#   EEST = UTC+3 (summer / DST)
+#
+# GitHub Actions `schedule` is UTC-only and can run late. Exact "09:00 Finland"
+# cannot be guaranteed with a single UTC cron. This workflow:
+#   - fires twice near the 09:00 Finland window (06:05 and 07:05 UTC)
+#   - proceeds only when Europe/Helsinki local hour is 9 (schedule runs)
+#   - always runs on workflow_dispatch (manual test)
+# So one of the two UTC triggers should match ~09:00 Finland each day; the other
+# no-ops. If GitHub delays a run past hour 9 Finland, that day may be skipped
+# until the next successful window (idempotent markers prevent doubles).
+
+name: Booking reminders
+
+on:
+  schedule:
+    # ~09:00 Europe/Helsinki during EEST (UTC+3)
+    - cron: '5 6 * * *'
+    # ~09:00 Europe/Helsinki during EET (UTC+2)
+    - cron: '5 7 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: booking-reminders
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  send-booking-reminders:
+    name: Call send-booking-reminders
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Decide whether to run (Finland ~09:00)
+        id: gate
+        run: |
+          set -euo pipefail
+          FINLAND_HOUR="$(TZ=Europe/Helsinki date +%H)"
+          FINLAND_NOW="$(TZ=Europe/Helsinki date -Iseconds)"
+          echo "finland_now=${FINLAND_NOW}"
+          echo "finland_hour=${FINLAND_HOUR}"
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "Manual workflow_dispatch — running."
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Strip leading zero for numeric compare (%H is 00-23)
+          HOUR_NUM=$((10#$FINLAND_HOUR))
+          if [ "$HOUR_NUM" -eq 9 ]; then
+            echo "Schedule run during Finland hour 9 — running."
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Schedule run outside Finland hour 9 (hour=${HOUR_NUM}) — skipping."
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: POST send-booking-reminders
+        if: steps.gate.outputs.should_run == 'true'
+        env:
+          # Must match Supabase secret BOOKING_REMINDER_CRON_SECRET (rotated value).
+          # Never echo this value.
+          BOOKING_REMINDER_CRON_SECRET: ${{ secrets.BOOKING_REMINDER_CRON_SECRET }}
+          FUNCTION_URL: https://xcopqllkulxfkpunetbc.supabase.co/functions/v1/send-booking-reminders
+        run: |
+          set -euo pipefail
+
+          if [ -z "${BOOKING_REMINDER_CRON_SECRET:-}" ]; then
+            echo "::error::GitHub Actions secret BOOKING_REMINDER_CRON_SECRET is not set."
+            exit 1
+          fi
+
+          # Response body is safe to print (counts/errors only; no bearer token).
+          HTTP_CODE="$(curl -sS -o /tmp/booking-reminders-response.json -w '%{http_code}' \
+            --connect-timeout 15 \
+            --max-time 120 \
+            -X POST "${FUNCTION_URL}" \
+            -H "Authorization: Bearer ${BOOKING_REMINDER_CRON_SECRET}" \
+            -H "Content-Type: application/json" \
+            -d '{}')"
+
+          echo "HTTP status: ${HTTP_CODE}"
+          echo "Response body:"
+          cat /tmp/booking-reminders-response.json || true
+          echo
+
+          case "${HTTP_CODE}" in
+            2??)
+              echo "send-booking-reminders succeeded."
+              ;;
+            *)
+              echo "::error::send-booking-reminders failed with HTTP ${HTTP_CODE}"
+              exit 1
+              ;;
+          esac
