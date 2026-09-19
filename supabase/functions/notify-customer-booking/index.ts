@@ -64,6 +64,8 @@ type Payload = {
   supplierName?: string;
   /** booking_cancelled / refund: truthful refund line for body. */
   refundStatusNote?: string;
+  /** Reminder/review copy: tour vs stay. */
+  listingKind?: 'tour' | 'stay' | string;
 };
 
 function json(body: unknown, status = 200): Response {
@@ -139,9 +141,15 @@ function buildDetailRows(p: Payload): string {
   return rows.join('');
 }
 
-function subjectForKind(kind: EmailKind, title: string, refDigits?: string): string {
+function subjectForKind(
+  kind: EmailKind,
+  title: string,
+  refDigits?: string,
+  listingKind?: string
+): string {
   const t = title.trim() || 'Your booking';
   const tag = refDigits ? `#${refDigits} — ` : '';
+  const isStay = String(listingKind ?? '').toLowerCase() === 'stay';
   switch (kind) {
     case 'booking_confirmed_paid':
       return `${tag}Confirmed & paid: ${t}`;
@@ -170,9 +178,9 @@ function subjectForKind(kind: EmailKind, title: string, refDigits?: string): str
     case 'refund_completed':
       return `${tag}Refund completed — ${t}`;
     case 'experience_reminder':
-      return `${tag}Reminder: your experience is tomorrow — ${t}`;
+      return isStay ? `${tag}Your stay is coming up — ${t}` : `${tag}Your tour is coming up — ${t}`;
     case 'review_request':
-      return `${tag}How was your experience? — ${t}`;
+      return isStay ? `${tag}How was your stay? — ${t}` : `${tag}How was your tour? — ${t}`;
     default:
       return `${tag}Booking received — ${t}`;
   }
@@ -346,17 +354,21 @@ serve(async (req) => {
         body.refundStatusNote?.trim() ||
         'Trips shows Refunded for this booking. Traverion does not treat email delivery as proof of bank settlement.';
     } else if (kind === 'experience_reminder') {
-      headline = 'Your experience is tomorrow';
-      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">This is a reminder for your upcoming Traverion booking. Final known details are below.</p>`;
+      const isStay = String(body.listingKind ?? '').toLowerCase() === 'stay';
+      headline = isStay ? 'Your stay is coming up soon' : 'Your tour is coming up soon';
+      intro = isStay
+        ? `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your stay at <strong>${escapeHtml(title)}</strong> is coming up soon. Details we have on file are below — check Trips for the latest.</p>`
+        : `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your tour <strong>${escapeHtml(title)}</strong> is coming up soon. Details we have on file are below — check Trips for the latest.</p>`;
       if (body.meetingPoint?.trim()) {
         extraHtml = `<p style="margin:0;font-size:14px;color:#111827;"><strong>Meeting / pickup:</strong> ${escapeHtml(body.meetingPoint.trim())}</p>`;
       }
       if (diffs.length) extraHtml += fieldDiffTableHtml(diffs);
-      footerNote = 'Open Trips for the latest pickup or meeting updates from your host.';
+      footerNote = 'Open Trips for pickup, meeting, or host updates.';
     } else if (kind === 'review_request') {
-      headline = 'How was your experience?';
-      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Thanks for traveling with Traverion. If you completed <strong>${escapeHtml(title)}</strong>, a short review helps other travelers.</p>`;
-      footerNote = 'You can leave a review from the experience page after a completed booking.';
+      const isStay = String(body.listingKind ?? '').toLowerCase() === 'stay';
+      headline = isStay ? 'How was your stay?' : 'How was your tour?';
+      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Thanks for booking with Traverion. If you enjoyed <strong>${escapeHtml(title)}</strong>, a short review helps other travelers.</p>`;
+      footerNote = 'You can leave a review from Trips or the listing page.';
     } else {
       headline = 'We received your booking request';
       intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your request is recorded for <strong>${escapeHtml(title)}</strong>. Complete payment when prompted in the app, or wait for confirmation if no payment is required.</p>`;
@@ -400,7 +412,12 @@ serve(async (req) => {
       ctaLabel,
     });
 
-    const textParts: string[] = [greeting, '', subjectForKind(kind, title, refDigits || undefined), ''];
+    const textParts: string[] = [
+      greeting,
+      '',
+      subjectForKind(kind, title, refDigits || undefined, body.listingKind),
+      '',
+    ];
     if (refDigits) textParts.push(`Booking #: ${refDigits}`);
     if (body.bookingDate) textParts.push(`Date: ${body.bookingDate}`);
     if (typeof body.guests === 'number') textParts.push(`Guests: ${body.guests}`);
@@ -444,7 +461,7 @@ serve(async (req) => {
       apiKey,
       from: fromEmail,
       to: [to],
-      subject: subjectForKind(kind, title, refDigits || undefined),
+      subject: subjectForKind(kind, title, refDigits || undefined, body.listingKind),
       text,
       html,
       attachments: attachments.length ? attachments : undefined,

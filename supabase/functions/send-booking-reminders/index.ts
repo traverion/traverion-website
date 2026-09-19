@@ -1,11 +1,11 @@
 /**
- * Scheduled job: ~24h experience reminders + post-trip review requests.
+ * Scheduled job: same daily send for upcoming reminders + post-trip review requests.
+ * Timing is calendar-based (day before / day after booking_date), not exact departure clocks.
+ * Email copy says “coming up soon” / review ask — not “24 hours”.
  *
- * Invoke with service role (cron / GitHub Action / Supabase schedule).
+ * Invoke with cron / GitHub Action:
  * Secrets: RESEND_API_KEY (via notify-customer-booking), SUPABASE_SERVICE_ROLE_KEY,
  *          BOOKING_REMINDER_CRON_SECRET (Authorization: Bearer <secret>).
- *
- * verify_jwt = false — auth via shared secret.
  */
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
@@ -72,14 +72,19 @@ serve(async (req) => {
     if (!email) continue;
     let listingTitle = 'Your experience';
     let meetingPoint = '';
+    let listingKind: 'tour' | 'stay' = 'tour';
     if (row.listing_id) {
       const { data: lt } = await admin
         .from('listings')
-        .select('title, meeting_point, pickup_instructions')
+        .select('title, meeting_point, pickup_instructions, experience_kind, category')
         .eq('id', row.listing_id)
         .maybeSingle();
       if (lt?.title?.trim()) listingTitle = lt.title.trim();
       meetingPoint = [lt?.meeting_point, lt?.pickup_instructions].filter(Boolean).join(' — ').trim();
+      const kindRaw = String(lt?.experience_kind ?? lt?.category ?? '').toLowerCase();
+      if (kindRaw.includes('stay') || kindRaw.includes('accommodation') || kindRaw.includes('hotel')) {
+        listingKind = 'stay';
+      }
     }
     const diffs: { label: string; before: string; after: string }[] = [];
     if (row.pickup_time) {
@@ -101,6 +106,7 @@ serve(async (req) => {
           bookingDate: row.booking_date ?? undefined,
           guests: row.guests ?? undefined,
           emailKind: 'experience_reminder',
+          listingKind,
           meetingPoint: meetingPoint || undefined,
           fieldDiffs: diffs.length ? diffs : undefined,
           publicSiteUrl: publicSite,
@@ -141,9 +147,18 @@ serve(async (req) => {
     const email = (row.guest_email ?? '').trim().toLowerCase();
     if (!email) continue;
     let listingTitle = 'Your experience';
+    let listingKind: 'tour' | 'stay' = 'tour';
     if (row.listing_id) {
-      const { data: lt } = await admin.from('listings').select('title').eq('id', row.listing_id).maybeSingle();
+      const { data: lt } = await admin
+        .from('listings')
+        .select('title, experience_kind, category')
+        .eq('id', row.listing_id)
+        .maybeSingle();
       if (lt?.title?.trim()) listingTitle = lt.title.trim();
+      const kindRaw = String(lt?.experience_kind ?? lt?.category ?? '').toLowerCase();
+      if (kindRaw.includes('stay') || kindRaw.includes('accommodation') || kindRaw.includes('hotel')) {
+        listingKind = 'stay';
+      }
     }
     try {
       const res = await fetch(`${supabaseUrl}/functions/v1/notify-customer-booking`, {
@@ -153,6 +168,7 @@ serve(async (req) => {
           customerEmail: email,
           customerName: row.guest_name ?? undefined,
           listingTitle,
+          listingKind,
           bookingId: row.id,
           bookingNumber: row.booking_number ?? undefined,
           bookingDate: row.booking_date ?? undefined,
