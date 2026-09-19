@@ -323,8 +323,17 @@ export default function SupplierBookings() {
         if (!isRefundDueBooking(b)) return false;
       }
       if (filterListingId && b.listing_id !== filterListingId) return false;
-      if (filterDateFrom && (!b.booking_date || b.booking_date < filterDateFrom)) return false;
-      if (filterDateTo && (!b.booking_date || b.booking_date > filterDateTo)) return false;
+      if (filterDateFrom || filterDateTo) {
+        if (stayRange) {
+          const nights = nightsOccupiedByStay(stayRange.checkIn, stayRange.checkOut);
+          const overlapsFrom = !filterDateFrom || nights.some((n) => n >= filterDateFrom);
+          const overlapsTo = !filterDateTo || nights.some((n) => n <= filterDateTo);
+          if (!overlapsFrom || !overlapsTo) return false;
+        } else {
+          if (filterDateFrom && (!b.booking_date || b.booking_date < filterDateFrom)) return false;
+          if (filterDateTo && (!b.booking_date || b.booking_date > filterDateTo)) return false;
+        }
+      }
       if (!q) return true;
 
       const title = (listingMeta[b.listing_id]?.title ?? '').toLowerCase();
@@ -370,11 +379,16 @@ export default function SupplierBookings() {
       });
       return;
     }
+    // Deep-link must surface the booking even when an ops chip (Unpaid / Pickup / …) is active.
+    setOpsFilter('all');
     setView('all');
     setFilterListingId('');
     setFilterDateFrom('');
     setFilterDateTo('');
     setFilterQuery('');
+    const url = new URL(window.location.href);
+    url.searchParams.delete('ops');
+    window.history.replaceState({}, '', `${url.pathname}${url.search}`);
   }, [filteredBookings, highlightBookingId]);
 
   const handleStatusChange = useCallback(
@@ -418,11 +432,21 @@ export default function SupplierBookings() {
   const handleRequestSupplierCancel = useCallback(async () => {
     if (!cancelModal || !canEditBookings || !partnerBookingIsOperatingTrip(cancelModal)) return;
     setCancelError(null);
+    const explanation = cancelReasonText.trim();
+    const minLen = isForceMajeureReason(cancelReason) ? 24 : 12;
+    if (explanation.length < minLen) {
+      setCancelError(
+        isForceMajeureReason(cancelReason)
+          ? 'Force majeure needs a clear explanation of why the trip cannot run.'
+          : 'Explain what happened (at least a short sentence).'
+      );
+      return;
+    }
     setUpdatingId(cancelModal.id);
     const res = await requestSupplierCancellation({
       bookingId: cancelModal.id,
       reasonCode: cancelReason,
-      reasonText: cancelReasonText,
+      reasonText: explanation,
       evidenceNote: cancelEvidence.trim() || undefined,
     });
     setUpdatingId(null);
@@ -628,6 +652,7 @@ export default function SupplierBookings() {
                 type="button"
                 onClick={() => {
                   setView('all');
+                  setOpsFilterAndUrl('all');
                   setFilterListingId('');
                   setFilterDateFrom('');
                   setFilterDateTo('');
@@ -848,9 +873,23 @@ export default function SupplierBookings() {
             const startHm = booking.start_time ? pgTimeToHm(booking.start_time) ?? null : null;
             const pickupHm = booking.pickup_time ? pgTimeToHm(booking.pickup_time) ?? null : null;
             const meta = listingMeta[booking.listing_id];
-            const listingTitle = meta?.title ?? 'Tour';
+            const isStay = meta?.family === 'stay' || Boolean(booking.check_out);
+            const listingTitle = meta?.title ?? (isStay ? 'Stay' : 'Tour');
+            const stayOut =
+              booking.check_out && /^\d{4}-\d{2}-\d{2}$/.test(booking.check_out)
+                ? booking.check_out
+                : parseStayCheckOutFromNotes(booking.special_requests);
+            const whenLabel = stayOut
+              ? `${formatStayNightHuman(booking.booking_date ?? '')} → ${formatStayNightHuman(stayOut)}`
+              : formatActivityDateLong(booking.booking_date, startHm);
             const paidLabel = formatBookingMoney(booking.amount_paid, booking.currency);
             const needsAck = partnerBookingNeedsLook(booking);
+            const pickupGap =
+              !isStay &&
+              !stayOut &&
+              isPaidPaymentStatus(booking.payment_status) &&
+              !bookingIsCancelledTrip(booking) &&
+              !booking.pickup_time;
             const busy = updatingId === booking.id;
             const refLabel =
               typeof booking.booking_number === 'number' && booking.booking_number > 0
@@ -886,10 +925,12 @@ export default function SupplierBookings() {
                             <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />
                             {meta.location}
                           </span>
-                          <span className="inline-flex items-center gap-1">
-                            <Clock className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                            {meta.duration}
-                          </span>
+                          {!isStay ? (
+                            <span className="inline-flex items-center gap-1">
+                              <Clock className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                              {meta.duration}
+                            </span>
+                          ) : null}
                         </p>
                       ) : null}
                     </div>
@@ -897,8 +938,10 @@ export default function SupplierBookings() {
 
                   <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                     <div>
-                      <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">When</dt>
-                      <dd className="mt-0.5 text-ink">{formatActivityDateLong(booking.booking_date, startHm)}</dd>
+                      <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">
+                        {isStay ? 'Nights' : 'When'}
+                      </dt>
+                      <dd className="mt-0.5 text-ink">{whenLabel}</dd>
                     </div>
                     <div>
                       <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Participants</dt>
@@ -941,6 +984,19 @@ export default function SupplierBookings() {
                       </div>
                     ) : null}
                   </dl>
+
+                  {pickupGap ? (
+                    <NoticeCallout title="Pickup time missing" tone="warn">
+                      <p>This paid tour has no pickup time yet.</p>
+                      <button
+                        type="button"
+                        className="mt-2 text-sm font-semibold text-finland hover:underline"
+                        onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/pickup`)}
+                      >
+                        Open Pickup planner
+                      </button>
+                    </NoticeCallout>
+                  ) : null}
 
                   {canEditBookings && partnerBookingIsOperatingTrip(booking) ? (
                     <div className="flex flex-wrap gap-2 pt-1">
@@ -1188,7 +1244,11 @@ export default function SupplierBookings() {
                   <button
                     type="button"
                     onClick={() => void handleRequestSupplierCancel()}
-                    disabled={updatingId === cancelModal.id || !canEditBookings}
+                    disabled={
+                      updatingId === cancelModal.id ||
+                      !canEditBookings ||
+                      cancelReasonText.trim().length < (isForceMajeureReason(cancelReason) ? 24 : 12)
+                    }
                     className="rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
                   >
                     {updatingId === cancelModal.id ? 'Submitting…' : 'Submit request to traveler'}

@@ -8,15 +8,23 @@ export type AvailabilityRow = {
   booked: number;
 };
 
-/** Fetch availability for a listing (all dates with capacity). */
-export async function fetchAvailabilityByListingId(listingId: string): Promise<AvailabilityRow[]> {
+/**
+ * Fetch availability rows for a listing.
+ * Default window is today onward (traveler calendars). Pass fromDate/toDate for partner month grids.
+ */
+export async function fetchAvailabilityByListingId(
+  listingId: string,
+  opts?: { fromDate?: string; toDate?: string }
+): Promise<AvailabilityRow[]> {
   if (!supabase) return [];
-  const { data, error } = await supabase
+  const from = opts?.fromDate ?? new Date().toISOString().slice(0, 10);
+  let query = supabase
     .from('listing_availability')
     .select('*')
     .eq('listing_id', listingId)
-    .gte('available_date', new Date().toISOString().slice(0, 10))
-    .order('available_date', { ascending: true });
+    .gte('available_date', from);
+  if (opts?.toDate) query = query.lte('available_date', opts.toDate);
+  const { data, error } = await query.order('available_date', { ascending: true });
   if (error) return [];
   return (data ?? []) as AvailabilityRow[];
 }
@@ -157,23 +165,27 @@ export async function decrementAvailabilityBooked(
   return true;
 }
 
-/** Supplier: upsert availability for a listing (set capacity for dates). */
+/**
+ * Supplier: upsert availability for a listing (set capacity for dates).
+ * Always writes booked: 0 — occupancy uses paid + live holds; leaving a stale booked
+ * value would fail booked_lte_capacity when blocking (capacity 0) or lowering a cap.
+ */
 export async function upsertAvailability(
   listingId: string,
   entries: { available_date: string; capacity: number }[]
 ): Promise<{ success: boolean; error?: string }> {
   if (!supabase) return { success: false, error: 'Supabase not configured' };
-  for (const e of entries) {
-    const { error } = await supabase.from('listing_availability').upsert(
-      {
-        listing_id: listingId,
-        available_date: e.available_date,
-        capacity: e.capacity,
-      },
-      { onConflict: 'listing_id,available_date' }
-    );
-    if (error) return { success: false, error: error.message };
-  }
+  if (entries.length === 0) return { success: true };
+  const { error } = await supabase.from('listing_availability').upsert(
+    entries.map((e) => ({
+      listing_id: listingId,
+      available_date: e.available_date,
+      capacity: e.capacity,
+      booked: 0,
+    })),
+    { onConflict: 'listing_id,available_date' }
+  );
+  if (error) return { success: false, error: error.message };
   return { success: true };
 }
 
@@ -187,6 +199,22 @@ export async function deleteAvailability(
     .delete()
     .eq('listing_id', listingId)
     .eq('available_date', date);
+  if (error) return { success: false, error: error.message };
+  return { success: true };
+}
+
+/** Supplier: clear capacity overrides for a date range (returns nights/days to weekday defaults). */
+export async function deleteAvailabilityRange(
+  listingId: string,
+  dates: string[]
+): Promise<{ success: boolean; error?: string }> {
+  if (!supabase) return { success: false, error: 'Supabase not configured' };
+  if (dates.length === 0) return { success: true };
+  const { error } = await supabase
+    .from('listing_availability')
+    .delete()
+    .eq('listing_id', listingId)
+    .in('available_date', dates);
   if (error) return { success: false, error: error.message };
   return { success: true };
 }

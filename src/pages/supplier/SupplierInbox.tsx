@@ -14,7 +14,7 @@ import { SUPPLIER_PAGE_CLASS, SupplierEmptyState, SupplierListSkeleton, Supplier
 import NoticeCallout from '../../components/NoticeCallout';
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
-import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
+import { navigateSupplierUrl, openSupplierBooking } from '../../lib/supplierPortalNavigation';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import BookingMessageThread from '../../components/BookingMessageThread';
 import { PARTNER_INBOX_MESSAGE_DELIVERY_NOTE } from '../../lib/booking-confirmation-copy';
@@ -27,16 +27,22 @@ import { formatBookingParticipantsLabel } from '../../lib/participant-mix';
  * closed/cancelled threads beyond this may not show here. See olderConversationsHidden. */
 const INBOX_MESSAGE_FETCH_CAP = 80;
 
+function readBookingIdFromUrl(): string | null {
+  const id = new URLSearchParams(window.location.search).get('booking');
+  return id && id.length > 0 ? id : null;
+}
+
 export default function SupplierInbox() {
   const { user, isSupabase } = useSupplierAuth();
   const [bookings, setBookings] = useState<BookingRow[]>([]);
   const [titles, setTitles] = useState<Record<string, string>>({});
   const [lastByBooking, setLastByBooking] = useState<Record<string, BookingMessageRow>>({});
   const [openCancelIds, setOpenCancelIds] = useState<Set<string>>(new Set());
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(() => readBookingIdFromUrl());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [olderConversationsHidden, setOlderConversationsHidden] = useState(false);
+  const [deepLinkMissing, setDeepLinkMissing] = useState(false);
 
   const load = useCallback(async () => {
     const uid = user?.id;
@@ -47,6 +53,7 @@ export default function SupplierInbox() {
     setLoading(true);
     setError(null);
     try {
+      const deepLinkId = readBookingIdFromUrl();
       const [rows, listings] = await Promise.all([fetchBookingsForSupplier(uid), fetchMyListings(uid)]);
       const collected = rows.filter((b) => bookingPaymentWasCollected(b.payment_status));
       setTitles(Object.fromEntries(listings.map((l) => [l.id, l.title])));
@@ -55,6 +62,11 @@ export default function SupplierInbox() {
       setOpenCancelIds(openIds);
       const lasts: Record<string, BookingMessageRow> = {};
       const withMessagesFetched = collected.slice(0, INBOX_MESSAGE_FETCH_CAP);
+      // Always fetch the deep-linked booking so Today → Inbox ?booking= works beyond the cap.
+      if (deepLinkId && !withMessagesFetched.some((b) => b.id === deepLinkId)) {
+        const deep = collected.find((b) => b.id === deepLinkId);
+        if (deep) withMessagesFetched.push(deep);
+      }
       setOlderConversationsHidden(collected.length > INBOX_MESSAGE_FETCH_CAP);
       await Promise.all(
         withMessagesFetched.map(async (b) => {
@@ -63,18 +75,29 @@ export default function SupplierInbox() {
         })
       );
       setLastByBooking(lasts);
-      setBookings(
-        collected.filter((b) =>
-          partnerInboxListsBooking(
-            {
-              status: b.status,
-              payment_status: b.payment_status,
-              openCancellation: openIds.has(b.id),
-            },
-            Boolean(lasts[b.id])
-          )
+      const listed = collected.filter((b) =>
+        partnerInboxListsBooking(
+          {
+            status: b.status,
+            payment_status: b.payment_status,
+            openCancellation: openIds.has(b.id),
+          },
+          Boolean(lasts[b.id])
         )
       );
+      // Keep a deep-linked paid booking visible even when it would otherwise be filtered out.
+      if (deepLinkId && !listed.some((b) => b.id === deepLinkId)) {
+        const deep = collected.find((b) => b.id === deepLinkId);
+        if (deep) listed.unshift(deep);
+      }
+      setBookings(listed);
+      if (deepLinkId) {
+        const found = listed.some((b) => b.id === deepLinkId) || collected.some((b) => b.id === deepLinkId);
+        setDeepLinkMissing(!found);
+        if (found) setOpenId(deepLinkId);
+      } else {
+        setDeepLinkMissing(false);
+      }
     } catch (e) {
       setError(userFacingError(e, USER_ERROR.bookings));
     } finally {
@@ -87,8 +110,32 @@ export default function SupplierInbox() {
   }, [load]);
 
   useEffect(() => {
-    const id = new URLSearchParams(window.location.search).get('booking');
-    if (id) setOpenId(id);
+    const syncFromUrl = () => {
+      const id = readBookingIdFromUrl();
+      setOpenId(id);
+      if (!id) setDeepLinkMissing(false);
+    };
+    syncFromUrl();
+    window.addEventListener('popstate', syncFromUrl);
+    return () => window.removeEventListener('popstate', syncFromUrl);
+  }, []);
+
+  const setOpenBookingId = useCallback((id: string | null, opts?: { markReadLocal?: boolean }) => {
+    setOpenId(id);
+    if (opts?.markReadLocal && id) {
+      // Opening a thread fires markBookingMessagesRead (see BookingMessageThread).
+      // Clear the Unread chip locally now so it doesn't wait for a full reload.
+      setLastByBooking((prev) => {
+        const cur = prev[id];
+        if (!cur || cur.sender_role !== 'traveler' || cur.read_by_supplier_at) return prev;
+        return { ...prev, [id]: { ...cur, read_by_supplier_at: new Date().toISOString() } };
+      });
+    }
+    const url = new URL(window.location.href);
+    if (id) url.searchParams.set('booking', id);
+    else url.searchParams.delete('booking');
+    window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+    if (!id) setDeepLinkMissing(false);
   }, []);
 
   const threads = useMemo(() => {
@@ -98,6 +145,11 @@ export default function SupplierInbox() {
       return tb.localeCompare(ta);
     });
   }, [bookings, lastByBooking]);
+
+  const openBooking = useMemo(
+    () => (openId ? threads.find((b) => b.id === openId) ?? null : null),
+    [openId, threads]
+  );
 
   return (
     <div className={SUPPLIER_PAGE_CLASS}>
@@ -115,6 +167,17 @@ export default function SupplierInbox() {
       ) : null}
       {error ? (
         <ErrorState className="py-6" title="Inbox unavailable" body={error} retry={{ onClick: () => void load() }} />
+      ) : null}
+      {!loading && deepLinkMissing && openId ? (
+        <NoticeCallout title="Booking not in Inbox" tone="warn">
+          <p>
+            That booking link is missing from your paid Inbox list (wrong id, unpaid, or not yours). Open it from
+            Bookings if you still need the thread.
+          </p>
+          <button type="button" className="tv-btn-ghost mt-3 -ml-2" onClick={() => openSupplierBooking(openId)}>
+            Open in Bookings
+          </button>
+        </NoticeCallout>
       ) : null}
       {loading ? (
         <SupplierListSkeleton rows={4} />
@@ -151,20 +214,7 @@ export default function SupplierInbox() {
                   className="lux-flat w-full text-left px-4 py-3.5"
                   onClick={() => {
                     const opening = !open;
-                    setOpenId(opening ? b.id : null);
-                    if (opening) {
-                      // Opening a thread fires markBookingMessagesRead (see BookingMessageThread).
-                      // Clear the Unread chip locally now so it doesn't wait for a full reload.
-                      setLastByBooking((prev) => {
-                        const cur = prev[b.id];
-                        if (!cur || cur.sender_role !== 'traveler' || cur.read_by_supplier_at) return prev;
-                        return { ...prev, [b.id]: { ...cur, read_by_supplier_at: new Date().toISOString() } };
-                      });
-                    }
-                    const url = new URL(window.location.href);
-                    if (open) url.searchParams.delete('booking');
-                    else url.searchParams.set('booking', b.id);
-                    window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+                    setOpenBookingId(opening ? b.id : null, { markReadLocal: opening });
                   }}
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -210,11 +260,27 @@ export default function SupplierInbox() {
                 </button>
                 {open ? (
                   <div className="px-4 pb-4 motion-safe:animate-fade-in border-t border-black/[0.04]">
-                    <p className="mb-3 pt-3 text-sm text-ink">
-                      Booking {typeof b.booking_number === 'number' ? `#${b.booking_number}` : ''} ·{' '}
-                      {titles[b.listing_id] ?? 'Listing'} · {b.guest_name?.trim() || 'Traveler'} ·{' '}
-                      {formatBookingParticipantsLabel(b)}
-                    </p>
+                    <div className="mb-3 pt-3 flex flex-wrap items-start justify-between gap-2">
+                      <p className="text-sm text-ink">
+                        Booking {typeof b.booking_number === 'number' ? `#${b.booking_number}` : ''} ·{' '}
+                        {titles[b.listing_id] ?? 'Listing'} · {b.guest_name?.trim() || 'Traveler'} ·{' '}
+                        {formatBookingParticipantsLabel(b)}
+                        {b.booking_date
+                          ? ` · ${new Date(`${b.booking_date}T12:00:00`).toLocaleDateString(undefined, {
+                              weekday: 'short',
+                              day: 'numeric',
+                              month: 'short',
+                            })}`
+                          : ''}
+                      </p>
+                      <button
+                        type="button"
+                        className="tv-btn-ghost shrink-0 -mr-2"
+                        onClick={() => openSupplierBooking(b.id)}
+                      >
+                        Open in Bookings
+                      </button>
+                    </div>
                     <BookingMessageThread
                       bookingId={b.id}
                       canCompose={bookingAllowsMessaging({
@@ -247,6 +313,11 @@ export default function SupplierInbox() {
           })}
         </ul>
       )}
+      {!loading && openId && !openBooking && !deepLinkMissing && threads.length > 0 ? (
+        <NoticeCallout title="Thread not in this list" tone="info">
+          The booking from the link is not among the conversations above. Try Bookings or clear filters by reopening Inbox.
+        </NoticeCallout>
+      ) : null}
     </div>
   );
 }

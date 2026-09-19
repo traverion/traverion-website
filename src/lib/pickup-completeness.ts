@@ -19,12 +19,21 @@ export function bookingIsStayNight(b: {
   return Boolean(parseStayCheckOutFromNotes(b.special_requests));
 }
 
-/** Incomplete pickup copy only matters for tour departures. */
+/**
+ * Tour pickup attention gap shared by Today, Pickup planner, and related filters.
+ * Stay nights never count. Setting a booking-level pickup_time resolves the gap
+ * even if listing meeting/pickup copy is still thin.
+ */
 export function bookingNeedsPickupCopy(
-  b: { check_out?: string | null; special_requests?: string | null },
+  b: {
+    check_out?: string | null;
+    special_requests?: string | null;
+    pickup_time?: string | null;
+  },
   meetingPoint: string | null | undefined,
   pickupInstructions: string | null | undefined
 ): boolean {
   if (bookingIsStayNight(b)) return false;
+  if ((b.pickup_time ?? '').toString().trim()) return false;
   return listingPickupCopyIncomplete(meetingPoint, pickupInstructions);
 }

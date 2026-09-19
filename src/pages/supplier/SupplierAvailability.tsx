@@ -6,6 +6,7 @@ import { fetchMyListings } from '../../data/supabase-listings';
 import { fetchBookingsForSupplier, type BookingRow } from '../../data/supabase-bookings';
 import {
   deleteAvailability,
+  deleteAvailabilityRange,
   fetchAvailabilityByListingId,
   upsertAvailability,
   type AvailabilityRow,
@@ -20,7 +21,7 @@ import {
   defaultCapacityForOpenDay,
   partnerTourRemainingSpots,
 } from '../../lib/availability-ops';
-import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
+import { navigateSupplierUrl, openSupplierBooking } from '../../lib/supplierPortalNavigation';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import {
   SUPPLIER_PAGE_CLASS,
@@ -152,12 +153,18 @@ export default function SupplierAvailability() {
     }
   }, [isSupabase, user?.id]);
 
-  const loadCaps = useCallback(async (id: string) => {
+  const monthFromIso = cells[0]?.iso;
+  const monthToIso = cells[cells.length - 1]?.iso;
+
+  const loadCaps = useCallback(async (id: string, fromIso?: string, toIso?: string) => {
     if (!id) {
       setRows([]);
       return;
     }
-    const data = await fetchAvailabilityByListingId(id);
+    const data = await fetchAvailabilityByListingId(
+      id,
+      fromIso && toIso ? { fromDate: fromIso, toDate: toIso } : undefined
+    );
     setRows(data);
   }, []);
 
@@ -166,8 +173,9 @@ export default function SupplierAvailability() {
   }, [loadListings]);
 
   useEffect(() => {
-    if (listingId) void loadCaps(listingId);
-  }, [listingId, loadCaps]);
+    if (listingId && monthFromIso && monthToIso) void loadCaps(listingId, monthFromIso, monthToIso);
+    else if (!listingId) setRows([]);
+  }, [listingId, monthFromIso, monthToIso, loadCaps]);
 
   const shiftMonth = (delta: number) => {
     const d = new Date(Date.UTC(year, monthIndex0 + delta, 1));
@@ -187,6 +195,26 @@ export default function SupplierAvailability() {
     return listingOpenOn(listing, iso);
   };
 
+  const mergeCapRows = (entries: { available_date: string; capacity: number }[]) => {
+    setRows((prev) => {
+      const map = new Map(prev.map((r) => [r.available_date, r]));
+      for (const e of entries) {
+        map.set(e.available_date, {
+          listing_id: listingId,
+          available_date: e.available_date,
+          capacity: e.capacity,
+          booked: 0,
+        });
+      }
+      return [...map.values()].sort((a, b) => a.available_date.localeCompare(b.available_date));
+    });
+  };
+
+  const removeCapRows = (dates: string[]) => {
+    const drop = new Set(dates);
+    setRows((prev) => prev.filter((r) => !drop.has(r.available_date)));
+  };
+
   const saveCap = async (iso: string, capacity: number) => {
     if (!listingId) return;
     setSavingIso(iso);
@@ -197,8 +225,9 @@ export default function SupplierAvailability() {
       setError(userFacingError(res.error, 'Could not save that date. Try again.'));
       return;
     }
+    mergeCapRows([{ available_date: iso, capacity }]);
     setEditing(null);
-    await loadCaps(listingId);
+    if (monthFromIso && monthToIso) await loadCaps(listingId, monthFromIso, monthToIso);
   };
 
   const clearCap = async (iso: string) => {
@@ -211,11 +240,12 @@ export default function SupplierAvailability() {
       setError(userFacingError(res.error, 'Could not clear that date. Try again.'));
       return;
     }
+    removeCapRows([iso]);
     setEditing(null);
-    await loadCaps(listingId);
+    if (monthFromIso && monthToIso) await loadCaps(listingId, monthFromIso, monthToIso);
   };
 
-  const applyBulk = useCallback(async () => {
+  const applyBulk = async (mode: 'set' | 'clear') => {
     if (!listingId) return;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(bulkFrom) || !/^\d{4}-\d{2}-\d{2}$/.test(bulkTo)) {
       setBulkError('Pick a start and end date.');
@@ -230,24 +260,29 @@ export default function SupplierAvailability() {
       setBulkError('Pick a valid range.');
       return;
     }
-    const capacity = Math.max(0, Math.floor(Number(bulkCapacity) || 0));
     setBulkSaving(true);
     setBulkError(null);
-    const res = await upsertAvailability(
-      listingId,
-      dates.map((available_date) => ({ available_date, capacity }))
-    );
+    const capacity = Math.max(0, Math.floor(Number(bulkCapacity) || 0));
+    const res =
+      mode === 'clear'
+        ? await deleteAvailabilityRange(listingId, dates)
+        : await upsertAvailability(
+            listingId,
+            dates.map((available_date) => ({ available_date, capacity }))
+          );
     setBulkSaving(false);
     if (!res.success) {
       setBulkError(userFacingError(res.error, 'Could not save that range. Try again.'));
       return;
     }
+    if (mode === 'clear') removeCapRows(dates);
+    else mergeCapRows(dates.map((available_date) => ({ available_date, capacity })));
     setBulkOpen(false);
     setBulkFrom('');
     setBulkTo('');
     setBulkCapacity('0');
-    await loadCaps(listingId);
-  }, [listingId, bulkFrom, bulkTo, bulkCapacity, loadCaps]);
+    if (monthFromIso && monthToIso) await loadCaps(listingId, monthFromIso, monthToIso);
+  };
 
   const monthLabel = new Date(Date.UTC(year, monthIndex0, 1)).toLocaleString('en-GB', {
     month: 'long',
@@ -433,7 +468,8 @@ export default function SupplierAvailability() {
           </div>
           <div key={`${year}-${monthIndex0}`} className="grid grid-cols-7 gap-1 sm:gap-2 motion-safe:animate-fade-in min-w-[28rem] sm:min-w-0">
             {cells.map((cell) => {
-              const open = cell.inMonth && weekdayOpen(cell.iso);
+              // Stays are night inventory — weekday option rules are tour departures only.
+              const open = cell.inMonth && (stayCalendar || weekdayOpen(cell.iso));
               const cap = rowByDate.get(cell.iso);
               const occupying = guestsByDate.get(cell.iso);
               const stayKind = stayCalendar
@@ -475,7 +511,12 @@ export default function SupplierAvailability() {
                   aria-current={isToday ? 'date' : undefined}
                   aria-pressed={isEditing}
                   onClick={() => {
-                    if (!open && !cap && !occupying) return;
+                    // With a listing selected, closed weekdays must still open so partners can set a cap / block.
+                    if (viewingAll) {
+                      if (!open && !occupying) return;
+                    } else if (!listingId) {
+                      return;
+                    }
                     setEditing({
                       iso: cell.iso,
                       capacity: String(cap?.capacity ?? defaultSpots(listing)),
@@ -547,7 +588,7 @@ export default function SupplierAvailability() {
                     <li key={b.id}>
                       <button
                         type="button"
-                        onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings?booking=${b.id}`)}
+                        onClick={() => openSupplierBooking(b.id)}
                         className="lux-flat w-full text-left"
                       >
                         <p className="font-semibold text-ink">{b.guest_name?.trim() || 'Guest'}</p>
@@ -642,18 +683,18 @@ export default function SupplierAvailability() {
       )}
 
       {bulkOpen ? (
-        <SupplierModalShell onClose={() => (bulkSaving ? undefined : setBulkOpen(false))} maxWidth="md">
+        <SupplierModalShell onClose={bulkSaving ? undefined : () => setBulkOpen(false)} maxWidth="md">
           <SupplierModalHeader
             icon={Ban}
             title={stayCalendar ? 'Block a range of nights' : 'Edit multiple dates'}
             subtitle={listing?.title}
-            onClose={() => setBulkOpen(false)}
+            onClose={bulkSaving ? undefined : () => setBulkOpen(false)}
           />
           <div className="space-y-4 p-4 sm:p-5">
             <p className="text-sm text-ink-muted">
               {stayCalendar
-                ? 'Block several nights at once \u2014 a maintenance week or a personal booking elsewhere. Clearing a night later returns it to available.'
-                : 'Set the same spot count across a date range at once \u2014 close for a holiday, or open extra departures for a busy stretch.'}
+                ? 'Block several nights at once \u2014 a maintenance week or a personal booking elsewhere. Clear range returns nights to available.'
+                : 'Set the same spot count across a date range at once \u2014 close for a holiday, or open extra departures for a busy stretch. Clear range removes daily overrides.'}
             </p>
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -706,10 +747,22 @@ export default function SupplierAvailability() {
               <button
                 type="button"
                 disabled={bulkSaving}
-                onClick={() => void applyBulk()}
+                onClick={() => void applyBulk('set')}
                 className="tv-btn-primary disabled:opacity-50"
               >
-                {bulkSaving ? 'Saving\u2026' : 'Apply to range'}
+                {bulkSaving
+                  ? 'Saving\u2026'
+                  : stayCalendar && Math.max(0, Math.floor(Number(bulkCapacity) || 0)) === 0
+                    ? 'Block range'
+                    : 'Apply to range'}
+              </button>
+              <button
+                type="button"
+                disabled={bulkSaving}
+                onClick={() => void applyBulk('clear')}
+                className="tv-btn-secondary disabled:opacity-50"
+              >
+                {stayCalendar ? 'Clear range (unblock)' : 'Clear range'}
               </button>
               <button type="button" onClick={() => setBulkOpen(false)} disabled={bulkSaving} className="tv-btn-ghost">
                 Cancel

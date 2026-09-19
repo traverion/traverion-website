@@ -54,3 +54,27 @@ export function openSupplierBooking(bookingId?: string): void {
   q.set('booking', bookingId);
   navigateSupplierUrl(`${path}?${q.toString()}`);
 }
+
+/** Open partner inbox and optionally expand a booking thread. */
+export function openSupplierInbox(bookingId?: string): void {
+  const path = `${PARTNER_APP_BASE}/inbox`;
+  if (!bookingId) {
+    navigateSupplierUrl(path);
+    return;
+  }
+  const q = new URLSearchParams();
+  q.set('booking', bookingId);
+  navigateSupplierUrl(`${path}?${q.toString()}`);
+}
+
+/** Open pickup planner and optionally open a booking detail. */
+export function openSupplierPickup(bookingId?: string): void {
+  const path = `${PARTNER_APP_BASE}/pickup`;
+  if (!bookingId) {
+    navigateSupplierUrl(path);
+    return;
+  }
+  const q = new URLSearchParams();
+  q.set('booking', bookingId);
+  navigateSupplierUrl(`${path}?${q.toString()}`);
+}

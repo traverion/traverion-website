@@ -11,11 +11,11 @@ import {
   fetchCancellationRequestsForBookings,
   fetchBookingMessages,
 } from '../../data/supabase-booking-ops';
-import { listingPickupCopyIncomplete, bookingIsStayNight } from '../../lib/pickup-completeness';
-import { bookingPaymentWasCollected, isPaidPaymentStatus, isRefundDueBooking } from '../../lib/payment-states';
+import { bookingNeedsPickupCopy } from '../../lib/pickup-completeness';
+import { bookingPaymentWasCollected, isRefundDueBooking } from '../../lib/payment-states';
 import type { TourPackage } from '../../types/tour';
 import SupplierPortalNoticePanel from '../../components/supplier/SupplierPortalNoticePanel';
-import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
+import { navigateSupplierUrl, openSupplierInbox, openSupplierPickup } from '../../lib/supplierPortalNavigation';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { formatMoney } from '../../lib/money';
 import { bookingOccupiesInventory } from '../../lib/booking-hold';
@@ -79,6 +79,7 @@ export default function SupplierDashboard() {
   const [supplierBookings, setSupplierBookings] = useState<BookingRow[]>([]);
   const [profile, setProfile] = useState<Awaited<ReturnType<typeof fetchSupplierProfile>> | null>(null);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
+  const [firstUnreadBookingId, setFirstUnreadBookingId] = useState<string | null>(null);
   const [dashboardLoading, setDashboardLoading] = useState(false);
   const [dashboardError, setDashboardError] = useState<string | null>(null);
 
@@ -93,6 +94,7 @@ export default function SupplierDashboard() {
       setOpenCancels([]);
       setProfile(null);
       setUnreadMessageCount(0);
+      setFirstUnreadBookingId(null);
       setDashboardError(null);
       setDashboardLoading(false);
       return;
@@ -144,15 +146,17 @@ export default function SupplierDashboard() {
     const paidForMsgs = bookingsForUnread
       .filter((b) => bookingPaymentWasCollected(b.payment_status))
       .slice(0, 40);
-    let unread = 0;
-    await Promise.all(
+    const unreadFlags = await Promise.all(
       paidForMsgs.map(async (b) => {
         const msgs = await fetchBookingMessages(b.id);
         const last = msgs[msgs.length - 1];
-        if (last && last.sender_role === 'traveler' && !last.read_by_supplier_at) unread += 1;
+        return Boolean(last && last.sender_role === 'traveler' && !last.read_by_supplier_at);
       })
     );
+    const unread = unreadFlags.filter(Boolean).length;
+    const firstUnread = paidForMsgs.find((_, i) => unreadFlags[i])?.id ?? null;
     setUnreadMessageCount(unread);
+    setFirstUnreadBookingId(firstUnread);
 
     if (failures.length > 0) {
       const critical = failures.includes('bookings');
@@ -226,12 +230,10 @@ export default function SupplierDashboard() {
   const pickupGaps = useMemo(
     () =>
       supplierBookings.filter((b) => {
-        if (!bookingOccupiesInventory(b) || !isPaidPaymentStatus(b.payment_status)) return false;
+        if (!bookingOccupiesInventory(b) || !bookingPaymentWasCollected(b.payment_status)) return false;
         if (!b.booking_date || b.booking_date < todayYmd) return false;
-        if (bookingIsStayNight(b)) return false;
-        if (b.pickup_time) return false;
         const listing = listingsById[b.listing_id];
-        return listingPickupCopyIncomplete(listing?.meetingPoint, listing?.pickupInstructions);
+        return bookingNeedsPickupCopy(b, listing?.meetingPoint, listing?.pickupInstructions);
       }),
     [supplierBookings, listingsById, todayYmd]
   );
@@ -367,12 +369,12 @@ export default function SupplierDashboard() {
               </AttentionRow>
             )}
             {pickupGaps.length > 0 && (
-              <AttentionRow tone="warn" onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/pickup`)}>
+              <AttentionRow tone="warn" onClick={() => openSupplierPickup(pickupGaps[0]?.id)}>
                 {pickupGaps.length} paid booking{pickupGaps.length === 1 ? '' : 's'} missing pickup details
               </AttentionRow>
             )}
             {unreadMessageCount > 0 && (
-              <AttentionRow tone="info" onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/inbox`)}>
+              <AttentionRow tone="info" onClick={() => openSupplierInbox(firstUnreadBookingId ?? undefined)}>
                 {unreadMessageCount} unread traveler message{unreadMessageCount === 1 ? '' : 's'}
               </AttentionRow>
             )}

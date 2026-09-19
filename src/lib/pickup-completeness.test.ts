@@ -23,4 +23,12 @@ describe('pickup completeness', () => {
     expect(bookingNeedsPickupCopy(stayCol, '', '')).toBe(false);
     expect(bookingNeedsPickupCopy(tour, 'Meet', '')).toBe(true);
   });
+
+  it('resolves pickup attention once booking pickup_time is set', () => {
+    const tourThin = { check_out: null, special_requests: null, pickup_time: null };
+    const tourTimed = { check_out: null, special_requests: null, pickup_time: '07:30:00' };
+    expect(bookingNeedsPickupCopy(tourThin, 'Meet', '')).toBe(true);
+    expect(bookingNeedsPickupCopy(tourTimed, 'Meet', '')).toBe(false);
+    expect(bookingNeedsPickupCopy(tourTimed, '', '')).toBe(false);
+  });
 });

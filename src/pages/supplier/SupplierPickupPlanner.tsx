@@ -20,7 +20,7 @@ import {
 } from '../../data/supabase-bookings';
 import { fetchMyListings, fetchListingById, pgTimeToHm } from '../../data/supabase-listings';
 import type { BookingRow } from '../../data/supabase-bookings';
-import { openSupplierListingEditor, openSupplierBooking } from '../../lib/supplierPortalNavigation';
+import { openSupplierListingEditor, openSupplierBooking, openSupplierInbox } from '../../lib/supplierPortalNavigation';
 import { decrementAvailabilityBooked } from '../../data/supabase-availability';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { canManageBookings } from '../../lib/supplierTeamRoles';
@@ -144,7 +144,7 @@ function PlannerBookingCard({
         <p className="mb-1 text-xs font-medium text-red-700">Starts within 24 hours — pickup details still incomplete</p>
       )}
       {!urgentSoon && missingPickup && (
-        <p className="mb-1 text-xs font-medium text-amber-800">Meeting or pickup copy incomplete</p>
+        <p className="mb-1 text-xs font-medium text-amber-800">Pickup details still incomplete</p>
       )}
       <div className="flex items-baseline justify-between gap-3">
         <p className="font-semibold text-ink truncate">{booking.guest_name ?? booking.guest_email ?? 'Guest'}</p>
@@ -262,6 +262,24 @@ export default function SupplierPickupPlanner() {
     load();
   }, [load]);
 
+  useEffect(() => {
+    const syncFromUrl = () => {
+      const id = new URLSearchParams(window.location.search).get('booking');
+      setSelectedBookingId(id && id.length > 0 ? id : null);
+    };
+    syncFromUrl();
+    window.addEventListener('popstate', syncFromUrl);
+    return () => window.removeEventListener('popstate', syncFromUrl);
+  }, []);
+
+  const setSelectedBookingAndUrl = useCallback((id: string | null) => {
+    setSelectedBookingId(id);
+    const url = new URL(window.location.href);
+    if (id) url.searchParams.set('booking', id);
+    else url.searchParams.delete('booking');
+    window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+  }, []);
+
   /** Tour pickup work only: hide stays, cancelled, refunded, and failed checkouts. */
   const filtered = useMemo(() => {
     return bookings.filter((b) => {
@@ -328,8 +346,12 @@ export default function SupplierPickupPlanner() {
   );
 
   const selectedBooking = useMemo(
-    () => sorted.find((b) => b.id === selectedBookingId) ?? null,
-    [sorted, selectedBookingId]
+    () => bookings.find((b) => b.id === selectedBookingId) ?? null,
+    [bookings, selectedBookingId]
+  );
+
+  const deepLinkMissing = Boolean(
+    selectedBookingId && !loading && !selectedBooking
   );
 
   useEffect(() => {
@@ -355,11 +377,11 @@ export default function SupplierPickupPlanner() {
   useEffect(() => {
     if (!selectedBookingId) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setSelectedBookingId(null);
+      if (e.key === 'Escape') setSelectedBookingAndUrl(null);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [selectedBookingId]);
+  }, [selectedBookingId, setSelectedBookingAndUrl]);
 
   const showActionFeedback = (type: 'success' | 'error', text: string) => {
     setActionFeedback({ type, text });
@@ -513,7 +535,7 @@ export default function SupplierPickupPlanner() {
       );
       showActionFeedback('success', 'Unpaid booking cancelled. The hold is released.');
       setCancelReason('');
-      setSelectedBookingId(null);
+      setSelectedBookingAndUrl(null);
     } else {
       showActionFeedback('error', res.error || 'Could not cancel booking. Try again.');
     }
@@ -542,7 +564,7 @@ export default function SupplierPickupPlanner() {
       <div className={SUPPLIER_PAGE_CLASS}>
         <button
           type="button"
-          onClick={() => setSelectedBookingId(null)}
+          onClick={() => setSelectedBookingAndUrl(null)}
           className="lux-flat inline-flex items-center gap-1.5 text-sm text-ink-muted hover:text-ink"
         >
           <ArrowLeft className="w-4 h-4" aria-hidden />
@@ -755,6 +777,13 @@ export default function SupplierPickupPlanner() {
           </button>
           <button
             type="button"
+            onClick={() => openSupplierInbox(selectedBooking.id)}
+            className="tv-btn-ghost"
+          >
+            Message traveler
+          </button>
+          <button
+            type="button"
             onClick={() => openSupplierListingEditor(selectedBooking.listing_id, 'meeting')}
             className="tv-btn-ghost"
           >
@@ -908,6 +937,26 @@ export default function SupplierPickupPlanner() {
         />
       )}
 
+      {deepLinkMissing ? (
+        <NoticeCallout title="Booking not on Pickup" tone="warn">
+          <p>
+            That booking is not in this Pickup list (stay night, cancelled, unpaid, or not yours). Open it from
+            Bookings instead.
+          </p>
+          <button
+            type="button"
+            className="tv-btn-ghost mt-3 -ml-2"
+            onClick={() => {
+              const id = selectedBookingId;
+              setSelectedBookingAndUrl(null);
+              if (id) openSupplierBooking(id);
+            }}
+          >
+            Open in Bookings
+          </button>
+        </NoticeCallout>
+      ) : null}
+
       {actionFeedbackBanner}
 
       {loading ? (
@@ -994,7 +1043,7 @@ export default function SupplierPickupPlanner() {
                             guideMeta={listingGuideMeta[b.listing_id]}
                             missingPickup={missing}
                             urgentSoon={urgentSoon}
-                            onOpen={() => setSelectedBookingId(b.id)}
+                            onOpen={() => setSelectedBookingAndUrl(b.id)}
                           />
                         );
                       })}
@@ -1045,7 +1094,7 @@ export default function SupplierPickupPlanner() {
                         listingTitle={listingTitles[b.listing_id] ?? 'Listing'}
                         guideMeta={listingGuideMeta[b.listing_id]}
                         missingPickup={needsPickupInfo(b)}
-                        onOpen={() => setSelectedBookingId(b.id)}
+                        onOpen={() => setSelectedBookingAndUrl(b.id)}
                       />
                     ))}
                   </div>
