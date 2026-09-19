@@ -844,6 +844,19 @@ export default function SupplierBookings() {
                 booking.check_out && /^\d{4}-\d{2}-\d{2}$/.test(booking.check_out)
                   ? booking.check_out
                   : parseStayCheckOutFromNotes(booking.special_requests);
+              const stayRangeForChip =
+                meta?.family === 'stay' || Boolean(booking.check_out)
+                  ? stayRangeFromBooking(booking)
+                  : null;
+              const scheduleDayIso = view === 'today' ? todayIso : view === 'tomorrow' ? tomorrowIso : null;
+              const stayDayChip =
+                stayRangeForChip && scheduleDayIso
+                  ? stayRangeForChip.checkIn === scheduleDayIso
+                    ? 'In'
+                    : stayRangeForChip.checkOut === scheduleDayIso
+                      ? 'Out'
+                      : 'Stay'
+                  : null;
               const dateLine = stayOut
                 ? `${formatStayNightHuman(booking.booking_date ?? '')} → ${formatStayNightHuman(stayOut)}`
                 : formatActivityDateLong(booking.booking_date, startHm);
@@ -899,6 +912,12 @@ export default function SupplierBookings() {
                             <span className="font-mono text-finland font-semibold tracking-wide">
                               #{booking.booking_number}
                             </span>
+                            {' · '}
+                          </>
+                        ) : null}
+                        {stayDayChip ? (
+                          <>
+                            <span className="font-semibold text-finland">{stayDayChip}</span>
                             {' · '}
                           </>
                         ) : null}
