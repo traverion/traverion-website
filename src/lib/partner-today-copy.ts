@@ -3,12 +3,12 @@
 export function partnerTodayEmptyScheduleCopy(attentionCount: number): { title: string; body: string } {
   if (attentionCount > 0) {
     return {
-      title: 'No departures today',
+      title: 'Nothing on today’s schedule',
       body: 'Items below still need attention.',
     };
   }
   return {
-    title: 'No departures today',
-    body: 'Upcoming bookings appear here when guests book.',
+    title: 'Nothing on today’s schedule',
+    body: 'Tour departures and in-house stays appear here when guests book.',
   };
 }

@@ -11,7 +11,7 @@ import {
   fetchCancellationRequestsForBookings,
   fetchBookingMessages,
 } from '../../data/supabase-booking-ops';
-import { bookingNeedsPickupCopy } from '../../lib/pickup-completeness';
+import { bookingNeedsPickupCopy, bookingIsStayNight } from '../../lib/pickup-completeness';
 import { bookingPaymentWasCollected, isRefundDueBooking } from '../../lib/payment-states';
 import type { TourPackage } from '../../types/tour';
 import SupplierPortalNoticePanel from '../../components/supplier/SupplierPortalNoticePanel';
@@ -23,6 +23,7 @@ import { partnerBookingIsOperatingTrip, partnerBookingIsTodaySchedule, partnerBo
 import { partnerTodayEmptyScheduleCopy } from '../../lib/partner-today-copy';
 import { formatBookingParticipantsLabel } from '../../lib/participant-mix';
 import { pgTimeToHm } from '../../data/supabase-listings';
+import { stayRangeFromBooking } from '../../lib/stayOccupancy';
 
 type AttentionTone = 'danger' | 'warn' | 'info';
 
@@ -310,7 +311,7 @@ export default function SupplierDashboard() {
             {attentionCount > 0
               ? `${attentionCount} item${attentionCount === 1 ? '' : 's'} need your attention.`
               : todayDepartures.length > 0
-                ? `${todayDepartures.length} departure${todayDepartures.length === 1 ? '' : 's'} · ${todayGuestTotal} guest${todayGuestTotal === 1 ? '' : 's'} today.`
+                ? `${todayDepartures.length} on today’s schedule · ${todayGuestTotal} guest${todayGuestTotal === 1 ? '' : 's'}.`
                 : 'Your operational starting point for today.'}
           </p>
         </div>
@@ -402,7 +403,7 @@ export default function SupplierDashboard() {
 
       <section className="mb-9">
         <div className="mb-3 flex items-baseline justify-between gap-3">
-          <h2 className="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-400">Today’s departures</h2>
+          <h2 className="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-400">Today’s schedule</h2>
           {todayDepartures.length > 0 ? (
             <span className="text-[13px] text-slate-500 tabular-nums">
               {todayDepartures.length} booking{todayDepartures.length === 1 ? '' : 's'} · {todayGuestTotal} guests
@@ -430,21 +431,29 @@ export default function SupplierDashboard() {
         ) : (
           <ul className="partner-surface-panel overflow-hidden divide-y divide-slate-100">
             {todayDepartures.map((b) => {
+              const isStay = bookingIsStayNight(b);
+              const stay = isStay ? stayRangeFromBooking(b) : null;
               const startHm = pgTimeToHm(b.start_time) || pgTimeToHm(b.pickup_time) || null;
               const pickupMissing = pickupGaps.some((g) => g.id === b.id);
+              const timeLabel = isStay
+                ? stay && stay.checkIn === todayYmd
+                  ? 'In'
+                  : 'Stay'
+                : (startHm ?? '—');
+              const fallbackTitle = isStay ? 'Stay' : 'Tour';
               return (
                 <li key={b.id}>
                   <button
                     type="button"
                     onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings?booking=${b.id}`)}
-                    className="partner-row-interact lux-flat group grid w-full grid-cols-[3.25rem_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-0.5 px-3.5 py-3.5 text-left sm:grid-cols-[4rem_minmax(0,1fr)_auto]"
+                    className="partner-row-interact lux-flat group grid w-full grid-cols-[3.25rem_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-0.5 px-3.5 py-3 text-left sm:grid-cols-[4rem_minmax(0,1fr)_auto]"
                   >
                     <span className="pt-0.5 text-[15px] font-semibold tabular-nums tracking-tight text-finland">
-                      {startHm ?? '—'}
+                      {timeLabel}
                     </span>
                     <span className="min-w-0">
                       <span className="block text-[15px] font-semibold text-slate-900 truncate">
-                        {listingTitlesById[b.listing_id] ?? 'Tour'}
+                        {listingTitlesById[b.listing_id] ?? fallbackTitle}
                       </span>
                       <span className="mt-0.5 block text-[13px] text-slate-500">
                         {typeof b.booking_number === 'number' && b.booking_number > 0 ? (
@@ -453,6 +462,7 @@ export default function SupplierDashboard() {
                         {typeof b.booking_number === 'number' && b.booking_number > 0 ? ' · ' : null}
                         {formatBookingParticipantsLabel(b)}
                         {b.guest_name ? ` · ${b.guest_name}` : ''}
+                        {isStay && stay ? ` · ${stay.checkIn} → ${stay.checkOut}` : ''}
                       </span>
                       {pickupMissing ? (
                         <span className="mt-1 inline-flex items-center gap-1.5 text-[12px] font-medium text-amber-700">

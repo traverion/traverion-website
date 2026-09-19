@@ -1,6 +1,8 @@
 import { normalizePaymentStatus, isRefundDueBooking } from './payment-states';
 import { bookingOccupiesInventory } from './booking-hold';
 import { checkoutPaymentStatusCanResume } from './checkout-resume';
+import { bookingIsStayNight } from './pickup-completeness';
+import { nightsOccupiedByStay, stayRangeFromBooking } from './stayOccupancy';
 
 /** Collapsed Trips row — booking reference for support/receipt matching without expand. */
 export function travelerTripReferenceLabel(bookingNumber: number | null | undefined): string | null {
@@ -93,37 +95,49 @@ export function partnerBookingNeedsLook(b: {
   return partnerBookingIsOperatingTrip(b);
 }
 
-/** Partner Today: occupying operating trips on this local date — not refunded or cancelled. */
+type PartnerScheduleBooking = {
+  status?: string | null;
+  payment_status?: string | null;
+  booking_date?: string | null;
+  check_out?: string | null;
+  nights?: number | null;
+  special_requests?: string | null;
+  hold_expires_at?: string | null;
+  created_at?: string | null;
+};
+
+/** Partner Today: occupying operating trips on this local date — not refunded or cancelled.
+ * Tours: departure date === today.
+ * Stays: today is an occupied night in [checkIn, checkOut).
+ */
 export function partnerBookingIsTodaySchedule(
-  b: {
-    status?: string | null;
-    payment_status?: string | null;
-    booking_date?: string | null;
-    hold_expires_at?: string | null;
-    created_at?: string | null;
-  },
+  b: PartnerScheduleBooking,
   todayIso: string,
   nowMs?: number
 ): boolean {
   if (!partnerBookingIsOperatingTrip(b)) return false;
   if (!bookingOccupiesInventory(b, nowMs)) return false;
+  if (bookingIsStayNight(b)) {
+    const stay = stayRangeFromBooking(b);
+    if (!stay) return false;
+    return nightsOccupiedByStay(stay.checkIn, stay.checkOut).includes(todayIso);
+  }
   return (b.booking_date ?? '').trim() === todayIso;
 }
 
-/** Partner Today upcoming strip: occupying operating trips after today. */
+/** Partner Today upcoming strip: future arrivals only (tour date or stay check-in after today). */
 export function partnerBookingIsUpcomingSchedule(
-  b: {
-    status?: string | null;
-    payment_status?: string | null;
-    booking_date?: string | null;
-    hold_expires_at?: string | null;
-    created_at?: string | null;
-  },
+  b: PartnerScheduleBooking,
   todayIso: string,
   nowMs?: number
 ): boolean {
   if (!partnerBookingIsOperatingTrip(b)) return false;
   if (!bookingOccupiesInventory(b, nowMs)) return false;
+  if (bookingIsStayNight(b)) {
+    const stay = stayRangeFromBooking(b);
+    if (!stay) return false;
+    return stay.checkIn > todayIso;
+  }
   const date = (b.booking_date ?? '').trim();
   return Boolean(date) && date > todayIso;
 }

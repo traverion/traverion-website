@@ -161,6 +161,22 @@ describe('trip list views', () => {
     ).toBe(true);
   });
 
+  it('keeps mid-stay nights on Today and future check-ins on Upcoming', () => {
+    const stay = {
+      status: 'confirmed',
+      payment_status: 'paid',
+      booking_date: '2026-09-20',
+      check_out: '2026-09-23',
+    };
+    expect(partnerBookingIsTodaySchedule(stay, '2026-09-20')).toBe(true);
+    expect(partnerBookingIsTodaySchedule(stay, '2026-09-21')).toBe(true);
+    expect(partnerBookingIsTodaySchedule(stay, '2026-09-22')).toBe(true);
+    expect(partnerBookingIsTodaySchedule(stay, '2026-09-23')).toBe(false);
+    expect(partnerBookingIsUpcomingSchedule(stay, '2026-09-19')).toBe(true);
+    expect(partnerBookingIsUpcomingSchedule(stay, '2026-09-20')).toBe(false);
+    expect(partnerBookingIsUpcomingSchedule(stay, '2026-09-21')).toBe(false);
+  });
+
   it('sorts Refund due cancelled trips before other cancelled rows', () => {
     const sorted = sortTravelerCancelledTrips([
       { status: 'cancelled', payment_status: 'refunded', booking_date: '2026-12-01' },

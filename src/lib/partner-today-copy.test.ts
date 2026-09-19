@@ -4,7 +4,7 @@ import { partnerTodayEmptyScheduleCopy } from './partner-today-copy';
 describe('partnerTodayEmptyScheduleCopy', () => {
   it('does not claim nothing needs you when attention work exists', () => {
     const copy = partnerTodayEmptyScheduleCopy(2);
-    expect(copy.title.toLowerCase()).toContain('no departures');
+    expect(copy.title.toLowerCase()).toContain('schedule');
     expect(copy.body.toLowerCase()).toContain('attention');
     expect(copy.body.toLowerCase()).not.toContain('nothing needs you');
     expect(copy.title.toLowerCase()).not.toContain("you're set");
@@ -12,7 +12,8 @@ describe('partnerTodayEmptyScheduleCopy', () => {
 
   it('keeps compact empty copy when attention is clear', () => {
     const copy = partnerTodayEmptyScheduleCopy(0);
-    expect(copy.title.toLowerCase()).toContain('no departures');
+    expect(copy.title.toLowerCase()).toContain('schedule');
+    expect(copy.body.toLowerCase()).toMatch(/tour|stay/);
     expect(copy.body.toLowerCase()).not.toContain("you're set");
   });
 });
