@@ -253,6 +253,10 @@ export default function SupplierPerformance() {
               >
                 Create a listing
               </button>
+            ) : windowKey !== 'all' ? (
+              <button type="button" onClick={() => setWindowAndUrl('all')} className="tv-btn-secondary">
+                Show all time
+              </button>
             ) : undefined
           }
         />
