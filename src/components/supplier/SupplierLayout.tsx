@@ -174,6 +174,7 @@ const PATH_ALIASES: Record<string, SupplierSection> = {
   account: 'account-settings',
   earnings: 'earnings',
   discounts: 'discounts',
+  offers: 'discounts',
   reviews: 'reviews',
   pickup: 'pickup',
   performance: 'performance',
