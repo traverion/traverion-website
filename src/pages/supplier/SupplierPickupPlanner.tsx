@@ -212,16 +212,34 @@ export default function SupplierPickupPlanner() {
   const [listingGuideMeta, setListingGuideMeta] = useState<Record<string, ListingGuideMeta>>({});
   const [stayListingIds, setStayListingIds] = useState<Set<string>>(() => new Set());
   const [loading, setLoading] = useState(true);
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+  const [dateFrom, setDateFrom] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    const d = (new URLSearchParams(window.location.search).get('from') ?? '').trim();
+    return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : '';
+  });
+  const [dateTo, setDateTo] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    const d = (new URLSearchParams(window.location.search).get('to') ?? '').trim();
+    return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : '';
+  });
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [listingFilterId, setListingFilterId] = useState('');
-  const [needsPickupOnly, setNeedsPickupOnly] = useState(false);
+  const [listingFilterId, setListingFilterId] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    return (new URLSearchParams(window.location.search).get('listing') ?? '').trim();
+  });
+  const [needsPickupOnly, setNeedsPickupOnly] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return new URLSearchParams(window.location.search).get('needs') === '1';
+  });
   const [sortDate, setSortDate] = useState<'asc' | 'desc'>('asc');
-  const [showSearch, setShowSearch] = useState(false);
+  const [showSearch, setShowSearch] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    const p = new URLSearchParams(window.location.search);
+    return Boolean(p.get('from') || p.get('to') || p.get('listing') || p.get('needs'));
+  });
   const [dateSectionOpen, setDateSectionOpen] = useState<Record<string, boolean>>({});
   const [scheduleDraft, setScheduleDraft] = useState({ start: '', pickup: '' });
   const [pickupCopyDraft, setPickupCopyDraft] = useState({ meeting: '', instructions: '' });
@@ -312,13 +330,52 @@ export default function SupplierPickupPlanner() {
 
   useEffect(() => {
     const syncFromUrl = () => {
-      const id = new URLSearchParams(window.location.search).get('booking');
+      const params = new URLSearchParams(window.location.search);
+      const id = params.get('booking');
       setSelectedBookingId(id && id.length > 0 ? id : null);
+      const from = (params.get('from') ?? '').trim();
+      const to = (params.get('to') ?? '').trim();
+      setDateFrom(/^\d{4}-\d{2}-\d{2}$/.test(from) ? from : '');
+      setDateTo(/^\d{4}-\d{2}-\d{2}$/.test(to) ? to : '');
+      setListingFilterId((params.get('listing') ?? '').trim());
+      setNeedsPickupOnly(params.get('needs') === '1');
+      if (params.get('from') || params.get('to') || params.get('listing') || params.get('needs')) {
+        setShowSearch(true);
+      }
     };
     syncFromUrl();
     window.addEventListener('popstate', syncFromUrl);
     return () => window.removeEventListener('popstate', syncFromUrl);
   }, []);
+
+  const writePickupFiltersToUrl = useCallback(
+    (patch: {
+      from?: string;
+      to?: string;
+      listingId?: string;
+      needsOnly?: boolean;
+    }) => {
+      const from = patch.from !== undefined ? patch.from : dateFrom;
+      const to = patch.to !== undefined ? patch.to : dateTo;
+      const listingId = patch.listingId !== undefined ? patch.listingId : listingFilterId;
+      const needsOnly = patch.needsOnly !== undefined ? patch.needsOnly : needsPickupOnly;
+      if (patch.from !== undefined) setDateFrom(patch.from);
+      if (patch.to !== undefined) setDateTo(patch.to);
+      if (patch.listingId !== undefined) setListingFilterId(patch.listingId);
+      if (patch.needsOnly !== undefined) setNeedsPickupOnly(patch.needsOnly);
+      const url = new URL(window.location.href);
+      if (!from) url.searchParams.delete('from');
+      else url.searchParams.set('from', from);
+      if (!to) url.searchParams.delete('to');
+      else url.searchParams.set('to', to);
+      if (!listingId) url.searchParams.delete('listing');
+      else url.searchParams.set('listing', listingId);
+      if (!needsOnly) url.searchParams.delete('needs');
+      else url.searchParams.set('needs', '1');
+      window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+    },
+    [dateFrom, dateTo, listingFilterId, needsPickupOnly]
+  );
 
   const setSelectedBookingAndUrl = useCallback((id: string | null) => {
     setSelectedBookingId(id);
@@ -327,6 +384,21 @@ export default function SupplierPickupPlanner() {
     else url.searchParams.delete('booking');
     window.history.replaceState({}, '', `${url.pathname}${url.search}`);
   }, []);
+
+  const todayYmd = toYmd(new Date());
+  const tomorrowYmd = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return toYmd(d);
+  })();
+  const dayPreset =
+    dateFrom && dateFrom === dateTo
+      ? dateFrom === todayYmd
+        ? 'today'
+        : dateFrom === tomorrowYmd
+          ? 'tomorrow'
+          : null
+      : null;
 
   /** Tour pickup work only: hide stays, cancelled, refunded, and failed checkouts. */
   const filtered = useMemo(() => {
@@ -983,18 +1055,59 @@ export default function SupplierPickupPlanner() {
       </SupplierPageHero>
 
       {activeBookingsCount > 0 && (
-        <div className="mb-8">
+        <div className="mb-6 space-y-3">
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Day preset">
+            {(
+              [
+                { id: 'all', label: 'All dates' },
+                { id: 'today', label: 'Today' },
+                { id: 'tomorrow', label: 'Tomorrow' },
+              ] as const
+            ).map((tab) => {
+              const selected =
+                tab.id === 'all' ? !dateFrom && !dateTo : tab.id === 'today' ? dayPreset === 'today' : dayPreset === 'tomorrow';
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => {
+                    if (tab.id === 'all') writePickupFiltersToUrl({ from: '', to: '' });
+                    else if (tab.id === 'today') writePickupFiltersToUrl({ from: todayYmd, to: todayYmd });
+                    else writePickupFiltersToUrl({ from: tomorrowYmd, to: tomorrowYmd });
+                  }}
+                  className={`lux-flat rounded-md px-3 py-1.5 text-xs font-semibold ring-1 transition-colors ${
+                    selected
+                      ? 'bg-finland text-white ring-finland'
+                      : 'bg-transparent text-ink-muted ring-black/[0.08] hover:text-ink'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
+            <button
+              type="button"
+              onClick={() => writePickupFiltersToUrl({ needsOnly: !needsPickupOnly })}
+              className={`lux-flat rounded-md px-3 py-1.5 text-xs font-semibold ring-1 transition-colors ${
+                needsPickupOnly
+                  ? 'bg-amber-500 text-white ring-amber-500'
+                  : 'bg-transparent text-ink-muted ring-black/[0.08] hover:text-ink'
+              }`}
+            >
+              Needs details
+            </button>
+          </div>
           <button type="button" onClick={() => setShowSearch((v) => !v)} className="tv-btn-ghost -ml-2">
             Search{filtersOn ? ' · on' : ''}
           </button>
           {showSearch && (
-            <div className="mt-4 space-y-4 motion-safe:animate-fade-in">
+            <div className="mt-1 space-y-4 motion-safe:animate-fade-in">
               <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
                 <div className="flex min-w-[min(100%,12rem)] flex-1 flex-col gap-1 sm:flex-none sm:min-w-[11rem]">
                   <label className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Listing</label>
                   <select
                     value={listingFilterId}
-                    onChange={(e) => setListingFilterId(e.target.value)}
+                    onChange={(e) => writePickupFiltersToUrl({ listingId: e.target.value })}
                     className={plannerInputClass()}
                   >
                     <option value="">All listings</option>
@@ -1011,7 +1124,7 @@ export default function SupplierPickupPlanner() {
                     <input
                       type="date"
                       value={dateFrom}
-                      onChange={(e) => setDateFrom(e.target.value)}
+                      onChange={(e) => writePickupFiltersToUrl({ from: e.target.value })}
                       className="tv-input w-[9.25rem]"
                       aria-label="Activity date from"
                     />
@@ -1019,7 +1132,7 @@ export default function SupplierPickupPlanner() {
                     <input
                       type="date"
                       value={dateTo}
-                      onChange={(e) => setDateTo(e.target.value)}
+                      onChange={(e) => writePickupFiltersToUrl({ to: e.target.value })}
                       className="tv-input w-[9.25rem]"
                       aria-label="Activity date to"
                     />
@@ -1042,7 +1155,7 @@ export default function SupplierPickupPlanner() {
                   <input
                     type="checkbox"
                     checked={needsPickupOnly}
-                    onChange={(e) => setNeedsPickupOnly(e.target.checked)}
+                    onChange={(e) => writePickupFiltersToUrl({ needsOnly: e.target.checked })}
                     className="rounded border-black/20 text-finland focus:ring-finland"
                   />
                   Needs pickup copy only
@@ -1051,10 +1164,7 @@ export default function SupplierPickupPlanner() {
                   <button
                     type="button"
                     onClick={() => {
-                      setDateFrom('');
-                      setDateTo('');
-                      setListingFilterId('');
-                      setNeedsPickupOnly(false);
+                      writePickupFiltersToUrl({ from: '', to: '', listingId: '', needsOnly: false });
                       setSortDate('asc');
                     }}
                     className="tv-btn-ghost"
