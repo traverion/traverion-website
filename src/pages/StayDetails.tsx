@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { ArrowLeft, MapPin, Heart } from 'lucide-react';
+import { ArrowLeft, MapPin, Heart, Star } from 'lucide-react';
 import { getListingById, getListingByIdAsync } from '../data/listings';
 import { parseListingExtras } from '../types/listingExtras';
 import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
@@ -7,9 +7,23 @@ import { listingIsFamily } from '../lib/inventory';
 import { useAuth } from '../contexts/AuthContext';
 import { rememberTravelerReturnStay, travelerLoginHref } from '../lib/travelerAuthLinks';
 import { quoteStayNights, stayQuotePriceLines } from '../lib/booking-quote';
-import { stayDateRangesOverlap, occupiedNightsFromStayRanges } from '../lib/stayOccupancy';
-import { createBookingCheckoutSession, fetchPublishedStayOccupiedRanges } from '../data/supabase-bookings';
+import { stayDateRangesOverlap, occupiedNightsFromStayRanges, nightsOccupiedByStay } from '../lib/stayOccupancy';
+import {
+  createBookingCheckoutSession,
+  fetchPublishedStayOccupiedRanges,
+  fetchPublishedStayBlockedNights,
+} from '../data/supabase-bookings';
 import { fetchSupplierPublicLegal } from '../data/supabase-supplier-profile';
+import {
+  fetchReviewsByListingId,
+  getReviewAggregateForListing,
+  getReviewRepliesByReviewIds,
+  submitReview,
+  userHasCompletedBookingForListing,
+  userHasReviewedListing,
+  type ReviewDisplay,
+  type ReviewReplyRow,
+} from '../data/supabase-reviews';
 import type { TourPackage } from '../types/tour';
 import ErrorState from '../components/ErrorState';
 import { Skeleton } from '../components/ui/Skeleton';
@@ -28,7 +42,7 @@ import {
   BOOKING_CONFIRMATION_EMAIL_DISCLAIMER,
   STAY_LISTING_CONFIRMATION_NOTE,
 } from '../lib/booking-confirmation-copy';
-import { listingShowsFreeCancellation } from '../lib/listingTruth';
+import { listingShowsFreeCancellation, publicReviewLabel } from '../lib/listingTruth';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { isSupabaseListingId } from '../lib/discount-display';
 import { fetchWishlistListingIds, toggleWishlist } from '../data/supabase-wishlist';
@@ -67,9 +81,22 @@ export default function StayDetails({ stayId, onBack }: Props) {
   const [guestPhone, setGuestPhone] = useState('');
   const [hostName, setHostName] = useState<string | null>(null);
   const [occupiedRanges, setOccupiedRanges] = useState<{ checkIn: string; checkOut: string }[]>([]);
+  const [blockedNights, setBlockedNights] = useState<string[]>([]);
   const [savedToWishlist, setSavedToWishlist] = useState(false);
   const [wishlistBusy, setWishlistBusy] = useState(false);
   const [savePop, setSavePop] = useState(false);
+  const [reviews, setReviews] = useState<ReviewDisplay[]>([]);
+  const [reviewReplies, setReviewReplies] = useState<Record<string, ReviewReplyRow>>({});
+  const [reviewAggregate, setReviewAggregate] = useState<{ rating: number; count: number } | null>(null);
+  const [canLeaveReview, setCanLeaveReview] = useState(false);
+  const [bookingIdForReview, setBookingIdForReview] = useState<string | undefined>();
+  const [hasReviewed, setHasReviewed] = useState(false);
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewTitle, setReviewTitle] = useState('');
+  const [reviewComment, setReviewComment] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -88,6 +115,34 @@ export default function StayDetails({ stayId, onBack }: Props) {
       cancelled = true;
     };
   }, [stayId]);
+
+  const loadReviews = useCallback(() => {
+    if (!stayId || !isSupabaseConfigured()) return;
+    void fetchReviewsByListingId(stayId).then(async (rows) => {
+      setReviews(rows);
+      const replies = await getReviewRepliesByReviewIds(rows.map((r) => r.id));
+      setReviewReplies(replies);
+    });
+    void getReviewAggregateForListing(stayId).then(setReviewAggregate);
+  }, [stayId]);
+
+  useEffect(() => {
+    loadReviews();
+  }, [loadReviews]);
+
+  useEffect(() => {
+    if (!user?.id || !user?.email || !stayId || !isSupabaseConfigured()) {
+      setCanLeaveReview(false);
+      setBookingIdForReview(undefined);
+      setHasReviewed(false);
+      return;
+    }
+    void userHasCompletedBookingForListing(user.email, stayId).then(({ canReview, bookingId }) => {
+      setCanLeaveReview(canReview);
+      setBookingIdForReview(bookingId);
+    });
+    void userHasReviewedListing(user.id, stayId).then(setHasReviewed);
+  }, [user?.id, user?.email, stayId]);
 
   useEffect(() => {
     if (!user?.id || !stay?.id || !isSupabaseListingId(stay.id) || !isSupabaseConfigured()) {
@@ -178,9 +233,11 @@ export default function StayDetails({ stayId, onBack }: Props) {
   useEffect(() => {
     if (!stay?.id) {
       setOccupiedRanges([]);
+      setBlockedNights([]);
       return;
     }
     void fetchPublishedStayOccupiedRanges(stay.id).then(setOccupiedRanges);
+    void fetchPublishedStayBlockedNights(stay.id).then(setBlockedNights);
   }, [stay?.id]);
   const extras = stay ? parseListingExtras(stay.listingExtras) : {};
   const s = extras.stay;
@@ -200,9 +257,15 @@ export default function StayDetails({ stayId, onBack }: Props) {
   const quoteOk = stayQuote?.ok === true;
   const total = stayQuote?.ok ? stayQuote.totalAmount : 0;
   const currency = normalizeCurrency(stay?.price.currency);
-  const occupiedNights = occupiedNightsFromStayRanges(occupiedRanges);
+  const occupiedNights = useMemo(() => {
+    const fromBookings = occupiedNightsFromStayRanges(occupiedRanges);
+    return [...new Set([...fromBookings, ...blockedNights])];
+  }, [occupiedRanges, blockedNights]);
   const selectionOccupied =
-    checkIn && checkOut ? occupiedRanges.some((r) => stayDateRangesOverlap(checkIn, checkOut, r.checkIn, r.checkOut)) : false;
+    checkIn && checkOut
+      ? occupiedRanges.some((r) => stayDateRangesOverlap(checkIn, checkOut, r.checkIn, r.checkOut)) ||
+        nightsOccupiedByStay(checkIn, checkOut).some((n) => blockedNights.includes(n))
+      : false;
   const hero = stay ? listingHeroImageSrc(stay.image) : undefined;
 
   useEffect(() => {
@@ -456,6 +519,152 @@ export default function StayDetails({ stayId, onBack }: Props) {
                 <p className="text-ink-muted">{hostName}</p>
               </div>
             ) : null}
+
+            <div id="stay-reviews">
+              <h2 className="font-display text-2xl mb-3">Reviews</h2>
+              {(() => {
+                const review = publicReviewLabel(reviewAggregate);
+                return review.score ? (
+                  <p className="text-sm text-ink-muted mb-4">
+                    <strong className="text-ink tabular-nums">{review.score}</strong>
+                    <span className="text-ink-muted">
+                      {' '}
+                      ({review.count} {review.count === 1 ? 'review' : 'reviews'})
+                    </span>
+                  </p>
+                ) : null;
+              })()}
+              {reviews.length === 0 && !showReviewForm ? (
+                <p className="text-ink-muted mb-4 max-w-xl leading-relaxed">
+                  No reviews yet. Guests can write one after a completed stay.
+                </p>
+              ) : null}
+              <div className="space-y-6 mb-6">
+                {reviews.map((r) => (
+                  <div key={r.id} className="border-b border-black/[0.06] pb-6 last:border-0">
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className="font-medium text-ink">{r.guest_name}</span>
+                      {r.verified ? (
+                        <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">Verified</span>
+                      ) : null}
+                      <span className="text-sm text-ink-muted">{new Date(r.created_at).toLocaleDateString()}</span>
+                    </div>
+                    <div className="flex gap-1 mb-1">
+                      {[1, 2, 3, 4, 5].map((i) => (
+                        <Star
+                          key={i}
+                          size={16}
+                          className={i <= r.rating ? 'text-finland fill-finland' : 'text-ink-faint'}
+                        />
+                      ))}
+                    </div>
+                    {r.title ? <p className="font-medium text-ink mb-1">{r.title}</p> : null}
+                    <p className="text-ink">{r.comment}</p>
+                    {reviewReplies[r.id]?.reply_text ? (
+                      <div className="mt-3 rounded-xl bg-finland/[0.04] px-3.5 py-3 ring-1 ring-finland/10">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-finland mb-1">
+                          Response from the host
+                        </p>
+                        <p className="text-sm text-ink leading-relaxed">{reviewReplies[r.id]!.reply_text}</p>
+                      </div>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+              {canLeaveReview && !hasReviewed && !showReviewForm ? (
+                <button type="button" onClick={() => setShowReviewForm(true)} className="tv-btn-secondary">
+                  Leave a review
+                </button>
+              ) : null}
+              {showReviewForm && user ? (
+                <div className="max-w-xl">
+                  <h3 className="font-display text-xl text-ink mb-4">Write a review</h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-ink mb-1">Rating</label>
+                      <div className="flex gap-1">
+                        {[1, 2, 3, 4, 5].map((i) => (
+                          <button key={i} type="button" onClick={() => setReviewRating(i)} className="p-1">
+                            <Star
+                              size={28}
+                              className={i <= reviewRating ? 'text-finland fill-finland' : 'text-ink-faint'}
+                            />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-ink mb-1">Title (optional)</label>
+                      <input
+                        type="text"
+                        value={reviewTitle}
+                        onChange={(e) => setReviewTitle(e.target.value)}
+                        className="tv-input"
+                        placeholder="Sum up your stay"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-ink mb-1">Your review *</label>
+                      <textarea
+                        value={reviewComment}
+                        onChange={(e) => setReviewComment(e.target.value)}
+                        rows={4}
+                        className="tv-input"
+                        placeholder="Tell others what you liked..."
+                        required
+                      />
+                    </div>
+                    {reviewError ? (
+                      <NoticeCallout title="Could not submit review" tone="danger">
+                        {reviewError}
+                      </NoticeCallout>
+                    ) : null}
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        disabled={reviewSubmitting || !reviewComment.trim()}
+                        onClick={async () => {
+                          setReviewSubmitting(true);
+                          setReviewError(null);
+                          const res = await submitReview({
+                            listingId: stay.id,
+                            userId: user.id,
+                            guestName: user.email?.split('@')[0] ?? 'Guest',
+                            rating: reviewRating,
+                            title: reviewTitle.trim() || undefined,
+                            comment: reviewComment.trim(),
+                            bookingId: bookingIdForReview,
+                          });
+                          setReviewSubmitting(false);
+                          if (res.success) {
+                            setShowReviewForm(false);
+                            setReviewTitle('');
+                            setReviewComment('');
+                            setHasReviewed(true);
+                            loadReviews();
+                          } else {
+                            setReviewError(userFacingError(res.error, USER_ERROR.review));
+                          }
+                        }}
+                        className="tv-btn-primary disabled:opacity-50"
+                      >
+                        {reviewSubmitting ? 'Submitting…' : 'Submit review'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowReviewForm(false);
+                          setReviewError(null);
+                        }}
+                        className="tv-btn-ghost"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+            </div>
           </div>
 
           <aside id="stay-booking-panel" className="lg:sticky lg:top-24 h-fit rounded-2xl bg-paper-raised p-5 shadow-soft-lg scroll-mt-24">

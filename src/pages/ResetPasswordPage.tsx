@@ -75,7 +75,7 @@ export default function ResetPasswordPage({ onNavigate }: ResetPasswordPageProps
         >
           <img src={BRAND_LOGO_SRC} alt="Traverion" className="h-9 w-auto mx-auto mb-6 opacity-90" />
           <div className="inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15 mb-3">
-            Traveler account
+            Traverion
           </div>
           <h1 className="font-display text-2xl sm:text-3xl text-ink tracking-tight">Verifying your reset link</h1>
           <p className="mt-3 text-sm text-ink-muted">This usually takes a few seconds.</p>
@@ -94,17 +94,23 @@ export default function ResetPasswordPage({ onNavigate }: ResetPasswordPageProps
         <div className="w-full max-w-md rounded-2xl bg-paper-raised p-6 sm:p-8 shadow-soft-lg ring-1 ring-black/[0.06] text-center">
           <img src={BRAND_LOGO_SRC} alt="Traverion" className="h-9 w-auto mx-auto mb-6 opacity-90" />
           <div className="inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15 mb-3">
-            Traveler account
+            Traverion
           </div>
           <h1 className="font-display text-2xl tracking-tight text-ink">This reset link is not valid</h1>
           <div className="mt-4 text-left">
             <NoticeCallout title="Open the email link" tone="danger">
-              This page only works from the secure link in your password reset email.
+              This page only works from the secure link in your password reset email. Request a new link from the
+              same sign-in page you use (Partner or traveler).
             </NoticeCallout>
           </div>
-          <a href={loginHref} className="tv-btn-primary w-full inline-flex justify-center mt-6">
-            Back to traveler sign in
-          </a>
+          <div className="mt-6 flex flex-col gap-2">
+            <a href="/login" className="tv-btn-primary w-full inline-flex justify-center">
+              Partner log in
+            </a>
+            <a href={loginHref} className="tv-btn-secondary w-full inline-flex justify-center">
+              Traveler sign in
+            </a>
+          </div>
         </div>
       </div>
     );

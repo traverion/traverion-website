@@ -92,11 +92,26 @@ export function subscribePasswordRecovery(
   return () => subscription.unsubscribe();
 }
 
+/** Single-flight PKCE exchange — StrictMode double-mount must not burn a one-time code twice. */
+let recoveryEstablishInFlight: Promise<'ready' | 'invalid' | 'timeout'> | null = null;
+
 /**
  * On a dedicated reset-password route: establish the recovery session from the email link.
  * Supports PKCE (?code=) and legacy hash tokens (#access_token…&type=recovery).
  */
 export async function establishPasswordRecoverySession(
+  client: SupabaseClient,
+  options?: { timeoutMs?: number }
+): Promise<'ready' | 'invalid' | 'timeout'> {
+  if (recoveryEstablishInFlight) return recoveryEstablishInFlight;
+
+  recoveryEstablishInFlight = establishPasswordRecoverySessionInner(client, options).finally(() => {
+    recoveryEstablishInFlight = null;
+  });
+  return recoveryEstablishInFlight;
+}
+
+async function establishPasswordRecoverySessionInner(
   client: SupabaseClient,
   options?: { timeoutMs?: number }
 ): Promise<'ready' | 'invalid' | 'timeout'> {

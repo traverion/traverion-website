@@ -15,8 +15,8 @@ import { SkeletonCardGrid } from '../components/ui/Skeleton';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 import { supplierPortalLandingHref } from '../lib/partnerHost';
 import { STRIPE_CHECKOUT_CANCELLED_STAY_COPY, readStripeCheckoutReturnBanner } from '../lib/booking-confirmation-copy';
-import { addCalendarDays, stayAvailableForRequestedNights } from '../lib/stayOccupancy';
-import { fetchPublishedStayOccupiedRanges } from '../data/supabase-bookings';
+import { addCalendarDays, stayAvailableForRequestedNights, nightsOccupiedByStay } from '../lib/stayOccupancy';
+import { fetchPublishedStayOccupiedRanges, fetchPublishedStayBlockedNights } from '../data/supabase-bookings';
 import type { TourPackage } from '../types/tour';
 import { formatStayNightHuman } from '../lib/stay-calendar';
 
@@ -52,7 +52,7 @@ export default function Stays({ onStaySelect }: Props) {
   useDialogFocus(mobileSearchOpen, mobileSearchSheetRef, closeMobileSearch);
   const [occupiedByListing, setOccupiedByListing] = useState<Record<
     string,
-    { checkIn: string; checkOut: string }[]
+    { ranges: { checkIn: string; checkOut: string }[]; blockedNights: string[] }
   > | null>(null);
   const [occupancyLoading, setOccupancyLoading] = useState(false);
 
@@ -98,8 +98,11 @@ export default function Stays({ onStaySelect }: Props) {
     setOccupancyLoading(true);
     void Promise.all(
       stays.map(async (s) => {
-        const ranges = await fetchPublishedStayOccupiedRanges(s.id);
-        return [s.id, ranges] as const;
+        const [ranges, blockedNights] = await Promise.all([
+          fetchPublishedStayOccupiedRanges(s.id),
+          fetchPublishedStayBlockedNights(s.id),
+        ]);
+        return [s.id, { ranges, blockedNights }] as const;
       })
     ).then((entries) => {
       if (cancelled) return;
@@ -123,8 +126,10 @@ export default function Stays({ onStaySelect }: Props) {
       }
       if (Number.isFinite(guestN) && guestN > 0 && typeof maxG === 'number' && guestN > maxG) return false;
       if (dateFilterActive && occupiedByListing) {
-        const ranges = occupiedByListing[s.id] ?? [];
-        if (!stayAvailableForRequestedNights(checkIn, checkOut, ranges)) return false;
+        const pack = occupiedByListing[s.id] ?? { ranges: [], blockedNights: [] };
+        if (!stayAvailableForRequestedNights(checkIn, checkOut, pack.ranges)) return false;
+        const blocked = new Set(pack.blockedNights);
+        if (nightsOccupiedByStay(checkIn, checkOut).some((n) => blocked.has(n))) return false;
       }
       return true;
     });

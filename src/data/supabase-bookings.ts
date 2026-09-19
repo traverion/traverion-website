@@ -905,3 +905,22 @@ export async function fetchPublishedStayOccupiedRanges(
     }))
     .filter((row) => /^\d{4}-\d{2}-\d{2}$/.test(row.checkIn) && /^\d{4}-\d{2}-\d{2}$/.test(row.checkOut));
 }
+
+/**
+ * Partner-closed stay nights (listing_availability.capacity <= 0).
+ * Public SELECT is allowed; merge into traveler calendars so blocked nights are not pickable.
+ */
+export async function fetchPublishedStayBlockedNights(listingId: string): Promise<string[]> {
+  if (!supabase) return [];
+  const today = new Date().toISOString().slice(0, 10);
+  const { data, error } = await supabase
+    .from('listing_availability')
+    .select('available_date, capacity')
+    .eq('listing_id', listingId)
+    .gte('available_date', today)
+    .lte('capacity', 0);
+  if (error || !Array.isArray(data)) return [];
+  return (data as { available_date: string; capacity: number }[])
+    .map((row) => String(row.available_date ?? '').slice(0, 10))
+    .filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d));
+}

@@ -346,8 +346,14 @@ serve(async (req) => {
         .eq('listing_id', listingId)
         .eq('available_date', bookingDate)
         .maybeSingle();
-      let capacity = Number(capRow?.capacity ?? NaN);
-      if (!Number.isFinite(capacity) || capacity < 1) {
+      // Explicit capacity 0 = partner closed the day. Missing row = fall back to option max.
+      let capacity: number;
+      if (capRow != null && Number.isFinite(Number(capRow.capacity))) {
+        capacity = Number(capRow.capacity);
+        if (capacity < 1) {
+          return json({ success: false, error: 'This date is not available.' }, 409);
+        }
+      } else {
         const extras = listingRow.listing_extras as { bookingOptions?: Array<{ maxSpotsPerSlot?: unknown }> } | null;
         let max = 0;
         for (const opt of extras?.bookingOptions ?? []) {
