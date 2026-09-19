@@ -604,13 +604,13 @@ export default function SupplierAvailability() {
                       capacity: String(cap?.capacity ?? defaultSpots(listing)),
                     });
                   }}
-                  className={`lux-flat min-h-[4.75rem] sm:min-h-[6.25rem] rounded-2xl p-1.5 sm:p-2 text-left ring-1 transition-[background-color,box-shadow,transform] duration-150 disabled:opacity-40 motion-safe:active:scale-[0.97] ${
+                  className={`lux-flat min-h-[3.75rem] sm:min-h-[5rem] rounded-lg p-1 sm:p-1.5 text-left ring-1 transition-[background-color,box-shadow,transform] duration-150 disabled:opacity-40 motion-safe:active:scale-[0.97] ${
                     !cell.inMonth
                       ? 'bg-transparent text-ink-faint ring-transparent'
                       : isEditing
-                        ? 'bg-paper-raised ring-2 ring-finland/40 shadow-soft'
+                        ? 'bg-paper-raised ring-2 ring-finland/40'
                         : isToday
-                          ? 'bg-paper-raised ring-finland/25 shadow-soft'
+                          ? 'bg-paper-raised ring-finland/25'
                           : occupying || stayKind === 'occupied'
                             ? 'bg-finland/15 ring-finland/20'
                         : stayKind === 'blocked' || (open && remaining === 0)
@@ -622,7 +622,7 @@ export default function SupplierAvailability() {
                           : 'text-ink-faint ring-transparent'
                   }`}
                 >
-                  <span className="block text-sm font-semibold text-ink">{cell.day}</span>
+                  <span className="block text-xs sm:text-sm font-semibold text-ink">{cell.day}</span>
                   {cell.inMonth && (stayKind === 'occupied' || occupying) ? (
                     <span className="mt-0.5 block text-[10px] font-medium leading-tight text-finland">
                       {stayCalendar ? 'Occupied' : `${occupying?.guests} guest${occupying?.guests === 1 ? '' : 's'}`}
