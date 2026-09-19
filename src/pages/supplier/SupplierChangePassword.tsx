@@ -113,7 +113,7 @@ export default function SupplierChangePassword({ onBack, userEmail, isSupabase, 
         ) : null}
       </SupplierPageHero>
 
-      <div className="max-w-xl space-y-5 rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]">
+      <div className="max-w-xl space-y-4 rounded-xl bg-paper-raised p-4 sm:p-5 shadow-soft ring-1 ring-black/[0.06]">
         {!isSupabase ? (
           <NoticeCallout title="Password changes unavailable" tone="warn">
             Sign-in is not connected in this build, so passwords cannot be updated here.
