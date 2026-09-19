@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bookingOccupiesInventory, bookingOccupiesPublicStayCalendar, CHECKOUT_HOLD_MINUTES, tourCheckoutOccupiedGuests } from './booking-hold';
+import { bookingOccupiesInventory, bookingOccupiesPublicStayCalendar, CHECKOUT_HOLD_MINUTES, tourCheckoutOccupiedGuests, formatPartnerCheckoutHoldLabel } from './booking-hold';
 import { partnerTourRemainingSpots } from './availability-ops';
 import { bookingOccupiesInventory as checkoutSessionOccupiesInventory, tourCheckoutOccupiedGuests as checkoutTourOccupiedGuests } from '../../supabase/functions/_shared/booking-hold';
 
@@ -116,6 +116,32 @@ describe('booking inventory holds', () => {
         now
       )
     ).toBe(false);
+  });
+
+  it('formats partner checkout hold labels for live vs expired holds', () => {
+    expect(
+      formatPartnerCheckoutHoldLabel(
+        {
+          status: 'pending',
+          payment_status: 'pending',
+          hold_expires_at: '2026-09-08T12:20:00.000Z',
+        },
+        now
+      )
+    ).toMatch(/Checkout hold · until /);
+    expect(
+      formatPartnerCheckoutHoldLabel(
+        {
+          status: 'pending',
+          payment_status: 'pending',
+          hold_expires_at: '2026-09-08T11:50:00.000Z',
+        },
+        now
+      )
+    ).toBe('Hold expired · inventory released');
+    expect(
+      formatPartnerCheckoutHoldLabel({ status: 'confirmed', payment_status: 'paid' }, now)
+    ).toBeNull();
   });
 
   it('does not let failed or expired-legacy pending occupy inventory', () => {

@@ -16,12 +16,12 @@ import type { TourPackage } from '../../types/tour';
 import { listingRunsOnDate } from '../../lib/booking-quote';
 import { inventoryFamilyFromListing } from '../../lib/inventory';
 import { nightsOccupiedByStay, stayRangeFromBooking, partnerStayDayKind, partnerStayCalendarOccupiesNight } from '../../lib/stayOccupancy';
-import { isPaidPaymentStatus } from '../../lib/payment-states';
 import {
   buildMonthCells,
   defaultCapacityForOpenDay,
   partnerTourDaySpotDisplay,
 } from '../../lib/availability-ops';
+import { formatPartnerCheckoutHoldLabel } from '../../lib/booking-hold';
 import { navigateSupplierUrl, openSupplierBooking } from '../../lib/supplierPortalNavigation';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import {
@@ -143,16 +143,6 @@ export default function SupplierAvailability() {
     return bits.join(' · ');
   };
 
-  const daySheetHoldLabel = (b: BookingRow) => {
-    if (isPaidPaymentStatus(b.payment_status)) return null;
-    const pay = (b.payment_status ?? 'pending').trim().toLowerCase();
-    if (pay !== 'pending') return null;
-    if (!b.hold_expires_at) return 'Unpaid hold';
-    const exp = Date.parse(b.hold_expires_at);
-    if (!Number.isFinite(exp)) return 'Unpaid hold';
-    const until = new Date(exp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-    return `Unpaid hold · until ${until}`;
-  };
 
   const loadListings = useCallback(async () => {
     if (!isSupabase || !user?.id) {
@@ -616,7 +606,7 @@ export default function SupplierAvailability() {
                 <ul className="mt-4 space-y-3">
                   {dayBookings.map((b) => {
                     const times = daySheetTimesLine(b);
-                    const hold = daySheetHoldLabel(b);
+                    const hold = formatPartnerCheckoutHoldLabel(b);
                     return (
                     <li key={b.id}>
                       <button

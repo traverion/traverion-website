@@ -12,6 +12,7 @@ import {
   travelerBookingNeedsPayNow,
   travelerTripReferenceLabel,
   partnerBookingIsUnpaidCheckout,
+  partnerBookingIsActiveUnpaidCheckout,
   partnerBookingShowsCancelAction,
   sortTravelerCancelledTrips,
 } from './trip-views';
@@ -32,6 +33,27 @@ describe('trip list views', () => {
     expect(partnerBookingIsUnpaidCheckout(refundedStay)).toBe(false);
     expect(partnerBookingIsUnpaidCheckout({ status: 'pending', payment_status: 'pending' })).toBe(true);
     expect(partnerBookingIsUnpaidCheckout({ status: 'cancelled', payment_status: 'pending' })).toBe(false);
+    const nowMs = Date.parse(`${today}T12:00:00.000Z`);
+    expect(
+      partnerBookingIsActiveUnpaidCheckout(
+        {
+          status: 'pending',
+          payment_status: 'pending',
+          hold_expires_at: new Date(nowMs + 15 * 60 * 1000).toISOString(),
+        },
+        nowMs
+      )
+    ).toBe(true);
+    expect(
+      partnerBookingIsActiveUnpaidCheckout(
+        {
+          status: 'pending',
+          payment_status: 'pending',
+          hold_expires_at: new Date(nowMs - 5 * 60 * 1000).toISOString(),
+        },
+        nowMs
+      )
+    ).toBe(false);
     expect(travelerTripIsLive({ status: 'pending', payment_status: 'pending' })).toBe(true);
     expect(travelerTripIsLive({ status: 'confirmed', payment_status: 'paid' })).toBe(true);
     expect(travelerBookingNeedsPayNow({ status: 'pending', payment_status: 'pending' })).toBe(true);

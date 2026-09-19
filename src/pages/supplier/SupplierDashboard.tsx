@@ -19,7 +19,7 @@ import { navigateSupplierUrl, openSupplierInbox, openSupplierPickup } from '../.
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { formatMoney } from '../../lib/money';
 import { bookingOccupiesInventory } from '../../lib/booking-hold';
-import { partnerBookingIsOperatingTrip, partnerBookingIsTodaySchedule, partnerBookingIsUpcomingSchedule } from '../../lib/trip-views';
+import { partnerBookingIsOperatingTrip, partnerBookingIsTodaySchedule, partnerBookingIsUpcomingSchedule, partnerBookingIsActiveUnpaidCheckout } from '../../lib/trip-views';
 import { partnerTodayEmptyScheduleCopy } from '../../lib/partner-today-copy';
 import { formatBookingParticipantsLabel } from '../../lib/participant-mix';
 import { pgTimeToHm } from '../../data/supabase-listings';
@@ -210,11 +210,7 @@ export default function SupplierDashboard() {
   }, [todayDepartures, listingTitlesById]);
 
   const pendingBookings = useMemo(
-    () =>
-      supplierBookings.filter(
-        (b) =>
-          b.status !== 'cancelled' && (b.payment_status ?? 'pending').trim().toLowerCase() === 'pending'
-      ),
+    () => supplierBookings.filter((b) => partnerBookingIsActiveUnpaidCheckout(b)),
     [supplierBookings]
   );
 
@@ -396,7 +392,7 @@ export default function SupplierDashboard() {
                 tone="warn"
                 onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings?ops=unpaid`)}
               >
-                {pendingBookings.length} unpaid checkout{pendingBookings.length === 1 ? '' : 's'} still open
+                {pendingBookings.length} checkout hold{pendingBookings.length === 1 ? '' : 's'} still holding spots
               </AttentionRow>
             )}
             {draftListingsCount > 0 && (

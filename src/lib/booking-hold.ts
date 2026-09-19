@@ -63,3 +63,41 @@ export function checkoutHoldExpiresAtIso(fromMs: number = Date.now()): string {
 export function checkoutHoldExpiresAtUnix(fromMs: number = Date.now()): number {
   return Math.floor(fromMs / 1000) + CHECKOUT_HOLD_MINUTES * 60;
 }
+
+/** Pending unpaid checkout that still blocks tour spots / stay nights. */
+export function partnerUnpaidCheckoutHoldsInventory(
+  row: InventoryHoldRow,
+  nowMs: number = Date.now()
+): boolean {
+  if ((row.status ?? '').trim().toLowerCase() === 'cancelled') return false;
+  const pay = (row.payment_status ?? 'pending').trim().toLowerCase();
+  if (pay !== 'pending') return false;
+  return bookingOccupiesInventory(row, nowMs);
+}
+
+/**
+ * Partner-facing hold line for Calendar day sheet / Bookings detail.
+ * Null when the row is not an unpaid pending checkout.
+ */
+export function formatPartnerCheckoutHoldLabel(
+  row: InventoryHoldRow,
+  nowMs: number = Date.now()
+): string | null {
+  if ((row.status ?? '').trim().toLowerCase() === 'cancelled') return null;
+  const pay = (row.payment_status ?? 'pending').trim().toLowerCase();
+  if (pay !== 'pending') return null;
+  if (partnerUnpaidCheckoutHoldsInventory(row, nowMs)) {
+    if (row.hold_expires_at) {
+      const exp = Date.parse(row.hold_expires_at);
+      if (Number.isFinite(exp) && exp > nowMs) {
+        const until = new Date(exp).toLocaleTimeString(undefined, {
+          hour: '2-digit',
+          minute: '2-digit',
+        });
+        return `Checkout hold · until ${until}`;
+      }
+    }
+    return 'Checkout hold · still holding spots';
+  }
+  return 'Hold expired · inventory released';
+}

@@ -1,5 +1,5 @@
 import { normalizePaymentStatus, isRefundDueBooking } from './payment-states';
-import { bookingOccupiesInventory } from './booking-hold';
+import { bookingOccupiesInventory, partnerUnpaidCheckoutHoldsInventory } from './booking-hold';
 import { checkoutPaymentStatusCanResume } from './checkout-resume';
 import { bookingIsStayNight } from './pickup-completeness';
 import { nightsOccupiedByStay, stayRangeFromBooking } from './stayOccupancy';
@@ -35,6 +35,19 @@ export function partnerBookingIsUnpaidCheckout(b: {
 }): boolean {
   if (bookingIsCancelledTrip(b) || bookingIsFailedCheckout(b)) return false;
   return normalizePaymentStatus(b.payment_status) === 'pending';
+}
+
+/** Unpaid checkout that still holds inventory (Dashboard attention / live holds). */
+export function partnerBookingIsActiveUnpaidCheckout(
+  b: {
+    status?: string | null;
+    payment_status?: string | null;
+    hold_expires_at?: string | null;
+    created_at?: string | null;
+  },
+  nowMs: number = Date.now()
+): boolean {
+  return partnerBookingIsUnpaidCheckout(b) && partnerUnpaidCheckoutHoldsInventory(b, nowMs);
 }
 
 /** Partner live trips: paid, pending hold, cancelled, refunded — not abandoned Stripe checkouts.

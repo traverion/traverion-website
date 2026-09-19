@@ -62,7 +62,8 @@ import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { inventoryFamilyFromListing } from '../../lib/inventory';
 import { parseStayCheckOutFromNotes, nightsOccupiedByStay, stayRangeFromBooking } from '../../lib/stayOccupancy';
-import { partnerBookingIsLiveTrip, bookingIsCancelledTrip, partnerBookingIsOperatingTrip, partnerBookingNeedsLook, partnerBookingIsUnpaidCheckout, partnerBookingShowsCancelAction, partnerBookingIsPastSchedule } from '../../lib/trip-views';
+import { partnerBookingIsLiveTrip, bookingIsCancelledTrip, partnerBookingIsOperatingTrip, partnerBookingNeedsLook, partnerBookingIsUnpaidCheckout, partnerBookingIsActiveUnpaidCheckout, partnerBookingShowsCancelAction, partnerBookingIsPastSchedule } from '../../lib/trip-views';
+import { formatPartnerCheckoutHoldLabel, partnerUnpaidCheckoutHoldsInventory } from '../../lib/booking-hold';
 import { formatStayNightHuman } from '../../lib/stay-calendar';
 import { partnerBookingHasPickupAttention } from '../../lib/pickup-completeness';
 import { openSupplierPickup } from '../../lib/supplierPortalNavigation';
@@ -290,7 +291,7 @@ export default function SupplierBookings() {
 
   const filteredBookings = useMemo(() => {
     const q = filterQuery.trim().toLowerCase();
-    return bookings.filter((b) => {
+    const rows = bookings.filter((b) => {
       if (!partnerBookingIsLiveTrip(b)) return false;
       const meta = listingMeta[b.listing_id];
       const isStay = meta?.family === 'stay' || Boolean(b.check_out);
@@ -370,6 +371,15 @@ export default function SupplierBookings() {
         guestEmail.includes(q)
       );
     });
+    if (opsFilter === 'unpaid') {
+      rows.sort((a, b) => {
+        const aLive = partnerBookingIsActiveUnpaidCheckout(a) ? 0 : 1;
+        const bLive = partnerBookingIsActiveUnpaidCheckout(b) ? 0 : 1;
+        if (aLive !== bLive) return aLive - bLive;
+        return b.created_at.localeCompare(a.created_at);
+      });
+    }
+    return rows;
   }, [bookings, filterDateFrom, filterDateTo, filterListingId, filterQuery, listingMeta, todayIso, view, opsFilter, openCancels]);
 
   const totalPages = Math.max(1, Math.ceil(filteredBookings.length / BOOKINGS_PAGE_SIZE));
@@ -733,7 +743,11 @@ export default function SupplierBookings() {
         <SupplierEmptyState
           icon={CalendarDays}
           title="Nothing in this view"
-          body="You have bookings, but none match this tab, date range, or search. That is a filter — not a missing page."
+          body={
+            opsFilter === 'unpaid'
+              ? 'No unpaid checkouts match these filters. Live holds appear first when present; expired holds stay here until you clear them.'
+              : 'You have bookings, but none match this tab, date range, or search. That is a filter — not a missing page.'
+          }
         />
       ) : (
         <div className="space-y-4">
@@ -809,6 +823,15 @@ export default function SupplierBookings() {
                         {formatBookingParticipantsLabel(booking)}
                         {paidLabel ? ` · ${paidLabel}` : ''}
                       </p>
+                      {partnerBookingIsUnpaidCheckout(booking) ? (
+                        <p
+                          className={`mt-1 text-xs font-medium ${
+                            partnerUnpaidCheckoutHoldsInventory(booking) ? 'text-amber-900' : 'text-ink-faint'
+                          }`}
+                        >
+                          {formatPartnerCheckoutHoldLabel(booking)}
+                        </p>
+                      ) : null}
                       {needsAck ? (
                         <p className="mt-1 text-xs font-medium text-finland">Needs a look</p>
                       ) : null}
@@ -1064,6 +1087,18 @@ export default function SupplierBookings() {
                   ) : null}
                   {canEditBookings && partnerBookingIsUnpaidCheckout(booking) ? (
                     <div className="flex flex-wrap gap-2 pt-1">
+                      <NoticeCallout
+                        title={
+                          partnerUnpaidCheckoutHoldsInventory(booking)
+                            ? 'Checkout hold still open'
+                            : 'Hold expired'
+                        }
+                        tone={partnerUnpaidCheckoutHoldsInventory(booking) ? 'warn' : 'info'}
+                      >
+                        {partnerUnpaidCheckoutHoldsInventory(booking)
+                          ? `${formatPartnerCheckoutHoldLabel(booking)}. The traveler may still complete payment. Cancelling releases this hold.`
+                          : 'Inventory is already released. Clear this row if you no longer need it — this does not free additional spots.'}
+                      </NoticeCallout>
                       <button
                         type="button"
                         disabled={busy}
@@ -1076,7 +1111,7 @@ export default function SupplierBookings() {
                         className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
                       >
                         <Trash2 className="h-4 w-4" aria-hidden />
-                        Cancel unpaid
+                        {partnerUnpaidCheckoutHoldsInventory(booking) ? 'Cancel unpaid' : 'Clear expired hold'}
                       </button>
                     </div>
                   ) : null}

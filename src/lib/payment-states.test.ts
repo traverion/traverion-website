@@ -3,6 +3,7 @@ import {
   isCollectedBooking,
   sumCollectedAmount,
   travelerPaymentLabel,
+  partnerPaymentLabel,
   partnerCollectedAmountCaption,
   bookingPaymentWasCollected,
   isRefundDueBooking,
@@ -27,6 +28,24 @@ describe('payment states', () => {
         checkout_session_id: 'cs_test_abc',
       })
     ).toBe('Payment pending');
+    const now = Date.now();
+    expect(
+      partnerPaymentLabel({
+        status: 'pending',
+        payment_status: 'pending',
+        checkout_session_id: 'cs_test_abc',
+        created_at: new Date(now - 60 * 60 * 1000).toISOString(),
+        hold_expires_at: new Date(now + 20 * 60 * 1000).toISOString(),
+      })
+    ).toBe('Checkout hold');
+    expect(
+      partnerPaymentLabel({
+        status: 'pending',
+        payment_status: 'pending',
+        created_at: new Date(now - 60 * 60 * 1000).toISOString(),
+        hold_expires_at: new Date(now - 10 * 60 * 1000).toISOString(),
+      })
+    ).toBe('Hold expired');
   });
 
   it('reconciles Booking #5 + #6 as 189 + 445 = 634', () => {

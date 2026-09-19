@@ -3,6 +3,8 @@
  * Checkout-created / pending is not paid. Do not treat a Stripe session id as collected money.
  */
 
+import { partnerUnpaidCheckoutHoldsInventory } from './booking-hold';
+
 export const BOOKING_PAYMENT_STATES = ['pending', 'paid', 'failed', 'cancelled', 'refunded'] as const;
 export type BookingPaymentState = (typeof BOOKING_PAYMENT_STATES)[number];
 
@@ -13,6 +15,8 @@ export type MoneyBookingRow = {
   checkout_session_id?: string | null;
   currency?: string | null;
   refund_choice?: string | null;
+  hold_expires_at?: string | null;
+  created_at?: string | null;
 };
 
 export function normalizePaymentStatus(raw: string | null | undefined): string {
@@ -57,7 +61,10 @@ export function travelerPaymentLabel(b: MoneyBookingRow): string {
 }
 
 export function partnerPaymentLabel(b: MoneyBookingRow): string {
-  return travelerPaymentLabel(b);
+  const base = travelerPaymentLabel(b);
+  if (base !== 'Payment pending') return base;
+  if (partnerUnpaidCheckoutHoldsInventory(b)) return 'Checkout hold';
+  return 'Hold expired';
 }
 
 /**
