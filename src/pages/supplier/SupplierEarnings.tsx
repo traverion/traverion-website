@@ -7,7 +7,7 @@ import { fetchSupplierProfile } from '../../data/supabase-supplier-profile';
 import { SUPPLIER_PAGE_CLASS, SupplierEmptyState, SupplierListSkeleton, SupplierPageHero } from '../../components/supplier/supplierUi';
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
-import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
+import { navigateSupplierUrl, openSupplierBooking } from '../../lib/supplierPortalNavigation';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { formatMoney, isStripeTestCheckoutSession, normalizeCurrency } from '../../lib/money';
 import { isCollectedBooking, isRefundDueBooking, REFUND_DUE_MANUAL_COPY } from '../../lib/payment-states';
@@ -45,7 +45,29 @@ export default function SupplierEarnings() {
   const [profile, setProfile] = useState<Awaited<ReturnType<typeof fetchSupplierProfile>>>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'paid'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'paid'>(() => {
+    if (typeof window === 'undefined') return 'all';
+    const s = new URLSearchParams(window.location.search).get('status');
+    return s === 'pending' || s === 'paid' ? s : 'all';
+  });
+
+  const setStatusFilterAndUrl = useCallback((next: 'all' | 'pending' | 'paid') => {
+    setStatusFilter(next);
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    if (next === 'all') url.searchParams.delete('status');
+    else url.searchParams.set('status', next);
+    window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+  }, []);
+
+  useEffect(() => {
+    const syncFromUrl = () => {
+      const s = new URLSearchParams(window.location.search).get('status');
+      setStatusFilter(s === 'pending' || s === 'paid' ? s : 'all');
+    };
+    window.addEventListener('popstate', syncFromUrl);
+    return () => window.removeEventListener('popstate', syncFromUrl);
+  }, []);
 
   const load = useCallback(() => {
     const uid = user?.id;
@@ -355,7 +377,7 @@ export default function SupplierEarnings() {
                   <button
                     key={s}
                     type="button"
-                    onClick={() => setStatusFilter(s)}
+                    onClick={() => setStatusFilterAndUrl(s)}
                     className={`lux-flat rounded-full px-3 py-2 min-h-11 text-sm font-medium transition-colors ${
                       statusFilter === s
                         ? s === 'pending'
@@ -382,11 +404,11 @@ export default function SupplierEarnings() {
             {ledger.length > 0 ? (
               <div className="mb-8">
                 <h3 className="text-[11px] uppercase tracking-[0.18em] text-ink-faint mb-2">Ledger</h3>
-              <ul className="space-y-2">
+              <ul className="space-y-1.5">
                 {ledger.map((e) => (
                   <li
                     key={e.id}
-                    className="rounded-2xl bg-paper-raised px-4 py-3.5 shadow-soft ring-1 ring-black/[0.06] flex items-baseline justify-between gap-4"
+                    className="rounded-xl bg-paper-raised px-3 py-2.5 shadow-soft ring-1 ring-black/[0.06] flex items-baseline justify-between gap-3"
                   >
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-ink">{e.reason}</p>
@@ -407,29 +429,32 @@ export default function SupplierEarnings() {
               </div>
             ) : null}
             {filteredEarnings.length === 0 ? (
-              paidBookings.length > 0 ? (
-                <ul className="space-y-2">
+              statusFilter === 'all' && paidBookings.length > 0 ? (
+                <ul className="space-y-1.5">
                   {paidBookings.map((b) => (
-                    <li
-                      key={b.id}
-                      className="rounded-2xl bg-paper-raised px-4 py-3.5 shadow-soft ring-1 ring-black/[0.06] flex items-baseline justify-between gap-4"
-                    >
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-ink">
-                          {b.booking_number != null ? `#${b.booking_number} · ` : ''}
-                          {listingTitles[b.listing_id] || b.guest_name?.trim() || 'Guest'}
+                    <li key={b.id}>
+                      <button
+                        type="button"
+                        onClick={() => openSupplierBooking(b.id)}
+                        className="w-full rounded-xl bg-paper-raised px-3 py-2.5 shadow-soft ring-1 ring-black/[0.06] flex items-baseline justify-between gap-3 text-left hover:ring-black/[0.1] transition-shadow"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-ink truncate">
+                            {b.booking_number != null ? `#${b.booking_number} · ` : ''}
+                            {listingTitles[b.listing_id] || b.guest_name?.trim() || 'Guest'}
+                          </p>
+                          <p className="mt-0.5 text-xs text-ink-muted truncate">
+                            {b.guest_name?.trim() || 'Guest'} · {b.booking_date}
+                            {isStripeTestCheckoutSession(b.checkout_session_id)
+                              ? ' · Stripe TEST'
+                              : ''}
+                            {' · collected, not paid out'}
+                          </p>
+                        </div>
+                        <p className="tabular-nums text-sm font-semibold text-ink shrink-0">
+                          {formatMoney(Number(b.amount_paid ?? 0), normalizeCurrency(b.currency ?? primaryCurrency))}
                         </p>
-                        <p className="mt-0.5 text-xs text-ink-muted">
-                          {b.guest_name?.trim() || 'Guest'} · {b.booking_date}
-                          {isStripeTestCheckoutSession(b.checkout_session_id)
-                            ? ' · Stripe TEST'
-                            : ''}
-                          {' · collected, not paid out'}
-                        </p>
-                      </div>
-                      <p className="tabular-nums font-semibold text-ink shrink-0">
-                        {formatMoney(Number(b.amount_paid ?? 0), normalizeCurrency(b.currency ?? primaryCurrency))}
-                      </p>
+                      </button>
                     </li>
                   ))}
                 </ul>
@@ -442,11 +467,11 @@ export default function SupplierEarnings() {
               />
               )
             ) : (
-              <ul className="space-y-2">
+              <ul className="space-y-1.5">
                 {filteredEarnings.map((e) => (
                   <li
                     key={e.id}
-                    className="rounded-2xl bg-paper-raised px-4 py-3.5 shadow-soft ring-1 ring-black/[0.06] flex items-baseline justify-between gap-4"
+                    className="rounded-xl bg-paper-raised px-3 py-2.5 shadow-soft ring-1 ring-black/[0.06] flex items-baseline justify-between gap-3"
                   >
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
@@ -471,7 +496,7 @@ export default function SupplierEarnings() {
                         ) : null}
                       </p>
                     </div>
-                    <p className="tabular-nums font-semibold text-ink shrink-0">
+                    <p className="tabular-nums text-sm font-semibold text-ink shrink-0">
                       {formatMoney(Number(e.amount), e.currency)}
                     </p>
                   </li>
