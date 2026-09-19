@@ -67,6 +67,7 @@ import {
   peekPartnerReturnPath,
   rememberPartnerReturnPath,
 } from '../../lib/partnerReturnPath';
+import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
 
 const SupplierEarnings = lazy(() => import('../../pages/supplier/SupplierEarnings'));
 const SupplierPerformance = lazy(() => import('../../pages/supplier/SupplierPerformance'));
@@ -997,10 +998,17 @@ export default function SupplierLayout() {
                         onSkip={() => handleNavigate('dashboard')}
                         onBusiness={() => openSettingsFocus('company')}
                         onPayout={() => openSettingsFocus('payout')}
-                        onTours={() => handleNavigate('listings')}
+                        onTours={() => {
+                          if ((onboardingListingCount ?? 0) > 0) {
+                            handleNavigate('listings');
+                          } else {
+                            navigateSupplierUrl(`${PARTNER_APP_BASE}/listings?new=1`);
+                          }
+                        }}
                         businessDone={onboardingHasCompany}
                         payoutDone={onboardingHasPayout}
                         hasListing={(onboardingListingCount ?? 0) > 0}
+                        publishReady={onboardingBusinessVerified && onboardingPayoutVerified}
                       />
                     )}
                     {section === 'dashboard' && <SupplierDashboard />}

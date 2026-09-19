@@ -14,7 +14,7 @@ import { isCollectedBooking, isRefundDueBooking, REFUND_DUE_MANUAL_COPY } from '
 import { isCollectedEarningKind } from '../../lib/supplier-ledger-balance';
 import { fetchMyListings } from '../../data/supabase-listings';
 import { fetchSupplierLedger, type SupplierLedgerEntry } from '../../data/supabase-booking-ops';
-import { PARTNER_MONEY_PAYOUT_STATUS_NOTE, PARTNER_MONEY_PAID_OUT_TO_DATE_NOTE, PARTNER_MONEY_EMPTY_TITLE, PARTNER_MONEY_EMPTY_BODY, PARTNER_MONEY_LOAD_ERROR_TITLE, PARTNER_MONEY_FILTER_EMPTY_BODY, PARTNER_MONEY_AVAILABLE_BALANCE_LABEL, PARTNER_MONEY_NEGATIVE_BALANCE_LABEL, PARTNER_MONEY_NEGATIVE_BALANCE_NOTE, PARTNER_MONEY_PERIOD_NOT_PAID_OUT_LABEL, PARTNER_MONEY_THRESHOLD_PROGRESS_SUFFIX } from '../../lib/booking-confirmation-copy';
+import { PARTNER_MONEY_PAYOUT_STATUS_NOTE, PARTNER_MONEY_PAID_OUT_TO_DATE_NOTE, PARTNER_MONEY_EMPTY_TITLE, PARTNER_MONEY_EMPTY_BODY, PARTNER_MONEY_LOAD_ERROR_TITLE, PARTNER_MONEY_FILTER_EMPTY_BODY, PARTNER_MONEY_AVAILABLE_BALANCE_LABEL, PARTNER_MONEY_NEGATIVE_BALANCE_LABEL, PARTNER_MONEY_NEGATIVE_BALANCE_NOTE, PARTNER_MONEY_PERIOD_NOT_PAID_OUT_LABEL, PARTNER_MONEY_THRESHOLD_PREFERENCE_NOTE } from '../../lib/booking-confirmation-copy';
 import NoticeCallout from '../../components/NoticeCallout';
 import StatusChip from '../../components/StatusChip';
 import {
@@ -156,11 +156,6 @@ export default function SupplierEarnings() {
   const threshold = profile?.payout_threshold_min ?? 0;
   const nextPayoutLabel = PARTNER_MONEY_PAYOUT_STATUS_NOTE;
 
-  const payoutProgressPctFor = (pendingForCurrency: number): number | null =>
-    threshold > 0 && pendingForCurrency > 0
-      ? Math.min(100, Math.round((pendingForCurrency / threshold) * 100))
-      : null;
-
   const exportCsv = () => {
     if (
       !partnerMoneyCsvHasExportableRows({
@@ -246,7 +241,6 @@ export default function SupplierEarnings() {
             </section>
           ) : (
             moneyByCurrency.map((s) => {
-              const payoutProgressPct = payoutProgressPctFor(s.pending);
               return (
                 <section
                   key={s.currency}
@@ -292,9 +286,13 @@ export default function SupplierEarnings() {
                       </NoticeCallout>
                     </div>
                   ) : null}
-                  {payoutProgressPct !== null ? (
-                    <p className="mt-3 text-sm text-ink-muted">
-                      {payoutProgressPct}% {PARTNER_MONEY_THRESHOLD_PROGRESS_SUFFIX}
+                  {threshold > 0 && moneyByCurrency.length === 1 ? (
+                    <p className="mt-3 text-sm text-ink-muted max-w-lg">
+                      Saved minimum preference: {formatMoney(threshold, s.currency)}. {PARTNER_MONEY_THRESHOLD_PREFERENCE_NOTE}
+                    </p>
+                  ) : threshold > 0 && moneyByCurrency[0]?.currency === s.currency ? (
+                    <p className="mt-3 text-sm text-ink-muted max-w-lg">
+                      Saved minimum preference: {threshold} (no currency on file). {PARTNER_MONEY_THRESHOLD_PREFERENCE_NOTE}
                     </p>
                   ) : null}
                   {s.refundDueCount > 0 ? (

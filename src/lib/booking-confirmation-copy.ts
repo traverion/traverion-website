@@ -161,7 +161,7 @@ export const SUPPLIER_WELCOME_LISTING_STEP_NOTE =
 
 /** Partner Settings — threshold applies only once payouts are enabled; do not imply automatic sends today. */
 export const PARTNER_PAYOUT_THRESHOLD_HINT =
-  'Minimum balance before Traverion will consider a payout once payouts are enabled (e.g. 50).';
+  'Preference only: minimum balance Traverion will consider once payouts are enabled (e.g. 50). Not an active payout queue.';
 
 /** Traveler Trips — self-cancel is immediate, not a host-approval “request”. */
 export const TRAVELER_SELF_CANCEL_CTA = 'Cancel booking';
@@ -392,11 +392,26 @@ export const PARTNER_MONEY_NEGATIVE_BALANCE_NOTE =
 export const PARTNER_MONEY_PERIOD_NOT_PAID_OUT_LABEL = 'Not paid out';
 
 /**
- * Money hero threshold progress suffix — informational only once payouts are enabled.
- * Display as `{pct}% {PARTNER_MONEY_THRESHOLD_PROGRESS_SUFFIX}`.
+ * Money hero — saved threshold is a preference only.
+ * Do not show a progress % toward threshold (reads as a queued transfer).
  */
-export const PARTNER_MONEY_THRESHOLD_PROGRESS_SUFFIX =
-  'of your saved minimum (applies once payouts are enabled — not a queued transfer)';
+export const PARTNER_MONEY_THRESHOLD_PREFERENCE_NOTE =
+  'Saved as a preference once payouts are enabled — not a queued transfer or progress toward one.';
+
+/** @deprecated Use PARTNER_MONEY_THRESHOLD_PREFERENCE_NOTE — progress % was misleading. */
+export const PARTNER_MONEY_THRESHOLD_PROGRESS_SUFFIX = PARTNER_MONEY_THRESHOLD_PREFERENCE_NOTE;
+
+/** Partner Settings — payout frequency preference; not an active schedule. */
+export const PARTNER_PAYOUT_FREQUENCY_HINT =
+  'Preference for when Traverion enables payouts — not an active schedule today.';
+
+/** Partner onboarding — checklist fields filled; publish still needs verification. */
+export const PARTNER_ONBOARDING_CHECKLIST_DONE_NOTE =
+  'Business, payout, and a first listing are on file. Traverion must still verify business and payout before you can publish.';
+
+/** Partner onboarding — verified and can publish. */
+export const PARTNER_ONBOARDING_PUBLISH_READY_NOTE =
+  'Business and payout are verified. Publish a listing that meets quality checks when you are ready.';
 
 /** Booking thread empty body — post, not email send (maps RPC “before sending”). */
 export const BOOKING_MESSAGE_EMPTY_BODY_ERROR = 'Write a message before posting.';

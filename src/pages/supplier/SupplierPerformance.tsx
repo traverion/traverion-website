@@ -96,23 +96,26 @@ export default function SupplierPerformance() {
     [listings]
   );
 
+  /** One row per listing×currency — never blend currencies into a single listing total. */
   const listingRows: ListingPerformance[] = useMemo(() => {
-    const byListing = new Map<string, ListingPerformance>();
+    const byKey = new Map<string, ListingPerformance>();
     for (const b of collectedInWindow) {
-      const cur = byListing.get(b.listing_id) ?? {
+      const currency = normalizeCurrency(b.currency);
+      const key = `${b.listing_id}::${currency}`;
+      const cur = byKey.get(key) ?? {
         listingId: b.listing_id,
         title: titleByListingId[b.listing_id] ?? 'Removed listing',
         bookingsCount: 0,
         guestsCount: 0,
         revenue: 0,
-        currency: normalizeCurrency(b.currency),
+        currency,
       };
       cur.bookingsCount += 1;
-      cur.guestsCount += b.guests ?? 0;
+      cur.guestsCount += Number(b.guests) > 0 ? Number(b.guests) : 0;
       cur.revenue += Number(b.amount_paid ?? 0);
-      byListing.set(b.listing_id, cur);
+      byKey.set(key, cur);
     }
-    return [...byListing.values()].sort((a, b) => b.revenue - a.revenue);
+    return [...byKey.values()].sort((a, b) => b.revenue - a.revenue);
   }, [collectedInWindow, titleByListingId]);
 
   /** Revenue is never blended across currencies (this platform genuinely supports several) —
@@ -137,12 +140,33 @@ export default function SupplierPerformance() {
 
   const totals = useMemo(() => {
     const bookingsCount = collectedInWindow.length;
-    const guestsCount = collectedInWindow.reduce((sum, b) => sum + (b.guests ?? 0), 0);
+    const guestsCount = collectedInWindow.reduce((sum, b) => {
+      const g = Number(b.guests);
+      return sum + (Number.isFinite(g) && g > 0 ? g : 0);
+    }, 0);
     return { bookingsCount, guestsCount };
   }, [collectedInWindow]);
 
   const isMultiCurrency = revenueByCurrency.length > 1;
-  const topListing = listingRows[0] ?? null;
+  const listingCountInWindow = useMemo(
+    () => new Set(listingRows.map((r) => r.listingId)).size,
+    [listingRows]
+  );
+  /** Top earner only when comparable in one currency (avoid cross-currency “winner”). */
+  const topListing = useMemo(() => {
+    if (listingRows.length < 2) return null;
+    if (isMultiCurrency) {
+      const byCur = new Map<string, ListingPerformance[]>();
+      for (const row of listingRows) {
+        const list = byCur.get(row.currency) ?? [];
+        list.push(row);
+        byCur.set(row.currency, list);
+      }
+      const mono = [...byCur.values()].find((rows) => rows.length > 1);
+      return mono?.[0] ?? null;
+    }
+    return listingRows[0] ?? null;
+  }, [listingRows, isMultiCurrency]);
 
   return (
     <div className={SUPPLIER_PAGE_CLASS}>
@@ -150,7 +174,7 @@ export default function SupplierPerformance() {
         badge="Insights"
         icon={TrendingUp}
         title="Performance"
-        description="Which listings are actually earning, based on completed bookings — not estimates or site-traffic guesses."
+        description="Paid traveler bookings only — same collected definition as Money. Not estimates, site traffic, or unpaid checkouts."
         actions={
           <div className="flex items-center gap-1 rounded-md bg-paper p-1 ring-1 ring-black/[0.06]" role="tablist" aria-label="Time range">
             {WINDOW_OPTIONS.map((opt) => (
@@ -187,11 +211,11 @@ export default function SupplierPerformance() {
       {!error && !loading && collectedInWindow.length === 0 && (
         <SupplierEmptyState
           icon={TrendingUp}
-          title={listings.length === 0 ? 'No listings yet' : 'No completed bookings in this window'}
+          title={listings.length === 0 ? 'No listings yet' : 'No paid bookings in this window'}
           body={
             listings.length === 0
-              ? 'Performance is based on your real bookings. Publish a listing to start seeing numbers here.'
-              : 'Try a longer time range, or check back once a booking is paid — cancelled and refunded bookings are never counted.'
+              ? 'Performance uses the same paid bookings as Money. Draft a listing to start collecting bookings.'
+              : 'Try a longer time range, or check back once a traveler completes checkout — cancelled and refunded bookings are never counted.'
           }
           action={
             listings.length === 0 ? (
@@ -209,16 +233,21 @@ export default function SupplierPerformance() {
 
       {!error && !loading && collectedInWindow.length > 0 && (
         <div className="space-y-8">
+          <p className="text-xs text-ink-muted -mb-4">
+            Window uses booking created date (checkout time), not departure date.
+          </p>
           <div className={SUPPLIER_STAT_GRID_CLASS}>
             <div className="tv-card p-4 sm:p-5">
-              <p className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">Bookings</p>
+              <p className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">Paid bookings</p>
               <p className="mt-1.5 font-display text-3xl text-ink tabular-nums">{totals.bookingsCount}</p>
               <p className="text-xs text-ink-muted mt-2">{activeWindow.label.toLowerCase()}</p>
             </div>
             <div className="tv-card p-4 sm:p-5">
               <p className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">Guests</p>
               <p className="mt-1.5 font-display text-3xl text-ink tabular-nums">{totals.guestsCount}</p>
-              <p className="text-xs text-ink-muted mt-2">across {listingRows.length} listing{listingRows.length === 1 ? '' : 's'}</p>
+              <p className="text-xs text-ink-muted mt-2">
+                across {listingCountInWindow} listing{listingCountInWindow === 1 ? '' : 's'}
+              </p>
             </div>
             {revenueByCurrency.map((r) => (
               <div key={`revenue-${r.currency}`} className="tv-card p-4 sm:p-5">
@@ -237,7 +266,7 @@ export default function SupplierPerformance() {
                 <p className="mt-1.5 font-display text-3xl text-ink tabular-nums">
                   {formatMoney(r.count > 0 ? r.revenue / r.count : 0, r.currency)}
                 </p>
-                <p className="text-xs text-ink-muted mt-2">per collected booking</p>
+                <p className="text-xs text-ink-muted mt-2">per paid booking</p>
               </div>
             ))}
           </div>
@@ -249,11 +278,12 @@ export default function SupplierPerformance() {
             </p>
           )}
 
-          {topListing && listingRows.length > 1 && (
+          {topListing && (
             <div className="flex items-center gap-2 text-sm text-ink-muted">
               <Award className="w-4 h-4 text-finland shrink-0" aria-hidden />
               <span>
-                <span className="font-medium text-ink">{topListing.title}</span> is your top earner this window at{' '}
+                <span className="font-medium text-ink">{topListing.title}</span> is your top earner this window
+                {isMultiCurrency ? ` in ${topListing.currency}` : ''} at{' '}
                 {formatMoney(topListing.revenue, topListing.currency)}.
               </span>
             </div>
@@ -266,18 +296,25 @@ export default function SupplierPerformance() {
                 const currencyTotal = revenueTotalByCurrency.get(row.currency) ?? 0;
                 const share = currencyTotal > 0 ? Math.round((row.revenue / currencyTotal) * 100) : 0;
                 return (
-                  <li key={row.listingId} className="tv-card p-4 sm:p-5">
+                  <li key={`${row.listingId}-${row.currency}`} className="tv-card p-4 sm:p-5">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="font-medium text-ink truncate">{row.title}</p>
+                        <p className="font-medium text-ink truncate">
+                          {row.title}
+                          {isMultiCurrency ? (
+                            <span className="text-ink-muted font-normal"> · {row.currency}</span>
+                          ) : null}
+                        </p>
                         <p className="text-sm text-ink-muted mt-0.5">
-                          {row.bookingsCount} booking{row.bookingsCount === 1 ? '' : 's'} · {row.guestsCount} guest
-                          {row.guestsCount === 1 ? '' : 's'}
+                          {row.bookingsCount} paid booking{row.bookingsCount === 1 ? '' : 's'} · {row.guestsCount}{' '}
+                          guest{row.guestsCount === 1 ? '' : 's'}
                         </p>
                       </div>
                       <div className="text-right shrink-0">
                         <p className="font-display text-xl text-ink tabular-nums">{formatMoney(row.revenue, row.currency)}</p>
-                        <p className="text-xs text-ink-muted mt-0.5">{share}% of revenue</p>
+                        <p className="text-xs text-ink-muted mt-0.5">
+                          {share}% of {row.currency} revenue
+                        </p>
                       </div>
                     </div>
                     <div className="mt-3 h-1.5 w-full rounded-full bg-black/[0.06] overflow-hidden" aria-hidden>

@@ -45,6 +45,7 @@ import {
   PARTNER_BUSINESS_REVIEW_STATUS_NOTE,
   PARTNER_PAYOUT_REVIEW_STATUS_NOTE,
   PARTNER_PAYOUT_THRESHOLD_HINT,
+  PARTNER_PAYOUT_FREQUENCY_HINT,
   PARTNER_BUSINESS_READY_TO_SUBMIT_NOTE,
   PARTNER_VERIFICATION_EMAIL_REQUESTED,
 } from '../../lib/booking-confirmation-copy';
@@ -278,11 +279,12 @@ function AccountSettingsPage(p: Props) {
         </div>
 
         {p.supplierEmailVerified ? (
-          <p className="text-sm text-ink-muted">Your email is verified. You can use the partner portal normally.</p>
+          <p className="text-sm text-ink-muted">Your email is verified for this Partner account.</p>
         ) : (
           <div className="space-y-3">
             <p className="text-sm text-amber-900 leading-relaxed">
-              Verify your email before you can log in. Check your inbox and spam folder for the confirmation link.
+              Your email is not verified yet. Confirm it so Traverion can reach you about this account — you are already
+              signed in here.
             </p>
             {p.supplierEmail && p.isSupabase ? (
               <div className="space-y-2">
@@ -331,8 +333,9 @@ function AccountSettingsPage(p: Props) {
 
         <button
           type="button"
+          disabled={!p.isSupabase}
           onClick={() => p.handleNavigate('change-password')}
-          className="tv-btn-primary inline-flex items-center justify-center gap-2"
+          className="tv-btn-primary inline-flex items-center justify-center gap-2 disabled:opacity-50"
         >
           Change password
           <ChevronRight className="w-4 h-4" aria-hidden />
@@ -841,6 +844,7 @@ function BusinessProfilePage(p: Props) {
                       if (businessLocked) return;
                       setDocError(null);
                       setCompanyRegUploading(true);
+                      const previousPath = p.companyRegistrationPath?.trim() ?? '';
                       const { path, error: upErr } = await uploadSupplierVerificationDocument(p.user.id, file);
                       if (upErr || !path) {
                         setCompanyRegUploading(false);
@@ -856,6 +860,10 @@ function BusinessProfilePage(p: Props) {
                       setCompanyRegUploading(false);
                       if (res.success) {
                         p.setCompanyRegistrationPath(path);
+                        // Different extension → different storage object; remove the previous file.
+                        if (previousPath && previousPath !== path) {
+                          await removeSupplierVerificationDocumentFile(previousPath);
+                        }
                       } else {
                         // Avoid orphaned storage object when the profile row could not be updated.
                         await removeSupplierVerificationDocumentFile(path);
@@ -1090,6 +1098,9 @@ function BusinessProfilePage(p: Props) {
                         });
               } else {
                 p.setCompanyMessage('error');
+                setCompanySaveError(
+                  userFacingError(res.error ?? 'Could not save company details.', USER_ERROR.generic)
+                );
               }
             }}
           />
@@ -1185,7 +1196,7 @@ function BusinessProfilePage(p: Props) {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-ink mb-1.5">Payout frequency</label>
-                <p className="text-xs text-ink-muted mb-2">How often we settle payouts once enabled.</p>
+                <p className="text-xs text-ink-muted mb-2">{PARTNER_PAYOUT_FREQUENCY_HINT}</p>
                 <select
                   value={p.paymentCycle}
                   onChange={(e) => p.setPaymentCycle(e.target.value as 'monthly' | 'biweekly' | '')}
@@ -1257,6 +1268,9 @@ function BusinessProfilePage(p: Props) {
                 p.onPayoutSaved();
               } else {
                 p.setPayoutMessage('error');
+                setPayoutSaveError(
+                  userFacingError(res.error ?? 'Could not save payout details.', USER_ERROR.generic)
+                );
               }
             }}
           />

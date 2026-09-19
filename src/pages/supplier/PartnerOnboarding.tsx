@@ -5,6 +5,8 @@ import {
   PARTNER_ONBOARDING_INTRO_NOTE,
   PARTNER_ONBOARDING_PAYOUT_STEP_NOTE,
   PARTNER_FIRST_LISTING_STEP_NOTE,
+  PARTNER_ONBOARDING_CHECKLIST_DONE_NOTE,
+  PARTNER_ONBOARDING_PUBLISH_READY_NOTE,
 } from '../../lib/booking-confirmation-copy';
 import StatusChip from '../../components/StatusChip';
 import NoticeCallout from '../../components/NoticeCallout';
@@ -18,6 +20,8 @@ type PartnerOnboardingProps = {
   payoutDone: boolean;
   /** True when the partner already has at least one tour or stay draft/listing. */
   hasListing: boolean;
+  /** True when Traverion has verified both business and payout (publish gate). */
+  publishReady: boolean;
 };
 
 export default function PartnerOnboarding({
@@ -28,6 +32,7 @@ export default function PartnerOnboarding({
   businessDone,
   payoutDone,
   hasListing,
+  publishReady,
 }: PartnerOnboardingProps) {
   const steps = [
     {
@@ -58,6 +63,7 @@ export default function PartnerOnboarding({
 
   const completed = steps.filter((s) => s.done).length;
   const nextIncomplete = steps.find((s) => !s.done);
+  const checklistComplete = completed === steps.length;
 
   return (
     <div className="max-w-2xl mx-auto px-1 sm:px-0 py-8 sm:py-14">
@@ -72,10 +78,14 @@ export default function PartnerOnboarding({
       <div className="mb-8 rounded-2xl bg-finland/8 px-4 py-3 ring-1 ring-finland/15">
         <div className="flex items-center justify-between gap-3 mb-2">
           <p className="text-sm font-semibold text-ink">
-            {completed === steps.length ? 'Setup complete' : `${completed} of ${steps.length} steps done`}
+            {checklistComplete
+              ? publishReady
+                ? 'Checklist complete — publish unlocked'
+                : 'Checklist complete — verification pending'
+              : `${completed} of ${steps.length} steps done`}
           </p>
-          <StatusChip tone={completed === steps.length ? 'good' : 'neutral'}>
-            {completed === steps.length ? 'Ready' : 'In progress'}
+          <StatusChip tone={checklistComplete && publishReady ? 'good' : checklistComplete ? 'warn' : 'neutral'}>
+            {checklistComplete && publishReady ? 'Can publish' : checklistComplete ? 'Awaiting review' : 'In progress'}
           </StatusChip>
         </div>
         <div
@@ -93,11 +103,32 @@ export default function PartnerOnboarding({
         </div>
       </div>
 
-      {completed === steps.length ? (
-        <div className="mb-8">
-          <NoticeCallout title="You’re ready to run the day" tone="success">
-            Business, payout, and at least one listing are in place. Jump into Today whenever you like.
+      {checklistComplete ? (
+        <div className="mb-8 space-y-4">
+          <NoticeCallout
+            title={publishReady ? 'Publish is unlocked' : 'Still waiting on Traverion'}
+            tone={publishReady ? 'success' : 'info'}
+          >
+            {publishReady ? PARTNER_ONBOARDING_PUBLISH_READY_NOTE : PARTNER_ONBOARDING_CHECKLIST_DONE_NOTE}
           </NoticeCallout>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={onTours}
+              className="tv-btn-primary inline-flex items-center gap-1.5"
+            >
+              {hasListing ? 'Open listings' : 'Create listing'} <ArrowRight className="w-4 h-4" aria-hidden />
+            </button>
+            {!publishReady ? (
+              <button
+                type="button"
+                onClick={onBusiness}
+                className="tv-btn-secondary inline-flex items-center gap-1.5"
+              >
+                Check verification status
+              </button>
+            ) : null}
+          </div>
         </div>
       ) : null}
 

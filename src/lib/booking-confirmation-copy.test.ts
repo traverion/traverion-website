@@ -57,7 +57,11 @@ import {
   PARTNER_MONEY_NEGATIVE_BALANCE_LABEL,
   PARTNER_MONEY_NEGATIVE_BALANCE_NOTE,
   PARTNER_MONEY_PERIOD_NOT_PAID_OUT_LABEL,
+  PARTNER_MONEY_THRESHOLD_PREFERENCE_NOTE,
   PARTNER_MONEY_THRESHOLD_PROGRESS_SUFFIX,
+  PARTNER_PAYOUT_FREQUENCY_HINT,
+  PARTNER_ONBOARDING_CHECKLIST_DONE_NOTE,
+  PARTNER_ONBOARDING_PUBLISH_READY_NOTE,
   PARTNER_BUSINESS_READY_TO_SUBMIT_NOTE,
   BOOKING_MESSAGE_EMPTY_BODY_ERROR,
   TRAVELER_PICKUP_PENDING_UI_NOTE,
@@ -227,7 +231,9 @@ describe('booking confirmation copy', () => {
     expect(SUPPLIER_WELCOME_LISTING_STEP_NOTE.toLowerCase()).toContain('business and payout verification');
     expect(SUPPLIER_WELCOME_LISTING_STEP_NOTE.toLowerCase()).not.toContain('publish when you are ready');
     expect(PARTNER_PAYOUT_THRESHOLD_HINT.toLowerCase()).toContain('once payouts are enabled');
+    expect(PARTNER_PAYOUT_THRESHOLD_HINT.toLowerCase()).toContain('preference');
     expect(PARTNER_PAYOUT_THRESHOLD_HINT.toLowerCase()).not.toContain('before a payout is sent');
+    expect(PARTNER_PAYOUT_THRESHOLD_HINT.toLowerCase()).toContain('not an active payout queue');
   });
 
   it('partner cancellation request copy does not promise the traveler was emailed', () => {
@@ -399,9 +405,16 @@ describe('booking confirmation copy', () => {
     expect(PARTNER_MONEY_NEGATIVE_BALANCE_NOTE.toLowerCase()).toContain('no queued next payout');
     expect(PARTNER_MONEY_NEGATIVE_BALANCE_NOTE.toLowerCase()).not.toContain('before the next payout');
     expect(PARTNER_MONEY_PERIOD_NOT_PAID_OUT_LABEL.toLowerCase()).toBe('not paid out');
-    expect(PARTNER_MONEY_THRESHOLD_PROGRESS_SUFFIX.toLowerCase()).toContain('once payouts are enabled');
-    expect(PARTNER_MONEY_THRESHOLD_PROGRESS_SUFFIX.toLowerCase()).toContain('not a queued transfer');
-    expect(PARTNER_MONEY_THRESHOLD_PROGRESS_SUFFIX.toLowerCase()).not.toContain('payout minimum');
+    expect(PARTNER_MONEY_THRESHOLD_PREFERENCE_NOTE.toLowerCase()).toContain('once payouts are enabled');
+    expect(PARTNER_MONEY_THRESHOLD_PREFERENCE_NOTE.toLowerCase()).toContain('not a queued transfer');
+    expect(PARTNER_MONEY_THRESHOLD_PREFERENCE_NOTE.toLowerCase()).toContain('preference');
+    expect(PARTNER_MONEY_THRESHOLD_PREFERENCE_NOTE.toLowerCase()).not.toMatch(/\d+\s*%/);
+    expect(PARTNER_MONEY_THRESHOLD_PROGRESS_SUFFIX).toBe(PARTNER_MONEY_THRESHOLD_PREFERENCE_NOTE);
+    expect(PARTNER_PAYOUT_FREQUENCY_HINT.toLowerCase()).toContain('not an active schedule');
+    expect(PARTNER_ONBOARDING_CHECKLIST_DONE_NOTE.toLowerCase()).toContain('before you can publish');
+    expect(PARTNER_ONBOARDING_CHECKLIST_DONE_NOTE.toLowerCase()).not.toContain('ready to run');
+    expect(PARTNER_ONBOARDING_PUBLISH_READY_NOTE.toLowerCase()).toContain('verified');
+    expect(PARTNER_ONBOARDING_PUBLISH_READY_NOTE.toLowerCase()).toContain('publish');
     expect(BOOKING_MESSAGE_EMPTY_BODY_ERROR.toLowerCase()).toContain('before posting');
     expect(BOOKING_MESSAGE_EMPTY_BODY_ERROR.toLowerCase()).not.toContain('before sending');
     expect(PARTNER_BUSINESS_READY_TO_SUBMIT_NOTE.toLowerCase()).toContain('submit them to traverion');
