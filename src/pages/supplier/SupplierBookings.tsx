@@ -702,7 +702,7 @@ export default function SupplierBookings() {
               <label className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Listing</label>
               <select
                 value={filterListingId}
-                onChange={(e) => setFilterListingId(e.target.value)}
+                onChange={(e) => writeBookingsSearchToUrl({ listingId: e.target.value })}
                 className="tv-input"
               >
                 <option value="">All listings</option>
@@ -719,7 +719,7 @@ export default function SupplierBookings() {
                 <input
                   type="date"
                   value={filterDateFrom}
-                  onChange={(e) => setFilterDateFrom(e.target.value)}
+                  onChange={(e) => writeBookingsSearchToUrl({ from: e.target.value })}
                   className="tv-input w-[9.25rem]"
                   aria-label="Activity date from"
                 />
@@ -727,7 +727,7 @@ export default function SupplierBookings() {
                 <input
                   type="date"
                   value={filterDateTo}
-                  onChange={(e) => setFilterDateTo(e.target.value)}
+                  onChange={(e) => writeBookingsSearchToUrl({ to: e.target.value })}
                   className="tv-input w-[9.25rem]"
                   aria-label="Activity date to"
                 />
@@ -749,11 +749,8 @@ export default function SupplierBookings() {
               <button
                 type="button"
                 onClick={() => {
-                  setView('all');
+                  writeBookingsSearchToUrl({ view: 'all', listingId: '', from: '', to: '' });
                   setOpsFilterAndUrl('all');
-                  setFilterListingId('');
-                  setFilterDateFrom('');
-                  setFilterDateTo('');
                   setFilterQuery('');
                   setBookingsListPage(1);
                 }}

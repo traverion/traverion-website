@@ -1122,9 +1122,16 @@ export default function SupplierListings() {
                             {familyLabel}
                           </span>
                           {justPublishedId === listing.id ? (
-                            <span className="tv-pop rounded-full bg-emerald-600 px-2 py-0.5 text-[11px] font-semibold text-white">
-                              Published
-                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openSupplierCalendar(listing.id);
+                              }}
+                              className="tv-pop rounded-full bg-emerald-600 px-2 py-0.5 text-[11px] font-semibold text-white hover:bg-emerald-700"
+                            >
+                              Published · Calendar
+                            </button>
                           ) : null}
                           {draftPublish && !draftPublish.readyToPublish ? (
                             <StatusChip tone="warn">

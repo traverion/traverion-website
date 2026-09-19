@@ -318,34 +318,58 @@ export default function SupplierPerformance() {
 
           <div>
             <h2 className="text-[11px] uppercase tracking-[0.18em] text-ink-faint mb-3">By listing</h2>
-            <ul className="space-y-2.5">
+            <ul className="space-y-1.5">
               {listingRows.map((row) => {
                 const currencyTotal = revenueTotalByCurrency.get(row.currency) ?? 0;
                 const share = currencyTotal > 0 ? Math.round((row.revenue / currencyTotal) * 100) : 0;
+                const listing = listingById[row.listingId];
+                const isStay = listing ? inventoryFamilyFromListing(listing) === 'stay' : false;
                 return (
-                  <li key={`${row.listingId}-${row.currency}`} className="tv-card p-4 sm:p-5">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="font-medium text-ink truncate">
-                          {row.title}
-                          {isMultiCurrency ? (
-                            <span className="text-ink-muted font-normal"> · {row.currency}</span>
-                          ) : null}
-                        </p>
-                        <p className="text-sm text-ink-muted mt-0.5">
-                          {row.bookingsCount} paid booking{row.bookingsCount === 1 ? '' : 's'} · {row.guestsCount}{' '}
-                          guest{row.guestsCount === 1 ? '' : 's'}
+                  <li key={`${row.listingId}-${row.currency}`}>
+                    <div className="rounded-xl bg-paper-raised px-3.5 py-3 shadow-soft ring-1 ring-black/[0.06]">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-ink truncate">
+                            {row.title}
+                            {isMultiCurrency ? (
+                              <span className="text-ink-muted font-normal"> · {row.currency}</span>
+                            ) : null}
+                          </p>
+                          <p className="text-xs text-ink-muted mt-0.5">
+                            {isStay ? 'Stay' : 'Tour'} · {row.bookingsCount} paid · {row.guestsCount} guest
+                            {row.guestsCount === 1 ? '' : 's'} · {share}% of {row.currency}
+                          </p>
+                        </div>
+                        <p className="tabular-nums text-sm font-semibold text-ink shrink-0">
+                          {formatMoney(row.revenue, row.currency)}
                         </p>
                       </div>
-                      <div className="text-right shrink-0">
-                        <p className="font-display text-xl text-ink tabular-nums">{formatMoney(row.revenue, row.currency)}</p>
-                        <p className="text-xs text-ink-muted mt-0.5">
-                          {share}% of {row.currency} revenue
-                        </p>
+                      <div className="mt-2.5 h-1 w-full rounded-full bg-black/[0.06] overflow-hidden" aria-hidden>
+                        <div
+                          className="h-full rounded-full bg-finland transition-all duration-300"
+                          style={{ width: `${share}%` }}
+                        />
                       </div>
-                    </div>
-                    <div className="mt-3 h-1.5 w-full rounded-full bg-black/[0.06] overflow-hidden" aria-hidden>
-                      <div className="h-full rounded-full bg-finland transition-all duration-300" style={{ width: `${share}%` }} />
+                      <div className="mt-2.5 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            navigateSupplierUrl(
+                              `${PARTNER_APP_BASE}/bookings?listing=${encodeURIComponent(row.listingId)}&view=all`
+                            )
+                          }
+                          className="lux-flat rounded-md px-2.5 py-1 text-xs font-semibold text-finland ring-1 ring-finland/20 hover:bg-finland/5"
+                        >
+                          Bookings
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openSupplierCalendar(row.listingId)}
+                          className="lux-flat rounded-md px-2.5 py-1 text-xs font-semibold text-ink-muted ring-1 ring-black/[0.08] hover:text-ink"
+                        >
+                          Calendar
+                        </button>
+                      </div>
                     </div>
                   </li>
                 );
