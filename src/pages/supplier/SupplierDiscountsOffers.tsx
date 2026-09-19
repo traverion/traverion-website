@@ -26,6 +26,10 @@ import { formatMoney } from '../../lib/money';
 import StatusChip from '../../components/StatusChip';
 import NoticeCallout from '../../components/NoticeCallout';
 import { listingIsFamily } from '../../lib/inventory';
+import {
+  partnerOfferCountsAsActiveNow,
+  partnerOfferListingIsStayUnsupported,
+} from '../../lib/partner-offers-honesty';
 
 function optionLabelForDiscount(tour: TourPackage, d: ListingDiscount): string {
   if (!d.booking_option_id?.trim()) return 'All options';
@@ -120,7 +124,16 @@ export default function SupplierDiscountsOffers() {
 
   const handleDelete = async (d: ListingDiscount) => {
     if (!canEdit) return;
-    if (!window.confirm('Remove this offer? It will disappear from the public site.')) return;
+    const listing = listings.find((l) => l.id === d.listing_id);
+    const stayUnsupported = listing ? partnerOfferListingIsStayUnsupported(listing) : false;
+    if (
+      !window.confirm(
+        stayUnsupported
+          ? 'Remove this stay discount? It never appeared on traveler stay checkout.'
+          : 'Remove this offer? It will disappear from the public site.'
+      )
+    )
+      return;
     const ok = await deleteDiscount(d.id);
     if (ok) void loadAll();
   };
@@ -130,6 +143,17 @@ export default function SupplierDiscountsOffers() {
     [listings]
   );
   const publishedCount = offerableListings.length;
+  const activeTourOffers = useMemo(
+    () =>
+      rows.filter((r) =>
+        partnerOfferCountsAsActiveNow({ listing: r.listing, status: offerStatus(r.discount) })
+      ).length,
+    [rows]
+  );
+  const unsupportedStayOffers = useMemo(
+    () => rows.filter((r) => partnerOfferListingIsStayUnsupported(r.listing)).length,
+    [rows]
+  );
 
   return (
     <div className={SUPPLIER_PAGE_CLASS}>
@@ -194,7 +218,10 @@ export default function SupplierDiscountsOffers() {
             <div className="mb-6 flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1">
               <h2 className="font-display text-2xl text-ink tracking-tight">Your offers</h2>
               <p className="text-sm text-ink-muted">
-                {rows.length} total · {rows.filter((r) => offerStatus(r.discount) === 'active').length} active now
+                {rows.length} total · {activeTourOffers} active on tours
+                {unsupportedStayOffers > 0
+                  ? ` · ${unsupportedStayOffers} stay (not on checkout)`
+                  : ''}
               </p>
             </div>
 
@@ -202,7 +229,7 @@ export default function SupplierDiscountsOffers() {
               <SupplierEmptyState
                 icon={Tag}
                 title="No offers yet"
-                body="You have listings, but no timed discounts. That is normal. Create one on a published listing and it will show on the public product page."
+                body="You have listings, but no timed discounts. That is normal. Create one on a published tour and it will show on the public product page."
                 action={
                   canEdit ? (
                     <button type="button" onClick={openNew} className="tv-btn-primary">
@@ -214,9 +241,22 @@ export default function SupplierDiscountsOffers() {
             ) : (
               <div className="space-y-3">
                 {rows.map(({ discount: d, listing }) => {
+                  const stayUnsupported = partnerOfferListingIsStayUnsupported(listing);
                   const st = offerStatus(d);
-                  const statusLabel = st === 'active' ? 'Active' : st === 'upcoming' ? 'Upcoming' : 'Ended';
-                  const statusTone = st === 'active' ? 'good' : st === 'upcoming' ? 'info' : 'neutral';
+                  const statusLabel = stayUnsupported
+                    ? 'Not on checkout'
+                    : st === 'active'
+                      ? 'Active'
+                      : st === 'upcoming'
+                        ? 'Upcoming'
+                        : 'Ended';
+                  const statusTone = stayUnsupported
+                    ? 'warn'
+                    : st === 'active'
+                      ? 'good'
+                      : st === 'upcoming'
+                        ? 'info'
+                        : 'neutral';
                   const pct =
                     d.type === 'percent'
                       ? `${Math.round(Number(d.value))}%`
@@ -224,7 +264,9 @@ export default function SupplierDiscountsOffers() {
                   return (
                     <article
                       key={d.id}
-                      className="rounded-2xl bg-paper-raised p-4 sm:p-5 shadow-soft ring-1 ring-black/[0.06] w-full min-w-0 max-w-full space-y-3"
+                      className={`rounded-2xl bg-paper-raised p-4 sm:p-5 shadow-soft ring-1 ring-black/[0.06] w-full min-w-0 max-w-full space-y-3 ${
+                        stayUnsupported ? 'border-l-[3px] border-l-amber-500' : ''
+                      }`}
                     >
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between min-w-0">
                         <div className="flex gap-3 min-w-0 flex-1">
@@ -244,7 +286,11 @@ export default function SupplierDiscountsOffers() {
                           )}
                           <div className="min-w-0">
                             <p className="font-semibold text-ink break-words">{listing.title}</p>
-                            <p className="text-sm text-ink-muted mt-1 break-words">{optionLabelForDiscount(listing, d)}</p>
+                            <p className="text-sm text-ink-muted mt-1 break-words">
+                              {stayUnsupported
+                                ? 'Stay · percentage discounts are not applied on traveler checkout'
+                                : optionLabelForDiscount(listing, d)}
+                            </p>
                           </div>
                         </div>
                         <StatusChip tone={statusTone}>{statusLabel}</StatusChip>
@@ -261,17 +307,25 @@ export default function SupplierDiscountsOffers() {
                           <span className="font-semibold text-finland tabular-nums">{pct}</span>
                           {d.type === 'percent' ? ' off' : null}
                         </p>
+                        {stayUnsupported ? (
+                          <p className="text-xs text-amber-900">
+                            Traverion does not lower stay nightly prices with this offer. Remove it or keep it only as
+                            a record — travelers never see it at checkout.
+                          </p>
+                        ) : null}
                       </div>
                       <div className="flex items-center justify-end gap-1 pt-1">
-                        <button
-                          type="button"
-                          onClick={() => openEdit(d)}
-                          disabled={!canEdit}
-                          className="lux-flat p-2 rounded-full text-ink-muted hover:text-ink disabled:opacity-40"
-                          title="Edit"
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </button>
+                        {!stayUnsupported ? (
+                          <button
+                            type="button"
+                            onClick={() => openEdit(d)}
+                            disabled={!canEdit}
+                            className="lux-flat p-2 rounded-full text-ink-muted hover:text-ink disabled:opacity-40"
+                            title="Edit"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                        ) : null}
                         <button
                           type="button"
                           onClick={() => void handleDelete(d)}
