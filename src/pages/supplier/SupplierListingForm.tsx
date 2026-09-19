@@ -1614,7 +1614,7 @@ export default function SupplierListingForm({
                   ? 'Create stay steps'
                   : 'Create tour steps'
             }
-            className="flex gap-1.5 overflow-x-auto pb-0.5"
+            className="flex gap-1 overflow-x-auto pb-0.5 -mx-1 px-1"
           >
             {steps.map((step, idx) => {
               const current = idx === stepIdx;
@@ -1626,7 +1626,7 @@ export default function SupplierListingForm({
                   type="button"
                   onClick={() => setStepIdxPersisted(idx)}
                   aria-current={current ? 'step' : undefined}
-                  className={`lux-flat inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                  className={`lux-flat inline-flex shrink-0 items-center gap-1 rounded-md px-2.5 py-1.5 text-xs sm:text-sm font-medium transition-colors ${
                     current
                       ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
                       : completed
