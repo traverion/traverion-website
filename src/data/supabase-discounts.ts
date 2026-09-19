@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { formatMoney } from '../lib/money';
 
 export type ListingDiscount = {
   id: string;
@@ -159,15 +160,21 @@ export async function fetchDiscountsByListingIds(listingIds: string[]): Promise<
   return map;
 }
 
-/** Compute discounted price and optional label (e.g. "20% off"). */
+/**
+ * Compute discounted price and optional label (e.g. "20% off").
+ * currency only matters for legacy 'fixed' amount discounts (no longer creatable via the
+ * partner Offers wizard, but real rows can still be live) so the label shows the listing's
+ * real currency instead of assuming USD.
+ */
 export function applyDiscount(
   price: number,
-  discount: ListingDiscount
+  discount: ListingDiscount,
+  currency: string = 'USD'
 ): { price: number; label: string } {
   if (discount.type === 'percent') {
     const p = Math.round(price * (1 - discount.value / 100) * 100) / 100;
     return { price: p, label: `${discount.value}% off` };
   }
   const p = Math.max(0, Math.round((price - discount.value) * 100) / 100);
-  return { price: p, label: `$${discount.value} off` };
+  return { price: p, label: `${formatMoney(discount.value, currency)} off` };
 }

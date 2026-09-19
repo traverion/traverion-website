@@ -128,12 +128,16 @@ function listingWideDiscounts(discounts: BookingQuoteDiscount[], day: string): B
   });
 }
 
-function bestUnitPrice(base: number, applicable: BookingQuoteDiscount[]): { price: number; label?: string } {
+function bestUnitPrice(
+  base: number,
+  applicable: BookingQuoteDiscount[],
+  currency: string
+): { price: number; label?: string } {
   if (applicable.length === 0 || base <= 0) return { price: base };
   let min = base;
   let label: string | undefined;
   for (const d of applicable) {
-    const { price, label: l } = applyDiscount(base, d as ListingDiscount);
+    const { price, label: l } = applyDiscount(base, d as ListingDiscount, currency);
     if (price < min) {
       min = price;
       label = l;
@@ -232,7 +236,7 @@ export function quoteBooking(input: {
       }
       const at = new Date(`${date}T12:00:00`);
       const applicable = discountsApplicableToOption(input.discounts as ListingDiscount[], option.id, at);
-      const { price: discountedFlat, label } = bestUnitPrice(flat, applicable);
+      const { price: discountedFlat, label } = bestUnitPrice(flat, applicable, currency);
       return {
         ok: true,
         currency,
@@ -262,7 +266,7 @@ export function quoteBooking(input: {
       const pricedLines = lines
         .filter((l) => l.quantity > 0)
         .map((l) => {
-          const { price: unit } = bestUnitPrice(l.unitPrice, applicable);
+          const { price: unit } = bestUnitPrice(l.unitPrice, applicable, currency);
           return {
             ...l,
             unitPrice: unit,
@@ -292,7 +296,7 @@ export function quoteBooking(input: {
         bookingDate: date,
         optionId: option.id,
         optionLabel: option.name.trim() || 'Tour option',
-        discountLabel: applicable.length ? bestUnitPrice(headline, applicable).label : undefined,
+        discountLabel: applicable.length ? bestUnitPrice(headline, applicable, currency).label : undefined,
         lineItems,
         guestBreakdown: guestBreakdownFromLines(pricedLines),
       };
@@ -319,7 +323,7 @@ export function quoteBooking(input: {
     }
     const at = new Date(`${date}T12:00:00`);
     const applicable = discountsApplicableToOption(input.discounts as ListingDiscount[], option.id, at);
-    const { price: unitPrice, label } = bestUnitPrice(base, applicable);
+    const { price: unitPrice, label } = bestUnitPrice(base, applicable, currency);
     if (!(unitPrice > 0)) {
       return { ok: false, code: 'price', error: 'This tour does not have a bookable price yet.' };
     }
@@ -347,7 +351,7 @@ export function quoteBooking(input: {
   if (!(fallbackBase > 0)) {
     return { ok: false, code: 'price', error: 'This tour does not have a bookable price yet.' };
   }
-  const { price: unitPrice, label } = bestUnitPrice(fallbackBase, listingWideDiscounts(input.discounts, date));
+  const { price: unitPrice, label } = bestUnitPrice(fallbackBase, listingWideDiscounts(input.discounts, date), currency);
   if (!(unitPrice > 0)) {
     return { ok: false, code: 'price', error: 'This tour does not have a bookable price yet.' };
   }

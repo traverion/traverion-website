@@ -370,7 +370,10 @@ export default function DiscountOfferWizardModal({ open, onClose, listings, edit
               <p className="text-sm font-semibold text-ink">Fixed amount offer</p>
               <p className="text-sm text-ink-muted leading-relaxed">
                 This older promotion uses a fixed amount. You can change dates and which option it applies to; the amount stays{' '}
-                <strong className="text-finland">${Number(editing.value)}</strong> off.
+                <strong className="text-finland">
+                  {formatMoney(Number(editing.value), normalizeCurrency(selectedTour?.price?.currency))}
+                </strong>{' '}
+                off.
               </p>
             </div>
           )}

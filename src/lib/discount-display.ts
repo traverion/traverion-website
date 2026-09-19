@@ -29,13 +29,14 @@ function listingWideActiveDiscounts(discounts: ListingDiscount[], at: Date): Lis
 
 function bestDiscountedPrice(
   base: number,
-  applicable: ListingDiscount[]
+  applicable: ListingDiscount[],
+  currency: string
 ): { price: number; label?: string } {
   if (applicable.length === 0 || base <= 0) return { price: base };
   let min = base;
   let label: string | undefined;
   for (const d of applicable) {
-    const { price, label: l } = applyDiscount(base, d);
+    const { price, label: l } = applyDiscount(base, d, currency);
     if (price < min) {
       min = price;
       label = l;
@@ -66,7 +67,7 @@ function discountedHeadline(
   const allOpts = materializedBookingOptions(extras.bookingOptions);
   const base = typeof opt.priceUsd === 'number' && opt.priceUsd > 0 ? opt.priceUsd : fallbackBase;
   const applicable = discountsApplicableToOption(discounts, opt.id, at);
-  const { price, label } = bestDiscountedPrice(base, applicable);
+  const { price, label } = bestDiscountedPrice(base, applicable, currency);
   const picked = pickHeadlineOption(allOpts);
   return {
     price,
@@ -98,7 +99,7 @@ export function getDisplayPriceForTour(
 
   if (opts.length === 0) {
     const applicable = listingWideActiveDiscounts(discounts, at);
-    const { price, label } = bestDiscountedPrice(fallbackBase, applicable);
+    const { price, label } = bestDiscountedPrice(fallbackBase, applicable, currency);
     return { price, originalPrice: fallbackBase, label, ...emptyMeta };
   }
 
@@ -134,7 +135,7 @@ export function getDisplayPriceForTour(
   for (const opt of opts) {
     const base = typeof opt.priceUsd === 'number' && opt.priceUsd > 0 ? opt.priceUsd : fallbackBase;
     const applicable = discountsApplicableToOption(discounts, opt.id, at);
-    const { price, label } = bestDiscountedPrice(base, applicable);
+    const { price, label } = bestDiscountedPrice(base, applicable, currency);
     if (price < bestPrice) {
       bestPrice = price;
       bestOriginal = base;
@@ -179,13 +180,14 @@ export function getDisplayPriceForBookingVariant(
   const at = new Date(`${day}T12:00:00`);
   const fallbackBase = tour.price?.startingFrom ?? 0;
   const base = variant.pricePerPerson > 0 ? variant.pricePerPerson : fallbackBase;
+  const currency = normalizeCurrency(tour.price?.currency);
   if (variant.listingOption) {
     const applicable = discountsApplicableToOption(discounts, variant.listingOption.id, at);
-    const { price, label } = bestDiscountedPrice(base, applicable);
+    const { price, label } = bestDiscountedPrice(base, applicable, currency);
     return { price, originalPrice: base, label };
   }
   const applicable = listingWideActiveDiscounts(discounts, at);
-  const { price, label } = bestDiscountedPrice(base, applicable);
+  const { price, label } = bestDiscountedPrice(base, applicable, currency);
   return { price, originalPrice: base, label };
 }
 
