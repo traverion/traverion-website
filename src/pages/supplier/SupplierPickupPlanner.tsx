@@ -1224,10 +1224,7 @@ export default function SupplierPickupPlanner() {
             <button
               type="button"
               onClick={() => {
-                setDateFrom('');
-                setDateTo('');
-                setListingFilterId('');
-                setNeedsPickupOnly(false);
+                writePickupFiltersToUrl({ from: '', to: '', listingId: '', needsOnly: false });
                 setSortDate('asc');
               }}
               className="tv-btn-primary"
