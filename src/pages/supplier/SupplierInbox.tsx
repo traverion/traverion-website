@@ -206,23 +206,27 @@ export default function SupplierInbox() {
   const renderThreadBody = (b: BookingRow) => {
     const startHm = pgTimeToHm(b.start_time);
     const pickupHm = pgTimeToHm(b.pickup_time);
-    const timeBits = [startHm ? `Start ${startHm}` : null, pickupHm ? `Pickup ${pickupHm}` : null]
-      .filter(Boolean)
-      .join(' · ');
+    const isStay = Boolean(b.check_out && /^\d{4}-\d{2}-\d{2}$/.test(b.check_out));
+    const timeBits = isStay
+      ? null
+      : [startHm ? `Start ${startHm}` : null, pickupHm ? `Pickup ${pickupHm}` : null].filter(Boolean).join(' · ');
+    const whenBits = isStay
+      ? `${b.booking_date ?? '—'}${b.check_out ? ` → ${b.check_out}` : ''}`
+      : b.booking_date
+        ? new Date(`${b.booking_date}T12:00:00`).toLocaleDateString(undefined, {
+            weekday: 'short',
+            day: 'numeric',
+            month: 'short',
+          })
+        : '';
     return (
       <>
         <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
-          <p className="text-sm text-ink">
-            Booking {typeof b.booking_number === 'number' ? `#${b.booking_number}` : ''} ·{' '}
-            {titles[b.listing_id] ?? 'Listing'} · {b.guest_name?.trim() || 'Traveler'} ·{' '}
+          <p className="text-sm text-ink leading-snug">
+            {typeof b.booking_number === 'number' ? `#${b.booking_number} · ` : ''}
+            {isStay ? 'Stay' : 'Tour'} · {titles[b.listing_id] ?? 'Listing'} · {b.guest_name?.trim() || 'Traveler'} ·{' '}
             {formatBookingParticipantsLabel(b)}
-            {b.booking_date
-              ? ` · ${new Date(`${b.booking_date}T12:00:00`).toLocaleDateString(undefined, {
-                  weekday: 'short',
-                  day: 'numeric',
-                  month: 'short',
-                })}`
-              : ''}
+            {whenBits ? ` · ${whenBits}` : ''}
             {timeBits ? ` · ${timeBits}` : ''}
           </p>
           <button
