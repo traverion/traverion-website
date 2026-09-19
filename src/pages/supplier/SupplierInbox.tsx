@@ -50,6 +50,10 @@ export default function SupplierInbox() {
   const [error, setError] = useState<string | null>(null);
   const [olderConversationsHidden, setOlderConversationsHidden] = useState(false);
   const [deepLinkMissing, setDeepLinkMissing] = useState(false);
+  const [unreadOnly, setUnreadOnly] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return new URLSearchParams(window.location.search).get('unread') === '1';
+  });
   const [mobileSheet, setMobileSheet] = useState(() =>
     typeof window !== 'undefined' ? window.matchMedia('(max-width: 767px)').matches : false
   );
@@ -132,10 +136,19 @@ export default function SupplierInbox() {
       const id = readBookingIdFromUrl();
       setOpenId(id);
       if (!id) setDeepLinkMissing(false);
+      setUnreadOnly(new URLSearchParams(window.location.search).get('unread') === '1');
     };
     syncFromUrl();
     window.addEventListener('popstate', syncFromUrl);
     return () => window.removeEventListener('popstate', syncFromUrl);
+  }, []);
+
+  const setUnreadOnlyAndUrl = useCallback((next: boolean) => {
+    setUnreadOnly(next);
+    const url = new URL(window.location.href);
+    if (next) url.searchParams.set('unread', '1');
+    else url.searchParams.delete('unread');
+    window.history.replaceState({}, '', `${url.pathname}${url.search}`);
   }, []);
 
   const setOpenBookingId = useCallback((id: string | null, opts?: { markReadLocal?: boolean }) => {
@@ -163,6 +176,21 @@ export default function SupplierInbox() {
       return tb.localeCompare(ta);
     });
   }, [bookings, lastByBooking]);
+
+  const isUnreadThread = useCallback(
+    (b: BookingRow) => {
+      const last = lastByBooking[b.id];
+      return Boolean(last && last.sender_role === 'traveler' && !last.read_by_supplier_at);
+    },
+    [lastByBooking]
+  );
+
+  const unreadCount = useMemo(() => threads.filter(isUnreadThread).length, [threads, isUnreadThread]);
+
+  const visibleThreads = useMemo(() => {
+    if (!unreadOnly) return threads;
+    return threads.filter(isUnreadThread);
+  }, [threads, unreadOnly, isUnreadThread]);
 
   const openBooking = useMemo(
     () => (openId ? threads.find((b) => b.id === openId) ?? null : null),
@@ -244,8 +272,42 @@ export default function SupplierInbox() {
       <SupplierPageHero
         badge="Operate"
         title="Inbox"
-        description={`Messages about paid bookings. Closed and Refund due trips stay here if they already have a thread. ${PARTNER_INBOX_MESSAGE_DELIVERY_NOTE}`}
+        description={
+          unreadCount > 0
+            ? `${unreadCount} unread · Messages about paid bookings. ${PARTNER_INBOX_MESSAGE_DELIVERY_NOTE}`
+            : `Messages about paid bookings. Closed and Refund due trips stay here if they already have a thread. ${PARTNER_INBOX_MESSAGE_DELIVERY_NOTE}`
+        }
       />
+      {threads.length > 0 && !loading ? (
+        <div className="mb-4 flex flex-wrap gap-1.5" role="tablist" aria-label="Inbox filter">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={!unreadOnly}
+            onClick={() => setUnreadOnlyAndUrl(false)}
+            className={`lux-flat rounded-md px-3 py-1.5 text-xs font-semibold ring-1 transition-colors ${
+              !unreadOnly
+                ? 'bg-finland text-white ring-finland'
+                : 'bg-transparent text-ink-muted ring-black/[0.08] hover:text-ink'
+            }`}
+          >
+            All
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={unreadOnly}
+            onClick={() => setUnreadOnlyAndUrl(true)}
+            className={`lux-flat rounded-md px-3 py-1.5 text-xs font-semibold ring-1 transition-colors ${
+              unreadOnly
+                ? 'bg-amber-500 text-white ring-amber-500'
+                : 'bg-transparent text-ink-muted ring-black/[0.08] hover:text-ink'
+            }`}
+          >
+            Unread{unreadCount > 0 ? ` · ${unreadCount}` : ''}
+          </button>
+        </div>
+      ) : null}
       {olderConversationsHidden ? (
         <NoticeCallout title="Showing your most recent paid bookings" tone="info">
           You have more than {PARTNER_INBOX_MESSAGE_FETCH_CAP} paid bookings, so this Inbox only checks messages for the {PARTNER_INBOX_MESSAGE_FETCH_CAP}
@@ -280,12 +342,23 @@ export default function SupplierInbox() {
             </button>
           }
         />
+      ) : visibleThreads.length === 0 ? (
+        <SupplierEmptyState
+          icon={MessageSquare}
+          title="No unread messages"
+          body="You’re caught up. Switch to All to see every booking thread."
+          action={
+            <button type="button" className="tv-btn-secondary" onClick={() => setUnreadOnlyAndUrl(false)}>
+              Show all conversations
+            </button>
+          }
+        />
       ) : (
         <ul className="divide-y divide-slate-100 rounded-lg bg-white ring-1 ring-slate-200/90 overflow-hidden">
-          {threads.map((b) => {
+          {visibleThreads.map((b) => {
             const open = openId === b.id;
             const last = lastByBooking[b.id];
-            const unread = last && last.sender_role === 'traveler' && !last.read_by_supplier_at;
+            const unread = isUnreadThread(b);
             const payLabel = partnerPaymentLabel(b);
             const showMoneyChip =
               payLabel === 'Refund due' || payLabel === 'Refunded' || payLabel === 'No refund';
