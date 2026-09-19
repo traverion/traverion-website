@@ -166,6 +166,8 @@ export default function SupplierAvailability() {
       setBookings(mineBookings.filter((b) => partnerStayCalendarOccupiesNight(b)));
       setListingId((prev) => {
         if (prev && mine.some((l) => l.id === prev)) return prev;
+        const fromUrl = new URLSearchParams(window.location.search).get('listing');
+        if (fromUrl && mine.some((l) => l.id === fromUrl)) return fromUrl;
         return '';
       });
     } catch (e) {

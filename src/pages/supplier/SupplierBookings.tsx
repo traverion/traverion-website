@@ -80,6 +80,8 @@ type ListingBookingMeta = {
   meetingPoint: string | null;
   pickupInstructions: string | null;
   bookingOptions: Array<{ id: string; pickupPlace: string; optionInfo: string }>;
+  stayCheckInTime: string | null;
+  stayCheckOutTime: string | null;
 };
 
 function buildListingMeta(listing: TourPackage): ListingBookingMeta {
@@ -89,9 +91,8 @@ function buildListingMeta(listing: TourPackage): ListingBookingMeta {
     [listing.city, listing.country ?? listing.destination].filter(Boolean).join(', ') ||
     listing.destination ||
     '—';
-  const opts = materializedBookingOptions(
-    parseListingExtras(listing.listingExtras as unknown).bookingOptions
-  ).map((o) => ({
+  const extras = parseListingExtras(listing.listingExtras as unknown);
+  const opts = materializedBookingOptions(extras.bookingOptions).map((o) => ({
     id: o.id,
     pickupPlace: o.pickupPlace,
     optionInfo: o.optionInfo,
@@ -105,6 +106,8 @@ function buildListingMeta(listing: TourPackage): ListingBookingMeta {
     meetingPoint: listing.meetingPoint?.trim() || null,
     pickupInstructions: listing.pickupInstructions?.trim() || null,
     bookingOptions: opts,
+    stayCheckInTime: extras.stay?.checkInTime?.trim() || null,
+    stayCheckOutTime: extras.stay?.checkOutTime?.trim() || null,
   };
 }
 
@@ -821,6 +824,14 @@ export default function SupplierBookings() {
                         {dateLine}
                         {' · '}
                         {formatBookingParticipantsLabel(booking)}
+                        {meta?.family === 'stay' || Boolean(booking.check_out)
+                          ? (() => {
+                              const range = stayRangeFromBooking(booking);
+                              if (!range) return '';
+                              const n = nightsOccupiedByStay(range.checkIn, range.checkOut).length;
+                              return n > 0 ? ` · ${n} night${n === 1 ? '' : 's'}` : '';
+                            })()
+                          : ''}
                         {paidLabel ? ` · ${paidLabel}` : ''}
                       </p>
                       {partnerBookingIsUnpaidCheckout(booking) ? (
@@ -925,17 +936,23 @@ export default function SupplierBookings() {
               booking.check_out && /^\d{4}-\d{2}-\d{2}$/.test(booking.check_out)
                 ? booking.check_out
                 : parseStayCheckOutFromNotes(booking.special_requests);
+            const stayRange = isStay ? stayRangeFromBooking(booking) : null;
+            const stayNightCount = stayRange
+              ? nightsOccupiedByStay(stayRange.checkIn, stayRange.checkOut).length
+              : 0;
             const whenLabel = stayOut
               ? `${formatStayNightHuman(booking.booking_date ?? '')} → ${formatStayNightHuman(stayOut)}`
               : formatActivityDateLong(booking.booking_date, startHm);
             const paidLabel = formatBookingMoney(booking.amount_paid, booking.currency);
             const needsAck = partnerBookingNeedsLook(booking);
-            const pickupGap = partnerBookingHasPickupAttention(
-              booking,
-              meta?.meetingPoint,
-              meta?.pickupInstructions,
-              meta?.bookingOptions
-            );
+            const pickupGap =
+              !isStay &&
+              partnerBookingHasPickupAttention(
+                booking,
+                meta?.meetingPoint,
+                meta?.pickupInstructions,
+                meta?.bookingOptions
+              );
             const busy = updatingId === booking.id;
             const refLabel =
               typeof booking.booking_number === 'number' && booking.booking_number > 0
@@ -985,17 +1002,37 @@ export default function SupplierBookings() {
                   <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                     <div>
                       <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">
-                        {isStay ? 'Nights' : 'When'}
+                        {isStay ? 'Stay dates' : 'When'}
                       </dt>
                       <dd className="mt-0.5 text-ink">{whenLabel}</dd>
                     </div>
                     <div>
-                      <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Participants</dt>
+                      <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">
+                        {isStay ? 'Guests' : 'Participants'}
+                      </dt>
                       <dd className="mt-0.5 text-ink">
                         {formatBookingParticipantsLabel(booking)}
+                        {isStay && stayNightCount > 0
+                          ? ` · ${stayNightCount} night${stayNightCount === 1 ? '' : 's'}`
+                          : ''}
                       </dd>
                     </div>
-                    {pickupHm ? (
+                    {isStay && (meta?.stayCheckInTime || meta?.stayCheckOutTime) ? (
+                      <div className="sm:col-span-2">
+                        <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">
+                          House times
+                        </dt>
+                        <dd className="mt-0.5 text-ink">
+                          {[
+                            meta?.stayCheckInTime ? `Check-in from ${meta.stayCheckInTime}` : null,
+                            meta?.stayCheckOutTime ? `Check-out by ${meta.stayCheckOutTime}` : null,
+                          ]
+                            .filter(Boolean)
+                            .join(' · ')}
+                        </dd>
+                      </div>
+                    ) : null}
+                    {!isStay && pickupHm ? (
                       <div>
                         <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Pickup</dt>
                         <dd className="mt-0.5 text-ink">{pickupHm}</dd>
@@ -1030,6 +1067,20 @@ export default function SupplierBookings() {
                       </div>
                     ) : null}
                   </dl>
+
+                  {isStay ? (
+                    <button
+                      type="button"
+                      className="tv-btn-ghost -ml-2"
+                      onClick={() =>
+                        navigateSupplierUrl(
+                          `${PARTNER_APP_BASE}/calendar?listing=${encodeURIComponent(booking.listing_id)}`
+                        )
+                      }
+                    >
+                      Open stay calendar
+                    </button>
+                  ) : null}
 
                   {pickupGap ? (
                     <NoticeCallout title="Pickup details missing" tone="warn">
@@ -1169,7 +1220,7 @@ export default function SupplierBookings() {
                           })}
                         </li>
                       ) : null}
-                      {pickupHm ? <li>Pickup set · {pickupHm}</li> : null}
+                      {pickupHm && !isStay ? <li>Pickup set · {pickupHm}</li> : null}
                       {openCancels[booking.id] ? (
                         <li>
                           Cancellation requested{' '}
