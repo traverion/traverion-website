@@ -32,6 +32,7 @@ import {
   SupplierPageHero,
 } from '../../components/supplier/supplierUi';
 import ErrorState from '../../components/ErrorState';
+import NoticeCallout from '../../components/NoticeCallout';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -69,6 +70,7 @@ export default function SupplierAvailability() {
   const [loading, setLoading] = useState(true);
   const [savingIso, setSavingIso] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [saveNote, setSaveNote] = useState<string | null>(null);
   const [editing, setEditing] = useState<{ iso: string; capacity: string } | null>(null);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkFrom, setBulkFrom] = useState('');
@@ -77,7 +79,10 @@ export default function SupplierAvailability() {
   const [bulkSaving, setBulkSaving] = useState(false);
   const [bulkError, setBulkError] = useState<string | null>(null);
   const daySheetRef = useRef<HTMLDivElement>(null);
-  const closeDaySheet = useCallback(() => setEditing(null), []);
+  const closeDaySheet = useCallback(() => {
+    setEditing(null);
+    setSaveNote(null);
+  }, []);
   useDialogFocus(editing !== null, daySheetRef, closeDaySheet);
 
   const listing = listings.find((l) => l.id === listingId) ?? null;
@@ -232,6 +237,8 @@ export default function SupplierAvailability() {
     if (!listingId) return;
     setSavingIso(iso);
     setError(null);
+    setSaveNote(null);
+    const occupied = stayCalendar && (guestsByDate.get(iso)?.count ?? 0) > 0;
     const res = await upsertAvailability(listingId, [{ available_date: iso, capacity }]);
     setSavingIso(null);
     if (!res.success) {
@@ -239,7 +246,13 @@ export default function SupplierAvailability() {
       return;
     }
     mergeCapRows([{ available_date: iso, capacity }]);
-    setEditing(null);
+    if (occupied && capacity === 0) {
+      setSaveNote(
+        'Block saved. The night stays Occupied while this guest is in-house; new travelers already cannot book it. The block remains after checkout.'
+      );
+    } else {
+      setEditing(null);
+    }
     if (monthFromIso && monthToIso) await loadCaps(listingId, monthFromIso, monthToIso);
   };
 
@@ -636,6 +649,18 @@ export default function SupplierAvailability() {
                 </p>
               ) : stayCalendar ? (
                 <>
+                  {dayBookings.length > 0 ? (
+                    <NoticeCallout title="Night already occupied" tone="info">
+                      A paid stay is on this night — the calendar shows Occupied and travelers cannot book over it.
+                      Setting Block to 0 still saves for after checkout; it will not change the Occupied label while
+                      the guest is in-house.
+                    </NoticeCallout>
+                  ) : null}
+                  {saveNote ? (
+                    <p className="mt-4 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-950 ring-1 ring-emerald-200/80">
+                      {saveNote}
+                    </p>
+                  ) : null}
                   <p className="mt-5 text-sm text-ink-muted">
                     Block a night by setting spots to 0. Clearing returns the night to available.
                   </p>
@@ -649,7 +674,10 @@ export default function SupplierAvailability() {
                       min={0}
                       max={99}
                       value={editing.capacity}
-                      onChange={(e) => setEditing({ ...editing, capacity: e.target.value })}
+                      onChange={(e) => {
+                        setSaveNote(null);
+                        setEditing({ ...editing, capacity: e.target.value });
+                      }}
                       className="tv-input w-24"
                     />
                     <button
@@ -664,8 +692,7 @@ export default function SupplierAvailability() {
                     </button>
                   </div>
                 </>
-              ) : (
-                <>
+              ) : (                <>
               {!weekdayOpen(editing.iso) ? (
                 <p className="mt-4 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-950 ring-1 ring-amber-200/80">
                   No departures this day per your option schedule. A saved cap does not open traveler
@@ -727,9 +754,25 @@ export default function SupplierAvailability() {
           <div className="space-y-4 p-4 sm:p-5">
             <p className="text-sm text-ink-muted">
               {stayCalendar
-                ? 'Block several nights at once \u2014 a maintenance week or a personal booking elsewhere. Clear range returns nights to available.'
+                ? 'Block several nights at once \u2014 a maintenance week or a personal booking elsewhere. Clear range returns nights to available. Nights with paid stays stay Occupied until checkout; a block still saves for afterward.'
                 : 'Set the same spot count across a date range at once \u2014 close for a holiday, or open extra departures for a busy stretch. Clear range removes daily overrides. Caps never override weekday or season rules on the traveler calendar.'}
             </p>
+            {stayCalendar &&
+            /^\d{4}-\d{2}-\d{2}$/.test(bulkFrom) &&
+            /^\d{4}-\d{2}-\d{2}$/.test(bulkTo) &&
+            bulkFrom <= bulkTo
+              ? (() => {
+                  const occupiedNights = enumerateIsoDates(bulkFrom, bulkTo).filter(
+                    (iso) => (guestsByDate.get(iso)?.count ?? 0) > 0
+                  ).length;
+                  return occupiedNights > 0 ? (
+                    <NoticeCallout title="Some nights already have stays" tone="info">
+                      {occupiedNights} night{occupiedNights === 1 ? '' : 's'} in this range already have paid
+                      guests. Blocking still saves; Occupied labels stay until checkout.
+                    </NoticeCallout>
+                  ) : null;
+                })()
+              : null}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-[11px] font-medium uppercase tracking-wide text-ink-faint" htmlFor="bulk-from">
