@@ -26,6 +26,7 @@ import { formatBookingParticipantsLabel } from '../../lib/participant-mix';
 import { pgTimeToHm } from '../../data/supabase-listings';
 import { stayRangeFromBooking } from '../../lib/stayOccupancy';
 import { formatStayNightHuman } from '../../lib/stay-calendar';
+import { localYmd } from '../../lib/local-ymd';
 import { PARTNER_INBOX_MESSAGE_FETCH_CAP } from '../../lib/partner-inbox-cap';
 import { parseListingExtras, materializedBookingOptions } from '../../types/listingExtras';
 
@@ -62,13 +63,6 @@ function AttentionRow({
       </button>
     </li>
   );
-}
-
-function localYmd(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
 }
 
 export default function SupplierDashboard() {

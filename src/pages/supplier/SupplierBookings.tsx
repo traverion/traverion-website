@@ -17,6 +17,7 @@ import { listingHeroImageSrc, orderedPhotoUrls, photoSlotsFromTourPackage } from
 import { formatMoney } from '../../lib/money';
 import { isPaidPaymentStatus, partnerPaymentLabel, partnerCollectedAmountCaption, bookingPaymentWasCollected, isRefundDueBooking, REFUND_DUE_MANUAL_COPY } from '../../lib/payment-states';
 import { PARTNER_BOOKINGS_CSV_HEADER, partnerBookingCsvValues } from '../../lib/partner-bookings-csv';
+import { localYmd, localYmdPlusDays } from '../../lib/local-ymd';
 import { guestFacingBookingNotes } from '../../lib/booking-notes';
 import { formatBookingParticipantsLabel } from '../../lib/participant-mix';
 import {
@@ -357,12 +358,8 @@ export default function SupplierBookings() {
     window.history.replaceState({}, '', `${url.pathname}${url.search}`);
   }, []);
 
-  const todayIso = new Date().toISOString().slice(0, 10);
-  const tomorrowIso = (() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 1);
-    return d.toISOString().slice(0, 10);
-  })();
+  const todayIso = localYmd();
+  const tomorrowIso = localYmdPlusDays(1);
 
   const filteredBookings = useMemo(() => {
     const q = filterQuery.trim().toLowerCase();
