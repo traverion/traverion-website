@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, CalendarDays, Ban } from 'lucide-react';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
-import { fetchMyListings } from '../../data/supabase-listings';
+import { fetchMyListings, pgTimeToHm } from '../../data/supabase-listings';
 import { fetchBookingsForSupplier, type BookingRow } from '../../data/supabase-bookings';
 import {
   deleteAvailability,
@@ -16,6 +16,7 @@ import type { TourPackage } from '../../types/tour';
 import { listingRunsOnDate } from '../../lib/booking-quote';
 import { inventoryFamilyFromListing } from '../../lib/inventory';
 import { nightsOccupiedByStay, stayRangeFromBooking, partnerStayDayKind, partnerStayCalendarOccupiesNight } from '../../lib/stayOccupancy';
+import { isPaidPaymentStatus } from '../../lib/payment-states';
 import {
   buildMonthCells,
   defaultCapacityForOpenDay,
@@ -108,24 +109,50 @@ export default function SupplierAvailability() {
     }
     return map;
   }, [bookings, listingId, viewingAll, listings]);
-  const dayBookings = useMemo(
-    () =>
-      editing
-        ? bookings.filter((b) => {
-            if (!partnerStayCalendarOccupiesNight(b)) return false;
-            if (!viewingAll && b.listing_id !== listingId) return false;
-            const item = listings.find((l) => l.id === b.listing_id);
-            const isStay = item ? inventoryFamilyFromListing(item) === 'stay' : false;
-            if (isStay) {
-              const range = stayRangeFromBooking(b);
-              if (!range) return false;
-              return nightsOccupiedByStay(range.checkIn, range.checkOut).includes(editing.iso);
-            }
-            return b.booking_date === editing.iso;
-          })
-        : [],
-    [bookings, editing, listingId, viewingAll, listings]
-  );
+  const dayBookings = useMemo(() => {
+    if (!editing) return [];
+    const rows = bookings.filter((b) => {
+      if (!partnerStayCalendarOccupiesNight(b)) return false;
+      if (!viewingAll && b.listing_id !== listingId) return false;
+      const item = listings.find((l) => l.id === b.listing_id);
+      const isStay = item ? inventoryFamilyFromListing(item) === 'stay' : false;
+      if (isStay) {
+        const range = stayRangeFromBooking(b);
+        if (!range) return false;
+        return nightsOccupiedByStay(range.checkIn, range.checkOut).includes(editing.iso);
+      }
+      return b.booking_date === editing.iso;
+    });
+    return [...rows].sort((a, b) => {
+      const aStart = pgTimeToHm(a.start_time) ?? '';
+      const bStart = pgTimeToHm(b.start_time) ?? '';
+      if (aStart !== bStart) return aStart.localeCompare(bStart);
+      const aPickup = pgTimeToHm(a.pickup_time) ?? '';
+      const bPickup = pgTimeToHm(b.pickup_time) ?? '';
+      if (aPickup !== bPickup) return aPickup.localeCompare(bPickup);
+      return a.created_at.localeCompare(b.created_at);
+    });
+  }, [bookings, editing, listingId, viewingAll, listings]);
+
+  const daySheetTimesLine = (b: BookingRow) => {
+    const start = pgTimeToHm(b.start_time);
+    const pickup = pgTimeToHm(b.pickup_time);
+    const bits: string[] = [];
+    if (start) bits.push(`Start ${start}`);
+    if (pickup) bits.push(`Pickup ${pickup}`);
+    return bits.join(' · ');
+  };
+
+  const daySheetHoldLabel = (b: BookingRow) => {
+    if (isPaidPaymentStatus(b.payment_status)) return null;
+    const pay = (b.payment_status ?? 'pending').trim().toLowerCase();
+    if (pay !== 'pending') return null;
+    if (!b.hold_expires_at) return 'Unpaid hold';
+    const exp = Date.parse(b.hold_expires_at);
+    if (!Number.isFinite(exp)) return 'Unpaid hold';
+    const until = new Date(exp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+    return `Unpaid hold · until ${until}`;
+  };
 
   const loadListings = useCallback(async () => {
     if (!isSupabase || !user?.id) {
@@ -587,7 +614,10 @@ export default function SupplierAvailability() {
                 </p>
               ) : (
                 <ul className="mt-4 space-y-3">
-                  {dayBookings.map((b) => (
+                  {dayBookings.map((b) => {
+                    const times = daySheetTimesLine(b);
+                    const hold = daySheetHoldLabel(b);
+                    return (
                     <li key={b.id}>
                       <button
                         type="button"
@@ -599,10 +629,15 @@ export default function SupplierAvailability() {
                           {viewingAll
                             ? `${listings.find((l) => l.id === b.listing_id)?.title ?? 'Listing'} · ${b.guests} guest${b.guests === 1 ? '' : 's'}`
                             : `${b.guests} guest${b.guests === 1 ? '' : 's'}`}
+                          {times ? ` · ${times}` : ''}
                         </p>
+                        {hold ? (
+                          <p className="mt-0.5 text-[11px] font-medium text-amber-900">{hold}</p>
+                        ) : null}
                       </button>
                     </li>
-                  ))}
+                    );
+                  })}
                 </ul>
               )}
               {viewingAll ? (

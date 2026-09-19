@@ -80,6 +80,44 @@ describe('booking inventory holds', () => {
     ).toBe(false);
   });
 
+  it('honors resumed checkout hold_expires_at even when created_at is old', () => {
+    // Resume refreshes Stripe expiry without rewriting created_at.
+    expect(
+      bookingOccupiesInventory(
+        {
+          status: 'pending',
+          payment_status: 'pending',
+          created_at: '2026-09-08T09:00:00.000Z',
+          hold_expires_at: '2026-09-08T12:25:00.000Z',
+        },
+        now
+      )
+    ).toBe(true);
+    expect(
+      bookingOccupiesInventory(
+        {
+          status: 'pending',
+          payment_status: 'pending',
+          created_at: '2026-09-08T09:00:00.000Z',
+          hold_expires_at: '2026-09-08T11:50:00.000Z',
+        },
+        now
+      )
+    ).toBe(false);
+    // Without hold_expires_at, created_at + 30m would wrongly release a live resume.
+    expect(
+      bookingOccupiesInventory(
+        {
+          status: 'pending',
+          payment_status: 'pending',
+          created_at: '2026-09-08T09:00:00.000Z',
+          hold_expires_at: null,
+        },
+        now
+      )
+    ).toBe(false);
+  });
+
   it('does not let failed or expired-legacy pending occupy inventory', () => {
     expect(
       bookingOccupiesInventory({ status: 'pending', payment_status: 'failed' }, now)
