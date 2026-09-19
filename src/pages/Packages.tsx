@@ -24,16 +24,38 @@ import { supplierPortalLandingHref } from '../lib/partnerHost';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
+import { formatMoney, normalizeCurrency } from '../lib/money';
 
 type SortOption = 'recommended' | 'price-asc' | 'price-desc' | 'rating' | 'duration';
 
-const PRICE_CHIPS = [
-  { id: 'all', label: 'Any price' },
-  { id: 'under100', label: 'Under €100' },
-  { id: '100-500', label: '€100 – €500' },
-  { id: '500-1000', label: '€500 – €1k' },
-  { id: '1000plus', label: '€1k+' },
-] as const;
+type PriceChipId = 'all' | 'under100' | '100-500' | '500-1000' | '1000plus';
+
+/**
+ * Price-chip labels used to be hardcoded with a € sign, but listings are genuinely
+ * priced in any of SUPPORTED_CURRENCIES — a hardcoded € both mislabels a non-EUR
+ * catalog and silently mixes magnitudes from different currencies into the same bucket.
+ * When every visible listing shares one real currency we label chips in that currency;
+ * otherwise (no invented conversion rate) we fall back to plain numbers so nothing here
+ * claims a currency it did not earn.
+ */
+function buildPriceChips(currency: string | null): { id: PriceChipId; label: string }[] {
+  if (currency) {
+    return [
+      { id: 'all', label: 'Any price' },
+      { id: 'under100', label: `Under ${formatMoney(100, currency)}` },
+      { id: '100-500', label: `${formatMoney(100, currency)} – ${formatMoney(500, currency)}` },
+      { id: '500-1000', label: `${formatMoney(500, currency)} – ${formatMoney(1000, currency)}` },
+      { id: '1000plus', label: `${formatMoney(1000, currency)}+` },
+    ];
+  }
+  return [
+    { id: 'all', label: 'Any price' },
+    { id: 'under100', label: 'Under 100' },
+    { id: '100-500', label: '100 – 500' },
+    { id: '500-1000', label: '500 – 1,000' },
+    { id: '1000plus', label: '1,000+' },
+  ];
+}
 
 const TAG_LABELS: Record<string, string> = {
   'free-cancellation': 'Free cancellation',
@@ -309,6 +331,17 @@ export default function Packages({ onTourSelect }: PackagesProps) {
   const destinationOptions = useMemo(() => {
     return SHOW_SEED_LISTINGS ? SEED_DESTINATION_OPTIONS : getDestinationsFromListings(allListings);
   }, [allListings]);
+
+  // Real per-listing currency (SUPPORTED_CURRENCIES has 9 codes) — null when the
+  // visible catalog spans more than one, so price-chip labels never claim a
+  // currency that isn't actually true for every listing they cover.
+  const catalogCurrency = useMemo(() => {
+    if (allListings.length === 0) return null;
+    const codes = new Set(allListings.map((t) => normalizeCurrency(t.price?.currency)));
+    return codes.size === 1 ? [...codes][0] : null;
+  }, [allListings]);
+
+  const priceChips = useMemo(() => buildPriceChips(catalogCurrency), [catalogCurrency]);
 
   const ratingSortScore = useCallback(
     (tour: TourPackage) => {
@@ -615,7 +648,7 @@ export default function Packages({ onTourSelect }: PackagesProps) {
                 onClick={() => setPriceRange('all')}
                 className="lux-flat inline-flex items-center gap-1.5 rounded-full bg-finland/10 px-3 py-1.5 text-xs font-semibold text-finland ring-1 ring-finland/20"
               >
-                {PRICE_CHIPS.find((c) => c.id === priceRange)?.label ?? priceRange} <X className="w-3.5 h-3.5" />
+                {priceChips.find((c) => c.id === priceRange)?.label ?? priceRange} <X className="w-3.5 h-3.5" />
               </button>
             )}
             {filterDate && (
@@ -786,9 +819,16 @@ export default function Packages({ onTourSelect }: PackagesProps) {
                   </div>
                 </div>
                 <div>
-                  <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">Price</p>
+                  <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">
+                    Price
+                    {!catalogCurrency ? (
+                      <span className="ml-2 normal-case tracking-normal text-ink-faint/80">
+                        · amounts in each tour’s own currency
+                      </span>
+                    ) : null}
+                  </p>
                   <div className="flex flex-wrap gap-2">
-                    {PRICE_CHIPS.map((chip) => (
+                    {priceChips.map((chip) => (
                       <button
                         key={chip.id}
                         type="button"

@@ -15,7 +15,7 @@ import { SkeletonCardGrid } from '../components/ui/Skeleton';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 import { supplierPortalLandingHref } from '../lib/partnerHost';
 import { STRIPE_CHECKOUT_CANCELLED_STAY_COPY, readStripeCheckoutReturnBanner } from '../lib/booking-confirmation-copy';
-import { stayAvailableForRequestedNights } from '../lib/stayOccupancy';
+import { addCalendarDays, stayAvailableForRequestedNights } from '../lib/stayOccupancy';
 import { fetchPublishedStayOccupiedRanges } from '../data/supabase-bookings';
 import type { TourPackage } from '../types/tour';
 import { formatStayNightHuman } from '../lib/stay-calendar';
@@ -77,6 +77,16 @@ export default function Stays({ onStaySelect }: Props) {
   }, [supplierListings]);
 
   const dateFilterActive = Boolean(checkIn && checkOut && checkOut > checkIn);
+
+  // Picking a new check-in that lands on/after the existing check-out used to leave
+  // check-out stale: dateFilterActive would silently go false (no availability
+  // filtering applied) while the "Out ..." chip below still looked active.
+  const handleCheckInChange = (next: string) => {
+    setCheckIn(next);
+    if (checkOut && next && checkOut <= next) {
+      setCheckOut(addCalendarDays(next, 1));
+    }
+  };
 
   useEffect(() => {
     if (!dateFilterActive || stays.length === 0 || !isSupabaseConfigured()) {
@@ -212,7 +222,7 @@ export default function Stays({ onStaySelect }: Props) {
                 id="stays-in"
                 type="date"
                 value={checkIn}
-                onChange={(e) => setCheckIn(e.target.value)}
+                onChange={(e) => handleCheckInChange(e.target.value)}
                 className="w-full h-9 border-0 text-ink focus:ring-0 text-[15px] bg-transparent"
               />
             </div>
@@ -224,6 +234,7 @@ export default function Stays({ onStaySelect }: Props) {
                 id="stays-out"
                 type="date"
                 value={checkOut}
+                min={checkIn ? addCalendarDays(checkIn, 1) : undefined}
                 onChange={(e) => setCheckOut(e.target.value)}
                 className="w-full h-9 border-0 text-ink focus:ring-0 text-[15px] bg-transparent"
               />
@@ -292,7 +303,7 @@ export default function Stays({ onStaySelect }: Props) {
                     id="stays-sheet-in"
                     type="date"
                     value={checkIn}
-                    onChange={(e) => setCheckIn(e.target.value)}
+                    onChange={(e) => handleCheckInChange(e.target.value)}
                     className="w-full h-9 border-0 text-ink focus:ring-0 text-[15px] bg-transparent"
                   />
                 </div>
@@ -304,6 +315,7 @@ export default function Stays({ onStaySelect }: Props) {
                     id="stays-sheet-out"
                     type="date"
                     value={checkOut}
+                    min={checkIn ? addCalendarDays(checkIn, 1) : undefined}
                     onChange={(e) => setCheckOut(e.target.value)}
                     className="w-full h-9 border-0 text-ink focus:ring-0 text-[15px] bg-transparent"
                   />
