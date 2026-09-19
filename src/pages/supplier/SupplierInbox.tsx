@@ -30,6 +30,7 @@ import { partnerInboxListsBooking } from '../../lib/messaging-authorization';
 import StatusChip, { toneForPaymentLabel } from '../../components/StatusChip';
 import { formatBookingParticipantsLabel } from '../../lib/participant-mix';
 import { PARTNER_INBOX_MESSAGE_FETCH_CAP } from '../../lib/partner-inbox-cap';
+import { formatStayNightHuman } from '../../lib/stay-calendar';
 
 /** Message previews are only fetched for the most recent N paid bookings; older
  * closed/cancelled threads beyond this may not show here. See olderConversationsHidden. */
@@ -211,7 +212,7 @@ export default function SupplierInbox() {
       ? null
       : [startHm ? `Start ${startHm}` : null, pickupHm ? `Pickup ${pickupHm}` : null].filter(Boolean).join(' · ');
     const whenBits = isStay
-      ? `${b.booking_date ?? '—'}${b.check_out ? ` → ${b.check_out}` : ''}`
+      ? `${formatStayNightHuman(b.booking_date ?? '')}${b.check_out ? ` → ${formatStayNightHuman(b.check_out)}` : ''}`
       : b.booking_date
         ? new Date(`${b.booking_date}T12:00:00`).toLocaleDateString(undefined, {
             weekday: 'short',
@@ -221,8 +222,8 @@ export default function SupplierInbox() {
         : '';
     return (
       <>
-        <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
-          <p className="text-sm text-ink leading-snug">
+        <div className="mb-2.5 flex flex-wrap items-start justify-between gap-2">
+          <p className="text-xs text-ink-muted leading-snug">
             {typeof b.booking_number === 'number' ? `#${b.booking_number} · ` : ''}
             {isStay ? 'Stay' : 'Tour'} · {titles[b.listing_id] ?? 'Listing'} · {b.guest_name?.trim() || 'Traveler'} ·{' '}
             {formatBookingParticipantsLabel(b)}
@@ -380,7 +381,7 @@ export default function SupplierInbox() {
               >
                 <button
                   type="button"
-                  className="partner-row-interact lux-flat w-full text-left px-3.5 py-2.5"
+                  className="partner-row-interact lux-flat w-full text-left px-3 py-2"
                   aria-expanded={open}
                   onClick={() => {
                     const opening = !open;
@@ -395,11 +396,11 @@ export default function SupplierInbox() {
                           aria-hidden={!unread}
                           aria-label={unread ? 'Unread' : undefined}
                         />
-                        <p className={`truncate ${unread ? 'font-semibold text-ink' : 'font-medium text-ink'}`}>
+                        <p className={`truncate text-sm ${unread ? 'font-semibold text-ink' : 'font-medium text-ink'}`}>
                           {b.guest_name?.trim() || 'Traveler'}
                         </p>
                       </div>
-                      <p className="mt-0.5 text-sm text-ink-muted truncate pl-4">{titles[b.listing_id] ?? 'Listing'}</p>
+                      <p className="mt-0.5 text-xs text-ink-muted truncate pl-4">{titles[b.listing_id] ?? 'Listing'}</p>
                     </div>
                     <div className="flex flex-wrap items-center justify-end gap-1.5 shrink-0 max-w-[45%]">
                       {showMoneyChip ? (
@@ -412,21 +413,23 @@ export default function SupplierInbox() {
                       ) : null}
                     </div>
                   </div>
-                  <p className="mt-0.5 text-xs text-ink-faint pl-4">
-                    {b.booking_date
-                      ? new Date(`${b.booking_date}T12:00:00`).toLocaleDateString(undefined, {
-                          weekday: 'short',
-                          day: 'numeric',
-                          month: 'short',
-                        })
-                      : 'Date TBC'}
+                  <p className="mt-0.5 text-[11px] text-ink-faint pl-4">
+                    {b.check_out && /^\d{4}-\d{2}-\d{2}$/.test(b.check_out)
+                      ? `${formatStayNightHuman(b.booking_date ?? '')} → ${formatStayNightHuman(b.check_out)}`
+                      : b.booking_date
+                        ? new Date(`${b.booking_date}T12:00:00`).toLocaleDateString(undefined, {
+                            weekday: 'short',
+                            day: 'numeric',
+                            month: 'short',
+                          })
+                        : 'Date TBC'}
                     {` · ${formatBookingParticipantsLabel(b)}`}
                     {pgTimeToHm(b.start_time) ? ` · ${pgTimeToHm(b.start_time)}` : ''}
                     {last?.created_at
                       ? ` · ${new Date(last.created_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}`
                       : ''}
                   </p>
-                  <p className="mt-1 text-sm text-ink-muted line-clamp-2 pl-4">
+                  <p className="mt-0.5 text-xs text-ink-muted line-clamp-1 pl-4">
                     {last?.body ?? 'No messages yet — open to write about this booking.'}
                   </p>
                 </button>
