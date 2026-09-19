@@ -120,7 +120,9 @@ type Body = {
     | 'create_portal_notification'
     | 'delete_portal_notification'
     | 'bookings_list'
-    | 'finance_summary';
+    | 'finance_summary'
+    | 'list_contact_inquiries'
+    | 'update_contact_inquiry_status';
   supplierId?: string;
   feedback?: string | null;
   notificationTitle?: string;
@@ -132,6 +134,8 @@ type Body = {
   bookingStatus?: string;
   bookingSearch?: string;
   bookingSupplierId?: string;
+  inquiryId?: string;
+  inquiryStatus?: string;
 };
 
 function isAdminUser(user: { app_metadata?: Record<string, unknown> } | null): boolean {
@@ -448,6 +452,26 @@ serve(async (req) => {
       truncated:
         bookingRows.length >= FETCH_CAP || ledgerRows.length >= FETCH_CAP || earningsRows.length >= FETCH_CAP,
     });
+  }
+
+  if (body.action === 'list_contact_inquiries') {
+    const { data, error } = await admin
+      .from('contact_inquiries')
+      .select('id, name, email, phone, subject, message, inquiry_type, status, created_at')
+      .order('created_at', { ascending: false })
+      .limit(300);
+    if (error) return json({ error: error.message }, 500);
+    return json({ items: data ?? [] });
+  }
+
+  if (body.action === 'update_contact_inquiry_status') {
+    const inquiryId = typeof body.inquiryId === 'string' ? body.inquiryId.trim() : '';
+    const status = typeof body.inquiryStatus === 'string' ? body.inquiryStatus.trim().toLowerCase() : '';
+    if (!inquiryId) return json({ error: 'inquiryId required' }, 400);
+    if (status !== 'new' && status !== 'resolved') return json({ error: "inquiryStatus must be 'new' or 'resolved'" }, 400);
+    const { error } = await admin.from('contact_inquiries').update({ status }).eq('id', inquiryId);
+    if (error) return json({ error: error.message }, 500);
+    return json({ ok: true });
   }
 
   if (body.action === 'list') {
