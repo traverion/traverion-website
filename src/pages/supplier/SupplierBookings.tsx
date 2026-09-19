@@ -1398,33 +1398,37 @@ export default function SupplierBookings() {
             }
             onClose={() => setCancelModal(null)}
           />
-          <div className="space-y-4 p-4 sm:p-5">
+          <div className="space-y-3.5 p-4 sm:p-5">
             {isPaidPaymentStatus(cancelModal.payment_status) ? (
               <>
-                <NoticeCallout title={PARTNER_CANCEL_REQUEST_CONSEQUENCES_TITLE} tone="danger">
-                  <p>{PARTNER_CANCEL_REQUEST_REFUND_POLICY}</p>
-                  <p className="mt-1">
-                    Supplier cancellation fee:{' '}
-                    {supplierCancellationFeeEur(cancelReason) === 0
-                      ? '€0 (force majeure / restriction)'
-                      : `€${supplierCancellationFeeEur(cancelReason).toFixed(0)} (supplier-responsibility)`}
-                  </p>
-                  <p className="mt-1">
-                    Reason: {supplierCancellationReasonLabel(cancelReason)}. {PARTNER_CANCEL_REQUEST_FEE_TIMING_NOTE}
+                <div className="rounded-lg border border-black/[0.06] border-l-[3px] border-l-rose-500 bg-paper px-3.5 py-3">
+                  <p className="text-sm font-semibold text-ink">{PARTNER_CANCEL_REQUEST_CONSEQUENCES_TITLE}</p>
+                  <p className="mt-1 text-xs text-ink-muted leading-snug">{PARTNER_CANCEL_REQUEST_REFUND_POLICY}</p>
+                  <p className="mt-1.5 text-xs text-ink">
+                    Fee:{' '}
+                    <span className="font-semibold tabular-nums">
+                      {supplierCancellationFeeEur(cancelReason) === 0
+                        ? '€0 (force majeure / restriction)'
+                        : `€${supplierCancellationFeeEur(cancelReason).toFixed(0)} (supplier-responsibility)`}
+                    </span>
+                    {' · '}
+                    {supplierCancellationReasonLabel(cancelReason)}. {PARTNER_CANCEL_REQUEST_FEE_TIMING_NOTE}
                   </p>
                   {isForceMajeureReason(cancelReason) ? (
-                    <p className="mt-1">Force majeure is audited. Explain clearly — this is not an automatic fee waiver button.</p>
+                    <p className="mt-1 text-xs text-amber-900">
+                      Force majeure is audited. Explain clearly — this is not an automatic fee waiver.
+                    </p>
                   ) : null}
-                </NoticeCallout>
+                </div>
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-ink" htmlFor="cancel-reason-code">
+                  <label className="text-xs font-medium uppercase tracking-wide text-ink-faint" htmlFor="cancel-reason-code">
                     Reason
                   </label>
                   <select
                     id="cancel-reason-code"
                     value={cancelReason}
                     onChange={(e) => setCancelReason(e.target.value)}
-                    className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-finland"
+                    className="tv-input"
                   >
                     {CANCELLATION_REASONS.map((reason) => (
                       <option key={reason.id} value={reason.id}>
