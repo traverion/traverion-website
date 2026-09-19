@@ -15,8 +15,9 @@ import {
 import ErrorState from '../../components/ErrorState';
 import { isCollectedBooking } from '../../lib/payment-states';
 import { formatMoney, normalizeCurrency } from '../../lib/money';
-import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
+import { navigateSupplierUrl, openSupplierCalendar } from '../../lib/supplierPortalNavigation';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
+import { inventoryFamilyFromListing } from '../../lib/inventory';
 
 const PERFORMANCE_LOAD_ERROR =
   'We could not load performance. Check your connection and try again.';
@@ -114,6 +115,11 @@ export default function SupplierPerformance() {
 
   const titleByListingId = useMemo(
     () => Object.fromEntries(listings.map((l) => [l.id, l.title])),
+    [listings]
+  );
+
+  const listingById = useMemo(
+    () => Object.fromEntries(listings.map((l) => [l.id, l])),
     [listings]
   );
 
