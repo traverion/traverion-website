@@ -2542,11 +2542,16 @@ export default function SupplierListingForm({
             <div id="supplier-listing-field-photos" className="space-y-6">
                 <div>
                   <h3 className="font-display text-xl text-ink">
-                    {form.inventoryFamily === 'stay' || createFamily === 'stay' ? 'Stay photos' : 'Tour photos'} ({LISTING_PHOTO_MIN}–{LISTING_PHOTO_MAX} required to publish)
+                    {form.inventoryFamily === 'stay' || createFamily === 'stay'
+                      ? 'Stay photos'
+                      : 'Tour photos'}{' '}
+                    ({LISTING_PHOTO_MIN}–{LISTING_PHOTO_MAX} required to publish)
                   </h3>
                   <p className="mt-1 text-sm text-ink-muted">
-                    Add photos in traveler order. The first photo is the main image. Use + Add photo or Replace to upload from
-                    your device; pasted links stay as URLs. Reorder with the arrows after selecting a thumbnail.
+                    {form.inventoryFamily === 'stay' || createFamily === 'stay'
+                      ? 'Lead with the best room or exterior, then bedrooms, bathroom, kitchen, and outdoor space. First photo is the cover travelers see in search.'
+                      : 'Add photos in traveler order. The first photo is the main image on search and the product page.'}{' '}
+                    Use + Add photo or Replace to upload; paste a URL if needed. Select a thumbnail, then reorder with the arrows.
                   </p>
                 </div>
                 <ListingImageFields
