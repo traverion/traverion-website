@@ -40,6 +40,7 @@ import {
 } from '../../lib/booking-confirmation-copy';
 import { DEFAULT_CURRENCY, formatMoney, normalizeCurrency } from '../../lib/money';
 import { STAY_AMENITY_PRESETS } from '../../lib/stay-amenities';
+import { publicStayListingUrl, publicTourListingUrl } from '../../lib/publicSiteUrl';
 import NoticeCallout from '../../components/NoticeCallout';
 
 const TAG_OPTIONS = [
@@ -2714,6 +2715,20 @@ export default function SupplierListingForm({
                     Tip: add amenities on Pricing so travelers see Wi‑Fi, parking, and other basics — optional for
                     publish, expected by guests.
                   </p>
+                ) : null}
+                {form.status === 'published' && editingId ? (
+                  <a
+                    href={
+                      form.inventoryFamily === 'stay' || createFamily === 'stay'
+                        ? publicStayListingUrl(editingId)
+                        : publicTourListingUrl(editingId)
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-3 inline-flex text-sm font-semibold text-finland hover:underline"
+                  >
+                    View live listing
+                  </a>
                 ) : null}
               </div>
             </div>
