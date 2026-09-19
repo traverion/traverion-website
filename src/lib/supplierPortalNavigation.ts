@@ -73,15 +73,19 @@ export function openSupplierInbox(bookingId?: string, opts?: { unreadOnly?: bool
 }
 
 /** Open pickup planner and optionally open a booking detail. */
-export function openSupplierPickup(bookingId?: string): void {
+export function openSupplierPickup(
+  bookingId?: string,
+  opts?: { from?: string; to?: string; needsOnly?: boolean; listingId?: string }
+): void {
   const path = `${PARTNER_APP_BASE}/pickup`;
-  if (!bookingId) {
-    navigateSupplierUrl(path);
-    return;
-  }
   const q = new URLSearchParams();
-  q.set('booking', bookingId);
-  navigateSupplierUrl(`${path}?${q.toString()}`);
+  if (bookingId) q.set('booking', bookingId);
+  if (opts?.from) q.set('from', opts.from);
+  if (opts?.to) q.set('to', opts.to);
+  if (opts?.listingId) q.set('listing', opts.listingId);
+  if (opts?.needsOnly) q.set('needs', '1');
+  const qs = q.toString();
+  navigateSupplierUrl(qs ? `${path}?${qs}` : path);
 }
 
 /** Open Calendar and optionally focus a listing for edit. */

@@ -394,7 +394,16 @@ export default function SupplierDashboard() {
               </AttentionRow>
             )}
             {pickupGaps.length > 0 && (
-              <AttentionRow tone="warn" onClick={() => openSupplierPickup(pickupGaps[0]?.id)}>
+              <AttentionRow
+                tone="warn"
+                onClick={() =>
+                  openSupplierPickup(pickupGaps[0]?.id, {
+                    from: todayYmd,
+                    to: todayYmd,
+                    needsOnly: true,
+                  })
+                }
+              >
                 {pickupGaps.length} paid booking{pickupGaps.length === 1 ? '' : 's'} missing pickup details
               </AttentionRow>
             )}
