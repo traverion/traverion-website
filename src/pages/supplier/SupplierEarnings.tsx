@@ -10,7 +10,7 @@ import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import { navigateSupplierUrl, openSupplierBooking } from '../../lib/supplierPortalNavigation';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { formatMoney, isStripeTestCheckoutSession, normalizeCurrency } from '../../lib/money';
-import { isCollectedBooking, isRefundDueBooking, REFUND_DUE_MANUAL_COPY } from '../../lib/payment-states';
+import { isCollectedBooking, isRefundDueBooking } from '../../lib/payment-states';
 import { isCollectedEarningKind } from '../../lib/supplier-ledger-balance';
 import { fetchMyListings } from '../../data/supabase-listings';
 import { fetchSupplierLedger, type SupplierLedgerEntry } from '../../data/supabase-booking-ops';
@@ -376,24 +376,29 @@ export default function SupplierEarnings() {
                     </p>
                   ) : null}
                   {s.refundDueCount > 0 ? (
-                    <div className="mt-6 max-w-lg">
-                      <NoticeCallout title="Refund due" tone="warn">
-                        <p>
-                          {s.refundDueCount} cancelled booking
-                          {s.refundDueCount === 1 ? '' : 's'} still show Refund due (
-                          <span className="tabular-nums font-semibold">
+                    <div className="mt-4 max-w-xl rounded-lg border border-black/[0.06] border-l-[3px] border-l-amber-500 bg-paper px-3.5 py-3">
+                      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                        <p className="text-sm font-semibold text-ink">
+                          Refund due ·{' '}
+                          <span className="tabular-nums">
                             {formatMoney(s.refundDue, s.currency)}
                           </span>
-                          ). That money is not in Collected. {REFUND_DUE_MANUAL_COPY}
+                          <span className="font-normal text-ink-muted">
+                            {' '}
+                            · {s.refundDueCount} booking{s.refundDueCount === 1 ? '' : 's'}
+                          </span>
                         </p>
                         <button
                           type="button"
                           onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings?ops=refund_due`)}
-                          className="tv-btn-ghost mt-3 -ml-2"
+                          className="text-xs font-semibold text-finland hover:underline"
                         >
-                          Open Refund due in Bookings
+                          Open in Bookings
                         </button>
-                      </NoticeCallout>
+                      </div>
+                      <p className="mt-1 text-xs text-ink-muted leading-snug">
+                        Not in Collected. Stripe refunds are manual — status stays Refund due until issued.
+                      </p>
                     </div>
                   ) : null}
                   <button
