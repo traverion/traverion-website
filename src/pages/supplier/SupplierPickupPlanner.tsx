@@ -161,38 +161,38 @@ function PlannerBookingCard({
 
   return (
     <article
-      className={`overflow-hidden rounded-xl bg-paper-raised ring-1 ring-black/[0.06] border-l-[3px] ${accent} ${
-        selected ? 'ring-finland/35 shadow-soft' : ''
-      } ${missingPickup || urgentSoon ? 'ring-amber-200/70' : ''}`}
+      className={`overflow-hidden rounded-lg border border-black/[0.06] border-l-[3px] bg-paper ${accent} ${
+        selected ? 'ring-1 ring-finland/35' : ''
+      } ${missingPickup || urgentSoon ? 'ring-1 ring-amber-200/70' : ''}`}
     >
-      <button type="button" onClick={onOpen} className="lux-flat w-full px-3 py-2.5 sm:px-3.5 sm:py-3 text-left">
+      <button type="button" onClick={onOpen} className="lux-flat w-full px-3 py-2 text-left">
         {urgentSoon ? (
-          <p className="mb-1 text-[11px] font-medium text-red-700">
+          <p className="mb-0.5 text-[11px] font-medium text-red-700">
             Starts within 24 hours — pickup details still incomplete
           </p>
         ) : null}
         {!urgentSoon && missingPickup ? (
-          <p className="mb-1 text-[11px] font-medium text-amber-800">Pickup details still incomplete</p>
+          <p className="mb-0.5 text-[11px] font-medium text-amber-800">Pickup details still incomplete</p>
         ) : null}
         <div className="flex items-baseline justify-between gap-3">
-          <p className="font-semibold text-ink truncate">{booking.guest_name ?? booking.guest_email ?? 'Guest'}</p>
-          <span className="text-xs font-medium text-ink-muted shrink-0">{payLabel}</span>
+          <p className="text-sm font-semibold text-ink truncate">{booking.guest_name ?? booking.guest_email ?? 'Guest'}</p>
+          <span className="text-[11px] font-medium text-ink-muted shrink-0">{payLabel}</span>
         </div>
-        <p className="mt-0.5 text-sm text-ink-muted truncate">
+        <p className="mt-0.5 text-xs text-ink-muted truncate">
           {ref ? `${ref} · ` : ''}
           {listingTitle}
         </p>
-        <p className="mt-1 text-sm text-ink-muted">
+        <p className="mt-0.5 text-xs text-ink-muted">
           {actDate ? `${actDate} · ` : ''}
           {participants}
           {times ? ` · ${times}` : ''}
         </p>
         {holdLine ? (
-          <p className={`mt-1 text-[11px] font-medium ${holdLive ? 'text-amber-900' : 'text-ink-faint'}`}>
+          <p className={`mt-0.5 text-[11px] font-medium ${holdLive ? 'text-amber-900' : 'text-ink-faint'}`}>
             {holdLine}
           </p>
         ) : null}
-        {guide ? <p className="mt-1 line-clamp-1 text-[11px] text-ink-faint">{guide}</p> : null}
+        {guide ? <p className="mt-0.5 line-clamp-1 text-[11px] text-ink-faint">{guide}</p> : null}
       </button>
     </article>
   );
