@@ -208,13 +208,32 @@ export default function SupplierBookings() {
   const [error, setError] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
-  const [view, setView] = useState<BookingView>('all');
+  const [view, setView] = useState<BookingView>(() => {
+    if (typeof window === 'undefined') return 'all';
+    const v = new URLSearchParams(window.location.search).get('view');
+    return v === 'today' || v === 'upcoming' || v === 'past' || v === 'all' ? v : 'all';
+  });
   const [opsFilter, setOpsFilter] = useState<OpsFilter>('all');
-  const [filterListingId, setFilterListingId] = useState('');
-  const [filterDateFrom, setFilterDateFrom] = useState('');
-  const [filterDateTo, setFilterDateTo] = useState('');
+  const [filterListingId, setFilterListingId] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    return (new URLSearchParams(window.location.search).get('listing') ?? '').trim();
+  });
+  const [filterDateFrom, setFilterDateFrom] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    const d = (new URLSearchParams(window.location.search).get('from') ?? '').trim();
+    return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : '';
+  });
+  const [filterDateTo, setFilterDateTo] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    const d = (new URLSearchParams(window.location.search).get('to') ?? '').trim();
+    return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : '';
+  });
   const [filterQuery, setFilterQuery] = useState('');
-  const [showSearch, setShowSearch] = useState(false);
+  const [showSearch, setShowSearch] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    const p = new URLSearchParams(window.location.search);
+    return Boolean(p.get('listing') || p.get('from') || p.get('to'));
+  });
 
   const [bookingsListPage, setBookingsListPage] = useState(1);
   const [highlightBookingId, setHighlightBookingId] = useState<string | null>(null);
@@ -275,11 +294,51 @@ export default function SupplierBookings() {
       } else if (ops === 'all' || ops === null) {
         if (ops === 'all') setOpsFilter('all');
       }
+      const v = params.get('view');
+      if (v === 'today' || v === 'upcoming' || v === 'past' || v === 'all') {
+        if (!(ops === 'refund_due' || ops === 'unpaid' || ops === 'cancel')) setView(v);
+      }
+      const listing = (params.get('listing') ?? '').trim();
+      setFilterListingId(listing);
+      const from = (params.get('from') ?? '').trim();
+      const to = (params.get('to') ?? '').trim();
+      setFilterDateFrom(/^\d{4}-\d{2}-\d{2}$/.test(from) ? from : '');
+      setFilterDateTo(/^\d{4}-\d{2}-\d{2}$/.test(to) ? to : '');
+      if (listing || from || to) setShowSearch(true);
     };
     syncFromUrl();
     window.addEventListener('popstate', syncFromUrl);
     return () => window.removeEventListener('popstate', syncFromUrl);
   }, []);
+
+  const writeBookingsSearchToUrl = useCallback(
+    (patch: {
+      listingId?: string;
+      from?: string;
+      to?: string;
+      view?: BookingView;
+    }) => {
+      const listingId = patch.listingId !== undefined ? patch.listingId : filterListingId;
+      const from = patch.from !== undefined ? patch.from : filterDateFrom;
+      const to = patch.to !== undefined ? patch.to : filterDateTo;
+      const nextView = patch.view !== undefined ? patch.view : view;
+      if (patch.listingId !== undefined) setFilterListingId(patch.listingId);
+      if (patch.from !== undefined) setFilterDateFrom(patch.from);
+      if (patch.to !== undefined) setFilterDateTo(patch.to);
+      if (patch.view !== undefined) setView(patch.view);
+      const url = new URL(window.location.href);
+      if (!listingId) url.searchParams.delete('listing');
+      else url.searchParams.set('listing', listingId);
+      if (!from) url.searchParams.delete('from');
+      else url.searchParams.set('from', from);
+      if (!to) url.searchParams.delete('to');
+      else url.searchParams.set('to', to);
+      if (nextView === 'all') url.searchParams.delete('view');
+      else url.searchParams.set('view', nextView);
+      window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+    },
+    [filterListingId, filterDateFrom, filterDateTo, view]
+  );
 
   const setSelectedBookingId = useCallback((id: string | null) => {
     const url = new URL(window.location.href);
@@ -584,7 +643,7 @@ export default function SupplierBookings() {
                 type="button"
                 role="tab"
                 aria-selected={view === id}
-                onClick={() => setView(id)}
+                onClick={() => writeBookingsSearchToUrl({ view: id })}
                 className={`lux-flat relative px-3.5 py-2.5 text-sm font-medium transition-colors ${
                   view === id ? 'text-finland' : 'text-ink-muted hover:text-ink'
                 }`}
