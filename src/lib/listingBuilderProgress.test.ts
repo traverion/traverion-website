@@ -79,4 +79,26 @@ describe('listingBuilderSections', () => {
     expect(incomplete).toEqual([]);
     expect(listingBuilderReadyToPublish(form)).toBe(true);
   });
+
+  it('keeps Photos incomplete until the publish minimum photo count', () => {
+    const sections = listingBuilderSections({
+      inventoryFamily: 'tour',
+      title: 'Guaranteed Northern Lights Photography Tour',
+      subtitle: 'Chase the aurora with a local guide',
+      experienceLanguage: 'English',
+      experienceKind: 'tour',
+      description: 'A'.repeat(120),
+      highlights: ['Aurora chase'],
+      includes: ['Guide', 'Hot drinks'],
+      excludes: ['Personal gear'],
+      city: 'Rovaniemi',
+      country: 'Finland',
+      duration: '5 hours',
+      bookingOptions: [sampleOption()],
+      photoSlots: ['https://images.example.com/a.jpg'],
+    });
+    const photos = sections.find((s) => s.id === 'photos');
+    expect(photos?.status).toBe('incomplete');
+    expect(photos?.issues.some((i) => /at least/i.test(i))).toBe(true);
+  });
 });

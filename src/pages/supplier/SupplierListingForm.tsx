@@ -617,16 +617,8 @@ function isStepSatisfied(idx: number, form: ListingFormState): boolean {
     return active.length >= 1 && active.every(isBookingOptionOkForStep);
   }
   if (idx === 3) {
-    if (isStay) {
-      if (form.status === 'draft') {
-        return orderedPhotoUrls(normalizePhotoSlots(form.photoSlots)).length >= 1;
-      }
-      return listingPhotosReadyToPublish(form);
-    }
-    // Tour photos step
-    if (form.status === 'draft') {
-      return orderedPhotoUrls(normalizePhotoSlots(form.photoSlots)).length >= 1;
-    }
+    // Photos: green check / ready count always match publish (4–12, real cover).
+    // Draft Continue still allows one photo so partners are not trapped mid-wizard.
     return listingPhotosReadyToPublish(form);
   }
   if (idx === 4 && !isStay) {
@@ -634,6 +626,14 @@ function isStepSatisfied(idx: number, form: ListingFormState): boolean {
     return isStepSatisfied(0, form) && isStepSatisfied(1, form) && isStepSatisfied(2, form) && isStepSatisfied(3, form);
   }
   return true;
+}
+
+/** Soft gate so draft wizards can move past Photos with a single cover while publish still needs four. */
+function canContinueListingStep(idx: number, form: ListingFormState): boolean {
+  if (idx === 3) {
+    return orderedPhotoUrls(normalizePhotoSlots(form.photoSlots)).length >= 1;
+  }
+  return isStepSatisfied(idx, form);
 }
 
 const emptyForm: ListingFormState = {
@@ -1489,7 +1489,7 @@ export default function SupplierListingForm({
     </div>
   ) : null;
 
-  const canContinueStep = () => isStepSatisfied(stepIdx, form);
+  const canContinueStep = () => canContinueListingStep(stepIdx, form);
 
   const shell = (
     <div
@@ -2514,7 +2514,10 @@ export default function SupplierListingForm({
             </div>
           )}
 
-          {stepIdx === 3 && (
+          {stepIdx === 3 && (() => {
+            const photoCount = orderedPhotoUrls(normalizePhotoSlots(form.photoSlots)).length;
+            const photosPublishReady = listingPhotosReadyToPublish(form);
+            return (
             <div id="supplier-listing-field-photos" className="space-y-6">
                 <div>
                   <h3 className="font-display text-xl text-ink">
@@ -2534,6 +2537,13 @@ export default function SupplierListingForm({
                   userId={user?.id}
                   uploadsEnabled={isSupabaseConfigured() && !!user?.id}
                 />
+                {!photosPublishReady && photoCount >= 1 ? (
+                  <p className="text-sm text-amber-900">
+                    {photoCount < LISTING_PHOTO_MIN
+                      ? `You can continue with this cover. Add ${LISTING_PHOTO_MIN - photoCount} more before publish (${LISTING_PHOTO_MIN}–${LISTING_PHOTO_MAX} photos required).`
+                      : 'Replace the placeholder cover photo before publishing.'}
+                  </p>
+                ) : null}
               {form.status === 'published' && editingId && !publishChecklistDismissed && publishChecklistKey && (
                 <div>
                   <div className="flex items-start justify-between gap-2">
@@ -2567,7 +2577,8 @@ export default function SupplierListingForm({
               </div>
               )}
             </div>
-          )}
+            );
+          })()}
 
           {stepIdx === 4 && form.inventoryFamily !== 'stay' && createFamily !== 'stay' && (
             <div id="supplier-listing-field-review" className="space-y-6">
