@@ -118,7 +118,9 @@ type Body = {
     | 'reject_payout'
     | 'list_portal_notifications'
     | 'create_portal_notification'
-    | 'delete_portal_notification';
+    | 'delete_portal_notification'
+    | 'bookings_list'
+    | 'finance_summary';
   supplierId?: string;
   feedback?: string | null;
   notificationTitle?: string;
@@ -127,6 +129,9 @@ type Body = {
   notificationAudience?: string;
   supplierUserId?: string;
   notificationId?: string;
+  bookingStatus?: string;
+  bookingSearch?: string;
+  bookingSupplierId?: string;
 };
 
 function isAdminUser(user: { app_metadata?: Record<string, unknown> } | null): boolean {
@@ -260,6 +265,188 @@ serve(async (req) => {
       total_listings: listingsTotal.count ?? 0,
       published_listings: listingsPublished.count ?? 0,
       registered_customers: customers.count ?? 0,
+    });
+  }
+
+  if (body.action === 'bookings_list') {
+    const BOOKINGS_FETCH_CAP = 500;
+    const statusFilter = typeof body.bookingStatus === 'string' ? body.bookingStatus.trim().toLowerCase() : 'all';
+    const rawSearch = typeof body.bookingSearch === 'string' ? body.bookingSearch.trim() : '';
+    const safeSearch = rawSearch.replace(/[,()%]/g, '').slice(0, 80);
+    const supplierFilter = typeof body.bookingSupplierId === 'string' ? body.bookingSupplierId.trim() : '';
+
+    let supplierListingIds: string[] | null = null;
+    if (supplierFilter) {
+      const { data: rows, error } = await admin.from('listings').select('id').eq('supplier_id', supplierFilter);
+      if (error) return json({ error: error.message }, 500);
+      supplierListingIds = (rows ?? []).map((r: any) => r.id as string);
+      if (supplierListingIds.length === 0) {
+        return json({ items: [], truncated: false, fetchedCount: 0 });
+      }
+    }
+
+    const bookingCols =
+      'id, listing_id, guest_email, guest_name, guests, booking_date, check_out, nights, status, payment_status, amount_paid, currency, checkout_session_id, refund_choice, booking_number, created_at';
+
+    let query = admin
+      .from('bookings')
+      .select(bookingCols)
+      .order('created_at', { ascending: false })
+      .limit(BOOKINGS_FETCH_CAP);
+    if (statusFilter === 'pending' || statusFilter === 'confirmed' || statusFilter === 'cancelled') {
+      query = query.eq('status', statusFilter);
+    }
+    if (supplierListingIds) {
+      query = query.in('listing_id', supplierListingIds);
+    }
+    if (safeSearch) {
+      const orParts = [`guest_name.ilike.%${safeSearch}%`, `guest_email.ilike.%${safeSearch}%`];
+      const asNumber = Number.parseInt(safeSearch, 10);
+      if (Number.isFinite(asNumber) && asNumber > 0 && String(asNumber) === safeSearch) {
+        orParts.push(`booking_number.eq.${asNumber}`);
+      }
+      query = query.or(orParts.join(','));
+    }
+
+    const { data: bookingRows, error: bookingErr } = await query;
+    if (bookingErr) return json({ error: bookingErr.message }, 500);
+    const rows = (bookingRows ?? []) as any[];
+
+    const listingIds = [...new Set(rows.map((r) => r.listing_id as string).filter(Boolean))];
+    const { data: listingRows, error: listingErr } =
+      listingIds.length > 0
+        ? await admin.from('listings').select('id, title, supplier_id, city, country').in('id', listingIds)
+        : { data: [] as any[], error: null };
+    if (listingErr) return json({ error: listingErr.message }, 500);
+    const listingById = new Map((listingRows ?? []).map((l: any) => [l.id as string, l]));
+
+    const supplierIds = [
+      ...new Set(Array.from(listingById.values()).map((l: any) => l.supplier_id as string).filter(Boolean)),
+    ];
+    const { data: supplierRows, error: supplierErr } =
+      supplierIds.length > 0
+        ? await admin.from('supplier_profiles').select('id, display_name, company_legal_name').in('id', supplierIds)
+        : { data: [] as any[], error: null };
+    if (supplierErr) return json({ error: supplierErr.message }, 500);
+    const supplierById = new Map((supplierRows ?? []).map((s: any) => [s.id as string, s]));
+
+    const items = rows.map((b) => {
+      const listing = listingById.get(b.listing_id) as any;
+      const supplier = listing ? (supplierById.get(listing.supplier_id) as any) : null;
+      return {
+        ...b,
+        listing_title: listing?.title ?? null,
+        listing_city: listing?.city ?? null,
+        listing_country: listing?.country ?? null,
+        supplier_id: listing?.supplier_id ?? null,
+        supplier_name: (supplier?.company_legal_name || supplier?.display_name || null) as string | null,
+      };
+    });
+
+    return json({ items, truncated: rows.length >= BOOKINGS_FETCH_CAP, fetchedCount: rows.length });
+  }
+
+  if (body.action === 'finance_summary') {
+    const FETCH_CAP = 5000;
+    const [bookingsRes, ledgerRes, earningsRes] = await Promise.all([
+      admin.from('bookings').select('status, payment_status, amount_paid, currency, refund_choice').limit(FETCH_CAP),
+      admin.from('supplier_ledger_entries').select('kind, amount, currency').limit(FETCH_CAP),
+      admin.from('supplier_earnings').select('status, amount, currency').limit(FETCH_CAP),
+    ]);
+    if (bookingsRes.error) return json({ error: bookingsRes.error.message }, 500);
+    if (ledgerRes.error) return json({ error: ledgerRes.error.message }, 500);
+    if (earningsRes.error) return json({ error: earningsRes.error.message }, 500);
+
+    const bookingRows = (bookingsRes.data ?? []) as any[];
+    const ledgerRows = (ledgerRes.data ?? []) as any[];
+    const earningsRows = (earningsRes.data ?? []) as any[];
+
+    type Bucket = {
+      collected: number;
+      collectedCount: number;
+      refundDue: number;
+      refundDueCount: number;
+      ledgerAdjustments: number;
+      paidOut: number;
+      pendingPayout: number;
+    };
+    const buckets = new Map<string, Bucket>();
+    const bucketFor = (rawCurrency: string | null | undefined): Bucket => {
+      const code = (rawCurrency ?? '').trim().toUpperCase() || 'EUR';
+      let b = buckets.get(code);
+      if (!b) {
+        b = {
+          collected: 0,
+          collectedCount: 0,
+          refundDue: 0,
+          refundDueCount: 0,
+          ledgerAdjustments: 0,
+          paidOut: 0,
+          pendingPayout: 0,
+        };
+        buckets.set(code, b);
+      }
+      return b;
+    };
+
+    const normalizePaymentStatus = (raw: unknown): string => (typeof raw === 'string' ? raw.trim().toLowerCase() : '');
+    const isPaidPaymentStatus = (raw: unknown): boolean => {
+      const pay = normalizePaymentStatus(raw);
+      return pay === 'paid' || pay === 'complete' || pay === 'succeeded';
+    };
+    /** Mirrors src/lib/payment-states.ts isCollectedBooking - keep in sync. */
+    const isCollected = (b: any): boolean => {
+      if (normalizePaymentStatus(b.status) === 'cancelled') return false;
+      const pay = normalizePaymentStatus(b.payment_status);
+      if (pay === 'refunded') return false;
+      if (!isPaidPaymentStatus(b.payment_status)) return false;
+      const amount = Number(b.amount_paid ?? 0);
+      return Number.isFinite(amount) && amount > 0;
+    };
+    /** Mirrors src/lib/payment-states.ts isRefundDueBooking - keep in sync. */
+    const isRefundDue = (b: any): boolean => {
+      const cancelled = normalizePaymentStatus(b.status) === 'cancelled';
+      const pay = normalizePaymentStatus(b.payment_status);
+      if (!cancelled || pay === 'refunded' || !isPaidPaymentStatus(pay)) return false;
+      const choice = normalizePaymentStatus(b.refund_choice);
+      return choice !== 'no_refund';
+    };
+    /** Mirrors src/lib/supplier-ledger-balance.ts isCollectedEarningKind - keep in sync. */
+    const isCollectedLedgerKind = (kind: unknown): boolean => {
+      const k = normalizePaymentStatus(kind);
+      return k === 'booking_earnings' || k === 'refund';
+    };
+
+    for (const b of bookingRows) {
+      const bucket = bucketFor(b.currency);
+      if (isCollected(b)) {
+        bucket.collected += Number(b.amount_paid ?? 0);
+        bucket.collectedCount += 1;
+      } else if (isRefundDue(b)) {
+        bucket.refundDue += Number(b.amount_paid ?? 0);
+        bucket.refundDueCount += 1;
+      }
+    }
+    for (const row of ledgerRows) {
+      if (isCollectedLedgerKind(row.kind)) continue; // already reflected in Collected
+      bucketFor(row.currency).ledgerAdjustments += Number(row.amount ?? 0);
+    }
+    for (const row of earningsRows) {
+      const status = normalizePaymentStatus(row.status);
+      if (status === 'cancelled') continue;
+      if (status === 'paid') bucketFor(row.currency).paidOut += Number(row.amount ?? 0);
+      else if (status === 'pending') bucketFor(row.currency).pendingPayout += Number(row.amount ?? 0);
+    }
+
+    const byCurrency: Record<string, Bucket & { availableBalance: number }> = {};
+    for (const [code, b] of buckets.entries()) {
+      byCurrency[code] = { ...b, availableBalance: b.collected + b.ledgerAdjustments - b.paidOut };
+    }
+
+    return json({
+      byCurrency,
+      truncated:
+        bookingRows.length >= FETCH_CAP || ledgerRows.length >= FETCH_CAP || earningsRows.length >= FETCH_CAP,
     });
   }
 
