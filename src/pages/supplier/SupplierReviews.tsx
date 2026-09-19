@@ -87,7 +87,18 @@ export default function SupplierReviews() {
     const reply = params.get('reply');
     if (reply === 'unreplied' || reply === 'replied' || reply === 'all') {
       setFilterReply(reply);
+    } else if (reply == null) {
+      setFilterReply('all');
     }
+    const listing = (params.get('listing') ?? '').trim();
+    setFilterListingId(listing);
+    const family = params.get('family');
+    setFilterFamily(family === 'tour' || family === 'stay' ? family : 'all');
+    const ratingRaw = params.get('rating');
+    const ratingNum = ratingRaw ? Number(ratingRaw) : NaN;
+    setFilterRating(
+      ratingNum === 1 || ratingNum === 2 || ratingNum === 3 || ratingNum === 4 || ratingNum === 5 ? ratingNum : ''
+    );
   }, []);
 
   useEffect(() => {
@@ -97,13 +108,41 @@ export default function SupplierReviews() {
     return () => window.removeEventListener('popstate', onPop);
   }, [readFiltersFromUrl]);
 
-  const syncReplyFilterToUrl = useCallback((next: 'all' | 'unreplied' | 'replied') => {
-    setFilterReply(next);
-    const url = new URL(window.location.href);
-    if (next === 'all') url.searchParams.delete('reply');
-    else url.searchParams.set('reply', next);
-    window.history.replaceState({}, '', `${url.pathname}${url.search}`);
-  }, []);
+  const writeFiltersToUrl = useCallback(
+    (next: {
+      listingId?: string;
+      family?: 'all' | 'tour' | 'stay';
+      rating?: number | '';
+      reply?: 'all' | 'unreplied' | 'replied';
+    }) => {
+      const listingId = next.listingId !== undefined ? next.listingId : filterListingId;
+      const family = next.family !== undefined ? next.family : filterFamily;
+      const rating = next.rating !== undefined ? next.rating : filterRating;
+      const reply = next.reply !== undefined ? next.reply : filterReply;
+      if (next.listingId !== undefined) setFilterListingId(next.listingId);
+      if (next.family !== undefined) setFilterFamily(next.family);
+      if (next.rating !== undefined) setFilterRating(next.rating);
+      if (next.reply !== undefined) setFilterReply(next.reply);
+      const url = new URL(window.location.href);
+      if (!listingId) url.searchParams.delete('listing');
+      else url.searchParams.set('listing', listingId);
+      if (family === 'all') url.searchParams.delete('family');
+      else url.searchParams.set('family', family);
+      if (rating === '') url.searchParams.delete('rating');
+      else url.searchParams.set('rating', String(rating));
+      if (reply === 'all') url.searchParams.delete('reply');
+      else url.searchParams.set('reply', reply);
+      window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+    },
+    [filterListingId, filterFamily, filterRating, filterReply]
+  );
+
+  const syncReplyFilterToUrl = useCallback(
+    (next: 'all' | 'unreplied' | 'replied') => {
+      writeFiltersToUrl({ reply: next });
+    },
+    [writeFiltersToUrl]
+  );
 
   const listingOptions = useMemo(() => {
     const m = new Map<string, string>();
@@ -142,17 +181,14 @@ export default function SupplierReviews() {
     const inFiltered = filteredReviews.some((r) => r.id === highlightReviewId);
     const inAll = reviews.some((r) => r.id === highlightReviewId);
     if (!inFiltered && inAll) {
-      setFilterListingId('');
-      setFilterFamily('all');
-      setFilterRating('');
-      syncReplyFilterToUrl('all');
+      writeFiltersToUrl({ listingId: '', family: 'all', rating: '', reply: 'all' });
       return;
     }
     const el = document.getElementById(`supplier-review-card-${highlightReviewId}`);
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
-  }, [highlightReviewId, loading, filteredReviews, reviews, syncReplyFilterToUrl]);
+  }, [highlightReviewId, loading, filteredReviews, reviews, writeFiltersToUrl]);
 
   const handleSubmitReply = async (reviewId: string) => {
     if (!user) return;
@@ -190,10 +226,7 @@ export default function SupplierReviews() {
   };
 
   const clearFilters = () => {
-    setFilterListingId('');
-    setFilterFamily('all');
-    setFilterRating('');
-    syncReplyFilterToUrl('all');
+    writeFiltersToUrl({ listingId: '', family: 'all', rating: '', reply: 'all' });
   };
 
   if (!user) return null;
@@ -243,7 +276,7 @@ export default function SupplierReviews() {
               <label className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Listing</label>
               <select
                 value={filterListingId}
-                onChange={(e) => setFilterListingId(e.target.value)}
+                onChange={(e) => writeFiltersToUrl({ listingId: e.target.value })}
                 className="tv-input w-full"
               >
                 <option value="">All listings</option>
@@ -258,7 +291,7 @@ export default function SupplierReviews() {
               <label className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Type</label>
               <select
                 value={filterFamily}
-                onChange={(e) => setFilterFamily(e.target.value as typeof filterFamily)}
+                onChange={(e) => writeFiltersToUrl({ family: e.target.value as typeof filterFamily })}
                 className="tv-input w-full"
               >
                 <option value="all">Tour and stay</option>
@@ -272,7 +305,7 @@ export default function SupplierReviews() {
                 value={filterRating === '' ? '' : String(filterRating)}
                 onChange={(e) => {
                   const v = e.target.value;
-                  setFilterRating(v === '' ? '' : Number(v));
+                  writeFiltersToUrl({ rating: v === '' ? '' : Number(v) });
                 }}
                 className="tv-input w-full"
               >

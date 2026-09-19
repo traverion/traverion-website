@@ -102,11 +102,17 @@ export function openSupplierCalendar(listingId?: string): void {
 export function openSupplierReviews(opts?: {
   reviewId?: string;
   reply?: 'unreplied' | 'replied' | 'all';
+  listingId?: string;
+  family?: 'tour' | 'stay' | 'all';
+  rating?: 1 | 2 | 3 | 4 | 5;
 }): void {
   const path = `${PARTNER_APP_BASE}/reviews`;
   const q = new URLSearchParams();
   if (opts?.reply && opts.reply !== 'all') q.set('reply', opts.reply);
   if (opts?.reviewId) q.set('highlight', opts.reviewId);
+  if (opts?.listingId) q.set('listing', opts.listingId);
+  if (opts?.family && opts.family !== 'all') q.set('family', opts.family);
+  if (opts?.rating) q.set('rating', String(opts.rating));
   const qs = q.toString();
   navigateSupplierUrl(qs ? `${path}?${qs}` : path);
 }
