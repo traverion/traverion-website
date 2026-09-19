@@ -457,7 +457,17 @@ export default function SupplierAvailability() {
           </div>
 
           {listingId ? (
-            <div className="mb-4 flex justify-end">
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              {stayCalendar ? (
+                <p className="text-sm text-ink-muted max-w-xl leading-snug">
+                  Nights are open by default. Occupied nights come from paid stays. Block nights for maintenance or
+                  personal use — travelers cannot book them.
+                </p>
+              ) : (
+                <p className="text-sm text-ink-muted max-w-xl leading-snug">
+                  Tap a day to set capacity. Closed weekdays follow your listing options.
+                </p>
+              )}
               <button
                 type="button"
                 onClick={() => {
@@ -467,7 +477,7 @@ export default function SupplierAvailability() {
                   setBulkCapacity('0');
                   setBulkOpen(true);
                 }}
-                className="tv-btn-secondary inline-flex items-center gap-1.5 text-sm"
+                className="tv-btn-secondary inline-flex items-center gap-1.5 text-sm shrink-0 self-start sm:self-auto"
               >
                 <Ban className="h-4 w-4" aria-hidden />
                 {stayCalendar ? 'Block a range of nights' : 'Edit multiple dates'}
