@@ -66,16 +66,13 @@ export default function PartnerOnboarding({
   const checklistComplete = completed === steps.length;
 
   return (
-    <div className="max-w-2xl mx-auto px-1 sm:px-0 py-8 sm:py-14">
-      <header className="mb-8 rounded-2xl bg-paper-raised p-5 sm:p-7 shadow-soft ring-1 ring-black/[0.06]">
-        <div className="inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15 mb-3">
-          Welcome
-        </div>
-        <h1 className="font-display text-4xl sm:text-5xl text-ink mb-3 tracking-tight">Set up your operation.</h1>
-        <p className="text-ink-muted text-base leading-relaxed max-w-lg">{PARTNER_ONBOARDING_INTRO_NOTE}</p>
+    <div className="max-w-2xl mx-auto px-1 sm:px-0 py-6 sm:py-10">
+      <header className="mb-6 rounded-xl bg-paper-raised p-4 sm:p-5 shadow-soft ring-1 ring-black/[0.06]">
+        <h1 className="font-display text-2xl sm:text-3xl text-ink tracking-tight">Set up your operation</h1>
+        <p className="mt-2 text-sm text-ink-muted leading-relaxed max-w-lg">{PARTNER_ONBOARDING_INTRO_NOTE}</p>
       </header>
 
-      <div className="mb-8 rounded-2xl bg-finland/8 px-4 py-3 ring-1 ring-finland/15">
+      <div className="mb-6 rounded-xl bg-finland/8 px-3.5 py-3 ring-1 ring-finland/15">
         <div className="flex items-center justify-between gap-3 mb-2">
           <p className="text-sm font-semibold text-ink">
             {checklistComplete
@@ -104,7 +101,7 @@ export default function PartnerOnboarding({
       </div>
 
       {checklistComplete ? (
-        <div className="mb-8 space-y-4">
+        <div className="mb-6 space-y-3">
           <NoticeCallout
             title={publishReady ? 'Publish is unlocked' : 'Still waiting on Traverion'}
             tone={publishReady ? 'success' : 'info'}
@@ -132,23 +129,23 @@ export default function PartnerOnboarding({
         </div>
       ) : null}
 
-      <ol className="space-y-3">
+      <ol className="space-y-2">
         {steps.map((s) => {
           const isNext = nextIncomplete?.n === s.n;
           return (
             <li
               key={s.n}
-              className={`rounded-2xl p-4 sm:p-5 shadow-soft ring-1 transition-colors ${
+              className={`rounded-xl p-3.5 sm:p-4 shadow-soft ring-1 transition-colors ${
                 s.done
                   ? 'bg-emerald-50/60 ring-emerald-200/50'
                   : isNext
-                    ? 'bg-paper-raised ring-2 ring-finland/35 shadow-soft-lg'
+                    ? 'bg-paper-raised ring-2 ring-finland/35'
                     : 'bg-paper-raised ring-black/[0.06]'
               }`}
             >
-              <div className="flex gap-4 items-start">
+              <div className="flex gap-3 items-start">
                 <span
-                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-sm font-semibold ${
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-semibold ${
                     s.done
                       ? 'bg-emerald-600 text-white'
                       : isNext
@@ -157,16 +154,16 @@ export default function PartnerOnboarding({
                   }`}
                   aria-hidden
                 >
-                  {s.done ? <Check className="w-5 h-5" strokeWidth={2.5} /> : s.n}
+                  {s.done ? <Check className="w-4 h-4" strokeWidth={2.5} /> : s.n}
                 </span>
                 <div className="flex-1 min-w-0">
-                  <div className="flex flex-wrap items-center gap-2 mb-1">
-                    <h2 className="font-sans text-lg font-semibold text-ink">{s.title}</h2>
+                  <div className="flex flex-wrap items-center gap-2 mb-0.5">
+                    <h2 className="font-sans text-base font-semibold text-ink">{s.title}</h2>
                     <StatusChip tone={s.done ? 'good' : isNext ? 'warn' : 'neutral'}>
                       {s.done ? 'Done' : isNext ? 'Up next' : 'To do'}
                     </StatusChip>
                   </div>
-                  <p className="text-sm text-ink-muted mb-3 leading-relaxed">{s.body}</p>
+                  <p className="text-sm text-ink-muted mb-2.5 leading-snug">{s.body}</p>
                   <button
                     type="button"
                     onClick={s.action}
@@ -191,7 +188,7 @@ export default function PartnerOnboarding({
           onSkip();
           navigateSupplierUrl(PARTNER_APP_BASE);
         }}
-        className="lux-flat mt-8 text-sm text-ink-muted hover:text-ink"
+        className="lux-flat mt-6 text-sm text-ink-muted hover:text-ink"
       >
         Continue to Today
       </button>
