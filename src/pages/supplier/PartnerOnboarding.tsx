@@ -66,14 +66,14 @@ export default function PartnerOnboarding({
   const checklistComplete = completed === steps.length;
 
   return (
-    <div className="max-w-2xl mx-auto px-1 sm:px-0 py-6 sm:py-10">
-      <header className="mb-6 rounded-xl bg-paper-raised p-4 sm:p-5 shadow-soft ring-1 ring-black/[0.06]">
-        <h1 className="font-display text-2xl sm:text-3xl text-ink tracking-tight">Set up your operation</h1>
-        <p className="mt-2 text-sm text-ink-muted leading-relaxed max-w-lg">{PARTNER_ONBOARDING_INTRO_NOTE}</p>
+    <div className="max-w-2xl mx-auto px-1 sm:px-0 py-5 sm:py-8">
+      <header className="mb-4 rounded-lg border border-black/[0.06] bg-paper px-3.5 py-3">
+        <h1 className="font-display text-xl sm:text-2xl text-ink tracking-tight">Set up your operation</h1>
+        <p className="mt-1 text-xs text-ink-muted leading-snug max-w-lg">{PARTNER_ONBOARDING_INTRO_NOTE}</p>
       </header>
 
-      <div className="mb-6 rounded-xl bg-finland/8 px-3.5 py-3 ring-1 ring-finland/15">
-        <div className="flex items-center justify-between gap-3 mb-2">
+      <div className="mb-4 rounded-lg border border-finland/15 bg-finland/[0.04] px-3.5 py-2.5">
+        <div className="flex items-center justify-between gap-3 mb-1.5">
           <p className="text-sm font-semibold text-ink">
             {checklistComplete
               ? publishReady
