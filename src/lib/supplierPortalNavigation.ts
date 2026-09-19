@@ -33,12 +33,19 @@ export function navigateSupplierUrl(pathnameAndSearch: string): void {
 }
 
 /** Open listings section with edit form and optional quality deep-link focus. */
-export function openSupplierListingEditor(listingId: string, qualityCheckId?: string): void {
+export function openSupplierListingEditor(
+  listingId: string,
+  qualityCheckId?: string,
+  optionId?: string
+): void {
   const path = `${PARTNER_APP_BASE}/listings`;
   const q = new URLSearchParams();
   q.set('edit', listingId);
   if (qualityCheckId) {
     q.set('focus', qualityCheckIdToFormFocus(qualityCheckId));
+  }
+  if (optionId) {
+    q.set('option', optionId);
   }
   navigateSupplierUrl(`${path}?${q.toString()}`);
 }

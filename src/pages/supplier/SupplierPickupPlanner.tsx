@@ -784,7 +784,13 @@ export default function SupplierPickupPlanner() {
           </button>
           <button
             type="button"
-            onClick={() => openSupplierListingEditor(selectedBooking.listing_id, 'meeting')}
+            onClick={() =>
+              openSupplierListingEditor(
+                selectedBooking.listing_id,
+                'meeting',
+                selectedBooking.booking_option_id ?? undefined
+              )
+            }
             className="tv-btn-ghost"
           >
             Edit meeting
@@ -798,7 +804,13 @@ export default function SupplierPickupPlanner() {
           </button>
           <button
             type="button"
-            onClick={() => openSupplierListingEditor(selectedBooking.listing_id, 'pickup')}
+            onClick={() =>
+              openSupplierListingEditor(
+                selectedBooking.listing_id,
+                'pickup',
+                selectedBooking.booking_option_id ?? undefined
+              )
+            }
             className="tv-btn-primary inline-flex items-center gap-1.5"
           >
             <ExternalLink className="w-4 h-4" aria-hidden />

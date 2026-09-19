@@ -1088,12 +1088,26 @@ export default function SupplierListingForm({
       return;
     }
     const optionFieldSections = new Set(['price', 'meeting', 'pickup', 'group', 'pickup_timing']);
-    if (targetStep === 5 && optionFieldSections.has(focusSection)) {
-      setOptionModalOpen(true);
-      setOptionModalEditingId(null);
-      setOptionModalDraft(createEmptyBookingOption());
-      setOptionModalHasEndingDate(false);
+    if (optionFieldSections.has(focusSection) && targetStep === 2) {
+      const preferredOptionId =
+        typeof window !== 'undefined'
+          ? new URLSearchParams(window.location.search).get('option')
+          : null;
+      const existing =
+        (preferredOptionId
+          ? form.bookingOptions.find((o) => o.id === preferredOptionId)
+          : null) ?? form.bookingOptions[0];
+      if (!existing) {
+        // Options may still be hydrating — do not consume focus yet.
+        return;
+      }
+      setOptionModalEditingId(existing.id);
+      setOptionModalDraft(
+        normalizeListingBookingOption({ ...(existing as unknown as Record<string, unknown>) }, existing.id)
+      );
+      setOptionModalHasEndingDate(existing.availabilityDateTo.trim().length > 0);
       setOptionModalErrors([]);
+      setOptionModalOpen(true);
       const t = window.setTimeout(() => {
         const inner = document.getElementById(`supplier-listing-field-${focusSection}`);
         if (!inner) return;
@@ -1102,10 +1116,10 @@ export default function SupplierListingForm({
         const focusable = inner.querySelector<HTMLElement>('input, textarea, select, button');
         focusable?.focus?.();
         onFocusConsumed?.();
-      }, 80);
+      }, 100);
       return () => window.clearTimeout(t);
     }
-  }, [focusSection, editingId, onFocusConsumed, focusToStep]);
+  }, [focusSection, editingId, onFocusConsumed, focusToStep, form.bookingOptions]);
 
   useEffect(() => {
     if (!stepContainerRef.current) return;
