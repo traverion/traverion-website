@@ -1044,7 +1044,7 @@ export default function SupplierPickupPlanner() {
           </p>
         ) : null}
         {!loading && listBookings.length > 0 ? (
-          <p className="mt-4 text-sm text-ink-muted">
+          <p className="mt-2 text-xs text-ink-muted">
             {plannerStats.bookings} booking{plannerStats.bookings === 1 ? '' : 's'} · {plannerStats.guests} guest
             {plannerStats.guests === 1 ? '' : 's'}
             {plannerStats.needsPickup > 0 ? ` · ${plannerStats.needsPickup} need pickup copy` : ''}
@@ -1053,7 +1053,7 @@ export default function SupplierPickupPlanner() {
       </SupplierPageHero>
 
       {activeBookingsCount > 0 && (
-        <div className="mb-6 space-y-3">
+        <div className="mb-4 space-y-2.5">
           <div className="flex flex-wrap gap-1.5" role="group" aria-label="Day preset">
             {(
               [
