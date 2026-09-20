@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { localYmd } from '../lib/local-ymd';
 
 export type SupplierBookingVoucherRow = {
   id: string;
@@ -96,7 +97,7 @@ export async function redeemSupplierBookingVoucherByCode(
     .maybeSingle();
   if (error || !data) return { success: false, reason: 'not_found' };
   if (data.status === 'redeemed') return { success: false, reason: 'already_redeemed', voucherId: data.id as string };
-  if (data.expires_at && data.expires_at < new Date().toISOString().slice(0, 10)) {
+  if (data.expires_at && data.expires_at < localYmd()) {
     await updateSupplierBookingVoucherStatus(supplierId, data.id as string, 'expired');
     return { success: false, reason: 'expired', voucherId: data.id as string };
   }
@@ -109,7 +110,7 @@ export async function expireSupplierBookingVouchers(
   supplierId: string
 ): Promise<boolean> {
   if (!supabase) return false;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localYmd();
   const { error } = await supabase
     .from('supplier_booking_vouchers')
     .update({

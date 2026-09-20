@@ -22,7 +22,7 @@ function activeOnCalendarDay(d: ListingDiscount, day: string): boolean {
 
 /** Discounts that apply to the listing “from” price when there are no structured booking options (legacy). */
 function listingWideActiveDiscounts(discounts: ListingDiscount[], at: Date): ListingDiscount[] {
-  const day = at.toISOString().slice(0, 10);
+  const day = localYmd(at);
   return discounts.filter(
     (d) => activeOnCalendarDay(d, day) && !(d.booking_option_id && d.booking_option_id.trim())
   );

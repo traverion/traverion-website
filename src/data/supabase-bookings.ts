@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { localYmd } from '../lib/local-ymd';
 import { publicSiteBaseUrl } from '../lib/publicSiteUrl';
 import { supplierPortalPublicBaseUrl } from '../lib/partnerHost';
 import { notifySupplierEvent } from './supabase-supplier-messaging';
@@ -966,7 +967,7 @@ export async function fetchPublishedStayOccupiedRanges(
  */
 export async function fetchPublishedStayBlockedNights(listingId: string): Promise<string[]> {
   if (!supabase) return [];
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localYmd();
   const { data, error } = await supabase
     .from('listing_availability')
     .select('available_date, capacity')

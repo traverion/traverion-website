@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { localYmd } from '../lib/local-ymd';
 import { formatMoney } from '../lib/money';
 
 export type ListingDiscount = {
@@ -107,7 +108,7 @@ export function getValidDiscount(
   discounts: ListingDiscount[],
   at: Date = new Date()
 ): ListingDiscount | undefined {
-  const t = at.toISOString().slice(0, 10);
+  const t = localYmd(at);
   return discounts.find((d) => isDiscountActiveOnDate(d, t));
 }
 
@@ -117,7 +118,7 @@ export function discountsApplicableToOption(
   optionId: string,
   at: Date = new Date()
 ): ListingDiscount[] {
-  const t = at.toISOString().slice(0, 10);
+  const t = localYmd(at);
   return discounts.filter((d) => {
     if (!isDiscountActiveOnDate(d, t)) return false;
     const scope = d.booking_option_id?.trim();

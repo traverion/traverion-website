@@ -1,4 +1,5 @@
 import { listingTourCapacityFromOptions, remainingCapacity } from '../lib/availability-ops';
+import { localYmd } from '../lib/local-ymd';
 import { supabase } from '../lib/supabase';
 
 export type AvailabilityRow = {
@@ -17,7 +18,7 @@ export async function fetchAvailabilityByListingId(
   opts?: { fromDate?: string; toDate?: string }
 ): Promise<AvailabilityRow[]> {
   if (!supabase) return [];
-  const from = opts?.fromDate ?? new Date().toISOString().slice(0, 10);
+  const from = opts?.fromDate ?? localYmd();
   let query = supabase
     .from('listing_availability')
     .select('*')
