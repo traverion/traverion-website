@@ -426,7 +426,7 @@ function App() {
     };
     const meta = metaByPage[currentPage];
     if (meta) setPageMetaWithOg(meta.title, meta.description);
-    else setPageMetaWithOg('Traverion', 'Tours worldwide.');
+    else setPageMetaWithOg('Traverion', 'Tours and stays worldwide.');
 
     setRobotsNoIndex(
       currentPage === 'booking-confirmed' || currentPage === 'reset-password' || currentPage === 'not-found'
