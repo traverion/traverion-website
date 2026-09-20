@@ -191,7 +191,7 @@ function downloadBookingsCsv(
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.href = url;
-  anchor.download = `supplier-bookings-${new Date().toISOString().slice(0, 10)}.csv`;
+  anchor.download = `supplier-bookings-${localYmd()}.csv`;
   document.body.appendChild(anchor);
   anchor.click();
   document.body.removeChild(anchor);
