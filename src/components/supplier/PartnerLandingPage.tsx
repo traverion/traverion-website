@@ -114,7 +114,7 @@ export default function PartnerLandingPage() {
             {CAPABILITIES.map(({ eyebrow, icon: Icon, body }) => (
               <div
                 key={eyebrow}
-                className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]"
+                className="tv-card p-4 sm:p-5"
               >
                 <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-finland/10 text-finland">
                   <Icon className="h-5 w-5" aria-hidden />
@@ -128,7 +128,7 @@ export default function PartnerLandingPage() {
 
         <section className="border-y border-black/[0.06] bg-finland/[0.04]">
           <div className="max-w-5xl mx-auto px-5 sm:px-8 py-16 sm:py-20 grid gap-3 md:grid-cols-2">
-            <div className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]">
+            <div className="tv-card p-4 sm:p-5">
               <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-finland/10 text-finland">
                 <Compass className="h-5 w-5" aria-hidden />
               </div>
@@ -137,7 +137,7 @@ export default function PartnerLandingPage() {
                 Day tours and activities with dates, guest capacity, Adult/Child prices inside each option, meeting or pickup, and a live traveler page.
               </p>
             </div>
-            <div className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]">
+            <div className="tv-card p-4 sm:p-5">
               <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-finland/10 text-finland">
                 <BedDouble className="h-5 w-5" aria-hidden />
               </div>
@@ -155,7 +155,7 @@ export default function PartnerLandingPage() {
               <h2 className="font-display text-2xl sm:text-3xl tracking-tight mb-3">Money, plainly</h2>
               <p className="text-ink-muted leading-relaxed m-0">{PARTNER_LANDING_GET_PAID_NOTE}</p>
             </div>
-            <div className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]">
+            <div className="tv-card p-4 sm:p-5">
               <h2 className="font-display text-2xl sm:text-3xl tracking-tight mb-3">A business product</h2>
               <p className="text-ink-muted leading-relaxed m-0">
                 Listings, calendar, bookings, and Money live in one partner account. Travelers never see this.
