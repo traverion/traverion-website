@@ -35,7 +35,21 @@ import {
   listingCreationNavItems,
   listingCreationProgressCopy,
 } from '../../lib/listing-creation-workspace';
+import {
+  TOUR_BASICS_DESCRIPTION_MAX,
+  TOUR_BASICS_SCENE_COUNT,
+  TOUR_BASICS_SUBTITLE_MAX,
+  canAdvanceTourBasicsScene,
+  canSelectTourBasicsScene,
+  clampTourBasicsSceneIndex,
+  initialTourBasicsSceneIndex,
+  nextTourBasicsScene,
+  previousTourBasicsScene,
+  tourBasicsSceneForFocusSection,
+  type ListingCreationSceneDirection,
+} from '../../lib/listing-creation-scenes';
 import { ListingCreationWorkspace } from '../../components/supplier/listing-creation/ListingCreationWorkspace';
+import { TourBasicsGuidedScenes } from '../../components/supplier/listing-creation/TourBasicsGuidedScenes';
 import { isSupabaseConfigured } from '../../lib/supabase';
 import { userFacingError } from '../../lib/userFacingError';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
@@ -87,8 +101,8 @@ const EXPERIENCE_START_OPTIONS: {
   { value: 'either_available', label: 'Both meeting at a set place and pickup are available' },
 ];
 
-const MAX_SUBTITLE_LENGTH = 300;
-const MAX_DESCRIPTION_LENGTH = 2000;
+const MAX_SUBTITLE_LENGTH = TOUR_BASICS_SUBTITLE_MAX;
+const MAX_DESCRIPTION_LENGTH = TOUR_BASICS_DESCRIPTION_MAX;
 const HIGHLIGHT_SLOT_COUNT = 5;
 const INCLUDE_SLOT_COUNT = 6;
 const EXCLUDE_SLOT_COUNT = 6;
@@ -133,6 +147,32 @@ function clearWizardStepStorage(editingId: string | null, isStay: boolean) {
     sessionStorage.removeItem(wizardStepStorageKey(editingId, isStay));
   } catch {
     // ignore
+  }
+}
+
+function basicsSceneStorageKey(editingId: string | null) {
+  return `traverion-listing-wizard-basics-scene-v1-tour-${editingId ?? 'create'}`;
+}
+
+function readBasicsSceneFromStorage(editingId: string | null): number | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = sessionStorage.getItem(basicsSceneStorageKey(editingId));
+    if (!raw) return null;
+    const n = Number.parseInt(raw, 10);
+    if (Number.isNaN(n)) return null;
+    return clampTourBasicsSceneIndex(n);
+  } catch {
+    return null;
+  }
+}
+
+function writeBasicsSceneToStorage(editingId: string | null, scene: number) {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.setItem(basicsSceneStorageKey(editingId), String(clampTourBasicsSceneIndex(scene)));
+  } catch {
+    // ignore quota / private mode
   }
 }
 
@@ -329,28 +369,6 @@ const LANGUAGE_OPTIONS: { code: string; label: string }[] = [
   { code: 'hi', label: 'Hindi' },
   { code: 'ru', label: 'Russian' },
   { code: 'other', label: 'Other or multilingual (explain in the description)' },
-];
-
-const EXPERIENCE_KIND_OPTIONS: {
-  id: 'tour' | 'ticket' | 'transportation';
-  title: string;
-  description: string;
-}[] = [
-  {
-    id: 'tour',
-    title: 'Tour or activity',
-    description: 'Guided walks, day trips, experiences with a host, boat trips, food tours, and similar.',
-  },
-  {
-    id: 'ticket',
-    title: 'Ticket or entry',
-    description: 'Museum passes, attraction entry, shows, skip-the-line access — mainly admission, not a guided route.',
-  },
-  {
-    id: 'transportation',
-    title: 'Transportation',
-    description: 'Transfers, shuttles, private rides, or getting guests from A to B as the main product.',
-  },
 ];
 
 function mapExperienceKindToStyle(kind: string): string {
@@ -733,6 +751,27 @@ export default function SupplierListingForm({
   const [stepIdx, setStepIdx] = useState(
     () => readWizardStepFromStorage(editingId, createFamily === 'stay') ?? 0
   );
+  const [basicsSceneIdx, setBasicsSceneIdx] = useState(() =>
+    initialTourBasicsSceneIndex({
+      stored: readBasicsSceneFromStorage(editingId),
+      isEditing: Boolean(editingId),
+      focusSection,
+      productTypeSelected: Boolean(editingId),
+    })
+  );
+  const [basicsSceneDirection, setBasicsSceneDirection] = useState<ListingCreationSceneDirection>('forward');
+  const setBasicsSceneIdxPersisted = useCallback(
+    (next: number | ((prev: number) => number), direction: ListingCreationSceneDirection = 'forward') => {
+      setBasicsSceneIdx((prev) => {
+        const resolved = typeof next === 'function' ? next(prev) : next;
+        const clamped = clampTourBasicsSceneIndex(resolved);
+        writeBasicsSceneToStorage(editingId, clamped);
+        return clamped;
+      });
+      setBasicsSceneDirection(direction);
+    },
+    [editingId]
+  );
   const [draftCloseBusy, setDraftCloseBusy] = useState(false);
   const [draftCloseError, setDraftCloseError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -968,6 +1007,18 @@ export default function SupplierListingForm({
           backup && serializeListingFormState(backup) !== serializeListingFormState(next) ? backup : next
         );
         setLastSavedAt(Date.now());
+        const applied =
+          backup && serializeListingFormState(backup) !== serializeListingFormState(next) ? backup : next;
+        const scene = initialTourBasicsSceneIndex({
+          stored: readBasicsSceneFromStorage(editingId),
+          isEditing: true,
+          productTypeSelected:
+            applied.experienceKind === 'tour' ||
+            applied.experienceKind === 'ticket' ||
+            applied.experienceKind === 'transportation',
+        });
+        setBasicsSceneIdx(scene);
+        writeBasicsSceneToStorage(editingId, scene);
       }
     } else {
       // Only clear edit hydration when we're genuinely in a create session (not a transient editingId=null during edit).
@@ -1024,6 +1075,13 @@ export default function SupplierListingForm({
       const next = stored !== null ? stored : 0;
       writeWizardStepToStorage(editingId, next, form.inventoryFamily === 'stay');
       setStepIdx(next);
+      setBasicsSceneIdx(
+        initialTourBasicsSceneIndex({
+          stored: readBasicsSceneFromStorage(editingId),
+          isEditing: Boolean(editingId),
+          productTypeSelected: Boolean(editingId),
+        })
+      );
     }
   }, [editingId, form.inventoryFamily]);
 
@@ -1046,19 +1104,33 @@ export default function SupplierListingForm({
 
     writeWizardStepToStorage(editingId, targetStep, form.inventoryFamily === 'stay');
     setStepIdx(targetStep);
-
-    const el = document.getElementById(`supplier-listing-field-${focusSection}`);
-    if (el) {
-      lastFocused.current = focusKey;
-      requestAnimationFrame(() => {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        const focusable = el.querySelector<HTMLElement>('input, textarea, select, button');
-        focusable?.focus?.();
-      });
-      onFocusConsumed?.();
-      return;
+    const scene = tourBasicsSceneForFocusSection(focusSection);
+    if (scene !== null) {
+      writeBasicsSceneToStorage(editingId, scene);
+      setBasicsSceneIdx(scene);
     }
+
+    const focusField = () => {
+      const el = document.getElementById(`supplier-listing-field-${focusSection}`);
+      if (!el) return false;
+      lastFocused.current = focusKey;
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const focusable = el.querySelector<HTMLElement>('input, textarea, select, button');
+      focusable?.focus?.();
+      onFocusConsumed?.();
+      return true;
+    };
+
+    if (focusField()) return;
+
     const optionFieldSections = new Set(['price', 'meeting', 'pickup', 'group', 'pickup_timing']);
+    if (scene !== null) {
+      const t = window.setTimeout(() => {
+        focusField();
+      }, 50);
+      return () => window.clearTimeout(t);
+    }
+
     if (optionFieldSections.has(focusSection) && targetStep === 2) {
       const preferredOptionId =
         typeof window !== 'undefined'
@@ -1095,7 +1167,7 @@ export default function SupplierListingForm({
   useEffect(() => {
     if (!stepContainerRef.current) return;
     stepContainerRef.current.scrollTo({ top: 0, behavior: 'auto' });
-  }, [stepIdx]);
+  }, [stepIdx, basicsSceneIdx]);
 
   useEffect(() => {
     const html = document.documentElement;
@@ -1180,8 +1252,12 @@ export default function SupplierListingForm({
               ? 1
               : 0;
       setStepIdxPersisted(step);
+      if (step === 0) {
+        const scene = /subtitle|title|language/.test(t) ? 1 : /descri|highlight/.test(t) ? 2 : 0;
+        setBasicsSceneIdxPersisted(scene, 'forward');
+      }
     },
-    [setStepIdxPersisted]
+    [setStepIdxPersisted, setBasicsSceneIdxPersisted]
   );
 
   const publishButtonTitle = useMemo(() => {
@@ -1468,6 +1544,8 @@ export default function SupplierListingForm({
   });
 
   const canContinueStep = () => canContinueListingStep(stepIdx, form);
+  const tourBasicsGuided = !isStayForm && stepIdx === 0;
+  const canContinueBasicsScene = canAdvanceTourBasicsScene(basicsSceneIdx, form);
 
   const creationTitle = editingId
     ? form.title.trim() || (form.inventoryFamily === 'stay' ? 'Stay' : 'Tour')
@@ -1573,8 +1651,16 @@ export default function SupplierListingForm({
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
               <button
                 type="button"
-                onClick={() => setStepIdxPersisted((s) => Math.max(0, s - 1))}
-                disabled={stepIdx === 0 || draftCloseBusy || submitting}
+                onClick={() => {
+                  if (tourBasicsGuided && basicsSceneIdx > 0) {
+                    setBasicsSceneIdxPersisted(previousTourBasicsScene(basicsSceneIdx), 'back');
+                    return;
+                  }
+                  setStepIdxPersisted((s) => Math.max(0, s - 1));
+                }}
+                disabled={
+                  (tourBasicsGuided ? basicsSceneIdx === 0 : stepIdx === 0) || draftCloseBusy || submitting
+                }
                 className="touch-manipulation tv-btn-ghost !min-h-11 w-full sm:w-auto disabled:opacity-50"
               >
                 Back
@@ -1592,8 +1678,18 @@ export default function SupplierListingForm({
                     </button>
                     <button
                       type="button"
-                      onClick={() => setStepIdxPersisted((s) => Math.min(steps.length - 1, s + 1))}
-                      disabled={!canContinueStep() || draftCloseBusy || submitting}
+                      onClick={() => {
+                        if (tourBasicsGuided && basicsSceneIdx < TOUR_BASICS_SCENE_COUNT - 1) {
+                          setBasicsSceneIdxPersisted(nextTourBasicsScene(basicsSceneIdx), 'forward');
+                          return;
+                        }
+                        setStepIdxPersisted((s) => Math.min(steps.length - 1, s + 1));
+                      }}
+                      disabled={
+                        (tourBasicsGuided ? !canContinueBasicsScene : !canContinueStep()) ||
+                        draftCloseBusy ||
+                        submitting
+                      }
                       className="touch-manipulation tv-btn-primary !min-h-11 flex-1 sm:flex-none disabled:opacity-50"
                     >
                       Continue
@@ -1661,17 +1757,20 @@ export default function SupplierListingForm({
         >
           <div
             key={stepIdx}
-            className={`w-full motion-safe:animate-fade-in ${stepIdx === 3 ? 'max-w-3xl' : 'max-w-xl'}`}
+            className={`w-full ${
+              stepIdx === 0 && !isStayForm
+                ? ''
+                : `motion-safe:animate-fade-in ${stepIdx === 3 ? 'max-w-3xl' : 'max-w-xl'}`
+            }`}
           >
-          {stepIdx !== 4 ? (
+          {stepIdx !== 4 && !(stepIdx === 0 && !isStayForm) ? (
             <header className="mb-8">
               <h3 className="font-display text-2xl tracking-tight text-ink">{steps[stepIdx].label}</h3>
               <p className="mt-1.5 text-sm leading-relaxed text-ink-muted">{stepGuidance[stepIdx]}</p>
             </header>
           ) : null}
-          {stepIdx === 0 && (
+          {stepIdx === 0 && isStayForm && (
             <div className="space-y-7">
-              {form.inventoryFamily === 'stay' || (!editingId && createFamily === 'stay') ? (
                 <div id="supplier-listing-field-stay-type">
                   <label className="block text-sm font-semibold text-ink mb-1">Property type *</label>
                   <p className="text-xs text-ink-muted mb-3">What travelers are booking — not a tour option.</p>
@@ -1695,28 +1794,6 @@ export default function SupplierListingForm({
                     })}
                   </div>
                 </div>
-              ) : (
-                <div id="supplier-listing-field-language">
-                  <label htmlFor="supplier-listing-experience-language" className="block text-sm font-semibold text-ink mb-1">
-                    Primary language *
-                  </label>
-                  <p className="text-xs text-ink-muted mb-2">The main language guests hear during the tour.</p>
-                  <select
-                    id="supplier-listing-experience-language"
-                    value={form.experienceLanguage}
-                    onChange={(e) => setForm((f) => ({ ...f, experienceLanguage: e.target.value }))}
-                    className="tv-input"
-                  >
-                    <option value="">Select language…</option>
-                    {LANGUAGE_OPTIONS.map((o) => (
-                      <option key={o.code} value={o.code}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
               <div id="supplier-listing-field-title">
                 <label htmlFor="supplier-listing-title" className="block text-sm font-semibold text-ink mb-1">
                   Title *
@@ -1728,56 +1805,10 @@ export default function SupplierListingForm({
                   value={form.title}
                   onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
                   className="tv-input"
-                  placeholder={
-                    form.inventoryFamily === 'stay'
-                      ? 'e.g. Harbour apartment · two bedrooms'
-                      : 'e.g. Old town walking tour · small groups'
-                  }
+                  placeholder="e.g. Harbour apartment · two bedrooms"
                   required
                 />
               </div>
-
-              {form.inventoryFamily !== 'stay' ? (
-                <fieldset id="supplier-listing-field-category" className="min-w-0">
-                  <legend className="text-sm font-semibold text-ink">Category *</legend>
-                  <p className="mt-1 mb-3 text-xs text-ink-muted">
-                    Choose the option that best describes what you sell. You can add more detail in later steps.
-                  </p>
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                    {EXPERIENCE_KIND_OPTIONS.map((opt) => {
-                      const selected = form.experienceKind === opt.id;
-                      return (
-                        <label
-                          key={opt.id}
-                          className={`flex min-h-[5.5rem] cursor-pointer flex-col rounded-xl border px-3 py-3 text-left transition-colors focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-finland ${
-                            selected
-                              ? 'border-finland bg-finland/5 ring-1 ring-finland/20'
-                              : 'border-black/[0.08] bg-paper hover:border-black/[0.14] hover:bg-black/[0.02]'
-                          }`}
-                        >
-                          <input
-                            type="radio"
-                            name="experience-kind"
-                            value={opt.id}
-                            checked={selected}
-                            onChange={() => setForm((f) => ({ ...f, experienceKind: opt.id }))}
-                            className="sr-only"
-                          />
-                          <span className="text-sm font-semibold text-ink">{opt.title}</span>
-                          <span className="mt-1 text-xs leading-snug text-ink-muted">{opt.description}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                  {form.experienceKind === 'transportation' ? (
-                    <p className="mt-2 text-xs leading-snug text-ink-muted">
-                      Transfers use the same tour listing tools (options, start times, capacity). There is no separate
-                      dispatch board yet — set meeting points and pickup notes clearly for travelers.
-                    </p>
-                  ) : null}
-                </fieldset>
-              ) : null}
-
               <div id="supplier-listing-field-subtitle">
                 <label htmlFor="supplier-listing-subtitle" className="block text-sm font-semibold text-ink mb-1">
                   Subtitle *
@@ -1792,7 +1823,7 @@ export default function SupplierListingForm({
                   maxLength={MAX_SUBTITLE_LENGTH}
                   onChange={(e) => setForm((f) => ({ ...f, subtitle: e.target.value.slice(0, MAX_SUBTITLE_LENGTH) }))}
                   className="tv-input"
-                  placeholder="e.g. Small-group food walk with local hosts"
+                  placeholder="e.g. Quiet apartment near the harbour"
                 />
                 <p className="text-xs text-ink-muted mt-1 tabular-nums">
                   {form.subtitle.length}/{MAX_SUBTITLE_LENGTH}
@@ -1800,7 +1831,7 @@ export default function SupplierListingForm({
               </div>
               <div id="supplier-listing-field-description">
                 <label htmlFor="supplier-listing-description" className="block text-sm font-semibold text-ink mb-1">
-                  About this {form.inventoryFamily === 'stay' ? 'stay' : 'tour'} *
+                  About this stay *
                 </label>
                 <p className="text-xs text-ink-muted mb-2">
                   Main description for guests (at least {MIN_LISTING_DESCRIPTION_LENGTH} characters to continue, max{' '}
@@ -1842,9 +1873,8 @@ export default function SupplierListingForm({
                     className="text-sm text-red-600 mt-1.5"
                     role="alert"
                   >
-                    Add at least {MIN_LISTING_DESCRIPTION_LENGTH} characters to continue — describe the{' '}
-                    {form.inventoryFamily === 'stay' ? 'stay' : 'tour'}, what guests should expect, and any practical
-                    details.
+                    Add at least {MIN_LISTING_DESCRIPTION_LENGTH} characters to continue — describe the stay, what guests
+                    should expect, and any practical details.
                   </p>
                 ) : null}
               </div>
@@ -1877,6 +1907,34 @@ export default function SupplierListingForm({
                 ))}
               </div>
             </div>
+          )}
+          {stepIdx === 0 && !isStayForm && (
+            <TourBasicsGuidedScenes
+              form={{
+                experienceKind: form.experienceKind,
+                experienceLanguage: form.experienceLanguage,
+                title: form.title,
+                subtitle: form.subtitle,
+                description: form.description,
+                highlights: form.highlights,
+              }}
+              sceneIndex={basicsSceneIdx}
+              direction={basicsSceneDirection}
+              languageOptions={LANGUAGE_OPTIONS}
+              languageLabel={
+                LANGUAGE_OPTIONS.find((o) => o.code === form.experienceLanguage)?.label ?? null
+              }
+              allowDirectSceneAccess={Boolean(editingId)}
+              onSelectScene={(index) => {
+                if (
+                  !canSelectTourBasicsScene(index, basicsSceneIdx, form, Boolean(editingId))
+                ) {
+                  return;
+                }
+                setBasicsSceneIdxPersisted(index, index >= basicsSceneIdx ? 'forward' : 'back');
+              }}
+              onChange={(patch) => setForm((f) => ({ ...f, ...patch }))}
+            />
           )}
 
           {stepIdx === 1 && form.inventoryFamily !== 'stay' && (
