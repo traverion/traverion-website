@@ -106,12 +106,12 @@ export default function ContentCreatorPage({ onNavigate }: ContentCreatorPagePro
         </NoticeCallout>
       ) : (
         <>
-          <div className="max-w-lg mb-6 rounded-2xl bg-finland/8 px-4 py-3 ring-1 ring-finland/15">
+          <div className="max-w-lg mb-5 rounded-2xl bg-finland/8 px-3.5 py-2.5 ring-1 ring-finland/15">
             <p className="text-sm text-ink leading-relaxed">
               For bookings and trip questions, use Contact in the footer — not this form.
             </p>
           </div>
-          <div className="not-prose max-w-lg mb-8 grid gap-2 sm:grid-cols-3">
+          <div className="not-prose max-w-lg mb-5 grid gap-2 sm:grid-cols-3">
             {[
               { n: '01', t: 'Pitch', d: 'Share your channels and collaboration ideas.' },
               { n: '02', t: 'Review', d: 'We read every application — fit matters more than follower count.' },
@@ -119,7 +119,7 @@ export default function ContentCreatorPage({ onNavigate }: ContentCreatorPagePro
             ].map((s) => (
               <div
                 key={s.n}
-                className="rounded-2xl bg-paper-raised px-3.5 py-3 shadow-soft ring-1 ring-black/[0.06]"
+                className="rounded-2xl bg-paper-raised px-3 py-2.5 shadow-soft ring-1 ring-black/[0.06]"
               >
                 <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-finland">{s.n}</p>
                 <p className="mt-1 text-sm font-semibold text-ink">{s.t}</p>
