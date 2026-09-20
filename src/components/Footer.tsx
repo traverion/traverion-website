@@ -32,22 +32,20 @@ export default function Footer({ onNavigate }: { onNavigate?: (page: string) => 
   return (
     <footer className="bg-gradient-to-b from-finland/[0.05] to-paper border-t border-black/[0.06] text-ink">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 lg:gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 lg:gap-8">
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
-            <div className="rounded-2xl bg-paper-raised p-3.5 sm:p-4 shadow-soft ring-1 ring-finland/20 h-full">
-              <a href="/" className="inline-flex items-center gap-2 mb-2" aria-label="Traverion home">
-                <img src={BRAND_LOGO_SRC} alt="" className="h-10 w-auto object-contain" />
-                <span className="font-sans text-sm font-semibold tracking-[0.18em] text-ink">TRAVERION</span>
-              </a>
-              <p className="text-sm text-ink-muted leading-relaxed m-0">
-                Discover and book tours and stays from independent operators.
-              </p>
-            </div>
+            <a href="/" className="inline-flex items-center gap-2 mb-2" aria-label="Traverion home">
+              <img src={BRAND_LOGO_SRC} alt="" className="h-10 w-auto object-contain" />
+              <span className="font-sans text-sm font-semibold tracking-[0.18em] text-ink">TRAVERION</span>
+            </a>
+            <p className="text-sm text-ink-muted leading-relaxed m-0">
+              Discover and book tours and stays from independent operators. Stripe TEST until live.
+            </p>
           </div>
 
           {/* Support */}
-          <div className="rounded-2xl bg-paper-raised/80 p-3.5 ring-1 ring-black/[0.05]">
+          <div>
             <h3 className="font-sans text-[11px] font-semibold uppercase tracking-[0.16em] text-finland mb-2.5">Support</h3>
             <ul className="space-y-1.5">
               <li><button type="button" onClick={() => nav('contact')} className={`${linkClass} text-left bg-transparent border-0 cursor-pointer`}>Contact</button></li>
@@ -60,7 +58,7 @@ export default function Footer({ onNavigate }: { onNavigate?: (page: string) => 
           </div>
 
           {/* Company */}
-          <div className="rounded-2xl bg-paper-raised/80 p-3.5 ring-1 ring-black/[0.05]">
+          <div>
             <h3 className="font-sans text-[11px] font-semibold uppercase tracking-[0.16em] text-finland mb-2.5">Company</h3>
             <ul className="space-y-1.5">
               <li><button type="button" onClick={() => nav('about')} className={`${linkClass} text-left bg-transparent border-0 cursor-pointer`}>About Us</button></li>
@@ -70,7 +68,7 @@ export default function Footer({ onNavigate }: { onNavigate?: (page: string) => 
           </div>
 
           {/* Want to work with us? */}
-          <div className="rounded-2xl bg-paper-raised/80 p-3.5 ring-1 ring-black/[0.05]">
+          <div>
             <h3 className="font-sans text-[11px] font-semibold uppercase tracking-[0.16em] text-finland mb-2.5">Work with us</h3>
             <ul className="space-y-1.5">
               <li>
