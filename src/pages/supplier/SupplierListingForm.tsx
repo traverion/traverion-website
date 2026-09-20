@@ -17,6 +17,7 @@ import BookingOptionEditor from '../../components/supplier/BookingOptionEditor';
 import { useAuth } from '../../contexts/AuthContext';
 import { priceCategoryValidationMessages, summarizeOptionPricing } from '../../lib/price-categories';
 import { headlineStartingAmountFromBookingOptions } from '../../lib/headline-price';
+import { listingDurationForPersist } from '../../lib/listing-option-ownership';
 import {
   compactPhotoSlotsAndLabels,
   normalizePhotoSlots,
@@ -549,7 +550,11 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
     title: form.title,
     subtitle: form.subtitle.trim().slice(0, MAX_SUBTITLE_LENGTH) || undefined,
     destination: resolvedDestination,
-    duration: form.duration,
+    duration: listingDurationForPersist({
+      inventoryFamily: form.inventoryFamily,
+      listingDuration: form.duration,
+      bookingOptions: opts,
+    }),
     style: mapExperienceKindToStyle(kind ?? 'tour'),
     startLocation: startLoc,
     endLocation: endLoc,
@@ -648,8 +653,7 @@ function isStepSatisfied(idx: number, form: ListingFormState): boolean {
       inc >= 2 &&
       exc >= 1 &&
       form.city.trim().length > 0 &&
-      form.country.trim().length > 0 &&
-      form.duration.trim().length > 0
+      form.country.trim().length > 0
     );
   }
   if (idx === 2) {
@@ -947,7 +951,7 @@ export default function SupplierListingForm({
       languages: 1,
       location: 1,
       destination: 1,
-      duration: 1,
+      duration: 2,
       schedule: 1,
       start: 1,
       price: 2,
@@ -1293,7 +1297,7 @@ export default function SupplierListingForm({
           ? 3
           : /price|option|nightly|weekday|spot|guest per|meet or are picked|starting date|ending date/.test(t)
             ? 2
-            : /city|country|location|destination|duration|include|exclude|accessib|meeting/.test(t)
+            : /city|country|location|destination|include|exclude|accessib|meeting/.test(t)
               ? 1
               : 0;
       setStepIdxPersisted(step);
@@ -2170,25 +2174,13 @@ export default function SupplierListingForm({
               </div>
               {form.inventoryFamily !== 'stay' ? (
               <p className="text-xs text-ink-muted -mt-2">
-                Use the main base or usual starting city. Per-option meeting and pickup are set under{' '}
-                <span className="font-medium text-ink">Price</span>.
+                Use the main base or usual starting city. Exact meeting and pickup belong on each bookable option.
               </p>
               ) : null}
               {form.inventoryFamily !== 'stay' ? (
               <>
-              <div id="supplier-listing-field-duration">
-                <label className="block text-sm font-semibold text-ink mb-1">Duration *</label>
-                <input
-                  type="text"
-                  value={form.duration}
-                  onChange={(e) => setForm((f) => ({ ...f, duration: e.target.value }))}
-                  className="tv-input"
-                  placeholder="e.g. 3 hours or 1 day"
-                  required
-                />
-              </div>
               <div id="supplier-listing-field-start">
-                <label className="block text-sm font-semibold text-ink mb-1">How does the tour start? *</label>
+                <label className="block text-sm font-semibold text-ink mb-1">How this tour generally starts *</label>
                 <select
                   value={form.experienceStartStyle}
                   onChange={(e) =>
@@ -2206,8 +2198,25 @@ export default function SupplierListingForm({
                   ))}
                 </select>
                 <p className="text-xs text-ink-muted mt-1">
-                  You will set the exact meeting or pickup place for each bookable option under Price.
+                  Product-level: meeting, pickup, or both. Each option still has its own exact place and start time.
                 </p>
+              </div>
+              <div id="supplier-listing-field-difficulty">
+                <label className="block text-sm font-semibold text-ink mb-1">Overall difficulty</label>
+                <select
+                  value={form.difficulty}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      difficulty: e.target.value as 'Easy' | 'Moderate' | 'Challenging',
+                    }))
+                  }
+                  className="tv-input"
+                >
+                  <option value="Easy">Easy</option>
+                  <option value="Moderate">Moderate</option>
+                  <option value="Challenging">Challenging</option>
+                </select>
               </div>
               <details
                 id="supplier-listing-field-schedule"
@@ -2215,8 +2224,8 @@ export default function SupplierListingForm({
               >
                 <summary className="cursor-pointer list-none flex items-start justify-between gap-3">
                   <span>
-                    <span className="block text-sm font-semibold text-ink">Itinerary / timing</span>
-                    <span className="block text-xs text-ink-muted mt-0.5">Typical flow guests should expect, if you have one</span>
+                    <span className="block text-sm font-semibold text-ink">Shared itinerary</span>
+                    <span className="block text-xs text-ink-muted mt-0.5">The common experience, not option-specific clock times</span>
                   </span>
                   <span className="text-xs text-finland font-medium mt-0.5">
                     {form.typicalTimelineNotes.trim() || (form.scheduleStyle && form.scheduleStyle !== 'flexible')
@@ -2226,7 +2235,7 @@ export default function SupplierListingForm({
                 </summary>
                 <div className="mt-4 space-y-3">
                 <p className="text-xs text-ink-muted">
-                  Helps travelers understand whether they are booking a fixed slot, flexible window, or arranging time with you.
+                  Describe the shared flow in relative order. Each option has its own start time — do not treat this as the clock for every variant.
                 </p>
                 <div className="space-y-2">
                   {SCHEDULE_STYLE_OPTIONS.map((o) => (
@@ -2266,7 +2275,7 @@ export default function SupplierListingForm({
                     }
                     rows={4}
                     className="tv-input"
-                    placeholder="e.g. 09:00 meet at the square · 09:15 start walking · short break at 10:30 · end around 12:00"
+                    placeholder="e.g. Meet and brief → transfer to viewing area → time to watch and photograph → return"
                   />
                   <p className="text-xs text-ink-muted mt-1 tabular-nums">
                     {form.typicalTimelineNotes.length}/{MAX_TIMELINE_LENGTH}
@@ -2552,25 +2561,6 @@ export default function SupplierListingForm({
                   </p>
                 </div>
               )}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                <div>
-                  <label className="block text-sm font-semibold text-ink mb-1">Overall difficulty</label>
-                  <select
-                    value={form.difficulty}
-                    onChange={(e) =>
-                      setForm((f) => ({
-                        ...f,
-                        difficulty: e.target.value as 'Easy' | 'Moderate' | 'Challenging',
-                      }))
-                    }
-                    className="tv-input"
-                  >
-                    <option value="Easy">Easy</option>
-                    <option value="Moderate">Moderate</option>
-                    <option value="Challenging">Challenging</option>
-                  </select>
-                </div>
-              </div>
               <details
                 id="supplier-listing-field-tags"
                 className="group"

@@ -91,10 +91,8 @@ export function listingBuilderSections(form: BuilderFormSlice): ListingBuilderSe
 
   const city = (form.city ?? '').trim();
   const country = (form.country ?? '').trim();
-  const duration = (form.duration ?? '').trim();
   const locationIssues: string[] = [];
   if (!city || !country) locationIssues.push('Add city and country');
-  if (!duration) locationIssues.push('Add how long the experience lasts');
 
   const opts = materializedBookingOptions(form.bookingOptions);
   const optionsIssues: string[] = [];
@@ -133,7 +131,7 @@ export function listingBuilderSections(form: BuilderFormSlice): ListingBuilderSe
     {
       id: 'location',
       label: 'Location',
-      status: statusOf(locationIssues, Boolean(city || country || duration)),
+      status: statusOf(locationIssues, Boolean(city || country)),
       issues: locationIssues,
     },
     {
