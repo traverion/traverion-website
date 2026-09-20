@@ -680,7 +680,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
             </div>
           </div>
 
-          <aside id="stay-booking-panel" className="lg:sticky lg:top-24 h-fit rounded-2xl bg-paper-raised p-4 shadow-soft-lg scroll-mt-24">
+          <aside id="stay-booking-panel" className="lg:sticky lg:top-24 h-fit tv-card p-3.5 sm:p-4 scroll-mt-24">
             {nightly > 0 ? (
               <PriceHero
                 amount={nightly}
