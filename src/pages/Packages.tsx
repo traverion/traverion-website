@@ -353,9 +353,12 @@ export default function Packages({ onTourSelect }: PackagesProps) {
     [reviewAggregates]
   );
 
-  const filteredPackages = useMemo(() => {
+  const { filteredPackages, matchingExceptCapacityCount } = useMemo(() => {
     const q = deferredSearch.trim().toLowerCase();
-    let list = allListings.filter((tour) => {
+    const guestCount = Number.parseInt(filterGuests, 10);
+    const partySize = Number.isFinite(guestCount) && guestCount > 0 ? guestCount : 1;
+
+    const matchExceptCapacity = (tour: TourPackage) => {
       const matchesSearch =
         !q ||
         tour.title.toLowerCase().includes(q) ||
@@ -372,24 +375,11 @@ export default function Packages({ onTourSelect }: PackagesProps) {
       else if (priceRange === '500-1000') matchesPrice = headline >= 500 && headline <= 1000;
       else if (priceRange === '1000plus') matchesPrice = headline > 1000;
       const matchesDate = !filterDate || listingRunsOnDate(tour, filterDate);
-      const guestCount = Number.parseInt(filterGuests, 10);
       const matchesGuests =
         !filterGuests ||
         !Number.isFinite(guestCount) ||
         guestCount < 1 ||
         guestCount <= getPartySizeBounds(tour).max;
-      let matchesCapacity = true;
-      if (filterDate && dateCapacityByListing) {
-        const cap = dateCapacityByListing[tour.id];
-        if (cap) {
-          matchesCapacity = !tourDateLacksCapacityForParty({
-            paidGuestsThatDay: cap.paid,
-            dayCapacity: cap.dayCap,
-            fallbackCapacity: cap.fallbackCap,
-            partySize: Number.isFinite(guestCount) && guestCount > 0 ? guestCount : 1,
-          });
-        }
-      }
       const matchesPrivate = !privateOnly || listingIsPrivateOnly(tour);
       return (
         matchesSearch &&
@@ -398,9 +388,21 @@ export default function Packages({ onTourSelect }: PackagesProps) {
         matchesPrice &&
         matchesDate &&
         matchesGuests &&
-        matchesCapacity &&
         matchesPrivate
       );
+    };
+
+    const exceptCapacity = allListings.filter(matchExceptCapacity);
+    let list = exceptCapacity.filter((tour) => {
+      if (!(filterDate && dateCapacityByListing)) return true;
+      const cap = dateCapacityByListing[tour.id];
+      if (!cap) return true;
+      return !tourDateLacksCapacityForParty({
+        paidGuestsThatDay: cap.paid,
+        dayCapacity: cap.dayCap,
+        fallbackCapacity: cap.fallbackCap,
+        partySize,
+      });
     });
 
     if (sortBy === 'price-asc') list = [...list].sort((a, b) => catalogHeadlineAmount(a) - catalogHeadlineAmount(b));
@@ -408,7 +410,7 @@ export default function Packages({ onTourSelect }: PackagesProps) {
     else if (sortBy === 'rating')
       list = [...list].sort((a, b) => ratingSortScore(b) - ratingSortScore(a));
     else if (sortBy === 'duration') list = [...list].sort((a, b) => durationToMinutes(a.duration) - durationToMinutes(b.duration));
-    return list;
+    return { filteredPackages: list, matchingExceptCapacityCount: exceptCapacity.length };
   }, [
     allListings,
     destinationOptions,
@@ -423,6 +425,12 @@ export default function Packages({ onTourSelect }: PackagesProps) {
     ratingSortScore,
     dateCapacityByListing,
   ]);
+
+  const emptyDueToSoldOutDate =
+    filteredPackages.length === 0 &&
+    Boolean(filterDate) &&
+    dateCapacityByListing != null &&
+    matchingExceptCapacityCount > 0;
 
   const hasActiveFilters =
     searchTerm.trim() !== '' ||
@@ -922,8 +930,12 @@ export default function Packages({ onTourSelect }: PackagesProps) {
               <EmptyState
                 className="py-10 sm:py-12 max-w-lg"
                 icon={Search}
-                title="No tours match"
-                body="Nothing fits this search. Try another place, date, or clear filters to see live tours again."
+                title={emptyDueToSoldOutDate ? 'Fully booked for that date' : 'No tours match'}
+                body={
+                  emptyDueToSoldOutDate
+                    ? 'Tours that match your other filters are sold out or do not have enough spots left for your party. Try another date or fewer guests.'
+                    : 'Nothing fits this search. Try another place, date, or clear filters to see live tours again.'
+                }
                 action={
                   hasActiveFilters ? (
                     <button type="button" onClick={clearAllFilters} className="tv-btn-primary">
