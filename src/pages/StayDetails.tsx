@@ -791,7 +791,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
                     : paying
                       ? 'Opening checkout…'
                       : quoteOk
-                        ? 'Continue to payment'
+                        ? 'Continue to payment · TEST'
                         : 'Select dates'}
                 </button>
                 <p className="mt-3 text-xs text-ink-muted leading-relaxed">
@@ -855,7 +855,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
                 : quoteOk
                   ? paying
                     ? 'Opening…'
-                    : 'Continue to payment'
+                    : 'Continue to payment · TEST'
                   : 'Select dates'}
             </button>
           ) : !quoteOk ? (
