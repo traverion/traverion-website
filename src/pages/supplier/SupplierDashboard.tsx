@@ -52,10 +52,10 @@ function AttentionRow({
       <button
         type="button"
         onClick={onClick}
-        className="partner-row-interact lux-flat group flex min-h-11 w-full items-center gap-3 px-3 py-2.5 text-left"
+        className="partner-row-interact lux-flat group flex min-h-10 w-full items-center gap-2.5 px-3 py-2 text-left"
       >
         <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${ATTENTION_ACCENT[tone]}`} aria-hidden />
-        <span className="min-w-0 flex-1 text-[14px] font-medium leading-snug text-slate-800">{children}</span>
+        <span className="min-w-0 flex-1 text-[13px] font-medium leading-snug text-slate-800">{children}</span>
         <ChevronRight
           className="h-3.5 w-3.5 shrink-0 text-slate-300 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-slate-500"
           aria-hidden
@@ -424,7 +424,7 @@ export default function SupplierDashboard() {
               </AttentionRow>
             )}
             {draftListingsCount > 0 && (
-              <AttentionRow tone="info" onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/listings`)}>
+              <AttentionRow tone="info" onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/listings?filter=draft`)}>
                 {draftListingsCount} draft listing{draftListingsCount === 1 ? '' : 's'}
               </AttentionRow>
             )}
