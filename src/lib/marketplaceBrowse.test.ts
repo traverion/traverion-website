@@ -10,6 +10,7 @@ import {
   matchesPriceChip,
   matchesRatingFilter,
   nextStayDatePatch,
+  marketplaceFamilySwitchPath,
   parseMarketplaceSort,
   parsePriceChipId,
   stayHasAmenity,
@@ -221,5 +222,15 @@ describe('marketplace browse filters', () => {
     expect(nextStayDatePatch({ date: '2026-09-20', checkout: '2026-09-25' }, '2026-09-21')).toEqual({
       date: '2026-09-21',
     });
+  });
+
+  it('carries where/when/who when switching browse families', () => {
+    expect(
+      marketplaceFamilySwitchPath('stays', { q: 'Rovaniemi', date: '2026-09-22', guests: '2' })
+    ).toBe('/stays?q=Rovaniemi&date=2026-09-22&checkout=2026-09-23&guests=2');
+    expect(
+      marketplaceFamilySwitchPath('tours', { q: 'Rovaniemi', date: '2026-09-22', checkout: '2026-09-25', guests: '2' })
+    ).toBe('/packages?q=Rovaniemi&date=2026-09-22&guests=2');
+    expect(marketplaceFamilySwitchPath('tours', {})).toBe('/packages');
   });
 });

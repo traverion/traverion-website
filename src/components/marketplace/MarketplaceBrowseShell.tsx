@@ -4,6 +4,7 @@ import { Filter, X } from 'lucide-react';
 type Props = {
   headingId: string;
   resultTitle: ReactNode;
+  familyNav?: ReactNode;
   search: ReactNode;
   mobileSearch: ReactNode;
   filterCount: number;
@@ -21,6 +22,7 @@ type Props = {
 export function MarketplaceBrowseShell({
   headingId,
   resultTitle,
+  familyNav,
   search,
   mobileSearch,
   filterCount,
@@ -47,6 +49,7 @@ export function MarketplaceBrowseShell({
     <div className="min-h-screen bg-paper tv-page">
       <div className="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8 pt-5 sm:pt-7 pb-12">
         <div className="mb-5 space-y-3">
+          {familyNav}
           {mobileSearch}
           {search}
           <div className="flex items-center gap-2 lg:hidden">
@@ -122,6 +125,47 @@ export function MarketplaceBrowseShell({
           </aside>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+export function MarketplaceFamilySwitch({
+  current,
+  onTours,
+  onStays,
+}: {
+  current: 'tours' | 'stays';
+  onTours: () => void;
+  onStays: () => void;
+}) {
+  return (
+    <div className="flex gap-1 rounded-full bg-black/[0.04] p-1 w-fit ring-1 ring-black/[0.06]" role="tablist" aria-label="Listing type">
+      <button
+        type="button"
+        role="tab"
+        aria-selected={current === 'tours'}
+        onClick={onTours}
+        className={`lux-flat rounded-full px-4 py-1.5 text-sm font-medium ${
+          current === 'tours'
+            ? 'bg-paper-raised text-ink shadow-sm ring-2 ring-finland/30'
+            : 'text-ink-muted hover:bg-black/[0.04] hover:text-ink'
+        }`}
+      >
+        Tours
+      </button>
+      <button
+        type="button"
+        role="tab"
+        aria-selected={current === 'stays'}
+        onClick={onStays}
+        className={`lux-flat rounded-full px-4 py-1.5 text-sm font-medium ${
+          current === 'stays'
+            ? 'bg-paper-raised text-ink shadow-sm ring-2 ring-finland/30'
+            : 'text-ink-muted hover:bg-black/[0.04] hover:text-ink'
+        }`}
+      >
+        Stays
+      </button>
     </div>
   );
 }

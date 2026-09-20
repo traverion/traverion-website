@@ -23,7 +23,7 @@ import { formatStayNightHuman } from '../lib/stay-calendar';
 import { isSupabaseListingId } from '../lib/discount-display';
 import { getReviewAggregatesForListingIds } from '../data/supabase-reviews';
 import { formatMoney, normalizeCurrency } from '../lib/money';
-import { MarketplaceBrowseShell, MarketplaceSortSelect } from '../components/marketplace/MarketplaceBrowseShell';
+import { MarketplaceBrowseShell, MarketplaceFamilySwitch, MarketplaceSortSelect } from '../components/marketplace/MarketplaceBrowseShell';
 import {
   MarketplaceActiveChip,
   MarketplaceFilterChip,
@@ -41,6 +41,7 @@ import {
   collectStayAmenities,
   collectStayPropertyTypes,
   listingBrowseAmount,
+  marketplaceFamilySwitchPath,
   MARKETPLACE_BROWSE_GRID_CLASS,
   parseMarketplaceSort,
   parsePriceChipId,
@@ -81,7 +82,7 @@ function parseStaysSearch(search: string) {
   };
 }
 
-export default function Stays({ onStaySelect }: Props) {
+export default function Stays({ onStaySelect, onNavigate }: Props) {
   const { listings: supplierListings, error, reload } = usePublishedSupplierListings();
   const wishlist = useTravelerWishlist();
   const initial = parseStaysSearch(typeof window === 'undefined' ? '' : window.location.search);
@@ -127,6 +128,25 @@ export default function Stays({ onStaySelect }: Props) {
   const [reviewAggregates, setReviewAggregates] = useState<Map<string, { rating: number; count: number }>>(
     () => new Map()
   );
+
+  const syncStateFromUrl = useCallback(() => {
+    const parsed = parseStaysSearch(window.location.search);
+    setQ(parsed.q);
+    setCheckIn(parsed.checkIn);
+    setCheckOut(parsed.checkOut);
+    setGuests(parsed.guests);
+    setPropertyType(parsed.propertyType);
+    setPriceRange(parsed.price);
+    setSelectedAmenities(parsed.amenities);
+    setSortBy(parsed.sort === 'duration' ? 'recommended' : parsed.sort);
+    setRatingFilter(parsed.rating);
+  }, []);
+
+  useEffect(() => {
+    const onPopState = () => syncStateFromUrl();
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, [syncStateFromUrl]);
 
   useEffect(() => {
     const p = new URLSearchParams();
@@ -393,6 +413,22 @@ export default function Stays({ onStaySelect }: Props) {
       <MarketplaceBrowseShell
         headingId="stays-heading"
         resultTitle={resultTitle}
+        familyNav={
+          <MarketplaceFamilySwitch
+            current="stays"
+            onTours={() => {
+              if (!onNavigate) return;
+              const next = marketplaceFamilySwitchPath('tours', {
+                q,
+                date: checkIn,
+                guests,
+              });
+              window.history.pushState({}, '', next);
+              onNavigate('packages');
+            }}
+            onStays={() => undefined}
+          />
+        }
         search={
           <MarketplaceSearchPill
             family="stays"

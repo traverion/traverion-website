@@ -342,3 +342,23 @@ export function stayMatchesCatalogFilters(tour: TourPackage, input: StayCatalogF
 export const MARKETPLACE_GRID_CLASS = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5';
 /** Results next to a filter sidebar — two columns so photography stays large. */
 export const MARKETPLACE_BROWSE_GRID_CLASS = 'grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5';
+
+/** Carry where/when/who when switching Tours ↔ Stays browse without inventing extra filters. */
+export function marketplaceFamilySwitchPath(
+  target: MarketplaceSearchFamily,
+  values: { q?: string; date?: string; checkout?: string; guests?: string }
+): string {
+  const p = new URLSearchParams();
+  const q = values.q?.trim();
+  if (q) p.set('q', q);
+  if (values.date) p.set('date', values.date);
+  if (target === 'stays' && values.date) {
+    const out =
+      values.checkout && values.checkout > values.date ? values.checkout : addCalendarDays(values.date, 1);
+    p.set('checkout', out);
+  }
+  if (values.guests?.trim()) p.set('guests', values.guests.trim());
+  const path = target === 'stays' ? '/stays' : '/packages';
+  const s = p.toString();
+  return s ? `${path}?${s}` : path;
+}

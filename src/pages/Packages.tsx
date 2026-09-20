@@ -21,7 +21,7 @@ import { fetchAvailabilityByListingId, fetchPublishedTourPaidGuests } from '../d
 import { parseListingExtras } from '../types/listingExtras';
 import { SkeletonCardGrid } from '../components/ui/Skeleton';
 import { PublicListingBrowseCard } from '../components/PublicListingBrowseCard';
-import { MarketplaceBrowseShell, MarketplaceSortSelect } from '../components/marketplace/MarketplaceBrowseShell';
+import { MarketplaceBrowseShell, MarketplaceFamilySwitch, MarketplaceSortSelect } from '../components/marketplace/MarketplaceBrowseShell';
 import {
   MarketplaceFilterChip,
   MarketplaceFilterChipRow,
@@ -47,6 +47,7 @@ import {
   languageLabel,
   listingBrowseAmount,
   MARKETPLACE_BROWSE_GRID_CLASS,
+  marketplaceFamilySwitchPath,
   parseDurationFilterId,
   parseMarketplaceSort,
   parsePriceChipId,
@@ -138,7 +139,7 @@ function buildPackagesSearchParams(state: {
   return s ? `?${s}` : '';
 }
 
-export default function Packages({ onTourSelect }: PackagesProps) {
+export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
   const initialFilters = parsePackagesSearchParams(
     typeof window === 'undefined' ? '' : window.location.search
   );
@@ -614,6 +615,22 @@ export default function Packages({ onTourSelect }: PackagesProps) {
       <MarketplaceBrowseShell
         headingId="tours-heading"
         resultTitle={resultTitle}
+        familyNav={
+          <MarketplaceFamilySwitch
+            current="tours"
+            onTours={() => undefined}
+            onStays={() => {
+              if (!onNavigate) return;
+              const next = marketplaceFamilySwitchPath('stays', {
+                q: searchTerm,
+                date: filterDate,
+                guests: filterGuests,
+              });
+              window.history.pushState({}, '', next);
+              onNavigate('stays');
+            }}
+          />
+        }
         search={
           <MarketplaceSearchPill
             family="tours"
