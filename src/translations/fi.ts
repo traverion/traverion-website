@@ -199,7 +199,7 @@ export const fi = {
 
   // Top bar (above main nav)
   topBanner: {
-    trustLine: 'Ilmainen peruutus useimmissa · Paras hinta -takuu',
+    trustLine: 'Peruutus noudattaa kunkin ilmoituksen ehtoja · Stripe TEST kunnes live',
   },
 
   // Promotional Banner
@@ -218,7 +218,7 @@ export const fi = {
   // Listings / Tours page
   listings: {
     title: 'Kierrokset ja aktiviteetit',
-    subtitle: 'kierrosta · Ilmainen peruutus useimmissa',
+    subtitle: 'kierrosta · Peruutus ilmoituksen mukaan',
     recommended: 'Suosittelemme',
     allTours: 'Kaikki kierrokset ja aktiviteetit',
     results: 'Tulokset',

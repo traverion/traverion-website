@@ -123,7 +123,7 @@ export const en = {
 
   // Footer
   footer: {
-    description: 'Book tours and activities worldwide. Your trusted platform for discovering experiences with instant confirmation and free cancellation.',
+    description: 'Book tours and stays worldwide from independent operators. Cancellation follows each listing.',
     quickLinks: 'Quick Links',
     getInTouch: 'Get In Touch',
     stayUpdated: 'Stay Updated',
@@ -199,7 +199,7 @@ export const en = {
 
   // Top bar (above main nav) - one line, minimal
   topBanner: {
-    trustLine: 'Free cancellation on most tours · Best price guarantee',
+    trustLine: 'Cancellation follows each listing · Stripe TEST until live',
   },
 
   // Promotional Banner
@@ -218,7 +218,7 @@ export const en = {
   // Listings / Tours page
   listings: {
     title: 'Tours',
-    subtitle: 'tours · Free cancellation on most',
+    subtitle: 'tours · Cancellation per listing',
     recommended: 'Recommended for you',
     allTours: 'All tours & activities',
     results: 'Results',

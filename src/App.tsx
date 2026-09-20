@@ -397,7 +397,7 @@ function App() {
     }
 
     const metaByPage: Record<string, { title: string; description?: string }> = {
-      home: { title: '', description: 'Book tours and activities worldwide. Find and reserve experiences with free cancellation.' },
+      home: { title: '', description: 'Book tours and stays worldwide from independent operators. Cancellation follows each listing.' },
       packages: { title: 'Tours', description: 'Browse and book tours worldwide. Filter by destination, price, and more.' },
       stays: { title: 'Stays', description: 'Apartments and rooms from independent operators.' },
       auth: { title: 'Sign in', description: 'Sign in or create an account to manage your bookings.' },

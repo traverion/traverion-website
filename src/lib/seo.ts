@@ -263,7 +263,7 @@ export function setOrganizationJsonLd() {
     name: 'Traverion',
     url: baseUrl,
     logo: `${baseUrl}${BRAND_LOGO_SRC}`,
-    description: 'Book tours worldwide. Find and reserve tours with free cancellation.',
+    description: 'Book tours and stays worldwide from independent operators. Cancellation follows each listing.',
     sameAs: [],
   });
   document.head.appendChild(script);
