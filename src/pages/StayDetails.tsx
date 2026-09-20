@@ -448,7 +448,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
         <div className="grid lg:grid-cols-[1fr_20rem] gap-6 pb-24 lg:pb-0">
           <div className="space-y-4 text-[15px] leading-relaxed text-ink">
             {stay.description ? (
-              <div className="rounded-2xl bg-paper-raised p-4 sm:p-5 shadow-soft ring-1 ring-black/[0.06]">
+              <div className="tv-card p-4 sm:p-5">
                 <h2 className="font-display text-xl mb-2">The place</h2>
                 <p className="text-ink-muted">{stay.description}</p>
               </div>
