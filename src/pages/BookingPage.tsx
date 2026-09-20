@@ -31,12 +31,16 @@ import { CHECKOUT_HOLD_MINUTES } from '../lib/booking-hold';
 import { isListingVisibleToTravelers } from '../lib/product-workflows';
 import {
   checkAvailability,
+  fetchAvailabilityByListingId,
+  fetchPublishedTourPaidGuests,
   type AvailabilityCheckOption,
 } from '../data/supabase-availability';
 import AvailabilityOptionsModal from '../components/booking/AvailabilityOptionsModal';
 import TourDatePicker from '../components/TourDatePicker';
 import GuestStepper from '../components/booking/GuestStepper';
 import ParticipantCategoryStepper from '../components/booking/ParticipantCategoryStepper';
+import { listingTourCapacityFromOptions, remainingCapacity } from '../lib/availability-ops';
+import { tourSoldOutDates } from '../lib/tour-calendar';
 import { useDialogFocus } from '../hooks/useDialogFocus';
 import { analytics } from '../lib/analytics';
 import { setPageMetaWithOg } from '../lib/seo';
@@ -189,6 +193,12 @@ export default function BookingPage({
   const [availabilityChecking, setAvailabilityChecking] = useState(false);
   const [availabilityOptions, setAvailabilityOptions] = useState<AvailabilityCheckOption[]>([]);
   const [availabilityModalNote, setAvailabilityModalNote] = useState<string | null>(null);
+  const [soldOutDates, setSoldOutDates] = useState<ReadonlySet<string>>(() => new Set());
+  const [dayCapacitySnap, setDayCapacitySnap] = useState<{
+    paidByDay: Record<string, number>;
+    capByDay: Map<string, number>;
+    fallback: number;
+  } | null>(null);
 
   const partyBounds = useMemo(() => getPartySizeBounds(tour), [tour]);
 
@@ -244,6 +254,40 @@ export default function BookingPage({
       .map((v) => v.listingOption)
       .filter((o): o is NonNullable<typeof o> => Boolean(o));
   }, [selectedVariant, tour]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.all([fetchAvailabilityByListingId(tour.id), fetchPublishedTourPaidGuests(tour.id)]).then(
+      ([caps, paidByDay]) => {
+        if (cancelled) return;
+        const fallbackCap = listingTourCapacityFromOptions(calendarOptions.map((o) => o.maxSpotsPerSlot));
+        const capByDay = new Map<string, number>();
+        for (const row of caps) {
+          const day = String(row.available_date ?? '').slice(0, 10);
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) continue;
+          capByDay.set(day, row.capacity);
+        }
+        setDayCapacitySnap({ paidByDay, capByDay, fallback: fallbackCap });
+        setSoldOutDates(tourSoldOutDates({ paidByDay, capByDay, fallbackCapacity: fallbackCap }));
+      }
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [tour.id, calendarOptions]);
+
+  const selectedDaySpotsLeft = useMemo(() => {
+    const day = date.trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !dayCapacitySnap) return null;
+    if (soldOutDates.has(day)) return 0;
+    const cap = dayCapacitySnap.capByDay.get(day) ?? dayCapacitySnap.fallback;
+    return remainingCapacity(cap, dayCapacitySnap.paidByDay[day] ?? 0);
+  }, [date, dayCapacitySnap, soldOutDates]);
+
+  const partyMaxForSelectedDay = useMemo(() => {
+    if (selectedDaySpotsLeft == null || selectedDaySpotsLeft < 1) return partyBounds.max;
+    return Math.max(1, Math.min(partyBounds.max, selectedDaySpotsLeft));
+  }, [partyBounds.max, selectedDaySpotsLeft]);
 
   const quoteBlockReason =
     date.trim() && priceInfo.quote && !priceInfo.quote.ok ? priceInfo.quote.error : null;
@@ -384,8 +428,8 @@ export default function BookingPage({
   }, [user?.id]);
 
   useEffect(() => {
-    setGuests((g) => Math.min(partyBounds.max, Math.max(partyBounds.min, g)));
-  }, [partyBounds.min, partyBounds.max]);
+    setGuests((g) => Math.min(partyMaxForSelectedDay, Math.max(partyBounds.min, g)));
+  }, [partyBounds.min, partyMaxForSelectedDay]);
 
   useEffect(() => {
     if (!hydratedRef.current || step === 'done') return;
@@ -752,8 +796,22 @@ export default function BookingPage({
                 value={date}
                 onChange={setDate}
                 options={calendarOptions}
+                soldOutDates={soldOutDates}
                 hint={weekdayHint}
               />
+              {selectedDaySpotsLeft != null ? (
+                <p
+                  className={`-mt-1 text-xs font-medium ${
+                    selectedDaySpotsLeft === 0 ? 'text-ink-muted' : 'text-finland'
+                  }`}
+                >
+                  {selectedDaySpotsLeft === 0
+                    ? 'Fully booked this day'
+                    : selectedDaySpotsLeft === 1
+                      ? '1 spot left this day'
+                      : `${selectedDaySpotsLeft} spots left this day`}
+                </p>
+              ) : null}
               {usesAgePricingOnVariant && selectedVariant?.listingOption ? (
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-ink">Participants</p>
@@ -763,7 +821,7 @@ export default function BookingPage({
                       category={cat}
                       quantity={participantMix[cat.id] ?? 0}
                       currency={currency}
-                      max={selectedVariant.listingOption!.maxPersons}
+                      max={Math.min(selectedVariant.listingOption!.maxPersons, partyMaxForSelectedDay)}
                       onChange={(qty) => {
                         setParticipantMix((prev) => ({ ...prev, [cat.id]: qty }));
                         setError(null);
@@ -778,7 +836,7 @@ export default function BookingPage({
                   label="Number of guests"
                   value={guests}
                   min={partyBounds.min}
-                  max={partyBounds.max}
+                  max={partyMaxForSelectedDay}
                   onChange={setGuests}
                   onBoundaryAttempt={setError}
                 />
