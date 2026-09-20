@@ -58,6 +58,14 @@ import {
   getTourBookingVariants,
   type TourBookingVariant,
 } from '../lib/booking-flow';
+import {
+  parseTourCheckoutSearch,
+  resolveTourCheckoutVariant,
+  tourCheckoutPath,
+  tourListingPath,
+  type TourCheckoutFlowStep,
+  type TourCheckoutState,
+} from '../lib/tourCheckoutUrl';
 import TourDatePicker from '../components/TourDatePicker';
 import GuestStepper from '../components/booking/GuestStepper';
 import ParticipantCategoryStepper from '../components/booking/ParticipantCategoryStepper';
@@ -149,7 +157,10 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   useDialogFocus(legalModal !== null, legalSheetRef, closeLegalModal);
   const [bookingCardError, setBookingCardError] = useState<string | null>(null);
   const [bookingVariantsOpen, setBookingVariantsOpen] = useState(false);
-  const [bookingModalOpen, setBookingModalOpen] = useState(false);
+  const [locationSearch, setLocationSearch] = useState(
+    () => (typeof window === 'undefined' ? '' : window.location.search)
+  );
+  const openedCheckoutViaPushRef = useRef(false);
   const [selectedBookingVariant, setSelectedBookingVariant] = useState<TourBookingVariant | null>(null);
   const [participantMix, setParticipantMix] = useState<ParticipantMixSelection>({});
   const [variantChecking, setVariantChecking] = useState(false);
@@ -172,6 +183,12 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   const partyBounds = useMemo(() => (tour ? getPartySizeBounds(tour) : { min: 1, max: 12 }), [tour]);
   const canBook = Boolean(tour && isListingVisibleToTravelers(tour.status));
   const tourVariants = useMemo(() => (tour ? getTourBookingVariants(tour) : []), [tour]);
+  const checkoutFromUrl = useMemo(() => parseTourCheckoutSearch(locationSearch), [locationSearch]);
+  const checkoutVariant = useMemo(
+    () =>
+      checkoutFromUrl ? resolveTourCheckoutVariant(tourVariants, checkoutFromUrl.optionId) : null,
+    [checkoutFromUrl, tourVariants]
+  );
   const calendarOptions = useMemo(
     () => tourVariants.map((v) => v.listingOption).filter((o): o is NonNullable<typeof o> => Boolean(o)),
     [tourVariants]
@@ -423,9 +440,83 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     return () => clearTourJsonLd();
   }, [tour, reviewAggregate, discountsByListing]);
 
-  const closeBookingModal = () => {
-    setBookingModalOpen(false);
-  };
+  const commitLocation = useCallback((href: string, mode: 'push' | 'replace') => {
+    const current = `${window.location.pathname}${window.location.search}`;
+    if (current !== href) {
+      if (mode === 'push') window.history.pushState({}, '', href);
+      else window.history.replaceState({}, '', href);
+    }
+    setLocationSearch(window.location.search);
+  }, []);
+
+  const closeBookingModal = useCallback(() => {
+    if (!tour) return;
+    const listing = tourListingPath(tour.id, { date: bookingDate.trim(), guests });
+    if (openedCheckoutViaPushRef.current) {
+      openedCheckoutViaPushRef.current = false;
+      const pathBefore = `${window.location.pathname}${window.location.search}`;
+      window.history.back();
+      window.setTimeout(() => {
+        if (`${window.location.pathname}${window.location.search}` === pathBefore) {
+          commitLocation(listing, 'replace');
+          return;
+        }
+        setLocationSearch(window.location.search);
+      }, 50);
+      return;
+    }
+    commitLocation(listing, 'replace');
+  }, [tour, bookingDate, guests, commitLocation]);
+
+  useEffect(() => {
+    const onPop = () => {
+      openedCheckoutViaPushRef.current = false;
+      setLocationSearch(window.location.search);
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
+  useEffect(() => {
+    if (!checkoutFromUrl || !tour) return;
+    if (checkoutVariant && isListingVisibleToTravelers(tour.status)) {
+      setSelectedBookingVariant(checkoutVariant);
+      setBookingDate(checkoutFromUrl.date);
+      setGuests(checkoutFromUrl.guests);
+      if (checkoutFromUrl.mix) setParticipantMix(checkoutFromUrl.mix);
+      return;
+    }
+    if (!checkoutVariant) {
+      setBookingCardError('That tour option is no longer available. Pick another option.');
+    }
+    commitLocation(
+      tourListingPath(tour.id, { date: checkoutFromUrl.date, guests: checkoutFromUrl.guests }),
+      'replace'
+    );
+  }, [checkoutFromUrl, checkoutVariant, tour, commitLocation]);
+
+  const handleCheckoutUrlState = useCallback(
+    (patch: {
+      step: TourCheckoutFlowStep;
+      date: string;
+      guests: number;
+      mix?: Record<string, number> | null;
+    }) => {
+      if (!tour || !checkoutFromUrl) return;
+      const href = tourCheckoutPath(tour.id, {
+        ...checkoutFromUrl,
+        date: patch.date,
+        guests: patch.guests,
+        step: patch.step,
+        mix: patch.mix !== undefined ? patch.mix : checkoutFromUrl.mix,
+      });
+      const current = `${window.location.pathname}${window.location.search}`;
+      if (current !== href) {
+        window.history.replaceState({}, '', href);
+      }
+    },
+    [tour, checkoutFromUrl]
+  );
 
   const handleCheckAvailabilityToggle = () => {
     if (!tour || variantChecking) return;
@@ -456,7 +547,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       });
       return;
     }
-    if (selectedBookingVariant && !bookingModalOpen) {
+    if (selectedBookingVariant && !checkoutFromUrl) {
       void handleContinueToCheckout();
       return;
     }
@@ -540,7 +631,16 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
         return;
       }
       analytics.bookStart(tour.id);
-      setBookingModalOpen(true);
+      const checkoutState: TourCheckoutState = {
+        date: bookingDate.trim(),
+        optionId: selectedBookingVariant.id,
+        guests: partySize,
+        mix: optionUsesAgePricing(selectedBookingVariant.listingOption) ? participantMix : null,
+        step: 'review',
+        paymentCancelled: false,
+      };
+      openedCheckoutViaPushRef.current = true;
+      commitLocation(tourCheckoutPath(tour.id, checkoutState), 'push');
     } catch {
       setBookingCardError('Could not verify availability. Check your connection and try again.');
     } finally {
@@ -616,19 +716,23 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   const hasGallery = images.length > 0;
   const review = publicReviewLabel(reviewAggregate);
 
-  if (bookingModalOpen && selectedBookingVariant && canBook) {
-    const mixGuests = usesAgePricing
-      ? totalGuestsFromMix(buildParticipantMixLines(selectedOption!, participantMix))
-      : guests;
+  if (checkoutFromUrl && checkoutVariant && canBook) {
     return (
       <BookingPage
         tour={tour}
         presentation="page"
-        selectedVariant={selectedBookingVariant}
+        selectedVariant={checkoutVariant}
         discountsByListing={discountsByListing}
-        initialDate={bookingDate.trim()}
-        initialGuests={Math.max(1, mixGuests)}
-        initialParticipantMix={usesAgePricing ? participantMix : undefined}
+        initialDate={checkoutFromUrl.date}
+        initialGuests={Math.max(1, checkoutFromUrl.guests)}
+        initialParticipantMix={
+          optionUsesAgePricing(checkoutVariant.listingOption)
+            ? checkoutFromUrl.mix ?? undefined
+            : undefined
+        }
+        initialCheckoutStep={checkoutFromUrl.step}
+        stripeReturnCancelled={checkoutFromUrl.paymentCancelled}
+        onCheckoutUrlState={handleCheckoutUrlState}
         onBack={closeBookingModal}
         onComplete={closeBookingModal}
         onModalClose={closeBookingModal}
@@ -1274,7 +1378,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                         aria-expanded={bookingVariantsOpen}
                         aria-controls="tour-booking-variants-list"
                         onClick={handleCheckAvailabilityToggle}
-                        disabled={variantChecking || bookingModalOpen}
+                        disabled={variantChecking || Boolean(checkoutFromUrl)}
                         className="tv-btn-primary w-full disabled:opacity-60"
                       >
                         {variantChecking
@@ -1681,7 +1785,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
         </div>
       </section>
 
-      {canBook && !bookingModalOpen ? (
+      {canBook && !checkoutFromUrl ? (
         <div className="lg:hidden fixed inset-x-0 bottom-0 z-40 border-t border-black/[0.06] bg-paper-raised/95 backdrop-blur-md px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] motion-safe:animate-slide-up">
           <div className="flex items-center justify-between gap-3">
             {(() => {

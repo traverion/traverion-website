@@ -63,6 +63,11 @@ import {
   type TourBookingVariant,
 } from '../lib/booking-flow';
 import {
+  sanitizeTourCheckoutFlowStep,
+  tourCheckoutCancelPath,
+  type TourCheckoutFlowStep,
+} from '../lib/tourCheckoutUrl';
+import {
   buildParticipantMixLines,
   formatMixSummaryCompact,
   optionUsesAgePricing,
@@ -94,6 +99,15 @@ interface BookingPageProps {
   selectedVariant?: TourBookingVariant | null;
   discountsByListing?: Map<string, ListingDiscount[]>;
   onModalClose?: () => void;
+  /** Durable checkout URL step (review / contact / confirm). */
+  initialCheckoutStep?: TourCheckoutFlowStep;
+  stripeReturnCancelled?: boolean;
+  onCheckoutUrlState?: (state: {
+    step: TourCheckoutFlowStep;
+    date: string;
+    guests: number;
+    mix: Record<string, number> | null;
+  }) => void;
 }
 
 type Step = BookingFlowStep;
@@ -165,6 +179,9 @@ export default function BookingPage({
   selectedVariant = null,
   discountsByListing,
   onModalClose,
+  initialCheckoutStep,
+  stripeReturnCancelled = false,
+  onCheckoutUrlState,
 }: BookingPageProps) {
   const { user, requestAuth } = useAuth();
   const userRef = useRef(user);
@@ -344,7 +361,9 @@ export default function BookingPage({
     const startOnReview = presentation === 'modal' || Boolean(selectedVariant);
     if (startOnReview) {
       profileHydratedRef.current = false;
-      const nextDate = (initialDate?.trim() || '').trim();
+      const draft = loadBookingDraft(tour.id);
+      const fromDraft = Boolean(draft && draft.tourId === tour.id);
+      const nextDate = (initialDate?.trim() || (fromDraft ? draft!.date : '') || '').trim();
       let nextGuests = typeof initialGuests === 'number' ? initialGuests : bounds.min;
       nextGuests = Math.min(bounds.max, Math.max(bounds.min, nextGuests));
       setDate(nextDate);
@@ -352,13 +371,29 @@ export default function BookingPage({
       if (initialParticipantMix && Object.keys(initialParticipantMix).length > 0) {
         setParticipantMix(initialParticipantMix);
       }
-      setFirstName('');
-      setLastName('');
-      setPhone('');
-      setEmail(user?.email ?? '');
-      setPlaceOfStay('');
-      setSpecialRequests('');
-      setStep('review');
+      if (fromDraft && draft) {
+        const combined = (draft.name ?? '').trim();
+        const parts = combined.split(/\s+/).filter(Boolean);
+        setFirstName(parts[0] ?? '');
+        setLastName(parts.slice(1).join(' '));
+        setEmail(draft.email || user?.email || '');
+        setPlaceOfStay(draft.placeOfStay || '');
+        setSpecialRequests(draft.specialRequests);
+      } else {
+        setFirstName('');
+        setLastName('');
+        setPhone('');
+        setEmail(user?.email ?? '');
+        setPlaceOfStay('');
+        setSpecialRequests('');
+      }
+      if (!fromDraft) setPhone('');
+      setStep(
+        sanitizeTourCheckoutFlowStep(
+          initialCheckoutStep ?? (fromDraft ? draft!.step : 'review'),
+          Boolean(user)
+        )
+      );
       setError(null);
       hydratedRef.current = true;
       return;
@@ -440,6 +475,19 @@ export default function BookingPage({
   }, [tour.id, step, date, guests, leadGuestName, email, placeOfStay, specialRequests, flushDraft]);
 
   useEffect(() => {
+    if (!hydratedRef.current || !onCheckoutUrlState || presentation === 'modal') return;
+    if (!selectedVariant) return;
+    const urlStep: TourCheckoutFlowStep =
+      step === 'contact' || step === 'confirm' ? step : 'review';
+    onCheckoutUrlState({
+      step: urlStep,
+      date: date.trim(),
+      guests,
+      mix: Object.keys(participantMix).length > 0 ? participantMix : null,
+    });
+  }, [step, date, guests, participantMix, onCheckoutUrlState, presentation, selectedVariant]);
+
+  useEffect(() => {
     if (presentation !== 'modal') return;
     const html = document.documentElement;
     const body = document.body;
@@ -461,7 +509,6 @@ export default function BookingPage({
       onModalClose?.();
       return;
     }
-    clearBookingDraft(tour.id);
     onBack();
   };
 
@@ -643,7 +690,16 @@ export default function BookingPage({
           participantMix: Object.keys(participantMix).length > 0 ? participantMix : undefined,
           currency: quoted.currency,
           successPath: '/booking-confirmed',
-          cancelPath: '/bookings?payment=cancelled',
+          cancelPath: selectedVariant
+            ? tourCheckoutCancelPath(tour.id, {
+                date,
+                optionId: selectedVariant.id,
+                guests: quoted.guests,
+                mix: Object.keys(participantMix).length > 0 ? participantMix : null,
+                step: 'confirm',
+                paymentCancelled: true,
+              })
+            : '/bookings?payment=cancelled',
         });
         if (!checkout.success || !checkout.checkoutUrl) {
           setError(userFacingError(checkout.error, USER_ERROR.checkout));
@@ -1307,6 +1363,14 @@ export default function BookingPage({
               Back to tour
             </button>
 
+            {stripeReturnCancelled ? (
+              <div className="mb-6">
+                <NoticeCallout title="Payment was not completed" tone="warn">
+                  Stripe TEST checkout was cancelled. Your trip details are still here — you can pay
+                  again, or go back to the tour.
+                </NoticeCallout>
+              </div>
+            ) : null}
             <div className="overflow-hidden rounded-2xl mb-6 shadow-soft ring-1 ring-black/[0.08]">
               <div className="h-36 sm:h-44 bg-black/10 relative">
                 <img src={tour.image} alt="" className="w-full h-full object-cover" />
