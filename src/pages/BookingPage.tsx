@@ -689,7 +689,7 @@ export default function BookingPage({
         {step === 'review' && selectedVariant && (
           <div className="tv-card p-4 sm:p-5">
             <BookingProgress step={step} flow={progressFlow} />
-            <h2 className="font-display text-2xl text-ink mb-2">Your trip</h2>
+            <h2 className="font-display text-xl text-ink mb-1.5">Your trip</h2>
             <p className="text-sm text-ink-muted mb-6">
               Confirm date, option, and participants. Next you will enter contact details, then pay on Stripe TEST until live.
             </p>
@@ -1059,7 +1059,7 @@ export default function BookingPage({
         {step === 'confirm' && (
           <div className="tv-card p-4 sm:p-5">
             <BookingProgress step={step} flow={progressFlow} />
-            <h2 className="font-display text-2xl text-ink mb-2">Review &amp; pay</h2>
+            <h2 className="font-display text-xl text-ink mb-1.5">Review &amp; pay</h2>
             <p className="text-sm text-ink-muted mb-6 flex items-start gap-2 rounded-xl bg-finland/5 ring-1 ring-finland/15 px-3 py-2.5">
               <ClipboardList className="w-4 h-4 text-finland shrink-0 mt-0.5" aria-hidden />
               <span>
