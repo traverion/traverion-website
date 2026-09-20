@@ -489,7 +489,7 @@ export default function Packages({ onTourSelect }: PackagesProps) {
   return (
     <div className="min-h-screen bg-paper tv-page">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-12 pb-16 motion-safe:animate-fade-in">
-        <header className="mb-8 tv-card p-5 sm:p-7">
+        <header className="mb-5 tv-card p-4 sm:p-5">
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Browse</p>
           <h1 className="font-display text-4xl sm:text-5xl text-ink tracking-tight">Tours</h1>
           <p className="mt-3 text-ink-muted">
@@ -900,12 +900,12 @@ export default function Packages({ onTourSelect }: PackagesProps) {
           </div>
         )}
         {showCatalogLoading ? (
-          <div className="mt-10 py-8">
+          <div className="mt-6 py-6">
             <SkeletonCardGrid count={6} />
           </div>
         ) : allListings.length > 0 && filteredPackages.length > 0 ? (
           <>
-            <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               {filteredPackages.map((tour, index) => (
                 <PublicListingBrowseCard
                   key={tour.id}
@@ -925,10 +925,10 @@ export default function Packages({ onTourSelect }: PackagesProps) {
             </p>
           </>
         ) : (
-          <div className="mt-10 rounded-2xl bg-paper-raised px-6 py-2 shadow-soft ring-1 ring-black/[0.06] sm:px-8">
+          <div className="mt-6 rounded-2xl bg-paper-raised px-6 py-2 shadow-soft ring-1 ring-black/[0.06] sm:px-8">
             {allListings.length > 0 ? (
               <EmptyState
-                className="py-10 sm:py-12 max-w-lg"
+                className="py-8 sm:py-10 max-w-lg"
                 icon={Search}
                 title={emptyDueToSoldOutDate ? 'Fully booked for that date' : 'No tours match'}
                 body={

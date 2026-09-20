@@ -154,7 +154,7 @@ export default function Stays({ onStaySelect }: Props) {
   return (
     <div className="min-h-screen bg-paper tv-page">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-12 pb-16 motion-safe:animate-fade-in">
-        <header className="mb-8 tv-card p-5 sm:p-7">
+        <header className="mb-5 tv-card p-4 sm:p-5">
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Browse</p>
           <h1 className="font-display text-4xl sm:text-5xl text-ink tracking-tight">Stays</h1>
           <p className="mt-3 text-ink-muted max-w-xl leading-relaxed">
@@ -165,7 +165,7 @@ export default function Stays({ onStaySelect }: Props) {
           </p>
         </header>
         {paymentBanner === 'cancelled' ? (
-          <div className="mb-8 max-w-xl">
+          <div className="mb-5 max-w-xl">
             <NoticeCallout title="Checkout cancelled" tone="warn">
               {STRIPE_CHECKOUT_CANCELLED_STAY_COPY}
             </NoticeCallout>
@@ -365,7 +365,7 @@ export default function Stays({ onStaySelect }: Props) {
         )}
 
         {(q.trim() || checkIn || checkOut || guests) ? (
-          <div className="mb-8 flex flex-wrap items-center gap-2" aria-label="Active filters">
+          <div className="mb-5 flex flex-wrap items-center gap-2" aria-label="Active filters">
             {q.trim() ? (
               <button
                 type="button"
@@ -470,7 +470,7 @@ export default function Stays({ onStaySelect }: Props) {
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             {filtered.map((item, index) => {
               const guestN = Number.parseInt(guests, 10) || 1;
               const stayQuote =
