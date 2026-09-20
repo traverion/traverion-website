@@ -1340,12 +1340,16 @@ export default function SupplierListings() {
                   title="Remove this listing?"
                   onClose={deleteBusy ? undefined : () => setListingPendingDelete(null)}
                 />
-                <div className="p-4 sm:p-6 overflow-y-auto pb-[max(1rem,env(safe-area-inset-bottom))]">
-                <p className="text-sm text-ink-muted leading-relaxed">
+                <div className="p-4 overflow-y-auto pb-[max(1rem,env(safe-area-inset-bottom))]">
+                <p className="text-sm text-ink-muted leading-snug">
                   <span className="font-medium text-ink">{listingPendingDelete.title}</span> will disappear from
-                  Partner listings. Confirmed bookings stay in Bookings. This cannot be undone.
+                  Partner listings.
+                  {inventoryFamilyFromListing(listingPendingDelete) === 'stay'
+                    ? ' Confirmed stays stay in Bookings and Calendar history.'
+                    : ' Confirmed bookings stay in Bookings.'}{' '}
+                  This cannot be undone.
                 </p>
-                <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                   <button
                     type="button"
                     className="tv-btn-ghost"
