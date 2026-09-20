@@ -42,12 +42,11 @@ const MAX_BULK_RANGE_DAYS = 366;
 /** Inclusive list of ISO dates from `fromIso` to `toIso`, capped so a bad range can't hang the tab. */
 function enumerateIsoDates(fromIso: string, toIso: string): string[] {
   const out: string[] = [];
-  let cursor = new Date(`${fromIso}T00:00:00Z`).getTime();
-  const end = new Date(`${toIso}T00:00:00Z`).getTime();
-  if (!Number.isFinite(cursor) || !Number.isFinite(end)) return out;
-  while (cursor <= end && out.length < MAX_BULK_RANGE_DAYS) {
-    out.push(new Date(cursor).toISOString().slice(0, 10));
-    cursor += 24 * 60 * 60 * 1000;
+  if (!fromIso || !toIso || fromIso > toIso) return out;
+  let cur = fromIso;
+  while (cur <= toIso && out.length < MAX_BULK_RANGE_DAYS) {
+    out.push(cur);
+    cur = addCalendarDays(cur, 1);
   }
   return out;
 }
