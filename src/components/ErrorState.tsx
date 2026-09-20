@@ -32,7 +32,7 @@ export default function ErrorState({
 }: ErrorStateProps) {
   return (
     <div
-      className={`py-10 sm:py-16 max-w-md motion-safe:animate-fade-in-up ${className}`}
+      className={`py-8 sm:py-12 max-w-md motion-safe:animate-fade-in-up ${className}`}
       role="alert"
       aria-live="assertive"
     >
