@@ -361,7 +361,13 @@ export default function SupplierReviews() {
               icon={Star}
               className="py-8"
               title="No reviews match"
-              body="You have reviews, but none match this listing, type, rating, or reply filter. Clear filters to see all of them."
+              body={
+                filterFamily === 'stay'
+                  ? 'No stay reviews match these filters. Clear filters or switch to Tours.'
+                  : filterFamily === 'tour'
+                    ? 'No tour reviews match these filters. Clear filters or switch to Stays.'
+                    : 'You have reviews, but none match this listing, type, rating, or reply filter. Clear filters to see all of them.'
+              }
               action={
                 <button type="button" onClick={clearFilters} className="tv-btn-primary">
                   Clear filters
