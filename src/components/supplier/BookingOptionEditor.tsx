@@ -10,7 +10,7 @@ import {
   formatPriceCategoryAgeRange,
   PRICE_CATEGORY_KIND_PRESETS,
 } from '../../lib/price-categories';
-import { Plus, Trash2 } from 'lucide-react';
+import type { TourOptionSceneId } from '../../lib/listing-option-scenes';
 
 const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -20,6 +20,7 @@ type Props = {
   hasEndingDate: boolean;
   onHasEndingDateChange: (on: boolean) => void;
   onChange: (patch: Partial<ListingBookingOption>) => void;
+  activeSection?: Exclude<TourOptionSceneId, 'review'>;
 };
 
 function patchCategory(
@@ -36,6 +37,7 @@ export default function BookingOptionEditor({
   hasEndingDate,
   onHasEndingDateChange,
   onChange,
+  activeSection,
 }: Props) {
   const pricingMode = option.pricingMode === 'age_dependent' ? 'age_dependent' : 'uniform';
   const categories = option.priceCategories ?? [];
@@ -73,9 +75,17 @@ export default function BookingOptionEditor({
     onChange({ priceCategories: categories.filter((c) => c.id !== id) });
   };
 
+  const showSetup = !activeSection || activeSection === 'setup';
+  const showMeeting = !activeSection || activeSection === 'meeting';
+  const showPricing = !activeSection || activeSection === 'pricing';
+  const showSchedule = !activeSection || activeSection === 'schedule';
+
   return (
-    <div className="grid grid-cols-1 gap-6 p-4 sm:p-5 lg:grid-cols-2 lg:gap-8">
+    <div className={`grid grid-cols-1 gap-6 ${activeSection ? '' : 'p-4 sm:p-5 lg:grid-cols-2 lg:gap-8'}`}>
+      {(showSetup || showMeeting) ? (
       <div className="space-y-5 min-w-0">
+        {showSetup ? (
+        <>
         <section className="space-y-3">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">Option</p>
@@ -149,16 +159,6 @@ export default function BookingOptionEditor({
                 </select>
               </div>
             </div>
-          </div>
-          <div id="supplier-listing-field-meeting">
-            <label className="block text-sm font-medium text-ink mb-1">Meeting or pickup place *</label>
-            <textarea
-              value={option.pickupPlace}
-              onChange={(e) => onChange({ pickupPlace: e.target.value })}
-              rows={3}
-              className="tv-input"
-              placeholder="Address, hotel zone, landmark, or how pickup is arranged for this option"
-            />
           </div>
           <div id="supplier-listing-field-pickup">
             <label className="block text-sm font-medium text-ink mb-1">Why choose this option *</label>
@@ -266,9 +266,35 @@ export default function BookingOptionEditor({
             </div>
           ) : null}
         </section>
+        </>
+        ) : null}
+        {showMeeting ? (
+        <section className="space-y-3">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">Meeting</p>
+            <h3 className="font-display text-lg text-ink tracking-tight">Meeting or pickup</h3>
+            <p className="mt-1 text-sm text-ink-muted leading-relaxed">
+              Exact operational place for this option — not the listing city.
+            </p>
+          </div>
+          <div id="supplier-listing-field-meeting">
+            <label className="block text-sm font-medium text-ink mb-1">Meeting or pickup place *</label>
+            <textarea
+              value={option.pickupPlace}
+              onChange={(e) => onChange({ pickupPlace: e.target.value })}
+              rows={3}
+              className="tv-input"
+              placeholder="Address, hotel zone, landmark, or how pickup is arranged for this option"
+            />
+          </div>
+        </section>
+        ) : null}
       </div>
+      ) : null}
 
+      {(showPricing || showSchedule) ? (
       <div className="space-y-5 min-w-0">
+        {showPricing ? (
         <section className="space-y-3">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">Pricing</p>
@@ -473,7 +499,9 @@ export default function BookingOptionEditor({
             </div>
           ) : null}
         </section>
+        ) : null}
 
+        {showSchedule ? (
         <section className="space-y-3">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">Capacity &amp; schedule</p>
@@ -540,7 +568,7 @@ export default function BookingOptionEditor({
                     next[di] = !next[di];
                     onChange({ weekdays: next });
                   }}
-                  className={`lux-flat min-h-[40px] min-w-[2.75rem] rounded-full px-2.5 text-xs font-semibold transition-colors ${
+                  className={`lux-flat min-h-[44px] min-w-[2.75rem] rounded-full px-2.5 text-xs font-semibold transition-colors ${
                     option.weekdays[di]
                       ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
                       : 'bg-paper text-ink-muted ring-1 ring-black/[0.06] hover:bg-finland/10 hover:text-finland'
@@ -592,7 +620,9 @@ export default function BookingOptionEditor({
             ) : null}
           </div>
         </section>
+        ) : null}
       </div>
+      ) : null}
     </div>
   );
 }
