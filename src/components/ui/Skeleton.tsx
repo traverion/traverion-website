@@ -60,12 +60,12 @@ export function SkeletonFeaturedHero() {
 export function SkeletonPageHero({ className = '' }: { className?: string }) {
   return (
     <div className={className} aria-hidden>
-      <div className="inline-flex items-center gap-2 rounded-2xl bg-finland/10 px-3 py-2 ring-1 ring-finland/15 mb-4">
-        <div className="h-5 w-5 rounded-md bg-finland/25 animate-pulse" />
-        <div className="h-3 w-20 rounded bg-black/[0.06] animate-pulse" />
+      <div className="inline-flex items-center gap-2 rounded-lg bg-finland/10 px-2.5 py-1.5 ring-1 ring-finland/15 mb-3">
+        <div className="h-4 w-4 rounded bg-finland/25 animate-pulse" />
+        <div className="h-2.5 w-16 rounded bg-black/[0.06] animate-pulse" />
       </div>
-      <Skeleton className="h-10 w-48" />
-      <Skeleton className="mt-3 h-4 w-full max-w-md" />
+      <Skeleton className="h-8 w-40" />
+      <Skeleton className="mt-2 h-3.5 w-full max-w-md" />
     </div>
   );
 }
@@ -110,10 +110,10 @@ export function SkeletonConsumerPage({
 }) {
   return (
     <div className="min-h-screen bg-paper tv-page">
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-12" aria-busy="true" aria-label="Loading">
-        <Skeleton className={`h-10 ${titleWidth}`} />
-        <Skeleton className="mt-3 h-4 w-64 max-w-full" />
-        <div className="mt-10">
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8" aria-busy="true" aria-label="Loading">
+        <Skeleton className={`h-8 ${titleWidth}`} />
+        <Skeleton className="mt-2 h-3.5 w-64 max-w-full" />
+        <div className="mt-6">
           {form ? (
             <SkeletonFormFields count={3} />
           ) : (
