@@ -1097,15 +1097,15 @@ export default function SupplierListings() {
               return (
                 <article
                   key={listing.id}
-                  className={`group min-w-0 overflow-hidden rounded-2xl bg-paper-raised ring-1 ring-black/[0.06] shadow-soft ${cardAccent}`}
+                  className={`group min-w-0 overflow-hidden rounded-lg border border-black/[0.06] bg-paper ${cardAccent}`}
                 >
-                  <div className="flex flex-col gap-3 p-3 sm:flex-row sm:items-stretch sm:gap-4 sm:p-3.5">
+                  <div className="flex flex-col gap-2.5 p-2.5 sm:flex-row sm:items-stretch sm:gap-3 sm:p-3">
                     <button
                       type="button"
                       onClick={() => openSupplierListingEditor(listing.id)}
-                      className="flex min-w-0 flex-1 gap-3 text-left sm:gap-4"
+                      className="flex min-w-0 flex-1 gap-2.5 text-left sm:gap-3"
                     >
-                      <div className="relative h-20 w-24 shrink-0 overflow-hidden rounded-xl bg-black/[0.04] sm:h-[5.5rem] sm:w-28">
+                      <div className="relative h-16 w-20 shrink-0 overflow-hidden rounded-lg bg-black/[0.04] sm:h-[4.5rem] sm:w-24">
                         {heroSrc ? (
                           <img
                             src={heroSrc}
