@@ -687,7 +687,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
               </p>
             </div>
           </div>
-          <a href={supplierPortalLandingHref()} className="tv-btn-ghost mt-10 -ml-2 inline-flex">
+          <a href={supplierPortalLandingHref()} className="tv-btn-ghost mt-6 -ml-2 inline-flex">
             For operators
           </a>
         </div>
