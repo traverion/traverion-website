@@ -899,14 +899,13 @@ export default function SupplierListings() {
             className="tv-sheet-panel relative max-w-xl motion-safe:animate-slide-up sm:max-w-2xl"
           >
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland">Create listing</p>
-            <h2 id="create-listing-title" className="mt-2 font-display text-2xl sm:text-3xl text-ink tracking-tight">
+            <h2 id="create-listing-title" className="mt-1.5 font-display text-xl sm:text-2xl text-ink tracking-tight">
               What do you want to sell?
             </h2>
-            <p className="mt-2 text-sm text-ink-muted leading-relaxed">
-              Choose a product type. Tours and stays use different calendars and booking rules — pick the one that matches
-              what travelers will book.
+            <p className="mt-1.5 text-xs text-ink-muted leading-snug">
+              Tours and stays use different calendars and booking rules — pick what travelers will book.
             </p>
-            <div className="mt-6 grid gap-3 sm:grid-cols-2" role="list">
+            <div className="mt-4 grid gap-2 sm:grid-cols-2" role="list">
               {PARTNER_CREATE_INVENTORY.map((opt) => {
                 const Icon = opt.family === 'stay' ? Home : Compass;
                 if (!opt.canCreate) {
@@ -914,14 +913,14 @@ export default function SupplierListings() {
                     <div
                       key={opt.family}
                       role="listitem"
-                      className="flex h-full flex-col rounded-2xl bg-paper px-5 py-5 text-left opacity-70 ring-1 ring-black/[0.04]"
+                      className="flex h-full flex-col rounded-lg border border-black/[0.04] bg-paper px-3.5 py-3 text-left opacity-70"
                     >
-                      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-black/[0.04] text-ink-faint">
-                        <Icon className="h-5 w-5" aria-hidden />
+                      <span className="flex h-8 w-8 items-center justify-center rounded-md bg-black/[0.04] text-ink-faint">
+                        <Icon className="h-4 w-4" aria-hidden />
                       </span>
-                      <p className="mt-3 font-display text-xl text-ink tracking-tight">{opt.title}</p>
-                      <p className="mt-2 text-sm text-ink-muted leading-relaxed">{opt.description}</p>
-                      <span className="mt-4 text-xs font-medium text-ink-faint">Coming later</span>
+                      <p className="mt-2 text-sm font-semibold text-ink">{opt.title}</p>
+                      <p className="mt-1 text-xs text-ink-muted leading-snug">{opt.description}</p>
+                      <span className="mt-2 text-[11px] font-medium text-ink-faint">Coming later</span>
                     </div>
                   );
                 }
@@ -931,17 +930,17 @@ export default function SupplierListings() {
                     type="button"
                     role="listitem"
                     onClick={opt.family === 'stay' ? startNewStay : startNewTour}
-                    className="lux-flat group flex h-full flex-col rounded-2xl bg-paper-raised px-5 py-5 text-left shadow-soft ring-1 ring-black/[0.06] transition-[box-shadow,ring-color,background-color,transform] hover:bg-finland/[0.05] hover:ring-2 hover:ring-finland/40 hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-finland active:translate-y-0"
+                    className="lux-flat group flex h-full flex-col rounded-lg border border-black/[0.06] bg-paper px-3.5 py-3 text-left transition-colors hover:border-finland/40 hover:bg-finland/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-finland"
                   >
-                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-finland/10 text-finland ring-1 ring-finland/15 transition-colors group-hover:bg-finland/15">
-                      <Icon className="h-5 w-5" aria-hidden />
+                    <span className="flex h-8 w-8 items-center justify-center rounded-md bg-finland/10 text-finland ring-1 ring-finland/15">
+                      <Icon className="h-4 w-4" aria-hidden />
                     </span>
-                    <span className="mt-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-finland">
+                    <span className="mt-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-finland">
                       {opt.family === 'stay' ? 'Nights' : 'Departures'}
                     </span>
-                    <p className="mt-1.5 font-display text-xl text-ink tracking-tight">{opt.title}</p>
-                    <p className="mt-2 flex-1 text-sm text-ink-muted leading-relaxed">{opt.description}</p>
-                    <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-finland">
+                    <p className="mt-1 text-sm font-semibold text-ink">{opt.title}</p>
+                    <p className="mt-1 flex-1 text-xs text-ink-muted leading-snug">{opt.description}</p>
+                    <span className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-finland">
                       Continue
                       <span aria-hidden className="transition-transform group-hover:translate-x-0.5">
                         →
