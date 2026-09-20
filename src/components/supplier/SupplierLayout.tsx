@@ -291,6 +291,7 @@ export default function SupplierLayout() {
   const [pathEpoch, setPathEpoch] = useState(0);
   const [unknownPartnerPath, setUnknownPartnerPath] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const mainPaneRef = useRef<HTMLDivElement>(null);
 
   const supplierEmail = typeof user?.email === 'string' ? user.email : '';
   const supplierEmailVerified = Boolean((user as { email_confirmed_at?: string | null } | null)?.email_confirmed_at);
@@ -672,6 +673,10 @@ export default function SupplierLayout() {
     );
   };
 
+  useEffect(() => {
+    mainPaneRef.current?.scrollTo({ top: 0 });
+  }, [section]);
+
   const handleNavigate = (s: SupplierSection) => {
     setUnknownPartnerPath(false);
     setSection(s);
@@ -833,15 +838,21 @@ export default function SupplierLayout() {
   }
 
   return (
-    <div className="partner-app-shell min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden bg-white text-slate-900">
+    <div className="partner-app-shell text-slate-900">
       <SkipLink />
       {appStripeIsTestMode() ? (
-        <p className="bg-amber-500 text-ink text-center text-[11px] font-semibold tracking-wide px-3 py-1.5">
-          Stripe TEST — payments and Money rows are sandbox, not live charges.
-        </p>
+        <div className="partner-test-banner px-4 py-1.5 text-center sm:px-6" role="status">
+          <p className="text-[12px] leading-snug">
+            <span className="font-semibold uppercase tracking-[0.12em]">Test mode</span>
+            <span className="mx-2 font-medium opacity-60" aria-hidden>
+              ·
+            </span>
+            <span className="font-medium">Payments and Money are sandbox data — no live charges.</span>
+          </p>
+        </div>
       ) : null}
 
-      <div className="flex min-h-[100dvh]">
+      <div className="partner-workspace">
         <PartnerSidebar
           groups={PARTNER_SIDEBAR_GROUPS}
           activeSection={section}
@@ -854,9 +865,9 @@ export default function SupplierLayout() {
           onToggleCollapsed={() => setSidebarCollapsed((v) => !v)}
         />
 
-        <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/95 backdrop-blur-md pt-[env(safe-area-inset-top)]">
-            <div className="flex h-12 items-center gap-3 px-4 sm:px-6">
+        <div className="partner-main-pane" ref={mainPaneRef}>
+          <header className="partner-topbar sticky top-0 z-30 pt-[env(safe-area-inset-top)]">
+            <div className="flex h-12 items-center gap-3 px-4 sm:px-6 lg:px-8">
               <button
                 type="button"
                 onClick={() => handleNavigate('dashboard')}
@@ -866,21 +877,26 @@ export default function SupplierLayout() {
                 <img src={BRAND_LOGO_SRC} alt="" className="h-7 w-7 object-contain" />
                 <span className="font-sans text-[10px] font-semibold tracking-[0.18em] text-slate-800">TRAVERION</span>
               </button>
-              <div className="hidden md:block min-w-0">
-                <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-slate-400">Partner</p>
-                <p className="truncate text-[13px] font-medium text-slate-800">{operatorDisplayName}</p>
+              <div className="hidden md:flex min-w-0 items-baseline gap-2.5">
+                <p className="truncate text-[13.5px] font-semibold tracking-tight text-slate-900">{operatorDisplayName}</p>
+                <p className="shrink-0 text-[12px] font-medium text-slate-400">Partner workspace</p>
               </div>
-              <div className="relative ml-auto">
+              <div className="relative ml-auto flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setAccountMenuOpen((v) => !v)}
-                  className="partner-nav-item lux-flat hidden md:inline-flex h-8 w-8 items-center justify-center rounded-full bg-finland text-white text-[11px] font-semibold"
+                  className="partner-nav-item lux-flat hidden md:inline-flex h-8 items-center gap-2 rounded-lg border border-slate-200/80 bg-white pl-1 pr-2.5 hover:bg-slate-50"
                   aria-label="Account"
                   aria-expanded={accountMenuOpen}
                   aria-haspopup="menu"
                   aria-controls="partner-account-menu"
                 >
-                  {(user?.email ?? user?.id ?? 'S').slice(0, 1).toUpperCase()}
+                  <span className="flex h-6 w-6 items-center justify-center rounded-md bg-finland text-[10px] font-semibold text-white">
+                    {(user?.email ?? user?.id ?? 'S').slice(0, 1).toUpperCase()}
+                  </span>
+                  <span className="max-w-[9rem] truncate text-[12.5px] font-medium text-slate-700">
+                    {supplierEmail?.split('@')[0] ?? 'Account'}
+                  </span>
                 </button>
                 {accountMenuOpen && (
                   <div
@@ -975,8 +991,12 @@ export default function SupplierLayout() {
           <main
             id="main-content"
             tabIndex={-1}
-            className={`mx-auto w-full max-w-6xl min-w-0 flex-1 px-4 sm:px-6 pt-5 pb-[max(1.5rem,calc(5.25rem+env(safe-area-inset-bottom)))] md:pb-12 outline-none ${
-              section === 'availability' ? 'max-w-none lg:px-8' : ''
+            className={`mx-auto w-full min-w-0 flex-1 px-4 sm:px-6 lg:px-8 pt-5 pb-[max(1.5rem,calc(5.25rem+env(safe-area-inset-bottom)))] md:pb-12 outline-none ${
+              section === 'availability'
+                ? 'max-w-none'
+                : section === 'dashboard'
+                  ? 'max-w-[1120px]'
+                  : 'max-w-6xl'
             }`}
           >
             <div className="lux-page-enter w-full min-w-0">

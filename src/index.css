@@ -5,14 +5,24 @@
 @layer utilities {
   .partner-app-shell {
     -webkit-tap-highlight-color: transparent;
-    --partner-bg: #ffffff;
+    --partner-bg: #f3f5f8;
+    --partner-nav: #f7f8fb;
     --partner-surface: #ffffff;
-    --partner-surface-muted: #fafafa;
+    --partner-surface-muted: #f8fafc;
     --partner-border: rgba(15, 23, 42, 0.08);
-    --partner-ink: #0f172a;
-    --partner-ink-muted: #64748b;
-    --partner-ink-faint: #94a3b8;
-    --partner-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    --partner-ink: #0b1220;
+    --partner-ink-muted: #5c6778;
+    --partner-ink-faint: #8b95a5;
+    --partner-accent: #003580;
+    --partner-shadow: 0 1px 1px rgba(15, 23, 42, 0.03);
+    --partner-radius: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 100vw;
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow: hidden;
     background-color: var(--partner-bg);
     color: var(--partner-ink);
   }
@@ -22,47 +32,140 @@
     background-color: var(--partner-surface);
   }
 
+  .partner-app-shell .tv-card,
+  .partner-app-shell .tv-card-flat {
+    background: var(--partner-surface);
+    border-radius: var(--partner-radius);
+    box-shadow: 0 0 0 1px var(--partner-border);
+  }
+
+  .partner-app-shell .tv-btn-primary,
+  .partner-app-shell .tv-btn-secondary,
+  .partner-app-shell .tv-btn-ghost {
+    border-radius: var(--partner-radius);
+  }
+
+  .partner-app-shell .tv-input {
+    background: var(--partner-surface);
+    border-radius: var(--partner-radius);
+    box-shadow: 0 0 0 1px var(--partner-border);
+  }
+
+  .partner-workspace {
+    display: flex;
+    min-height: 0;
+    flex: 1 1 auto;
+  }
+
   .partner-sidebar {
-    position: sticky;
-    top: 0;
-    height: 100dvh;
-    max-height: 100dvh;
-    background-color: var(--partner-surface);
+    align-self: stretch;
+    min-height: 0;
+    overflow: hidden;
+    background-color: var(--partner-nav);
+  }
+
+  .partner-main-pane {
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+    flex: 1 1 auto;
+    flex-direction: column;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background-color: var(--partner-bg);
+  }
+
+  .partner-topbar {
+    background-color: rgba(255, 255, 255, 0.92);
+    background-color: color-mix(in srgb, var(--partner-surface) 92%, transparent);
+    border-bottom: 1px solid var(--partner-border);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
   }
 
   .partner-surface-panel {
     background-color: var(--partner-surface);
     border: 1px solid var(--partner-border);
-    border-radius: 0.5rem;
+    border-radius: var(--partner-radius);
     box-shadow: var(--partner-shadow);
   }
 
+  .partner-metric-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.625rem;
+  }
+
+  @media (min-width: 1024px) {
+    .partner-metric-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+
+  .partner-attention-row--danger {
+    box-shadow: inset 3px 0 0 #e11d48;
+  }
+
+  .partner-attention-row--warn {
+    box-shadow: inset 3px 0 0 #d97706;
+  }
+
+  .partner-test-banner {
+    flex-shrink: 0;
+    background: #fff4e5;
+    border-bottom: 1px solid rgba(180, 83, 9, 0.28);
+    color: #9a3412;
+  }
+
+  .partner-btn-primary,
+  .partner-btn-secondary {
+    transition: background-color 140ms cubic-bezier(0.22, 1, 0.36, 1),
+      border-color 140ms cubic-bezier(0.22, 1, 0.36, 1),
+      color 140ms cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 140ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .partner-btn-primary:active,
+  .partner-btn-secondary:active {
+    transform: translateY(0.5px);
+  }
+
   .partner-nav-item {
-    transition: background-color 180ms cubic-bezier(0.22, 1, 0.36, 1),
-      color 180ms cubic-bezier(0.22, 1, 0.36, 1),
-      box-shadow 180ms cubic-bezier(0.22, 1, 0.36, 1),
-      border-color 180ms cubic-bezier(0.22, 1, 0.36, 1);
+    transition: background-color 140ms cubic-bezier(0.22, 1, 0.36, 1),
+      color 140ms cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 140ms cubic-bezier(0.22, 1, 0.36, 1),
+      border-color 140ms cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .partner-row-interact {
-    transition: background-color 180ms cubic-bezier(0.22, 1, 0.36, 1);
+    transition: background-color 140ms cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .partner-row-interact:hover {
-    background-color: rgba(15, 23, 42, 0.025);
+    background-color: rgba(15, 23, 42, 0.028);
+  }
+
+  .partner-row-interact:active {
+    background-color: rgba(15, 23, 42, 0.045);
   }
 
   .partner-row-interact:focus-visible,
-  .partner-nav-item:focus-visible {
+  .partner-nav-item:focus-visible,
+  .partner-btn-primary:focus-visible,
+  .partner-btn-secondary:focus-visible {
     outline: 2px solid #003580;
     outline-offset: 2px;
   }
 }
 
-/* Kill traveler-site beige bleed while Partner shell is mounted */
+/* Kill traveler-site beige bleed while Partner shell is mounted.
+   Lock document scroll so only the right pane moves. */
 html:has(.partner-app-shell),
 html:has(.partner-app-shell) body {
-  background-color: #ffffff !important;
+  height: 100%;
+  overflow: hidden;
+  background-color: #f3f5f8 !important;
 }
 
 /* Partner listing editor portals to body and sets data-partner-overlay. Keep .partner-bottom-nav at z-40 so it stays above listing cards; do not raise main above it. */

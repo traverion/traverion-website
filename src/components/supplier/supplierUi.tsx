@@ -6,7 +6,8 @@ import EmptyState from '../EmptyState';
 /** Full-width supplier portal pages — fills the main column on desktop, fluid on mobile. */
 export const SUPPLIER_PAGE_CLASS = 'w-full min-w-0 max-w-full motion-safe:animate-fade-in';
 
-export const SUPPLIER_SECTION_HEADER_CLASS = 'pb-4 mb-4 border-b border-black/[0.06]';
+export const SUPPLIER_SECTION_HEADER_CLASS =
+  'pb-4 mb-4 border-b border-[color:var(--partner-border,rgba(15,23,42,0.08))]';
 
 /** @deprecated Use SUPPLIER_PAGE_CLASS (all portal pages are full-width now). */
 export const SUPPLIER_PAGE_WIDE_CLASS = SUPPLIER_PAGE_CLASS;
@@ -41,15 +42,15 @@ type SupplierPageHeroProps = {
 
 export function SupplierPageHero({ title, description, actions, children, badge = null }: SupplierPageHeroProps) {
   return (
-    <header className="mb-6 sm:mb-8 pb-5 border-b border-black/[0.06]">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <header className="mb-6 pb-5 border-b border-[color:var(--partner-border,rgba(15,23,42,0.08))]">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
           {badge ? (
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint">{badge}</p>
+            <p className="mb-1.5 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-400">{badge}</p>
           ) : null}
-          <h1 className="font-display text-[1.75rem] sm:text-[2rem] leading-tight text-ink tracking-tight">{title}</h1>
+          <h1 className="font-display text-[1.5rem] sm:text-[1.75rem] leading-tight text-slate-900 tracking-tight">{title}</h1>
           {description ? (
-            <p className="mt-1.5 text-sm text-ink-muted max-w-2xl leading-relaxed">{description}</p>
+            <p className="mt-1 text-[13.5px] text-slate-500 max-w-2xl leading-relaxed">{description}</p>
           ) : null}
         </div>
         {actions ? <div className="shrink-0 flex flex-wrap items-center gap-2">{actions}</div> : null}

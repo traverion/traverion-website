@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, type ReactNode } from 'react
 import { SUPPLIER_PAGE_CLASS, SupplierListSkeleton } from '../../components/supplier/supplierUi';
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR } from '../../lib/userFacingError';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, Star } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { fetchMyListings } from '../../data/supabase-listings';
 import { fetchBookingsForSupplier, type BookingRow } from '../../data/supabase-bookings';
@@ -11,14 +11,17 @@ import {
   fetchCancellationRequestsForBookings,
   fetchBookingMessages,
 } from '../../data/supabase-booking-ops';
-import { countUnrepliedWrittenReviewsForSupplier } from '../../data/supabase-reviews';
+import {
+  countUnrepliedWrittenReviewsForSupplier,
+  getReviewAggregatesForListingIds,
+} from '../../data/supabase-reviews';
 import { bookingNeedsPickupCopy, bookingIsStayNight, resolveBookingPickupCopy } from '../../lib/pickup-completeness';
-import { bookingPaymentWasCollected, isRefundDueBooking } from '../../lib/payment-states';
+import { bookingPaymentWasCollected, isCollectedBooking, isRefundDueBooking } from '../../lib/payment-states';
 import type { TourPackage } from '../../types/tour';
 import SupplierPortalNoticePanel from '../../components/supplier/SupplierPortalNoticePanel';
 import { navigateSupplierUrl, openSupplierCalendar, openSupplierInbox, openSupplierPickup, openSupplierReviews } from '../../lib/supplierPortalNavigation';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
-import { formatMoney } from '../../lib/money';
+import { formatMoney, normalizeCurrency } from '../../lib/money';
 import { bookingOccupiesInventory } from '../../lib/booking-hold';
 import { partnerBookingIsOperatingTrip, partnerBookingIsTodaySchedule, partnerBookingIsUpcomingSchedule, partnerBookingIsActiveUnpaidCheckout } from '../../lib/trip-views';
 import { partnerTodayEmptyScheduleCopy } from '../../lib/partner-today-copy';
@@ -32,37 +35,87 @@ import { parseListingExtras, materializedBookingOptions } from '../../types/list
 
 type AttentionTone = 'danger' | 'warn' | 'info';
 
-const ATTENTION_ACCENT: Record<AttentionTone, string> = {
+const ATTENTION_DOT: Record<AttentionTone, string> = {
   danger: 'bg-rose-500',
   warn: 'bg-amber-500',
-  info: 'bg-slate-300',
+  info: 'bg-finland',
 };
 
-function AttentionRow({
+const ATTENTION_ROW: Record<AttentionTone, string> = {
+  danger: 'partner-attention-row--danger',
+  warn: 'partner-attention-row--warn',
+  info: '',
+};
+
+function AttentionItem({
   tone,
+  title,
+  detail,
   onClick,
-  children,
 }: {
   tone: AttentionTone;
+  title: string;
+  detail?: string;
   onClick: () => void;
-  children: ReactNode;
 }) {
   return (
-    <li className="border-b border-slate-100 last:border-b-0">
+    <li>
       <button
         type="button"
         onClick={onClick}
-        className="partner-row-interact lux-flat group flex min-h-10 w-full items-center gap-2.5 px-3 py-2 text-left"
+        className={`partner-row-interact lux-flat group flex w-full items-start gap-3 px-4 py-3 text-left ${ATTENTION_ROW[tone]}`}
       >
-        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${ATTENTION_ACCENT[tone]}`} aria-hidden />
-        <span className="min-w-0 flex-1 text-[13px] font-medium leading-snug text-slate-800">{children}</span>
+        <span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${ATTENTION_DOT[tone]}`} aria-hidden />
+        <span className="min-w-0 flex-1">
+          <span className="block text-[14px] font-semibold leading-snug text-slate-900">{title}</span>
+          {detail ? (
+            <span className="mt-0.5 block text-[13px] leading-snug text-slate-500">{detail}</span>
+          ) : null}
+        </span>
         <ChevronRight
-          className="h-3.5 w-3.5 shrink-0 text-slate-300 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-slate-500"
+          className="mt-0.5 h-4 w-4 shrink-0 text-slate-300 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-finland"
           aria-hidden
         />
       </button>
     </li>
   );
+}
+
+function SectionHead({
+  title,
+  meta,
+  action,
+}: {
+  title: string;
+  meta?: ReactNode;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="mb-2.5 flex items-baseline justify-between gap-3">
+      <div className="min-w-0 flex items-baseline gap-2.5 flex-wrap">
+        <h2 className="text-[16px] font-semibold tracking-tight text-slate-900">{title}</h2>
+        {meta ? <span className="text-[13px] text-slate-500 tabular-nums">{meta}</span> : null}
+      </div>
+      {action ? <div className="shrink-0">{action}</div> : null}
+    </div>
+  );
+}
+
+function TextLink({ children, onClick }: { children: ReactNode; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="partner-nav-item lux-flat text-[13px] font-medium text-finland hover:text-finland-dark"
+    >
+      {children}
+    </button>
+  );
+}
+
+function bookingLabel(b: BookingRow | undefined, titles: Record<string, string>): string {
+  if (!b) return '';
+  return titles[b.listing_id] ?? (bookingIsStayNight(b) ? 'Stay' : 'Tour');
 }
 
 export default function SupplierDashboard() {
@@ -80,6 +133,8 @@ export default function SupplierDashboard() {
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [firstUnreadBookingId, setFirstUnreadBookingId] = useState<string | null>(null);
   const [unrepliedReviewCount, setUnrepliedReviewCount] = useState(0);
+  const [ratingAvg, setRatingAvg] = useState<number | null>(null);
+  const [ratingCount, setRatingCount] = useState(0);
   const [dashboardLoading, setDashboardLoading] = useState(false);
   const [dashboardError, setDashboardError] = useState<string | null>(null);
 
@@ -96,6 +151,8 @@ export default function SupplierDashboard() {
       setUnreadMessageCount(0);
       setFirstUnreadBookingId(null);
       setUnrepliedReviewCount(0);
+      setRatingAvg(null);
+      setRatingCount(0);
       setDashboardError(null);
       setDashboardLoading(false);
       return;
@@ -112,12 +169,14 @@ export default function SupplierDashboard() {
     const noteFailure = (key: string) => {
       failures.push(key);
     };
+    let listingIds: string[] = [];
     if (settled[0].status === 'fulfilled') {
       const listings = settled[0].value;
       setPublishedListingsCount(listings.filter((t) => t.status === 'published').length);
       setDraftListingsCount(listings.filter((t) => t.status === 'draft').length);
       setListingTitlesById(Object.fromEntries(listings.map((t) => [t.id, t.title])));
       setListingsById(Object.fromEntries(listings.map((t) => [t.id, t])));
+      listingIds = listings.map((t) => t.id);
     } else {
       noteFailure('listings');
       setPublishedListingsCount(0);
@@ -147,6 +206,31 @@ export default function SupplierDashboard() {
       setUnrepliedReviewCount(settled[3].value);
     } else {
       setUnrepliedReviewCount(0);
+    }
+
+    if (listingIds.length > 0) {
+      try {
+        const aggs = await getReviewAggregatesForListingIds(listingIds);
+        let sum = 0;
+        let count = 0;
+        for (const v of aggs.values()) {
+          sum += v.rating * v.count;
+          count += v.count;
+        }
+        if (count > 0) {
+          setRatingAvg(Math.round((sum / count) * 10) / 10);
+          setRatingCount(count);
+        } else {
+          setRatingAvg(null);
+          setRatingCount(0);
+        }
+      } catch {
+        setRatingAvg(null);
+        setRatingCount(0);
+      }
+    } else {
+      setRatingAvg(null);
+      setRatingCount(0);
     }
 
     // Unread traveler messages on paid bookings (same depth Inbox uses).
@@ -284,17 +368,19 @@ export default function SupplierDashboard() {
       [...supplierBookings]
         .filter((b) => partnerBookingIsOperatingTrip(b))
         .sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? ''))
-        .slice(0, 4),
+        .slice(0, 5),
     [supplierBookings]
   );
 
   const firstName =
     (profile?.display_name || profile?.company_legal_name || '').trim().split(/\s+/)[0] || null;
-  const dateLabel = now.toLocaleDateString('en-GB', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-  });
+  const dateLabel = now
+    .toLocaleDateString('en-GB', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+    })
+    .toUpperCase();
 
   const weekAhead = useMemo(() => {
     const [y, m, d] = todayYmd.split('-').map(Number);
@@ -313,43 +399,86 @@ export default function SupplierDashboard() {
 
   const upcoming = weekAhead.slice(0, 6);
 
+  const upcomingByDate = useMemo(() => {
+    const map = new Map<string, BookingRow[]>();
+    for (const b of upcoming) {
+      const key = b.booking_date ?? '';
+      if (!key) continue;
+      const cur = map.get(key) ?? [];
+      cur.push(b);
+      map.set(key, cur);
+    }
+    return [...map.entries()];
+  }, [upcoming]);
+
   const hour = now.getHours();
   const hello = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
 
-  const todayGuestTotal = todayScheduleRows.reduce((s, r) => s + r.guests, 0);
+  const todayGuestTotal = todayDepartures.reduce((s, b) => s + (b.guests ?? 0), 0);
+
+  const performance30d = useMemo(() => {
+    const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    const collected = supplierBookings.filter((b) => {
+      if (!isCollectedBooking(b)) return false;
+      const createdAt = b.created_at ? new Date(b.created_at).getTime() : NaN;
+      return Number.isFinite(createdAt) && createdAt >= cutoff;
+    });
+    const byCurrency = new Map<string, { revenue: number; count: number }>();
+    for (const b of collected) {
+      const code = normalizeCurrency(b.currency);
+      const cur = byCurrency.get(code) ?? { revenue: 0, count: 0 };
+      cur.revenue += Number(b.amount_paid ?? 0);
+      cur.count += 1;
+      byCurrency.set(code, cur);
+    }
+    const currencies = [...byCurrency.entries()].sort((a, b) => b[1].revenue - a[1].revenue);
+    return {
+      bookings: collected.length,
+      currencies,
+      primary: currencies[0] ?? null,
+    };
+  }, [supplierBookings]);
+
+  const bookingsById = useMemo(
+    () => Object.fromEntries(supplierBookings.map((b) => [b.id, b])),
+    [supplierBookings]
+  );
+
+  const firstCancelBooking = openCancels[0] ? bookingsById[openCancels[0].booking_id] : undefined;
+  const firstUnreadBooking = firstUnreadBookingId ? bookingsById[firstUnreadBookingId] : undefined;
+  const firstPickup = pickupGaps[0];
+  const firstRefund = supplierBookings.find(isRefundDueBooking);
+  const firstPending = pendingBookings[0];
+
+  const greetingSub =
+    attentionCount > 0
+      ? `Here's what needs your attention today.`
+      : todayDepartures.length > 0
+        ? `${todayDepartures.length} booking${todayDepartures.length === 1 ? '' : 's'} · ${todayGuestTotal} guest${todayGuestTotal === 1 ? '' : 's'} on the schedule.`
+        : 'Your operational starting point for today.';
 
   return (
-    <div className={`${SUPPLIER_PAGE_CLASS} motion-safe:animate-fade-in`}>
-      <header className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <div className={`${SUPPLIER_PAGE_CLASS} partner-home motion-safe:animate-fade-in`}>
+      <header className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
-          <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-400 mb-1">{dateLabel}</p>
-          <h1 className="font-display text-[1.625rem] sm:text-[1.875rem] font-semibold leading-tight tracking-tight text-slate-900">
+          <p className="mb-1 text-[11px] font-medium tracking-[0.16em] text-slate-400">{dateLabel}</p>
+          <h1 className="font-display text-[1.5rem] sm:text-[1.625rem] font-semibold leading-tight tracking-tight text-slate-900">
             {firstName ? `${hello}, ${firstName}` : hello}
           </h1>
-          <p className="mt-1.5 text-[14px] text-slate-500 max-w-xl leading-relaxed">
-            {attentionCount > 0
-              ? `${attentionCount} item${attentionCount === 1 ? '' : 's'} need your attention.`
-              : todayDepartures.length > 0
-                ? `${todayDepartures.length} on today’s schedule · ${todayGuestTotal} guest${todayGuestTotal === 1 ? '' : 's'}.`
-                : 'Your operational starting point for today.'}
-          </p>
+          <p className="mt-1 max-w-xl text-[13.5px] leading-relaxed text-slate-500">{greetingSub}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2 self-start sm:self-end">
           <button
             type="button"
             onClick={() => openSupplierCalendar(calendarFocusListingId)}
-            className="partner-nav-item lux-flat inline-flex h-9 items-center rounded-md border border-slate-200 bg-white px-3.5 text-[13px] font-medium text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+            className="partner-btn-secondary lux-flat inline-flex h-8 items-center rounded-md border border-slate-200/90 bg-white px-3 text-[13px] font-medium text-slate-600 hover:border-slate-300 hover:bg-white hover:text-slate-900"
           >
             Calendar
           </button>
           <button
             type="button"
             onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/listings?new=1`)}
-            className={`partner-nav-item lux-flat inline-flex h-9 items-center rounded-md px-3.5 text-[13px] font-medium ${
-              attentionCount > 0
-                ? 'border border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
-                : 'bg-finland text-white hover:bg-finland-dark'
-            }`}
+            className="partner-btn-primary lux-flat inline-flex h-8 items-center rounded-md bg-finland px-3 text-[13px] font-semibold text-white hover:bg-finland-dark md:hidden"
           >
             New listing
           </button>
@@ -365,32 +494,103 @@ export default function SupplierDashboard() {
         />
       )}
 
+      <section className="partner-metric-grid mb-6">
+        <div className="partner-surface-panel px-4 py-3">
+          <p className="text-[12px] font-medium text-slate-500">Today’s bookings</p>
+          <p className="mt-1 text-[1.375rem] font-semibold tabular-nums tracking-tight text-slate-900">
+            {dashboardLoading && publishedListingsCount === null ? '—' : todayDepartures.length}
+          </p>
+        </div>
+        <div className="partner-surface-panel px-4 py-3">
+          <p className="text-[12px] font-medium text-slate-500">Today’s guests</p>
+          <p className="mt-1 text-[1.375rem] font-semibold tabular-nums tracking-tight text-slate-900">
+            {dashboardLoading && publishedListingsCount === null ? '—' : todayGuestTotal}
+          </p>
+        </div>
+        <div className="partner-surface-panel px-4 py-3">
+          <p className="text-[12px] font-medium text-slate-500">Unread messages</p>
+          <p
+            className={`mt-1 text-[1.375rem] font-semibold tabular-nums tracking-tight ${
+              unreadMessageCount > 0 ? 'text-finland' : 'text-slate-900'
+            }`}
+          >
+            {dashboardLoading && publishedListingsCount === null ? '—' : unreadMessageCount}
+          </p>
+        </div>
+        <div className="partner-surface-panel px-4 py-3">
+          <p className="text-[12px] font-medium text-slate-500">Needs attention</p>
+          <p
+            className={`mt-1 text-[1.375rem] font-semibold tabular-nums tracking-tight ${
+              attentionCount > 0 ? 'text-amber-700' : 'text-slate-900'
+            }`}
+          >
+            {dashboardLoading && publishedListingsCount === null ? '—' : attentionCount}
+          </p>
+        </div>
+      </section>
+
       {attentionCount > 0 && (
-        <section className="mb-8">
-          <h2 className="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-400 mb-2">Needs attention</h2>
-          <ul className="partner-surface-panel overflow-hidden">
+        <section className="mb-6">
+          <SectionHead
+            title="Needs attention"
+            meta={`${attentionCount}`}
+          />
+          <ul className="partner-surface-panel overflow-hidden divide-y divide-slate-100">
             {openCancelCount > 0 && (
-              <AttentionRow
+              <AttentionItem
                 tone="danger"
+                title={
+                  openCancelCount === 1
+                    ? 'Cancellation request'
+                    : `${openCancelCount} cancellation requests`
+                }
+                detail={
+                  openCancelCount === 1 && firstCancelBooking
+                    ? `${bookingLabel(firstCancelBooking, listingTitlesById)}${
+                        firstCancelBooking.guest_name?.trim()
+                          ? ` · ${firstCancelBooking.guest_name.trim()}`
+                          : ''
+                      } · Waiting for traveler response${
+                        overdueCancelCount > 0
+                          ? ' · Past review window (Traverion does not auto-cancel)'
+                          : ''
+                      }`
+                    : `Waiting for traveler response${
+                        overdueCancelCount > 0
+                          ? ` · ${overdueCancelCount} past the review window`
+                          : ''
+                      }`
+                }
                 onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings?ops=cancel`)}
-              >
-                {openCancelCount} cancellation request{openCancelCount === 1 ? '' : 's'} waiting for the traveler
-                {overdueCancelCount > 0
-                  ? ` · ${overdueCancelCount} past the review window (Traverion does not auto-cancel)`
-                  : ''}
-              </AttentionRow>
+              />
             )}
             {refundDueCount > 0 && (
-              <AttentionRow
+              <AttentionItem
                 tone="danger"
+                title={refundDueCount === 1 ? 'Refund due' : `${refundDueCount} refunds due`}
+                detail={
+                  firstRefund
+                    ? `${bookingLabel(firstRefund, listingTitlesById)} · Manual Stripe refund required`
+                    : 'Manual Stripe refund required'
+                }
                 onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings?ops=refund_due`)}
-              >
-                {refundDueCount} booking{refundDueCount === 1 ? '' : 's'} still Refund due (manual Stripe refund)
-              </AttentionRow>
+              />
             )}
             {pickupGaps.length > 0 && (
-              <AttentionRow
+              <AttentionItem
                 tone="warn"
+                title={
+                  pickupGaps.length === 1
+                    ? 'Pickup details missing'
+                    : `${pickupGaps.length} bookings missing pickup details`
+                }
+                detail={
+                  firstPickup
+                    ? `${bookingLabel(firstPickup, listingTitlesById)}${
+                        firstPickup.guest_name?.trim() ? ` · ${firstPickup.guest_name.trim()}` : ''
+                      }`
+                    : 'Paid bookings need meeting point or pickup copy'
+                }
                 onClick={() =>
                   openSupplierPickup(pickupGaps[0]?.id, {
                     from: todayYmd,
@@ -398,75 +598,113 @@ export default function SupplierDashboard() {
                     needsOnly: true,
                   })
                 }
-              >
-                {pickupGaps.length} paid booking{pickupGaps.length === 1 ? '' : 's'} missing pickup details
-              </AttentionRow>
+              />
             )}
             {unreadMessageCount > 0 && (
-              <AttentionRow tone="info" onClick={() => openSupplierInbox(firstUnreadBookingId ?? undefined, { unreadOnly: true })}>
-                {unreadMessageCount} unread traveler message{unreadMessageCount === 1 ? '' : 's'}
-              </AttentionRow>
+              <AttentionItem
+                tone="info"
+                title={
+                  unreadMessageCount === 1
+                    ? 'Unread traveler message'
+                    : `${unreadMessageCount} unread traveler messages`
+                }
+                detail={
+                  firstUnreadBooking
+                    ? `${bookingLabel(firstUnreadBooking, listingTitlesById)}${
+                        firstUnreadBooking.guest_name?.trim()
+                          ? ` · ${firstUnreadBooking.guest_name.trim()}`
+                          : ''
+                      }`
+                    : 'Open Inbox to reply'
+                }
+                onClick={() =>
+                  openSupplierInbox(firstUnreadBookingId ?? undefined, { unreadOnly: true })
+                }
+              />
             )}
             {unrepliedReviewCount > 0 && (
-              <AttentionRow
+              <AttentionItem
                 tone="info"
+                title={
+                  unrepliedReviewCount === 1
+                    ? 'Review needs a reply'
+                    : `${unrepliedReviewCount} reviews need a reply`
+                }
+                detail="Respond to written guest feedback"
                 onClick={() => openSupplierReviews({ reply: 'unreplied' })}
-              >
-                {unrepliedReviewCount} review{unrepliedReviewCount === 1 ? '' : 's'} need a reply
-              </AttentionRow>
+              />
             )}
             {pendingBookings.length > 0 && (
-              <AttentionRow
+              <AttentionItem
                 tone="warn"
+                title={
+                  pendingBookings.length === 1
+                    ? 'Checkout hold still active'
+                    : `${pendingBookings.length} checkout holds still active`
+                }
+                detail={
+                  firstPending
+                    ? `${bookingLabel(firstPending, listingTitlesById)} · Holding inventory spots`
+                    : 'Holding inventory spots'
+                }
                 onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings?ops=unpaid`)}
-              >
-                {pendingBookings.length} checkout hold{pendingBookings.length === 1 ? '' : 's'} still holding spots
-              </AttentionRow>
+              />
             )}
             {draftListingsCount > 0 && (
-              <AttentionRow tone="info" onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/listings?filter=draft`)}>
-                {draftListingsCount} draft listing{draftListingsCount === 1 ? '' : 's'}
-              </AttentionRow>
+              <AttentionItem
+                tone="info"
+                title={
+                  draftListingsCount === 1
+                    ? 'Draft listing'
+                    : `${draftListingsCount} draft listings`
+                }
+                detail="Finish and publish when ready"
+                onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/listings?filter=draft`)}
+              />
             )}
             {verificationNeedsAction && (
-              <AttentionRow tone="warn" onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/onboarding`)}>
-                Finish business and payout setup
-              </AttentionRow>
+              <AttentionItem
+                tone="warn"
+                title="Finish business and payout setup"
+                detail="Required before live payouts"
+                onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/onboarding`)}
+              />
             )}
           </ul>
         </section>
       )}
 
-      <section className="mb-9">
-        <div className="mb-3 flex items-baseline justify-between gap-3">
-          <h2 className="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-400">Today’s schedule</h2>
-          {todayDepartures.length > 0 ? (
-            <span className="text-[13px] text-slate-500 tabular-nums">
-              {todayDepartures.length} booking{todayDepartures.length === 1 ? '' : 's'} · {todayGuestTotal} guests
-            </span>
-          ) : null}
-        </div>
+      <section className="mb-6">
+        <SectionHead
+          title="Today’s schedule"
+          meta={
+            todayDepartures.length > 0
+              ? `${todayDepartures.length} booking${todayDepartures.length === 1 ? '' : 's'} · ${todayGuestTotal} guest${todayGuestTotal === 1 ? '' : 's'}`
+              : undefined
+          }
+          action={<TextLink onClick={() => openSupplierCalendar(calendarFocusListingId)}>Calendar →</TextLink>}
+        />
         {dashboardLoading && publishedListingsCount === null ? (
           <SupplierListSkeleton rows={3} />
         ) : todayDepartures.length === 0 ? (
-          <div className="partner-surface-panel flex flex-wrap items-center justify-between gap-3 px-4 py-3.5">
+          <div className="partner-surface-panel flex flex-wrap items-center justify-between gap-3 px-5 py-4">
             <div className="min-w-0">
-              <p className="text-[14px] font-medium text-slate-800">{todayEmptyCopy.title}</p>
+              <p className="text-[15px] font-semibold text-slate-800">{todayEmptyCopy.title}</p>
               <p className="text-[13px] text-slate-500 mt-0.5 leading-snug">{todayEmptyCopy.body}</p>
             </div>
             {attentionCount === 0 ? (
               <button
                 type="button"
                 onClick={() => openSupplierCalendar(calendarFocusListingId)}
-                className="partner-nav-item lux-flat shrink-0 rounded-md border border-slate-200 px-3 py-1.5 text-[12px] font-medium text-slate-700 hover:bg-slate-50"
+                className="partner-btn-secondary lux-flat shrink-0 rounded-lg border border-slate-200 px-3 py-1.5 text-[12px] font-semibold text-slate-700 hover:bg-slate-50"
               >
                 Calendar
               </button>
             ) : null}
           </div>
         ) : (
-          <ul className="partner-surface-panel overflow-hidden divide-y divide-slate-100">
-            {todayDepartures.map((b) => {
+          <ul className="partner-surface-panel overflow-hidden">
+            {todayDepartures.map((b, idx) => {
               const isStay = bookingIsStayNight(b);
               const stay = isStay ? stayRangeFromBooking(b) : null;
               const startHm = pgTimeToHm(b.start_time) || pgTimeToHm(b.pickup_time) || null;
@@ -479,42 +717,61 @@ export default function SupplierDashboard() {
                     : 'Stay'
                 : (startHm ?? '—');
               const fallbackTitle = isStay ? 'Stay' : 'Tour';
+              const isLast = idx === todayDepartures.length - 1;
               return (
-                <li key={b.id}>
+                <li key={b.id} className="relative">
                   <button
                     type="button"
                     onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings?booking=${b.id}`)}
-                    className="partner-row-interact lux-flat group grid w-full grid-cols-[3.25rem_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-0.5 px-3.5 py-3 text-left sm:grid-cols-[4rem_minmax(0,1fr)_auto]"
+                    className="partner-row-interact lux-flat group grid w-full grid-cols-[4.5rem_minmax(0,1fr)_auto] items-start gap-x-0 text-left sm:grid-cols-[5.25rem_minmax(0,1fr)_auto]"
                   >
-                    <span className="pt-0.5 text-[15px] font-semibold tabular-nums tracking-tight text-finland">
-                      {timeLabel}
+                    <span className="relative flex justify-end pr-4 py-3.5 sm:pr-5">
+                      <span className="text-[15px] font-semibold tabular-nums tracking-tight text-finland">
+                        {timeLabel}
+                      </span>
+                      {/* timeline rail */}
+                      <span
+                        className={`absolute right-[7px] top-0 w-px bg-slate-200 ${idx === 0 ? 'top-5' : 'top-0'} ${
+                          isLast ? 'h-5' : 'bottom-0'
+                        }`}
+                        aria-hidden
+                      />
+                      <span
+                        className="absolute right-[4px] top-[1.4rem] h-2 w-2 rounded-full bg-finland ring-[3px] ring-white"
+                        aria-hidden
+                      />
                     </span>
-                    <span className="min-w-0">
+                    <span className="min-w-0 py-3.5 pl-3 pr-2">
                       <span className="block text-[15px] font-semibold text-slate-900 truncate">
                         {listingTitlesById[b.listing_id] ?? fallbackTitle}
                       </span>
                       <span className="mt-0.5 block text-[13px] text-slate-500">
-                        {typeof b.booking_number === 'number' && b.booking_number > 0 ? (
-                          <span className="font-mono text-finland/90">#{b.booking_number}</span>
-                        ) : null}
-                        {typeof b.booking_number === 'number' && b.booking_number > 0 ? ' · ' : null}
+                        {b.guest_name?.trim() ? `${b.guest_name.trim()} · ` : ''}
                         {formatBookingParticipantsLabel(b)}
-                        {b.guest_name ? ` · ${b.guest_name}` : ''}
+                      </span>
+                      <span className="mt-0.5 block text-[12px] text-slate-400">
+                        {typeof b.booking_number === 'number' && b.booking_number > 0 ? (
+                          <span className="font-mono text-finland/80">Booking #{b.booking_number}</span>
+                        ) : (
+                          'Booking'
+                        )}
                         {isStay && stay
                           ? ` · ${formatStayNightHuman(stay.checkIn)} → ${formatStayNightHuman(stay.checkOut)}`
                           : ''}
                       </span>
                       {pickupMissing ? (
-                        <span className="mt-1 inline-flex items-center gap-1.5 text-[12px] font-medium text-amber-700">
-                          <span className="h-1 w-1 rounded-full bg-amber-500" aria-hidden />
+                        <span className="mt-1.5 inline-flex items-center gap-1.5 text-[12px] font-medium text-amber-700">
+                          <span className="h-1.5 w-1.5 rounded-full bg-amber-500" aria-hidden />
                           Pickup details missing
                         </span>
                       ) : null}
                     </span>
-                    <ChevronRight
-                      className="mt-1 h-4 w-4 shrink-0 text-slate-300 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-slate-500"
-                      aria-hidden
-                    />
+                    <span className="flex items-center self-center pr-3.5">
+                      <ChevronRight
+                        className="h-4 w-4 shrink-0 text-slate-300 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-finland"
+                        aria-hidden
+                      />
+                    </span>
                   </button>
                 </li>
               );
@@ -523,90 +780,167 @@ export default function SupplierDashboard() {
         )}
       </section>
 
-      {upcoming.length > 0 && (
-        <section className="mb-8">
-          <div className="mb-2.5 flex items-baseline justify-between gap-3">
-            <h2 className="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-400">Next 7 days</h2>
-            <button
-              type="button"
-              onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings`)}
-              className="partner-nav-item text-[12px] font-medium text-finland hover:text-finland-dark"
-            >
-              All bookings
-            </button>
+      <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8">
+        <section>
+          <SectionHead
+            title="Business performance"
+            meta="Last 30 days"
+            action={
+              <TextLink onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/performance`)}>
+                View performance →
+              </TextLink>
+            }
+          />
+          <div className="partner-surface-panel overflow-hidden">
+            <div className="grid grid-cols-3 divide-x divide-slate-100">
+              <div className="px-4 py-4">
+                <p className="text-[12px] font-medium text-slate-500">Collected</p>
+                <p className="mt-1.5 text-[1.25rem] font-semibold tabular-nums tracking-tight text-slate-900 leading-none">
+                  {performance30d.primary
+                    ? formatMoney(performance30d.primary[1].revenue, performance30d.primary[0])
+                    : '—'}
+                </p>
+                {performance30d.currencies.length > 1 ? (
+                  <p className="mt-1.5 text-[11px] text-slate-400 leading-snug">
+                    +{performance30d.currencies.length - 1} more currency
+                    {performance30d.currencies.length - 1 === 1 ? '' : 'ies'}
+                  </p>
+                ) : (
+                  <p className="mt-1.5 text-[11px] text-slate-400">Paid traveler bookings</p>
+                )}
+              </div>
+              <div className="px-4 py-4">
+                <p className="text-[12px] font-medium text-slate-500">Bookings</p>
+                <p className="mt-1.5 text-[1.25rem] font-semibold tabular-nums tracking-tight text-slate-900 leading-none">
+                  {performance30d.bookings}
+                </p>
+                <p className="mt-1.5 text-[11px] text-slate-400">Collected in window</p>
+              </div>
+              <div className="px-4 py-4">
+                <p className="text-[12px] font-medium text-slate-500">Rating</p>
+                <p className="mt-1.5 flex items-center gap-1 text-[1.25rem] font-semibold tabular-nums tracking-tight text-slate-900 leading-none">
+                  {ratingAvg != null && ratingCount > 0 ? (
+                    <>
+                      {ratingAvg.toFixed(2)}
+                      <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" aria-hidden />
+                    </>
+                  ) : (
+                    '—'
+                  )}
+                </p>
+                <p className="mt-1.5 text-[11px] text-slate-400">
+                  {ratingCount > 0
+                    ? `${ratingCount} review${ratingCount === 1 ? '' : 's'}`
+                    : 'No reviews yet'}
+                </p>
+              </div>
+            </div>
           </div>
-          <ul className="partner-surface-panel overflow-hidden divide-y divide-slate-100">
-            {upcoming.map((b) => (
-              <li key={b.id}>
-                <button
-                  type="button"
-                  onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings?booking=${b.id}`)}
-                  className="partner-row-interact lux-flat flex w-full flex-col gap-0.5 px-3.5 py-3 text-left sm:flex-row sm:items-baseline sm:justify-between"
-                >
-                  <span className="text-[14px] font-medium text-slate-900 min-w-0 truncate">
-                    {listingTitlesById[b.listing_id] ?? 'Tour'}
-                    {b.guest_name?.trim() ? (
-                      <span className="font-normal text-slate-500"> · {b.guest_name.trim()}</span>
-                    ) : null}
-                  </span>
-                  <span className="text-[13px] text-slate-500 shrink-0">
-                    {new Date(`${b.booking_date}T12:00:00`).toLocaleDateString(undefined, {
-                      weekday: 'short',
-                      day: 'numeric',
-                      month: 'short',
-                    })}{' '}
-                    · {formatBookingParticipantsLabel(b)}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
         </section>
-      )}
+
+        <section>
+          <SectionHead
+            title="Next 7 days"
+            action={
+              <TextLink onClick={() => openSupplierCalendar()}>Calendar →</TextLink>
+            }
+          />
+          {upcomingByDate.length === 0 ? (
+            <div className="rounded-md border border-dashed border-slate-200 bg-white/60 px-4 py-5">
+              <p className="text-[14px] text-slate-500">No confirmed departures in the next week.</p>
+            </div>
+          ) : (
+            <div className="partner-surface-panel space-y-1 px-3 py-2.5">
+              {upcomingByDate.map(([ymd, rows]) => {
+                const dateObj = new Date(`${ymd}T12:00:00`);
+                const dayLabel = dateObj
+                  .toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric' })
+                  .toUpperCase();
+                return (
+                  <div key={ymd} className="flex gap-3 py-1">
+                    <div className="w-14 shrink-0 pt-0.5">
+                      <p className="text-[11px] font-semibold tracking-[0.06em] text-finland">{dayLabel}</p>
+                    </div>
+                    <ul className="min-w-0 flex-1 space-y-1.5">
+                      {rows.map((b) => (
+                        <li key={b.id}>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings?booking=${b.id}`)
+                            }
+                            className="partner-row-interact lux-flat group w-full rounded-md px-2.5 py-2 text-left"
+                          >
+                            <span className="block text-[14px] font-semibold text-slate-900 truncate">
+                              {listingTitlesById[b.listing_id] ?? 'Tour'}
+                            </span>
+                            <span className="mt-0.5 block text-[12.5px] text-slate-500 truncate">
+                              {b.guest_name?.trim() ? `${b.guest_name.trim()} · ` : ''}
+                              {formatBookingParticipantsLabel(b)}
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      </div>
 
       {attentionCount === 0 && !dashboardLoading && (
-        <p className="mb-8 text-[14px] text-slate-500 leading-snug">Nothing needs your attention right now.</p>
+        <p className="mb-6 text-[14px] text-slate-500 leading-snug">Nothing needs your attention right now.</p>
       )}
 
       {recentBookings.length > 0 && (
-        <section className="mb-8">
-          <h2 className="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-400 mb-2.5">Recent bookings</h2>
-          <ul className="partner-surface-panel overflow-hidden divide-y divide-slate-100">
-            {recentBookings.map((b) => {
-              const paid =
-                b.amount_paid != null &&
-                Number.isFinite(Number(b.amount_paid)) &&
-                (b.payment_status ?? '').trim().toLowerCase() === 'paid'
-                  ? Number(b.amount_paid)
-                  : null;
-              const money = paid == null ? null : formatMoney(paid, b.currency);
-              return (
-                <li key={b.id}>
-                  <button
-                    type="button"
-                    onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings?booking=${b.id}`)}
-                    className="partner-row-interact lux-flat flex w-full flex-col gap-0.5 px-3.5 py-3 text-left sm:flex-row sm:items-baseline sm:justify-between"
-                  >
-                    <span className="min-w-0">
-                      <span className="text-[14px] font-medium text-slate-900 block truncate">
-                        {b.guest_name?.trim() || listingTitlesById[b.listing_id] || 'New booking'}
+        <section className="mb-6">
+          <SectionHead
+            title="Recent bookings"
+            action={
+              <TextLink onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings`)}>
+                View all bookings →
+              </TextLink>
+            }
+          />
+          <div className="partner-surface-panel overflow-hidden px-4">
+            <ul>
+              {recentBookings.map((b) => {
+                const paid =
+                  b.amount_paid != null &&
+                  Number.isFinite(Number(b.amount_paid)) &&
+                  (b.payment_status ?? '').trim().toLowerCase() === 'paid'
+                    ? Number(b.amount_paid)
+                    : null;
+                const money = paid == null ? null : formatMoney(paid, b.currency);
+                return (
+                  <li key={b.id} className="border-b border-slate-100 last:border-b-0">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings?booking=${b.id}`)
+                      }
+                      className="partner-row-interact lux-flat grid w-full grid-cols-1 gap-0.5 py-3 text-left sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)_auto_auto] sm:items-center sm:gap-4"
+                    >
+                      <span className="text-[14px] font-semibold text-slate-900 truncate">
+                        {b.guest_name?.trim() || 'Traveler'}
                       </span>
-                      <span className="text-[13px] text-slate-500 mt-0.5 block">
-                        {listingTitlesById[b.listing_id] && b.guest_name?.trim()
-                          ? listingTitlesById[b.listing_id]
-                          : null}
-                        {listingTitlesById[b.listing_id] && b.guest_name?.trim() ? ' · ' : null}
+                      <span className="text-[13px] text-slate-500 truncate">
+                        {listingTitlesById[b.listing_id] ?? 'Listing'}
+                      </span>
+                      <span className="text-[13px] text-slate-500 tabular-nums">
                         {formatBookingParticipantsLabel(b)}
                       </span>
-                    </span>
-                    {money ? (
-                      <span className="text-[13px] tabular-nums text-slate-500 shrink-0">{money}</span>
-                    ) : null}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+                      <span className="text-[13px] tabular-nums text-slate-700 sm:text-right">
+                        {money ?? '—'}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
         </section>
       )}
 
