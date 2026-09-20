@@ -1167,7 +1167,7 @@ export default function BookingPage({
                   originalTotal={quoted.originalUnitPrice * quoted.guests}
                   discountLabel={quoted.discountLabel}
                   holdNote={`Spots are held for ${CHECKOUT_HOLD_MINUTES} minutes after you continue to Stripe. If checkout expires, the hold is released.`}
-                  footnote="This is the amount Stripe will charge. Currency matches the listing."
+                  footnote="This is the amount Stripe TEST will charge until live payments. Currency matches the listing."
                 />
               ) : (
                 <>
@@ -1229,7 +1229,7 @@ export default function BookingPage({
                   {submitting
                     ? 'Redirecting to Stripe…'
                     : isSupabaseConfigured()
-                      ? `Pay with Stripe · ${formatMoney(total, currency)}`
+                      ? `Pay with Stripe TEST · ${formatMoney(total, currency)}`
                       : 'Continue to payment'}
                 </button>
               </div>

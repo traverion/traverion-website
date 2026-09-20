@@ -1519,7 +1519,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                       {tour.cancellationPolicy?.trim() || TRAVERION_STANDARD_CANCELLATION_POLICY}
                     </p>
                     <p className="flex items-center gap-2">
-                      <Shield className="w-3.5 h-3.5 text-finland flex-shrink-0" /> Pay via Stripe to confirm
+                      <Shield className="w-3.5 h-3.5 text-finland flex-shrink-0" /> Pay via Stripe TEST until live
                     </p>
                     <p className="leading-relaxed">
                       {TOUR_LISTING_CONFIRMATION_NOTE} {BOOKING_CONFIRMATION_EMAIL_DISCLAIMER}
@@ -1691,7 +1691,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                     <span className="font-normal text-ink-muted">{qualifier ? ` per ${qualifier}` : ' per person'}</span>
                   </p>
                   <p className="text-xs text-ink-muted">
-                    {listingShowsFreeCancellation(tour) ? 'Free cancellation' : 'Pay via Stripe to confirm'}
+                    {listingShowsFreeCancellation(tour) ? 'Free cancellation · Stripe TEST until live' : 'Pay via Stripe TEST until live'}
                   </p>
                 </div>
               );
