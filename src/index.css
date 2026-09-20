@@ -32,6 +32,18 @@
     background-color: var(--partner-surface);
   }
 
+  .partner-app-shell .text-ink {
+    color: var(--partner-ink);
+  }
+
+  .partner-app-shell .text-ink-muted {
+    color: var(--partner-ink-muted);
+  }
+
+  .partner-app-shell .text-ink-faint {
+    color: var(--partner-ink-faint);
+  }
+
   .partner-app-shell .tv-card,
   .partner-app-shell .tv-card-flat {
     background: var(--partner-surface);
@@ -41,14 +53,60 @@
 
   .partner-app-shell .tv-btn-primary,
   .partner-app-shell .tv-btn-secondary,
-  .partner-app-shell .tv-btn-ghost {
+  .partner-app-shell .tv-btn-ghost,
+  .partner-app-shell .tv-chip {
     border-radius: var(--partner-radius);
+  }
+
+  .partner-app-shell .tv-btn-secondary {
+    background: var(--partner-surface);
+    color: var(--partner-ink);
+    border-color: var(--partner-border);
+  }
+
+  .partner-app-shell .tv-btn-secondary:hover {
+    background: var(--partner-surface-muted);
+    border-color: rgba(15, 23, 42, 0.14);
+    box-shadow: none;
+  }
+
+  .partner-app-shell .tv-btn-ghost {
+    color: var(--partner-ink-muted);
+  }
+
+  .partner-app-shell .tv-btn-ghost:hover {
+    color: var(--partner-ink);
+    background: rgba(15, 23, 42, 0.05);
   }
 
   .partner-app-shell .tv-input {
     background: var(--partner-surface);
+    color: var(--partner-ink);
     border-radius: var(--partner-radius);
     box-shadow: 0 0 0 1px var(--partner-border);
+  }
+
+  .partner-app-shell .tv-sheet-panel {
+    background: var(--partner-surface);
+    color: var(--partner-ink);
+    border-radius: 0.75rem 0.75rem 0 0;
+  }
+
+  @media (min-width: 640px) {
+    .partner-app-shell .tv-sheet-panel {
+      border-radius: var(--partner-radius);
+    }
+  }
+
+  .partner-busy-screen {
+    background-color: var(--partner-bg, #f3f5f8);
+    color: var(--partner-ink, #0b1220);
+  }
+
+  .partner-busy-screen .tv-card {
+    background: #fff;
+    border-radius: 0.5rem;
+    box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.08);
   }
 
   .partner-workspace {
