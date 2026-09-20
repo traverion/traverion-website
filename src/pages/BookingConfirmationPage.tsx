@@ -269,7 +269,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
   if (!isSupabaseConfigured()) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-6 py-16 bg-paper">
-        <div className="w-full max-w-md rounded-2xl bg-paper-raised p-6 sm:p-8 shadow-soft-lg ring-1 ring-black/[0.06] text-center">
+        <div className="w-full max-w-md rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft-lg ring-1 ring-black/[0.06] text-center">
           <img src={BRAND_LOGO_SRC} alt="Traverion" className="h-9 w-auto mx-auto mb-6 opacity-90" />
           <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">Booking confirmation</p>
           <h1 className="font-display text-2xl tracking-tight text-ink">Booking confirmation unavailable</h1>
@@ -290,7 +290,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
   if (!sessionId) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-6 py-16 bg-paper">
-        <div className="w-full max-w-md rounded-2xl bg-paper-raised p-6 sm:p-8 shadow-soft-lg ring-1 ring-black/[0.06] text-center">
+        <div className="w-full max-w-md rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft-lg ring-1 ring-black/[0.06] text-center">
           <img src={BRAND_LOGO_SRC} alt="Traverion" className="h-9 w-auto mx-auto mb-6 opacity-90" />
           <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">Booking confirmation</p>
           <h1 className="font-display text-2xl tracking-tight text-ink">No checkout in this link</h1>
@@ -320,7 +320,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
   if (!user?.email) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-6 py-16 bg-paper">
-        <div className="w-full max-w-md rounded-2xl bg-paper-raised p-6 sm:p-8 shadow-soft-lg ring-1 ring-black/[0.06] text-center">
+        <div className="w-full max-w-md rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft-lg ring-1 ring-black/[0.06] text-center">
           <img src={BRAND_LOGO_SRC} alt="Traverion" className="h-9 w-auto mx-auto mb-6 opacity-90" />
           <p className="text-ink font-medium">Sign in to see your confirmation</p>
           <p className="text-ink-muted text-sm mt-2 mb-6 leading-relaxed">
@@ -366,8 +366,8 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
   };
 
   return (
-    <div className="min-h-screen bg-paper flex flex-col items-center px-4 py-12 sm:py-16">
-      <header className="mb-8 flex flex-col items-center gap-2">
+    <div className="min-h-screen bg-paper flex flex-col items-center px-4 py-8 sm:py-12">
+      <header className="mb-5 flex flex-col items-center gap-2">
         <img src={BRAND_LOGO_SRC} alt="Traverion" className="h-10 w-auto" />
         <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint">Booking confirmation</p>
       </header>

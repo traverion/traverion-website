@@ -687,7 +687,7 @@ export default function BookingPage({
   const flowInner = (
     <>
         {step === 'review' && selectedVariant && (
-          <div className="bg-paper-raised rounded-2xl p-6 sm:p-8 ring-1 ring-black/[0.06]">
+          <div className="bg-paper-raised rounded-2xl p-5 sm:p-6 ring-1 ring-black/[0.06]">
             <BookingProgress step={step} flow={progressFlow} />
             <h2 className="font-display text-2xl text-ink mb-2">Your trip</h2>
             <p className="text-sm text-ink-muted mb-6">
@@ -787,9 +787,9 @@ export default function BookingPage({
         )}
 
         {step === 'date-guests' && (
-          <div className="bg-paper-raised rounded-2xl p-6 sm:p-8 ring-1 ring-black/[0.06]">
+          <div className="bg-paper-raised rounded-2xl p-5 sm:p-6 ring-1 ring-black/[0.06]">
             <BookingProgress step={step} flow={progressFlow} />
-            <h2 className="text-xl font-semibold text-ink mb-6">Select date and guests</h2>
+            <h2 className="text-xl font-semibold text-ink mb-4">Select date and guests</h2>
             <div className="space-y-4">
               <TourDatePicker
                 id="booking-flow-date-input"
@@ -876,7 +876,7 @@ export default function BookingPage({
         )}
 
         {step === 'contact' && (
-          <div className="bg-paper-raised rounded-2xl p-6 sm:p-8 ring-1 ring-black/[0.06]">
+          <div className="bg-paper-raised rounded-2xl p-5 sm:p-6 ring-1 ring-black/[0.06]">
             <BookingProgress step={step} flow={progressFlow} />
             <h2 className="text-xl font-semibold text-ink mb-2">Your details</h2>
             <p className="text-sm text-ink-muted mb-6 flex items-start gap-2">
@@ -1057,7 +1057,7 @@ export default function BookingPage({
         )}
 
         {step === 'confirm' && (
-          <div className="bg-paper-raised rounded-2xl p-6 sm:p-8 ring-1 ring-black/[0.06]">
+          <div className="bg-paper-raised rounded-2xl p-5 sm:p-6 ring-1 ring-black/[0.06]">
             <BookingProgress step={step} flow={progressFlow} />
             <h2 className="font-display text-2xl text-ink mb-2">Review &amp; pay</h2>
             <p className="text-sm text-ink-muted mb-6 flex items-start gap-2 rounded-xl bg-finland/5 ring-1 ring-finland/15 px-3 py-2.5">
