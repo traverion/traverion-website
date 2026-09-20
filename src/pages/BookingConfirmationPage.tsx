@@ -498,7 +498,9 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
 
               <div className="py-4 space-y-4">
                 <div>
-                  <p className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">Experience</p>
+                  <p className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">
+                    {stayCheckOut ? 'Stay' : 'Tour'}
+                  </p>
                   <p className="mt-1 text-base font-semibold text-ink">
                     {listingTitle || (stayCheckOut ? 'Your stay' : 'Your tour')}
                   </p>
