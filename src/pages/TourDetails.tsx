@@ -3,13 +3,10 @@ import { createPortal } from 'react-dom';
 import {
   ArrowLeft,
   MapPin,
-  Users,
   Star,
   Shield,
   Share2,
   CheckCircle,
-  XCircle,
-  ChevronDown,
   Heart,
 } from 'lucide-react';
 import ErrorState from '../components/ErrorState';
@@ -19,10 +16,6 @@ import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { analytics } from '../lib/analytics';
 import { TourPackage } from '../types/tour';
-import {
-  TRAVERION_STANDARD_CANCELLATION_POLICY,
-  formatTourDurationDisplay,
-} from '../types/listingExtras';
 import { fetchDiscountsByListingIds } from '../data/supabase-discounts';
 import { getDisplayPriceForTour, isSupabaseListingId } from '../lib/discount-display';
 import {
@@ -61,6 +54,7 @@ import {
 } from '../lib/booking-flow';
 import {
   parseTourCheckoutSearch,
+  parseTourListingSelection,
   resolveTourCheckoutVariant,
   tourCheckoutPath,
   tourListingPath,
@@ -81,44 +75,36 @@ import {
   validateParticipantMix,
   type ParticipantMixSelection,
 } from '../lib/participant-mix';
-import { activePriceCategories, summarizeOptionPricing } from '../lib/price-categories';
+import { activePriceCategories } from '../lib/price-categories';
 import { quoteBooking } from '../lib/booking-quote';
+import { formatTourAvailabilityHeading, optionsOnDate } from '../lib/tour-available-options';
 import { fetchWishlistListingIds, toggleWishlist } from '../data/supabase-wishlist';
 import { formatMoney, normalizeCurrency } from '../lib/money';
 import { PriceHero } from '../components/PriceBreakdown';
 import NoticeCallout from '../components/NoticeCallout';
-
-function experienceLanguageLabel(code: string): string {
-  const labels: Record<string, string> = {
-    en: 'English',
-    es: 'Spanish',
-    fr: 'French',
-    de: 'German',
-    it: 'Italian',
-    pt: 'Portuguese',
-    fi: 'Finnish',
-    sv: 'Swedish',
-    nl: 'Dutch',
-    ja: 'Japanese',
-    zh: 'Chinese',
-    ko: 'Korean',
-    ar: 'Arabic',
-    hi: 'Hindi',
-    ru: 'Russian',
-  };
-  const key = code.trim().toLowerCase();
-  return labels[key] ?? code.trim();
-}
+import TourQuickFacts from '../components/tour-detail/TourQuickFacts';
+import { experienceLanguageLabel, tourKindLabel } from '../lib/tour-quick-facts';
+import TourOverview from '../components/tour-detail/TourOverview';
+import TourAvailableOptions from '../components/tour-detail/TourAvailableOptions';
+import TourListingSections from '../components/tour-detail/TourListingSections';
 
 function readSearchPrefill(): { date: string; guests: number } {
   if (typeof window === 'undefined') return { date: '', guests: 1 };
-  const p = new URLSearchParams(window.location.search);
-  const date = (p.get('date') ?? '').trim();
-  const g = Number.parseInt(p.get('guests') ?? '', 10);
-  return {
-    date: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : '',
-    guests: Number.isFinite(g) && g >= 1 ? Math.min(99, Math.floor(g)) : 1,
-  };
+  const sel = parseTourListingSelection(window.location.search);
+  return { date: sel.date, guests: sel.guests };
+}
+
+function prefersReducedMotion(): boolean {
+  return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+function scrollElementIntoView(id: string, options: ScrollIntoViewOptions): void {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.scrollIntoView({
+    ...options,
+    behavior: prefersReducedMotion() ? 'auto' : options.behavior ?? 'smooth',
+  });
 }
 
 interface TourDetailsProps {
@@ -157,7 +143,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   const closeLegalModal = useCallback(() => setLegalModal(null), []);
   useDialogFocus(legalModal !== null, legalSheetRef, closeLegalModal);
   const [bookingCardError, setBookingCardError] = useState<string | null>(null);
-  const [bookingVariantsOpen, setBookingVariantsOpen] = useState(false);
+  const [bookingVariantsOpen, setBookingVariantsOpen] = useState(() => Boolean(readSearchPrefill().date));
   const [locationSearch, setLocationSearch] = useState(
     () => (typeof window === 'undefined' ? '' : window.location.search)
   );
@@ -166,7 +152,6 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   const [participantMix, setParticipantMix] = useState<ParticipantMixSelection>({});
   const [variantChecking, setVariantChecking] = useState(false);
   const [galleryLightboxOpen, setGalleryLightboxOpen] = useState(false);
-  const [optionsAttentionPulse, setOptionsAttentionPulse] = useState(false);
   const [savedToWishlist, setSavedToWishlist] = useState(false);
   const [wishlistBusy, setWishlistBusy] = useState(false);
   const [savePop, setSavePop] = useState(false);
@@ -201,6 +186,33 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     return undefined;
   }, [tourVariants]);
 
+  const optionsForSelectedDate = useMemo(
+    () => optionsOnDate(tourVariants, bookingDate.trim()),
+    [tourVariants, bookingDate]
+  );
+
+  const overviewExtras = useMemo(() => {
+    if (!tour) return [];
+    const x = tour.listingExtras;
+    const lines: string[] = [];
+    const optionStartTimes = [...new Set((x?.bookingOptions ?? []).map((o) => String(o.startTime ?? '').trim()).filter(Boolean))];
+    if (optionStartTimes.length === 1) lines.push(`Usually starts at ${optionStartTimes[0]}.`);
+    else if (optionStartTimes.length > 1) {
+      lines.push(`Set start times: ${optionStartTimes.slice(0, 3).join(', ')}${optionStartTimes.length > 3 ? '…' : ''}.`);
+    } else if (x?.scheduleStyle === 'on_request') {
+      lines.push('Timing is arranged with the host after booking.');
+    }
+    if (x?.venueSetting === 'indoor') lines.push('Mostly indoor.');
+    else if (x?.venueSetting === 'outdoor') lines.push('Mostly outdoor.');
+    else if (x?.venueSetting === 'mixed') lines.push('Indoor and outdoor.');
+    const extraLang = (x?.additionalLanguages ?? [])
+      .map((code) => experienceLanguageLabel(code))
+      .filter(Boolean);
+    if (extraLang.length > 0) lines.push(`Also offered in ${extraLang.join(', ')}.`);
+    if (x?.accessibilitySummary?.trim()) lines.push(x.accessibilitySummary.trim());
+    return lines;
+  }, [tour]);
+
   const selectedOption = selectedBookingVariant?.listingOption ?? null;
   const usesAgePricing = optionUsesAgePricing(selectedOption);
   const usesPrivateFlat = optionUsesPrivateFlatPrice(selectedOption);
@@ -233,20 +245,14 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
 
   const scrollToOptionsSection = useCallback(() => {
     window.setTimeout(() => {
-      const el = optionsSectionRef.current;
+      const el = document.getElementById('tour-availability') ?? optionsSectionRef.current;
       if (!el) return;
+      const reduce = prefersReducedMotion();
       const headerOffset = window.innerWidth >= 1024 ? 120 : 88;
       const top = el.getBoundingClientRect().top + window.scrollY - headerOffset;
-      window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+      window.scrollTo({ top: Math.max(0, top), behavior: reduce ? 'auto' : 'smooth' });
     }, 40);
   }, []);
-
-  useEffect(() => {
-    if (!bookingVariantsOpen) return;
-    setOptionsAttentionPulse(true);
-    const t = window.setTimeout(() => setOptionsAttentionPulse(false), 900);
-    return () => window.clearTimeout(t);
-  }, [bookingVariantsOpen]);
 
   useEffect(() => {
     if (!tour?.id) {
@@ -452,7 +458,11 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
 
   const closeBookingModal = useCallback(() => {
     if (!tour) return;
-    const listing = tourListingPath(tour.id, { date: bookingDate.trim(), guests });
+    const listing = tourListingPath(tour.id, {
+      date: bookingDate.trim(),
+      guests,
+      optionId: selectedBookingVariant?.id ?? null,
+    });
     if (openedCheckoutViaPushRef.current) {
       openedCheckoutViaPushRef.current = false;
       const pathBefore = `${window.location.pathname}${window.location.search}`;
@@ -467,7 +477,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       return;
     }
     commitLocation(listing, 'replace');
-  }, [tour, bookingDate, guests, commitLocation]);
+  }, [tour, bookingDate, guests, selectedBookingVariant?.id, commitLocation]);
 
   useEffect(() => {
     const onPop = () => {
@@ -491,10 +501,53 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       setBookingCardError('That tour option is no longer available. Pick another option.');
     }
     commitLocation(
-      tourListingPath(tour.id, { date: checkoutFromUrl.date, guests: checkoutFromUrl.guests }),
+      tourListingPath(tour.id, {
+        date: checkoutFromUrl.date,
+        guests: checkoutFromUrl.guests,
+        optionId: checkoutFromUrl.optionId,
+      }),
       'replace'
     );
   }, [checkoutFromUrl, checkoutVariant, tour, commitLocation]);
+
+  const listingHydratedRef = useRef(false);
+  useEffect(() => {
+    if (!tour || checkoutFromUrl || listingHydratedRef.current) return;
+    listingHydratedRef.current = true;
+    const sel = parseTourListingSelection(window.location.search);
+    if (sel.date) {
+      setBookingDate(sel.date);
+      setBookingVariantsOpen(true);
+      scrollToOptionsSection();
+    }
+    if (sel.optionId) {
+      const restored = resolveTourCheckoutVariant(tourVariants, sel.optionId);
+      if (restored) setSelectedBookingVariant(restored);
+    }
+  }, [tour, checkoutFromUrl, tourVariants, scrollToOptionsSection]);
+
+  useEffect(() => {
+    if (!tour || checkoutFromUrl) return;
+    const selectedOptionId = selectedBookingVariant?.id ?? null;
+    if (!bookingDate.trim() && !selectedOptionId) return;
+    const href = tourListingPath(tour.id, {
+      date: bookingDate.trim(),
+      guests,
+      optionId: selectedOptionId,
+    });
+    commitLocation(href, 'replace');
+  }, [tour, bookingDate, guests, selectedBookingVariant?.id, checkoutFromUrl, commitLocation]);
+
+  useEffect(() => {
+    if (!bookingDate.trim() || !bookingVariantsOpen) return;
+    const { available, kind } = optionsForSelectedDate;
+    if (kind === 'one' && available[0] && selectedBookingVariant?.id !== available[0].id) {
+      setSelectedBookingVariant(available[0]);
+      if (optionUsesAgePricing(available[0].listingOption)) {
+        setParticipantMix(emptyMixSelection(available[0].listingOption!));
+      }
+    }
+  }, [bookingDate, bookingVariantsOpen, optionsForSelectedDate, selectedBookingVariant?.id]);
 
   const handleCheckoutUrlState = useCallback(
     (patch: {
@@ -519,30 +572,9 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     [tour, checkoutFromUrl]
   );
 
-  const handleCheckAvailabilityToggle = () => {
-    if (!tour || variantChecking) return;
-    if (!isListingVisibleToTravelers(tour.status)) {
-      setBookingCardError('This tour is not available to book.');
-      setBookingVariantsOpen(false);
-      return;
-    }
-    const dateCheck = dateNotInPast(bookingDate.trim());
-    if (!dateCheck.valid) {
-      setBookingCardError(dateCheck.message ?? 'Please select a date');
-      setBookingVariantsOpen(false);
-      return;
-    }
-    setBookingCardError(null);
-    setBookingVariantsOpen((open) => {
-      const next = !open;
-      if (next) scrollToOptionsSection();
-      return next;
-    });
-  };
-
   const handleStickyBookCta = () => {
     if (!bookingDate.trim()) {
-      document.getElementById('tour-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      scrollElementIntoView('tour-booking-panel', { behavior: 'smooth', block: 'start' });
       window.requestAnimationFrame(() => {
         document.getElementById('tour-booking-date-input')?.focus();
       });
@@ -552,11 +584,8 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       void handleContinueToCheckout();
       return;
     }
-    if (bookingVariantsOpen) {
-      document.getElementById('tour-booking-variants-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      return;
-    }
-    handleCheckAvailabilityToggle();
+    setBookingVariantsOpen(true);
+    scrollToOptionsSection();
   };
 
   const handleSelectTourVariant = (variant: TourBookingVariant) => {
@@ -574,7 +603,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     }
     setBookingCardError(null);
     setSelectedBookingVariant(variant);
-    setBookingVariantsOpen(false);
+    setBookingVariantsOpen(true);
     if (optionUsesAgePricing(variant.listingOption)) {
       setParticipantMix(emptyMixSelection(variant.listingOption!));
     } else {
@@ -795,7 +824,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
         <header className="mb-5 sm:mb-6 max-w-3xl">
           <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink-muted mb-2">
             <span className="inline-flex items-center rounded-md bg-finland/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-finland ring-1 ring-finland/15">
-              Tour
+              {tourKindLabel(tour.experienceKind)}
             </span>
             <span className="inline-flex items-center gap-1.5">
               <MapPin size={14} className="shrink-0 text-finland" aria-hidden />
@@ -909,408 +938,55 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
           ) : null}
         </div>
 
-        <dl className="mb-5 grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="rounded-xl bg-paper-raised px-3.5 py-3 ring-1 ring-black/[0.05]">
-            <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">Duration</dt>
-            <dd className="mt-1 text-sm font-medium text-ink">{formatTourDurationDisplay(tour.duration)}</dd>
-          </div>
-          {tour.groupSize?.trim() && !/option/i.test(tour.groupSize) ? (
-            <div className="rounded-xl bg-paper-raised px-3.5 py-3 ring-1 ring-black/[0.05]">
-              <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">Group size</dt>
-              <dd className="mt-1 text-sm font-medium text-ink">{tour.groupSize.trim()}</dd>
-            </div>
-          ) : null}
-          {tour.experienceLanguage?.trim() ? (
-            <div className="rounded-xl bg-paper-raised px-3.5 py-3 ring-1 ring-black/[0.05]">
-              <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">Language</dt>
-              <dd className="mt-1 text-sm font-medium text-ink">
-                {experienceLanguageLabel(tour.experienceLanguage)}
-              </dd>
-            </div>
-          ) : null}
-          <div className="rounded-xl bg-paper-raised px-3.5 py-3 ring-1 ring-black/[0.05]">
-            <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
-              {tour.experienceStartStyle === 'operator_pickup' ? 'Pickup' : 'Meeting'}
-            </dt>
-            <dd className="mt-1 text-sm font-medium text-ink">
-              {tour.experienceStartStyle === 'operator_pickup'
-                ? 'Included'
-                : tour.experienceStartStyle === 'fixed_meeting_place'
-                  ? 'Meeting point'
-                  : tour.experienceStartStyle === 'either_available'
-                    ? 'Pickup or meet'
-                    : tour.meetingPoint?.trim()
-                      ? 'See details'
-                      : 'Confirmed after booking'}
-            </dd>
-          </div>
-          {listingShowsFreeCancellation(tour) ? (
-            <div className="rounded-xl bg-emerald-50/80 px-3.5 py-3 ring-1 ring-emerald-200/60 col-span-2 sm:col-span-1">
-              <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-emerald-800">Cancellation</dt>
-              <dd className="mt-1 text-sm font-medium text-emerald-950">Free within policy</dd>
-            </div>
-          ) : null}
-        </dl>
+        <TourQuickFacts tour={tour} />
       </div>
 
-      <section className="bg-paper pb-8">
+      <section className="bg-paper pb-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
-            <div className="lg:col-span-2 space-y-6">
-              <div>
-                <h2 className="font-display text-xl text-ink mb-2">What you’ll do</h2>
-                <p className="text-ink leading-relaxed text-[15px]">{tour.description}</p>
-              </div>
-
-              <div className="space-y-5">
-                {(() => {
-                  const x = tour.listingExtras;
-                  const optionStartTimes = (x?.bookingOptions ?? [])
-                    .map((o) => String(o.startTime ?? '').trim())
-                    .filter(Boolean);
-                  const uniqueStarts = [...new Set(optionStartTimes)];
-                  const scheduleLabel =
-                    uniqueStarts.length > 0
-                      ? uniqueStarts.length === 1
-                        ? `Usually starts at ${uniqueStarts[0]} — choose a date to confirm.`
-                        : `Set start times available (${uniqueStarts.slice(0, 3).join(', ')}${uniqueStarts.length > 3 ? '…' : ''}) — choose a date to see options.`
-                      : x?.scheduleStyle === 'fixed_slots'
-                        ? 'Usually runs at set start times (see logistics on your booking in Trips).'
-                        : x?.scheduleStyle === 'on_request'
-                          ? 'Timing is arranged directly with the host after booking.'
-                          : x?.scheduleStyle === 'flexible'
-                            ? 'Timing is flexible unless your booking in Trips says otherwise.'
-                            : null;
-                  const venueLabel =
-                    x?.venueSetting === 'indoor'
-                      ? 'Mostly indoor'
-                      : x?.venueSetting === 'outdoor'
-                        ? 'Mostly outdoor'
-                        : x?.venueSetting === 'mixed'
-                          ? 'Indoor and outdoor'
-                          : null;
-                  const langExtra = (x?.additionalLanguages ?? [])
-                    .map((code) => {
-                      const labels: Record<string, string> = {
-                        en: 'English',
-                        es: 'Spanish',
-                        fr: 'French',
-                        de: 'German',
-                        it: 'Italian',
-                        pt: 'Portuguese',
-                        nl: 'Dutch',
-                        ja: 'Japanese',
-                        zh: 'Chinese',
-                        ko: 'Korean',
-                        ar: 'Arabic',
-                        hi: 'Hindi',
-                        ru: 'Russian',
-                      };
-                      return labels[code] ?? code;
-                    })
-                    .filter(Boolean);
-                  const hasGoodToKnow =
-                    Boolean(x?.accessibilitySummary?.trim()) ||
-                    Boolean(x?.minGuestAge?.trim()) ||
-                    Boolean(venueLabel) ||
-                    langExtra.length > 0 ||
-                    Boolean(scheduleLabel) ||
-                    Boolean(x?.typicalTimelineNotes?.trim());
-                  if (!hasGoodToKnow) return null;
-                  return (
-                    <div className="rounded-2xl bg-finland/[0.06] p-5 sm:p-6 ring-1 ring-finland/15">
-                      <h2 className="text-[11px] uppercase tracking-[0.16em] text-finland mb-3 font-semibold">Good to know</h2>
-                      <ul className="space-y-2 text-sm text-ink-muted">
-                        {scheduleLabel && (
-                          <li>
-                            <span className="font-medium text-ink">Timing: </span>
-                            {scheduleLabel}
-                          </li>
-                        )}
-                        {x?.typicalTimelineNotes?.trim() && (
-                          <li>
-                            <span className="font-medium text-ink">Typical flow: </span>
-                            {x.typicalTimelineNotes.trim()}
-                          </li>
-                        )}
-                        {venueLabel && (
-                          <li>
-                            <span className="font-medium text-ink">Setting: </span>
-                            {venueLabel}
-                          </li>
-                        )}
-                        {x?.minGuestAge?.trim() && (
-                          <li>
-                            <span className="font-medium text-ink">Minimum age: </span>
-                            {x.minGuestAge.trim()}
-                          </li>
-                        )}
-                        {langExtra.length > 0 && (
-                          <li>
-                            <span className="font-medium text-ink">Also offered in: </span>
-                            {langExtra.join(', ')}
-                          </li>
-                        )}
-                        {x?.accessibilitySummary?.trim() && (
-                          <li>
-                            <span className="font-medium text-ink">Accessibility &amp; mobility: </span>
-                            {x.accessibilitySummary.trim()}
-                          </li>
-                        )}
-                      </ul>
-                    </div>
-                  );
-                })()}
-
-                {tour.highlights.filter((h) => String(h).trim()).length > 0 ? (
-                  <section className="tv-card p-5 sm:p-6">
-                    <h2 className="font-display text-xl text-ink mb-3">Highlights</h2>
-                    <ul className="space-y-3">
-                      {tour.highlights
-                        .map((h) => String(h).trim())
-                        .filter(Boolean)
-                        .map((highlight, index) => (
-                          <li key={index} className="flex items-start gap-3 text-ink-muted">
-                            <CheckCircle size={18} className="text-finland flex-shrink-0 mt-0.5" aria-hidden />
-                            <span>{highlight}</span>
-                          </li>
-                        ))}
-                    </ul>
-                  </section>
-                ) : null}
-
-                {(() => {
-                  const itinerarySteps = (tour.itinerary ?? []).filter(
-                    (d) =>
-                      String(d.title ?? '').trim() ||
-                      String(d.description ?? '').trim() ||
-                      (d.activities ?? []).some((a) => String(a).trim())
-                  );
-                  if (itinerarySteps.length === 0) return null;
-                  // Hide a single auto-filled step that only repeats the tour title/description.
-                  if (itinerarySteps.length === 1) {
-                    const only = itinerarySteps[0];
-                    const titleDup =
-                      String(only.title ?? '')
-                        .trim()
-                        .toLowerCase() === String(tour.title ?? '').trim().toLowerCase();
-                    const stepDesc = String(only.description ?? '').trim().toLowerCase();
-                    const tourDesc = String(tour.description ?? '').trim().toLowerCase();
-                    const descDup = !stepDesc || stepDesc === tourDesc;
-                    const activityTexts = (only.activities ?? [])
-                      .map((a) => String(a).trim())
-                      .filter(Boolean);
-                    const onlyGenericActivity =
-                      activityTexts.length === 0 ||
-                      (activityTexts.length === 1 && /^(tour|experience|activity)$/i.test(activityTexts[0]));
-                    if (titleDup && descDup && onlyGenericActivity) {
-                      return null;
+          <div className="mb-8">
+            <TourOverview
+              description={tour.description}
+              extras={overviewExtras}
+            />
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-10">
+            <div className="lg:col-span-2 space-y-10 order-2 lg:order-1">
+              {canBook && bookingVariantsOpen && bookingDate.trim() ? (
+                <div ref={optionsSectionRef}>
+                  <TourAvailableOptions
+                    date={bookingDate.trim()}
+                    kind={optionsForSelectedDate.kind}
+                    available={optionsForSelectedDate.available}
+                    selectedId={selectedBookingVariant?.id ?? null}
+                    guestsLabel={
+                      usesAgePricing && selectedOption
+                        ? formatMixSummaryCompact(buildParticipantMixLines(selectedOption, participantMix)) ||
+                          `${guests} ${guests === 1 ? 'guest' : 'guests'}`
+                        : `${guests} ${guests === 1 ? 'guest' : 'guests'}`
                     }
-                  }
-                  return (
-                  <section className="tv-card p-5 sm:p-6">
-                    <h2 className="font-display text-xl text-ink mb-3">Itinerary</h2>
-                    <ol className="space-y-6">
-                      {itinerarySteps
-                        .map((day, index, steps) => {
-                          const multiDay = steps.length > 1;
-                          const stepLabel = multiDay
-                            ? `Step ${index + 1}`
-                            : day.location?.trim()
-                              ? day.location.trim()
-                              : 'What happens';
-                          const locationSuffix =
-                            multiDay && day.location?.trim() ? ` · ${day.location.trim()}` : '';
-                          return (
-                          <li
-                            key={day.day}
-                            className="rounded-xl bg-finland/[0.04] p-4 ring-1 ring-finland/10"
-                          >
-                            <p className="text-[11px] uppercase tracking-[0.16em] text-finland font-semibold mb-1">
-                              {stepLabel}
-                              {locationSuffix}
-                            </p>
-                            {day.title?.trim() ? (
-                              <h3 className="font-semibold text-ink mb-2">{day.title.trim()}</h3>
-                            ) : null}
-                            {day.description?.trim() ? (
-                              <p className="text-ink-muted leading-relaxed">{day.description.trim()}</p>
-                            ) : null}
-                            {(day.activities ?? []).filter((a) => String(a).trim()).length > 0 ? (
-                              <ul className="mt-3 space-y-1.5 text-sm text-ink-muted">
-                                {(day.activities ?? [])
-                                  .map((a) => String(a).trim())
-                                  .filter(Boolean)
-                                  .map((a) => (
-                                    <li key={a}>{a}</li>
-                                  ))}
-                              </ul>
-                            ) : null}
-                          </li>
-                          );
-                        })}
-                    </ol>
-                  </section>
-                  );
-                })()}
+                    currency={normalizeCurrency(tour.price?.currency)}
+                    onChoose={handleSelectTourVariant}
+                    onChangeDate={() => {
+                      scrollElementIntoView('tour-booking-date-input', { behavior: 'smooth', block: 'center' });
+                      window.requestAnimationFrame(() => document.getElementById('tour-booking-date-input')?.focus());
+                    }}
+                    onChangeGuests={() => {
+                      scrollElementIntoView('tour-booking-guests', { behavior: 'smooth', block: 'center' });
+                    }}
+                  />
+                </div>
+              ) : canBook ? (
+                <p className="text-sm text-ink-muted">Pick a date to see times and options for this tour.</p>
+              ) : null}
 
-                {(tour.includes.some((s) => String(s).trim()) || tour.excludes.some((s) => String(s).trim())) ? (
-                  <section className="tv-card p-4 sm:p-5 space-y-5">
-                    {tour.includes.some((s) => String(s).trim()) ? (
-                      <div className="rounded-2xl bg-emerald-50/70 p-4 sm:p-5 ring-1 ring-emerald-200/60">
-                        <h2 className="font-display text-xl text-ink mb-2">What’s included</h2>
-                        <ul className="space-y-3">
-                          {tour.includes
-                            .map((item) => String(item).trim())
-                            .filter(Boolean)
-                            .map((item, index) => (
-                              <li key={index} className="flex items-start gap-3 text-ink-muted">
-                                <CheckCircle size={18} className="text-emerald-600 flex-shrink-0 mt-0.5" aria-hidden />
-                                <span>{item}</span>
-                              </li>
-                            ))}
-                        </ul>
-                      </div>
-                    ) : null}
-                    {tour.excludes.some((s) => String(s).trim()) ? (
-                      <div className="rounded-2xl bg-rose-50/70 p-4 sm:p-5 ring-1 ring-rose-200/60">
-                        <h2 className="font-display text-xl text-ink mb-2">Not included</h2>
-                        <ul className="space-y-3">
-                          {tour.excludes
-                            .map((item) => String(item).trim())
-                            .filter(Boolean)
-                            .map((item, index) => (
-                              <li key={index} className="flex items-start gap-3 text-ink-muted">
-                                <XCircle size={18} className="text-rose-500 flex-shrink-0 mt-0.5" aria-hidden />
-                                <span>{item}</span>
-                              </li>
-                            ))}
-                        </ul>
-                      </div>
-                    ) : null}
-                  </section>
-                ) : null}
-
-                {(tour.meetingPoint?.trim() || tour.pickupInstructions?.trim() || tour.experienceStartStyle) ? (
-                  <section className="rounded-2xl bg-finland/[0.06] p-4 sm:p-5 ring-1 ring-finland/15">
-                    <h2 className="font-display text-xl text-ink mb-2">Pickup / meeting</h2>
-                    <div className="space-y-2 text-sm text-ink-muted leading-relaxed">
-                      {tour.experienceStartStyle === 'operator_pickup' ? (
-                        <p>The operator picks you up. Pickup details appear on your booking in Trips after you pay.</p>
-                      ) : tour.experienceStartStyle === 'fixed_meeting_place' ? (
-                        <p>Meet at the place given below. Arrive a few minutes early.</p>
-                      ) : tour.experienceStartStyle === 'either_available' ? (
-                        <p>Pickup or meeting point — the operator confirms which applies to your booking.</p>
-                      ) : null}
-                      {tour.meetingPoint?.trim() ? <p>{tour.meetingPoint.trim()}</p> : null}
-                      {tour.pickupInstructions?.trim() ? <p>{tour.pickupInstructions.trim()}</p> : null}
-                    </div>
-                  </section>
-                ) : null}
-
-                {weekdayHint ? (
-                  <section className="tv-card p-4 sm:p-5">
-                    <h2 className="font-display text-xl text-ink mb-2">Availability</h2>
-                    <p className="text-sm text-ink-muted leading-relaxed">{weekdayHint}. Choose a date on the right to see live options.</p>
-                  </section>
-                ) : null}
-
-                <section className="rounded-2xl bg-amber-50/70 p-4 sm:p-5 ring-1 ring-amber-200/60">
-                  <h2 className="font-display text-xl text-ink mb-2">Cancellation</h2>
-                  <p className="text-sm text-ink-muted leading-relaxed">
-                    {tour.cancellationPolicy?.trim() || TRAVERION_STANDARD_CANCELLATION_POLICY}
-                  </p>
-                </section>
-
-                {(tour.difficulty === 'Challenging' ||
-                  (tour.price?.importantNotes ?? []).some((n) => String(n).trim()) ||
-                  tour.listingExtras?.minGuestAge?.trim()) ? (
-                  <section className="rounded-2xl bg-rose-50/60 p-5 sm:p-6 ring-1 ring-rose-200/50">
-                    <h2 className="font-display text-xl text-ink mb-2">Important information</h2>
-                    <ul className="space-y-2 text-ink-muted">
-                      {tour.difficulty === 'Challenging' ? <li>This tour is marked challenging.</li> : null}
-                      {tour.listingExtras?.minGuestAge?.trim() ? (
-                        <li>Minimum age: {tour.listingExtras.minGuestAge.trim()}</li>
-                      ) : null}
-                      {(tour.price?.importantNotes ?? [])
-                        .map((n) => String(n).trim())
-                        .filter(Boolean)
-                        .map((n) => (
-                          <li key={n}>{n}</li>
-                        ))}
-                    </ul>
-                  </section>
-                ) : null}
-
-                {supplierLegal && (
-                  <section className="tv-card p-5 sm:p-6">
-                    <h2 className="font-display text-xl text-ink mb-2">Operator</h2>
-                    <div className="flex items-center gap-4">
-                    {supplierLegal.business_logo_url ? (
-                      <img
-                        src={supplierLegal.business_logo_url}
-                        alt={`${supplierLegal.operatorName} logo`}
-                        className="w-16 h-16 sm:w-[4.5rem] sm:h-[4.5rem] rounded-xl object-cover border border-black/[0.06] flex-shrink-0"
-                      />
-                    ) : (
-                      <div className="w-16 h-16 sm:w-[4.5rem] sm:h-[4.5rem] rounded-xl bg-finland/10 flex items-center justify-center flex-shrink-0 border border-finland/15">
-                        <Users className="w-8 h-8 text-finland" aria-hidden />
-                      </div>
-                    )}
-                    <div className="min-w-0">
-                      <p className="text-lg font-semibold text-ink truncate">{supplierLegal.operatorName}</p>
-                      <p className="text-sm text-ink-muted">Runs this tour on Traverion</p>
-                    </div>
-                    </div>
-                  </section>
-                )}
-              </div>
-
-              {supplierLegal &&
-                (supplierLegal.privacy_policy_text?.trim() || supplierLegal.terms_conditions_text?.trim()) && (
-                  <div className="mt-8 pt-8 border-t border-black/[0.06]">
-                    <div className="flex items-start gap-3 mb-1">
-                      {supplierLegal.business_logo_url ? (
-                        <img
-                          src={supplierLegal.business_logo_url}
-                          alt=""
-                          className="w-10 h-10 rounded-lg object-cover border border-black/[0.06] flex-shrink-0 hidden sm:block"
-                          aria-hidden
-                        />
-                      ) : null}
-                      <h2 className="text-xs font-bold uppercase tracking-[0.12em] text-ink">
-                        Policies from {supplierLegal.operatorName}
-                      </h2>
-                    </div>
-                    <p className="text-sm text-ink-muted mt-1.5 mb-4">
-                      Privacy and booking terms for this tour operator.
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {supplierLegal.privacy_policy_text?.trim() ? (
-                        <button
-                          type="button"
-                          onClick={() => setLegalModal('privacy')}
-                          className="tv-btn-ghost"
-                        >
-                          Privacy policy
-                        </button>
-                      ) : null}
-                      {supplierLegal.terms_conditions_text?.trim() ? (
-                        <button
-                          type="button"
-                          onClick={() => setLegalModal('terms')}
-                          className="tv-btn-ghost"
-                        >
-                          Terms & conditions
-                        </button>
-                      ) : null}
-                    </div>
-                  </div>
-                )}
+              <TourListingSections
+                tour={tour}
+                supplierLegal={supplierLegal}
+                onOpenLegal={setLegalModal}
+              />
             </div>
 
-            {/* Right: Sticky booking card */}
-            <div className="lg:col-span-1">
+            <div className="lg:col-span-1 order-1 lg:order-2">
               <div id="tour-booking-panel" className="lg:sticky lg:top-24 h-fit scroll-mt-24 tv-card p-3.5 sm:p-4">
                 {!canBook ? (
                   <div>
@@ -1320,321 +996,140 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                     </p>
                   </div>
                 ) : (
-                <>
-                {(() => {
-                  const { price, originalPrice, label, qualifier, summary } = getDisplayPriceForTour(tour, discountsByListing);
-                  const hasDiscount = label && price < originalPrice;
-                  const currency = normalizeCurrency(tour.price?.currency);
-                  const unit = qualifier ? `From · per ${qualifier}` : 'From · per person';
-                  return (
-                    <>
-                      <PriceHero
-                        amount={Number(price)}
-                        currency={currency}
-                        basis={unit}
-                        originalAmount={hasDiscount ? originalPrice : null}
-                        discountLabel={hasDiscount ? label : null}
-                      />
-                      {summary ? <p className="text-sm text-ink-muted mt-1 mb-4">{summary}</p> : <div className="mb-4" />}
-                    </>
-                  );
-                })()}
-                <div className="space-y-4">
-                  <TourDatePicker
-                    id="tour-booking-date-input"
-                    value={bookingDate}
-                    onChange={(next) => {
-                      setBookingDate(next);
-                      setBookingCardError(null);
-                      setSelectedBookingVariant(null);
-                      const dateCheck = dateNotInPast(next.trim());
-                      if (dateCheck.valid && isListingVisibleToTravelers(tour.status)) {
-                        setBookingVariantsOpen(true);
-                        scrollToOptionsSection();
-                      } else {
-                        setBookingVariantsOpen(false);
-                      }
-                    }}
-                    options={calendarOptions}
-                    soldOutDates={soldOutDates}
-                    hint={weekdayHint}
-                  />
-                  {selectedDaySpotsLeft != null ? (
-                    <p
-                      className={`-mt-2 text-xs font-medium ${
-                        selectedDaySpotsLeft === 0 ? 'text-ink-muted' : 'text-finland'
-                      }`}
-                    >
-                      {selectedDaySpotsLeft === 0
-                        ? 'Fully booked this day'
-                        : selectedDaySpotsLeft === 1
-                          ? '1 spot left this day'
-                          : `${selectedDaySpotsLeft} spots left this day`}
-                    </p>
-                  ) : null}
-                  {!selectedBookingVariant ? (
-                    <>
-                      <button
-                        type="button"
-                        aria-expanded={bookingVariantsOpen}
-                        aria-controls="tour-booking-variants-list"
-                        onClick={handleCheckAvailabilityToggle}
-                        disabled={variantChecking || Boolean(checkoutFromUrl)}
-                        className="tv-btn-primary w-full disabled:opacity-60"
-                      >
-                        {variantChecking
-                          ? 'Checking…'
-                          : bookingVariantsOpen
-                            ? 'Hide options'
-                            : bookingDate.trim()
-                              ? 'Choose an option'
-                              : 'Pick a date first'}
-                        <ChevronDown
-                          className={`h-5 w-5 shrink-0 transition-transform duration-200 ease-out ${bookingVariantsOpen ? 'rotate-180' : ''}`}
-                          aria-hidden
-                        />
-                      </button>
-                      {bookingVariantsOpen && (
-                        <p className="mt-1.5 text-xs text-finland font-medium">
-                          Select one option — then choose participants.
-                        </p>
-                      )}
-                    </>
-                  ) : (
-                    <div className="space-y-3 rounded-xl bg-finland/[0.04] p-3 ring-1 ring-finland/20">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">Selected option</p>
-                          <p className="text-sm font-semibold text-ink truncate">{selectedBookingVariant.label}</p>
-                          {selectedOption?.isPrivate ? (
-                            <p className="mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-ink px-2.5 py-0.5 text-[11px] font-semibold text-paper">
-                              Private experience
-                              <span className="font-normal text-paper/80">· your group only</span>
-                            </p>
-                          ) : null}
-                          {selectedOption ? (
-                            <p className="text-xs text-ink-muted mt-1">
-                              {summarizeOptionPricing(selectedOption, (n) => formatMoney(n, tour.price?.currency))}
-                              {optionUsesPrivateFlatPrice(selectedOption)
-                                ? ' · flat group price'
-                                : selectedOption.isPrivate
-                                  ? ' · per person'
-                                  : ''}
-                            </p>
-                          ) : null}
-                        </div>
-                        <button
-                          type="button"
-                          className="tv-btn-ghost text-xs shrink-0"
-                          onClick={() => {
-                            setSelectedBookingVariant(null);
+                  <>
+                    {(() => {
+                      const { price, originalPrice, label, qualifier, summary } = getDisplayPriceForTour(tour, discountsByListing);
+                      const hasDiscount = label && price < originalPrice;
+                      const currency = normalizeCurrency(tour.price?.currency);
+                      const unit = qualifier ? `From · per ${qualifier}` : 'From · per person';
+                      return (
+                        <>
+                          <PriceHero
+                            amount={Number(price)}
+                            currency={currency}
+                            basis={unit}
+                            originalAmount={hasDiscount ? originalPrice : null}
+                            discountLabel={hasDiscount ? label : null}
+                          />
+                          {summary ? <p className="text-sm text-ink-muted mt-1 mb-4">{summary}</p> : <div className="mb-4" />}
+                        </>
+                      );
+                    })()}
+                    <div className="space-y-4">
+                      <TourDatePicker
+                        id="tour-booking-date-input"
+                        value={bookingDate}
+                        onChange={(next) => {
+                          setBookingDate(next);
+                          setBookingCardError(null);
+                          setSelectedBookingVariant(null);
+                          const dateCheck = dateNotInPast(next.trim());
+                          if (dateCheck.valid && isListingVisibleToTravelers(tour.status)) {
                             setBookingVariantsOpen(true);
                             scrollToOptionsSection();
-                          }}
+                          } else {
+                            setBookingVariantsOpen(false);
+                          }
+                        }}
+                        options={calendarOptions}
+                        soldOutDates={soldOutDates}
+                        hint={weekdayHint}
+                      />
+                      {selectedDaySpotsLeft != null ? (
+                        <p
+                          className={`-mt-2 text-xs font-medium ${
+                            selectedDaySpotsLeft === 0 ? 'text-ink-muted' : 'text-finland'
+                          }`}
                         >
-                          Change
-                        </button>
-                      </div>
-                      {usesAgePricing && selectedOption ? (
-                        <div className="space-y-2">
-                          <p className="text-sm font-medium text-ink">Participants</p>
-                          {activePriceCategories(selectedOption).map((cat) => (
-                            <ParticipantCategoryStepper
-                              key={cat.id}
-                              category={cat}
-                              quantity={participantMix[cat.id] ?? 0}
-                              currency={normalizeCurrency(tour.price?.currency)}
-                              max={Math.min(selectedOption.maxPersons, partyMaxForSelectedDay)}
-                              onChange={(qty) => {
-                                setParticipantMix((prev) => ({ ...prev, [cat.id]: qty }));
+                          {selectedDaySpotsLeft === 0
+                            ? 'Fully booked this day'
+                            : selectedDaySpotsLeft === 1
+                              ? '1 spot left this day'
+                              : `${selectedDaySpotsLeft} spots left this day`}
+                        </p>
+                      ) : null}
+                      {selectedBookingVariant ? (
+                        <div className="space-y-3 border-t border-black/[0.06] pt-3">
+                          <div>
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">Selected</p>
+                            <p className="text-sm font-semibold text-ink">{selectedBookingVariant.label}</p>
+                          </div>
+                          {usesAgePricing && selectedOption ? (
+                            <div className="space-y-2">
+                              <p className="text-sm font-medium text-ink">Participants</p>
+                              {activePriceCategories(selectedOption).map((cat) => (
+                                <ParticipantCategoryStepper
+                                  key={cat.id}
+                                  category={cat}
+                                  quantity={participantMix[cat.id] ?? 0}
+                                  currency={normalizeCurrency(tour.price?.currency)}
+                                  max={Math.min(selectedOption.maxPersons, partyMaxForSelectedDay)}
+                                  onChange={(qty) => {
+                                    setParticipantMix((prev) => ({ ...prev, [cat.id]: qty }));
+                                    setBookingCardError(null);
+                                  }}
+                                  onBoundaryAttempt={(message) => setBookingCardError(message)}
+                                />
+                              ))}
+                            </div>
+                          ) : (
+                            <GuestStepper
+                              id="tour-booking-guests"
+                              value={guests}
+                              min={getPartySizeBoundsForVariant(tour, selectedBookingVariant).min}
+                              max={partyMaxForSelectedDay}
+                              onChange={(next) => {
+                                setGuests(next);
                                 setBookingCardError(null);
                               }}
                               onBoundaryAttempt={(message) => setBookingCardError(message)}
+                              label={usesPrivateFlat ? 'Group size' : 'Guests'}
                             />
-                          ))}
-                        </div>
-                      ) : (
-                        <GuestStepper
-                          id="tour-booking-guests"
-                          value={guests}
-                          min={getPartySizeBoundsForVariant(tour, selectedBookingVariant).min}
-                          max={partyMaxForSelectedDay}
-                          onChange={(next) => {
-                            setGuests(next);
-                            setBookingCardError(null);
-                          }}
-                          onBoundaryAttempt={(message) => setBookingCardError(message)}
-                          label={usesPrivateFlat ? 'Group size' : 'Guests'}
-                        />
-                      )}
-                      {panelQuote?.ok ? (
-                        <div className="flex items-end justify-between gap-3 pt-1 border-t border-black/[0.06]">
-                          <div>
-                            <p className="text-xs text-ink-muted">Total</p>
-                            {usesAgePricing && panelQuote.guestBreakdown ? (
-                              <p className="text-xs text-ink-muted">
-                                {formatMixSummaryCompact(
-                                  buildParticipantMixLines(selectedOption!, participantMix)
-                                )}
+                          )}
+                          {panelQuote?.ok ? (
+                            <div className="flex items-end justify-between gap-3 pt-1 border-t border-black/[0.06]">
+                              <p className="text-xs text-ink-muted">Total</p>
+                              <p className="text-lg font-semibold tabular-nums text-ink">
+                                {formatMoney(panelQuote.totalAmount, panelQuote.currency)}
                               </p>
-                            ) : null}
-                          </div>
-                          <p className="text-lg font-semibold tabular-nums text-ink">
-                            {formatMoney(panelQuote.totalAmount, panelQuote.currency)}
-                          </p>
-                        </div>
-                      ) : panelQuote && !panelQuote.ok ? (
-                        <p className="text-xs text-red-700">{panelQuote.error}</p>
-                      ) : null}
-                      <button
-                        type="button"
-                        onClick={() => void handleContinueToCheckout()}
-                        disabled={variantChecking || (panelQuote != null && !panelQuote.ok)}
-                        className="tv-btn-primary w-full disabled:opacity-60"
-                      >
-                        {variantChecking ? 'Checking…' : 'Continue · TEST'}
-                      </button>
-                    </div>
-                  )}
-                  <div role="status" aria-live="polite" aria-atomic="true" className="min-h-[1.25rem]">
-                    {bookingCardError ? (
-                      <NoticeCallout title="Check your selection" tone="danger">
-                        {bookingCardError}
-                      </NoticeCallout>
-                    ) : null}
-                  </div>
-                  {bookingVariantsOpen || selectedBookingVariant ? (
-                  <div
-                    ref={optionsSectionRef}
-                    id="tour-booking-variants-list"
-                    role="listbox"
-                    aria-label="Tour options"
-                    className={`overflow-hidden transition-all duration-300 ease-out motion-reduce:transition-none ${
-                      bookingVariantsOpen
-                        ? `max-h-[28rem] opacity-100 ${
-                            optionsAttentionPulse ? 'ring-1 ring-finland/25 rounded-2xl' : ''
-                          }`
-                        : 'max-h-0 opacity-0 pointer-events-none'
-                    }`}
-                    hidden={!bookingVariantsOpen}
-                    aria-hidden={!bookingVariantsOpen}
-                  >
-                    <p className="px-0.5 pb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
-                      Choose your option
-                    </p>
-                    <ul className="max-h-[22rem] space-y-2 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]">
-                      {tourVariants.map((v) => {
-                        const dayErr =
-                          v.listingOption && bookingDate.trim()
-                            ? optionRunsOnDate(v.listingOption, bookingDate.trim())
-                            : null;
-                        const selected = selectedBookingVariant?.id === v.id;
-                        const opt = v.listingOption;
-                        const groupLine =
-                          opt && opt.minPersons && opt.maxPersons
-                            ? opt.minPersons === opt.maxPersons
-                              ? `${opt.maxPersons} guests`
-                              : `${opt.minPersons}–${opt.maxPersons} guests`
-                            : null;
-                        return (
-                        <li key={v.id} role="option" aria-disabled={Boolean(dayErr)} aria-selected={selected}>
+                            </div>
+                          ) : panelQuote && !panelQuote.ok ? (
+                            <p className="text-xs text-red-700">{panelQuote.error}</p>
+                          ) : null}
                           <button
                             type="button"
-                            disabled={Boolean(dayErr)}
-                            className={`w-full px-3.5 py-3.5 text-left rounded-xl ring-1 transition-all sm:py-4 ${
-                              dayErr
-                                ? 'opacity-50 cursor-not-allowed ring-black/[0.04]'
-                                : selected
-                                  ? 'bg-finland/[0.08] shadow-sm ring-2 ring-finland'
-                                  : 'bg-paper ring-black/[0.08] hover:bg-finland/5 hover:ring-finland/35 active:bg-finland/10'
-                            }`}
-                            onClick={() => handleSelectTourVariant(v)}
+                            onClick={() => void handleContinueToCheckout()}
+                            disabled={variantChecking || (panelQuote != null && !panelQuote.ok)}
+                            className="tv-btn-primary w-full disabled:opacity-60"
                           >
-                            <span className="flex items-start gap-3">
-                              <span
-                                className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
-                                  selected
-                                    ? 'border-finland bg-finland text-white'
-                                    : 'border-black/20 bg-paper'
-                                }`}
-                                aria-hidden
-                              >
-                                {selected ? (
-                                  <CheckCircle className="h-3.5 w-3.5" />
-                                ) : null}
-                              </span>
-                              <span className="min-w-0 flex-1">
-                                <span className="flex items-start justify-between gap-3">
-                                  <span className="min-w-0">
-                                    <span className="font-semibold text-ink">{v.label}</span>
-                                    {opt?.isPrivate ? (
-                                      <span className="mt-1 flex flex-wrap items-center gap-1.5">
-                                        <span className="inline-flex rounded-full bg-ink px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-paper">
-                                          Private
-                                        </span>
-                                        <span className="text-[11px] text-ink-muted">Your group only</span>
-                                      </span>
-                                    ) : null}
-                                  </span>
-                                  <span className="text-sm font-semibold tabular-nums shrink-0 text-ink">
-                                    {optionUsesAgePricing(opt)
-                                      ? summarizeOptionPricing(opt!, (n) => formatMoney(n, tour.price?.currency))
-                                      : (
-                                        <>
-                                          {formatMoney(v.pricePerPerson, tour.price?.currency)}
-                                          <span className="block text-right text-xs font-normal text-ink-muted">
-                                            {optionUsesPrivateFlatPrice(opt) ? 'private group' : 'per person'}
-                                          </span>
-                                        </>
-                                      )}
-                                  </span>
-                                </span>
-                                {opt ? (
-                                  <span className="mt-1.5 block text-xs text-ink-muted">
-                                    {[
-                                      opt.duration.trim() || null,
-                                      groupLine,
-                                      opt.startTime.trim() ? `Starts ${opt.startTime}` : null,
-                                      opt.pickupPlace.trim() || null,
-                                    ]
-                                      .filter(Boolean)
-                                      .join(' · ')}
-                                  </span>
-                                ) : null}
-                                {opt?.optionInfo?.trim() ? (
-                                  <span className="mt-1 block text-xs leading-snug text-ink-muted">
-                                    {opt.optionInfo.trim()}
-                                  </span>
-                                ) : v.subtitle ? (
-                                  <span className="mt-1 block text-xs leading-snug text-ink-muted">
-                                    {v.subtitle}
-                                  </span>
-                                ) : null}
-                                {dayErr ? <span className="mt-1 block text-xs text-red-700">{dayErr}</span> : null}
-                              </span>
-                            </span>
+                            {variantChecking ? 'Checking…' : 'Continue · TEST'}
                           </button>
-                        </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-                  ) : null}
-
-                  <div className="mt-3 space-y-1.5 text-xs text-ink-muted">
-                    <p className="flex items-center gap-2">
-                      <CheckCircle className="w-3.5 h-3.5 text-finland flex-shrink-0" />{' '}
-                      {tour.cancellationPolicy?.trim() || TRAVERION_STANDARD_CANCELLATION_POLICY}
-                    </p>
-                    <p className="flex items-center gap-2">
-                      <Shield className="w-3.5 h-3.5 text-finland flex-shrink-0" /> Pay via Stripe TEST until live
-                    </p>
-                    <p className="leading-relaxed">
-                      {TOUR_LISTING_CONFIRMATION_NOTE} {BOOKING_CONFIRMATION_EMAIL_DISCLAIMER} Stripe TEST until live.
-                    </p>
-                  </div>
-                </div>
-                </>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-ink-muted">
+                          {bookingDate.trim()
+                            ? 'Choose an option next to continue.'
+                            : 'Choose a date to see available options.'}
+                        </p>
+                      )}
+                      <div role="status" aria-live="polite" aria-atomic="true" className="min-h-[1.25rem]">
+                        {bookingCardError ? (
+                          <NoticeCallout title="Check your selection" tone="danger">
+                            {bookingCardError}
+                          </NoticeCallout>
+                        ) : null}
+                      </div>
+                      <div className="space-y-1.5 text-xs text-ink-muted">
+                        <p className="flex items-start gap-2">
+                          <Shield className="w-3.5 h-3.5 text-finland flex-shrink-0 mt-0.5" aria-hidden />
+                          Pay via Stripe TEST until live
+                        </p>
+                        <p className="leading-relaxed">
+                          {TOUR_LISTING_CONFIRMATION_NOTE} {BOOKING_CONFIRMATION_EMAIL_DISCLAIMER}
+                        </p>
+                      </div>
+                    </div>
+                  </>
                 )}
               </div>
             </div>
@@ -1793,15 +1288,30 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                 {(() => {
                   const { price, qualifier } = getDisplayPriceForTour(tour, discountsByListing);
                   const currency = normalizeCurrency(tour.price?.currency);
+                  const dateLabel = bookingDate.trim() ? formatTourAvailabilityHeading(bookingDate.trim()) : '';
+                  const guestsLine =
+                    usesAgePricing && selectedOption
+                      ? formatMixSummaryCompact(buildParticipantMixLines(selectedOption, participantMix)) ||
+                        `${guests} ${guests === 1 ? 'guest' : 'guests'}`
+                      : `${guests} ${guests === 1 ? 'guest' : 'guests'}`;
+                  const priceLine =
+                    selectedBookingVariant && panelQuote?.ok
+                      ? formatMoney(panelQuote.totalAmount, panelQuote.currency)
+                      : `From ${formatMoney(Number(price), currency)}`;
+                  const subLine =
+                    selectedBookingVariant
+                      ? [selectedBookingVariant.label, dateLabel].filter(Boolean).join(' · ')
+                      : dateLabel
+                        ? `${dateLabel} · ${guestsLine}`
+                        : listingShowsFreeCancellation(tour)
+                          ? `Free cancellation · ${qualifier ? `per ${qualifier}` : 'per person'}`
+                          : qualifier
+                            ? `From · per ${qualifier}`
+                            : 'From · per person';
                   return (
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold text-ink">
-                        From {formatMoney(Number(price), currency)}
-                        <span className="font-normal text-ink-muted">{qualifier ? ` per ${qualifier}` : ' per person'}</span>
-                      </p>
-                      <p className="text-xs text-ink-muted">
-                        {listingShowsFreeCancellation(tour) ? 'Free cancellation · Stripe TEST until live' : 'Pay via Stripe TEST until live'}
-                      </p>
+                      <p className="text-sm font-semibold tabular-nums text-ink">{priceLine}</p>
+                      <p className="truncate text-xs text-ink-muted">{subLine}</p>
                     </div>
                   );
                 })()}
