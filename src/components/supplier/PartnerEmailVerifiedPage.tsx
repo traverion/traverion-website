@@ -116,8 +116,8 @@ export default function PartnerEmailVerifiedPage() {
         <img src={BRAND_LOGO_SRC} alt="" className="h-10 w-10 object-contain" />
       </header>
       <main className="flex-1 flex items-center justify-center px-5 pb-16">
-        <div className="w-full max-w-md rounded-2xl bg-paper-raised p-6 sm:p-8 shadow-soft-lg ring-1 ring-black/[0.06] text-center">
-          <div className="inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15 mb-3">
+        <div className="w-full max-w-md tv-card p-4 sm:p-5 text-center">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">
             Partner account
           </div>
           <p className="sr-only">Traverion Partner</p>
