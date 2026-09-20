@@ -21,11 +21,11 @@ export default function LegalPageShell({
 }: LegalPageShellProps) {
   return (
     <div className="min-h-screen bg-paper tv-page">
-      <div className="max-w-2xl mx-auto px-5 sm:px-6 py-12 sm:py-16 motion-safe:animate-fade-in">
+      <div className="max-w-2xl mx-auto px-5 sm:px-6 py-8 sm:py-10 motion-safe:animate-fade-in">
         <button
           type="button"
           onClick={() => goProductReturn(onNavigate)}
-          className="tv-btn-ghost mb-8 -ml-2"
+          className="tv-btn-ghost mb-5 -ml-2"
         >
           <ArrowLeft className="w-4 h-4" aria-hidden />
           Back
@@ -33,7 +33,7 @@ export default function LegalPageShell({
         {eyebrow ? (
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">{eyebrow}</p>
         ) : null}
-        <h1 className="font-display text-3xl sm:text-5xl text-ink tracking-tight">{title}</h1>
+        <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">{title}</h1>
         {subtitle ? (
           <p className="mt-3 text-base text-ink-muted max-w-xl leading-relaxed">{subtitle}</p>
         ) : null}
@@ -43,9 +43,9 @@ export default function LegalPageShell({
           </p>
         ) : null}
         <div
-          className="mt-10 rounded-2xl bg-paper-raised p-5 sm:p-8 shadow-soft ring-1 ring-black/[0.06]
-            space-y-8 text-[15px] sm:text-base text-ink leading-relaxed
-            [&_h2]:font-display [&_h2]:text-2xl [&_h2]:text-ink [&_h2]:tracking-tight [&_h2]:mt-2 [&_h2]:mb-3
+          className="mt-6 rounded-2xl bg-paper-raised p-4 sm:p-6 shadow-soft ring-1 ring-black/[0.06]
+            space-y-5 text-[15px] sm:text-base text-ink leading-relaxed
+            [&_h2]:font-display [&_h2]:text-xl [&_h2]:text-ink [&_h2]:tracking-tight [&_h2]:mt-1 [&_h2]:mb-2
             [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-2
             [&_p]:text-ink-muted
             [&_strong]:text-ink [&_strong]:font-semibold
