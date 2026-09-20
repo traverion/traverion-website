@@ -44,7 +44,7 @@ import { isListingVisibleToTravelers } from '../lib/product-workflows';
 import { listingIsOnTravelerCatalog } from '../lib/inventory';
 import { listingShowsFreeCancellation, publicReviewLabel } from '../lib/listingTruth';
 import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
-import { listingTourCapacityFromOptions } from '../lib/availability-ops';
+import { listingTourCapacityFromOptions, remainingCapacity } from '../lib/availability-ops';
 import { tourSoldOutDates } from '../lib/tour-calendar';
 import BookingPage from './BookingPage';
 import {
@@ -160,6 +160,11 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   const [savePop, setSavePop] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
   const [soldOutDates, setSoldOutDates] = useState<ReadonlySet<string>>(() => new Set());
+  const [dayCapacitySnap, setDayCapacitySnap] = useState<{
+    paidByDay: Record<string, number>;
+    capByDay: Map<string, number>;
+    fallback: number;
+  } | null>(null);
   const optionsSectionRef = useRef<HTMLDivElement>(null);
   const userRef = useRef(user);
   userRef.current = user;
@@ -228,6 +233,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   useEffect(() => {
     if (!tour?.id) {
       setSoldOutDates(new Set());
+      setDayCapacitySnap(null);
       return;
     }
     let cancelled = false;
@@ -241,6 +247,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
           if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) continue;
           capByDay.set(day, row.capacity);
         }
+        setDayCapacitySnap({ paidByDay, capByDay, fallback: fallbackCap });
         setSoldOutDates(tourSoldOutDates({ paidByDay, capByDay, fallbackCapacity: fallbackCap }));
       }
     );
@@ -248,6 +255,14 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       cancelled = true;
     };
   }, [tour?.id, calendarOptions]);
+
+  const selectedDaySpotsLeft = useMemo(() => {
+    const day = bookingDate.trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !dayCapacitySnap) return null;
+    if (soldOutDates.has(day)) return 0;
+    const cap = dayCapacitySnap.capByDay.get(day) ?? dayCapacitySnap.fallback;
+    return remainingCapacity(cap, dayCapacitySnap.paidByDay[day] ?? 0);
+  }, [bookingDate, dayCapacitySnap, soldOutDates]);
 
   useEffect(() => {
     if (!tour?.id) return;
@@ -1229,6 +1244,19 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                     soldOutDates={soldOutDates}
                     hint={weekdayHint}
                   />
+                  {selectedDaySpotsLeft != null ? (
+                    <p
+                      className={`-mt-2 text-xs font-medium ${
+                        selectedDaySpotsLeft === 0 ? 'text-ink-muted' : 'text-finland'
+                      }`}
+                    >
+                      {selectedDaySpotsLeft === 0
+                        ? 'Fully booked this day'
+                        : selectedDaySpotsLeft === 1
+                          ? '1 spot left this day'
+                          : `${selectedDaySpotsLeft} spots left this day`}
+                    </p>
+                  ) : null}
                   {!selectedBookingVariant ? (
                     <>
                       <button
