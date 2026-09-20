@@ -100,8 +100,8 @@ export const PARTNER_NAV_RESERVATIONS_CHILDREN: PartnerNavItem[] = [
 ];
 
 export const PARTNER_SIDEBAR_PRIMARY: PartnerSidebarEntry[] = [
-  { kind: 'item', id: 'dashboard', label: 'Home', icon: LayoutDashboard },
   { kind: 'action', id: 'create', label: 'Create' },
+  { kind: 'item', id: 'dashboard', label: 'Home', icon: LayoutDashboard },
   { kind: 'item', id: 'listings', label: 'Listings', icon: MapPin },
   {
     kind: 'group',

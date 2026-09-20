@@ -46,11 +46,11 @@ function NavButton({
       aria-current={active ? 'page' : undefined}
       title={collapsed ? item.label : undefined}
       className={`partner-nav-item lux-flat group relative flex w-full items-center gap-2.5 rounded-md text-left text-[13.5px] ${
-        collapsed ? 'justify-center px-2 py-2' : nested ? 'pl-8 pr-2.5 py-[6px]' : 'px-2.5 py-[7px]'
+        collapsed ? 'justify-center px-2 py-2' : nested ? 'pl-8 pr-2.5 py-[7px]' : 'px-2.5 py-[8px]'
       } ${
         active
           ? 'bg-white font-semibold text-slate-900 shadow-[0_0_0_1px_rgba(15,23,42,0.06)]'
-          : 'font-medium text-slate-600 hover:bg-slate-900/[0.035] hover:text-slate-900'
+          : 'font-medium text-slate-600 hover:bg-slate-900/[0.055] hover:text-slate-900'
       }`}
     >
       {active && !collapsed ? (
@@ -122,7 +122,9 @@ export default function PartnerSidebar({
         <button
           type="button"
           onClick={onHome}
-          className={`lux-flat flex min-w-0 items-center ${collapsed ? 'justify-center' : 'gap-2.5'}`}
+          className={`partner-nav-item lux-flat flex min-w-0 items-center rounded-md ${
+            collapsed ? 'justify-center px-1 py-1' : 'gap-2.5 px-1 py-1 -mx-1'
+          } hover:bg-slate-900/[0.04]`}
           aria-label="Partner home"
         >
           <img src={BRAND_LOGO_SRC} alt="" className="h-7 w-7 shrink-0 object-contain" />
@@ -145,11 +147,11 @@ export default function PartnerSidebar({
           if (entry.kind === 'action') {
             if (collapsed) {
               return (
-                <div key={entry.id} className="mb-2 mt-1 flex justify-center">
+                <div key={entry.id} className="mb-3 flex justify-center pb-3 border-b border-slate-200/70">
                   <button
                     type="button"
                     onClick={onCreate}
-                    className="partner-nav-item lux-flat flex h-8 w-8 items-center justify-center rounded-md bg-finland text-white hover:bg-finland-dark"
+                    className="partner-nav-item partner-nav-cta lux-flat flex h-8 w-8 items-center justify-center rounded-md bg-finland text-white hover:bg-finland-dark"
                     title={entry.label}
                     aria-label={entry.label}
                   >
@@ -159,11 +161,11 @@ export default function PartnerSidebar({
               );
             }
             return (
-              <div key={entry.id} className="mb-2 mt-1 px-0.5">
+              <div key={entry.id} className="mb-3 px-0.5 pb-3 border-b border-slate-200/70">
                 <button
                   type="button"
                   onClick={onCreate}
-                  className="partner-nav-item lux-flat flex w-full items-center justify-center gap-1.5 rounded-md bg-finland px-3 py-2 text-[13px] font-semibold text-white hover:bg-finland-dark"
+                  className="partner-nav-item partner-nav-cta lux-flat flex w-full items-center justify-center gap-1.5 rounded-md bg-finland px-3 py-2.5 text-[13px] font-semibold text-white hover:bg-finland-dark"
                 >
                   <Plus className="h-3.5 w-3.5" strokeWidth={2.2} aria-hidden />
                   {entry.label}
@@ -174,7 +176,7 @@ export default function PartnerSidebar({
 
           if (entry.kind === 'item') {
             return (
-              <div key={entry.id} className="mb-px">
+              <div key={entry.id} className="mb-2">
                 <NavButton
                   item={entry}
                   active={activeSection === entry.id}
@@ -191,7 +193,7 @@ export default function PartnerSidebar({
 
           if (collapsed) {
             return (
-              <div key={entry.id} className="mb-px">
+              <div key={entry.id} className="mb-2">
                 <NavButton
                   item={{ id: collapsedTarget, label: entry.label, icon: entry.icon }}
                   active={groupActive}
@@ -203,19 +205,19 @@ export default function PartnerSidebar({
           }
 
           return (
-            <div key={entry.id} className="mb-0.5">
+            <div key={entry.id} className="mb-2">
               <button
                 type="button"
                 onClick={() => toggleGroup(entry)}
                 aria-expanded={isOpen}
-                className={`partner-nav-item lux-flat flex w-full items-center gap-2.5 rounded-md px-2.5 py-[7px] text-left text-[13.5px] font-medium ${
+                className={`partner-nav-item lux-flat group flex w-full items-center gap-2.5 rounded-md px-2.5 py-[8px] text-left text-[13.5px] font-medium ${
                   groupActive
-                    ? 'text-slate-900'
-                    : 'text-slate-600 hover:bg-slate-900/[0.035] hover:text-slate-900'
+                    ? 'text-slate-900 hover:bg-slate-900/[0.04]'
+                    : 'text-slate-600 hover:bg-slate-900/[0.055] hover:text-slate-900'
                 }`}
               >
                 <entry.icon
-                  className={`h-4 w-4 shrink-0 ${groupActive ? 'text-finland' : 'text-slate-400'}`}
+                  className={`h-4 w-4 shrink-0 ${groupActive ? 'text-finland' : 'text-slate-400 group-hover:text-slate-600'}`}
                   strokeWidth={groupActive ? 2.1 : 1.65}
                   aria-hidden
                 />
@@ -228,7 +230,7 @@ export default function PartnerSidebar({
                 />
               </button>
               {isOpen ? (
-                <ul className="mt-0.5 mb-1 space-y-px">
+                <ul className="mt-1 mb-1.5 space-y-1">
                   {entry.children.map((child) => (
                     <li key={child.id}>
                       <NavButton
@@ -261,7 +263,7 @@ export default function PartnerSidebar({
         ) : null}
       </nav>
 
-      <div className="shrink-0 border-t border-slate-200/80 px-2 pt-2 pb-1">
+      <div className="shrink-0 border-t border-slate-200/80 px-2 pt-2.5 pb-1.5 space-y-1">
         {footer.map((item) => (
           <NavButton
             key={item.id}
@@ -278,7 +280,7 @@ export default function PartnerSidebar({
           <button
             type="button"
             onClick={onToggleCollapsed}
-            className="partner-nav-item lux-flat flex w-full items-center justify-center gap-2 rounded-md px-2 py-1.5 text-[12.5px] font-medium text-slate-500 hover:bg-slate-900/[0.035] hover:text-slate-800"
+            className="partner-nav-item lux-flat flex w-full items-center justify-center gap-2 rounded-md px-2 py-2 text-[12.5px] font-medium text-slate-500 hover:bg-slate-900/[0.055] hover:text-slate-800"
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             {collapsed ? (

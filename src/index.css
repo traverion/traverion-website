@@ -132,10 +132,33 @@
   }
 
   .partner-nav-item {
-    transition: background-color 140ms cubic-bezier(0.22, 1, 0.36, 1),
-      color 140ms cubic-bezier(0.22, 1, 0.36, 1),
-      box-shadow 140ms cubic-bezier(0.22, 1, 0.36, 1),
-      border-color 140ms cubic-bezier(0.22, 1, 0.36, 1);
+    transition: background-color 160ms cubic-bezier(0.22, 1, 0.36, 1),
+      color 160ms cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 160ms cubic-bezier(0.22, 1, 0.36, 1),
+      border-color 160ms cubic-bezier(0.22, 1, 0.36, 1),
+      transform 160ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .partner-sidebar .partner-nav-item:not(.partner-nav-cta):hover {
+    background-color: rgba(15, 23, 42, 0.055);
+  }
+
+  .partner-sidebar .partner-nav-item[aria-current='page']:hover {
+    background-color: #fff;
+  }
+
+  .partner-sidebar .partner-nav-cta:hover {
+    filter: brightness(1.08);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .partner-sidebar .partner-nav-item:hover {
+      transform: translateX(3px);
+    }
+
+    .partner-sidebar .partner-nav-item:active {
+      transform: translateX(1px);
+    }
   }
 
   .partner-row-interact {
@@ -548,10 +571,10 @@ input[type='reset']:not(:disabled):not(.no-lux-interaction) {
   }
 }
 
-button.lux-flat:hover,
-button.lux-flat:active,
-input.lux-flat:hover,
-input.lux-flat:active {
+button.lux-flat:not(.partner-nav-item):hover,
+button.lux-flat:not(.partner-nav-item):active,
+input.lux-flat:not(.partner-nav-item):hover,
+input.lux-flat:not(.partner-nav-item):active {
   transform: none !important;
   box-shadow: none !important;
   filter: none !important;

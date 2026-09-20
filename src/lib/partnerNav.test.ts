@@ -12,12 +12,12 @@ import {
 } from './partnerNav';
 
 describe('partnerNav IA', () => {
-  it('pins Home and Create before inventory and ops groups', () => {
+  it('pins Create first, then Home, before inventory and ops groups', () => {
     expect(PARTNER_NAV_HOME.id).toBe('dashboard');
     expect(PARTNER_NAV_HOME.label).toBe('Home');
     expect(PARTNER_SIDEBAR_PRIMARY.map((e) => e.id)).toEqual([
-      'dashboard',
       'create',
+      'dashboard',
       'listings',
       'bookings',
       'reservations',
