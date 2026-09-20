@@ -435,7 +435,7 @@ export default function Stays({ onStaySelect }: Props) {
           <div className="rounded-2xl bg-paper-raised px-6 py-2 shadow-soft ring-1 ring-black/[0.06] sm:px-8">
             {stays.length === 0 ? (
               <EmptyState
-                className="py-10 sm:py-12 max-w-lg"
+                className="py-8 sm:py-10 max-w-lg"
                 icon={Compass}
                 title="No stays published yet"
                 body="Traverion does not fill this page with sample apartments. When an operator publishes a stay, it appears here."
@@ -447,7 +447,7 @@ export default function Stays({ onStaySelect }: Props) {
               />
             ) : (
               <EmptyState
-                className="py-10 sm:py-12 max-w-lg"
+                className="py-8 sm:py-10 max-w-lg"
                 icon={Search}
                 title="No stays match"
                 body={
