@@ -500,7 +500,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                   disabled={payingId === pendingPayBookings[0].id}
                   className="tv-btn-primary"
                 >
-                  {payingId === pendingPayBookings[0].id ? 'Opening checkout…' : 'Pay now'}
+                  {payingId === pendingPayBookings[0].id ? 'Opening checkout…' : 'Pay now · TEST'}
                 </button>
               ) : (
                 <button type="button" onClick={() => onNavigate('packages')} className="tv-btn-primary">
