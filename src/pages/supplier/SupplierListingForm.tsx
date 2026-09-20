@@ -2226,7 +2226,10 @@ export default function SupplierListingForm({
               <h3 id="supplier-listing-field-stay-price" className="font-display text-xl text-ink">
                 Stay price and rooms
               </h3>
-              <p className="text-sm text-ink-muted">Nightly rate for the property, not per person.</p>
+              <p className="text-sm text-ink-muted leading-snug">
+                Nightly rate for the whole property, not per guest. Travelers pay nights × rate (+ cleaning fee if set).
+                Block unavailable nights on Calendar after you publish — pricing here does not close dates.
+              </p>
               <div className="grid sm:grid-cols-2 gap-3">
                 <label className="block text-sm">
                   Nightly price ({listingCurrency})
