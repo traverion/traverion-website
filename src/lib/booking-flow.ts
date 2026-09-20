@@ -78,8 +78,8 @@ export function getPartySizeBoundsForVariant(
 export function formatPartySizeHint(bounds: { min: number; max: number }): string {
   if (bounds.min === bounds.max) {
     return bounds.min === 1
-      ? 'This tour is for 1 guest only.'
-      : `This tour is for exactly ${bounds.min} guests.`;
+      ? 'This booking is for 1 guest only.'
+      : `This booking is for exactly ${bounds.min} guests.`;
   }
   return `${bounds.min}–${bounds.max} guests per booking.`;
 }
