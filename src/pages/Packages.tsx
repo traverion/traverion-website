@@ -611,7 +611,7 @@ export default function Packages({ onTourSelect }: PackagesProps) {
               className="h-8 bg-transparent text-sm font-medium text-ink"
               aria-label="Sort"
             >
-              <option value="recommended">Recommended</option>
+              <option value="recommended">Catalog order</option>
               <option value="price-asc">Price: low to high</option>
               <option value="price-desc">Price: high to low</option>
               <option value="rating">Top rated</option>
