@@ -538,7 +538,7 @@ export default function SupplierAvailability() {
           ) : null}
 
           <div
-            className="mb-4 flex flex-wrap gap-x-4 gap-y-2 rounded-xl bg-paper-raised px-3 py-2.5 text-xs text-ink-muted shadow-soft ring-1 ring-black/[0.06]"
+            className="mb-3 flex flex-wrap gap-x-3 gap-y-1.5 rounded-lg border border-black/[0.06] bg-paper px-3 py-2 text-[11px] text-ink-muted"
             aria-hidden
           >
             {stayCalendar ? (
