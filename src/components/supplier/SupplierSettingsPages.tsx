@@ -216,11 +216,11 @@ function SaveBar({
   errorText?: string | null;
 }) {
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-2">
-      <p className="text-xs text-ink-muted max-w-md">
-        Changes are saved only when you press the button. Traverion reviews submissions manually.
+    <div className="flex flex-col gap-2 pt-1.5 sm:flex-row sm:items-center sm:justify-between">
+      <p className="text-[11px] text-ink-muted max-w-md leading-snug">
+        Saves only when you press the button. Traverion reviews submissions manually.
       </p>
-      <div className="flex flex-col items-stretch sm:items-end gap-2 min-w-[12rem]">
+      <div className="flex flex-col items-stretch gap-1 sm:items-end min-w-[10rem]">
         <button
           type="button"
           disabled={saving || disabled}
@@ -229,9 +229,9 @@ function SaveBar({
         >
           {saving ? savingLabel : label}
         </button>
-        {success && <span className="text-xs text-emerald-800 font-medium">Saved successfully.</span>}
-        {error && <span className="text-xs text-red-700 font-medium">Could not save. Try again.</span>}
-        {errorText ? <span className="text-xs text-red-700">{errorText}</span> : null}
+        {success && <span className="text-[11px] text-emerald-800 font-medium">Saved.</span>}
+        {error && <span className="text-[11px] text-red-700 font-medium">Could not save. Try again.</span>}
+        {errorText ? <span className="text-[11px] text-red-700">{errorText}</span> : null}
       </div>
     </div>
   );
