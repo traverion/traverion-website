@@ -15,7 +15,7 @@ import { materializedBookingOptions } from '../../types/listingExtras';
 import type { TourPackage } from '../../types/tour';
 import { listingRunsOnDate } from '../../lib/booking-quote';
 import { inventoryFamilyFromListing } from '../../lib/inventory';
-import { nightsOccupiedByStay, stayRangeFromBooking, partnerStayDayKind, partnerStayCalendarOccupiesNight } from '../../lib/stayOccupancy';
+import { nightsOccupiedByStay, stayRangeFromBooking, partnerStayDayKind, partnerStayCalendarOccupiesNight, addCalendarDays } from '../../lib/stayOccupancy';
 import {
   buildMonthCells,
   defaultCapacityForOpenDay,
