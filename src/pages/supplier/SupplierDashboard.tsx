@@ -20,7 +20,7 @@ import { bookingPaymentWasCollected, isCollectedBooking, isRefundDueBooking } fr
 import type { TourPackage } from '../../types/tour';
 import SupplierPortalNoticePanel from '../../components/supplier/SupplierPortalNoticePanel';
 import { navigateSupplierUrl, openSupplierCalendar, openSupplierInbox, openSupplierPickup, openSupplierReviews } from '../../lib/supplierPortalNavigation';
-import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
+import { PARTNER_APP_BASE, PARTNER_CREATE_PATH } from '../../lib/partnerPortalPaths';
 import { formatMoney, normalizeCurrency } from '../../lib/money';
 import { bookingOccupiesInventory } from '../../lib/booking-hold';
 import { partnerBookingIsOperatingTrip, partnerBookingIsTodaySchedule, partnerBookingIsUpcomingSchedule, partnerBookingIsActiveUnpaidCheckout } from '../../lib/trip-views';
@@ -477,7 +477,7 @@ export default function SupplierDashboard() {
           </button>
           <button
             type="button"
-            onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/listings?new=1`)}
+            onClick={() => navigateSupplierUrl(PARTNER_CREATE_PATH)}
             className="partner-btn-primary lux-flat inline-flex h-8 items-center rounded-md bg-finland px-3 text-[13px] font-semibold text-white hover:bg-finland-dark md:hidden"
           >
             New listing

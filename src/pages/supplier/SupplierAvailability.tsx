@@ -23,7 +23,7 @@ import {
 } from '../../lib/availability-ops';
 import { formatPartnerCheckoutHoldLabel } from '../../lib/booking-hold';
 import { navigateSupplierUrl, openSupplierBooking } from '../../lib/supplierPortalNavigation';
-import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
+import { PARTNER_APP_BASE, PARTNER_CREATE_PATH } from '../../lib/partnerPortalPaths';
 import {
   SUPPLIER_PAGE_CLASS,
   SupplierEmptyState,
@@ -456,7 +456,7 @@ export default function SupplierAvailability() {
           action={
             <button
               type="button"
-              onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/listings?new=1`)}
+              onClick={() => navigateSupplierUrl(PARTNER_CREATE_PATH)}
               className="tv-btn-primary"
             >
               New listing

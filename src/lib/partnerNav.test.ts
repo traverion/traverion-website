@@ -1,53 +1,60 @@
 import { describe, expect, it } from 'vitest';
 import {
-  PARTNER_NAV_TODAY,
-  PARTNER_NAV_MANAGE,
-  PARTNER_NAV_LISTINGS,
-  PARTNER_NAV_GROW,
-  PARTNER_NAV_FINANCE,
-  PARTNER_NAV_BUSINESS,
-  PARTNER_SIDEBAR_GROUPS,
+  PARTNER_NAV_HOME,
+  PARTNER_NAV_BOOKINGS_CHILDREN,
+  PARTNER_NAV_RESERVATIONS_CHILDREN,
+  PARTNER_SIDEBAR_PRIMARY,
+  PARTNER_SIDEBAR_FOOTER,
   PARTNER_MORE_GROUPS,
+  PARTNER_NAV_OFFERS,
+  partnerSidebarGroupContaining,
+  partnerSidebarDefaultChild,
 } from './partnerNav';
 
 describe('partnerNav IA', () => {
-  it('pins Today outside expandable groups', () => {
-    expect(PARTNER_NAV_TODAY.id).toBe('dashboard');
-    expect(PARTNER_SIDEBAR_GROUPS.every((g) => !g.items.some((i) => i.id === 'dashboard'))).toBe(true);
-  });
-
-  it('keeps bookings, inbox, and pickup visible under Manage', () => {
-    expect(PARTNER_NAV_MANAGE.map((i) => i.id)).toEqual(['bookings', 'inbox', 'pickup']);
-  });
-
-  it('pairs listings with calendar', () => {
-    expect(PARTNER_NAV_LISTINGS.map((i) => i.id)).toEqual(['listings', 'availability']);
-  });
-
-  it('exposes grow and finance surfaces', () => {
-    expect(PARTNER_NAV_GROW.map((i) => i.id)).toEqual(['performance', 'reviews', 'discounts']);
-    expect(PARTNER_NAV_FINANCE.map((i) => i.id)).toEqual(['earnings']);
-  });
-
-  it('keeps business identity separate from ops', () => {
-    expect(PARTNER_NAV_BUSINESS.map((i) => i.id)).toEqual(['business-profile', 'account-settings']);
-  });
-
-  it('orders sidebar groups manage → listings → grow → finance → business', () => {
-    expect(PARTNER_SIDEBAR_GROUPS.map((g) => g.id)).toEqual([
-      'manage',
+  it('pins Home and Create before inventory and ops groups', () => {
+    expect(PARTNER_NAV_HOME.id).toBe('dashboard');
+    expect(PARTNER_NAV_HOME.label).toBe('Home');
+    expect(PARTNER_SIDEBAR_PRIMARY.map((e) => e.id)).toEqual([
+      'dashboard',
+      'create',
       'listings',
-      'grow',
-      'finance',
-      'business',
+      'bookings',
+      'reservations',
+      'inbox',
+      'reviews',
+      'earnings',
+      'performance',
     ]);
   });
 
-  it('mirrors the same capabilities in the mobile More sheet', () => {
+  it('keeps tour ops under Bookings without making listing type the sidebar axis', () => {
+    expect(PARTNER_NAV_BOOKINGS_CHILDREN.map((i) => i.id)).toEqual([
+      'bookings',
+      'pickup',
+      'availability',
+    ]);
+  });
+
+  it('exposes a single real Reservations surface', () => {
+    expect(PARTNER_NAV_RESERVATIONS_CHILDREN.map((i) => i.id)).toEqual(['reservations']);
+    const group = partnerSidebarGroupContaining('reservations');
+    expect(group?.id).toBe('reservations');
+    expect(partnerSidebarDefaultChild(group!)).toBe('reservations');
+  });
+
+  it('keeps Help and Settings in the footer, not mixed with ops', () => {
+    expect(PARTNER_SIDEBAR_FOOTER.map((i) => i.id)).toEqual(['help', 'business-profile']);
+  });
+
+  it('keeps Offers reachable without a top-level item', () => {
+    expect(PARTNER_NAV_OFFERS.id).toBe('discounts');
+    expect(PARTNER_SIDEBAR_PRIMARY.some((e) => e.id === 'discounts')).toBe(false);
     const moreIds = PARTNER_MORE_GROUPS.flatMap((g) => g.items.map((i) => i.id));
+    expect(moreIds).toContain('discounts');
     expect(moreIds).toContain('inbox');
     expect(moreIds).toContain('pickup');
-    expect(moreIds).toContain('earnings');
-    expect(moreIds).toContain('business-profile');
+    expect(moreIds).toContain('help');
+    expect(moreIds).toContain('account-settings');
   });
 });

@@ -15,7 +15,7 @@ import ErrorState from '../../components/ErrorState';
 import { isCollectedBooking } from '../../lib/payment-states';
 import { formatMoney, normalizeCurrency } from '../../lib/money';
 import { navigateSupplierUrl, openSupplierCalendar } from '../../lib/supplierPortalNavigation';
-import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
+import { PARTNER_APP_BASE, PARTNER_CREATE_PATH } from '../../lib/partnerPortalPaths';
 import { inventoryFamilyFromListing } from '../../lib/inventory';
 
 const PERFORMANCE_LOAD_ERROR =
@@ -247,7 +247,7 @@ export default function SupplierPerformance() {
             listings.length === 0 ? (
               <button
                 type="button"
-                onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/listings?new=1`)}
+                onClick={() => navigateSupplierUrl(PARTNER_CREATE_PATH)}
                 className="tv-btn-primary"
               >
                 Create a listing

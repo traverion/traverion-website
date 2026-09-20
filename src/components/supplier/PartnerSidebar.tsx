@@ -1,17 +1,25 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ChevronDown, PanelLeftClose, PanelLeft, Plus } from 'lucide-react';
-import type { PartnerNavGroup, PartnerNavItem, PartnerNavSectionId } from '../../lib/partnerNav';
-import { PARTNER_NAV_TODAY } from '../../lib/partnerNav';
+import type {
+  PartnerNavItem,
+  PartnerNavSectionId,
+  PartnerSidebarEntry,
+  PartnerSidebarGroup,
+} from '../../lib/partnerNav';
+import {
+  partnerSidebarDefaultChild,
+  partnerSidebarGroupContaining,
+} from '../../lib/partnerNav';
 import { BRAND_LOGO_SRC } from '../../lib/brandAssets';
-import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
-import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
 
 type PartnerSidebarProps = {
-  groups: PartnerNavGroup[];
+  primary: PartnerSidebarEntry[];
+  footer: PartnerNavItem[];
   activeSection: string;
   businessLabel: string | null;
   onNavigate: (id: PartnerNavSectionId) => void;
   onHome: () => void;
+  onCreate: () => void;
   showFinishSetup?: boolean;
   onFinishSetup?: () => void;
   collapsed?: boolean;
@@ -23,11 +31,13 @@ function NavButton({
   active,
   onClick,
   collapsed,
+  nested,
 }: {
   item: PartnerNavItem;
   active: boolean;
   onClick: () => void;
   collapsed?: boolean;
+  nested?: boolean;
 }) {
   return (
     <button
@@ -36,7 +46,7 @@ function NavButton({
       aria-current={active ? 'page' : undefined}
       title={collapsed ? item.label : undefined}
       className={`partner-nav-item lux-flat group relative flex w-full items-center gap-2.5 rounded-md text-left text-[13.5px] ${
-        collapsed ? 'justify-center px-2 py-2' : 'px-2.5 py-[7px]'
+        collapsed ? 'justify-center px-2 py-2' : nested ? 'pl-8 pr-2.5 py-[6px]' : 'px-2.5 py-[7px]'
       } ${
         active
           ? 'bg-white font-semibold text-slate-900 shadow-[0_0_0_1px_rgba(15,23,42,0.06)]'
@@ -66,46 +76,40 @@ function NavButton({
 }
 
 /**
- * Desktop Partner sidebar — fixed in the app shell; only the main pane scrolls.
+ * Desktop Partner sidebar — data-driven IA from partnerNav.
  */
 export default function PartnerSidebar({
-  groups,
+  primary,
+  footer,
   activeSection,
   businessLabel,
   onNavigate,
   onHome,
+  onCreate,
   showFinishSetup,
   onFinishSetup,
   collapsed,
   onToggleCollapsed,
 }: PartnerSidebarProps) {
-  const initialOpen = useMemo(() => {
-    const map: Record<string, boolean> = {};
-    for (const g of groups) {
-      const containsActive = g.items.some((i) => i.id === activeSection);
-      map[g.id] = containsActive || g.defaultOpen !== false;
-      if (g.collapsible === false) map[g.id] = true;
-    }
-    return map;
-  }, [groups, activeSection]);
-
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(initialOpen);
+  const containing = partnerSidebarGroupContaining(activeSection, primary);
+  const [openGroupId, setOpenGroupId] = useState<string | null>(containing?.id ?? null);
 
   useEffect(() => {
-    setOpenGroups((prev) => {
-      const next = { ...prev };
-      for (const g of groups) {
-        if (g.items.some((i) => i.id === activeSection)) next[g.id] = true;
-      }
-      return next;
-    });
-  }, [activeSection, groups]);
+    setOpenGroupId(containing?.id ?? null);
+  }, [containing?.id]);
 
-  const toggleGroup = (id: string) => {
-    setOpenGroups((prev) => ({ ...prev, [id]: !prev[id] }));
+  const toggleGroup = (group: PartnerSidebarGroup) => {
+    const isOpen = openGroupId === group.id;
+    if (isOpen) {
+      setOpenGroupId(null);
+      return;
+    }
+    setOpenGroupId(group.id);
+    const childIds = group.children.map((c) => c.id);
+    if (!childIds.includes(activeSection as PartnerNavSectionId)) {
+      onNavigate(partnerSidebarDefaultChild(group));
+    }
   };
-
-  const todayActive = activeSection === PARTNER_NAV_TODAY.id;
 
   return (
     <aside
@@ -114,11 +118,7 @@ export default function PartnerSidebar({
       }`}
       aria-label="Partner navigation"
     >
-      <div
-        className={`shrink-0 ${
-          collapsed ? 'px-2 py-3.5' : 'px-3.5 pt-3.5 pb-3'
-        }`}
-      >
+      <div className={`shrink-0 ${collapsed ? 'px-2 py-3.5' : 'px-3.5 pt-3.5 pb-3'}`}>
         <button
           type="button"
           onClick={onHome}
@@ -141,77 +141,101 @@ export default function PartnerSidebar({
       </div>
 
       <nav className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-2 py-1">
-        <div className="mb-1.5">
-          <NavButton
-            item={PARTNER_NAV_TODAY}
-            active={todayActive}
-            collapsed={collapsed}
-            onClick={() => onNavigate(PARTNER_NAV_TODAY.id)}
-          />
-        </div>
-
-        {!collapsed ? (
-          <div className="mb-3 px-0.5">
-            <button
-              type="button"
-              onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/listings?new=1`)}
-              className="partner-nav-item lux-flat flex w-full items-center justify-center gap-1.5 rounded-md bg-finland px-3 py-2 text-[13px] font-semibold text-white hover:bg-finland-dark"
-            >
-              <Plus className="h-3.5 w-3.5" strokeWidth={2.2} aria-hidden />
-              New listing
-            </button>
-          </div>
-        ) : (
-          <div className="mb-2 flex justify-center">
-            <button
-              type="button"
-              onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/listings?new=1`)}
-              className="partner-nav-item lux-flat flex h-8 w-8 items-center justify-center rounded-md bg-finland text-white hover:bg-finland-dark"
-              title="New listing"
-              aria-label="New listing"
-            >
-              <Plus className="h-4 w-4" strokeWidth={2.2} aria-hidden />
-            </button>
-          </div>
-        )}
-
-        {groups.map((group) => {
-          const isOpen = collapsed ? true : openGroups[group.id] !== false;
-          return (
-            <div key={group.id} className="pt-2">
-              {!collapsed ? (
+        {primary.map((entry) => {
+          if (entry.kind === 'action') {
+            if (collapsed) {
+              return (
+                <div key={entry.id} className="mb-2 mt-1 flex justify-center">
+                  <button
+                    type="button"
+                    onClick={onCreate}
+                    className="partner-nav-item lux-flat flex h-8 w-8 items-center justify-center rounded-md bg-finland text-white hover:bg-finland-dark"
+                    title={entry.label}
+                    aria-label={entry.label}
+                  >
+                    <Plus className="h-4 w-4" strokeWidth={2.2} aria-hidden />
+                  </button>
+                </div>
+              );
+            }
+            return (
+              <div key={entry.id} className="mb-2 mt-1 px-0.5">
                 <button
                   type="button"
-                  onClick={() => (group.collapsible === false ? undefined : toggleGroup(group.id))}
-                  className={`lux-flat mb-0.5 flex w-full items-center justify-between rounded-md px-2.5 py-1 text-left ${
-                    group.collapsible === false ? 'cursor-default' : 'hover:bg-slate-900/[0.03]'
-                  }`}
-                  aria-expanded={isOpen}
+                  onClick={onCreate}
+                  className="partner-nav-item lux-flat flex w-full items-center justify-center gap-1.5 rounded-md bg-finland px-3 py-2 text-[13px] font-semibold text-white hover:bg-finland-dark"
                 >
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-                    {group.label}
-                  </span>
-                  {group.collapsible !== false ? (
-                    <ChevronDown
-                      className={`h-3 w-3 text-slate-300 transition-transform duration-150 ${
-                        isOpen ? 'rotate-0' : '-rotate-90'
-                      }`}
-                      aria-hidden
-                    />
-                  ) : null}
+                  <Plus className="h-3.5 w-3.5" strokeWidth={2.2} aria-hidden />
+                  {entry.label}
                 </button>
-              ) : (
-                <div className="mx-auto my-1.5 h-px w-5 bg-slate-200/90" aria-hidden />
-              )}
+              </div>
+            );
+          }
+
+          if (entry.kind === 'item') {
+            return (
+              <div key={entry.id} className="mb-px">
+                <NavButton
+                  item={entry}
+                  active={activeSection === entry.id}
+                  collapsed={collapsed}
+                  onClick={() => onNavigate(entry.id)}
+                />
+              </div>
+            );
+          }
+
+          const isOpen = collapsed ? false : openGroupId === entry.id;
+          const groupActive = entry.children.some((c) => c.id === activeSection);
+          const collapsedTarget = partnerSidebarDefaultChild(entry);
+
+          if (collapsed) {
+            return (
+              <div key={entry.id} className="mb-px">
+                <NavButton
+                  item={{ id: collapsedTarget, label: entry.label, icon: entry.icon }}
+                  active={groupActive}
+                  collapsed
+                  onClick={() => onNavigate(collapsedTarget)}
+                />
+              </div>
+            );
+          }
+
+          return (
+            <div key={entry.id} className="mb-0.5">
+              <button
+                type="button"
+                onClick={() => toggleGroup(entry)}
+                aria-expanded={isOpen}
+                className={`partner-nav-item lux-flat flex w-full items-center gap-2.5 rounded-md px-2.5 py-[7px] text-left text-[13.5px] font-medium ${
+                  groupActive
+                    ? 'text-slate-900'
+                    : 'text-slate-600 hover:bg-slate-900/[0.035] hover:text-slate-900'
+                }`}
+              >
+                <entry.icon
+                  className={`h-4 w-4 shrink-0 ${groupActive ? 'text-finland' : 'text-slate-400'}`}
+                  strokeWidth={groupActive ? 2.1 : 1.65}
+                  aria-hidden
+                />
+                <span className="min-w-0 flex-1 truncate leading-snug">{entry.label}</span>
+                <ChevronDown
+                  className={`h-3.5 w-3.5 shrink-0 text-slate-300 transition-transform duration-150 ${
+                    isOpen ? 'rotate-0' : '-rotate-90'
+                  }`}
+                  aria-hidden
+                />
+              </button>
               {isOpen ? (
-                <ul className="space-y-px">
-                  {group.items.map((item) => (
-                    <li key={item.id}>
+                <ul className="mt-0.5 mb-1 space-y-px">
+                  {entry.children.map((child) => (
+                    <li key={child.id}>
                       <NavButton
-                        item={item}
-                        active={activeSection === item.id}
-                        collapsed={collapsed}
-                        onClick={() => onNavigate(item.id)}
+                        item={child}
+                        active={activeSection === child.id}
+                        nested
+                        onClick={() => onNavigate(child.id)}
                       />
                     </li>
                   ))}
@@ -237,8 +261,20 @@ export default function PartnerSidebar({
         ) : null}
       </nav>
 
+      <div className="shrink-0 border-t border-slate-200/80 px-2 pt-2 pb-1">
+        {footer.map((item) => (
+          <NavButton
+            key={item.id}
+            item={item}
+            active={activeSection === item.id}
+            collapsed={collapsed}
+            onClick={() => onNavigate(item.id)}
+          />
+        ))}
+      </div>
+
       {onToggleCollapsed ? (
-        <div className="shrink-0 border-t border-slate-200/80 p-2">
+        <div className="shrink-0 p-2 pt-1">
           <button
             type="button"
             onClick={onToggleCollapsed}

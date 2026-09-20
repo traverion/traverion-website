@@ -3,10 +3,10 @@ import {
   LayoutDashboard,
   MapPin,
   Calendar,
-  CalendarDays,
   X,
   UserCircle2,
   Wallet,
+  Plus,
 } from 'lucide-react';
 import type { User } from '@supabase/supabase-js';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
@@ -19,7 +19,7 @@ import SupplierAvailability from '../../pages/supplier/SupplierAvailability';
 import PartnerAuthPage from './PartnerAuthPage';
 import PartnerLandingPage from './PartnerLandingPage';
 import PartnerSidebar from './PartnerSidebar';
-import { PARTNER_MORE_GROUPS, PARTNER_SIDEBAR_GROUPS } from '../../lib/partnerNav';
+import { PARTNER_MORE_GROUPS, PARTNER_SIDEBAR_FOOTER, PARTNER_SIDEBAR_PRIMARY } from '../../lib/partnerNav';
 import {
   authUserHasPartnerSignupMetadata,
   ensureSupplierProfile,
@@ -42,10 +42,13 @@ import { supplierOwnsAnyListing, userHasSupplierProfile } from '../../lib/suppli
 import { isPartnerMarketingPathForCurrentHost } from '../../lib/partnerHost';
 import {
   PARTNER_APP_BASE,
+  PARTNER_CREATE_PATH,
   PARTNER_EMAIL_VERIFIED_PATH,
+  PARTNER_HELP_PATH,
   PARTNER_LANDING_DEV_PATH,
   PARTNER_LOGIN_PATH,
   PARTNER_RESET_PASSWORD_PATH,
+  PARTNER_RESERVATIONS_PATH,
   PARTNER_SIGNUP_PATH,
   partnerMarketingPageFromPathname,
 } from '../../lib/partnerPortalPaths';
@@ -77,6 +80,8 @@ const SupplierPickupPlanner = lazy(() => import('../../pages/supplier/SupplierPi
 const SupplierDiscountsOffers = lazy(() => import('../../pages/supplier/SupplierDiscountsOffers'));
 const SupplierChangePassword = lazy(() => import('../../pages/supplier/SupplierChangePassword'));
 const PartnerOnboarding = lazy(() => import('../../pages/supplier/PartnerOnboarding'));
+const PartnerCreateListingPage = lazy(() => import('../../pages/supplier/PartnerCreateListingPage'));
+const PartnerHelpPage = lazy(() => import('../../pages/supplier/PartnerHelpPage'));
 const SupplierSettingsPages = lazy(() => import('./SupplierSettingsPages'));
 
 function PartnerSectionFallback() {
@@ -126,16 +131,19 @@ export const SUPPLIER_LOGIN_PATH = PARTNER_LOGIN_PATH;
 
 type SupplierSection =
   | 'dashboard'
+  | 'create'
   | 'onboarding'
   | 'listings'
   | 'availability'
   | 'bookings'
+  | 'reservations'
   | 'inbox'
   | 'earnings'
   | 'discounts'
   | 'reviews'
   | 'pickup'
   | 'performance'
+  | 'help'
   | 'business-profile'
   | 'account-settings'
   | 'change-password';
@@ -148,11 +156,10 @@ type BusinessProfileTab = 'company' | 'legal';
  * Kept in sync with PARTNER_PRIMARY_NAV_SECTION_IDS below (guard throws if they drift).
  */
 const PRIMARY_NAV: { id: SupplierSection; label: string; icon: typeof LayoutDashboard }[] = [
-  { id: 'dashboard', label: 'Today', icon: LayoutDashboard },
+  { id: 'dashboard', label: 'Home', icon: LayoutDashboard },
   { id: 'bookings', label: 'Bookings', icon: Calendar },
-  { id: 'availability', label: 'Calendar', icon: CalendarDays },
   { id: 'listings', label: 'Listings', icon: MapPin },
-  { id: 'earnings', label: 'Money', icon: Wallet },
+  { id: 'earnings', label: 'Income', icon: Wallet },
 ];
 
 if (
@@ -164,12 +171,16 @@ if (
 
 const PATH_ALIASES: Record<string, SupplierSection> = {
   today: 'dashboard',
+  home: 'dashboard',
   tours: 'listings',
   calendar: 'availability',
   money: 'earnings',
+  income: 'earnings',
   listings: 'listings',
   availability: 'availability',
   bookings: 'bookings',
+  reservations: 'reservations',
+  create: 'create',
   inbox: 'inbox',
   account: 'account-settings',
   earnings: 'earnings',
@@ -178,11 +189,13 @@ const PATH_ALIASES: Record<string, SupplierSection> = {
   reviews: 'reviews',
   pickup: 'pickup',
   performance: 'performance',
+  analytics: 'performance',
   'business-profile': 'business-profile',
   'account-settings': 'account-settings',
   'change-password': 'change-password',
   onboarding: 'onboarding',
   dashboard: 'dashboard',
+  help: 'help',
 };
 
 function pathForSection(s: SupplierSection): string {
@@ -190,6 +203,9 @@ function pathForSection(s: SupplierSection): string {
   if (s === 'listings') return `${PARTNER_APP_BASE}/listings`;
   if (s === 'availability') return `${PARTNER_APP_BASE}/calendar`;
   if (s === 'earnings') return `${PARTNER_APP_BASE}/money`;
+  if (s === 'create') return PARTNER_CREATE_PATH;
+  if (s === 'reservations') return PARTNER_RESERVATIONS_PATH;
+  if (s === 'help') return PARTNER_HELP_PATH;
   return `${PARTNER_APP_BASE}/${s}`;
 }
 
@@ -854,11 +870,13 @@ export default function SupplierLayout() {
 
       <div className="partner-workspace">
         <PartnerSidebar
-          groups={PARTNER_SIDEBAR_GROUPS}
+          primary={PARTNER_SIDEBAR_PRIMARY}
+          footer={PARTNER_SIDEBAR_FOOTER}
           activeSection={section}
           businessLabel={operatorDisplayName}
           onNavigate={(id) => handleNavigate(id as SupplierSection)}
           onHome={() => handleNavigate('dashboard')}
+          onCreate={() => handleNavigate('create')}
           showFinishSetup={!onboardingComplete}
           onFinishSetup={() => handleNavigate('onboarding')}
           collapsed={sidebarCollapsed}
@@ -954,6 +972,14 @@ export default function SupplierLayout() {
                 </button>
               </div>
               <div className="px-4 pb-10 overflow-y-auto max-h-[calc(100dvh-3.5rem)]">
+                <button
+                  type="button"
+                  onClick={() => handleNavigate('create')}
+                  className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-md bg-finland px-3 py-3 text-[15px] font-semibold text-white"
+                >
+                  <Plus className="h-4 w-4" strokeWidth={2.2} aria-hidden />
+                  Create
+                </button>
                 {PARTNER_MORE_GROUPS.map((group) => (
                   <div key={group.id} className="pt-4">
                     <p className="pb-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-slate-400">{group.label}</p>
@@ -1005,8 +1031,7 @@ export default function SupplierLayout() {
                   <div className="py-16 max-w-md">
                     <h1 className="font-display text-3xl text-ink">This page is not available</h1>
                     <p className="mt-3 text-ink-muted leading-relaxed">
-                      Team and Integrations are not part of Partner yet, so those addresses do not open a workspace.
-                      Use Today, Calendar, Bookings, Listings, or More.
+                      That address is not a Partner workspace. Use Home, Listings, Bookings, or More.
                     </p>
                     <button type="button" className="tv-btn-primary mt-8" onClick={() => handleNavigate('dashboard')}>
                       Back to Today
@@ -1023,7 +1048,7 @@ export default function SupplierLayout() {
                           if ((onboardingListingCount ?? 0) > 0) {
                             handleNavigate('listings');
                           } else {
-                            navigateSupplierUrl(`${PARTNER_APP_BASE}/listings?new=1`);
+                            navigateSupplierUrl(PARTNER_CREATE_PATH);
                           }
                         }}
                         businessDone={onboardingHasCompany}
@@ -1033,15 +1058,18 @@ export default function SupplierLayout() {
                       />
                     )}
                     {section === 'dashboard' && <SupplierDashboard />}
+                    {section === 'create' && <PartnerCreateListingPage />}
                     {section === 'listings' && <SupplierListings />}
                     {section === 'availability' && <SupplierAvailability />}
                     {section === 'bookings' && <SupplierBookings />}
+                    {section === 'reservations' && <SupplierBookings inventoryFamily="stay" />}
                     {section === 'inbox' && <SupplierInbox />}
                     {section === 'earnings' && <SupplierEarnings />}
                     {section === 'discounts' && <SupplierDiscountsOffers />}
                     {section === 'reviews' && <SupplierReviews />}
                     {section === 'pickup' && <SupplierPickupPlanner />}
                     {section === 'performance' && <SupplierPerformance />}
+                    {section === 'help' && <PartnerHelpPage />}
                     {section === 'change-password' && (
                       <SupplierChangePassword
                         onBack={() => handleNavigate('account-settings')}
@@ -1192,7 +1220,7 @@ export default function SupplierLayout() {
             aria-haspopup="dialog"
             className={`partner-nav-item lux-flat flex flex-1 flex-col items-center justify-center gap-0.5 py-2 min-h-[52px] ${
               mobileAccountOpen ||
-              ['inbox', 'reviews', 'discounts', 'pickup', 'performance', 'business-profile', 'account-settings'].includes(
+              ['create', 'inbox', 'reviews', 'discounts', 'pickup', 'availability', 'reservations', 'performance', 'help', 'business-profile', 'account-settings', 'onboarding', 'change-password'].includes(
                 section
               )
                 ? 'text-finland'
@@ -1203,7 +1231,7 @@ export default function SupplierLayout() {
               className="w-[18px] h-[18px]"
               strokeWidth={
                 mobileAccountOpen ||
-                ['inbox', 'reviews', 'discounts', 'pickup', 'performance', 'business-profile', 'account-settings'].includes(
+                ['create', 'inbox', 'reviews', 'discounts', 'pickup', 'availability', 'reservations', 'performance', 'help', 'business-profile', 'account-settings', 'onboarding', 'change-password'].includes(
                   section
                 )
                   ? 2.2

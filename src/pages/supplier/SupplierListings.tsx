@@ -27,7 +27,7 @@ import { fetchSupplierProfile } from '../../data/supabase-supplier-profile';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import SupplierListingForm, { type ListingEditorSaveResult } from './SupplierListingForm';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
-import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
+import { PARTNER_APP_BASE, PARTNER_CREATE_PATH } from '../../lib/partnerPortalPaths';
 import { navigateSupplierUrl, openSupplierListingEditor, openSupplierCalendar } from '../../lib/supplierPortalNavigation';
 import {
   isSupplierBusinessProfileComplete,
@@ -179,7 +179,7 @@ export default function SupplierListings() {
 
   const openCreateChooser = useCallback(() => {
     if (!canEditListings) return;
-    setShowCreateChooser(true);
+    navigateSupplierUrl(PARTNER_CREATE_PATH);
   }, [canEditListings]);
 
   const showFormRef = useRef(false);
@@ -265,14 +265,18 @@ export default function SupplierListings() {
     const edit = params.get('edit');
     const focus = params.get('focus');
     const wantsNew = params.get('new') === '1';
-    if (wantsNew && !edit) {
-      setShowCreateChooser(true);
-      if (typeof window !== 'undefined') {
-        const u = new URL(window.location.href);
-        u.searchParams.delete('new');
-        const q = u.searchParams.toString();
-        window.history.replaceState(window.history.state, '', q ? `${u.pathname}?${q}` : u.pathname);
-      }
+    const createFam = params.get('create');
+    if (wantsNew && !edit && createFam !== 'tour' && createFam !== 'stay') {
+      window.history.replaceState(window.history.state, '', PARTNER_CREATE_PATH);
+      window.dispatchEvent(new PopStateEvent('popstate'));
+      return;
+    }
+    if ((createFam === 'tour' || createFam === 'stay') && !edit) {
+      setCreateFamily(createFam);
+      setEditingId(null);
+      setShowForm(true);
+      setShowCreateChooser(false);
+      setFormFocusSection(null);
     }
     if (edit) {
       setEditingId(edit);
@@ -701,22 +705,31 @@ export default function SupplierListings() {
         title="Listings"
         description="Tours and stays you operate — health, status, and publish actions at a glance. Drafts stay private until you publish."
         actions={
-          <button
-            type="button"
-            onClick={openCreateChooser}
-            disabled={!canEditListings}
-            title={
-              !canEditListings
-                ? 'Your role can view listings but cannot add new ones.'
-                : !canPostNewListing
-                  ? 'You can draft listings now. Publishing requires Traverion-approved business and payout verification.'
-                  : undefined
-            }
-            className="tv-btn-primary w-full md:w-auto"
-          >
-            <Plus className="h-5 w-5 shrink-0" aria-hidden />
-            <span>New listing</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/discounts`)}
+              className="tv-btn-ghost"
+            >
+              Offers
+            </button>
+            <button
+              type="button"
+              onClick={openCreateChooser}
+              disabled={!canEditListings}
+              title={
+                !canEditListings
+                  ? 'Your role can view listings but cannot add new ones.'
+                  : !canPostNewListing
+                    ? 'You can draft listings now. Publishing requires Traverion-approved business and payout verification.'
+                    : undefined
+              }
+              className="tv-btn-primary w-full md:w-auto"
+            >
+              <Plus className="h-5 w-5 shrink-0" aria-hidden />
+              <span>New listing</span>
+            </button>
+          </div>
         }
       />
 
@@ -737,7 +750,7 @@ export default function SupplierListings() {
           <div className="flex flex-wrap gap-x-1 gap-y-2 border-b border-black/[0.06]" role="tablist" aria-label="Listing filters">
             {([
               { id: 'all', label: 'All' },
-              { id: 'tour', label: 'Tours' },
+              { id: 'tour', label: 'Tours & activities' },
               { id: 'stay', label: 'Stays' },
               { id: 'draft', label: 'Draft' },
               { id: 'published', label: 'Live' },

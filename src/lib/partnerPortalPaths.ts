@@ -24,6 +24,10 @@ export const PARTNER_EMAIL_VERIFIED_PATH = '/email-verified';
 /** Dashboard at /partner; sections at /partner/listings, /partner/discounts, /partner/bookings, … */
 export const PARTNER_APP_BASE = '/partner';
 
+export const PARTNER_CREATE_PATH = `${PARTNER_APP_BASE}/create`;
+export const PARTNER_RESERVATIONS_PATH = `${PARTNER_APP_BASE}/reservations`;
+export const PARTNER_HELP_PATH = `${PARTNER_APP_BASE}/help`;
+
 /** Public legal & info pages on the partner host (not used on www — see `isPartnerMarketingPathForCurrentHost` in partnerHost). */
 export const PARTNER_TERMS_OF_SERVICE_PATH = '/termsofservice';
 export const PARTNER_PRIVACY_POLICY_PATH = '/privacypolicy';

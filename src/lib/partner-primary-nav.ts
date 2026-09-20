@@ -1,8 +1,7 @@
-/** Partner primary nav ids — Money must be one tap away on mobile. Calendar is operational core. */
+/** Partner primary nav ids — Money must be one tap away on mobile. */
 export const PARTNER_PRIMARY_NAV_SECTION_IDS = [
   'dashboard',
   'bookings',
-  'availability',
   'listings',
   'earnings',
 ] as const;

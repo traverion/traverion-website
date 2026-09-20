@@ -63,7 +63,7 @@ import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { inventoryFamilyFromListing } from '../../lib/inventory';
 import { parseStayCheckOutFromNotes, nightsOccupiedByStay, stayRangeFromBooking } from '../../lib/stayOccupancy';
-import { partnerBookingIsLiveTrip, bookingIsCancelledTrip, partnerBookingIsOperatingTrip, partnerBookingNeedsLook, partnerBookingIsUnpaidCheckout, partnerBookingIsActiveUnpaidCheckout, partnerBookingShowsCancelAction, partnerBookingIsPastSchedule, partnerStayTouchesScheduleDay } from '../../lib/trip-views';
+import { partnerBookingIsLiveTrip, partnerBookingIsOperatingTrip, partnerBookingNeedsLook, partnerBookingIsUnpaidCheckout, partnerBookingIsActiveUnpaidCheckout, partnerBookingShowsCancelAction, partnerBookingIsPastSchedule, partnerStayTouchesScheduleDay } from '../../lib/trip-views';
 import { formatPartnerCheckoutHoldLabel, partnerUnpaidCheckoutHoldsInventory } from '../../lib/booking-hold';
 import { formatStayNightHuman } from '../../lib/stay-calendar';
 import { partnerBookingHasPickupAttention } from '../../lib/pickup-completeness';
@@ -198,7 +198,11 @@ function downloadBookingsCsv(
   URL.revokeObjectURL(url);
 }
 
-export default function SupplierBookings() {
+export default function SupplierBookings({
+  inventoryFamily,
+}: {
+  inventoryFamily?: 'tour' | 'stay';
+} = {}) {
   const { user, isSupabase } = useSupplierAuth();
   const { role } = useSupplierRole();
   const canEditBookings = canManageBookings(role);
@@ -419,6 +423,8 @@ export default function SupplierBookings() {
       if (opsFilter === 'refund_due') {
         if (!isRefundDueBooking(b)) return false;
       }
+      if (inventoryFamily === 'stay' && !isStay && b.id !== highlightBookingId) return false;
+      if (inventoryFamily === 'tour' && isStay && b.id !== highlightBookingId) return false;
       if (filterListingId && b.listing_id !== filterListingId) return false;
       if (filterDateFrom || filterDateTo) {
         if (stayRange) {
@@ -453,7 +459,7 @@ export default function SupplierBookings() {
       });
     }
     return rows;
-  }, [bookings, filterDateFrom, filterDateTo, filterListingId, filterQuery, listingMeta, todayIso, tomorrowIso, view, opsFilter, openCancels]);
+  }, [bookings, filterDateFrom, filterDateTo, filterListingId, filterQuery, listingMeta, todayIso, tomorrowIso, view, opsFilter, openCancels, inventoryFamily, highlightBookingId]);
 
   const totalPages = Math.max(1, Math.ceil(filteredBookings.length / BOOKINGS_PAGE_SIZE));
   const safePage = Math.min(Math.max(bookingsListPage, 1), totalPages);
@@ -594,8 +600,14 @@ export default function SupplierBookings() {
   );
 
   const listingOptions = useMemo(
-    () => Object.entries(listingMeta).map(([id, m]) => ({ id, title: m.title })),
-    [listingMeta]
+    () =>
+      Object.entries(listingMeta)
+        .filter(([, m]) => {
+          if (!inventoryFamily) return true;
+          return m.family === inventoryFamily;
+        })
+        .map(([id, m]) => ({ id, title: m.title })),
+    [listingMeta, inventoryFamily]
   );
 
   const selectedBooking = useMemo(
@@ -607,8 +619,12 @@ export default function SupplierBookings() {
     <div className={SUPPLIER_PAGE_CLASS}>
       <SupplierPageHero
         badge="Operate"
-        title="Bookings"
-        description="Scan guests, products, dates, payment truth, and actions that need a decision."
+        title={inventoryFamily === 'stay' ? 'Reservations' : 'Bookings'}
+        description={
+          inventoryFamily === 'stay'
+            ? 'Stay nights, guest names, payment truth, and actions that need a decision.'
+            : 'Scan guests, products, dates, payment truth, and actions that need a decision.'
+        }
         actions={
           bookings.length > 0 ? (
           <div className="flex flex-wrap items-center justify-end gap-2">
@@ -665,7 +681,7 @@ export default function SupplierBookings() {
             {([
               ['all', 'All states'],
               ['unpaid', 'Unpaid'],
-              ['pickup', 'Pickup details'],
+              ...(inventoryFamily === 'stay' ? [] : [['pickup', 'Pickup details'] as const]),
               ['cancel', 'Cancellation'],
               ['refund_due', 'Refund due'],
             ] as const).map(([id, label]) => (
