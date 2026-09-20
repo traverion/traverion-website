@@ -809,8 +809,12 @@ export default function SupplierBookings({
       ) : bookings.length === 0 ? (
         <SupplierEmptyState
           icon={CalendarDays}
-          title="No bookings yet"
-          body="No traveler has booked your tours yet. That is normal until a listing is live and someone checks out. When they do, bookings appear here."
+          title={inventoryFamily === 'stay' ? 'No reservations yet' : 'No bookings yet'}
+          body={
+            inventoryFamily === 'stay'
+              ? 'No traveler has reserved a stay night yet. That is normal until a stay is live and someone checks out. When they do, reservations appear here.'
+              : 'No traveler has booked your tours yet. That is normal until a listing is live and someone checks out. When they do, bookings appear here.'
+          }
           action={
             <button
               type="button"

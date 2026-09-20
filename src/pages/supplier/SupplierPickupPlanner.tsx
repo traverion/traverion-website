@@ -1213,7 +1213,7 @@ export default function SupplierPickupPlanner() {
         <SupplierEmptyState
           icon={CalendarDays}
           title="No bookings yet"
-          body="Pickup times show up after a traveler books a tour. Stay nights are on Bookings."
+          body="Pickup times show up after a traveler books a tour. Stay nights are on Reservations."
         />
       ) : listBookings.length === 0 ? (
         <SupplierEmptyState
