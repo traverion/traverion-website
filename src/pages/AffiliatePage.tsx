@@ -95,7 +95,7 @@ export default function AffiliatePage({ onNavigate }: AffiliatePageProps) {
     <LegalPageShell
       eyebrow="Work with us"
       title="Become an affiliate"
-      subtitle="Earn when your audience books tours and stays through Traverion."
+      subtitle="Apply to promote Traverion tours and stays. Approval and tracking links come after review — not automatic payouts."
       onNavigate={onNavigate}
     >
       {isSubmitted ? (
@@ -104,20 +104,20 @@ export default function AffiliatePage({ onNavigate }: AffiliatePageProps) {
         </NoticeCallout>
       ) : (
         <>
-          <div className="max-w-lg mb-6 rounded-2xl bg-finland/8 px-4 py-3 ring-1 ring-finland/15">
+          <div className="max-w-lg mb-5 rounded-2xl bg-finland/8 px-3.5 py-2.5 ring-1 ring-finland/15">
             <p className="text-sm text-ink leading-relaxed">
               This form is only for partnership requests. It is kept separate from general customer enquiries.
             </p>
           </div>
-          <div className="not-prose max-w-lg mb-8 grid gap-2 sm:grid-cols-3">
+          <div className="not-prose max-w-lg mb-5 grid gap-2 sm:grid-cols-3">
             {[
               { n: '01', t: 'Apply', d: 'Tell us about your audience and channels.' },
               { n: '02', t: 'Share', d: 'We review fit, then share tracking links if approved.' },
-              { n: '03', t: 'Earn', d: 'Commission on confirmed paid bookings — not invented payouts.' },
+              { n: '03', t: 'Earn', d: 'If approved: commission on confirmed paid bookings — not invented payouts.' },
             ].map((s) => (
               <div
                 key={s.n}
-                className="rounded-2xl bg-paper-raised px-3.5 py-3 shadow-soft ring-1 ring-black/[0.06]"
+                className="rounded-2xl bg-paper-raised px-3 py-2.5 shadow-soft ring-1 ring-black/[0.06]"
               >
                 <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-finland">{s.n}</p>
                 <p className="mt-1 text-sm font-semibold text-ink">{s.t}</p>
