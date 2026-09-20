@@ -88,11 +88,11 @@ export function guestCountBoundaryMessage(boundary: 'min' | 'max', bounds: { min
   if (boundary === 'min') {
     return bounds.min === 1
       ? 'At least 1 guest is required.'
-      : `At least ${bounds.min} guests are required for this tour.`;
+      : `At least ${bounds.min} guests are required for this booking.`;
   }
   return bounds.max === 1
     ? 'This option allows only 1 guest.'
-    : `No more than ${bounds.max} guests allowed for this tour.`;
+    : `No more than ${bounds.max} guests allowed for this booking.`;
 }
 
 export function guestCountValidationError(
