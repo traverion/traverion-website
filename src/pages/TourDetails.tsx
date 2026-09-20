@@ -801,7 +801,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
           ) : null}
         </div>
 
-        <dl className="mb-8 grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+        <dl className="mb-5 grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="rounded-xl bg-paper-raised px-3.5 py-3 ring-1 ring-black/[0.05]">
             <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">Duration</dt>
             <dd className="mt-1 text-sm font-medium text-ink">{formatTourDurationDisplay(tour.duration)}</dd>
@@ -847,14 +847,14 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
 
       <section className="bg-paper pb-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-10">
-            <div className="lg:col-span-2 space-y-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+            <div className="lg:col-span-2 space-y-6">
               <div>
                 <h2 className="font-display text-2xl text-ink mb-3">What you’ll do</h2>
                 <p className="text-ink leading-relaxed text-[15px]">{tour.description}</p>
               </div>
 
-              <div className="space-y-8">
+              <div className="space-y-5">
                 {(() => {
                   const x = tour.listingExtras;
                   const optionStartTimes = (x?.bookingOptions ?? [])
@@ -1047,7 +1047,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                 })()}
 
                 {(tour.includes.some((s) => String(s).trim()) || tour.excludes.some((s) => String(s).trim())) ? (
-                  <section className="tv-card p-5 sm:p-6 space-y-8">
+                  <section className="tv-card p-4 sm:p-5 space-y-5">
                     {tour.includes.some((s) => String(s).trim()) ? (
                       <div className="rounded-2xl bg-emerald-50/70 p-4 sm:p-5 ring-1 ring-emerald-200/60">
                         <h2 className="font-display text-2xl text-ink mb-4">What’s included</h2>
@@ -1534,7 +1534,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
         </div>
       </section>
 
-      <section className="py-12 bg-paper border-t border-black/[0.06]">
+      <section className="py-8 bg-paper border-t border-black/[0.06]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="font-display text-2xl sm:text-3xl text-ink mb-6">Reviews</h2>
           {reviews.length === 0 && !showReviewForm && (
@@ -1542,7 +1542,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
               No reviews yet. Guests can write one after a completed booking.
             </p>
           )}
-          <div className="space-y-6 mb-8">
+          <div className="space-y-4 mb-5">
             {reviews.map((r) => (
               <div key={r.id} className="border-b border-black/[0.06] pb-6 last:border-0">
                 <div className="flex items-center gap-3 mb-2">
