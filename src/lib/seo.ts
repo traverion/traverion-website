@@ -4,10 +4,12 @@ import { BRAND_LOGO_SRC } from './brandAssets';
 const getBaseUrl = () =>
   (typeof window !== 'undefined' && window.location.origin) || 'https://www.traverion.com';
 
+export const DEFAULT_PUBLIC_DOCUMENT_TITLE = 'Traverion – Tours and stays';
+
 /** Set document title and meta description. Call from App or page components. */
 export function setPageMeta(title: string, description?: string) {
   if (typeof document === 'undefined') return;
-  document.title = title ? `${title} · Traverion` : 'Traverion – Tours & Activities Worldwide';
+  document.title = title ? `${title} · Traverion` : DEFAULT_PUBLIC_DOCUMENT_TITLE;
   const meta = document.querySelector('meta[name="description"]');
   if (meta && description) meta.setAttribute('content', description);
 }
@@ -42,11 +44,11 @@ export function setPageMetaWithOg(title: string, description?: string, og?: OgMe
   const image = og?.image ?? `${baseUrl}${BRAND_LOGO_SRC}`;
   const type = og?.type ?? 'website';
 
-  document.title = title ? `${title} · Traverion` : 'Traverion – Tours & Activities Worldwide';
+  document.title = title ? `${title} · Traverion` : DEFAULT_PUBLIC_DOCUMENT_TITLE;
   const descMeta = document.querySelector('meta[name="description"]');
   if (descMeta && (description ?? d)) descMeta.setAttribute('content', description ?? d);
 
-  ensureMeta('og:title', 'property').setAttribute('content', t ? `${t} · Traverion` : 'Traverion – Tours & Activities Worldwide');
+  ensureMeta('og:title', 'property').setAttribute('content', t ? `${t} · Traverion` : DEFAULT_PUBLIC_DOCUMENT_TITLE);
   ensureMeta('og:description', 'property').setAttribute('content', d);
   ensureMeta('og:image', 'property').setAttribute('content', image);
   ensureMeta('og:url', 'property').setAttribute('content', url);

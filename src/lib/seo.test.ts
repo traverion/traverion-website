@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { publicStayPath, publicTourPath } from './seo';
+import { DEFAULT_PUBLIC_DOCUMENT_TITLE, publicStayPath, publicTourPath } from './seo';
 
 describe('public listing SEO paths', () => {
   it('uses crawlable /tours and /stays deep links, not hash routes', () => {
@@ -9,5 +9,10 @@ describe('public listing SEO paths', () => {
     expect(publicStayPath(stayId)).toBe(`/stays/${stayId}`);
     expect(publicTourPath(tourId)).not.toContain('#');
     expect(publicStayPath(stayId)).not.toContain('?');
+  });
+
+  it('names the public marketplace as tours and stays, not tours-only', () => {
+    expect(DEFAULT_PUBLIC_DOCUMENT_TITLE).toBe('Traverion – Tours and stays');
+    expect(DEFAULT_PUBLIC_DOCUMENT_TITLE.toLowerCase()).toContain('stays');
   });
 });

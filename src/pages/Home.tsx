@@ -385,27 +385,19 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                 const tourCount = matches.filter((t) => listingIsFamily(t, 'tour')).length;
                 const stayCount = matches.filter((t) => listingIsFamily(t, 'stay')).length;
                 const countLabel =
-                  searchFamily === 'stays'
-                    ? stayCount > 0
-                      ? `${stayCount} ${stayCount === 1 ? 'stay' : 'stays'}`
-                      : null
-                    : tourCount > 0 && stayCount > 0
-                      ? `${tourCount} ${tourCount === 1 ? 'tour' : 'tours'} · ${stayCount} ${stayCount === 1 ? 'stay' : 'stays'}`
-                      : tourCount > 0
-                        ? `${tourCount} ${tourCount === 1 ? 'tour' : 'tours'}`
-                        : stayCount > 0
-                          ? `${stayCount} ${stayCount === 1 ? 'stay' : 'stays'}`
-                          : null;
+                  tourCount > 0 && stayCount > 0
+                    ? `${tourCount} ${tourCount === 1 ? 'tour' : 'tours'} · ${stayCount} ${stayCount === 1 ? 'stay' : 'stays'}`
+                    : tourCount > 0
+                      ? `${tourCount} ${tourCount === 1 ? 'tour' : 'tours'}`
+                      : stayCount > 0
+                        ? `${stayCount} ${stayCount === 1 ? 'stay' : 'stays'}`
+                        : null;
                 return (
                   <button
                     key={p.id}
                     type="button"
                     onClick={() =>
-                      searchFamily === 'stays'
-                        ? goToStays({ q: p.label })
-                        : onNavigate
-                          ? onNavigate(`destinations/${p.id}`)
-                          : goToPackages({ destination: p.id })
+                      onNavigate ? onNavigate(`destinations/${p.id}`) : goToPackages({ destination: p.id })
                     }
                     className="lux-flat relative aspect-[4/5] sm:aspect-[5/4] rounded-2xl overflow-hidden text-left group shadow-soft ring-1 ring-black/[0.06] focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2"
                   >
@@ -526,7 +518,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                   ) : null}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
                   <div className="absolute bottom-6 left-6 right-6 text-white">
-                    <p className="text-xs uppercase tracking-[0.16em] text-white/70 mb-2">Live now</p>
+                    <p className="text-xs uppercase tracking-[0.16em] text-white/70 mb-2">Tour · Live now</p>
                     <p className="text-sm text-white/80">{featuredListing.city || featuredListing.destination}</p>
                     <p className="font-display text-3xl sm:text-4xl mt-1">{featuredListing.title}</p>
                     {(() => {

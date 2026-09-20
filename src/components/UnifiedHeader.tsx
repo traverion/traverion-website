@@ -24,7 +24,9 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
   const userMenuRef = useRef<HTMLDivElement>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
   /** Product pages already have browse nav — hide redundant primary CTA so it cannot cover booking controls. */
+  /** Hero search already covers discovery on Home; hide the tours-only CTA there too. */
   const showFindToursCta =
+    currentPage !== 'home' &&
     currentPage !== 'tour-details' &&
     currentPage !== 'stay-details' &&
     currentPage !== 'booking' &&
@@ -126,12 +128,10 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
               onClick={() => onNavigate('packages')}
               onPointerEnter={prefetchPackagesPage}
               aria-current={
-                currentPage === 'packages' || currentPage === 'tour-details' || currentPage === 'destination'
-                  ? 'page'
-                  : undefined
+                currentPage === 'packages' || currentPage === 'tour-details' ? 'page' : undefined
               }
               className={`lux-flat rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
-                currentPage === 'packages' || currentPage === 'tour-details' || currentPage === 'destination'
+                currentPage === 'packages' || currentPage === 'tour-details'
                   ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
                   : 'text-ink-muted hover:bg-finland/10 hover:text-finland'
               }`}
@@ -309,11 +309,10 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
               <div className="hidden lg:block">
                 <button
                   type="button"
-                  onClick={() => onNavigate('packages')}
-                  onPointerEnter={prefetchPackagesPage}
+                  onClick={() => onNavigate('home')}
                   className="tv-btn-primary h-10 px-5 text-sm"
                 >
-                  Find tours
+                  Find a tour or stay
                 </button>
               </div>
             ) : null}
@@ -474,12 +473,12 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                 {showFindToursCta ? (
                   <button
                     onClick={() => {
-                      onNavigate('packages');
+                      onNavigate('home');
                       setIsMobileMenuOpen(false);
                     }}
                     className="tv-btn-primary w-full justify-center"
                   >
-                    Find tours
+                    Find a tour or stay
                   </button>
                 ) : null}
               </div>
