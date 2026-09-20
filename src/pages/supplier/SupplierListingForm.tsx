@@ -1,6 +1,6 @@
 import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { Pencil, Plus, Trash2, X } from 'lucide-react';
 import { TourPackage } from '../../types/tour';
 import type { ListingBookingOption, ListingExtras, ScheduleStyle, VenueSetting } from '../../types/listingExtras';
 import {
@@ -31,6 +31,11 @@ import {
 import { getListingPublishBlockers } from '../../lib/listingPublishGate';
 import { listingBuilderSections } from '../../lib/listingBuilderProgress';
 import { listingWizardPersistLabel } from '../../lib/listing-wizard-persist';
+import {
+  listingCreationNavItems,
+  listingCreationProgressCopy,
+} from '../../lib/listing-creation-workspace';
+import { ListingCreationWorkspace } from '../../components/supplier/listing-creation/ListingCreationWorkspace';
 import { isSupabaseConfigured } from '../../lib/supabase';
 import { userFacingError } from '../../lib/userFacingError';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
@@ -1464,6 +1469,24 @@ export default function SupplierListingForm({
 
   const canContinueStep = () => canContinueListingStep(stepIdx, form);
 
+  const creationTitle = editingId
+    ? form.title.trim() || (form.inventoryFamily === 'stay' ? 'Stay' : 'Tour')
+    : createFamily === 'stay'
+      ? 'Create a stay'
+      : 'Create a tour';
+  const creationNavLabel = editingId
+    ? form.inventoryFamily === 'stay'
+      ? 'Stay sections'
+      : 'Tour sections'
+    : createFamily === 'stay'
+      ? 'Create stay steps'
+      : 'Create tour steps';
+  const creationNavItems = listingCreationNavItems(steps, stepIdx, (idx) => isStepSatisfied(idx, form));
+  const creationProgressCopy = listingCreationProgressCopy(
+    steps.filter((_, idx) => isStepSatisfied(idx, form)).length,
+    steps.length
+  );
+
   const shell = (
     <div
       className="fixed inset-0 z-[80] flex flex-col overflow-hidden overscroll-none"
@@ -1490,143 +1513,167 @@ export default function SupplierListingForm({
           onClick={(e) => e.stopPropagation()}
           className="pointer-events-auto motion-safe:animate-fade-in motion-reduce:animate-none flex min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden border-0 bg-paper shadow-none h-full rounded-none"
         >
-        <div className="shrink-0 border-b border-black/[0.06] bg-paper px-4 py-3 sm:px-8 pt-[max(0.75rem,env(safe-area-inset-top))]">
-          <div className="flex items-center justify-between gap-3">
-            <button
-              type="button"
-              disabled={draftCloseBusy || submitting}
-              onClick={() => void handleCloseIntent()}
-              className="lux-flat inline-flex min-h-11 items-center text-sm font-medium text-ink-muted hover:text-ink disabled:opacity-50"
-            >
-              {draftCloseBusy ? 'Saving…' : '← Exit'}
-            </button>
-            {persistLabel ? (
-              <p
-                className={`text-xs tabular-nums ${
-                  persistLabel === 'Save failed' ? 'font-medium text-red-700' : 'text-ink-muted'
-                }`}
-                aria-live="polite"
-              >
-                {persistLabel}
-              </p>
-            ) : (
-              <span className="min-h-11" />
-            )}
-          </div>
-          <div className="mt-2 min-w-0">
-            <h2 id="supplier-listing-editor-title" className="font-display text-xl sm:text-2xl text-ink">
-              {editingId
-                ? form.title.trim() || (form.inventoryFamily === 'stay' ? 'Stay' : 'Tour')
-                : createFamily === 'stay'
-                  ? 'Create a stay'
-                  : 'Create a tour'}
-            </h2>
-          </div>
-          {draftCloseError ? (
-            <div className="mt-3">
-              <NoticeCallout title="Could not save draft" tone="danger">
-                {draftCloseError}
-              </NoticeCallout>
-            </div>
-          ) : null}
-          {submitError ? (
-            <div className="mt-3">
-              <NoticeCallout title="Could not save listing" tone="danger">
-                {submitError}
-              </NoticeCallout>
-            </div>
-          ) : null}
-          <nav
-            aria-label={
-              editingId
-                ? form.inventoryFamily === 'stay'
-                  ? 'Stay sections'
-                  : 'Tour sections'
-                : createFamily === 'stay'
-                  ? 'Create stay steps'
-                  : 'Create tour steps'
-            }
-            className="mt-4 -mx-1 overflow-x-auto px-1"
-          >
-            <ol className="flex min-w-min items-center gap-0.5 sm:gap-1">
-              {steps.map((step, idx) => {
-                const current = idx === stepIdx;
-                const completed = !current && isStepSatisfied(idx, form);
-                return (
-                  <li key={step.id} className="flex min-w-0 shrink-0 items-center">
-                    {idx > 0 ? (
-                      <span className="mx-1 text-ink-faint sm:mx-1.5" aria-hidden>
-                        →
-                      </span>
-                    ) : null}
-                    <button
-                      type="button"
-                      onClick={() => setStepIdxPersisted(idx)}
-                      aria-current={current ? 'step' : undefined}
-                      aria-label={`${step.label}, step ${idx + 1} of ${steps.length}${completed ? ', complete' : ''}`}
-                      className={`lux-flat inline-flex min-h-11 items-center gap-1 rounded-none px-1 py-1 text-sm transition-colors ${
-                        current
-                          ? 'font-semibold text-ink shadow-[inset_0_-2px_0_0_#003580]'
-                          : completed
-                            ? 'text-ink hover:text-finland'
-                            : 'text-ink-muted hover:text-ink'
-                      }`}
-                    >
-                      {completed ? <Check className="h-3.5 w-3.5 text-finland" aria-hidden /> : null}
-                      {step.label}
-                    </button>
-                  </li>
-                );
-              })}
-            </ol>
-          </nav>
-        </div>
-
-        {publishBlockers && publishBlockers.length > 0 && (
-          <div className="mx-4 shrink-0 sm:mx-6 mt-3 rounded-2xl bg-amber-50 p-3.5 sm:p-4 text-sm text-amber-950 ring-1 ring-amber-200/80">
-            <p className="font-semibold text-amber-900">Finish these before publishing</p>
-            <ul className="mt-2.5 space-y-1.5">
-              {publishBlockers.map((line) => (
-                <li key={line}>
+        <ListingCreationWorkspace
+          title={creationTitle}
+          titleId="supplier-listing-editor-title"
+          persistLabel={persistLabel}
+          progressCopy={creationProgressCopy}
+          items={creationNavItems}
+          navLabel={creationNavLabel}
+          currentLabel={steps[stepIdx].label}
+          onSelectIndex={(idx) => setStepIdxPersisted(idx)}
+          onExit={() => void handleCloseIntent()}
+          exitDisabled={draftCloseBusy || submitting}
+          exitBusy={draftCloseBusy}
+          scrollRef={stepContainerRef}
+          banners={
+            <>
+              {draftCloseError ? (
+                <div className="shrink-0 px-4 pt-3 sm:px-8 lg:px-12">
+                  <NoticeCallout title="Could not save draft" tone="danger">
+                    {draftCloseError}
+                  </NoticeCallout>
+                </div>
+              ) : null}
+              {submitError ? (
+                <div className="shrink-0 px-4 pt-3 sm:px-8 lg:px-12">
+                  <NoticeCallout title="Could not save listing" tone="danger">
+                    {submitError}
+                  </NoticeCallout>
+                </div>
+              ) : null}
+              {publishBlockers && publishBlockers.length > 0 ? (
+                <div className="mx-4 mt-3 shrink-0 rounded-2xl bg-amber-50 p-3.5 text-sm text-amber-950 ring-1 ring-amber-200/80 sm:mx-8 sm:p-4 lg:mx-12">
+                  <p className="font-semibold text-amber-900">Finish these before publishing</p>
+                  <ul className="mt-2.5 space-y-1.5">
+                    {publishBlockers.map((line) => (
+                      <li key={line}>
+                        <button
+                          type="button"
+                          className="lux-flat text-left text-sm text-amber-950/90 underline-offset-2 hover:text-ink hover:underline"
+                          onClick={() => jumpToPublishBlocker(line)}
+                        >
+                          {line}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
                   <button
                     type="button"
-                    className="lux-flat text-left text-sm text-amber-950/90 hover:text-ink underline-offset-2 hover:underline"
-                    onClick={() => jumpToPublishBlocker(line)}
+                    onClick={() => setPublishBlockers(null)}
+                    className="mt-3 text-xs font-medium text-finland hover:underline"
                   >
-                    {line}
+                    Dismiss
                   </button>
-                </li>
-              ))}
-            </ul>
-            <button
-              type="button"
-              onClick={() => setPublishBlockers(null)}
-              className="mt-3 text-xs font-medium text-finland hover:underline"
-            >
-              Dismiss
-            </button>
-          </div>
-        )}
-
-        <div
-          ref={stepContainerRef}
-          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-8 sm:py-6"
+                </div>
+              ) : null}
+            </>
+          }
+          footer={
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+              <button
+                type="button"
+                onClick={() => setStepIdxPersisted((s) => Math.max(0, s - 1))}
+                disabled={stepIdx === 0 || draftCloseBusy || submitting}
+                className="touch-manipulation tv-btn-ghost !min-h-11 w-full sm:w-auto disabled:opacity-50"
+              >
+                Back
+              </button>
+              <div className="flex w-full min-w-0 flex-wrap items-stretch gap-2 sm:w-auto sm:items-center">
+                {stepIdx < steps.length - 1 ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => void runSubmit('draft')}
+                      disabled={submitting || draftCloseBusy || form.status === 'published'}
+                      className="touch-manipulation tv-btn-secondary !min-h-11 sm:flex-none disabled:opacity-50"
+                    >
+                      {submitting ? 'Saving…' : 'Save draft'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setStepIdxPersisted((s) => Math.min(steps.length - 1, s + 1))}
+                      disabled={!canContinueStep() || draftCloseBusy || submitting}
+                      className="touch-manipulation tv-btn-primary !min-h-11 flex-1 sm:flex-none disabled:opacity-50"
+                    >
+                      Continue
+                    </button>
+                  </>
+                ) : (
+                  <div className="flex min-w-0 w-full flex-col gap-2 sm:w-auto sm:flex-auto sm:flex-row">
+                    {form.status === 'published' ? (
+                      <button
+                        type="button"
+                        onClick={() => void runSubmit('published')}
+                        disabled={
+                          submitting ||
+                          draftCloseBusy ||
+                          !isStepSatisfied(steps.length - 1, form) ||
+                          !lastStepSubmitArmed ||
+                          publishBlockersPreview.length > 0
+                        }
+                        title={
+                          publishBlockersPreview.length > 0
+                            ? publishBlockersPreview[0]
+                            : 'Save updates to your live listing'
+                        }
+                        className="touch-manipulation tv-btn-primary !min-h-11 flex-1 sm:flex-none disabled:opacity-50"
+                      >
+                        {submitting ? 'Saving…' : 'Save changes'}
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => void runSubmit('draft')}
+                          disabled={
+                            submitting ||
+                            draftCloseBusy ||
+                            !isStepSatisfied(steps.length - 1, form) ||
+                            !lastStepSubmitArmed
+                          }
+                          className="touch-manipulation tv-btn-secondary !min-h-11 sm:flex-none disabled:opacity-50"
+                        >
+                          {submitting ? 'Saving…' : 'Save as draft'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void runSubmit('published')}
+                          disabled={
+                            submitting ||
+                            draftCloseBusy ||
+                            !lastStepSubmitArmed ||
+                            !canPostNewListing ||
+                            publishBlockersPreview.length > 0
+                          }
+                          title={publishButtonTitle}
+                          className="touch-manipulation tv-btn-primary !min-h-11 flex-1 sm:flex-none disabled:opacity-50"
+                        >
+                          {submitting ? 'Saving…' : 'Publish'}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          }
         >
           <div
             key={stepIdx}
             className={`w-full motion-safe:animate-fade-in ${stepIdx === 3 ? 'max-w-3xl' : 'max-w-xl'}`}
           >
           {stepIdx !== 4 ? (
-            <header className="mb-6">
-              <h3 className="font-display text-xl text-ink">{steps[stepIdx].label}</h3>
-              <p className="mt-1 text-sm leading-relaxed text-ink-muted">{stepGuidance[stepIdx]}</p>
+            <header className="mb-8">
+              <h3 className="font-display text-2xl tracking-tight text-ink">{steps[stepIdx].label}</h3>
+              <p className="mt-1.5 text-sm leading-relaxed text-ink-muted">{stepGuidance[stepIdx]}</p>
             </header>
           ) : null}
           {stepIdx === 0 && (
             <div className="space-y-7">
               {form.inventoryFamily === 'stay' || (!editingId && createFamily === 'stay') ? (
                 <div id="supplier-listing-field-stay-type">
-                  <label className="block text-sm font-medium text-ink mb-1">Property type *</label>
+                  <label className="block text-sm font-semibold text-ink mb-1">Property type *</label>
                   <p className="text-xs text-ink-muted mb-3">What travelers are booking — not a tour option.</p>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                     {(['Apartment', 'House', 'Cabin', 'Room', 'Cottage', 'Other'] as const).map((type) => {
@@ -1650,7 +1697,7 @@ export default function SupplierListingForm({
                 </div>
               ) : (
                 <div id="supplier-listing-field-language">
-                  <label htmlFor="supplier-listing-experience-language" className="block text-sm font-medium text-ink mb-1">
+                  <label htmlFor="supplier-listing-experience-language" className="block text-sm font-semibold text-ink mb-1">
                     Primary language *
                   </label>
                   <p className="text-xs text-ink-muted mb-2">The main language guests hear during the tour.</p>
@@ -1671,7 +1718,7 @@ export default function SupplierListingForm({
               )}
 
               <div id="supplier-listing-field-title">
-                <label htmlFor="supplier-listing-title" className="block text-sm font-medium text-ink mb-1">
+                <label htmlFor="supplier-listing-title" className="block text-sm font-semibold text-ink mb-1">
                   Title *
                 </label>
                 <p className="text-xs text-ink-muted mb-2">A clear, specific name travelers will see in search and on the listing page.</p>
@@ -1692,7 +1739,7 @@ export default function SupplierListingForm({
 
               {form.inventoryFamily !== 'stay' ? (
                 <fieldset id="supplier-listing-field-category" className="min-w-0">
-                  <legend className="text-sm font-medium text-ink">Category *</legend>
+                  <legend className="text-sm font-semibold text-ink">Category *</legend>
                   <p className="mt-1 mb-3 text-xs text-ink-muted">
                     Choose the option that best describes what you sell. You can add more detail in later steps.
                   </p>
@@ -1732,7 +1779,7 @@ export default function SupplierListingForm({
               ) : null}
 
               <div id="supplier-listing-field-subtitle">
-                <label htmlFor="supplier-listing-subtitle" className="block text-sm font-medium text-ink mb-1">
+                <label htmlFor="supplier-listing-subtitle" className="block text-sm font-semibold text-ink mb-1">
                   Subtitle *
                 </label>
                 <p className="text-xs text-ink-muted mb-2">
@@ -1752,7 +1799,7 @@ export default function SupplierListingForm({
                 </p>
               </div>
               <div id="supplier-listing-field-description">
-                <label htmlFor="supplier-listing-description" className="block text-sm font-medium text-ink mb-1">
+                <label htmlFor="supplier-listing-description" className="block text-sm font-semibold text-ink mb-1">
                   About this {form.inventoryFamily === 'stay' ? 'stay' : 'tour'} *
                 </label>
                 <p className="text-xs text-ink-muted mb-2">
@@ -1803,7 +1850,7 @@ export default function SupplierListingForm({
               </div>
               <div id="supplier-listing-field-highlights" className="space-y-3">
                 <div>
-                  <label className="block text-sm font-medium text-ink">Highlights (optional)</label>
+                  <label className="block text-sm font-semibold text-ink">Highlights (optional)</label>
                   <p className="text-xs text-ink-muted mt-1">
                     Up to five short selling points — each on its own line below.
                   </p>
@@ -1835,7 +1882,7 @@ export default function SupplierListingForm({
           {stepIdx === 1 && form.inventoryFamily !== 'stay' && (
             <div className="space-y-5 transition-all duration-300 ease-out opacity-100 translate-y-0">
               <div id="supplier-listing-field-includes">
-                <label className="block text-sm font-medium text-ink mb-1">What&apos;s included *</label>
+                <label className="block text-sm font-semibold text-ink mb-1">What&apos;s included *</label>
                 <p className="text-xs text-ink-muted mb-2">At least two clear items (tickets, guide, transport, tastings, etc.).</p>
                 <div className="space-y-2">
                   {form.includes.map((line, index) => (
@@ -1856,7 +1903,7 @@ export default function SupplierListingForm({
                 </div>
               </div>
               <div id="supplier-listing-field-excludes">
-                <label className="block text-sm font-medium text-ink mb-1">Not included *</label>
+                <label className="block text-sm font-semibold text-ink mb-1">Not included *</label>
                 <p className="text-xs text-ink-muted mb-2">At least one line so guests know what to budget for.</p>
                 <div className="space-y-2">
                   {form.excludes.map((line, index) => (
@@ -1896,7 +1943,7 @@ export default function SupplierListingForm({
                 </summary>
                 <div className="mt-4 space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-ink mb-1">Accessibility &amp; mobility (optional)</label>
+                  <label className="block text-sm font-semibold text-ink mb-1">Accessibility &amp; mobility (optional)</label>
                   <textarea
                     value={form.accessibilitySummary}
                     maxLength={MAX_ACCESSIBILITY_LENGTH}
@@ -1916,7 +1963,7 @@ export default function SupplierListingForm({
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-ink mb-1">Minimum guest age (optional)</label>
+                    <label className="block text-sm font-semibold text-ink mb-1">Minimum guest age (optional)</label>
                     <input
                       type="text"
                       value={form.minGuestAge}
@@ -1926,7 +1973,7 @@ export default function SupplierListingForm({
                     />
                   </div>
                   <div id="supplier-listing-field-venue">
-                    <label className="block text-sm font-medium text-ink mb-1">Setting</label>
+                    <label className="block text-sm font-semibold text-ink mb-1">Setting</label>
                     <select
                       value={form.venueSetting}
                       onChange={(e) =>
@@ -1943,7 +1990,7 @@ export default function SupplierListingForm({
                   </div>
                 </div>
                 <div id="supplier-listing-field-languages">
-                  <label className="block text-sm font-medium text-ink mb-2">Additional languages offered (optional)</label>
+                  <label className="block text-sm font-semibold text-ink mb-2">Additional languages offered (optional)</label>
                   <p className="text-xs text-ink-muted mb-2">Besides the primary language you set earlier.</p>
                   <div className="flex flex-wrap gap-2">
                     {LANGUAGE_OPTIONS.filter((o) => o.code !== 'other').map((o) => {
@@ -1982,7 +2029,7 @@ export default function SupplierListingForm({
             <div className="space-y-4 transition-all duration-300 ease-out opacity-100 translate-y-0">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" id="supplier-listing-field-location">
                 <div>
-                  <label className="block text-sm font-medium text-ink mb-1">City *</label>
+                  <label className="block text-sm font-semibold text-ink mb-1">City *</label>
                   <input
                     type="text"
                     value={form.city}
@@ -1993,7 +2040,7 @@ export default function SupplierListingForm({
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-ink mb-1">Country *</label>
+                  <label className="block text-sm font-semibold text-ink mb-1">Country *</label>
                   <input
                     type="text"
                     value={form.country}
@@ -2005,7 +2052,7 @@ export default function SupplierListingForm({
                 </div>
               </div>
               <div id="supplier-listing-field-destination" className="space-y-2">
-                <label className="block text-sm font-medium text-ink">How it shows as a place (optional)</label>
+                <label className="block text-sm font-semibold text-ink">How it shows as a place (optional)</label>
                 <input
                   type="text"
                   value={form.destination}
@@ -2026,7 +2073,7 @@ export default function SupplierListingForm({
               {form.inventoryFamily !== 'stay' ? (
               <>
               <div id="supplier-listing-field-duration">
-                <label className="block text-sm font-medium text-ink mb-1">Duration *</label>
+                <label className="block text-sm font-semibold text-ink mb-1">Duration *</label>
                 <input
                   type="text"
                   value={form.duration}
@@ -2037,7 +2084,7 @@ export default function SupplierListingForm({
                 />
               </div>
               <div id="supplier-listing-field-start">
-                <label className="block text-sm font-medium text-ink mb-1">How does the tour start? *</label>
+                <label className="block text-sm font-semibold text-ink mb-1">How does the tour start? *</label>
                 <select
                   value={form.experienceStartStyle}
                   onChange={(e) =>
@@ -2096,14 +2143,14 @@ export default function SupplierListingForm({
                         className="mt-1 border-black/[0.12] text-finland focus:ring-finland"
                       />
                       <span>
-                        <span className="block text-sm font-medium text-ink">{o.label}</span>
+                        <span className="block text-sm font-semibold text-ink">{o.label}</span>
                         <span className="block text-xs text-ink-muted mt-0.5">{o.hint}</span>
                       </span>
                     </label>
                   ))}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-ink mb-1">Typical flow (optional)</label>
+                  <label className="block text-sm font-semibold text-ink mb-1">Typical flow (optional)</label>
                   <textarea
                     value={form.typicalTimelineNotes}
                     maxLength={MAX_TIMELINE_LENGTH}
@@ -2403,7 +2450,7 @@ export default function SupplierListingForm({
               )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
                 <div>
-                  <label className="block text-sm font-medium text-ink mb-1">Overall difficulty</label>
+                  <label className="block text-sm font-semibold text-ink mb-1">Overall difficulty</label>
                   <select
                     value={form.difficulty}
                     onChange={(e) =>
@@ -2657,93 +2704,7 @@ export default function SupplierListingForm({
             </div>
           )}
           </div>
-        </div>
-
-        <div className="relative z-10 flex shrink-0 flex-col-reverse gap-2 border-t border-black/[0.08] bg-paper px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-8 sm:py-4 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-          <button
-            type="button"
-            onClick={() => setStepIdxPersisted((s) => Math.max(0, s - 1))}
-            disabled={stepIdx === 0 || draftCloseBusy || submitting}
-            className="touch-manipulation tv-btn-ghost w-full sm:w-auto disabled:opacity-50"
-          >
-            Back
-          </button>
-          <div className="flex w-full min-w-0 flex-wrap items-stretch gap-2 sm:w-auto sm:items-center">
-            {stepIdx < steps.length - 1 ? (
-              <>
-                <button
-                  type="button"
-                  onClick={() => void runSubmit('draft')}
-                  disabled={submitting || draftCloseBusy || form.status === 'published'}
-                  className="touch-manipulation tv-btn-secondary sm:flex-none disabled:opacity-50"
-                >
-                  {submitting ? 'Saving…' : 'Save draft'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setStepIdxPersisted((s) => Math.min(steps.length - 1, s + 1))}
-                  disabled={!canContinueStep() || draftCloseBusy || submitting}
-                  className="touch-manipulation tv-btn-primary flex-1 sm:flex-none disabled:opacity-50"
-                >
-                  Continue
-                </button>
-              </>
-            ) : (
-              <div className="flex flex-col sm:flex-row flex-1 sm:flex-auto gap-2 w-full sm:w-auto min-w-0">
-                {form.status === 'published' ? (
-                  <button
-                    type="button"
-                    onClick={() => void runSubmit('published')}
-                    disabled={
-                      submitting ||
-                      draftCloseBusy ||
-                      !isStepSatisfied(steps.length - 1, form) ||
-                      !lastStepSubmitArmed ||
-                      publishBlockersPreview.length > 0
-                    }
-                    title={
-                      publishBlockersPreview.length > 0 ? publishBlockersPreview[0] : 'Save updates to your live listing'
-                    }
-                    className="touch-manipulation tv-btn-primary flex-1 sm:flex-none disabled:opacity-50"
-                  >
-                    {submitting ? 'Saving…' : 'Save changes'}
-                  </button>
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => void runSubmit('draft')}
-                      disabled={
-                        submitting ||
-                        draftCloseBusy ||
-                        !isStepSatisfied(steps.length - 1, form) ||
-                        !lastStepSubmitArmed
-                      }
-                      className="touch-manipulation tv-btn-secondary sm:flex-none disabled:opacity-50"
-                    >
-                      {submitting ? 'Saving…' : 'Save as draft'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void runSubmit('published')}
-                      disabled={
-                        submitting ||
-                        draftCloseBusy ||
-                        !lastStepSubmitArmed ||
-                        !canPostNewListing ||
-                        publishBlockersPreview.length > 0
-                      }
-                      title={publishButtonTitle}
-                      className="touch-manipulation tv-btn-primary flex-1 sm:flex-none disabled:opacity-50"
-                    >
-                      {submitting ? 'Saving…' : 'Publish'}
-                    </button>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
+        </ListingCreationWorkspace>
       </form>
       </div>
     </div>

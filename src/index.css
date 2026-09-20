@@ -255,6 +255,37 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
   pointer-events: none;
 }
 
+/* Listing creation workspace: warm paper, independent of partner dashboard chrome. */
+.listing-creation-workspace {
+  background-color: #f6f3ee;
+  color: #1c1917;
+}
+
+.listing-creation-rail,
+.listing-creation-context-rail,
+.listing-creation-mobile-bar {
+  background-color: #efe9e1;
+}
+
+.listing-creation-main,
+.listing-creation-content {
+  background-color: #f6f3ee;
+}
+
+.listing-creation-footer {
+  background-color: #fffcf8;
+}
+
+.listing-creation-content label.block,
+.listing-creation-content legend {
+  font-weight: 600;
+  color: #1c1917;
+}
+
+.listing-creation-content p.text-ink-muted {
+  color: #57534e;
+}
+
 @layer base {
   html {
     font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
