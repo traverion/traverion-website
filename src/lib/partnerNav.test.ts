@@ -36,11 +36,11 @@ describe('partnerNav IA', () => {
     ]);
   });
 
-  it('exposes a single real Reservations surface', () => {
+  it('exposes a single real Reservations surface as a leaf, not a one-item accordion', () => {
     expect(PARTNER_NAV_RESERVATIONS_CHILDREN.map((i) => i.id)).toEqual(['reservations']);
-    const group = partnerSidebarGroupContaining('reservations');
-    expect(group?.id).toBe('reservations');
-    expect(partnerSidebarDefaultChild(group!)).toBe('reservations');
+    const entry = PARTNER_SIDEBAR_PRIMARY.find((e) => e.id === 'reservations');
+    expect(entry?.kind).toBe('item');
+    expect(partnerSidebarGroupContaining('reservations')).toBeNull();
   });
 
   it('keeps Help and Settings in the footer, not mixed with ops', () => {
