@@ -1084,9 +1084,9 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                 ) : null}
 
                 {(tour.meetingPoint?.trim() || tour.pickupInstructions?.trim() || tour.experienceStartStyle) ? (
-                  <section className="rounded-2xl bg-finland/[0.06] p-5 sm:p-6 ring-1 ring-finland/15">
-                    <h2 className="font-display text-2xl text-ink mb-4">Pickup / meeting</h2>
-                    <div className="space-y-3 text-ink-muted leading-relaxed">
+                  <section className="rounded-2xl bg-finland/[0.06] p-4 sm:p-5 ring-1 ring-finland/15">
+                    <h2 className="font-display text-xl text-ink mb-2">Pickup / meeting</h2>
+                    <div className="space-y-2 text-sm text-ink-muted leading-relaxed">
                       {tour.experienceStartStyle === 'operator_pickup' ? (
                         <p>The operator picks you up. Pickup details appear on your booking in Trips after you pay.</p>
                       ) : tour.experienceStartStyle === 'fixed_meeting_place' ? (
@@ -1101,15 +1101,15 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                 ) : null}
 
                 {weekdayHint ? (
-                  <section className="tv-card p-5 sm:p-6">
-                    <h2 className="font-display text-2xl text-ink mb-3">Availability</h2>
-                    <p className="text-ink-muted leading-relaxed">{weekdayHint}. Choose a date on the right to see live options.</p>
+                  <section className="tv-card p-4 sm:p-5">
+                    <h2 className="font-display text-xl text-ink mb-2">Availability</h2>
+                    <p className="text-sm text-ink-muted leading-relaxed">{weekdayHint}. Choose a date on the right to see live options.</p>
                   </section>
                 ) : null}
 
-                <section className="rounded-2xl bg-amber-50/70 p-5 sm:p-6 ring-1 ring-amber-200/60">
-                  <h2 className="font-display text-2xl text-ink mb-3">Cancellation</h2>
-                  <p className="text-ink-muted leading-relaxed">
+                <section className="rounded-2xl bg-amber-50/70 p-4 sm:p-5 ring-1 ring-amber-200/60">
+                  <h2 className="font-display text-xl text-ink mb-2">Cancellation</h2>
+                  <p className="text-sm text-ink-muted leading-relaxed">
                     {tour.cancellationPolicy?.trim() || TRAVERION_STANDARD_CANCELLATION_POLICY}
                   </p>
                 </section>
