@@ -199,8 +199,8 @@ export default function SupplierPerformance() {
       <SupplierPageHero
         badge="Insights"
         icon={TrendingUp}
-        title="Performance"
-        description="Paid traveler bookings only — same collected definition as Money. Not estimates, site traffic, or unpaid checkouts."
+        title="Analytics"
+        description="Paid traveler bookings only — same collected definition as Income. Not estimates, site traffic, or unpaid checkouts."
         actions={
           <div className="flex items-center gap-1 rounded-md bg-paper p-1 ring-1 ring-black/[0.06]" role="tablist" aria-label="Time range">
             {WINDOW_OPTIONS.map((opt) => (

@@ -286,8 +286,8 @@ export default function SupplierEarnings() {
     <div className={SUPPLIER_PAGE_CLASS}>
       <SupplierPageHero
         badge="Insights"
-        title="Money"
-        description="Traveler payments collected, fees & adjustments, and what Traverion has paid you. Payouts are manual — this page never invents a transfer."
+        title="Income"
+        description="Traveler payments collected, fees & adjustments, and what Traverion has paid you. Payouts are manual — this page never invents a transfer. Stripe TEST until live."
       />
 
       {error && (
