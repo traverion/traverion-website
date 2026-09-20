@@ -8,6 +8,7 @@ import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 import { travelerLoginHref } from '../lib/travelerAuthLinks';
+import { localYmd } from '../lib/local-ymd';
 import { useDialogFocus } from '../hooks/useDialogFocus';
 import { SkeletonListItem, SkeletonConsumerPage } from '../components/ui/Skeleton';
 import { useAuth } from '../contexts/AuthContext';
@@ -275,7 +276,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
     if (!openTripId || bookings.length === 0) return;
     const b = bookings.find((row) => row.id === openTripId);
     if (!b) return;
-    const today = new Date().toISOString().slice(0, 10);
+    const today = localYmd();
     if (bookingIsCancelledTrip(b)) setTripView('cancelled');
     else if (b.booking_date && b.booking_date < today) setTripView('past');
     else setTripView('upcoming');
@@ -314,7 +315,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
     window.history.replaceState({}, '', next);
   }, []);
 
-  const todayIso = new Date().toISOString().slice(0, 10);
+  const todayIso = localYmd();
   const refundDueCount = useMemo(() => bookings.filter(isRefundDueBooking).length, [bookings]);
   const visibleBookings = useMemo(() => {
     const rows = bookings.filter((b) => bookingMatchesTripView(b, tripView, todayIso));

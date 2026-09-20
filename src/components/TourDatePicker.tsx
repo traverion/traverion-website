@@ -4,6 +4,7 @@ import type { ListingBookingOption } from '../types/listingExtras';
 import { monthGrid } from '../lib/stay-calendar';
 import { formatBookingDateDisplay } from '../lib/booking-flow';
 import { formatTourDayAria, tourDayState } from '../lib/tour-calendar';
+import { localYmd } from '../lib/local-ymd';
 
 type Props = {
   id: string;
@@ -33,7 +34,7 @@ export default function TourDatePicker({
   hint,
   soldOutDates,
 }: Props) {
-  const todayIso = todayProp ?? new Date().toISOString().slice(0, 10);
+  const todayIso = todayProp ?? localYmd();
   const start = value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : todayIso;
   const [cursor, setCursor] = useState(() => {
     const [y, m] = start.split('-').map(Number);

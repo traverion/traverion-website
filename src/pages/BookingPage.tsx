@@ -24,6 +24,7 @@ import type { ListingDiscount } from '../data/supabase-discounts';
 import { fetchConsumerProfileRow } from '../data/supabase-consumer-profile';
 import { getDisplayPriceForBookingVariant } from '../lib/discount-display';
 import { quoteBooking, formatOptionWeekdays, tourQuotePriceLines } from '../lib/booking-quote';
+import { localYmd } from '../lib/local-ymd';
 import { formatMoney, normalizeCurrency } from '../lib/money';
 import PriceBreakdown from '../components/PriceBreakdown';
 import { CHECKOUT_HOLD_MINUTES } from '../lib/booking-hold';
@@ -197,7 +198,7 @@ export default function BookingPage({
   const currency = normalizeCurrency(tour.price?.currency);
   const fallbackBasePrice = tour.price?.startingFrom ?? 0;
   const priceInfo = useMemo(() => {
-    const day = date.trim() || new Date().toISOString().slice(0, 10);
+    const day = date.trim() || localYmd();
     const optionId =
       selectedVariant && selectedVariant.id !== '__default__' ? selectedVariant.id : undefined;
     const quoted = quoteBooking({

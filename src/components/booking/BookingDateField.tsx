@@ -1,6 +1,7 @@
 import { useCallback, useRef } from 'react';
 import { Calendar } from 'lucide-react';
 import { formatBookingDateDisplay } from '../../lib/booking-flow';
+import { localYmd } from '../../lib/local-ymd';
 
 export type BookingDateFieldProps = {
   id: string;
@@ -75,7 +76,7 @@ export default function BookingDateField({
           ref={internalRef}
           type="date"
           value={value}
-          min={min ?? new Date().toISOString().slice(0, 10)}
+          min={min ?? localYmd()}
           onChange={(e) => onChange(e.target.value)}
           onClick={(e) => {
             e.stopPropagation();

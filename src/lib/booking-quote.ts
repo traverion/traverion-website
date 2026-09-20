@@ -16,6 +16,7 @@ import { getPartySizeBounds, getPartySizeBoundsForVariant, guestCountValidationE
 import { listingCanUseTravelerQuote } from './inventory';
 import { travelerFacingBookingOptions } from './legacy-participant-options';
 import { DEFAULT_CURRENCY, normalizeCurrency } from './money';
+import { localYmd } from './local-ymd';
 import {
   buildParticipantMixLines,
   guestBreakdownFromLines,
@@ -173,7 +174,7 @@ export function quoteBooking(input: {
   /** YYYY-MM-DD; defaults to today UTC. */
   todayIso?: string;
 }): BookingQuoteResult {
-  const today = input.todayIso ?? new Date().toISOString().slice(0, 10);
+  const today = input.todayIso ?? localYmd();
   const date = (input.bookingDate ?? '').trim();
   let guests = Number(input.guests);
 
@@ -399,7 +400,7 @@ export function quoteStayNights(input: {
   guests: number;
   todayIso?: string;
 }): StayQuoteResult {
-  const today = input.todayIso ?? new Date().toISOString().slice(0, 10);
+  const today = input.todayIso ?? localYmd();
   if (!isListingBookable(input.tour.status)) {
     return { ok: false, code: 'unpublished', error: 'This stay is not available to book.' };
   }

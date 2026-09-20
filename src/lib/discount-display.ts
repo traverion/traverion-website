@@ -8,6 +8,7 @@ import {
 } from '../data/supabase-discounts';
 import { participantPriceSummaryFromBookingOptions, pickHeadlineOption, pricedNamesFromBookingOptions } from './headline-price';
 import { formatMoney, normalizeCurrency } from './money';
+import { localYmd } from './local-ymd';
 
 export function isSupabaseListingId(id: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
@@ -176,7 +177,7 @@ export function getDisplayPriceForBookingVariant(
   bookingDateIso: string
 ): { price: number; originalPrice: number; label?: string } {
   const discounts = discountsByListing.get(tour.id) ?? [];
-  const day = (bookingDateIso.trim() || new Date().toISOString().slice(0, 10)).slice(0, 10);
+  const day = (bookingDateIso.trim() || localYmd()).slice(0, 10);
   const at = new Date(`${day}T12:00:00`);
   const fallbackBase = tour.price?.startingFrom ?? 0;
   const base = variant.pricePerPerson > 0 ? variant.pricePerPerson : fallbackBase;

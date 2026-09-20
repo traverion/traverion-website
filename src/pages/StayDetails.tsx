@@ -7,6 +7,7 @@ import { listingIsFamily } from '../lib/inventory';
 import { useAuth } from '../contexts/AuthContext';
 import { rememberTravelerReturnStay, travelerLoginHref } from '../lib/travelerAuthLinks';
 import { quoteStayNights, stayQuotePriceLines } from '../lib/booking-quote';
+import { localYmd } from '../lib/local-ymd';
 import { stayDateRangesOverlap, occupiedNightsFromStayRanges, nightsOccupiedByStay } from '../lib/stayOccupancy';
 import {
   createBookingCheckoutSession,
@@ -682,7 +683,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
                 checkIn={checkIn}
                 checkOut={checkOut}
                 occupiedNights={occupiedNights}
-                todayIso={new Date().toISOString().slice(0, 10)}
+                todayIso={localYmd()}
                 minNights={minNights}
                 onChange={(a, b) => {
                   setCheckIn(a);
