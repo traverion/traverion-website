@@ -360,31 +360,31 @@ export default function SupplierDiscountsOffers() {
                   return (
                     <article
                       key={d.id}
-                      className={`rounded-xl bg-paper-raised p-3.5 sm:p-4 shadow-soft ring-1 ring-black/[0.06] w-full min-w-0 max-w-full space-y-2.5 ${
+                      className={`rounded-lg border border-black/[0.06] bg-paper p-3 w-full min-w-0 max-w-full space-y-2 ${
                         stayUnsupported ? 'border-l-[3px] border-l-amber-500' : ''
                       }`}
                     >
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between min-w-0">
-                        <div className="flex gap-3 min-w-0 flex-1">
+                        <div className="flex gap-2.5 min-w-0 flex-1">
                           {listing.image?.trim() ? (
                             <img
                               src={listing.image}
                               alt=""
-                              className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl object-cover shrink-0"
+                              className="w-12 h-12 rounded-lg object-cover shrink-0 ring-1 ring-black/[0.06]"
                             />
                           ) : (
                             <div
-                              className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl shrink-0 bg-finland/10 flex items-center justify-center text-finland"
+                              className="w-12 h-12 rounded-lg shrink-0 bg-finland/10 flex items-center justify-center text-finland ring-1 ring-finland/15"
                               aria-hidden
                             >
-                              <MapPin className="w-6 h-6 sm:w-7 sm:h-7" />
+                              <MapPin className="w-5 h-5" />
                             </div>
                           )}
                           <div className="min-w-0">
-                            <p className="font-semibold text-ink break-words">{listing.title}</p>
-                            <p className="text-sm text-ink-muted mt-1 break-words">
+                            <p className="text-sm font-semibold text-ink break-words">{listing.title}</p>
+                            <p className="text-xs text-ink-muted mt-0.5 break-words">
                               {stayUnsupported
-                                ? 'Stay · percentage discounts are not applied on traveler checkout'
+                                ? 'Stay · not applied on traveler checkout'
                                 : optionLabelForDiscount(listing, d)}
                             </p>
                           </div>
