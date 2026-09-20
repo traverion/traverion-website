@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { ArrowLeft, MapPin, Heart, Star } from 'lucide-react';
 import { getListingById, getListingByIdAsync } from '../data/listings';
-import { parseListingExtras } from '../types/listingExtras';
+import { parseListingExtras, TRAVERION_STANDARD_CANCELLATION_POLICY } from '../types/listingExtras';
 import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
 import { listingIsFamily } from '../lib/inventory';
 import { useAuth } from '../contexts/AuthContext';
