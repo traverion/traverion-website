@@ -94,11 +94,11 @@ export function SupplierModalHeader({ icon: Icon, title, subtitle, onClose }: Su
 
 export function SupplierListSkeleton({ rows = 3 }: { rows?: number }) {
   return (
-    <div className="space-y-3 animate-pulse" aria-busy="true" aria-label="Loading">
+    <div className="space-y-1.5 animate-pulse" aria-busy="true" aria-label="Loading">
       {Array.from({ length: rows }, (_, i) => (
         <div
           key={i}
-          className="h-28 rounded-2xl bg-paper-raised shadow-soft ring-1 ring-black/[0.06]"
+          className="h-20 rounded-xl bg-paper-raised ring-1 ring-black/[0.06]"
         />
       ))}
     </div>
