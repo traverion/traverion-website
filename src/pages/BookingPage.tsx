@@ -695,7 +695,7 @@ export default function BookingPage({
             </p>
             <div className="space-y-3 text-sm text-ink-muted mb-6 rounded-xl bg-paper px-4 py-3.5 ring-1 ring-black/[0.05]">
               <p>
-                <span className="font-medium text-ink">Experience</span> — {tour.title}
+                <span className="font-medium text-ink">Tour</span> — {tour.title}
               </p>
               <p>
                 <span className="font-medium text-ink">Option</span> — {selectedVariant.label}
@@ -1073,7 +1073,7 @@ export default function BookingPage({
               <h3 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint mb-3">Your booking</h3>
               <dl className="space-y-2.5 text-sm">
                 <div className="flex justify-between gap-4">
-                  <dt className="text-ink-muted">Experience</dt>
+                  <dt className="text-ink-muted">Tour</dt>
                   <dd className="font-medium text-ink text-right max-w-[65%]">{tour.title}</dd>
                 </div>
                 <div className="flex justify-between gap-4">
