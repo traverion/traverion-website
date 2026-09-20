@@ -326,8 +326,8 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   if (!isSupabaseConfigured()) {
     return (
       <div className="min-h-screen bg-paper tv-page">
-        <div className="max-w-2xl mx-auto px-4 py-12 pb-16">
-          <header className="mb-8 tv-card p-5 sm:p-7">
+        <div className="max-w-2xl mx-auto px-4 py-8 pb-12">
+          <header className="mb-5 tv-card p-4 sm:p-5">
             <div className="inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15 mb-3">
               Your bookings
             </div>
@@ -367,7 +367,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
     }
     return (
       <div className="min-h-screen bg-paper tv-page">
-        <div className="max-w-xl mx-auto px-4 py-12 pb-16">
+        <div className="max-w-xl mx-auto px-4 py-8 pb-12">
           <header className="mb-6 tv-card p-5 sm:p-7">
             <div className="inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15 mb-3">
               Your bookings
@@ -402,8 +402,8 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
 
   return (
     <div className="min-h-screen bg-paper tv-page">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-12 pb-16">
-        <header className="mb-8 tv-card p-5 sm:p-7">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 pb-12">
+        <header className="mb-5 tv-card p-4 sm:p-5">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Your bookings</p>
@@ -448,7 +448,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
           />
         )}
         {actionError ? (
-          <div className="mb-8 max-w-lg">
+          <div className="mb-5 max-w-lg">
             <NoticeCallout title="Could not complete that action" tone="danger">
               <p>{actionError}</p>
               <button type="button" onClick={() => setActionError(null)} className="tv-btn-ghost mt-3 -ml-2">
@@ -458,7 +458,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
           </div>
         ) : null}
         {actionSuccess ? (
-          <div className="mb-8 max-w-lg">
+          <div className="mb-5 max-w-lg">
             <NoticeCallout title={actionSuccess.title} tone="warn">
               <p>{actionSuccess.body}</p>
               <button type="button" onClick={() => setActionSuccess(null)} className="tv-btn-ghost mt-3 -ml-2">
@@ -468,7 +468,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
           </div>
         ) : null}
         {paymentBanner === 'success' && (
-          <div className="mb-8 max-w-lg">
+          <div className="mb-5 max-w-lg">
             <h2 className="font-display text-2xl text-ink">Payment received</h2>
             <p className="mt-2 text-sm text-ink-muted">
               Your booking is confirmed. Open this page anytime for details. {BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE}{' '}
@@ -485,7 +485,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
           </div>
         )}
         {paymentBanner === 'cancelled' && (
-          <div className="mb-8 max-w-lg">
+          <div className="mb-5 max-w-lg">
             <h2 className="font-display text-2xl text-ink">Payment not completed</h2>
             <p className="mt-2 text-sm text-ink-muted">
               {pendingPayBookings.some((b) => Boolean(b.check_out))
@@ -532,7 +532,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
             }
           />
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-4">
             <div className="flex gap-1 rounded-full bg-paper-raised p-1 w-fit shadow-soft ring-1 ring-black/[0.06]">
               {([
                 ['upcoming', 'Upcoming'],
