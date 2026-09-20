@@ -117,6 +117,27 @@ export default function SupplierAvailability() {
     }
     return map;
   }, [bookings, listingId, viewingAll, listings]);
+
+  /** Ops-only: check-out mornings (inventory stays [checkIn, checkOut)). */
+  const checkOutsByDate = useMemo(() => {
+    const map = new Map<string, { guests: number; count: number }>();
+    const listingById = new Map(listings.map((l) => [l.id, l]));
+    for (const b of bookings) {
+      if (!partnerStayCalendarOccupiesNight(b)) continue;
+      if (!viewingAll && b.listing_id !== listingId) continue;
+      const item = listingById.get(b.listing_id);
+      const isStay = item ? inventoryFamilyFromListing(item) === 'stay' : Boolean(b.check_out);
+      if (!isStay) continue;
+      const range = stayRangeFromBooking(b);
+      if (!range) continue;
+      const cur = map.get(range.checkOut) ?? { guests: 0, count: 0 };
+      cur.guests += b.guests ?? 0;
+      cur.count += 1;
+      map.set(range.checkOut, cur);
+    }
+    return map;
+  }, [bookings, listingId, viewingAll, listings]);
+
   const dayBookings = useMemo(() => {
     if (!editing) return [];
     const rows = bookings.filter((b) => {
@@ -141,6 +162,18 @@ export default function SupplierAvailability() {
       return a.created_at.localeCompare(b.created_at);
     });
   }, [bookings, editing, listingId, viewingAll, listings]);
+
+  const dayDepartures = useMemo(() => {
+    if (!editing || !stayCalendar) return [];
+    return bookings
+      .filter((b) => {
+        if (!partnerStayCalendarOccupiesNight(b)) return false;
+        if (!viewingAll && b.listing_id !== listingId) return false;
+        const range = stayRangeFromBooking(b);
+        return Boolean(range && range.checkOut === editing.iso);
+      })
+      .sort((a, b) => (a.created_at ?? '').localeCompare(b.created_at ?? ''));
+  }, [bookings, editing, listingId, viewingAll, stayCalendar]);
 
   const daySheetTimesLine = (b: BookingRow) => {
     const start = pgTimeToHm(b.start_time);
@@ -514,12 +547,14 @@ export default function SupplierAvailability() {
                   <span className="h-2.5 w-2.5 rounded-full bg-finland ring-1 ring-finland/30" /> Occupied
                 </span>
                 <span className="inline-flex items-center gap-1.5">
+                  <span className="h-2.5 w-2.5 rounded-full bg-amber-400 ring-1 ring-amber-500/30" /> Check-out
+                </span>
+                <span className="inline-flex items-center gap-1.5">
                   <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 ring-1 ring-emerald-500/30" /> Available
                 </span>
                 <span className="inline-flex items-center gap-1.5">
                   <span className="h-2.5 w-2.5 rounded-full bg-rose-500 ring-1 ring-rose-600/30" /> Blocked
                 </span>
-                <span className="text-ink-faint">Minimum stay and nightly price live on the listing.</span>
               </>
             ) : (
               <>
@@ -549,6 +584,7 @@ export default function SupplierAvailability() {
               const open = cell.inMonth && (stayCalendar || weekdayOpen(cell.iso));
               const cap = rowByDate.get(cell.iso);
               const occupying = guestsByDate.get(cell.iso);
+              const departing = stayCalendar ? checkOutsByDate.get(cell.iso) : undefined;
               const stayKind = stayCalendar
                 ? partnerStayDayKind({ occupying: Boolean(occupying), capacity: cap?.capacity })
                 : null;
@@ -577,7 +613,9 @@ export default function SupplierAvailability() {
                   ? `${dateLabel}, occupied`
                   : stayKind === 'blocked'
                     ? `${dateLabel}, blocked`
-                    : occupying
+                    : departing
+                      ? `${dateLabel}, check-out`
+                      : occupying
                       ? `${dateLabel}, ${occupying.guests} guest${occupying.guests === 1 ? '' : 's'}`
                       : remaining !== null && tourCapacity != null
                         ? `${dateLabel}, ${remaining} of ${tourCapacity} spots left`
@@ -613,6 +651,8 @@ export default function SupplierAvailability() {
                           ? 'bg-paper-raised ring-finland/25'
                           : occupying || stayKind === 'occupied'
                             ? 'bg-finland/15 ring-finland/20'
+                        : departing
+                          ? 'bg-amber-50 ring-amber-200/70'
                         : stayKind === 'blocked' || (open && remaining === 0)
                           ? 'bg-rose-50 ring-rose-200/70'
                           : (cap && (stayCalendar || open)) || (open && stayCalendar)
@@ -627,6 +667,8 @@ export default function SupplierAvailability() {
                     <span className="mt-0.5 block text-[10px] font-medium leading-tight text-finland">
                       {stayCalendar ? 'Occupied' : `${occupying?.guests} guest${occupying?.guests === 1 ? '' : 's'}`}
                     </span>
+                  ) : cell.inMonth && departing ? (
+                    <span className="mt-0.5 block text-[10px] font-medium leading-tight text-amber-800">Out</span>
                   ) : cell.inMonth && stayKind === 'blocked' ? (
                     <span className="mt-0.5 block text-[10px] font-semibold leading-tight text-rose-700">Blocked</span>
                   ) : cell.inMonth && remaining !== null && tourCapacity != null ? (
@@ -662,7 +704,7 @@ export default function SupplierAvailability() {
                   month: 'long',
                 })}
               </p>
-              {dayBookings.length === 0 ? (
+              {dayBookings.length === 0 && dayDepartures.length === 0 ? (
                 <p className="mt-3 text-sm text-ink-muted">
                   {stayCalendar ? 'No stay on this night.' : 'No guests on this date.'}
                 </p>
@@ -684,6 +726,7 @@ export default function SupplierAvailability() {
                             ? `${listings.find((l) => l.id === b.listing_id)?.title ?? 'Listing'} · ${b.guests} guest${b.guests === 1 ? '' : 's'}`
                             : `${b.guests} guest${b.guests === 1 ? '' : 's'}`}
                           {times ? ` · ${times}` : ''}
+                          {stayCalendar ? ' · In-house' : ''}
                         </p>
                         {hold ? (
                           <p className="mt-0.5 text-[11px] font-medium text-amber-900">{hold}</p>
@@ -692,6 +735,23 @@ export default function SupplierAvailability() {
                     </li>
                     );
                   })}
+                  {dayDepartures.map((b) => (
+                    <li key={`out-${b.id}`}>
+                      <button
+                        type="button"
+                        onClick={() => openSupplierBooking(b.id)}
+                        className="lux-flat w-full text-left"
+                      >
+                        <p className="font-semibold text-ink">{b.guest_name?.trim() || 'Guest'}</p>
+                        <p className="text-sm text-ink-muted">
+                          {viewingAll
+                            ? `${listings.find((l) => l.id === b.listing_id)?.title ?? 'Listing'} · ${b.guests} guest${b.guests === 1 ? '' : 's'}`
+                            : `${b.guests} guest${b.guests === 1 ? '' : 's'}`}
+                          {' · Check-out today'}
+                        </p>
+                      </button>
+                    </li>
+                  ))}
                 </ul>
               )}
               {viewingAll ? (
@@ -706,6 +766,11 @@ export default function SupplierAvailability() {
                       Setting Block to 0 still saves for after checkout; it will not change the Occupied label while
                       the guest is in-house.
                     </NoticeCallout>
+                  ) : dayDepartures.length > 0 ? (
+                    <p className="mt-4 text-xs text-ink-muted leading-snug rounded-lg border border-amber-200/80 border-l-[3px] border-l-amber-500 bg-amber-50/50 px-3 py-2">
+                      Check-out morning — guests leave today. The night is free for the next stay; inventory uses
+                      nights before check-out only.
+                    </p>
                   ) : null}
                   {saveNote ? (
                     <p className="mt-4 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-950 ring-1 ring-emerald-200/80">
