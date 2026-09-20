@@ -398,8 +398,8 @@ function App() {
 
     const metaByPage: Record<string, { title: string; description?: string }> = {
       home: { title: '', description: 'Book tours and stays worldwide from independent operators. Cancellation follows each listing.' },
-      packages: { title: 'Tours', description: 'Browse and book tours worldwide. Filter by destination, price, and more.' },
-      stays: { title: 'Stays', description: 'Apartments and rooms from independent operators.' },
+      packages: { title: 'Tours', description: 'Browse and book tours worldwide. Filter by destination, price, dates, and tags. Cancellation follows each listing.' },
+      stays: { title: 'Stays', description: 'Apartments and rooms from independent operators. Cancellation follows each listing.' },
       auth: { title: 'Sign in', description: 'Sign in or create an account to manage your bookings.' },
       'reset-password': { title: 'Set a new password', description: 'Choose a new password for your Traverion traveler account.' },
       'email-confirmed': { title: 'Email confirmed', description: 'Your Traverion traveler email was verified.' },
