@@ -12,6 +12,9 @@ export type TourBasicsSceneId = (typeof TOUR_BASICS_SCENES)[number]['id'];
 export const TOUR_BASICS_SCENE_COUNT = TOUR_BASICS_SCENES.length;
 export const TOUR_BASICS_SUBTITLE_MAX = 300;
 export const TOUR_BASICS_DESCRIPTION_MAX = 2000;
+export const TOUR_HIGHLIGHT_MIN_VISIBLE = 2;
+export const TOUR_HIGHLIGHT_MAX = 6;
+export const TOUR_IDENTITY_PREVIEW_SUBTITLE_CLAMP = 160;
 
 export const TOUR_PRODUCT_TYPE_OPTIONS: {
   id: 'tour' | 'ticket' | 'transportation';
@@ -148,4 +151,39 @@ export function initialTourBasicsSceneIndex(input: {
 export function listingCreationSceneCopy(index: number, total: number): string {
   if (total <= 0) return '';
   return `${index + 1} / ${total}`;
+}
+
+export function normalizeTourHighlightSlots(fromDb: string[] | undefined | null): string[] {
+  const base = Array.isArray(fromDb) ? fromDb.map((s) => String(s ?? '')) : [];
+  const out = base.slice(0, TOUR_HIGHLIGHT_MAX);
+  while (out.length < TOUR_HIGHLIGHT_MIN_VISIBLE) out.push('');
+  return out;
+}
+
+export function canAddTourHighlight(slots: readonly string[]): boolean {
+  return slots.length < TOUR_HIGHLIGHT_MAX;
+}
+
+export function addTourHighlight(slots: readonly string[]): string[] {
+  if (!canAddTourHighlight(slots)) return [...slots];
+  return [...slots, ''];
+}
+
+export function removeTourHighlight(slots: readonly string[], index: number): string[] {
+  if (index < TOUR_HIGHLIGHT_MIN_VISIBLE) {
+    return slots.map((value, i) => (i === index ? '' : value));
+  }
+  const next = slots.filter((_, i) => i !== index);
+  return normalizeTourHighlightSlots(next);
+}
+
+export function persistableTourHighlights(slots: readonly string[]): string[] {
+  return slots.map((s) => s.trim()).filter(Boolean).slice(0, TOUR_HIGHLIGHT_MAX);
+}
+
+/** Preview-only clamp. Does not mutate the supplier field. */
+export function identityPreviewSubtitle(subtitle: string): string {
+  const text = subtitle.trim();
+  if (text.length <= TOUR_IDENTITY_PREVIEW_SUBTITLE_CLAMP) return text;
+  return `${text.slice(0, TOUR_IDENTITY_PREVIEW_SUBTITLE_CLAMP).trimEnd()}…`;
 }

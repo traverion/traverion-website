@@ -39,11 +39,14 @@ import {
   TOUR_BASICS_DESCRIPTION_MAX,
   TOUR_BASICS_SCENE_COUNT,
   TOUR_BASICS_SUBTITLE_MAX,
+  TOUR_HIGHLIGHT_MIN_VISIBLE,
   canAdvanceTourBasicsScene,
   canSelectTourBasicsScene,
   clampTourBasicsSceneIndex,
   initialTourBasicsSceneIndex,
   nextTourBasicsScene,
+  normalizeTourHighlightSlots,
+  persistableTourHighlights,
   previousTourBasicsScene,
   tourBasicsSceneForFocusSection,
   type ListingCreationSceneDirection,
@@ -107,7 +110,7 @@ const EXPERIENCE_START_OPTIONS: {
 
 const MAX_SUBTITLE_LENGTH = TOUR_BASICS_SUBTITLE_MAX;
 const MAX_DESCRIPTION_LENGTH = TOUR_BASICS_DESCRIPTION_MAX;
-const HIGHLIGHT_SLOT_COUNT = 5;
+const STAY_HIGHLIGHT_SLOT_COUNT = 5;
 const INCLUDE_SLOT_COUNT = 6;
 const EXCLUDE_SLOT_COUNT = 6;
 const MAX_ACCESSIBILITY_LENGTH = 500;
@@ -349,8 +352,8 @@ function getBookingOptionValidationMessages(o: ListingBookingOption): string[] {
 
 function normalizeHighlightSlots(fromDb: string[] | undefined): string[] {
   const base = Array.isArray(fromDb) ? fromDb.map((s) => String(s ?? '').trim()) : [];
-  const out = base.slice(0, HIGHLIGHT_SLOT_COUNT);
-  while (out.length < HIGHLIGHT_SLOT_COUNT) out.push('');
+  const out = base.slice(0, STAY_HIGHLIGHT_SLOT_COUNT);
+  while (out.length < STAY_HIGHLIGHT_SLOT_COUNT) out.push('');
   return out;
 }
 
@@ -491,10 +494,7 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
       ? form.experienceKind
       : undefined;
   const desc = form.description.trim().slice(0, MAX_DESCRIPTION_LENGTH);
-  const highlightList = normalizeHighlightSlots(form.highlights)
-    .map((h) => h.trim())
-    .filter(Boolean)
-    .slice(0, HIGHLIGHT_SLOT_COUNT);
+  const highlightList = persistableTourHighlights(form.highlights);
   const includeList = normalizeLineSlots(INCLUDE_SLOT_COUNT, form.includes)
     .map((s) => s.trim())
     .filter(Boolean);
@@ -695,7 +695,7 @@ const emptyForm: ListingFormState = {
   experienceKind: '',
   title: '',
   subtitle: '',
-  highlights: Array.from({ length: HIGHLIGHT_SLOT_COUNT }, () => ''),
+  highlights: Array.from({ length: TOUR_HIGHLIGHT_MIN_VISIBLE }, () => ''),
   destination: '',
   duration: '',
   photoSlots: Array.from({ length: LISTING_PHOTO_GRID_SLOTS }, () => ''),
@@ -986,6 +986,7 @@ export default function SupplierListingForm({
           photoSlotsFromTourPackage(existing),
           normalizePhotoSlotLabels(extras.photoSlotLabels)
         );
+        const listingIsStay = extras.inventoryFamily === 'stay';
         const next: ListingFormState = {
           experienceLanguage: existing.experienceLanguage ?? '',
           experienceKind:
@@ -996,7 +997,9 @@ export default function SupplierListingForm({
               : '',
           title: existing.title,
           subtitle: existing.subtitle?.trim() ?? '',
-          highlights: normalizeHighlightSlots(existing.highlights),
+          highlights: listingIsStay
+            ? normalizeHighlightSlots(existing.highlights)
+            : normalizeTourHighlightSlots(existing.highlights),
           destination: existing.destination,
           duration: existing.duration,
           photoSlots: packed.slots,
@@ -1066,6 +1069,7 @@ export default function SupplierListingForm({
                 experienceLanguage: 'en',
                 duration: 'Per night',
                 experienceKind: 'tour' as const,
+                highlights: Array.from({ length: STAY_HIGHLIGHT_SLOT_COUNT }, () => ''),
               }
             : {}),
         };

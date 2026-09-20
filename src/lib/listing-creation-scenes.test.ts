@@ -5,9 +5,13 @@ import {
   TOUR_BASICS_SCENE_COUNT,
   TOUR_BASICS_SCENES,
   TOUR_BASICS_SUBTITLE_MAX,
+  TOUR_HIGHLIGHT_MAX,
+  addTourHighlight,
   canAdvanceTourBasicsScene,
+  canAddTourHighlight,
   canSelectTourBasicsScene,
   clampTourBasicsSceneIndex,
+  identityPreviewSubtitle,
   initialTourBasicsSceneIndex,
   isTourBasicsComplete,
   isTourBasicsSceneSatisfied,
@@ -16,7 +20,10 @@ import {
   isTourStorySatisfied,
   listingCreationSceneCopy,
   nextTourBasicsScene,
+  normalizeTourHighlightSlots,
+  persistableTourHighlights,
   previousTourBasicsScene,
+  removeTourHighlight,
   tourBasicsSceneForFocusSection,
   type TourBasicsFields,
 } from './listing-creation-scenes';
@@ -182,5 +189,39 @@ describe('scene progress copy', () => {
   it('stays subordinate numeric copy, not a second wizard', () => {
     expect(listingCreationSceneCopy(0, 3)).toBe('1 / 3');
     expect(listingCreationSceneCopy(2, 3)).toBe('3 / 3');
+  });
+});
+
+describe('tour highlights progressive disclosure', () => {
+  it('starts with two visible slots and can grow to six without inventing ranking claims', () => {
+    expect(normalizeTourHighlightSlots(undefined)).toEqual(['', '']);
+    expect(normalizeTourHighlightSlots(['Aurora', 'Small group', 'Warm drinks'])).toEqual([
+      'Aurora',
+      'Small group',
+      'Warm drinks',
+    ]);
+    const added = addTourHighlight(['a', 'b']);
+    expect(added).toEqual(['a', 'b', '']);
+    expect(canAddTourHighlight(Array.from({ length: TOUR_HIGHLIGHT_MAX }, () => 'x'))).toBe(false);
+  });
+
+  it('removes a middle highlight without dropping neighbors', () => {
+    expect(removeTourHighlight(['one', 'two', 'three', 'four'], 2)).toEqual(['one', 'two', 'four']);
+    expect(removeTourHighlight(['one', 'two'], 0)).toEqual(['', 'two']);
+  });
+
+  it('persists only filled highlights, up to six', () => {
+    expect(persistableTourHighlights(['  a  ', '', 'b', '  '])).toEqual(['a', 'b']);
+  });
+});
+
+describe('identity preview overflow', () => {
+  it('clamps preview copy without mutating the full subtitle', () => {
+    const full = `${'NorthernLights'.repeat(20)} https://example.com/${'path'.repeat(40)}`;
+    expect(full.length).toBeGreaterThan(160);
+    const preview = identityPreviewSubtitle(full);
+    expect(preview.endsWith('…')).toBe(true);
+    expect(preview.length).toBeLessThan(full.length);
+    expect(full.includes('NorthernLights')).toBe(true);
   });
 });

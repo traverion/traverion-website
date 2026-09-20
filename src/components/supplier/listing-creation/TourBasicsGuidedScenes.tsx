@@ -5,8 +5,12 @@ import {
   TOUR_BASICS_SCENE_COUNT,
   TOUR_BASICS_SCENES,
   TOUR_BASICS_SUBTITLE_MAX,
+  TOUR_HIGHLIGHT_MAX,
   TOUR_PRODUCT_TYPE_OPTIONS,
+  addTourHighlight,
+  canAddTourHighlight,
   canSelectTourBasicsScene,
+  removeTourHighlight,
   type ListingCreationSceneDirection,
   type TourBasicsSceneId,
 } from '../../../lib/listing-creation-scenes';
@@ -116,13 +120,13 @@ export function TourBasicsGuidedScenes({
       ) : null}
 
       {scene.id === 'identity' ? (
-        <div
-          className={
-            form.title.trim()
-              ? 'grid grid-cols-1 items-start gap-10 xl:grid-cols-[minmax(0,36rem)_minmax(14rem,18rem)] xl:gap-14'
-              : 'max-w-xl'
-          }
-        >
+          <div
+            className={
+              form.title.trim()
+                ? 'grid min-w-0 grid-cols-1 items-start gap-10 xl:grid-cols-[minmax(0,36rem)_minmax(14rem,18rem)] xl:gap-14'
+                : 'max-w-xl'
+            }
+          >
           <div className="max-w-xl space-y-7">
             <div id="supplier-listing-field-title">
               <label htmlFor="supplier-listing-title" className="mb-1 block text-sm font-semibold text-ink">
@@ -136,7 +140,7 @@ export function TourBasicsGuidedScenes({
                 type="text"
                 value={form.title}
                 onChange={(e) => onChange({ title: e.target.value })}
-                className="tv-input py-3 text-lg"
+                className="tv-input min-w-0 py-3 text-lg [overflow-wrap:anywhere]"
                 placeholder="e.g. Old town walking tour · small groups"
                 required
               />
@@ -154,8 +158,7 @@ export function TourBasicsGuidedScenes({
                 value={form.subtitle}
                 maxLength={TOUR_BASICS_SUBTITLE_MAX}
                 onChange={(e) => onChange({ subtitle: e.target.value.slice(0, TOUR_BASICS_SUBTITLE_MAX) })}
-                className="tv-input"
-                placeholder="e.g. Small-group food walk with local hosts"
+                className="tv-input min-w-0 [overflow-wrap:anywhere]"
               />
               <p className="mt-1 text-xs tabular-nums text-ink-muted">
                 {form.subtitle.length}/{TOUR_BASICS_SUBTITLE_MAX}
@@ -181,7 +184,7 @@ export function TourBasicsGuidedScenes({
               </select>
             </div>
           </div>
-          <div className="xl:sticky xl:top-2">
+          <div className="xl:sticky xl:top-2 min-w-0">
             <ListingCreationIdentityPreview
               title={form.title}
               subtitle={form.subtitle}
@@ -207,7 +210,7 @@ export function TourBasicsGuidedScenes({
               maxLength={TOUR_BASICS_DESCRIPTION_MAX}
               onChange={(e) => onChange({ description: e.target.value.slice(0, TOUR_BASICS_DESCRIPTION_MAX) })}
               rows={9}
-              className={`tv-input min-h-[12rem] text-base leading-relaxed ${
+              className={`tv-input min-h-[12rem] break-words text-base leading-relaxed [overflow-wrap:anywhere] ${
                 form.description.trim().length > 0 &&
                 form.description.trim().length < MIN_LISTING_DESCRIPTION_LENGTH
                   ? 'border-amber-300 focus:border-amber-400 focus:ring-amber-200'
@@ -240,17 +243,29 @@ export function TourBasicsGuidedScenes({
             <div>
               <label className="block text-sm font-semibold text-ink">Highlights (optional)</label>
               <p className="mt-1 text-xs text-ink-muted">
-                Up to five short selling points — each on its own line below.
+                Add the strongest reasons travelers should choose this tour. You can add up to {TOUR_HIGHLIGHT_MAX}.
               </p>
             </div>
             {form.highlights.map((line, index) => (
-              <div key={index}>
-                <label
-                  className="mb-1 block text-xs font-medium text-ink-muted"
-                  htmlFor={`supplier-listing-highlight-${index}`}
-                >
-                  Highlight {index + 1}
-                </label>
+              <div key={`highlight-${index}`}>
+                <div className="mb-1 flex items-center justify-between gap-3">
+                  <label
+                    className="block text-xs font-medium text-ink-muted"
+                    htmlFor={`supplier-listing-highlight-${index}`}
+                  >
+                    Highlight {index + 1}
+                    {index < 2 ? '' : ' (optional)'}
+                  </label>
+                  {index >= 2 ? (
+                    <button
+                      type="button"
+                      onClick={() => onChange({ highlights: removeTourHighlight(form.highlights, index) })}
+                      className="lux-flat min-h-11 min-w-11 text-xs font-medium text-ink-muted hover:text-ink"
+                    >
+                      Remove
+                    </button>
+                  ) : null}
+                </div>
                 <input
                   id={`supplier-listing-highlight-${index}`}
                   type="text"
@@ -260,11 +275,20 @@ export function TourBasicsGuidedScenes({
                       highlights: form.highlights.map((h, i) => (i === index ? e.target.value : h)),
                     })
                   }
-                  className="tv-input"
+                  className="tv-input min-w-0 break-words [overflow-wrap:anywhere]"
                   placeholder={index === 0 ? 'e.g. Skip-the-line entry' : `Optional highlight ${index + 1}`}
                 />
               </div>
             ))}
+            {canAddTourHighlight(form.highlights) ? (
+              <button
+                type="button"
+                onClick={() => onChange({ highlights: addTourHighlight(form.highlights) })}
+                className="lux-flat min-h-11 text-sm font-semibold text-finland"
+              >
+                + Add another highlight
+              </button>
+            ) : null}
           </div>
         </div>
       ) : null}
