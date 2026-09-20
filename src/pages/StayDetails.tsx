@@ -453,7 +453,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
                 <p className="text-ink-muted">{stay.description}</p>
               </div>
             ) : null}
-            <div className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]">
+            <div className="tv-card p-4 sm:p-5">
               <h2 className="font-display text-xl mb-2">About this place</h2>
               <ul className="space-y-2 text-ink-muted">
               {s?.propertyType ? <li>{s.propertyType}</li> : null}
