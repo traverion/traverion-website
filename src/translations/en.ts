@@ -235,7 +235,6 @@ export const en = {
       smallGroup: 'Small group',
       pickupAvailable: 'Pickup available',
       mobileTicket: 'Mobile ticket',
-      bestseller: 'Bestseller',
     },
   },
 

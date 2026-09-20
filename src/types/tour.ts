@@ -57,7 +57,7 @@ export interface TourPackage {
   region?: string;
   /** e.g. "Vietnam", "Thailand" */
   country?: string;
-  /** e.g. "free-cancellation", "small-group", "pickup-available", "mobile-ticket", "bestseller" */
+  /** e.g. "free-cancellation", "small-group", "pickup-available", "mobile-ticket" */
   tags?: string[];
   /** When true, hidden from main listing in platform mode (supplier-built tours only). */
   isSeedData?: boolean;

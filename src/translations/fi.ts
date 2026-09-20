@@ -235,7 +235,6 @@ export const fi = {
       smallGroup: 'Pieni ryhmä',
       pickupAvailable: 'Nouto tarjolla',
       mobileTicket: 'Mobiililiput',
-      bestseller: 'Myydyin',
     },
   },
 
