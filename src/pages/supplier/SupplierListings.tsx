@@ -28,6 +28,13 @@ import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import SupplierListingForm, { type ListingEditorSaveResult } from './SupplierListingForm';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
 import { PARTNER_APP_BASE, PARTNER_CREATE_PATH } from '../../lib/partnerPortalPaths';
+import {
+  adoptCanonicalListingId,
+  createListingPersistGate,
+  listingEditorPathAfterFirstPersist,
+  newListingCreationId,
+  runCanonicalListingPersist,
+} from '../../lib/listing-creation-persist';
 import { navigateSupplierUrl, openSupplierListingEditor, openSupplierCalendar } from '../../lib/supplierPortalNavigation';
 import {
   isSupplierBusinessProfileComplete,
@@ -122,6 +129,20 @@ export default function SupplierListings() {
   const [createFamily, setCreateFamily] = useState<'tour' | 'stay'>('tour');
   const createChooserRef = useRef<HTMLDivElement>(null);
   const closeCreateChooser = useCallback(() => setShowCreateChooser(false), []);
+  const canonicalListingIdRef = useRef<string | null>(null);
+  const listingPersistGateRef = useRef(createListingPersistGate());
+  const [editorInstanceKey, setEditorInstanceKey] = useState(0);
+  const showFormRef = useRef(false);
+  const editorHistoryPushedRef = useRef(false);
+  const editorSessionTokenRef = useRef<string | null>(null);
+
+  const bumpEditorInstanceIfOpening = useCallback(() => {
+    if (!showFormRef.current) setEditorInstanceKey((n) => n + 1);
+  }, []);
+
+  const clearCanonicalListingSession = useCallback(() => {
+    canonicalListingIdRef.current = null;
+  }, []);
   useDialogFocus(showCreateChooser, createChooserRef, closeCreateChooser);
 
   const filteredListings = useMemo(
@@ -162,30 +183,31 @@ export default function SupplierListings() {
 
   const startNewTour = useCallback(() => {
     if (!canEditListings) return;
+    bumpEditorInstanceIfOpening();
+    clearCanonicalListingSession();
     setShowCreateChooser(false);
     setCreateFamily('tour');
     setEditingId(null);
     setShowForm(true);
     setFormFocusSection(null);
-  }, [canEditListings]);
+  }, [bumpEditorInstanceIfOpening, canEditListings, clearCanonicalListingSession]);
 
   const startNewStay = useCallback(() => {
     if (!canEditListings) return;
+    bumpEditorInstanceIfOpening();
+    clearCanonicalListingSession();
     setShowCreateChooser(false);
     setCreateFamily('stay');
     setEditingId(null);
     setShowForm(true);
     setFormFocusSection(null);
-  }, [canEditListings]);
+  }, [bumpEditorInstanceIfOpening, canEditListings, clearCanonicalListingSession]);
 
   const openCreateChooser = useCallback(() => {
     if (!canEditListings) return;
     navigateSupplierUrl(PARTNER_CREATE_PATH);
   }, [canEditListings]);
 
-  const showFormRef = useRef(false);
-  const editorHistoryPushedRef = useRef(false);
-  const editorSessionTokenRef = useRef<string | null>(null);
   const listingsRef = useRef(listings);
   listingsRef.current = listings;
   const editNotFoundCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -247,6 +269,7 @@ export default function SupplierListings() {
       setShowForm(false);
       setEditingId(null);
       setFormFocusSection(null);
+      canonicalListingIdRef.current = null;
       const u = new URL(window.location.href);
       const path = u.pathname.replace(/\/$/, '') || '/';
       if (path === `${PARTNER_APP_BASE}/listings`) {
@@ -273,6 +296,22 @@ export default function SupplierListings() {
       return;
     }
     if ((createFam === 'tour' || createFam === 'stay') && !edit) {
+      if (canonicalListingIdRef.current) {
+        const next = listingEditorPathAfterFirstPersist(
+          window.location.pathname,
+          canonicalListingIdRef.current,
+          window.location.search
+        );
+        window.history.replaceState(window.history.state, '', next);
+        setEditingId(canonicalListingIdRef.current);
+        bumpEditorInstanceIfOpening();
+        setShowForm(true);
+        setShowCreateChooser(false);
+        setFormFocusSection(null);
+        return;
+      }
+      bumpEditorInstanceIfOpening();
+      clearCanonicalListingSession();
       setCreateFamily(createFam);
       setEditingId(null);
       setShowForm(true);
@@ -280,6 +319,8 @@ export default function SupplierListings() {
       setFormFocusSection(null);
     }
     if (edit) {
+      canonicalListingIdRef.current = edit;
+      bumpEditorInstanceIfOpening();
       setEditingId(edit);
       setShowForm(true);
       setFormFocusSection(focus && focus.length > 0 ? focus : null);
@@ -301,7 +342,7 @@ export default function SupplierListings() {
       setFormFocusSection(null);
       // Keep local "Add listing" / edit-without-URL state; only URL drives deep links.
     }
-  }, []);
+  }, [bumpEditorInstanceIfOpening, clearCanonicalListingSession]);
 
   useEffect(() => {
     syncListingsUrlToState();
@@ -317,6 +358,7 @@ export default function SupplierListings() {
     setShowForm(false);
     setEditingId(null);
     setFormFocusSection(null);
+    clearCanonicalListingSession();
     const params = new URLSearchParams(window.location.search);
     if (params.get('edit')) {
       window.history.replaceState({}, '', `${PARTNER_APP_BASE}/listings`);
@@ -334,10 +376,14 @@ export default function SupplierListings() {
     if (!edit) return;
     const found = listings.some((l) => l.id === edit);
     if (found) {
+      canonicalListingIdRef.current = edit;
       setEditingId(edit);
       setShowForm(true);
       // Do not re-apply `focus` from the URL here — every loadListings() refetch would
       // resurrect ?focus= after onFocusConsumed cleared it and yank the wizard off Tour photos.
+      return;
+    }
+    if (canonicalListingIdRef.current === edit && showFormRef.current) {
       return;
     }
     const listDefinitelyLoaded = listings.length > 0 || (listings.length === 0 && !error);
@@ -349,11 +395,13 @@ export default function SupplierListings() {
       const p = new URLSearchParams(window.location.search);
       if (p.get('edit') !== editId) return;
       if (listingsRef.current.some((l) => l.id === editId)) return;
+      if (canonicalListingIdRef.current === editId && showFormRef.current) return;
       editorSessionTokenRef.current = null;
       showFormRef.current = false;
       setShowForm(false);
       setEditingId(null);
       setFormFocusSection(null);
+      canonicalListingIdRef.current = null;
       window.history.replaceState({}, '', `${PARTNER_APP_BASE}/listings`);
     }, 200);
 
@@ -528,10 +576,90 @@ export default function SupplierListings() {
     showFormRef.current = false;
     setShowForm(false);
     setEditingId(null);
+    clearCanonicalListingSession();
     if (isSupabase) {
       window.dispatchEvent(new Event('traverion:supplier-onboarding-refresh'));
     }
   };
+
+  const adoptCanonicalInEditor = useCallback((listingId: string) => {
+    const nextId = adoptCanonicalListingId(canonicalListingIdRef.current, listingId);
+    canonicalListingIdRef.current = nextId;
+    setEditingId(nextId);
+    if (typeof window === 'undefined') return;
+    const next = listingEditorPathAfterFirstPersist(
+      window.location.pathname,
+      nextId,
+      window.location.search
+    );
+    const current = `${window.location.pathname}${window.location.search}`;
+    if (current !== next) {
+      window.history.replaceState(window.history.state, '', next);
+    }
+  }, []);
+
+  const persistListingRecord = useCallback(
+    async (tour: TourPackage): Promise<ListingEditorSaveResult> => {
+      try {
+        return await listingPersistGateRef.current.run(async () => {
+          const knownId = canonicalListingIdRef.current || editingId;
+          const persistId = knownId || newListingCreationId();
+          const payload = { ...tour, id: persistId };
+
+          if (isSupabase && user) {
+            const result = await runCanonicalListingPersist({
+              canonicalId: knownId,
+              insert: async () => {
+                const res = await insertListing(payload, user.id);
+                if (!res.ok) throw new Error(res.error);
+                return res.tour;
+              },
+              update: async (id) => {
+                const res = await updateListing(id, payload);
+                if (!res.ok) throw new Error(res.error);
+                return res.tour;
+              },
+            });
+            adoptCanonicalInEditor(result.record.id);
+            loadListings();
+            window.dispatchEvent(new Event('traverion:supplier-onboarding-refresh'));
+            if (tour.status === 'published') {
+              window.dispatchEvent(new CustomEvent('traverion:published-listings-changed'));
+            }
+            return { success: true, listingId: result.record.id };
+          }
+
+          const list = getSupplierListings();
+          const result = await runCanonicalListingPersist({
+            canonicalId: knownId,
+            insert: async () => {
+              setSupplierListings([...list, payload]);
+              return payload;
+            },
+            update: async (id) => {
+              const index = list.findIndex((t) => t.id === id);
+              const next = [...list];
+              if (index >= 0) next[index] = { ...payload, id };
+              else next.push({ ...payload, id });
+              setSupplierListings(next);
+              return { ...payload, id };
+            },
+          });
+          adoptCanonicalInEditor(result.record.id);
+          loadListings();
+          if (tour.status === 'published') {
+            window.dispatchEvent(new CustomEvent('traverion:published-listings-changed'));
+          }
+          return { success: true, listingId: result.record.id };
+        });
+      } catch (e) {
+        const msg = userFacingError(e, USER_ERROR.listingSave);
+        setError(msg);
+        return { success: false, error: msg };
+      }
+    },
+    [adoptCanonicalInEditor, editingId, isSupabase, loadListings, user]
+  );
 
   const handleSave = async (tour: TourPackage): Promise<ListingEditorSaveResult> => {
     if (!canEditListings) {
@@ -549,31 +677,13 @@ export default function SupplierListings() {
       return { success: false, error: msg };
     }
     setPublishGate(null);
-    if (isSupabase && user) {
-      const res = editingId ? await updateListing(editingId, tour) : await insertListing(tour, user.id);
-      if (!res.ok) {
-        const msg = userFacingError(res.error, USER_ERROR.listingSave);
-        setError(msg);
-        return { success: false, error: msg };
-      }
-      setError(null);
-      if (tour.status === 'published') {
-        window.dispatchEvent(new CustomEvent('traverion:published-listings-changed'));
-      }
-      refresh();
-      return { success: true };
+    const res = await persistListingRecord(tour);
+    if (!res.success) {
+      setError(res.error ?? USER_ERROR.listingSave);
+      return res;
     }
-    const list = getSupplierListings();
-    const index = list.findIndex(t => t.id === tour.id);
-    const next = index >= 0 ? [...list] : [...list, tour];
-    if (index >= 0) next[index] = tour;
-    setSupplierListings(next);
     setError(null);
-    if (tour.status === 'published') {
-      window.dispatchEvent(new CustomEvent('traverion:published-listings-changed'));
-    }
-    refresh();
-    return { success: true };
+    return res;
   };
 
   const confirmDeleteListing = async () => {
@@ -975,7 +1085,7 @@ export default function SupplierListings() {
 
       {showForm && (
         <SupplierListingForm
-          key={`${editingId ?? 'create'}-${createFamily}`}
+          key={`${editorInstanceKey}-${createFamily}`}
           editingId={editingId}
           existingListings={listings}
           onSave={handleSave}
@@ -983,15 +1093,10 @@ export default function SupplierListings() {
           createFamily={createFamily}
           enableDraftOnClose={Boolean(isSupabase && canEditListings)}
           onSaveDraft={async (tour) => {
-            if (!isSupabase || !user?.id || !canEditListings) return false;
+            if (!canEditListings) return false;
             const draft = normalizeListingForDraftSave(tour);
-            const res = editingId
-              ? await updateListing(editingId, draft)
-              : await insertListing(draft, user.id);
-            if (!res.ok) return false;
-            loadListings();
-            window.dispatchEvent(new Event('traverion:supplier-onboarding-refresh'));
-            return true;
+            const res = await persistListingRecord(draft);
+            return res.success;
           }}
           onCancel={() => {
             editorSessionTokenRef.current = null;
@@ -999,6 +1104,7 @@ export default function SupplierListings() {
             setShowForm(false);
             setEditingId(null);
             setFormFocusSection(null);
+            clearCanonicalListingSession();
             window.history.pushState({}, '', `${PARTNER_APP_BASE}/listings`);
             window.dispatchEvent(new PopStateEvent('popstate'));
           }}

@@ -51,6 +51,10 @@ import {
 import { ListingCreationWorkspace } from '../../components/supplier/listing-creation/ListingCreationWorkspace';
 import { TourBasicsGuidedScenes } from '../../components/supplier/listing-creation/TourBasicsGuidedScenes';
 import { isSupabaseConfigured } from '../../lib/supabase';
+import {
+  shouldHydrateExistingListing,
+  shouldResetWizardOnEditingIdChange,
+} from '../../lib/listing-creation-persist';
 import { userFacingError } from '../../lib/userFacingError';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
 import { MIN_LISTING_DESCRIPTION_LENGTH } from '../../lib/listingQualityScore';
@@ -178,6 +182,23 @@ function writeBasicsSceneToStorage(editingId: string | null, scene: number) {
 
 function listingDraftBackupKey(editingId: string | null) {
   return `traverion_listing_form_v1_${editingId ?? 'new'}`;
+}
+
+function migrateListingEditorStorage(fromId: string | null, toId: string, isStay: boolean) {
+  if (typeof window === 'undefined' || !toId || fromId === toId) return;
+  try {
+    const copy = (fromKey: string, toKey: string) => {
+      const value = sessionStorage.getItem(fromKey);
+      if (value == null) return;
+      if (sessionStorage.getItem(toKey) == null) sessionStorage.setItem(toKey, value);
+      sessionStorage.removeItem(fromKey);
+    };
+    copy(wizardStepStorageKey(fromId, isStay), wizardStepStorageKey(toId, isStay));
+    copy(basicsSceneStorageKey(fromId), basicsSceneStorageKey(toId));
+    copy(listingDraftBackupKey(fromId), listingDraftBackupKey(toId));
+  } catch {
+    // ignore quota / private mode
+  }
 }
 
 function readListingDraftBackup(editingId: string | null): ListingFormState | null {
@@ -710,7 +731,7 @@ const emptyForm: ListingFormState = {
   stayCleaningFee: '',
 };
 
-export type ListingEditorSaveResult = { success: boolean; error?: string };
+export type ListingEditorSaveResult = { success: boolean; error?: string; listingId?: string };
 
 interface SupplierListingFormProps {
   editingId: string | null;
@@ -949,7 +970,16 @@ export default function SupplierListingForm({
       createModeEmptySeededRef.current = false;
       const existing = existingListings.find(t => t.id === editingId);
       if (existing) {
-        if (editModeHydratedIdRef.current === editingId) return;
+        if (
+          !shouldHydrateExistingListing({
+            sessionOpenedAsCreate: Boolean(sessionOpenedAsCreateRef.current),
+            editingId,
+            alreadyHydratedId: editModeHydratedIdRef.current,
+          })
+        ) {
+          editModeHydratedIdRef.current = editingId;
+          return;
+        }
         editModeHydratedIdRef.current = editingId;
         const extras = parseListingExtras(existing.listingExtras as unknown);
         const packed = compactPhotoSlotsAndLabels(
@@ -1069,8 +1099,19 @@ export default function SupplierListingForm({
       return;
     }
     if (prevEditingIdForWizardRef.current !== editingId) {
+      const previousId = prevEditingIdForWizardRef.current ?? null;
       prevEditingIdForWizardRef.current = editingId;
       lastFocused.current = null;
+      if (
+        !shouldResetWizardOnEditingIdChange({
+          sessionOpenedAsCreate: Boolean(sessionOpenedAsCreateRef.current),
+          previousId,
+          nextId: editingId,
+        })
+      ) {
+        if (editingId) migrateListingEditorStorage(previousId, editingId, form.inventoryFamily === 'stay');
+        return;
+      }
       const stored = readWizardStepFromStorage(editingId, form.inventoryFamily === 'stay');
       const next = stored !== null ? stored : 0;
       writeWizardStepToStorage(editingId, next, form.inventoryFamily === 'stay');
@@ -1353,8 +1394,9 @@ export default function SupplierListingForm({
             setSubmitError(userFacingError(result.error, 'Could not save your listing. Please try again.'));
             return;
           }
-          clearListingDraftBackup(editingId);
-          clearWizardStepStorage(editingId, form.inventoryFamily === 'stay');
+          if (result.listingId && result.listingId !== editingId) {
+            migrateListingEditorStorage(editingId, result.listingId, form.inventoryFamily === 'stay');
+          }
           initialFormSnapshotRef.current = serializeListingFormState(form);
           setLastSavedAt(Date.now());
         } finally {

@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { isListingUuid } from '../lib/listing-creation-persist';
 import { userFacingError } from '../lib/userFacingError';
 import { TourPackage } from '../types/tour';
 import { listingExtrasToDb, parseListingExtras } from '../types/listingExtras';
@@ -258,16 +259,24 @@ function formatSupabaseListingError(prefix: string, error: { message?: string; d
   return userFacingError(error.message, `${prefix}. Check your connection and try again.`);
 }
 
+function isUniqueViolation(error: { code?: string; message?: string }): boolean {
+  return error.code === '23505' || /duplicate key/i.test(error.message ?? '');
+}
+
 /** Insert a new listing (requires auth; supplier_id = current user). */
 export async function insertListing(tour: TourPackage, supplierId: string): Promise<ListingSaveResult> {
   if (!supabase) return { ok: false, error: 'Supabase is not configured.' };
   const row = tourPackageToRow(tour);
+  const explicitId = isListingUuid(tour.id) ? tour.id : undefined;
   const { data, error } = await supabase
     .from('listings')
-    .insert({ ...row, supplier_id: supplierId })
+    .insert({ ...row, supplier_id: supplierId, ...(explicitId ? { id: explicitId } : {}) })
     .select()
     .single();
   if (error) {
+    if (explicitId && isUniqueViolation(error)) {
+      return updateListing(explicitId, tour);
+    }
     console.error('Supabase insert listing:', error);
     return { ok: false, error: formatSupabaseListingError('Could not create listing', error) };
   }
