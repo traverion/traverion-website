@@ -50,14 +50,14 @@ export default function AdminFinancePanel() {
   const currencies = data ? Object.keys(data.byCurrency).sort((a, b) => (a === 'EUR' ? -1 : a.localeCompare(b))) : [];
 
   return (
-    <div className="space-y-6">
-      <div className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]">
-        <div className="flex items-start gap-3 mb-4">
-          <div className="w-10 h-10 rounded-xl bg-finland/10 flex items-center justify-center shrink-0">
-            <Wallet className="w-5 h-5 text-finland" aria-hidden />
+    <div className="space-y-4">
+      <div className="tv-card p-4 sm:p-5">
+        <div className="flex items-start gap-3 mb-3">
+          <div className="w-9 h-9 rounded-lg bg-finland/10 flex items-center justify-center shrink-0">
+            <Wallet className="w-4 h-4 text-finland" aria-hidden />
           </div>
           <div className="flex-1 min-w-0">
-            <h2 className="font-display text-xl text-ink tracking-tight">Finance</h2>
+            <h2 className="font-display text-lg text-ink tracking-tight">Finance</h2>
             <p className="text-sm text-ink-muted mt-1 leading-relaxed">
               Platform-wide traveler payments, ledger adjustments, and supplier payouts — the same figures and
               formulas partners see on their own Money page, totalled across every supplier. Grouped by currency;
@@ -109,7 +109,7 @@ export default function AdminFinancePanel() {
       ) : null}
 
       {!loading && !error && currencies.length === 0 ? (
-        <div className="rounded-2xl bg-paper-raised px-4 py-2 shadow-soft ring-1 ring-black/[0.06]">
+        <div className="tv-card px-4 py-2">
           <EmptyState
             icon={Wallet}
             title="No money movement yet"
@@ -123,7 +123,7 @@ export default function AdminFinancePanel() {
         return (
           <section
             key={code}
-            className="rounded-2xl bg-paper-raised p-5 sm:p-7 shadow-soft ring-1 ring-black/[0.06]"
+            className="tv-card p-4 sm:p-5"
           >
             <p className="text-[11px] uppercase tracking-[0.18em] text-ink-faint mb-2">
               {currencies.length > 1 ? `${code} · ` : ''}
