@@ -125,6 +125,11 @@ export default function Stays({ onStaySelect }: Props) {
         if (!hay.includes(query)) return false;
       }
       if (Number.isFinite(guestN) && guestN > 0 && typeof maxG === 'number' && guestN > maxG) return false;
+      if (dateFilterActive) {
+        const requestedNights = nightsOccupiedByStay(checkIn, checkOut).length;
+        const minN = extras.stay?.minNights ?? 1;
+        if (requestedNights < minN) return false;
+      }
       if (dateFilterActive && occupiedByListing) {
         const pack = occupiedByListing[s.id] ?? { ranges: [], blockedNights: [] };
         if (!stayAvailableForRequestedNights(checkIn, checkOut, pack.ranges)) return false;
@@ -447,7 +452,7 @@ export default function Stays({ onStaySelect }: Props) {
                 title="No stays match"
                 body={
                   dateFilterActive
-                    ? 'No stays are free for those nights. Try other dates or clear filters to browse all stays.'
+                    ? 'No stays are free for those nights — or the stay has a longer minimum. Try other dates or clear filters.'
                     : 'Try another place, dates, or guest count — or clear filters to see live stays again.'
                 }
                 action={
