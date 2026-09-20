@@ -171,7 +171,7 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
             title="Destination unavailable"
             body={userFacingError(listingsError, USER_ERROR.tours)}
             retry={{ onClick: () => reloadCatalog() }}
-            back={{ onClick: onBack, label: 'View all tours' }}
+            back={{ onClick: onBack, label: 'Back to home' }}
           />
         ) : catalogLoading ? (
           <div aria-busy="true" aria-label="Loading destination">
@@ -186,7 +186,7 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
             action={
               <div className="flex flex-wrap gap-2">
                 <button type="button" onClick={onBack} className="tv-btn-primary">
-                  Browse tours
+                  Browse tours and stays
                 </button>
                 {onNavigate ? (
                   <button type="button" onClick={() => onNavigate('stays')} className="tv-btn-ghost">

@@ -23,6 +23,7 @@ import {
   parsePathname,
   shouldClearSelectedTour,
   mapStripeReturnRoute,
+  navigateBackOrFallback,
 } from './lib/appRouting';
 import {
   isTraverionAdminHost,
@@ -508,6 +509,13 @@ function App() {
     window.history.replaceState({}, '', qs ? `/stays?${qs}` : '/stays');
   };
 
+  const handleBackFromDestination = () => {
+    navigateBackOrFallback(() => {
+      setCurrentPage('home');
+      window.history.replaceState({}, '', '/');
+    });
+  };
+
   const handleBackToTours = () => {
     setSelectedTour(null);
     setCurrentPage('packages');
@@ -549,7 +557,7 @@ function App() {
           <DestinationPage
             slug={destinationSlug}
             onTourSelect={handleTourSelect}
-            onBack={handleBackToTours}
+            onBack={handleBackFromDestination}
             onNavigate={handleNavigate}
           />
         );

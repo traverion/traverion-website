@@ -335,7 +335,7 @@ export async function submitBooking(
       body: {
         customerEmail: guestEmailNorm,
         customerName: data.customer_name ?? undefined,
-        listingTitle: listingData?.title ?? data.tour_title ?? 'Experience',
+        listingTitle: listingData?.title ?? data.tour_title ?? 'Listing',
         bookingId: inserted?.id,
         bookingNumber: orderNum,
         bookingDate: data.departure_date ?? undefined,
@@ -441,7 +441,7 @@ export async function updateGuestBookingSpecialRequests(
       body: {
         customerEmail: guestEmail,
         customerName: row.guest_name ?? undefined,
-        listingTitle: listingData?.title ?? 'Experience',
+        listingTitle: listingData?.title ?? 'Listing',
         bookingId: row.id,
         bookingNumber: ord,
         bookingDate: row.booking_date ?? undefined,
@@ -791,7 +791,7 @@ export async function cancelBookingAsCustomer(
     .eq('id', bookingId)
     .maybeSingle();
 
-  let listingTitle = 'Experience';
+  let listingTitle = 'Listing';
   const cancelOrd =
     typeof bookingMeta?.booking_number === 'number' && Number.isFinite(bookingMeta.booking_number)
       ? Math.floor(bookingMeta.booking_number)
