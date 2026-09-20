@@ -69,14 +69,12 @@ export default function ResetPasswordPage({ onNavigate }: ResetPasswordPageProps
     return (
       <div className="min-h-screen bg-paper flex flex-col items-center justify-center px-6 py-16">
         <div
-          className="w-full max-w-md rounded-2xl bg-paper-raised p-6 sm:p-8 shadow-soft-lg ring-1 ring-black/[0.06] text-center"
+          className="w-full max-w-md tv-card p-5 sm:p-6 text-center"
           aria-busy="true"
           aria-label="Verifying your reset link"
         >
-          <img src={BRAND_LOGO_SRC} alt="Traverion" className="h-9 w-auto mx-auto mb-6 opacity-90" />
-          <div className="inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15 mb-3">
-            Traverion
-          </div>
+          <img src={BRAND_LOGO_SRC} alt="Traverion" className="h-9 w-auto mx-auto mb-5 opacity-90" />
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Traverion</p>
           <h1 className="font-display text-2xl sm:text-3xl text-ink tracking-tight">Verifying your reset link</h1>
           <p className="mt-3 text-sm text-ink-muted">This usually takes a few seconds.</p>
           <div className="mt-8 space-y-3" aria-hidden>
@@ -91,11 +89,9 @@ export default function ResetPasswordPage({ onNavigate }: ResetPasswordPageProps
   if (portal === 'invalid') {
     return (
       <div className="min-h-screen bg-paper flex flex-col items-center justify-center px-6 py-16">
-        <div className="w-full max-w-md rounded-2xl bg-paper-raised p-6 sm:p-8 shadow-soft-lg ring-1 ring-black/[0.06] text-center">
-          <img src={BRAND_LOGO_SRC} alt="Traverion" className="h-9 w-auto mx-auto mb-6 opacity-90" />
-          <div className="inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15 mb-3">
-            Traverion
-          </div>
+        <div className="w-full max-w-md tv-card p-5 sm:p-6 text-center">
+          <img src={BRAND_LOGO_SRC} alt="Traverion" className="h-9 w-auto mx-auto mb-5 opacity-90" />
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Traverion</p>
           <h1 className="font-display text-2xl tracking-tight text-ink">This reset link is not valid</h1>
           <div className="mt-4 text-left">
             <NoticeCallout title="Open the email link" tone="danger">
@@ -118,28 +114,26 @@ export default function ResetPasswordPage({ onNavigate }: ResetPasswordPageProps
 
   return (
     <div className="min-h-screen bg-paper">
-      <div className="max-w-md mx-auto px-4 py-12 pb-16">
+      <div className="max-w-md mx-auto px-4 py-8 pb-12">
         <button
           type="button"
           onClick={() => onNavigate('home')}
-          className="lux-flat mb-6 inline-flex items-center gap-2 text-ink-muted hover:text-ink"
+          className="lux-flat mb-5 inline-flex items-center gap-2 text-ink-muted hover:text-ink"
         >
           <ArrowLeft className="w-4 h-4" />
           Back
         </button>
 
-        <div className="rounded-2xl bg-paper-raised p-6 sm:p-8 shadow-soft-lg ring-1 ring-black/[0.06]">
-          <div className="inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15 mb-4">
-            Traveler account
-          </div>
-          <div className="flex items-center gap-3 mb-6">
+        <div className="tv-card p-4 sm:p-5">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Traveler account</p>
+          <div className="flex items-center gap-3 mb-5">
             <img src={BRAND_LOGO_SRC} alt="" className="h-12 w-12 object-contain flex-shrink-0" />
             <div className="min-w-0">
               <h1 className="font-display text-2xl sm:text-3xl text-ink tracking-tight">Set a new password</h1>
               <p className="text-sm text-ink-muted mt-1">On {siteLabel}</p>
             </div>
           </div>
-          <p className="text-sm text-ink-muted mb-6">
+          <p className="text-sm text-ink-muted mb-5">
             This page only works from the secure link in your reset email.
           </p>
           <SetNewPasswordForm

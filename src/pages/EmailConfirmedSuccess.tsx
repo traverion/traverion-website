@@ -98,11 +98,9 @@ export default function EmailConfirmedSuccess() {
 
   return (
     <div className="min-h-screen bg-paper flex flex-col items-center justify-center px-6 py-16">
-      <div className="w-full max-w-md rounded-2xl bg-paper-raised p-6 sm:p-8 shadow-soft-lg ring-1 ring-black/[0.06] text-center">
-        <img src={BRAND_LOGO_SRC} alt="Traverion" className="h-9 w-auto mx-auto mb-6 opacity-90" />
-        <div className="inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15 mb-3">
-          Traveler account
-        </div>
+      <div className="w-full max-w-md tv-card p-5 sm:p-6 text-center">
+        <img src={BRAND_LOGO_SRC} alt="Traverion" className="h-9 w-auto mx-auto mb-5 opacity-90" />
+        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Traveler account</p>
         {phase === 'loading' && (
           <div aria-busy="true" aria-label="Verifying your email">
             <h1 className="font-display text-2xl sm:text-3xl text-ink tracking-tight">Verifying your email</h1>
