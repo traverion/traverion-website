@@ -614,7 +614,7 @@ export default function Packages({ onTourSelect }: PackagesProps) {
               <option value="recommended">Catalog order</option>
               <option value="price-asc">Price: low to high</option>
               <option value="price-desc">Price: high to low</option>
-              <option value="rating">Top rated</option>
+              <option value="rating">Guest rating</option>
               <option value="duration">Duration</option>
             </select>
           </label>
