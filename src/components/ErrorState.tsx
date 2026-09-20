@@ -32,20 +32,20 @@ export default function ErrorState({
 }: ErrorStateProps) {
   return (
     <div
-      className={`py-8 sm:py-12 max-w-md motion-safe:animate-fade-in-up ${className}`}
+      className={`py-6 sm:py-8 max-w-md motion-safe:animate-fade-in-up ${className}`}
       role="alert"
       aria-live="assertive"
     >
       <div
-        className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-rose-50 text-rose-700 ring-1 ring-rose-200/70"
+        className="mb-3 inline-flex h-9 w-9 items-center justify-center rounded-xl bg-rose-50 text-rose-700 ring-1 ring-rose-200/70"
         aria-hidden
       >
-        <Icon className="w-5 h-5" />
+        <Icon className="w-4 h-4" />
       </div>
-      <h2 className="font-display text-2xl sm:text-3xl text-ink tracking-tight">{title}</h2>
-      <p className="mt-3 text-sm sm:text-base text-ink-muted leading-relaxed">{body}</p>
+      <h2 className="font-display text-xl sm:text-2xl text-ink tracking-tight">{title}</h2>
+      <p className="mt-2 text-sm text-ink-muted leading-relaxed">{body}</p>
       {retry || back || extra ? (
-        <div className="mt-6 flex flex-wrap items-center gap-2">
+        <div className="mt-4 flex flex-wrap items-center gap-2">
           {retry ? (
             <button type="button" onClick={retry.onClick} className="tv-btn-primary">
               {retry.label ?? 'Try again'}
