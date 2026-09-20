@@ -85,14 +85,14 @@ export default function AdminBookingsPanel() {
   const refundDueCount = items.filter((b) => isRefundDueBooking(b)).length;
 
   return (
-    <div className="space-y-6">
-      <div className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]">
-        <div className="flex items-start gap-3 mb-4">
-          <div className="w-10 h-10 rounded-xl bg-finland/10 flex items-center justify-center shrink-0">
-            <CalendarDays className="w-5 h-5 text-finland" aria-hidden />
+    <div className="space-y-4">
+      <div className="tv-card p-4 sm:p-5">
+        <div className="flex items-start gap-3 mb-3">
+          <div className="w-9 h-9 rounded-lg bg-finland/10 flex items-center justify-center shrink-0">
+            <CalendarDays className="w-4 h-4 text-finland" aria-hidden />
           </div>
           <div className="flex-1 min-w-0">
-            <h2 className="font-display text-xl text-ink tracking-tight">Bookings</h2>
+            <h2 className="font-display text-lg text-ink tracking-tight">Bookings</h2>
             <p className="text-sm text-ink-muted mt-1 leading-relaxed">
               Every traveler booking across all suppliers, most recent first. Payment and refund labels mirror what
               travelers and partners see — this list never re-derives its own status language.
@@ -115,7 +115,7 @@ export default function AdminBookingsPanel() {
         ) : null}
 
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex flex-wrap gap-1 rounded-full bg-paper p-1 shadow-soft ring-1 ring-black/[0.06]">
+          <div className="flex flex-wrap gap-1 rounded-xl bg-paper p-1 ring-1 ring-black/[0.06]">
             {(
               [
                 ['all', 'All'],
@@ -186,7 +186,7 @@ export default function AdminBookingsPanel() {
       ) : null}
 
       {!loading && !error && visible.length === 0 ? (
-        <div className="rounded-2xl bg-paper-raised px-4 py-2 shadow-soft ring-1 ring-black/[0.06]">
+        <div className="tv-card px-4 py-2">
           <EmptyState
             icon={CalendarDays}
             title={items.length === 0 ? 'No bookings yet' : 'No bookings match'}
@@ -208,7 +208,7 @@ export default function AdminBookingsPanel() {
           return (
             <div
               key={b.id}
-              className="rounded-2xl bg-paper-raised px-4 py-3.5 shadow-soft ring-1 ring-black/[0.06] flex flex-wrap items-start justify-between gap-3"
+              className="tv-card px-3.5 py-3 flex flex-wrap items-start justify-between gap-2"
             >
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
