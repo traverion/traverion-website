@@ -825,7 +825,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
               </a>
             )}
             <p className="mt-3 text-xs text-ink-muted leading-relaxed">
-              {STAY_LISTING_CONFIRMATION_NOTE} {BOOKING_CONFIRMATION_EMAIL_DISCLAIMER}
+              {STAY_LISTING_CONFIRMATION_NOTE} {BOOKING_CONFIRMATION_EMAIL_DISCLAIMER} Stripe TEST until live.
             </p>
           </aside>
         </div>
@@ -840,7 +840,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
               <span className="text-ink-muted"> {quoteOk ? 'total' : 'per night'}</span>
             </p>
             <p className="text-xs text-ink-muted">
-              {listingShowsFreeCancellation(stay) ? 'Free cancellation' : 'Pay via Stripe to confirm'}
+              {listingShowsFreeCancellation(stay) ? 'Free cancellation · Stripe TEST until live' : 'Pay via Stripe TEST until live'}
             </p>
           </div>
           {user ? (
