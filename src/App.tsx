@@ -415,8 +415,8 @@ function App() {
       about: { title: 'About Us', description: 'Learn about Traverion.' },
       sitemap: { title: 'Sitemap', description: 'All pages and links.' },
       'legal-notice': { title: 'Legal notice', description: 'Traverion operator information and legal contacts.' },
-      affiliate: { title: 'Affiliate program', description: 'Partner with Traverion and earn commissions.' },
-      'content-creator': { title: 'Content creators', description: 'Collaborate with Traverion on travel content.' },
+      affiliate: { title: 'Affiliate program', description: 'Apply to partner with Traverion. Commission terms begin after approval.' },
+      'content-creator': { title: 'Content creators', description: 'Apply to collaborate with Traverion on travel content.' },
       destination: { title: 'Destination', description: 'Tours and stays in this destination from live operators.' },
       'inventory-reserved': {
         title: 'Experiences',
