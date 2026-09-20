@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { ListingBookingOption } from '../types/listingExtras';
 import { monthGrid } from '../lib/stay-calendar';
 import { formatBookingDateDisplay } from '../lib/booking-flow';
-import { formatTourDayAria, tourDayState } from '../lib/tour-calendar';
+import { formatTourDayAria, tourDayState, tourMonthAvailabilityNote } from '../lib/tour-calendar';
 import { localYmd } from '../lib/local-ymd';
 
 type Props = {
@@ -42,21 +42,22 @@ export default function TourDatePicker({
   });
 
   const cells = useMemo(() => monthGrid(cursor.y, cursor.m), [cursor.y, cursor.m]);
-  const monthHasOpenDay = useMemo(
+  const monthStates = useMemo(
     () =>
-      cells.some((iso) => {
-        if (!iso) return false;
-        const state = tourDayState({
-          iso,
-          todayIso,
-          selected: value,
-          options,
-          soldOut: soldOutDates?.has(iso),
-        });
-        return state === 'available' || state === 'selected';
-      }),
+      cells
+        .filter((iso): iso is string => Boolean(iso))
+        .map((iso) =>
+          tourDayState({
+            iso,
+            todayIso,
+            selected: value,
+            options,
+            soldOut: soldOutDates?.has(iso),
+          })
+        ),
     [cells, todayIso, value, options, soldOutDates]
   );
+  const monthNote = useMemo(() => tourMonthAvailabilityNote(monthStates), [monthStates]);
 
   const shift = (delta: number) => {
     setCursor((c) => {
@@ -143,9 +144,7 @@ export default function TourDatePicker({
           </span>
           <span>Open days are clickable. Faded days are not offered. Struck days are fully booked.</span>
         </p>
-        {!monthHasOpenDay ? (
-          <p className="mt-1.5 text-xs text-ink-muted">No departures this month. Try the next month.</p>
-        ) : null}
+        {!monthNote ? null : <p className="mt-1.5 text-xs text-ink-muted">{monthNote}</p>}
       </div>
       {value.trim() ? (
         <p className="mt-1.5 text-xs font-medium text-finland/90">{formatBookingDateDisplay(value)}</p>

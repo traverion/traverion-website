@@ -33,6 +33,15 @@ export function formatTourDayAria(iso: string, state: TourDayState): string {
   return `${human}, available`;
 }
 
+/** Empty-month copy for the public tour calendar — do not call sold-out months “no departures”. */
+export function tourMonthAvailabilityNote(states: TourDayState[]): string | null {
+  const offered = states.filter((s) => s === 'available' || s === 'selected' || s === 'full');
+  if (offered.length === 0) return 'No departures this month. Try the next month.';
+  const bookable = offered.some((s) => s === 'available' || s === 'selected');
+  if (!bookable) return 'All departures this month are fully booked. Try another month.';
+  return null;
+}
+
 /** Public tour sold-out counts collected paid guests only. Refunded, failed, and cancelled do not fill a day. */
 export function bookingCountsTowardPublicTourSoldOut(row: InventoryHoldRow): boolean {
   return bookingOccupiesPublicStayCalendar(row);

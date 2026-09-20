@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ListingBookingOption } from '../types/listingExtras';
-import { tourDayState, publicTourPaidGuestsByDeparture, bookingCountsTowardPublicTourSoldOut, tourSoldOutDates, tourDateLacksCapacityForParty } from './tour-calendar';
+import { tourDayState, publicTourPaidGuestsByDeparture, bookingCountsTowardPublicTourSoldOut, tourSoldOutDates, tourDateLacksCapacityForParty, tourMonthAvailabilityNote } from './tour-calendar';
 
 function option(weekdays: boolean[], from = '', to = ''): ListingBookingOption {
   return {
@@ -108,6 +108,13 @@ describe('tour calendar states', () => {
         soldOut: false,
       })
     ).toBe('available');
+  });
+
+  it('does not call a sold-out month “no departures”', () => {
+    expect(tourMonthAvailabilityNote(['closed', 'past', 'closed'])).toMatch(/No departures/);
+    expect(tourMonthAvailabilityNote(['full', 'closed', 'full'])).toMatch(/fully booked/);
+    expect(tourMonthAvailabilityNote(['full', 'available'])).toBeNull();
+    expect(tourMonthAvailabilityNote(['selected', 'full'])).toBeNull();
   });
 
   it('does not sell out a departure with refunded, failed, or cancelled guests', () => {
