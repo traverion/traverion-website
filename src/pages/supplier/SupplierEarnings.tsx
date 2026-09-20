@@ -264,7 +264,7 @@ export default function SupplierEarnings() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `supplier-money-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `supplier-money-${localYmd()}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
