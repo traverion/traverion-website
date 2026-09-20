@@ -264,10 +264,17 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     return remainingCapacity(cap, dayCapacitySnap.paidByDay[day] ?? 0);
   }, [bookingDate, dayCapacitySnap, soldOutDates]);
 
+  const partyMaxForSelectedDay = useMemo(() => {
+    if (!tour) return partyBounds.max;
+    const base = getPartySizeBoundsForVariant(tour, selectedBookingVariant).max;
+    if (selectedDaySpotsLeft == null || selectedDaySpotsLeft < 1) return base;
+    return Math.max(1, Math.min(base, selectedDaySpotsLeft));
+  }, [tour, selectedBookingVariant, partyBounds.max, selectedDaySpotsLeft]);
+
   useEffect(() => {
     if (!tour?.id) return;
-    setGuests((g) => Math.min(partyBounds.max, Math.max(partyBounds.min, g)));
-  }, [tour?.id, partyBounds.min, partyBounds.max]);
+    setGuests((g) => Math.min(partyMaxForSelectedDay, Math.max(partyBounds.min, g)));
+  }, [tour?.id, partyBounds.min, partyMaxForSelectedDay]);
 
   useEffect(() => {
     if (!user?.id || !tour?.id || !isSupabaseListingId(tour.id) || !isSupabaseConfigured()) {
@@ -1329,7 +1336,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                               category={cat}
                               quantity={participantMix[cat.id] ?? 0}
                               currency={normalizeCurrency(tour.price?.currency)}
-                              max={selectedOption.maxPersons}
+                              max={Math.min(selectedOption.maxPersons, partyMaxForSelectedDay)}
                               onChange={(qty) => {
                                 setParticipantMix((prev) => ({ ...prev, [cat.id]: qty }));
                                 setBookingCardError(null);
@@ -1343,7 +1350,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                           id="tour-booking-guests"
                           value={guests}
                           min={getPartySizeBoundsForVariant(tour, selectedBookingVariant).min}
-                          max={getPartySizeBoundsForVariant(tour, selectedBookingVariant).max}
+                          max={partyMaxForSelectedDay}
                           onChange={(next) => {
                             setGuests(next);
                             setBookingCardError(null);
