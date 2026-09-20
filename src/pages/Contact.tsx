@@ -35,23 +35,7 @@ export default function Contact({ onNavigate }: ContactProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
-  useEffect(() => {
-    try {
-      const raw = sessionStorage.getItem(CONTACT_PREFILL_KEY);
-      if (raw) {
-        const p = JSON.parse(raw) as { inquiry_type?: string };
-        if (p?.inquiry_type === 'affiliate') {
-          onNavigate?.('affiliate');
-          return;
-        }
-        if (p?.inquiry_type === 'content_creator') {
-          onNavigate?.('content-creator');
-          return;
-        }
-      }
-    } catch {
-      /* ignore */
-    }
+  const readTopicFromUrl = () => {
     const params = new URLSearchParams(window.location.search);
     const topicParam = params.get('topic');
     if (topicParam === 'affiliate') {
@@ -71,6 +55,38 @@ export default function Contact({ onNavigate }: ContactProps) {
     ) {
       setTopic(topicParam);
     }
+  };
+
+  const setTopicAndUrl = (next: ContactTopic) => {
+    setTopic(next);
+    const url = new URL(window.location.href);
+    if (next === 'general') url.searchParams.delete('topic');
+    else url.searchParams.set('topic', next);
+    window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+  };
+
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(CONTACT_PREFILL_KEY);
+      if (raw) {
+        const p = JSON.parse(raw) as { inquiry_type?: string };
+        if (p?.inquiry_type === 'affiliate') {
+          onNavigate?.('affiliate');
+          return;
+        }
+        if (p?.inquiry_type === 'content_creator') {
+          onNavigate?.('content-creator');
+          return;
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+    readTopicFromUrl();
+    const onPop = () => readTopicFromUrl();
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount + popstate only
   }, [onNavigate]);
 
   const clearField = (key: FieldKey) => {
@@ -174,7 +190,7 @@ export default function Contact({ onNavigate }: ContactProps) {
               <legend className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-2">
                 What do you need help with?
               </legend>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2" role="radiogroup" aria-label="Contact topic">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5" role="radiogroup" aria-label="Contact topic">
                 {TOPICS.map((t) => {
                   const selected = topic === t.id;
                   return (
@@ -183,14 +199,14 @@ export default function Contact({ onNavigate }: ContactProps) {
                       type="button"
                       role="radio"
                       aria-checked={selected}
-                      onClick={() => setTopic(t.id)}
-                      className={`rounded-2xl px-3.5 py-3 text-left transition-all duration-150 min-h-11 ${
+                      onClick={() => setTopicAndUrl(t.id)}
+                      className={`lux-flat rounded-xl px-3 py-2.5 text-left min-h-10 ${
                         selected
-                          ? 'bg-finland text-white shadow-sm ring-2 ring-finland/40'
-                          : 'bg-paper-raised text-ink ring-1 ring-black/[0.06] hover:bg-finland/10 hover:text-finland hover:ring-finland/20'
+                          ? 'bg-finland text-white ring-1 ring-finland'
+                          : 'bg-paper-raised text-ink ring-1 ring-black/[0.06] hover:bg-finland/10 hover:text-finland'
                       }`}
                     >
-                      <span className="block text-sm font-semibold">{t.label}</span>
+                      <span className="block text-sm font-semibold leading-snug">{t.label}</span>
                       <span className={`block text-[11px] mt-0.5 leading-snug ${selected ? 'text-white/80' : 'text-ink-faint'}`}>
                         {t.hint}
                       </span>
