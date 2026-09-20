@@ -1,10 +1,17 @@
 import { listingIsFamily } from './inventory';
 
-/** Stay discounts are stored but never applied on traveler stay checkout. */
+/** Stay discounts are stored historically but never applied on traveler stay checkout. */
 export function partnerOfferListingIsStayUnsupported(listing: {
   listingExtras?: unknown;
 }): boolean {
   return listingIsFamily(listing, 'stay');
+}
+
+/** New or updated offer rows may only attach to a tour. Stays have no traveler discount quote. */
+export function partnerOfferMayBePersistedForListing(listing: {
+  listingExtras?: unknown;
+}): boolean {
+  return !partnerOfferListingIsStayUnsupported(listing);
 }
 
 /** “Active now” for Partners: live date window on a tour only — never stay-linked rows. */

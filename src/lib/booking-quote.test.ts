@@ -182,6 +182,28 @@ describe('quoteBooking', () => {
     expect(q.totalAmount).toBe(340);
   });
 
+  it('stay checkout amount does not take listing_discounts — leftover stay offers cannot change Stripe TEST', () => {
+    const stayTour = tour({
+      listingExtras: {
+        inventoryFamily: 'stay',
+        stay: { nightlyPriceUsd: 100, maxGuests: 4, minNights: 2, cleaningFeeUsd: 40 },
+        bookingOptions: [],
+      },
+    });
+    const q = quoteStayNights({
+      tour: stayTour,
+      checkIn: '2026-09-10',
+      checkOut: '2026-09-13',
+      guests: 2,
+      todayIso: today,
+    });
+    expect(q.ok).toBe(true);
+    if (!q.ok) return;
+    expect(q.nightlyPrice).toBe(100);
+    expect(q.totalAmount).toBe(340);
+    expect(q.totalAmount).not.toBe(190);
+  });
+
   it('rejects closed weekdays', () => {
     const q = quoteBooking({
       tour: tour({

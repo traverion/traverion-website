@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase';
 import { localYmd } from '../lib/local-ymd';
 import { formatMoney } from '../lib/money';
+import { partnerOfferMayBePersistedForListing } from '../lib/partner-offers-honesty';
 
 export type ListingDiscount = {
   id: string;
@@ -51,8 +52,20 @@ export async function fetchDiscountsByListingId(listingId: string): Promise<List
   return (data ?? []).map((r) => rowToDiscount(r as Record<string, unknown>));
 }
 
+async function listingAllowsPartnerOffer(listingId: string): Promise<boolean> {
+  if (!supabase) return false;
+  const { data, error } = await supabase
+    .from('listings')
+    .select('listing_extras')
+    .eq('id', listingId)
+    .maybeSingle();
+  if (error || !data) return false;
+  return partnerOfferMayBePersistedForListing({ listingExtras: data.listing_extras });
+}
+
 export async function insertDiscount(d: ListingDiscountInsert): Promise<ListingDiscount | null> {
   if (!supabase) return null;
+  if (!(await listingAllowsPartnerOffer(d.listing_id))) return null;
   const { data, error } = await supabase
     .from('listing_discounts')
     .insert({
@@ -72,6 +85,18 @@ export async function insertDiscount(d: ListingDiscountInsert): Promise<ListingD
 
 export async function updateDiscount(id: string, d: Partial<ListingDiscountInsert>): Promise<ListingDiscount | null> {
   if (!supabase) return null;
+  const listingId = d.listing_id?.trim();
+  if (listingId) {
+    if (!(await listingAllowsPartnerOffer(listingId))) return null;
+  } else {
+    const { data: existing, error: existingErr } = await supabase
+      .from('listing_discounts')
+      .select('listing_id')
+      .eq('id', id)
+      .maybeSingle();
+    if (existingErr || !existing?.listing_id) return null;
+    if (!(await listingAllowsPartnerOffer(String(existing.listing_id)))) return null;
+  }
   const { data, error } = await supabase
     .from('listing_discounts')
     .update({

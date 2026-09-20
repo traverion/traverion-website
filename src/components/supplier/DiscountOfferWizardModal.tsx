@@ -15,6 +15,7 @@ import {
 import { formatMoney, normalizeCurrency } from '../../lib/money';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
 import { SUPPLIER_MODAL_OVERLAY_CLASS, SUPPLIER_MODAL_PANEL_CLASS } from './supplierUi';
+import { partnerOfferListingIsStayUnsupported } from '../../lib/partner-offers-honesty';
 
 const LISTING_WIDE_VALUE = '__listing_wide__';
 
@@ -114,6 +115,12 @@ export default function DiscountOfferWizardModal({ open, onClose, listings, edit
     }
     if (!listingId) {
       setError('Choose a listing.');
+      return;
+    }
+    if (selectedTour && partnerOfferListingIsStayUnsupported(selectedTour)) {
+      setError(
+        'Stay listings cannot use percentage discounts. Offers only change the price on tour checkout.'
+      );
       return;
     }
     const p = Math.round(percent);

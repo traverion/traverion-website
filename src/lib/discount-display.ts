@@ -9,6 +9,7 @@ import {
 import { participantPriceSummaryFromBookingOptions, pickHeadlineOption, pricedNamesFromBookingOptions } from './headline-price';
 import { formatMoney, normalizeCurrency } from './money';
 import { localYmd } from './local-ymd';
+import { listingIsFamily } from './inventory';
 
 export function isSupabaseListingId(id: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
@@ -88,6 +89,19 @@ export function getDisplayPriceForTour(
   discountsByListing: Map<string, ListingDiscount[]>,
   at: Date = new Date()
 ): TourDisplayPrice {
+  if (listingIsFamily(tour, 'stay')) {
+    const extras = parseListingExtras(tour.listingExtras as unknown);
+    const nightly =
+      extras.stay?.nightlyPriceUsd && extras.stay.nightlyPriceUsd > 0
+        ? extras.stay.nightlyPriceUsd
+        : tour.price?.startingFrom ?? 0;
+    return {
+      price: nightly,
+      originalPrice: nightly,
+      qualifier: null,
+      summary: null,
+    };
+  }
   const discounts = discountsByListing.get(tour.id) ?? [];
   const extras = parseListingExtras(tour.listingExtras as unknown);
   const opts = materializedBookingOptions(extras.bookingOptions);

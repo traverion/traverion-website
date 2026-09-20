@@ -78,3 +78,46 @@ describe('catalog headline vs stored startingFrom', () => {
     expect(display.summary).toMatch(/Child/);
   });
 });
+
+describe('stay money truth vs leftover listing discounts', () => {
+  it('does not advertise a stay discount that checkout would not charge', () => {
+    const stay = tour({
+      listingExtras: {
+        inventoryFamily: 'stay',
+        stay: { nightlyPriceUsd: 200, maxGuests: 4, minNights: 1, cleaningFeeUsd: 0 },
+        bookingOptions: [],
+      },
+      price: {
+        startingFrom: 200,
+        currency: 'EUR',
+        perPerson: false,
+        twinOccupancy: false,
+        customQuote: false,
+        singleSupplement: 0,
+        validity: 'Year round',
+      },
+    });
+    const discounts = new Map([
+      [
+        stay.id,
+        [
+          {
+            id: 'disc-stay',
+            listing_id: stay.id,
+            type: 'percent' as const,
+            value: 50,
+            code: null,
+            valid_from: '2026-01-01',
+            valid_until: '2026-12-31',
+            booking_option_id: null,
+            created_at: '2026-01-01T00:00:00Z',
+          },
+        ],
+      ],
+    ]);
+    const shown = getDisplayPriceForTour(stay, discounts);
+    expect(shown.price).toBe(200);
+    expect(shown.originalPrice).toBe(200);
+    expect(shown.label).toBeUndefined();
+  });
+});
