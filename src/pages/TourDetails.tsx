@@ -689,6 +689,9 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
 
         <header className="mb-5 sm:mb-6 max-w-3xl">
           <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink-muted mb-2">
+            <span className="inline-flex items-center rounded-md bg-finland/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-finland ring-1 ring-finland/15">
+              Tour
+            </span>
             <span className="inline-flex items-center gap-1.5">
               <MapPin size={14} className="shrink-0 text-finland" aria-hidden />
               {tour.destination}

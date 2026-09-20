@@ -396,15 +396,14 @@ export default function StayDetails({ stayId, onBack }: Props) {
         )}
         <header className="mb-5">
           <div className="mb-2 flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center rounded-md bg-finland/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-finland ring-1 ring-finland/15">
+              Stay
+            </span>
             {s?.propertyType?.trim() ? (
-              <span className="inline-flex items-center rounded-full bg-finland/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-finland ring-1 ring-finland/15">
+              <span className="inline-flex items-center rounded-md bg-paper-raised px-2 py-0.5 text-[11px] font-semibold text-ink-muted ring-1 ring-black/[0.06]">
                 {s.propertyType.trim()}
               </span>
-            ) : (
-              <span className="inline-flex items-center rounded-full bg-finland/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-finland ring-1 ring-finland/15">
-                Stay
-              </span>
-            )}
+            ) : null}
             <p className="text-ink-muted flex items-center gap-2 text-sm m-0">
               <MapPin className="w-4 h-4 text-finland" aria-hidden />
               {[stay.city, stay.country].filter(Boolean).join(', ') || stay.destination}
