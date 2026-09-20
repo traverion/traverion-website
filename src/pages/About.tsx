@@ -77,8 +77,8 @@ export default function About({ onNavigate }: AboutProps) {
             </div>
             <h3 className="font-sans text-base font-semibold text-ink mb-1.5">Travelers</h3>
             <p className="text-sm text-ink-muted leading-relaxed m-0 mb-4">
-              Find a destination, understand the experience, choose an option and participants, pay on Stripe, and manage
-              everything in Trips.
+              Find a destination, understand the experience, choose an option and participants, pay on Stripe TEST until
+              live, and manage everything in Trips.
             </p>
             <div className="flex flex-wrap gap-2">
               <a href="/packages" onClick={goTours} className="tv-btn-secondary text-sm">
