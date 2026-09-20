@@ -43,10 +43,10 @@ export default function LegalPageShell({
           </p>
         ) : null}
         <div
-          className="mt-6 rounded-2xl bg-paper-raised p-4 sm:p-6 shadow-soft ring-1 ring-black/[0.06]
-            space-y-5 text-[15px] sm:text-base text-ink leading-relaxed
-            [&_h2]:font-display [&_h2]:text-xl [&_h2]:text-ink [&_h2]:tracking-tight [&_h2]:mt-1 [&_h2]:mb-2
-            [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-2
+          className="mt-5 tv-card p-4 sm:p-5
+            space-y-4 text-sm sm:text-[15px] text-ink leading-relaxed
+            [&_h2]:font-display [&_h2]:text-lg [&_h2]:text-ink [&_h2]:tracking-tight [&_h2]:mt-1 [&_h2]:mb-1.5
+            [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-1.5
             [&_p]:text-ink-muted
             [&_strong]:text-ink [&_strong]:font-semibold
             [&_a]:text-ink [&_a]:underline [&_a]:underline-offset-2 [&_a]:decoration-black/25 hover:[&_a]:decoration-ink"
