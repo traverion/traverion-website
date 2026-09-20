@@ -371,26 +371,26 @@ export default function StayDetails({ stayId, onBack }: Props) {
           <img
             src={hero}
             alt=""
-            className="w-full h-[22rem] sm:h-[28rem] object-cover rounded-3xl mb-3 shadow-soft ring-1 ring-black/[0.06]"
+            className="w-full h-[18rem] sm:h-[22rem] object-cover rounded-3xl mb-3 shadow-soft ring-1 ring-black/[0.06]"
           />
         ) : (
-          <div className="w-full h-64 rounded-3xl bg-ink/10 mb-3 ring-1 ring-black/[0.06]" />
+          <div className="w-full h-56 rounded-3xl bg-ink/10 mb-3 ring-1 ring-black/[0.06]" />
         )}
         {gallery.length > 0 ? (
-          <div className="grid grid-cols-3 gap-2 mb-8">
+          <div className="grid grid-cols-3 gap-2 mb-5">
             {gallery.slice(0, 3).map((url) => (
               <img
                 key={url}
                 src={listingHeroImageSrc(url) ?? url}
                 alt=""
-                className="h-24 sm:h-32 w-full object-cover rounded-2xl ring-1 ring-black/[0.06]"
+                className="h-20 sm:h-28 w-full object-cover rounded-2xl ring-1 ring-black/[0.06]"
               />
             ))}
           </div>
         ) : (
-          <div className="mb-8" />
+          <div className="mb-5" />
         )}
-        <header className="mb-8">
+        <header className="mb-5">
           <div className="mb-2 flex flex-wrap items-center gap-2">
             {s?.propertyType?.trim() ? (
               <span className="inline-flex items-center rounded-full bg-finland/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-finland ring-1 ring-finland/15">
@@ -406,7 +406,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
               {[stay.city, stay.country].filter(Boolean).join(', ') || stay.destination}
             </p>
           </div>
-          <h1 className="font-display text-3xl sm:text-5xl text-ink tracking-tight mb-5">{stay.title}</h1>
+          <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight mb-4">{stay.title}</h1>
           <dl className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {typeof s?.maxGuests === 'number' ? (
               <div className="rounded-xl bg-paper-raised px-3.5 py-3 ring-1 ring-black/[0.05]">
@@ -441,16 +441,16 @@ export default function StayDetails({ stayId, onBack }: Props) {
           ) : null}
         </header>
 
-        <div className="grid lg:grid-cols-[1fr_20rem] gap-10 pb-24 lg:pb-0">
-          <div className="space-y-6 text-[15px] leading-relaxed text-ink">
+        <div className="grid lg:grid-cols-[1fr_20rem] gap-6 pb-24 lg:pb-0">
+          <div className="space-y-4 text-[15px] leading-relaxed text-ink">
             {stay.description ? (
-              <div className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]">
-                <h2 className="font-display text-2xl mb-3">The place</h2>
+              <div className="rounded-2xl bg-paper-raised p-4 sm:p-5 shadow-soft ring-1 ring-black/[0.06]">
+                <h2 className="font-display text-xl mb-2">The place</h2>
                 <p className="text-ink-muted">{stay.description}</p>
               </div>
             ) : null}
             <div className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]">
-              <h2 className="font-display text-2xl mb-3">About this place</h2>
+              <h2 className="font-display text-xl mb-2">About this place</h2>
               <ul className="space-y-2 text-ink-muted">
               {s?.propertyType ? <li>{s.propertyType}</li> : null}
               {typeof s?.maxGuests === 'number' ? (
@@ -467,7 +467,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
             </div>
             {amenities.length > 0 ? (
               <div className="rounded-2xl bg-finland/[0.06] p-5 sm:p-6 ring-1 ring-finland/15">
-                <h2 className="font-display text-2xl mb-3">Amenities</h2>
+                <h2 className="font-display text-xl mb-2">Amenities</h2>
                 <ul className="flex flex-wrap gap-2">
                   {amenities.map((a) => (
                     <li key={a} className="rounded-full bg-paper-raised px-3 py-1.5 text-sm text-ink ring-1 ring-black/[0.05]">
@@ -478,7 +478,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
               </div>
             ) : null}
             <div>
-              <h2 className="font-display text-2xl mb-3">Availability</h2>
+              <h2 className="font-display text-xl mb-2">Availability</h2>
               <p className="text-ink-muted leading-relaxed">
                 Minimum stay {minNights === 1 ? '1 night' : `${minNights} nights`}
                 {typeof s?.maxGuests === 'number' ? ` · up to ${s.maxGuests} guests` : ''}.
@@ -503,7 +503,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
               ) : null}
             </div>
             <div>
-              <h2 className="font-display text-2xl mb-3">Check-in & check-out</h2>
+              <h2 className="font-display text-xl mb-2">Check-in & check-out</h2>
               <ul className="space-y-2 text-ink-muted">
                 {s?.checkInTime ? <li>Check-in from {s.checkInTime}</li> : null}
                 {s?.checkOutTime ? <li>Check-out by {s.checkOutTime}</li> : null}
@@ -512,25 +512,25 @@ export default function StayDetails({ stayId, onBack }: Props) {
             </div>
             {s?.houseRules ? (
               <div>
-                <h2 className="font-display text-2xl mb-2">House rules</h2>
+                <h2 className="font-display text-xl mb-2">House rules</h2>
                 <p className="text-ink-muted whitespace-pre-wrap">{s.houseRules}</p>
               </div>
             ) : null}
             <div>
-              <h2 className="font-display text-2xl mb-2">Cancellation</h2>
+              <h2 className="font-display text-xl mb-2">Cancellation</h2>
               <p className="text-ink-muted">
                 You may cancel free of charge up to 24 hours before check-in. After that, guest-initiated cancellations are not available. If the operator cancels, that is handled from your booking details.
               </p>
             </div>
             {hostName ? (
               <div>
-                <h2 className="font-display text-2xl mb-2">Host</h2>
+                <h2 className="font-display text-xl mb-2">Host</h2>
                 <p className="text-ink-muted">{hostName}</p>
               </div>
             ) : null}
 
             <div id="stay-reviews">
-              <h2 className="font-display text-2xl mb-3">Reviews</h2>
+              <h2 className="font-display text-xl mb-2">Reviews</h2>
               {(() => {
                 const review = publicReviewLabel(reviewAggregate);
                 return review.score ? (
