@@ -405,9 +405,9 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
         </div>
       </section>
 
-      <section className="py-12 sm:py-16">
+      <section className="py-8 sm:py-10">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="mb-8">
+          <div className="mb-5">
             <h2 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Where can I go?</h2>
             <p className="mt-2 text-sm text-ink-muted max-w-lg">
               Destinations with live inventory on Traverion — only places operators have published.
@@ -507,9 +507,9 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
         </div>
       </section>
 
-      <section className="pb-12 sm:pb-16">
+      <section className="pb-8 sm:pb-10">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-end justify-between gap-3 mb-8">
+          <div className="flex items-end justify-between gap-3 mb-5">
             <div>
               <h2 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">What can I book?</h2>
               <p className="mt-2 text-sm text-ink-muted">Live tours from operators — not sample inventory.</p>
@@ -559,7 +559,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                 <button
                   type="button"
                   onClick={() => onTourSelect(featuredListing)}
-                  className="lux-flat relative w-full h-[20rem] sm:h-[26rem] rounded-2xl overflow-hidden mb-6 text-left group bg-ink/20"
+                  className="lux-flat relative w-full h-[16rem] sm:h-[22rem] rounded-2xl overflow-hidden mb-4 text-left group bg-ink/20"
                 >
                   {featuredSrc ? (
                     <img
@@ -592,7 +592,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                   </div>
                 </button>
               ) : null}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                 {displayedListings.slice(1).map((item, index) => (
                   <PublicListingBrowseCard
                     key={item.id}
@@ -612,9 +612,9 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
         </div>
       </section>
 
-      <section className="pb-16 sm:pb-24">
+      <section className="pb-10 sm:pb-14">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-end justify-between gap-3 mb-8">
+          <div className="flex items-end justify-between gap-3 mb-5">
             <div>
               <h2 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Stays</h2>
               <p className="mt-2 text-sm text-ink-muted">Nights from operators — separate from tour departures.</p>
@@ -639,7 +639,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
               }
             />
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               {stayListings.slice(0, 6).map((item, index) => (
                 <PublicListingBrowseCard
                   key={item.id}
