@@ -35,12 +35,12 @@ export default function ForgotPasswordInline({
 }: Props) {
   return (
     <form noValidate onSubmit={onSubmit} className={`${className} motion-safe:animate-fade-in`}>
-      <div className="flex flex-col gap-1">
-        <button type="button" onClick={onBack} className="lux-flat self-start text-sm text-ink-muted hover:text-ink">
+      <div className="flex flex-col gap-0.5">
+        <button type="button" onClick={onBack} className="lux-flat self-start text-xs text-ink-muted hover:text-ink">
           Back to sign in
         </button>
-        <h2 className="font-display text-2xl text-ink tracking-tight pt-2">{title}</h2>
-        <p className="text-sm text-ink-muted">{description}</p>
+        <h2 className="font-display text-xl text-ink tracking-tight pt-1.5">{title}</h2>
+        <p className="text-xs text-ink-muted leading-snug">{description}</p>
       </div>
 
       {successMessage ? (

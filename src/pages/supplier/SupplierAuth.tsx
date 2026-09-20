@@ -428,12 +428,12 @@ export default function SupplierAuth({
           {BENEFITS.map(({ icon: Icon, text }) => (
             <li
               key={text}
-              className="flex items-start gap-3 rounded-2xl bg-paper-raised p-3.5 shadow-soft ring-1 ring-black/[0.06]"
+              className="flex items-start gap-2.5 rounded-lg border border-black/[0.06] bg-paper px-3 py-2.5"
             >
-              <div className="w-9 h-9 rounded-xl bg-finland/10 flex items-center justify-center flex-shrink-0">
-                <Icon className="w-4 h-4 text-finland" />
+              <div className="w-8 h-8 rounded-md bg-finland/10 flex items-center justify-center flex-shrink-0">
+                <Icon className="w-3.5 h-3.5 text-finland" />
               </div>
-              <span className="text-sm text-ink leading-relaxed pt-1.5">{text}</span>
+              <span className="text-sm text-ink leading-snug pt-1">{text}</span>
             </li>
           ))}
         </ul>
@@ -445,7 +445,7 @@ export default function SupplierAuth({
           className={
             compact
               ? ''
-              : 'rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft-lg ring-1 ring-black/[0.06]'
+              : 'rounded-lg border border-black/[0.06] bg-paper p-4 sm:p-5'
           }
         >
           <>
