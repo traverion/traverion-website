@@ -27,7 +27,6 @@ const TAG_LABELS: Record<string, string> = {
   'small-group': 'Small group',
   'pickup-available': 'Pickup',
   'mobile-ticket': 'Mobile ticket',
-  'bestseller': 'Bestseller',
 };
 
 const MAX_RESULTS_HOME = 12;

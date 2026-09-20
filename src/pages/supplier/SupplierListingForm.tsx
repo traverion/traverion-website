@@ -48,7 +48,6 @@ const TAG_OPTIONS = [
   { id: 'small-group', label: 'Small group' },
   { id: 'pickup-available', label: 'Pickup available' },
   { id: 'mobile-ticket', label: 'Mobile ticket' },
-  { id: 'bestseller', label: 'Bestseller' },
 ];
 
 function stayAmenityTokens(raw: string): string[] {

@@ -62,7 +62,6 @@ const TAG_LABELS: Record<string, string> = {
   'small-group': 'Small group',
   'pickup-available': 'Pickup available',
   'mobile-ticket': 'Mobile ticket',
-  'bestseller': 'Bestseller',
 };
 
 type DestOption = { id: string; label: string; type: 'world' | 'region' | 'city' };

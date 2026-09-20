@@ -22,7 +22,6 @@ const TAG_LABELS: Record<string, string> = {
   'small-group': 'Small group',
   'pickup-available': 'Pickup available',
   'mobile-ticket': 'Mobile ticket',
-  'bestseller': 'Bestseller',
 };
 
 function slugToLabel(slug: string): string {
