@@ -749,7 +749,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         disabled={payingId === b.id}
                         className="tv-btn-primary"
                       >
-                        {payingId === b.id ? 'Opening checkout…' : 'Pay now'}
+                        {payingId === b.id ? 'Opening checkout…' : 'Pay now · TEST'}
                       </button>
                     ) : null}
                     {openCancel && !open ? (
@@ -877,7 +877,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         disabled={payingId === b.id}
                         className="tv-btn-primary"
                       >
-                        {payingId === b.id ? 'Opening checkout…' : 'Pay now'}
+                        {payingId === b.id ? 'Opening checkout…' : 'Pay now · TEST'}
                       </button>
                     )}
                     {liveTrip &&
