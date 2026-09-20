@@ -572,12 +572,12 @@ export default function SupplierAvailability() {
           </div>
 
           <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
-          <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-medium uppercase tracking-[0.14em] text-ink-faint mb-2 min-w-[28rem] sm:min-w-0" aria-hidden>
+          <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-medium uppercase tracking-[0.14em] text-ink-faint mb-2" aria-hidden>
             {WEEKDAYS.map((d) => (
               <div key={d}>{d}</div>
             ))}
           </div>
-          <div key={`${year}-${monthIndex0}`} className="grid grid-cols-7 gap-1 sm:gap-2 motion-safe:animate-fade-in min-w-[28rem] sm:min-w-0">
+          <div key={`${year}-${monthIndex0}`} className="grid grid-cols-7 gap-1 sm:gap-2 motion-safe:animate-fade-in">
             {cells.map((cell) => {
               // Stays are night inventory — weekday option rules are tour departures only.
               const open = cell.inMonth && (stayCalendar || weekdayOpen(cell.iso));

@@ -152,7 +152,7 @@ type BusinessProfileTab = 'company' | 'legal';
 
 /**
  * Mobile bottom-tab nav. Fixed at 5 slots — a phone's thumb-reachable bar has no room
- * for more without crowding. Money must be one tap away; Calendar is operational core.
+ * for more without crowding. Income must be one tap away.
  * Kept in sync with PARTNER_PRIMARY_NAV_SECTION_IDS below (guard throws if they drift).
  */
 const PRIMARY_NAV: { id: SupplierSection; label: string; icon: typeof LayoutDashboard }[] = [

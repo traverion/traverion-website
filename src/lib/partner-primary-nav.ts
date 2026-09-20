@@ -1,4 +1,4 @@
-/** Partner primary nav ids — Money must be one tap away on mobile. */
+/** Partner primary nav ids — Income must be one tap away on mobile. */
 export const PARTNER_PRIMARY_NAV_SECTION_IDS = [
   'dashboard',
   'bookings',

@@ -139,7 +139,7 @@ export function MarketplaceFamilySwitch({
   onStays: () => void;
 }) {
   return (
-    <div className="flex gap-1 rounded-full bg-black/[0.04] p-1 w-fit ring-1 ring-black/[0.06]" role="tablist" aria-label="Listing type">
+    <div className="flex flex-wrap gap-1 rounded-full bg-black/[0.04] p-1 w-fit max-w-full ring-1 ring-black/[0.06]" role="tablist" aria-label="Listing type">
       <button
         type="button"
         role="tab"
