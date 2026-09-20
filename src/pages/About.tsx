@@ -54,7 +54,7 @@ export default function About({ onNavigate }: AboutProps) {
       subtitle="A Finland-rooted marketplace for tours and stays — built for travelers who want clarity, and operators who need real tools."
       onNavigate={onNavigate}
     >
-      <div className="mb-8 rounded-2xl bg-finland/8 px-4 py-3 sm:px-5 sm:py-4 ring-1 ring-finland/15">
+      <div className="mb-5 rounded-2xl bg-finland/8 px-3.5 py-2.5 sm:px-4 sm:py-3 ring-1 ring-finland/15">
         <p className="text-sm sm:text-base text-ink leading-relaxed m-0">
           Traverion connects travelers with independent operators. Tours and stays are separate products with their own
           calendars, options, and rules — so a departure never pretends to be a night, and a stay never inherits tour

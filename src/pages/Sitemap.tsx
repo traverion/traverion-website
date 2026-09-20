@@ -68,7 +68,7 @@ export default function Sitemap({ onNavigate }: SitemapProps) {
       subtitle="Every main page on Traverion — support, legal, company, and partner programs — in one place."
       onNavigate={onNavigate}
     >
-      <div className="not-prose mb-8 rounded-2xl bg-finland/8 px-4 py-3 ring-1 ring-finland/15">
+      <div className="not-prose mb-5 rounded-2xl bg-finland/8 px-3.5 py-2.5 ring-1 ring-finland/15">
         <p className="text-sm text-ink leading-relaxed m-0">
           Jump to any section below. Become a supplier opens the Traverion Partner overview.
         </p>

@@ -666,24 +666,24 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                     else url.searchParams.delete('booking');
                     window.history.replaceState({}, '', `${url.pathname}${url.search}`);
                   }}
-                  className="lux-flat flex w-full items-start gap-3.5 p-3.5 sm:gap-4 sm:p-4 text-left"
+                  className="lux-flat flex w-full items-start gap-3 p-3 sm:gap-3.5 sm:p-3.5 text-left"
                 >
                   {thumb ? (
                     <img
                       src={thumb}
                       alt=""
-                      className="h-20 w-20 sm:h-24 sm:w-24 rounded-xl object-cover shrink-0 bg-black/[0.04]"
-                      width={96}
-                      height={96}
+                      className="h-16 w-16 sm:h-20 sm:w-20 rounded-xl object-cover shrink-0 bg-black/[0.04]"
+                      width={80}
+                      height={80}
                       loading="lazy"
                       decoding="async"
                     />
                   ) : (
                     <div
-                      className="flex h-20 w-20 sm:h-24 sm:w-24 shrink-0 items-center justify-center rounded-xl bg-finland/[0.06] ring-1 ring-finland/10"
+                      className="flex h-16 w-16 sm:h-20 sm:w-20 shrink-0 items-center justify-center rounded-xl bg-finland/[0.06] ring-1 ring-finland/10"
                       aria-hidden
                     >
-                      <CalendarDays className="h-7 w-7 text-finland/50" />
+                      <CalendarDays className="h-6 w-6 text-finland/50" />
                     </div>
                   )}
                   <div className="min-w-0 flex-1">
