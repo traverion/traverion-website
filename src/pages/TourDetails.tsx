@@ -850,7 +850,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
             <div className="lg:col-span-2 space-y-6">
               <div>
-                <h2 className="font-display text-2xl text-ink mb-3">What you’ll do</h2>
+                <h2 className="font-display text-xl text-ink mb-2">What you’ll do</h2>
                 <p className="text-ink leading-relaxed text-[15px]">{tour.description}</p>
               </div>
 
