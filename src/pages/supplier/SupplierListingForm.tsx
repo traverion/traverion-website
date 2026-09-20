@@ -1,6 +1,6 @@
 import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertCircle, Check, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { Check, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { TourPackage } from '../../types/tour';
 import type { ListingBookingOption, ListingExtras, ScheduleStyle, VenueSetting } from '../../types/listingExtras';
 import {
@@ -30,6 +30,7 @@ import {
 } from '../../lib/listingPhotoGrid';
 import { getListingPublishBlockers } from '../../lib/listingPublishGate';
 import { listingBuilderSections } from '../../lib/listingBuilderProgress';
+import { listingWizardPersistLabel } from '../../lib/listing-wizard-persist';
 import { isSupabaseConfigured } from '../../lib/supabase';
 import { userFacingError } from '../../lib/userFacingError';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
@@ -808,7 +809,7 @@ export default function SupplierListingForm({
       ] as const;
     }
     return [
-      'Title, language, and a clear description — what travelers see first.',
+      'Name this listing, choose the language you run it in, and pick a category.',
       'Location, inclusions, itinerary, and important day-of details.',
       'Options are versions of this experience (pickup, time, private). Age prices live inside each option.',
       'Cover photo first, then supporting shots travelers swipe through.',
@@ -820,52 +821,6 @@ export default function SupplierListingForm({
     () => (isStayForm ? [] : listingBuilderSections(form)),
     [form, isStayForm]
   );
-
-  const editorSectionLinks = useMemo(() => {
-    const stay = form.inventoryFamily === 'stay';
-    if (stepIdx === 0) {
-      return stay
-        ? [
-            { id: 'supplier-listing-field-title', label: 'Name' },
-            { id: 'supplier-listing-field-description', label: 'Description' },
-          ]
-        : [
-            { id: 'supplier-listing-field-title', label: 'Title' },
-            { id: 'supplier-listing-field-description', label: 'Description' },
-            { id: 'supplier-listing-field-highlights', label: 'Highlights' },
-          ];
-    }
-    if (stepIdx === 1) {
-      return stay
-        ? [{ id: 'supplier-listing-field-location', label: 'Location' }]
-        : [
-            { id: 'supplier-listing-field-location', label: 'Location' },
-            { id: 'supplier-listing-field-includes', label: 'Included' },
-            { id: 'supplier-listing-field-excludes', label: 'Not included' },
-            { id: 'supplier-listing-field-schedule', label: 'Itinerary' },
-            { id: 'supplier-listing-field-accessibility', label: 'Important info' },
-          ];
-    }
-    if (stepIdx === 2) {
-      return stay
-        ? [
-            { id: 'supplier-listing-field-stay-price', label: 'Nightly price' },
-            { id: 'supplier-listing-field-stay-amenities', label: 'Amenities' },
-            { id: 'supplier-listing-field-stay-rules', label: 'House rules' },
-          ]
-        : [
-            { id: 'supplier-listing-field-options', label: 'Options' },
-            { id: 'supplier-listing-field-tags', label: 'Tags' },
-          ];
-    }
-    if (stepIdx === 3) {
-      return [{ id: 'supplier-listing-field-photos', label: 'Photos' }];
-    }
-    if (stepIdx === 4) {
-      return [{ id: 'supplier-listing-field-review', label: 'Completeness' }];
-    }
-    return [{ id: 'supplier-listing-field-photos', label: 'Photos' }];
-  }, [stepIdx, form.inventoryFamily]);
 
   // Review step: jump links into prior sections via step navigation
   const reviewJumpTargets = useMemo(() => {
@@ -886,14 +841,6 @@ export default function SupplierListingForm({
       { step: 3, label: 'Photos' },
     ] as const;
   }, [form.inventoryFamily, createFamily]);
-
-  const jumpToEditorSection = useCallback((id: string) => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    const reduce =
-      typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
-  }, []);
 
   useEffect(() => {
     const last = steps.length - 1;
@@ -1015,6 +962,7 @@ export default function SupplierListingForm({
         setForm(
           backup && serializeListingFormState(backup) !== serializeListingFormState(next) ? backup : next
         );
+        setLastSavedAt(Date.now());
       }
     } else {
       // Only clear edit hydration when we're genuinely in a create session (not a transient editingId=null during edit).
@@ -1185,7 +1133,6 @@ export default function SupplierListingForm({
     const t = window.setTimeout(() => {
       if (serializeListingFormState(form) !== initialFormSnapshotRef.current) {
         writeListingDraftBackup(editingId, form);
-        setLastSavedAt(Date.now());
       }
     }, 700);
     return () => window.clearTimeout(t);
@@ -1507,6 +1454,14 @@ export default function SupplierListingForm({
     </div>
   ) : null;
 
+  const persistLabel = listingWizardPersistLabel({
+    saving: draftCloseBusy || submitting,
+    failed: Boolean(draftCloseError || submitError),
+    dirty: isDirty(),
+    serverSaved: lastSavedAt != null || Boolean(editingId),
+    published: form.status === 'published',
+  });
+
   const canContinueStep = () => canContinueListingStep(stepIdx, form);
 
   const shell = (
@@ -1535,75 +1490,52 @@ export default function SupplierListingForm({
           onClick={(e) => e.stopPropagation()}
           className="pointer-events-auto motion-safe:animate-fade-in motion-reduce:animate-none flex min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden border-0 bg-paper shadow-none h-full rounded-none"
         >
-        <div className="shrink-0 border-b border-black/[0.06] bg-gradient-to-b from-finland/[0.07] to-paper-raised px-5 py-4 sm:px-8 pt-[max(1rem,env(safe-area-inset-top))]">
-          <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="shrink-0 border-b border-black/[0.06] bg-paper px-4 py-3 sm:px-8 pt-[max(0.75rem,env(safe-area-inset-top))]">
+          <div className="flex items-center justify-between gap-3">
             <button
               type="button"
               disabled={draftCloseBusy || submitting}
               onClick={() => void handleCloseIntent()}
-              className="lux-flat text-sm font-medium text-ink-muted hover:text-ink disabled:opacity-50"
+              className="lux-flat inline-flex min-h-11 items-center text-sm font-medium text-ink-muted hover:text-ink disabled:opacity-50"
             >
               {draftCloseBusy ? 'Saving…' : '← Exit'}
             </button>
-            <p className="text-[11px] uppercase tracking-[0.14em] text-ink-faint inline-flex items-center gap-1.5">
-              {draftCloseBusy || submitting ? (
-                'Saving…'
-              ) : isDirty() ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-amber-900 ring-1 ring-amber-200/80">
-                  Unsaved changes
-                </span>
-              ) : lastSavedAt ? (
-                <>
-                  <Check className="h-3 w-3 text-finland" aria-hidden />
-                  Saved
-                  {Date.now() - lastSavedAt < 60_000
-                    ? ' · just now'
-                    : ` · ${new Date(lastSavedAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`}
-                </>
-              ) : (
-                <>
-                  <Check className="h-3 w-3 text-finland/50" aria-hidden />
-                  Draft ready
-                </>
-              )}
-            </p>
+            {persistLabel ? (
+              <p
+                className={`text-xs tabular-nums ${
+                  persistLabel === 'Save failed' ? 'font-medium text-red-700' : 'text-ink-muted'
+                }`}
+                aria-live="polite"
+              >
+                {persistLabel}
+              </p>
+            ) : (
+              <span className="min-h-11" />
+            )}
           </div>
-          <div className="mb-4 min-w-0">
-            <h2 id="supplier-listing-editor-title" className="font-display text-2xl sm:text-3xl text-ink">
+          <div className="mt-2 min-w-0">
+            <h2 id="supplier-listing-editor-title" className="font-display text-xl sm:text-2xl text-ink">
               {editingId
                 ? form.title.trim() || (form.inventoryFamily === 'stay' ? 'Stay' : 'Tour')
                 : createFamily === 'stay'
-                  ? 'Create stay'
-                  : 'Create tour'}
+                  ? 'Create a stay'
+                  : 'Create a tour'}
             </h2>
-            <p className="text-sm text-ink-muted mt-1 max-w-xl">
-              {editingId
-                ? 'You are editing what travelers will see.'
-                : 'Close anytime — unfinished work is saved as a draft.'}
-            </p>
           </div>
           {draftCloseError ? (
-            <div className="mb-3">
+            <div className="mt-3">
               <NoticeCallout title="Could not save draft" tone="danger">
                 {draftCloseError}
               </NoticeCallout>
             </div>
           ) : null}
           {submitError ? (
-            <div className="mb-3">
+            <div className="mt-3">
               <NoticeCallout title="Could not save listing" tone="danger">
                 {submitError}
               </NoticeCallout>
             </div>
           ) : null}
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <p className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">
-              Step {stepIdx + 1} of {steps.length}
-            </p>
-            <p className="text-[11px] text-ink-faint tabular-nums">
-              {steps.filter((_, i) => isStepSatisfied(i, form)).length}/{steps.length} ready
-            </p>
-          </div>
           <nav
             aria-label={
               editingId
@@ -1614,89 +1546,40 @@ export default function SupplierListingForm({
                   ? 'Create stay steps'
                   : 'Create tour steps'
             }
-            className="flex gap-1 overflow-x-auto pb-0.5 -mx-1 px-1"
+            className="mt-4 -mx-1 overflow-x-auto px-1"
           >
-            {steps.map((step, idx) => {
-              const current = idx === stepIdx;
-              const completed = !current && isStepSatisfied(idx, form);
-              const incomplete = !current && !completed;
-              return (
-                <button
-                  key={step.id}
-                  type="button"
-                  onClick={() => setStepIdxPersisted(idx)}
-                  aria-current={current ? 'step' : undefined}
-                  className={`lux-flat inline-flex shrink-0 items-center gap-1 rounded-md px-2.5 py-1.5 text-xs sm:text-sm font-medium transition-colors ${
-                    current
-                      ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
-                      : completed
-                        ? 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200/70'
-                        : 'bg-amber-50/80 text-amber-900 ring-1 ring-amber-200/60 hover:bg-amber-50'
-                  }`}
-                >
-                  {completed ? (
-                    <Check className="h-3.5 w-3.5" aria-hidden />
-                  ) : current ? (
-                    <span className="text-[10px] leading-none" aria-hidden>
-                      •
-                    </span>
-                  ) : incomplete ? (
-                    <AlertCircle className="h-3.5 w-3.5" aria-hidden />
-                  ) : null}
-                  {step.label}
-                </button>
-              );
-            })}
+            <ol className="flex min-w-min items-center gap-0.5 sm:gap-1">
+              {steps.map((step, idx) => {
+                const current = idx === stepIdx;
+                const completed = !current && isStepSatisfied(idx, form);
+                return (
+                  <li key={step.id} className="flex min-w-0 shrink-0 items-center">
+                    {idx > 0 ? (
+                      <span className="mx-1 text-ink-faint sm:mx-1.5" aria-hidden>
+                        →
+                      </span>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => setStepIdxPersisted(idx)}
+                      aria-current={current ? 'step' : undefined}
+                      aria-label={`${step.label}, step ${idx + 1} of ${steps.length}${completed ? ', complete' : ''}`}
+                      className={`lux-flat inline-flex min-h-11 items-center gap-1 rounded-none px-1 py-1 text-sm transition-colors ${
+                        current
+                          ? 'font-semibold text-ink shadow-[inset_0_-2px_0_0_#003580]'
+                          : completed
+                            ? 'text-ink hover:text-finland'
+                            : 'text-ink-muted hover:text-ink'
+                      }`}
+                    >
+                      {completed ? <Check className="h-3.5 w-3.5 text-finland" aria-hidden /> : null}
+                      {step.label}
+                    </button>
+                  </li>
+                );
+              })}
+            </ol>
           </nav>
-          <p className="mt-3 rounded-xl bg-paper-raised/80 px-3 py-2.5 text-sm text-ink-muted leading-relaxed ring-1 ring-black/[0.04]">
-            {stepGuidance[stepIdx]}
-          </p>
-          {editorSectionLinks.length > 1 ? (
-            <div className="mt-2 flex flex-wrap gap-1" aria-label="Jump to section">
-              {editorSectionLinks.map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  className="lux-flat rounded-full px-2.5 py-1 text-[11px] text-ink-muted hover:text-ink"
-                  onClick={() => jumpToEditorSection(s.id)}
-                >
-                  {s.label}
-                </button>
-              ))}
-            </div>
-          ) : null}
-          {stepIdx === steps.length - 1 ? (
-            <>
-              <p className="mt-3 text-xs text-ink-muted">
-                {publishBlockersPreview.length === 0
-                  ? 'Ready to publish — review photos, then publish below.'
-                  : `${publishBlockersPreview.length} item${publishBlockersPreview.length === 1 ? '' : 's'} left before publish`}
-              </p>
-              {publishBlockersPreview.length > 0 ? (
-                <ul className="mt-2 space-y-1">
-                  {publishBlockersPreview.slice(0, 5).map((line) => (
-                    <li key={line}>
-                      <button
-                        type="button"
-                        className="lux-flat text-left text-xs text-ink-muted hover:text-ink"
-                        onClick={() => jumpToPublishBlocker(line)}
-                      >
-                        {line}
-                      </button>
-                    </li>
-                  ))}
-                  {publishBlockersPreview.length > 5 ? (
-                    <li className="text-xs text-ink-faint">And {publishBlockersPreview.length - 5} more</li>
-                  ) : null}
-                </ul>
-              ) : null}
-            </>
-          ) : publishBlockersPreview.length > 0 ? (
-            <p className="mt-3 text-xs text-ink-faint">
-              {publishBlockersPreview.length} item{publishBlockersPreview.length === 1 ? '' : 's'} still needed before
-              publish — finish steps as you go.
-            </p>
-          ) : null}
         </div>
 
         {publishBlockers && publishBlockers.length > 0 && (
@@ -1727,33 +1610,21 @@ export default function SupplierListingForm({
 
         <div
           ref={stepContainerRef}
-          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6 sm:py-5"
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-8 sm:py-6"
         >
-          <div key={stepIdx} className="motion-safe:animate-fade-in">
-          {stepIdx === 0 && form.inventoryFamily !== 'stay' && (
-            <div className="space-y-5 transition-all duration-300 ease-out opacity-100 translate-y-0">
-              <div id="supplier-listing-field-language">
-                <label className="block text-sm font-medium text-ink mb-1">Primary language of the tour *</label>
-                <p className="text-xs text-ink-muted mb-2">The main language guests hear during the tour.</p>
-                <select
-                  value={form.experienceLanguage}
-                  onChange={(e) => setForm((f) => ({ ...f, experienceLanguage: e.target.value }))}
-                  className="tv-input max-w-md"
-                >
-                  <option value="">Select language…</option>
-                  {LANGUAGE_OPTIONS.map((o) => (
-                    <option key={o.code} value={o.code}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          )}
-
+          <div
+            key={stepIdx}
+            className={`w-full motion-safe:animate-fade-in ${stepIdx === 3 ? 'max-w-3xl' : 'max-w-xl'}`}
+          >
+          {stepIdx !== 4 ? (
+            <header className="mb-6">
+              <h3 className="font-display text-xl text-ink">{steps[stepIdx].label}</h3>
+              <p className="mt-1 text-sm leading-relaxed text-ink-muted">{stepGuidance[stepIdx]}</p>
+            </header>
+          ) : null}
           {stepIdx === 0 && (
-            <div className="space-y-5 transition-all duration-300 ease-out opacity-100 translate-y-0">
-              {form.inventoryFamily === 'stay' || createFamily === 'stay' ? (
+            <div className="space-y-7">
+              {form.inventoryFamily === 'stay' || (!editingId && createFamily === 'stay') ? (
                 <div id="supplier-listing-field-stay-type">
                   <label className="block text-sm font-medium text-ink mb-1">Property type *</label>
                   <p className="text-xs text-ink-muted mb-3">What travelers are booking — not a tour option.</p>
@@ -1777,11 +1648,35 @@ export default function SupplierListingForm({
                     })}
                   </div>
                 </div>
-              ) : null}
+              ) : (
+                <div id="supplier-listing-field-language">
+                  <label htmlFor="supplier-listing-experience-language" className="block text-sm font-medium text-ink mb-1">
+                    Primary language *
+                  </label>
+                  <p className="text-xs text-ink-muted mb-2">The main language guests hear during the tour.</p>
+                  <select
+                    id="supplier-listing-experience-language"
+                    value={form.experienceLanguage}
+                    onChange={(e) => setForm((f) => ({ ...f, experienceLanguage: e.target.value }))}
+                    className="tv-input"
+                  >
+                    <option value="">Select language…</option>
+                    {LANGUAGE_OPTIONS.map((o) => (
+                      <option key={o.code} value={o.code}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               <div id="supplier-listing-field-title">
-                <label className="block text-sm font-medium text-ink mb-1">Title *</label>
+                <label htmlFor="supplier-listing-title" className="block text-sm font-medium text-ink mb-1">
+                  Title *
+                </label>
                 <p className="text-xs text-ink-muted mb-2">A clear, specific name travelers will see in search and on the listing page.</p>
                 <input
+                  id="supplier-listing-title"
                   type="text"
                   value={form.title}
                   onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
@@ -1794,54 +1689,57 @@ export default function SupplierListingForm({
                   required
                 />
               </div>
-            </div>
-          )}
 
-          {stepIdx === 0 && form.inventoryFamily !== 'stay' && (
-            <div className="space-y-3 transition-all duration-300 ease-out opacity-100 translate-y-0">
-              <div id="supplier-listing-field-category">
-                <label className="block text-sm font-medium text-ink mb-1">Category *</label>
-                <p className="text-xs text-ink-muted mb-2">
-                  Choose the option that best describes what you sell. You can add more detail in later steps.
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  {EXPERIENCE_KIND_OPTIONS.map((opt) => {
-                    const selected = form.experienceKind === opt.id;
-                    return (
-                      <button
-                        key={opt.id}
-                        type="button"
-                        onClick={() => setForm((f) => ({ ...f, experienceKind: opt.id }))}
-                        className={`text-left rounded-lg border p-3 transition-colors min-h-[5.5rem] ${
-                          selected
-                            ? 'border-finland bg-finland/5 ring-1 ring-finland/20'
-                            : 'border-black/[0.08] bg-paper hover:border-black/[0.12]'
-                        }`}
-                      >
-                        <span className="block text-sm font-semibold text-ink">{opt.title}</span>
-                        <span className="mt-1 block text-xs text-ink-muted leading-snug">{opt.description}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-                {form.experienceKind === 'transportation' ? (
-                  <p className="mt-2 text-xs text-ink-muted leading-snug rounded-lg border border-black/[0.06] border-l-[3px] border-l-amber-500 bg-paper px-3 py-2">
-                    Transfers use the same tour listing tools (options, start times, capacity). There is no separate
-                    dispatch board yet — set meeting points and pickup notes clearly for travelers.
+              {form.inventoryFamily !== 'stay' ? (
+                <fieldset id="supplier-listing-field-category" className="min-w-0">
+                  <legend className="text-sm font-medium text-ink">Category *</legend>
+                  <p className="mt-1 mb-3 text-xs text-ink-muted">
+                    Choose the option that best describes what you sell. You can add more detail in later steps.
                   </p>
-                ) : null}
-              </div>
-            </div>
-          )}
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                    {EXPERIENCE_KIND_OPTIONS.map((opt) => {
+                      const selected = form.experienceKind === opt.id;
+                      return (
+                        <label
+                          key={opt.id}
+                          className={`flex min-h-[5.5rem] cursor-pointer flex-col rounded-xl border px-3 py-3 text-left transition-colors focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-finland ${
+                            selected
+                              ? 'border-finland bg-finland/5 ring-1 ring-finland/20'
+                              : 'border-black/[0.08] bg-paper hover:border-black/[0.14] hover:bg-black/[0.02]'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="experience-kind"
+                            value={opt.id}
+                            checked={selected}
+                            onChange={() => setForm((f) => ({ ...f, experienceKind: opt.id }))}
+                            className="sr-only"
+                          />
+                          <span className="text-sm font-semibold text-ink">{opt.title}</span>
+                          <span className="mt-1 text-xs leading-snug text-ink-muted">{opt.description}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  {form.experienceKind === 'transportation' ? (
+                    <p className="mt-2 text-xs leading-snug text-ink-muted">
+                      Transfers use the same tour listing tools (options, start times, capacity). There is no separate
+                      dispatch board yet — set meeting points and pickup notes clearly for travelers.
+                    </p>
+                  ) : null}
+                </fieldset>
+              ) : null}
 
-          {stepIdx === 0 && (
-            <div className="space-y-5 transition-all duration-300 ease-out opacity-100 translate-y-0">
               <div id="supplier-listing-field-subtitle">
-                <label className="block text-sm font-medium text-ink mb-1">Subtitle *</label>
+                <label htmlFor="supplier-listing-subtitle" className="block text-sm font-medium text-ink mb-1">
+                  Subtitle *
+                </label>
                 <p className="text-xs text-ink-muted mb-2">
                   A short line under the title on the listing page (max {MAX_SUBTITLE_LENGTH} characters).
                 </p>
                 <input
+                  id="supplier-listing-subtitle"
                   type="text"
                   value={form.subtitle}
                   maxLength={MAX_SUBTITLE_LENGTH}
@@ -1854,28 +1752,34 @@ export default function SupplierListingForm({
                 </p>
               </div>
               <div id="supplier-listing-field-description">
-                <label className="block text-sm font-medium text-ink mb-1">
+                <label htmlFor="supplier-listing-description" className="block text-sm font-medium text-ink mb-1">
                   About this {form.inventoryFamily === 'stay' ? 'stay' : 'tour'} *
                 </label>
                 <p className="text-xs text-ink-muted mb-2">
-                  Main description for guests (at least {MIN_LISTING_DESCRIPTION_LENGTH} characters for publishing, max{' '}
+                  Main description for guests (at least {MIN_LISTING_DESCRIPTION_LENGTH} characters to continue, max{' '}
                   {MAX_DESCRIPTION_LENGTH}).
                 </p>
                 <textarea
+                  id="supplier-listing-description"
                   value={form.description}
                   maxLength={MAX_DESCRIPTION_LENGTH}
                   onChange={(e) =>
                     setForm((f) => ({ ...f, description: e.target.value.slice(0, MAX_DESCRIPTION_LENGTH) }))
                   }
-                  rows={10}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 ${
+                  rows={8}
+                  className={`tv-input min-h-[10rem] ${
+                    form.description.trim().length > 0 &&
                     form.description.trim().length < MIN_LISTING_DESCRIPTION_LENGTH
                       ? 'border-amber-300 focus:ring-amber-200 focus:border-amber-400'
-                      : 'border-black/[0.12] focus:ring-finland'
+                      : ''
                   }`}
                   placeholder="What guests do, what makes it special, practical notes…"
-                  aria-invalid={form.description.trim().length < MIN_LISTING_DESCRIPTION_LENGTH}
+                  aria-invalid={
+                    form.description.trim().length > 0 &&
+                    form.description.trim().length < MIN_LISTING_DESCRIPTION_LENGTH
+                  }
                   aria-describedby={
+                    form.description.trim().length > 0 &&
                     form.description.trim().length < MIN_LISTING_DESCRIPTION_LENGTH
                       ? 'supplier-listing-description-hint supplier-listing-description-error'
                       : 'supplier-listing-description-hint'
@@ -1884,7 +1788,8 @@ export default function SupplierListingForm({
                 <p id="supplier-listing-description-hint" className="text-xs text-ink-muted mt-1 tabular-nums">
                   {form.description.length}/{MAX_DESCRIPTION_LENGTH}
                 </p>
-                {form.description.trim().length < MIN_LISTING_DESCRIPTION_LENGTH && (
+                {form.description.trim().length > 0 &&
+                form.description.trim().length < MIN_LISTING_DESCRIPTION_LENGTH ? (
                   <p
                     id="supplier-listing-description-error"
                     className="text-sm text-red-600 mt-1.5"
@@ -1894,7 +1799,7 @@ export default function SupplierListingForm({
                     {form.inventoryFamily === 'stay' ? 'stay' : 'tour'}, what guests should expect, and any practical
                     details.
                   </p>
-                )}
+                ) : null}
               </div>
               <div id="supplier-listing-field-highlights" className="space-y-3">
                 <div>
@@ -1905,8 +1810,11 @@ export default function SupplierListingForm({
                 </div>
                 {form.highlights.map((line, index) => (
                   <div key={index}>
-                    <label className="block text-xs font-medium text-ink-muted mb-1">Highlight {index + 1}</label>
+                    <label className="block text-xs font-medium text-ink-muted mb-1" htmlFor={`supplier-listing-highlight-${index}`}>
+                      Highlight {index + 1}
+                    </label>
                     <input
+                      id={`supplier-listing-highlight-${index}`}
                       type="text"
                       value={line}
                       onChange={(e) =>
@@ -2751,7 +2659,7 @@ export default function SupplierListingForm({
           </div>
         </div>
 
-        <div className="relative z-10 px-4 sm:px-6 py-3 sm:py-4 border-t border-black/[0.08] bg-paper flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 shrink-0 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        <div className="relative z-10 flex shrink-0 flex-col-reverse gap-2 border-t border-black/[0.08] bg-paper px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-8 sm:py-4 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           <button
             type="button"
             onClick={() => setStepIdxPersisted((s) => Math.max(0, s - 1))}
@@ -2760,7 +2668,7 @@ export default function SupplierListingForm({
           >
             Back
           </button>
-          <div className="flex items-stretch sm:items-center gap-2 w-full sm:w-auto">
+          <div className="flex w-full min-w-0 flex-wrap items-stretch gap-2 sm:w-auto sm:items-center">
             {stepIdx < steps.length - 1 ? (
               <>
                 <button
