@@ -123,9 +123,9 @@ export default function PartnerEmailVerifiedPage() {
           <p className="sr-only">Traverion Partner</p>
           {phase === 'checking' && (
             <div aria-busy="true" aria-label="Confirming your email">
-              <h1 className="font-display text-2xl sm:text-3xl text-ink tracking-tight">Confirming your email</h1>
+              <h1 className="font-display text-xl sm:text-2xl text-ink tracking-tight">Confirming your email</h1>
               <p className="mt-3 text-sm text-ink-muted">Please wait a moment.</p>
-              <div className="mt-8 space-y-3" aria-hidden>
+              <div className="mt-6 space-y-2" aria-hidden>
                 <div className="h-3 w-full rounded bg-black/[0.06] animate-pulse" />
                 <div className="h-3 w-5/6 mx-auto rounded bg-black/[0.04] animate-pulse" />
               </div>
@@ -133,10 +133,10 @@ export default function PartnerEmailVerifiedPage() {
           )}
           {phase === 'verified' && (
             <>
-              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100">
-                <CheckCircle2 className="h-8 w-8 text-emerald-600" aria-hidden />
+              <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-emerald-100">
+                <CheckCircle2 className="h-6 w-6 text-emerald-600" aria-hidden />
               </div>
-              <h1 className="font-display text-2xl sm:text-3xl text-ink tracking-tight">Account verified</h1>
+              <h1 className="font-display text-xl sm:text-2xl text-ink tracking-tight">Account verified</h1>
               <div className="mt-4 text-left">
                 <NoticeCallout title="Email confirmed" tone="success">
                   Your partner email is confirmed. Continuing to your workspace…
@@ -146,10 +146,10 @@ export default function PartnerEmailVerifiedPage() {
           )}
           {phase === 'already' && (
             <>
-              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-finland/15">
+              <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-finland/15">
                 <CheckCircle2 className="h-8 w-8 text-finland" aria-hidden />
               </div>
-              <h1 className="font-display text-2xl sm:text-3xl text-ink tracking-tight">Already verified</h1>
+              <h1 className="font-display text-xl sm:text-2xl text-ink tracking-tight">Already verified</h1>
               <div className="mt-4 text-left">
                 <NoticeCallout title="You’re all set" tone="info">
                   This email is already confirmed. Continuing to your workspace…
@@ -159,7 +159,7 @@ export default function PartnerEmailVerifiedPage() {
           )}
           {(phase === 'invalid' || phase === 'unconfigured') && (
             <>
-              <h1 className="font-display text-2xl sm:text-3xl text-ink tracking-tight">
+              <h1 className="font-display text-xl sm:text-2xl text-ink tracking-tight">
                 {phase === 'unconfigured' ? 'Sign-in is not available' : 'This link has expired'}
               </h1>
               <div className="mt-4 text-left">
