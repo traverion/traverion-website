@@ -775,7 +775,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                   </div>
                 ) : null}
                 {open ? (
-                <div className="space-y-3 border-t border-black/[0.05] px-3.5 py-4 sm:px-4 motion-safe:animate-fade-in">
+                <div className="space-y-3 border-t border-black/[0.05] px-3 py-3 sm:px-3.5 motion-safe:animate-fade-in">
                   {b.pickup_time ? (
                     <p className="text-sm text-ink-muted">Pickup {pgTimeToHm(b.pickup_time)}</p>
                   ) : pickupMissing ? (
