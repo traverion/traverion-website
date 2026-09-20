@@ -488,7 +488,7 @@ export default function Packages({ onTourSelect }: PackagesProps) {
 
   return (
     <div className="min-h-screen bg-paper tv-page">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-12 pb-16 motion-safe:animate-fade-in">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8 pb-12 motion-safe:animate-fade-in">
         <header className="mb-5 tv-card p-4 sm:p-5">
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Browse</p>
           <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Tours</h1>

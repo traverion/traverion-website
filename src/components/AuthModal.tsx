@@ -259,7 +259,7 @@ export default function AuthModal() {
           </div>
         </div>
 
-        <div className="px-6 pb-6 pt-4 space-y-4">
+        <div className="px-5 pb-5 pt-3 space-y-3.5">
           {!(tab === 'signin' && passwordResetPanel) ? (
             <>
               <div className="flex gap-1 rounded-full bg-paper p-1 w-full ring-1 ring-black/[0.06]">
@@ -271,7 +271,7 @@ export default function AuthModal() {
                     setSuccessMessage(null);
                     exitModalPasswordReset();
                   }}
-                  className={`lux-flat flex-1 rounded-full px-3.5 py-2 text-sm font-medium transition-colors ${
+                  className={`lux-flat flex-1 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
                     tab === 'signin'
                       ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
                       : 'text-ink-muted hover:text-finland'
@@ -287,7 +287,7 @@ export default function AuthModal() {
                     setSuccessMessage(null);
                     exitModalPasswordReset();
                   }}
-                  className={`lux-flat flex-1 rounded-full px-3.5 py-2 text-sm font-medium transition-colors ${
+                  className={`lux-flat flex-1 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
                     tab === 'signup'
                       ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
                       : 'text-ink-muted hover:text-finland'
