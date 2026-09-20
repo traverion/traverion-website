@@ -9,6 +9,7 @@ import {
   stripTourCheckoutSearch,
   tourCheckoutCancelPath,
   tourCheckoutPath,
+  parseTourListingSelection,
   tourListingPath,
 } from './tourCheckoutUrl';
 
@@ -85,6 +86,18 @@ describe('tour checkout URL', () => {
     expect(tourListingPath(TOUR_ID, { date: '2026-10-12', guests: 2 })).toBe(
       `/packages?tour=${TOUR_ID}&date=2026-10-12&guests=2`
     );
+  });
+
+  it('keeps a selected option on the listing URL without opening checkout', () => {
+    const href = tourListingPath(TOUR_ID, { date: '2026-10-12', guests: 2, optionId: OPTION_ID });
+    expect(href).toContain(`option=${OPTION_ID}`);
+    expect(href).not.toContain('book=1');
+    expect(parseTourCheckoutSearch(href.slice(href.indexOf('?')))).toBeNull();
+    expect(parseTourListingSelection(href.slice(href.indexOf('?')))).toEqual({
+      date: '2026-10-12',
+      guests: 2,
+      optionId: OPTION_ID,
+    });
   });
 
   it('builds a same-origin Stripe cancel path that sanitizeCheckoutReturnPath keeps', () => {

@@ -115,7 +115,7 @@ export function stripTourCheckoutSearch(params: URLSearchParams): URLSearchParam
 
 export function tourListingPath(
   tourId: string,
-  extras?: { date?: string; guests?: number }
+  extras?: { date?: string; guests?: number; optionId?: string | null }
 ): string {
   const params = new URLSearchParams();
   params.set('tour', tourId);
@@ -124,7 +124,27 @@ export function tourListingPath(
   if (typeof extras?.guests === 'number' && extras.guests >= 1) {
     params.set('guests', String(Math.min(99, Math.floor(extras.guests))));
   }
+  const optionId = extras?.optionId?.trim() ?? '';
+  if (OPTION_ID.test(optionId)) params.set(TOUR_CHECKOUT_OPTION, optionId);
   return `${TOUR_CHECKOUT_PATH}?${params.toString()}`;
+}
+
+/** Listing selection only — never a checkout. `book=1` is ignored here. */
+export function parseTourListingSelection(search: string | URLSearchParams): {
+  date: string;
+  guests: number;
+  optionId: string | null;
+} {
+  const params = typeof search === 'string' ? new URLSearchParams(search.startsWith('?') ? search.slice(1) : search) : search;
+  const dateRaw = (params.get('date') ?? '').trim();
+  const date = ISO_DATE.test(dateRaw) ? dateRaw : '';
+  const g = Number.parseInt(params.get('guests') ?? '', 10);
+  const optionRaw = (params.get(TOUR_CHECKOUT_OPTION) ?? '').trim();
+  return {
+    date,
+    guests: Number.isFinite(g) && g >= 1 ? Math.min(99, Math.floor(g)) : 1,
+    optionId: OPTION_ID.test(optionRaw) ? optionRaw : null,
+  };
 }
 
 export function tourCheckoutPath(tourId: string, state: TourCheckoutState): string {
