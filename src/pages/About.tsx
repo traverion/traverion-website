@@ -54,8 +54,8 @@ export default function About({ onNavigate }: AboutProps) {
       subtitle="A Finland-rooted marketplace for tours and stays — built for travelers who want clarity, and operators who need real tools."
       onNavigate={onNavigate}
     >
-      <div className="mb-5 rounded-2xl bg-finland/8 px-3.5 py-2.5 sm:px-4 sm:py-3 ring-1 ring-finland/15">
-        <p className="text-sm sm:text-base text-ink leading-relaxed m-0">
+      <div className="mb-5 rounded-xl bg-finland/8 px-3.5 py-2.5 ring-1 ring-finland/15">
+        <p className="text-sm text-ink leading-relaxed m-0">
           Traverion connects travelers with independent operators. Tours and stays are separate products with their own
           calendars, options, and rules — so a departure never pretends to be a night, and a stay never inherits tour
           fields.
@@ -68,15 +68,15 @@ export default function About({ onNavigate }: AboutProps) {
         family-run tour company and clear enough for someone booking on a phone in another country.
       </p>
 
-      <section className="!mt-10">
-        <h2 className="!mb-4">Who Traverion is for</h2>
-        <div className="grid gap-3 sm:grid-cols-2 not-prose">
-          <div className="rounded-2xl bg-paper-raised p-4 sm:p-5 shadow-soft ring-1 ring-black/[0.06]">
-            <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-finland/10 text-finland">
-              <Compass className="h-5 w-5" aria-hidden />
+      <section className="!mt-8">
+        <h2 className="!mb-3">Who Traverion is for</h2>
+        <div className="grid gap-2 sm:grid-cols-2 not-prose">
+          <div className="tv-card p-3.5 sm:p-4">
+            <div className="mb-2 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-finland/10 text-finland">
+              <Compass className="h-4 w-4" aria-hidden />
             </div>
-            <h3 className="font-sans text-base font-semibold text-ink mb-1.5">Travelers</h3>
-            <p className="text-sm text-ink-muted leading-relaxed m-0 mb-4">
+            <h3 className="font-sans text-sm font-semibold text-ink mb-1">Travelers</h3>
+            <p className="text-sm text-ink-muted leading-relaxed m-0 mb-3">
               Find a destination, understand the experience, choose an option and participants, pay on Stripe TEST until
               live, and manage everything in Trips.
             </p>
@@ -89,12 +89,12 @@ export default function About({ onNavigate }: AboutProps) {
               </a>
             </div>
           </div>
-          <div className="rounded-2xl bg-paper-raised p-4 sm:p-5 shadow-soft ring-1 ring-black/[0.06]">
-            <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-finland/10 text-finland">
-              <Building2 className="h-5 w-5" aria-hidden />
+          <div className="tv-card p-3.5 sm:p-4">
+            <div className="mb-2 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-finland/10 text-finland">
+              <Building2 className="h-4 w-4" aria-hidden />
             </div>
-            <h3 className="font-sans text-base font-semibold text-ink mb-1.5">Operators</h3>
-            <p className="text-sm text-ink-muted leading-relaxed m-0 mb-4">
+            <h3 className="font-sans text-sm font-semibold text-ink mb-1">Operators</h3>
+            <p className="text-sm text-ink-muted leading-relaxed m-0 mb-3">
               Create tours and stays, set options and age pricing, publish availability, and run today’s departures from
               one partner portal.
             </p>
@@ -105,18 +105,15 @@ export default function About({ onNavigate }: AboutProps) {
         </div>
       </section>
 
-      <section className="!mt-10">
-        <h2 className="!mb-4">How we work</h2>
-        <div className="grid gap-3 sm:grid-cols-3 not-prose">
+      <section className="!mt-8">
+        <h2 className="!mb-3">How we work</h2>
+        <div className="grid gap-2 sm:grid-cols-3 not-prose">
           {VALUES.map(({ icon: Icon, title, body }) => (
-            <div
-              key={title}
-              className="rounded-2xl bg-paper-raised p-4 sm:p-5 shadow-soft ring-1 ring-black/[0.06]"
-            >
-              <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-finland/10 text-finland">
-                <Icon className="h-5 w-5" aria-hidden />
+            <div key={title} className="tv-card p-3.5 sm:p-4">
+              <div className="mb-2 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-finland/10 text-finland">
+                <Icon className="h-4 w-4" aria-hidden />
               </div>
-              <h3 className="font-sans text-base font-semibold text-ink mb-1.5">{title}</h3>
+              <h3 className="font-sans text-sm font-semibold text-ink mb-1">{title}</h3>
               <p className="text-sm text-ink-muted leading-relaxed m-0">{body}</p>
             </div>
           ))}
