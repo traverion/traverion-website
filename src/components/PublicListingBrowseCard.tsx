@@ -43,8 +43,8 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
   showViewDetailsHint = false,
   stayStayTotal = null,
 }: PublicListingBrowseCardProps) {
-  const imgClass = size === 'compact' ? 'h-44' : 'h-56 sm:h-64';
-  const padClass = size === 'compact' ? 'p-3' : 'p-4';
+  const imgClass = size === 'compact' ? 'h-40' : 'h-48 sm:h-56';
+  const padClass = size === 'compact' ? 'p-3' : 'p-3.5 sm:p-4';
   const { price, originalPrice, label, qualifier, summary } = getDisplayPriceForTour(tour, discountsByListing);
   const hasDiscount = Boolean(label && price < originalPrice);
   const fromAmount = hasDiscount ? price : originalPrice;

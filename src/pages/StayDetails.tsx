@@ -271,6 +271,10 @@ export default function StayDetails({ stayId, onBack }: Props) {
   const hero = stay ? listingHeroImageSrc(stay.image) : undefined;
 
   useEffect(() => {
+    setGuests((g) => Math.min(maxGuests, Math.max(1, g)));
+  }, [maxGuests]);
+
+  useEffect(() => {
     if (!user) return;
     const meta = user.user_metadata as { full_name?: string; name?: string; phone?: string } | undefined;
     const fromMeta = (meta?.full_name || meta?.name || '').trim();
