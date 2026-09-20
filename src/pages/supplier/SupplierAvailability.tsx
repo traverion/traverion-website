@@ -23,7 +23,7 @@ import {
 } from '../../lib/availability-ops';
 import { formatPartnerCheckoutHoldLabel } from '../../lib/booking-hold';
 import { navigateSupplierUrl, openSupplierBooking } from '../../lib/supplierPortalNavigation';
-import { PARTNER_APP_BASE, PARTNER_CREATE_PATH } from '../../lib/partnerPortalPaths';
+import { PARTNER_CREATE_PATH } from '../../lib/partnerPortalPaths';
 import {
   SUPPLIER_PAGE_CLASS,
   SupplierEmptyState,

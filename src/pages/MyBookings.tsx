@@ -41,7 +41,7 @@ import { listingPickupCopyIncomplete } from '../lib/pickup-completeness';
 import { decrementAvailabilityBooked } from '../data/supabase-availability';
 import { clearBookingsUnread } from '../lib/customerBookingNotifications';
 import { guestFacingBookingNotes } from '../lib/booking-notes';
-import { bookingIsCancelledTrip, bookingMatchesTripView, travelerTripIsLive, travelerBookingNeedsPayNow, travelerTripReferenceLabel, sortTravelerCancelledTrips } from '../lib/trip-views';
+import { bookingMatchesTripView, travelerTripIsLive, travelerBookingNeedsPayNow, travelerTripReferenceLabel, sortTravelerCancelledTrips } from '../lib/trip-views';
 import {
   BOOKING_CONFIRMATION_EMAIL_DISCLAIMER,
   BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE,

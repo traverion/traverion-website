@@ -1154,7 +1154,7 @@ export default function SupplierListings() {
                           ) : null}
                           {draftPublish && !draftPublish.readyToPublish ? (
                             <StatusChip tone="warn">
-                              {draftPublish.blockers.length} before publish
+                              {`${draftPublish.blockers.length} before publish`}
                             </StatusChip>
                           ) : null}
                         </div>

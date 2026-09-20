@@ -8,7 +8,6 @@ import {
   PARTNER_MORE_GROUPS,
   PARTNER_NAV_OFFERS,
   partnerSidebarGroupContaining,
-  partnerSidebarDefaultChild,
 } from './partnerNav';
 
 describe('partnerNav IA', () => {

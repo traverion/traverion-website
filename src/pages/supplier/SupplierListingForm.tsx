@@ -29,7 +29,7 @@ import {
   LISTING_PHOTO_MIN,
 } from '../../lib/listingPhotoGrid';
 import { getListingPublishBlockers } from '../../lib/listingPublishGate';
-import { listingBuilderSections, listingBuilderReadyToPublish } from '../../lib/listingBuilderProgress';
+import { listingBuilderSections } from '../../lib/listingBuilderProgress';
 import { isSupabaseConfigured } from '../../lib/supabase';
 import { userFacingError } from '../../lib/userFacingError';
 import { useDialogFocus } from '../../hooks/useDialogFocus';

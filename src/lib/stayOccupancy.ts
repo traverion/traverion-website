@@ -48,7 +48,7 @@ export function stayAvailableForRequestedNights(
 }
 
 export function stayRangeFromBooking(booking: {
-  booking_date: string | null;
+  booking_date?: string | null;
   check_out?: string | null;
   nights?: number | null;
   special_requests?: string | null;
