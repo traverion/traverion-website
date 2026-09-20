@@ -956,7 +956,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
 
                 {tour.highlights.filter((h) => String(h).trim()).length > 0 ? (
                   <section className="tv-card p-5 sm:p-6">
-                    <h2 className="font-display text-2xl text-ink mb-5">Highlights</h2>
+                    <h2 className="font-display text-xl text-ink mb-3">Highlights</h2>
                     <ul className="space-y-3">
                       {tour.highlights
                         .map((h) => String(h).trim())
@@ -1001,7 +1001,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                   }
                   return (
                   <section className="tv-card p-5 sm:p-6">
-                    <h2 className="font-display text-2xl text-ink mb-5">Itinerary</h2>
+                    <h2 className="font-display text-xl text-ink mb-3">Itinerary</h2>
                     <ol className="space-y-6">
                       {itinerarySteps
                         .map((day, index, steps) => {
@@ -1050,7 +1050,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                   <section className="tv-card p-4 sm:p-5 space-y-5">
                     {tour.includes.some((s) => String(s).trim()) ? (
                       <div className="rounded-2xl bg-emerald-50/70 p-4 sm:p-5 ring-1 ring-emerald-200/60">
-                        <h2 className="font-display text-2xl text-ink mb-4">What’s included</h2>
+                        <h2 className="font-display text-xl text-ink mb-2">What’s included</h2>
                         <ul className="space-y-3">
                           {tour.includes
                             .map((item) => String(item).trim())
@@ -1066,7 +1066,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                     ) : null}
                     {tour.excludes.some((s) => String(s).trim()) ? (
                       <div className="rounded-2xl bg-rose-50/70 p-4 sm:p-5 ring-1 ring-rose-200/60">
-                        <h2 className="font-display text-2xl text-ink mb-4">Not included</h2>
+                        <h2 className="font-display text-xl text-ink mb-2">Not included</h2>
                         <ul className="space-y-3">
                           {tour.excludes
                             .map((item) => String(item).trim())
@@ -1118,7 +1118,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                   (tour.price?.importantNotes ?? []).some((n) => String(n).trim()) ||
                   tour.listingExtras?.minGuestAge?.trim()) ? (
                   <section className="rounded-2xl bg-rose-50/60 p-5 sm:p-6 ring-1 ring-rose-200/50">
-                    <h2 className="font-display text-2xl text-ink mb-4">Important information</h2>
+                    <h2 className="font-display text-xl text-ink mb-2">Important information</h2>
                     <ul className="space-y-2 text-ink-muted">
                       {tour.difficulty === 'Challenging' ? <li>This tour is marked challenging.</li> : null}
                       {tour.listingExtras?.minGuestAge?.trim() ? (
@@ -1136,7 +1136,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
 
                 {supplierLegal && (
                   <section className="tv-card p-5 sm:p-6">
-                    <h2 className="font-display text-2xl text-ink mb-4">Operator</h2>
+                    <h2 className="font-display text-xl text-ink mb-2">Operator</h2>
                     <div className="flex items-center gap-4">
                     {supplierLegal.business_logo_url ? (
                       <img
@@ -1536,7 +1536,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
 
       <section className="py-8 bg-paper border-t border-black/[0.06]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="font-display text-2xl sm:text-3xl text-ink mb-6">Reviews</h2>
+          <h2 className="font-display text-xl sm:text-2xl text-ink mb-4">Reviews</h2>
           {reviews.length === 0 && !showReviewForm && (
             <p className="text-ink-muted mb-6 max-w-xl leading-relaxed">
               No reviews yet. Guests can write one after a completed booking.
