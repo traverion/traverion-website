@@ -346,10 +346,10 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
               Back to Traverion
             </button>
 
-            <div className="rounded-2xl bg-paper-raised p-4 sm:p-5 shadow-soft-lg ring-1 ring-black/[0.06]">
-              <div className="inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15 mb-3">
+            <div className="tv-card p-4 sm:p-5">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">
                 Traveler account
-              </div>
+              </p>
               <h1 className="font-display text-3xl sm:text-4xl tracking-tight text-ink mb-2">
                 {passwordResetPanel
                   ? 'Reset password'
@@ -362,9 +362,9 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
                   ? 'We will email a reset link if an account exists for that address.'
                   : tab === 'signin'
                     ? 'Manage trips, confirmations, and bookings.'
-                    : 'Save trips and book experiences. Takes under a minute.'}
+                    : 'Save trips and book tours or stays. Takes under a minute.'}
               </p>
-              <p className="text-xs text-ink-faint mb-6">
+              <p className="text-xs text-ink-faint mb-5">
                 Want to list experiences?{' '}
                 <a href={supplierPortalLandingHref()} className="text-finland font-medium hover:underline">
                   Traverion Partner
