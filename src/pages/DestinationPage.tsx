@@ -142,8 +142,8 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
           <img src={heroSrc} alt="" decoding="async" width={1600} height={900} className="object-cover" />
         </div>
         <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-black/20" aria-hidden />
-        <div className="relative z-10 w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-8 sm:pb-10 pt-16">
-          <button type="button" onClick={onBack} className="lux-flat mb-6 inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1.5 text-sm text-white/90 ring-1 ring-white/20 backdrop-blur-sm hover:bg-white/25">
+        <div className="relative z-10 w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-6 sm:pb-8 pt-14">
+          <button type="button" onClick={onBack} className="lux-flat mb-4 inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1.5 text-sm text-white/90 ring-1 ring-white/20 backdrop-blur-sm hover:bg-white/25">
             <ArrowLeft className="w-4 h-4" />
             Back to browse
           </button>
@@ -151,7 +151,7 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
             <MapPin className="h-3.5 w-3.5" aria-hidden />
             Destination
           </p>
-          <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl tracking-tight leading-[1.05]">{label}</h1>
+          <h1 className="font-display text-3xl sm:text-4xl lg:text-5xl tracking-tight leading-[1.05]">{label}</h1>
           {catalogLoading ? (
             <Skeleton className="mt-3 h-4 w-40 bg-white/20" />
           ) : listings.length > 0 ? (
@@ -162,7 +162,7 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
         </div>
       </section>
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-10 pb-16 motion-safe:animate-fade-in">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8 pb-12 motion-safe:animate-fade-in">
         {listingsError && supplierListings === null ? (
           <ErrorState
             className="py-8"
