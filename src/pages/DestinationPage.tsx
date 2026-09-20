@@ -204,7 +204,7 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
                     {tourListings.length} {tourListings.length === 1 ? 'experience' : 'experiences'} in {label}
                   </p>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                   {tourListings.map((tour, index) => (
                     <PublicListingBrowseCard
                       key={tour.id}
@@ -229,7 +229,7 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
                     {stayListings.length} {stayListings.length === 1 ? 'place' : 'places'} to stay
                   </p>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                   {stayListings.map((stay, index) => (
                     <PublicListingBrowseCard
                       key={stay.id}
