@@ -132,10 +132,10 @@ export default function AdminDashboard() {
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="mb-5">
           <div
-            className="flex flex-wrap gap-1 rounded-full bg-paper-raised p-1 w-fit max-w-full shadow-soft ring-1 ring-black/[0.06]"
+            className="flex flex-wrap gap-1 rounded-xl bg-paper-raised p-1 w-fit max-w-full ring-1 ring-black/[0.06]"
             role="tablist"
             aria-label="Admin sections"
           >
@@ -146,9 +146,9 @@ export default function AdminDashboard() {
                 role="tab"
                 aria-selected={activeTab === tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`lux-flat flex items-center px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                className={`lux-flat flex items-center px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                   activeTab === tab.id
-                    ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
+                    ? 'bg-finland text-white ring-1 ring-finland'
                     : 'text-ink-muted hover:bg-finland/10 hover:text-finland'
                 }`}
               >
@@ -160,7 +160,7 @@ export default function AdminDashboard() {
         </div>
 
         {activeTab === 'overview' && (
-          <div className="space-y-6">
+          <div className="space-y-4">
             {statsError ? (
               <NoticeCallout
                 title="Could not load overview"
@@ -187,20 +187,20 @@ export default function AdminDashboard() {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
               {metrics.map((m) => {
                 const Icon = m.icon;
                 return (
                   <div
                     key={m.label}
-                    className="rounded-2xl bg-paper-raised p-5 shadow-soft ring-1 ring-black/[0.06]"
+                    className="tv-card p-3.5 sm:p-4"
                   >
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
                         <p className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">{m.label}</p>
                         <p
-                          className={`mt-1.5 font-display tracking-tight tabular-nums ${
-                            m.valueClass ?? 'text-3xl text-ink'
+                          className={`mt-1 font-display tracking-tight tabular-nums ${
+                            m.valueClass ?? 'text-2xl text-ink'
                           }`}
                         >
                           {m.value}
