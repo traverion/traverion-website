@@ -258,10 +258,11 @@ export default function StayDetails({ stayId, onBack }: Props) {
   const quoteOk = stayQuote?.ok === true;
   const total = stayQuote?.ok ? stayQuote.totalAmount : 0;
   const currency = normalizeCurrency(stay?.price.currency);
-  const occupiedNights = useMemo(() => {
-    const fromBookings = occupiedNightsFromStayRanges(occupiedRanges);
-    return [...new Set([...fromBookings, ...blockedNights])];
-  }, [occupiedRanges, blockedNights]);
+  const bookedNights = useMemo(() => occupiedNightsFromStayRanges(occupiedRanges), [occupiedRanges]);
+  const occupiedNights = useMemo(
+    () => [...new Set([...bookedNights, ...blockedNights])],
+    [bookedNights, blockedNights]
+  );
   const selectionOccupied =
     checkIn && checkOut
       ? occupiedRanges.some((r) => stayDateRangesOverlap(checkIn, checkOut, r.checkIn, r.checkOut)) ||
@@ -483,16 +484,23 @@ export default function StayDetails({ stayId, onBack }: Props) {
                 {typeof s?.maxGuests === 'number' ? ` · up to ${s.maxGuests} guests` : ''}.
                 Checkout night is not occupied. If you pick nights that are already taken, booking is refused.
               </p>
-              {occupiedNights.length > 0 ? (
+              {bookedNights.length > 0 ? (
                 <p className="mt-3 text-sm text-ink">
-                  Currently booked: {formatOccupiedNightRanges(occupiedNights.slice(0, 24))}
-                  {occupiedNights.length > 24 ? '…' : ''}
+                  Booked: {formatOccupiedNightRanges(bookedNights.slice(0, 24))}
+                  {bookedNights.length > 24 ? '…' : ''}
                 </p>
-              ) : (
+              ) : null}
+              {blockedNights.length > 0 ? (
+                <p className={`text-sm text-ink ${bookedNights.length > 0 ? 'mt-1.5' : 'mt-3'}`}>
+                  Host blocked: {formatOccupiedNightRanges(blockedNights.slice(0, 24))}
+                  {blockedNights.length > 24 ? '…' : ''}
+                </p>
+              ) : null}
+              {bookedNights.length === 0 && blockedNights.length === 0 ? (
                 <p className="mt-3 text-sm text-ink-muted">
-                  No nights are occupied yet. Choose check-in and check-out on the booking panel.
+                  No nights are taken yet. Choose check-in and check-out on the booking panel.
                 </p>
-              )}
+              ) : null}
             </div>
             <div>
               <h2 className="font-display text-2xl mb-3">Check-in & check-out</h2>

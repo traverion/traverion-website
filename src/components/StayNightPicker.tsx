@@ -123,7 +123,7 @@ export default function StayNightPicker({
         })}
       </div>
       <p className="mt-2 text-[11px] text-ink-faint">
-        Select check-in, then check-out. Unavailable nights are crossed out. Checkout night is free.
+        Select check-in, then check-out. Booked and host-blocked nights are crossed out. Checkout night is free.
       </p>
     </div>
   );
