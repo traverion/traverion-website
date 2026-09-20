@@ -21,10 +21,10 @@ export default function NoticeCallout({
   action?: ReactNode;
 }) {
   return (
-    <div className={`rounded-2xl px-4 py-3 ${TONE[tone]}`}>
-      <p className="text-sm font-semibold">{title}</p>
+    <div className={`rounded-xl px-3.5 py-2.5 ${TONE[tone]}`}>
+      <p className="text-sm font-semibold leading-snug">{title}</p>
       {children ? <div className="mt-1 text-sm leading-relaxed opacity-90">{children}</div> : null}
-      {action ? <div className="mt-3">{action}</div> : null}
+      {action ? <div className="mt-2.5">{action}</div> : null}
     </div>
   );
 }
