@@ -124,14 +124,14 @@ export default function AdminSupplierVerificationPanel() {
   const baseConfigured = isSupabaseConfigured();
 
   return (
-    <div className="space-y-6">
-      <div className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]">
-        <div className="flex items-start gap-3 mb-4">
-          <div className="w-10 h-10 rounded-xl bg-finland/10 flex items-center justify-center shrink-0">
-            <ClipboardCheck className="w-5 h-5 text-finland" aria-hidden />
+    <div className="space-y-4">
+      <div className="tv-card p-4 sm:p-5">
+        <div className="flex items-start gap-3 mb-3">
+          <div className="w-9 h-9 rounded-lg bg-finland/10 flex items-center justify-center shrink-0">
+            <ClipboardCheck className="w-4 h-4 text-finland" aria-hidden />
           </div>
           <div className="flex-1 min-w-0">
-            <h2 className="font-display text-xl text-ink tracking-tight">Supplier verification queue</h2>
+            <h2 className="font-display text-lg text-ink tracking-tight">Supplier verification queue</h2>
             <p className="text-sm text-ink-muted mt-1 leading-relaxed">
               Review submitted business and payout data. Open verification files in a new tab. Approve or reject
               separately. Use the <strong className="text-ink font-semibold">business</strong> note when rejecting
@@ -168,7 +168,7 @@ export default function AdminSupplierVerificationPanel() {
       ) : null}
 
       {items.length === 0 && !loading ? (
-        <div className="rounded-2xl bg-paper-raised px-4 py-2 shadow-soft ring-1 ring-black/[0.06]">
+        <div className="tv-card px-4 py-2">
           <EmptyState
             icon={ClipboardCheck}
             title="Queue is clear"
@@ -192,7 +192,7 @@ export default function AdminSupplierVerificationPanel() {
           return (
             <div
               key={row.id}
-              className="rounded-2xl bg-paper-raised p-4 sm:p-5 shadow-soft ring-1 ring-black/[0.06] space-y-3"
+              className="tv-card p-3.5 sm:p-4 space-y-2.5"
             >
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <div>
@@ -205,7 +205,7 @@ export default function AdminSupplierVerificationPanel() {
               </div>
 
               <div className="grid sm:grid-cols-2 gap-3 text-sm">
-                <div className="rounded-2xl bg-paper-raised shadow-soft ring-1 ring-black/[0.06] p-3 space-y-2">
+                <div className="tv-card p-3 space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland">
                       Business verification
@@ -260,7 +260,7 @@ export default function AdminSupplierVerificationPanel() {
                     </>
                   )}
                 </div>
-                <div className="rounded-2xl bg-paper-raised shadow-soft ring-1 ring-black/[0.06] p-3 space-y-2">
+                <div className="tv-card p-3 space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland">
                       Banking / payout
