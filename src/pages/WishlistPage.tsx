@@ -65,11 +65,8 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
     return (
       <div className="min-h-screen bg-paper tv-page">
         <div className="max-w-xl mx-auto px-4 py-8">
-          <header className="mb-5 rounded-2xl bg-paper-raised p-4 sm:p-5 shadow-soft ring-1 ring-black/[0.06]">
-            <div className="inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15 mb-3">
-              <Heart className="h-3.5 w-3.5" aria-hidden />
-              Saved for later
-            </div>
+          <header className="mb-5 tv-card p-4 sm:p-5">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Saved for later</p>
             <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Wishlist</h1>
           </header>
           <EmptyState
@@ -100,11 +97,8 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
     return (
       <div className="min-h-screen bg-paper tv-page">
         <div className="max-w-xl mx-auto px-4 py-8">
-          <header className="mb-5 rounded-2xl bg-paper-raised p-4 sm:p-5 shadow-soft ring-1 ring-black/[0.06]">
-            <div className="inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15 mb-3">
-              <Heart className="h-3.5 w-3.5" aria-hidden />
-              Saved for later
-            </div>
+          <header className="mb-5 tv-card p-4 sm:p-5">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Saved for later</p>
             <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Wishlist</h1>
           </header>
           <EmptyState
@@ -141,7 +135,7 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
   return (
     <div className="min-h-screen bg-paper tv-page">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 pb-12">
-        <header className="mb-5 rounded-2xl bg-paper-raised p-4 sm:p-5 shadow-soft ring-1 ring-black/[0.06]">
+        <header className="mb-5 tv-card p-4 sm:p-5">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Saved for later</p>
