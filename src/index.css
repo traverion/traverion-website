@@ -562,7 +562,8 @@ html {
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    /* `none` — identity transform would still trap position:fixed listing CTAs. */
+    transform: none;
   }
 }
 
@@ -576,7 +577,7 @@ html {
 }
 
 .lux-page-enter {
-  animation: lux-page-enter 0.22s var(--lux-ease) both;
+  animation: lux-page-enter 0.22s var(--lux-ease) forwards;
 }
 
 @media (prefers-reduced-motion: reduce) {

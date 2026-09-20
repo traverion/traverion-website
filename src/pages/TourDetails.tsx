@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   ArrowLeft,
   MapPin,
@@ -1785,43 +1786,46 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
         </div>
       </section>
 
-      {canBook && !checkoutFromUrl ? (
-        <div className="lg:hidden fixed inset-x-0 bottom-0 z-40 border-t border-black/[0.06] bg-paper-raised/95 backdrop-blur-md px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] motion-safe:animate-slide-up">
-          <div className="flex items-center justify-between gap-3">
-            {(() => {
-              const { price, qualifier } = getDisplayPriceForTour(tour, discountsByListing);
-              const currency = normalizeCurrency(tour.price?.currency);
-              return (
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-ink">
-                    From {formatMoney(Number(price), currency)}
-                    <span className="font-normal text-ink-muted">{qualifier ? ` per ${qualifier}` : ' per person'}</span>
-                  </p>
-                  <p className="text-xs text-ink-muted">
-                    {listingShowsFreeCancellation(tour) ? 'Free cancellation · Stripe TEST until live' : 'Pay via Stripe TEST until live'}
-                  </p>
-                </div>
-              );
-            })()}
-            <button
-              type="button"
-              onClick={handleStickyBookCta}
-              disabled={variantChecking}
-              className="tv-btn-primary shrink-0"
-            >
-              {variantChecking
-                ? 'Checking…'
-                : selectedBookingVariant
-                  ? 'Continue · TEST'
-                  : !bookingDate.trim()
-                    ? 'Pick a date'
-                    : bookingVariantsOpen
-                      ? 'Choose option'
-                      : 'See options'}
-            </button>
-          </div>
-        </div>
-      ) : null}
+      {canBook && !checkoutFromUrl
+        ? createPortal(
+            <div className="lg:hidden fixed inset-x-0 bottom-0 z-[60] border-t border-black/[0.06] bg-paper-raised/95 backdrop-blur-md px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+              <div className="flex items-center justify-between gap-3">
+                {(() => {
+                  const { price, qualifier } = getDisplayPriceForTour(tour, discountsByListing);
+                  const currency = normalizeCurrency(tour.price?.currency);
+                  return (
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-ink">
+                        From {formatMoney(Number(price), currency)}
+                        <span className="font-normal text-ink-muted">{qualifier ? ` per ${qualifier}` : ' per person'}</span>
+                      </p>
+                      <p className="text-xs text-ink-muted">
+                        {listingShowsFreeCancellation(tour) ? 'Free cancellation · Stripe TEST until live' : 'Pay via Stripe TEST until live'}
+                      </p>
+                    </div>
+                  );
+                })()}
+                <button
+                  type="button"
+                  onClick={handleStickyBookCta}
+                  disabled={variantChecking}
+                  className="tv-btn-primary shrink-0"
+                >
+                  {variantChecking
+                    ? 'Checking…'
+                    : selectedBookingVariant
+                      ? 'Continue · TEST'
+                      : !bookingDate.trim()
+                        ? 'Pick a date'
+                        : bookingVariantsOpen
+                          ? 'Choose option'
+                          : 'See options'}
+                </button>
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
 
 
       {galleryLightboxOpen && hasGallery ? (

@@ -624,6 +624,22 @@ export default function BookingPage({
     setStep('confirm');
   };
 
+  const handleContinueFromReview = () => {
+    setError(null);
+    if (usesAgePricingOnVariant && selectedVariant?.listingOption) {
+      const mixErr = validateParticipantMix(selectedVariant.listingOption, participantMix);
+      if (mixErr) {
+        setError(mixErr);
+        return;
+      }
+    }
+    if (priceInfo.quote && !priceInfo.quote.ok) {
+      setError(priceInfo.quote.error);
+      return;
+    }
+    setStep('contact');
+  };
+
   const handleConfirmBooking = async () => {
     if (submitting) return;
     if (isSupabaseConfigured() && !userRef.current) {
@@ -816,29 +832,17 @@ export default function BookingPage({
               <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint mb-1.5">Cancellation</p>
               <p className="text-sm text-ink-muted leading-relaxed">{cancellationText}</p>
             </div>
-            <div className="flex justify-end">
+            {presentation !== 'modal' ? (
+            <div className="mt-6 hidden justify-end lg:flex">
               <button
                 type="button"
-                onClick={() => {
-                  setError(null);
-                  if (usesAgePricingOnVariant && selectedVariant.listingOption) {
-                    const mixErr = validateParticipantMix(selectedVariant.listingOption, participantMix);
-                    if (mixErr) {
-                      setError(mixErr);
-                      return;
-                    }
-                  }
-                  if (priceInfo.quote && !priceInfo.quote.ok) {
-                    setError(priceInfo.quote.error);
-                    return;
-                  }
-                  setStep('contact');
-                }}
-                className="w-full sm:w-auto px-6 py-3 rounded-lg bg-finland text-white font-semibold hover:bg-finland-dark transition-all duration-200 ease-smooth active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2"
+                onClick={handleContinueFromReview}
+                className="tv-btn-primary w-full sm:w-auto"
               >
                 Go to checkout
               </button>
             </div>
+            ) : null}
           </div>
         )}
 
@@ -905,7 +909,8 @@ export default function BookingPage({
                 </NoticeCallout>
               </div>
             ) : null}
-            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-between sm:items-center">
+            {presentation !== 'modal' ? (
+            <div className="mt-6 hidden flex-col-reverse gap-3 sm:flex-row sm:justify-between sm:items-center lg:flex">
               <div className="text-sm text-ink-muted">
                 <p>
                   <span className="text-ink-faint">Total</span>{' '}
@@ -928,6 +933,7 @@ export default function BookingPage({
                 {availabilityChecking ? 'Checking…' : 'See options'}
               </button>
             </div>
+            ) : null}
           </div>
         )}
 
@@ -997,6 +1003,8 @@ export default function BookingPage({
                       onChange={(e) => setFirstName(e.target.value)}
                       placeholder="John"
                       autoComplete="given-name"
+                      autoCapitalize="words"
+                      enterKeyHint="next"
                       className="tv-input pl-10"
                     />
                   </div>
@@ -1011,6 +1019,8 @@ export default function BookingPage({
                       onChange={(e) => setLastName(e.target.value)}
                       placeholder="Smith"
                       autoComplete="family-name"
+                      autoCapitalize="words"
+                      enterKeyHint="next"
                       className="tv-input pl-10"
                     />
                   </div>
@@ -1026,6 +1036,8 @@ export default function BookingPage({
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="+358 …"
                     autoComplete="tel"
+                    inputMode="tel"
+                    enterKeyHint="next"
                     className="tv-input pl-10"
                   />
                 </div>
@@ -1062,6 +1074,8 @@ export default function BookingPage({
                     }}
                     placeholder="you@example.com"
                     autoComplete="email"
+                    inputMode="email"
+                    enterKeyHint="next"
                     aria-readonly={Boolean(user?.email)}
                     className={`tv-input pl-10 ${user?.email ? 'bg-black/[0.04] text-ink-muted cursor-not-allowed' : ''}`}
                   />
@@ -1093,22 +1107,24 @@ export default function BookingPage({
                 </NoticeCallout>
               </div>
             ) : null}
-            <div className="mt-6 flex justify-end gap-3">
+            {presentation !== 'modal' ? (
+            <div className="mt-6 hidden flex-col-reverse gap-3 sm:flex-row sm:justify-end lg:flex">
               <button
                 type="button"
                 onClick={() => setStep(contactBackStep)}
-                className="tv-btn-ghost"
+                className="tv-btn-ghost w-full sm:w-auto"
               >
                 Back
               </button>
               <button
                 type="button"
                 onClick={handleContinueFromContact}
-                className="tv-btn-primary"
+                className="tv-btn-primary w-full sm:w-auto"
               >
                 Review and pay
               </button>
             </div>
+            ) : null}
           </div>
         )}
 
@@ -1260,11 +1276,12 @@ export default function BookingPage({
                 </NoticeCallout>
               </div>
             ) : null}
-            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between sm:items-center">
+            {presentation !== 'modal' ? (
+            <div className="hidden flex-col-reverse gap-3 sm:flex-row sm:justify-between sm:items-center lg:flex">
               <button
                 type="button"
                 onClick={() => setStep(flowMode === 'modal' || selectedVariant ? 'review' : 'date-guests')}
-                className="tv-btn-ghost"
+                className="tv-btn-ghost w-full sm:w-auto"
               >
                 Edit trip details
               </button>
@@ -1272,7 +1289,7 @@ export default function BookingPage({
                 <button
                   type="button"
                   onClick={() => setStep('contact')}
-                  className="tv-btn-ghost"
+                  className="tv-btn-ghost w-full sm:w-auto"
                 >
                   Back
                 </button>
@@ -1280,7 +1297,7 @@ export default function BookingPage({
                   type="button"
                   onClick={handleConfirmBooking}
                   disabled={submitting}
-                  className="tv-btn-primary"
+                  className="tv-btn-primary w-full sm:w-auto whitespace-normal text-center"
                 >
                   {submitting
                     ? 'Redirecting to Stripe…'
@@ -1290,8 +1307,71 @@ export default function BookingPage({
                 </button>
               </div>
             </div>
+            ) : null}
           </div>
         )}
+    </>
+  );
+
+  const checkoutDockInner = (
+    <>
+      {step === 'review' ? (
+        <button type="button" onClick={handleContinueFromReview} className="tv-btn-primary w-full">
+          Go to checkout
+        </button>
+      ) : null}
+      {step === 'date-guests' ? (
+        <div className="flex flex-col gap-3">
+          <p className="text-sm text-ink-muted">
+            <span className="text-ink-faint">Total</span>{' '}
+            <strong className="text-ink">{quoteBlockReason ? '—' : formatMoney(total, currency)}</strong>
+          </p>
+          <button
+            type="button"
+            onClick={handleCheckAvailability}
+            disabled={availabilityChecking || availabilityModalOpen || Boolean(quoteBlockReason)}
+            className="tv-btn-primary w-full disabled:opacity-60"
+          >
+            {availabilityChecking ? 'Checking…' : 'See options'}
+          </button>
+        </div>
+      ) : null}
+      {step === 'contact' ? (
+        <div className="flex flex-col-reverse gap-2">
+          <button type="button" onClick={() => setStep(contactBackStep)} className="tv-btn-ghost w-full">
+            Back
+          </button>
+          <button type="button" onClick={handleContinueFromContact} className="tv-btn-primary w-full">
+            Review and pay
+          </button>
+        </div>
+      ) : null}
+      {step === 'confirm' ? (
+        <div className="flex flex-col-reverse gap-2">
+          <button
+            type="button"
+            onClick={() => setStep(flowMode === 'modal' || selectedVariant ? 'review' : 'date-guests')}
+            className="tv-btn-ghost w-full"
+          >
+            Edit trip details
+          </button>
+          <button type="button" onClick={() => setStep('contact')} className="tv-btn-ghost w-full">
+            Back
+          </button>
+          <button
+            type="button"
+            onClick={handleConfirmBooking}
+            disabled={submitting}
+            className="tv-btn-primary w-full whitespace-normal text-center disabled:opacity-50"
+          >
+            {submitting
+              ? 'Redirecting to Stripe…'
+              : isSupabaseConfigured()
+                ? `Pay with Stripe TEST · ${formatMoney(total, currency)}`
+                : 'Continue to payment'}
+          </button>
+        </div>
+      ) : null}
     </>
   );
 
@@ -1331,7 +1411,7 @@ export default function BookingPage({
               <X className="h-5 w-5" />
             </button>
           </div>
-          <div className="relative mx-4 mt-3 h-28 shrink-0 overflow-hidden rounded-xl shadow-soft ring-1 ring-black/[0.08] sm:mx-5 sm:mt-4 sm:h-32">
+          <div className="relative mx-4 mt-3 h-20 shrink-0 overflow-hidden rounded-xl shadow-soft ring-1 ring-black/[0.08] sm:mx-5 sm:mt-4 sm:h-32">
               <img src={tour.image} alt="" className="h-full w-full object-cover" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/15 to-transparent" />
               <div className="absolute bottom-2 left-3 right-3 text-white">
@@ -1344,6 +1424,9 @@ export default function BookingPage({
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-paper px-4 pb-6 pt-2 sm:px-6 sm:pb-8 sm:pt-4 [scrollbar-gutter:stable]">
             {flowInner}
           </div>
+          <div className="shrink-0 border-t border-black/[0.06] bg-paper-raised px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6">
+            {checkoutDockInner}
+          </div>
         </div>
       </div>
     ) : null;
@@ -1352,7 +1435,7 @@ export default function BookingPage({
     <>
       {presentation === 'modal' ? createPortal(modalShell, document.body) : null}
       {presentation !== 'modal' ? (
-        <div className="min-h-screen bg-paper tv-page pb-12">
+        <div className="min-h-screen bg-paper tv-page pb-[calc(8.5rem+env(safe-area-inset-bottom,0px))] lg:pb-12">
           <div className="max-w-2xl mx-auto px-4 sm:px-6">
             <button
               type="button"
@@ -1394,6 +1477,15 @@ export default function BookingPage({
           </div>
         </div>
       ) : null}
+
+      {presentation !== 'modal'
+        ? createPortal(
+            <div className="lg:hidden fixed inset-x-0 bottom-0 z-[60] border-t border-black/[0.06] bg-paper-raised/95 backdrop-blur-md px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+              {checkoutDockInner}
+            </div>,
+            document.body
+          )
+        : null}
 
       <AvailabilityOptionsModal
         open={availabilityModalOpen}

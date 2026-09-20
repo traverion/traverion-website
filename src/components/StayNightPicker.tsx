@@ -115,7 +115,7 @@ export default function StayNightPicker({
                     ? `${iso} past`
                     : `${iso} ${state}`
               }
-              className={`h-9 rounded-lg text-sm tabular-nums motion-safe:transition-colors ${cls}`}
+              className={`min-h-11 h-11 rounded-lg text-sm tabular-nums motion-safe:transition-colors ${cls}`}
             >
               {day}
             </button>

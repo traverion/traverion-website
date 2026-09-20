@@ -128,7 +128,7 @@ export default function TourDatePicker({
                 onClick={() => onChange(iso)}
                 aria-label={formatTourDayAria(iso, state)}
                 aria-pressed={state === 'selected'}
-                className={`h-9 rounded-lg text-sm tabular-nums motion-safe:transition-colors ${cls} ${
+                className={`min-h-11 h-11 rounded-lg text-sm tabular-nums motion-safe:transition-colors ${cls} ${
                   disabled ? 'cursor-not-allowed' : ''
                 }`}
               >

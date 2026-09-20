@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { ArrowLeft, MapPin, Heart, Star } from 'lucide-react';
 import { getListingById, getListingByIdAsync } from '../data/listings';
 import { parseListingExtras, TRAVERION_STANDARD_CANCELLATION_POLICY } from '../types/listingExtras';
@@ -758,6 +759,8 @@ export default function StayDetails({ stayId, onBack }: Props) {
                   id="stay-guest-name"
                   type="text"
                   autoComplete="name"
+                  autoCapitalize="words"
+                  enterKeyHint="next"
                   value={guestName}
                   onChange={(e) => {
                     setGuestName(e.target.value);
@@ -773,6 +776,8 @@ export default function StayDetails({ stayId, onBack }: Props) {
                   id="stay-guest-phone"
                   type="tel"
                   autoComplete="tel"
+                  inputMode="tel"
+                  enterKeyHint="done"
                   value={guestPhone}
                   onChange={(e) => setGuestPhone(e.target.value)}
                   className="tv-input mt-1 w-full"
@@ -829,62 +834,65 @@ export default function StayDetails({ stayId, onBack }: Props) {
           </aside>
         </div>
       </div>
-      <div className="lg:hidden fixed inset-x-0 bottom-0 z-40 border-t border-black/[0.06] bg-paper-raised/95 backdrop-blur-md px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] motion-safe:animate-slide-up">
-        <div className="flex items-center justify-between gap-3 max-w-5xl mx-auto">
-          <div className="min-w-0">
-            <p className="text-sm text-ink">
-              <span className="font-semibold">
-                {quoteOk ? formatMoney(total, currency) : nightly > 0 ? formatMoney(nightly, currency) : '—'}
-              </span>
-              <span className="text-ink-muted"> {quoteOk ? 'total' : 'per night'}</span>
-            </p>
-            <p className="text-xs text-ink-muted">
-              {listingShowsFreeCancellation(stay) ? 'Free cancellation · Stripe TEST until live' : 'Pay via Stripe TEST until live'}
-            </p>
+      {createPortal(
+        <div className="lg:hidden fixed inset-x-0 bottom-0 z-[60] border-t border-black/[0.06] bg-paper-raised/95 backdrop-blur-md px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          <div className="flex items-center justify-between gap-3 max-w-5xl mx-auto">
+            <div className="min-w-0">
+              <p className="text-sm text-ink">
+                <span className="font-semibold">
+                  {quoteOk ? formatMoney(total, currency) : nightly > 0 ? formatMoney(nightly, currency) : '—'}
+                </span>
+                <span className="text-ink-muted"> {quoteOk ? 'total' : 'per night'}</span>
+              </p>
+              <p className="text-xs text-ink-muted">
+                {listingShowsFreeCancellation(stay) ? 'Free cancellation · Stripe TEST until live' : 'Pay via Stripe TEST until live'}
+              </p>
+            </div>
+            {user ? (
+              <button
+                type="button"
+                className="tv-btn-primary shrink-0 disabled:opacity-50"
+                disabled={paying || selectionOccupied}
+                onClick={startStayCheckout}
+              >
+                {selectionOccupied
+                  ? 'Dates unavailable'
+                  : quoteOk
+                    ? paying
+                      ? 'Opening…'
+                      : 'Continue · TEST'
+                    : 'Select dates'}
+              </button>
+            ) : !quoteOk ? (
+              <button
+                type="button"
+                className="tv-btn-primary shrink-0"
+                onClick={() => {
+                  document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }}
+              >
+                Select dates
+              </button>
+            ) : (
+              <a
+                href={travelerLoginHref('stays')}
+                className="tv-btn-primary shrink-0"
+                onClick={() =>
+                  rememberTravelerReturnStay({
+                    id: stay.id,
+                    checkIn,
+                    checkOut,
+                    guests,
+                  })
+                }
+              >
+                Log in
+              </a>
+            )}
           </div>
-          {user ? (
-            <button
-              type="button"
-              className="tv-btn-primary shrink-0 disabled:opacity-50"
-              disabled={paying || selectionOccupied}
-              onClick={startStayCheckout}
-            >
-              {selectionOccupied
-                ? 'Dates unavailable'
-                : quoteOk
-                  ? paying
-                    ? 'Opening…'
-                    : 'Continue · TEST'
-                  : 'Select dates'}
-            </button>
-          ) : !quoteOk ? (
-            <button
-              type="button"
-              className="tv-btn-primary shrink-0"
-              onClick={() => {
-                document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              }}
-            >
-              Select dates
-            </button>
-          ) : (
-            <a
-              href={travelerLoginHref('stays')}
-              className="tv-btn-primary shrink-0"
-              onClick={() =>
-                rememberTravelerReturnStay({
-                  id: stay.id,
-                  checkIn,
-                  checkOut,
-                  guests,
-                })
-              }
-            >
-              Log in
-            </a>
-          )}
-        </div>
-      </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
