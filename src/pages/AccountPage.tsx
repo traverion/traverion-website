@@ -296,9 +296,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
         </section>
 
         <section className="mb-10">
-          <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15">
-            Your travel
-          </div>
+          <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint mb-3">Your travel</h2>
           {statsError ? (
             <ErrorState
               className="mb-4 py-4"
@@ -307,7 +305,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
               retry={{ onClick: () => void loadStats() }}
             />
           ) : null}
-          <ul className="space-y-3">
+          <ul className="space-y-1.5">
             {tiles.map((tile) => {
               const Icon = tile.icon;
               return (
@@ -315,41 +313,29 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
                   <button
                     type="button"
                     onClick={tile.onClick}
-                    className={`lux-flat group flex w-full min-h-[3.75rem] items-center gap-4 rounded-2xl bg-paper-raised px-4 py-4 text-left shadow-soft ring-1 ring-black/[0.06] transition-[box-shadow,ring-color] hover:ring-finland/25 hover:shadow-soft-lg ${
-                      tile.id === 'wishlist'
-                        ? 'border-l-[3px] border-l-rose-400'
-                        : 'border-l-[3px] border-l-finland'
-                    }`}
+                    className="lux-flat group flex w-full min-h-[3.25rem] items-center gap-3 rounded-xl bg-paper-raised px-3.5 py-3 text-left ring-1 ring-black/[0.06] hover:ring-finland/25"
                   >
                     <span
-                      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${
+                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
                         tile.id === 'wishlist'
                           ? 'bg-rose-50 text-rose-800 ring-1 ring-rose-100'
                           : 'bg-finland/[0.08] text-finland ring-1 ring-finland/15'
                       }`}
                     >
-                      <Icon className="w-5 h-5" strokeWidth={tile.id === 'wishlist' ? 2 : 1.75} />
+                      <Icon className="w-4 h-4" strokeWidth={tile.id === 'wishlist' ? 2 : 1.75} />
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center justify-between gap-2">
-                        <span className="font-semibold text-ink">{tile.title}</span>
+                        <span className="font-semibold text-ink text-sm">{tile.title}</span>
                         {tile.count != null ? (
-                          <span
-                            className={`rounded-full px-2.5 py-0.5 text-sm tabular-nums font-semibold ${
-                              tile.id === 'wishlist'
-                                ? 'bg-rose-50 text-rose-800 ring-1 ring-rose-200/70'
-                                : 'bg-finland/10 text-finland ring-1 ring-finland/20'
-                            }`}
-                          >
-                            {tile.count}
-                          </span>
+                          <span className="text-sm tabular-nums font-semibold text-ink-muted">{tile.count}</span>
                         ) : statsLoading ? (
-                          <span className="h-5 w-8 animate-pulse rounded-full bg-black/[0.06]" aria-hidden />
+                          <span className="h-4 w-6 animate-pulse rounded bg-black/[0.06]" aria-hidden />
                         ) : null}
                       </span>
-                      <span className="mt-0.5 block text-sm text-ink-muted">{tile.description}</span>
+                      <span className="mt-0.5 block text-xs text-ink-muted">{tile.description}</span>
                     </span>
-                    <ChevronRight className="w-5 h-5 shrink-0 text-ink-faint transition-transform group-hover:translate-x-0.5 group-hover:text-finland" />
+                    <ChevronRight className="w-4 h-4 shrink-0 text-ink-faint transition-transform group-hover:translate-x-0.5 group-hover:text-finland" />
                   </button>
                 </li>
               );
@@ -357,10 +343,8 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
           </ul>
         </section>
 
-        <section className="rounded-2xl bg-amber-50/60 p-5 sm:p-6 ring-1 ring-amber-200/50">
-          <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-amber-100/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-900 ring-1 ring-amber-200/70">
-            Security
-          </div>
+        <section className="tv-card p-4 sm:p-5">
+          <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint mb-2">Security</h2>
           <p className="text-sm text-ink-muted leading-relaxed">
             You are signed in as this traveler. Signing out does not change bookings.
           </p>
