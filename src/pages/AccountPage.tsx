@@ -101,9 +101,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
       <div className="min-h-screen bg-paper tv-page">
         <div className="max-w-xl mx-auto px-4 py-8">
           <header className="mb-5 tv-card p-4 sm:p-5">
-            <div className="inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15 mb-3">
-              Traveler
-            </div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Traveler</p>
             <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Account</h1>
             <p className="mt-2 text-sm text-ink-muted">
               Account features need the live app configuration. You can still browse tours or reach support.
@@ -130,9 +128,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
       <div className="min-h-screen bg-paper tv-page">
         <div className="max-w-xl mx-auto px-4 py-8">
           <header className="mb-5 tv-card p-4 sm:p-5">
-            <div className="inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15 mb-3">
-              Traveler
-            </div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Traveler</p>
             <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Account</h1>
             <p className="mt-2 text-sm text-ink-muted">
               Log in to manage trips, wishlist, and your traveler profile.
