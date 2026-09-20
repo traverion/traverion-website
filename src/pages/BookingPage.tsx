@@ -691,7 +691,7 @@ export default function BookingPage({
             <BookingProgress step={step} flow={progressFlow} />
             <h2 className="font-display text-2xl text-ink mb-2">Your trip</h2>
             <p className="text-sm text-ink-muted mb-6">
-              Confirm date, option, and participants. Next you will enter contact details, then pay on Stripe.
+              Confirm date, option, and participants. Next you will enter contact details, then pay on Stripe TEST until live.
             </p>
             <div className="space-y-3 text-sm text-ink-muted mb-6 rounded-xl bg-paper px-4 py-3.5 ring-1 ring-black/[0.05]">
               <p>
@@ -1064,7 +1064,7 @@ export default function BookingPage({
               <ClipboardList className="w-4 h-4 text-finland shrink-0 mt-0.5" aria-hidden />
               <span>
                 {isSupabaseConfigured()
-                  ? `Confirm the details below, then pay ${formatMoney(total, currency)} on Stripe. Your spots are held for ${CHECKOUT_HOLD_MINUTES} minutes while you check out.`
+                  ? `Confirm the details below, then pay ${formatMoney(total, currency)} on Stripe TEST. Your spots are held for ${CHECKOUT_HOLD_MINUTES} minutes while you check out.`
                   : 'Live card checkout is not configured in this environment. We will not pretend a payment succeeded.'}
               </span>
             </p>
