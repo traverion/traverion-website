@@ -233,6 +233,21 @@ describe('trip list views', () => {
     ).toBe(false);
   });
 
+  it('keeps traveler mid-stay trips in Upcoming until after check-out day', () => {
+    const stay = {
+      status: 'confirmed',
+      payment_status: 'paid',
+      booking_date: '2026-09-18',
+      check_out: '2026-09-23',
+    };
+    expect(bookingMatchesTripView(stay, 'upcoming', '2026-09-20')).toBe(true);
+    expect(bookingMatchesTripView(stay, 'past', '2026-09-20')).toBe(false);
+    expect(bookingMatchesTripView(stay, 'upcoming', '2026-09-23')).toBe(true);
+    expect(bookingMatchesTripView(stay, 'past', '2026-09-23')).toBe(false);
+    expect(bookingMatchesTripView(stay, 'upcoming', '2026-09-24')).toBe(false);
+    expect(bookingMatchesTripView(stay, 'past', '2026-09-24')).toBe(true);
+  });
+
   it('sorts Refund due cancelled trips before other cancelled rows', () => {
     const sorted = sortTravelerCancelledTrips([
       { status: 'cancelled', payment_status: 'refunded', booking_date: '2026-12-01' },

@@ -171,9 +171,18 @@ export function partnerBookingIsPastSchedule(b: PartnerScheduleBooking, todayIso
   return Boolean(date) && date < todayIso;
 }
 
-/** Upcoming and Past are for active trips + traveler-recoverable failed holds. Refunded → Cancelled. */
+/** Upcoming and Past are for active trips + traveler-recoverable failed holds. Refunded → Cancelled.
+ * Stays stay Upcoming through check-out day (same finish rule as partner Past: checkOut < today).
+ */
 export function bookingMatchesTripView(
-  b: { status?: string | null; payment_status?: string | null; booking_date?: string | null },
+  b: {
+    status?: string | null;
+    payment_status?: string | null;
+    booking_date?: string | null;
+    check_out?: string | null;
+    nights?: number | null;
+    special_requests?: string | null;
+  },
   view: TripListView,
   todayIso: string
 ): boolean {
@@ -181,6 +190,12 @@ export function bookingMatchesTripView(
   if (view === 'cancelled') return cancelled;
   if (cancelled) return false;
   if (bookingIsFailedCheckout(b) && !travelerBookingNeedsPayNow(b)) return false;
+  if (bookingIsStayNight(b)) {
+    const stay = stayRangeFromBooking(b);
+    if (!stay) return view === 'upcoming';
+    const past = stay.checkOut < todayIso;
+    return view === 'past' ? past : !past;
+  }
   const date = (b.booking_date ?? '').trim();
   if (view === 'past') return Boolean(date) && date < todayIso;
   return !date || date >= todayIso;
