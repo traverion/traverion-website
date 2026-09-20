@@ -81,14 +81,14 @@ export default function AdminPastVerificationsPanel() {
   const baseConfigured = isSupabaseConfigured();
 
   return (
-    <div className="space-y-6">
-      <div className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]">
-        <div className="flex items-start gap-3 mb-4">
-          <div className="w-10 h-10 rounded-xl bg-finland/10 flex items-center justify-center shrink-0">
-            <History className="w-5 h-5 text-finland" aria-hidden />
+    <div className="space-y-4">
+      <div className="tv-card p-4 sm:p-5">
+        <div className="flex items-start gap-3 mb-3">
+          <div className="w-9 h-9 rounded-lg bg-finland/10 flex items-center justify-center shrink-0">
+            <History className="w-4 h-4 text-finland" aria-hidden />
           </div>
           <div className="flex-1 min-w-0">
-            <h2 className="font-display text-xl text-ink tracking-tight">Past verifications</h2>
+            <h2 className="font-display text-lg text-ink tracking-tight">Past verifications</h2>
             <p className="text-sm text-ink-muted mt-1 leading-relaxed">
               Suppliers who are fully onboarded for payouts: both business identity and bank (payout) details are
               verified. Expand a row to see the full profile and verification files.
@@ -123,7 +123,7 @@ export default function AdminPastVerificationsPanel() {
       ) : null}
 
       {items.length === 0 && !loading ? (
-        <div className="rounded-2xl bg-paper-raised px-4 py-2 shadow-soft ring-1 ring-black/[0.06]">
+        <div className="tv-card px-4 py-2">
           <EmptyState
             icon={History}
             title="No fully verified suppliers yet"
@@ -140,7 +140,7 @@ export default function AdminPastVerificationsPanel() {
           const detailLoading = detailLoadingId === row.id;
 
           return (
-            <div key={row.id} className="rounded-2xl bg-paper-raised p-4 sm:p-5 shadow-soft ring-1 ring-black/[0.06] space-y-3">
+            <div key={row.id} className="tv-card p-3.5 sm:p-4 space-y-2.5">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <div>
                   <p className="font-semibold text-ink">{name}</p>
