@@ -1384,7 +1384,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                         disabled={variantChecking || (panelQuote != null && !panelQuote.ok)}
                         className="tv-btn-primary w-full disabled:opacity-60"
                       >
-                        {variantChecking ? 'Checking…' : 'Continue'}
+                        {variantChecking ? 'Checking…' : 'Continue · TEST'}
                       </button>
                     </div>
                   )}
