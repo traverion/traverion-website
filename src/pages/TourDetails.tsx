@@ -1587,8 +1587,8 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
 
           {showReviewForm && user && (
             <div className="max-w-xl">
-              <h3 className="font-display text-xl text-ink mb-4">Write a review</h3>
-              <div className="space-y-4">
+              <h3 className="font-display text-lg text-ink mb-3">Write a review</h3>
+              <div className="space-y-3">
                 <div>
                   <label className="block text-sm font-medium text-ink mb-1">Rating</label>
                   <div className="flex gap-1">
@@ -1597,10 +1597,10 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                         key={i}
                         type="button"
                         onClick={() => setReviewRating(i)}
-                        className="p-1"
+                        className="p-0.5"
                       >
                         <Star
-                          size={28}
+                          size={24}
                           className={i <= reviewRating ? 'text-finland fill-finland' : 'text-ink-faint'}
                         />
                       </button>
@@ -1614,7 +1614,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                     value={reviewTitle}
                     onChange={(e) => setReviewTitle(e.target.value)}
                     className="tv-input"
-                    placeholder="Sum up your tour"
+                    placeholder="Sum up your experience"
                   />
                 </div>
                 <div>
@@ -1622,7 +1622,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                   <textarea
                     value={reviewComment}
                     onChange={(e) => setReviewComment(e.target.value)}
-                    rows={4}
+                    rows={3}
                     className="tv-input"
                     placeholder="Tell others what you liked..."
                     required
