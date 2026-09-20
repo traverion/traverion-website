@@ -522,8 +522,8 @@ export default function StayDetails({ stayId, onBack }: Props) {
             ) : null}
             <div>
               <h2 className="font-display text-xl mb-2">Cancellation</h2>
-              <p className="text-ink-muted">
-                You may cancel free of charge up to 24 hours before check-in. After that, guest-initiated cancellations are not available. If the operator cancels, that is handled from your booking details.
+              <p className="text-ink-muted whitespace-pre-wrap">
+                {stay.cancellationPolicy?.trim() || TRAVERION_STANDARD_CANCELLATION_POLICY}
               </p>
             </div>
             {hostName ? (
