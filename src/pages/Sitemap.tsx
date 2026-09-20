@@ -68,20 +68,20 @@ export default function Sitemap({ onNavigate }: SitemapProps) {
       subtitle="Every main page on Traverion — support, legal, company, and partner programs — in one place."
       onNavigate={onNavigate}
     >
-      <div className="not-prose mb-5 rounded-2xl bg-finland/8 px-3.5 py-2.5 ring-1 ring-finland/15">
+      <div className="not-prose mb-5 rounded-xl bg-finland/8 px-3.5 py-2.5 ring-1 ring-finland/15">
         <p className="text-sm text-ink leading-relaxed m-0">
           Jump to any section below. Become a supplier opens the Traverion Partner overview.
         </p>
       </div>
 
-      <div className="not-prose grid gap-3 sm:grid-cols-2">
+      <div className="not-prose grid gap-2 sm:grid-cols-2">
         {SECTIONS.map(({ title, items }) => (
           <section
             key={title}
-            className="rounded-2xl bg-paper-raised p-4 sm:p-5 shadow-soft ring-1 ring-black/[0.06]"
+            className="tv-card p-3.5 sm:p-4"
           >
-            <h2 className="font-display text-xl text-ink tracking-tight mb-3 mt-0">{title}</h2>
-            <ul className="space-y-2 m-0 p-0 list-none">
+            <h2 className="font-display text-lg text-ink tracking-tight mb-2 mt-0">{title}</h2>
+            <ul className="space-y-1.5 m-0 p-0 list-none">
               {items.map((item) => (
                 <li key={item.label}>
                   {item.page ? (

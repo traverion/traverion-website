@@ -171,7 +171,7 @@ export function quoteBooking(input: {
   bookingOptionId?: string | null;
   /** Age-category quantities when the selected option uses age-dependent pricing. */
   participantMix?: ParticipantMixSelection | null;
-  /** YYYY-MM-DD; defaults to today UTC. */
+  /** YYYY-MM-DD; defaults to the operator’s local calendar day. */
   todayIso?: string;
 }): BookingQuoteResult {
   const today = input.todayIso ?? localYmd();
