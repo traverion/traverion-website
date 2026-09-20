@@ -473,7 +473,7 @@ export default function SupplierDashboard() {
             onClick={() => openSupplierCalendar(calendarFocusListingId)}
             className="partner-btn-secondary lux-flat inline-flex h-8 items-center rounded-md border border-slate-200/90 bg-white px-3 text-[13px] font-medium text-slate-600 hover:border-slate-300 hover:bg-white hover:text-slate-900"
           >
-            Calendar
+            Availability
           </button>
           <button
             type="button"
@@ -682,7 +682,7 @@ export default function SupplierDashboard() {
               ? `${todayDepartures.length} booking${todayDepartures.length === 1 ? '' : 's'} · ${todayGuestTotal} guest${todayGuestTotal === 1 ? '' : 's'}`
               : undefined
           }
-          action={<TextLink onClick={() => openSupplierCalendar(calendarFocusListingId)}>Calendar →</TextLink>}
+          action={<TextLink onClick={() => openSupplierCalendar(calendarFocusListingId)}>Availability →</TextLink>}
         />
         {dashboardLoading && publishedListingsCount === null ? (
           <SupplierListSkeleton rows={3} />
@@ -698,7 +698,7 @@ export default function SupplierDashboard() {
                 onClick={() => openSupplierCalendar(calendarFocusListingId)}
                 className="partner-btn-secondary lux-flat shrink-0 rounded-lg border border-slate-200 px-3 py-1.5 text-[12px] font-semibold text-slate-700 hover:bg-slate-50"
               >
-                Calendar
+                Availability
               </button>
             ) : null}
           </div>
@@ -842,7 +842,7 @@ export default function SupplierDashboard() {
           <SectionHead
             title="Next 7 days"
             action={
-              <TextLink onClick={() => openSupplierCalendar()}>Calendar →</TextLink>
+              <TextLink onClick={() => openSupplierCalendar()}>Availability →</TextLink>
             }
           />
           {upcomingByDate.length === 0 ? (
