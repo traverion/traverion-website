@@ -99,10 +99,10 @@ export default function AdminSupplierPortalMessagesPanel() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="max-w-2xl">
-          <h2 className="font-display text-xl text-ink tracking-tight flex items-center gap-2">
+          <h2 className="font-display text-lg text-ink tracking-tight flex items-center gap-2">
             <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-finland/10 text-finland">
               <Megaphone className="w-5 h-5" aria-hidden />
             </span>
@@ -132,7 +132,7 @@ export default function AdminSupplierPortalMessagesPanel() {
         </NoticeCallout>
       ) : null}
 
-      <div className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06] space-y-4">
+      <div className="tv-card p-4 sm:p-5 space-y-3">
         <h3 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint">New message</h3>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="block text-sm">
@@ -204,7 +204,7 @@ export default function AdminSupplierPortalMessagesPanel() {
         </button>
       </div>
 
-      <div className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]">
+      <div className="tv-card p-4 sm:p-5">
         <h3 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint mb-4">
           Published ({items.length})
         </h3>
@@ -224,7 +224,7 @@ export default function AdminSupplierPortalMessagesPanel() {
             {items.map((n) => (
               <li
                 key={n.id}
-                className="rounded-2xl bg-paper-raised shadow-soft ring-1 ring-black/[0.06] p-4 flex flex-col sm:flex-row sm:items-start gap-3"
+                className="tv-card p-3.5 flex flex-col sm:flex-row sm:items-start gap-2"
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
