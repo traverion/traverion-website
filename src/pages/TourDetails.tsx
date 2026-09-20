@@ -1705,7 +1705,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
               {variantChecking
                 ? 'Checking…'
                 : selectedBookingVariant
-                  ? 'Continue'
+                  ? 'Continue · TEST'
                   : !bookingDate.trim()
                     ? 'Pick a date'
                     : bookingVariantsOpen
