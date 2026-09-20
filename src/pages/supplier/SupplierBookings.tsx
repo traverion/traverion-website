@@ -1310,9 +1310,20 @@ export default function SupplierBookings() {
                     </NoticeCallout>
                   ) : null}
                   {partnerPaymentLabel(booking) === 'Refund due' ? (
-                    <NoticeCallout title="Refund due" tone="warn">
-                      {REFUND_DUE_MANUAL_COPY}
-                    </NoticeCallout>
+                    <div className="rounded-lg border border-black/[0.06] border-l-[3px] border-l-amber-500 bg-paper px-3.5 py-3">
+                      <p className="text-sm font-semibold text-ink">Refund due</p>
+                      <p className="mt-1 text-xs text-ink-muted leading-snug">{REFUND_DUE_MANUAL_COPY}</p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedBookingId(null);
+                          navigateSupplierUrl(`${PARTNER_APP_BASE}/money`);
+                        }}
+                        className="mt-2 text-xs font-semibold text-finland hover:underline"
+                      >
+                        Open Money
+                      </button>
+                    </div>
                   ) : null}
                   <div>
                     <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint mb-2">History</p>
