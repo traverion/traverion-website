@@ -570,7 +570,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                   ) : null}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
                   <div className="absolute bottom-6 left-6 right-6 text-white">
-                    <p className="text-xs uppercase tracking-[0.16em] text-white/70 mb-2">Recommended</p>
+                    <p className="text-xs uppercase tracking-[0.16em] text-white/70 mb-2">Live now</p>
                     <p className="text-sm text-white/80">{featuredListing.city || featuredListing.destination}</p>
                     <p className="font-display text-3xl sm:text-4xl mt-1">{featuredListing.title}</p>
                     {(() => {
