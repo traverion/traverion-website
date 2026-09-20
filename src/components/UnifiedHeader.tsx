@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useDialogFocus } from '../hooks/useDialogFocus';
-import { Menu, X, User, LogOut, LayoutDashboard, Calendar } from 'lucide-react';
+import { Menu, X, User, LogOut, LayoutDashboard, Calendar, Heart } from 'lucide-react';
 import { prefetchAuthPage, prefetchMyBookingsPage, prefetchPackagesPage } from '../lib/routePrefetch';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
@@ -153,6 +153,20 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
             {user ? (
               <button
                 type="button"
+                onClick={() => onNavigate('wishlist')}
+                aria-current={currentPage === 'wishlist' ? 'page' : undefined}
+                className={`lux-flat rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                  currentPage === 'wishlist'
+                    ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
+                    : 'text-ink-muted hover:bg-finland/10 hover:text-finland'
+                }`}
+              >
+                Saved
+              </button>
+            ) : null}
+            {user ? (
+              <button
+                type="button"
                 onClick={openBookings}
                 onPointerEnter={prefetchMyBookingsPage}
                 aria-current={currentPage === 'bookings' ? 'page' : undefined}
@@ -256,6 +270,14 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                           Trips
                         </span>
                         {hasUnreadBookings ? <span className="h-2.5 w-2.5 rounded-full bg-red-500" /> : null}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setIsUserMenuOpen(false); onNavigate('wishlist'); }}
+                        className="lux-flat w-full flex items-center gap-2 px-3 py-2 text-sm text-ink hover:bg-black/[0.04] text-left rounded-lg"
+                      >
+                        <Heart className="w-4 h-4" />
+                        Saved
                       </button>
                       <button
                         type="button"
@@ -363,6 +385,19 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
               >
                 Stays
               </button>
+              {isSupabaseConfigured() && user ? (
+                <button
+                  onClick={() => {
+                    onNavigate('wishlist');
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className={`lux-flat text-left px-4 py-3 rounded-lg transition-colors duration-300 ease-lux font-medium ${
+                    currentPage === 'wishlist' ? 'bg-finland/10 text-finland' : 'text-ink hover:bg-black/[0.04]'
+                  }`}
+                >
+                  Saved
+                </button>
+              ) : null}
               {!isSupabaseConfigured() && (
                 <div className="mx-2 px-4 py-3 rounded-xl bg-finland/[0.06] ring-1 ring-finland/15 text-sm text-ink-muted">
                   <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-finland">Accounts</p>

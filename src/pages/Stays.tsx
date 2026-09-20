@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import { Compass, Search, X } from 'lucide-react';
 import { useDialogFocus } from '../hooks/useDialogFocus';
 import { usePublishedSupplierListings } from '../hooks/usePublishedSupplierListings';
+import { useTravelerWishlist } from '../hooks/useTravelerWishlist';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { getAllListings } from '../data/listings';
 import { filterCatalogByFamily } from '../lib/inventory';
@@ -19,14 +20,71 @@ import { addCalendarDays, stayAvailableForRequestedNights, nightsOccupiedByStay 
 import { fetchPublishedStayOccupiedRanges, fetchPublishedStayBlockedNights } from '../data/supabase-bookings';
 import type { TourPackage } from '../types/tour';
 import { formatStayNightHuman } from '../lib/stay-calendar';
+import { isSupabaseListingId } from '../lib/discount-display';
+import { getReviewAggregatesForListingIds } from '../data/supabase-reviews';
+import { formatMoney, normalizeCurrency } from '../lib/money';
+import { MarketplaceBrowseShell, MarketplaceSortSelect } from '../components/marketplace/MarketplaceBrowseShell';
+import {
+  MarketplaceActiveChip,
+  MarketplaceFilterChip,
+  MarketplaceFilterChipRow,
+  MarketplaceFilterSection,
+} from '../components/marketplace/MarketplaceFilterPanel';
+import {
+  MarketplaceMobileSearchTrigger,
+  MarketplaceSearchFields,
+  MarketplaceSearchPill,
+} from '../components/marketplace/MarketplaceSearchBar';
+import {
+  buildPriceChips,
+  catalogSharedCurrency,
+  collectStayAmenities,
+  collectStayPropertyTypes,
+  listingBrowseAmount,
+  MARKETPLACE_BROWSE_GRID_CLASS,
+  parseMarketplaceSort,
+  parsePriceChipId,
+  parseRatingFilterId,
+  RATING_FILTER_CHIPS,
+  stayMatchesCatalogFilters,
+  type MarketplaceSearchValues,
+  type MarketplaceSortOption,
+  type PriceChipId,
+  type RatingFilterId,
+} from '../lib/marketplaceBrowse';
 
 type Props = {
   onStaySelect: (stay: TourPackage) => void;
   onNavigate?: (page: string) => void;
 };
 
+const STAY_SORT_OPTIONS = [
+  { id: 'recommended', label: 'Catalog order' },
+  { id: 'price-asc', label: 'Price: low to high' },
+  { id: 'price-desc', label: 'Price: high to low' },
+  { id: 'rating', label: 'Guest rating' },
+];
+
+function parseStaysSearch(search: string) {
+  const p = new URLSearchParams(search);
+  const amenities = (p.get('amenities') ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+  return {
+    q: p.get('q') ?? '',
+    checkIn: p.get('date') ?? '',
+    checkOut: p.get('checkout') ?? '',
+    guests: p.get('guests') ?? '',
+    propertyType: p.get('type') ?? 'all',
+    price: parsePriceChipId(p.get('price')),
+    amenities,
+    sort: parseMarketplaceSort(p.get('sort')),
+    rating: parseRatingFilterId(p.get('rating')),
+  };
+}
+
 export default function Stays({ onStaySelect }: Props) {
   const { listings: supplierListings, error, reload } = usePublishedSupplierListings();
+  const wishlist = useTravelerWishlist();
+  const initial = parseStaysSearch(typeof window === 'undefined' ? '' : window.location.search);
   const [paymentBanner] = useState<'cancelled' | null>(() =>
     typeof window === 'undefined'
       ? null
@@ -42,19 +100,33 @@ export default function Stays({ onStaySelect }: Props) {
     window.history.replaceState({}, '', `${url.pathname}${url.search}`);
   }, []);
   const catalogLoading = isSupabaseConfigured() && supplierListings === null;
-  const [q, setQ] = useState(() => new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search).get('q') ?? '');
-  const [checkIn, setCheckIn] = useState(() => new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search).get('date') ?? '');
-  const [checkOut, setCheckOut] = useState(() => new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search).get('checkout') ?? '');
-  const [guests, setGuests] = useState(() => new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search).get('guests') ?? '');
+  const [q, setQ] = useState(initial.q);
+  const [checkIn, setCheckIn] = useState(initial.checkIn);
+  const [checkOut, setCheckOut] = useState(initial.checkOut);
+  const [guests, setGuests] = useState(initial.guests);
+  const [propertyType, setPropertyType] = useState(initial.propertyType);
+  const [priceRange, setPriceRange] = useState<PriceChipId>(initial.price);
+  const [selectedAmenities, setSelectedAmenities] = useState<string[]>(initial.amenities);
+  const [sortBy, setSortBy] = useState<MarketplaceSortOption>(
+    initial.sort === 'duration' ? 'recommended' : initial.sort
+  );
+  const [ratingFilter, setRatingFilter] = useState<RatingFilterId>(initial.rating);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const mobileSearchSheetRef = useRef<HTMLDivElement>(null);
   const closeMobileSearch = useCallback(() => setMobileSearchOpen(false), []);
   useDialogFocus(mobileSearchOpen, mobileSearchSheetRef, closeMobileSearch);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const filterSheetRef = useRef<HTMLDivElement>(null);
+  const closeMobileFilters = useCallback(() => setMobileFiltersOpen(false), []);
+  useDialogFocus(mobileFiltersOpen, filterSheetRef, closeMobileFilters);
   const [occupiedByListing, setOccupiedByListing] = useState<Record<
     string,
     { ranges: { checkIn: string; checkOut: string }[]; blockedNights: string[] }
   > | null>(null);
   const [occupancyLoading, setOccupancyLoading] = useState(false);
+  const [reviewAggregates, setReviewAggregates] = useState<Map<string, { rating: number; count: number }>>(
+    () => new Map()
+  );
 
   useEffect(() => {
     const p = new URLSearchParams();
@@ -62,11 +134,16 @@ export default function Stays({ onStaySelect }: Props) {
     if (checkIn) p.set('date', checkIn);
     if (checkOut) p.set('checkout', checkOut);
     if (guests) p.set('guests', guests);
+    if (propertyType && propertyType !== 'all') p.set('type', propertyType);
+    if (priceRange !== 'all') p.set('price', priceRange);
+    if (selectedAmenities.length) p.set('amenities', selectedAmenities.join(','));
+    if (sortBy !== 'recommended') p.set('sort', sortBy);
+    if (ratingFilter !== 'all') p.set('rating', ratingFilter);
     const next = p.toString() ? `/stays?${p.toString()}` : '/stays';
     if (window.location.pathname + window.location.search !== next) {
       window.history.replaceState({}, '', next);
     }
-  }, [q, checkIn, checkOut, guests]);
+  }, [q, checkIn, checkOut, guests, propertyType, priceRange, selectedAmenities, sortBy, ratingFilter]);
 
   const stays = useMemo(() => {
     const base =
@@ -78,9 +155,6 @@ export default function Stays({ onStaySelect }: Props) {
 
   const dateFilterActive = Boolean(checkIn && checkOut && checkOut > checkIn);
 
-  // Picking a new check-in that lands on/after the existing check-out used to leave
-  // check-out stale: dateFilterActive would silently go false (no availability
-  // filtering applied) while the "Out ..." chip below still looked active.
   const handleCheckInChange = (next: string) => {
     setCheckIn(next);
     if (checkOut && next && checkOut <= next) {
@@ -114,17 +188,45 @@ export default function Stays({ onStaySelect }: Props) {
     };
   }, [dateFilterActive, stays]);
 
+  const stayIdsKey = useMemo(() => stays.map((s) => s.id).filter(isSupabaseListingId).join(','), [stays]);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured() || !stayIdsKey) {
+      setReviewAggregates(new Map());
+      return;
+    }
+    const ids = stayIdsKey.split(',');
+    let cancelled = false;
+    void getReviewAggregatesForListingIds(ids).then((reviews) => {
+      if (!cancelled) setReviewAggregates(reviews);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [stayIdsKey]);
+
+  const catalogCurrency = useMemo(() => catalogSharedCurrency(stays, normalizeCurrency), [stays]);
+  const priceChips = useMemo(() => buildPriceChips(catalogCurrency, formatMoney), [catalogCurrency]);
+  const propertyTypes = useMemo(() => collectStayPropertyTypes(stays), [stays]);
+  const amenityOptions = useMemo(() => collectStayAmenities(stays), [stays]);
+
   const filtered = useMemo(() => {
-    const query = q.trim().toLowerCase();
-    const guestN = Number.parseInt(guests, 10);
-    return stays.filter((s) => {
-      const extras = parseListingExtras(s.listingExtras);
-      const maxG = extras.stay?.maxGuests;
-      if (query) {
-        const hay = `${s.title} ${s.city ?? ''} ${s.country ?? ''} ${s.destination}`.toLowerCase();
-        if (!hay.includes(query)) return false;
+    let list = stays.filter((s) => {
+      const agg = reviewAggregates.get(s.id);
+      if (
+        !stayMatchesCatalogFilters(s, {
+          q,
+          guests,
+          propertyType,
+          price: priceRange,
+          amenities: selectedAmenities,
+          rating: ratingFilter,
+          ratingScore: agg && agg.count > 0 ? agg.rating : null,
+        })
+      ) {
+        return false;
       }
-      if (Number.isFinite(guestN) && guestN > 0 && typeof maxG === 'number' && guestN > maxG) return false;
+      const extras = parseListingExtras(s.listingExtras);
       if (dateFilterActive) {
         const requestedNights = nightsOccupiedByStay(checkIn, checkOut).length;
         const minN = extras.stay?.minNights ?? 1;
@@ -138,9 +240,40 @@ export default function Stays({ onStaySelect }: Props) {
       }
       return true;
     });
-  }, [stays, q, guests, dateFilterActive, occupiedByListing, checkIn, checkOut]);
+    if (sortBy === 'price-asc') list = [...list].sort((a, b) => listingBrowseAmount(a) - listingBrowseAmount(b));
+    else if (sortBy === 'price-desc') list = [...list].sort((a, b) => listingBrowseAmount(b) - listingBrowseAmount(a));
+    else if (sortBy === 'rating') {
+      list = [...list].sort((a, b) => {
+        const ar = reviewAggregates.get(a.id);
+        const br = reviewAggregates.get(b.id);
+        const as = ar && ar.count > 0 ? ar.rating : -1;
+        const bs = br && br.count > 0 ? br.rating : -1;
+        return bs - as;
+      });
+    }
+    return list;
+  }, [
+    stays,
+    q,
+    guests,
+    propertyType,
+    priceRange,
+    selectedAmenities,
+    ratingFilter,
+    dateFilterActive,
+    occupiedByListing,
+    checkIn,
+    checkOut,
+    sortBy,
+    reviewAggregates,
+  ]);
 
   const waitingOnOccupancy = dateFilterActive && isSupabaseConfigured() && (occupancyLoading || occupiedByListing === null);
+
+  const searchValues: MarketplaceSearchValues = useMemo(
+    () => ({ where: q, date: checkIn, checkout: checkOut, guests }),
+    [q, checkIn, checkOut, guests]
+  );
 
   const mobileSearchSummary = useMemo(() => {
     const where = q.trim() || 'Anywhere';
@@ -152,23 +285,221 @@ export default function Stays({ onStaySelect }: Props) {
     return { where, whenLabel, whoLabel };
   }, [q, checkIn, checkOut, guests]);
 
-  const resultsCountNode = catalogLoading || waitingOnOccupancy
-    ? <span className="inline-block h-4 w-16 rounded bg-black/[0.06] animate-pulse" aria-hidden />
-    : `${filtered.length} stay${filtered.length === 1 ? '' : 's'}`;
+  const extraFilterCount =
+    (propertyType !== 'all' && propertyType ? 1 : 0) +
+    (priceRange !== 'all' ? 1 : 0) +
+    selectedAmenities.length +
+    (ratingFilter !== 'all' ? 1 : 0);
+
+  const hasActiveFilters =
+    Boolean(q.trim() || checkIn || checkOut || guests) || extraFilterCount > 0;
+
+  const clearAllFilters = () => {
+    setQ('');
+    setCheckIn('');
+    setCheckOut('');
+    setGuests('');
+    setPropertyType('all');
+    setPriceRange('all');
+    setSelectedAmenities([]);
+    setRatingFilter('all');
+    setSortBy('recommended');
+  };
+
+  const toggleAmenity = (label: string) => {
+    setSelectedAmenities((prev) => (prev.includes(label) ? prev.filter((x) => x !== label) : [...prev, label]));
+  };
+
+  const destLabel = q.trim() || null;
+  const resultTitle =
+    catalogLoading || waitingOnOccupancy ? (
+      <span className="inline-block h-6 w-40 rounded bg-black/[0.06] animate-pulse align-middle" aria-hidden />
+    ) : (
+      <>
+        {filtered.length} {filtered.length === 1 ? 'stay' : 'stays'}
+        {destLabel ? ` in ${destLabel}` : ''}
+      </>
+    );
+
+  const filterPanel = (
+    <>
+      {propertyTypes.length > 0 ? (
+        <MarketplaceFilterSection title="Property type">
+          <MarketplaceFilterChipRow>
+            <MarketplaceFilterChip pressed={propertyType === 'all'} onClick={() => setPropertyType('all')}>
+              All
+            </MarketplaceFilterChip>
+            {propertyTypes.map((type) => (
+              <MarketplaceFilterChip
+                key={type}
+                pressed={propertyType.toLowerCase() === type.toLowerCase()}
+                onClick={() => setPropertyType(type)}
+              >
+                {type}
+              </MarketplaceFilterChip>
+            ))}
+          </MarketplaceFilterChipRow>
+        </MarketplaceFilterSection>
+      ) : null}
+      <MarketplaceFilterSection
+        title="Price"
+        hint={!catalogCurrency ? 'Nightly amounts in each stay’s own currency' : 'Per night'}
+      >
+        <MarketplaceFilterChipRow>
+          {priceChips.map((chip) => (
+            <MarketplaceFilterChip
+              key={chip.id}
+              pressed={priceRange === chip.id}
+              onClick={() => setPriceRange(chip.id)}
+            >
+              {chip.label}
+            </MarketplaceFilterChip>
+          ))}
+        </MarketplaceFilterChipRow>
+      </MarketplaceFilterSection>
+      <MarketplaceFilterSection title="Rating">
+        <MarketplaceFilterChipRow>
+          {RATING_FILTER_CHIPS.map((chip) => (
+            <MarketplaceFilterChip
+              key={chip.id}
+              pressed={ratingFilter === chip.id}
+              onClick={() => setRatingFilter(chip.id)}
+            >
+              {chip.label}
+            </MarketplaceFilterChip>
+          ))}
+        </MarketplaceFilterChipRow>
+      </MarketplaceFilterSection>
+      {amenityOptions.length > 0 ? (
+        <MarketplaceFilterSection title="Amenities">
+          <MarketplaceFilterChipRow>
+            {amenityOptions.map((amenity) => (
+              <MarketplaceFilterChip
+                key={amenity}
+                pressed={selectedAmenities.includes(amenity)}
+                onClick={() => toggleAmenity(amenity)}
+              >
+                {amenity}
+              </MarketplaceFilterChip>
+            ))}
+          </MarketplaceFilterChipRow>
+        </MarketplaceFilterSection>
+      ) : null}
+    </>
+  );
 
   return (
-    <div className="min-h-screen bg-paper tv-page">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8 pb-12 motion-safe:animate-fade-in">
-        <header className="mb-5 tv-card p-4 sm:p-5">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Browse</p>
-          <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Stays</h1>
-          <p className="mt-3 text-ink-muted max-w-xl leading-relaxed">
-            Places to stay from independent operators — separate from tours.
-            {dateFilterActive
-              ? ' Only stays free for your nights are shown.'
-              : ''}
-          </p>
-        </header>
+    <>
+      <MarketplaceBrowseShell
+        headingId="stays-heading"
+        resultTitle={resultTitle}
+        search={
+          <MarketplaceSearchPill
+            family="stays"
+            values={searchValues}
+            onChange={(patch) => {
+              if (patch.where !== undefined) setQ(patch.where);
+              if (patch.date !== undefined) handleCheckInChange(patch.date);
+              if (patch.checkout !== undefined) setCheckOut(patch.checkout);
+              if (patch.guests !== undefined) setGuests(patch.guests);
+            }}
+            idPrefix="stays"
+          />
+        }
+        mobileSearch={
+          <MarketplaceMobileSearchTrigger
+            where={mobileSearchSummary.where}
+            whenLabel={mobileSearchSummary.whenLabel}
+            whoLabel={mobileSearchSummary.whoLabel}
+            onClick={() => setMobileSearchOpen(true)}
+            expanded={mobileSearchOpen}
+          />
+        }
+        filterCount={extraFilterCount}
+        filtersOpen={mobileFiltersOpen}
+        onOpenFilters={() => setMobileFiltersOpen(true)}
+        onCloseFilters={closeMobileFilters}
+        filterSheetRef={filterSheetRef}
+        filterPanel={filterPanel}
+        filterFooter={
+          <>
+            {extraFilterCount > 0 ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setPropertyType('all');
+                  setPriceRange('all');
+                  setSelectedAmenities([]);
+                  setRatingFilter('all');
+                  setMobileFiltersOpen(false);
+                }}
+                className="tv-btn-secondary flex-1"
+              >
+                Clear
+              </button>
+            ) : null}
+            <button type="button" onClick={closeMobileFilters} className="tv-btn-primary flex-1">
+              Show {filtered.length}
+            </button>
+          </>
+        }
+        sortControl={
+          <MarketplaceSortSelect
+            value={sortBy}
+            onChange={(v) => setSortBy(parseMarketplaceSort(v) === 'duration' ? 'recommended' : parseMarketplaceSort(v))}
+            options={STAY_SORT_OPTIONS}
+          />
+        }
+        activeChips={
+          hasActiveFilters ? (
+            <div className="mb-4 flex flex-wrap items-center gap-2" aria-label="Active filters">
+              {q.trim() ? (
+                <MarketplaceActiveChip
+                  label={`“${q.trim().slice(0, 36)}${q.trim().length > 36 ? '…' : ''}”`}
+                  onRemove={() => setQ('')}
+                />
+              ) : null}
+              {checkIn ? (
+                <MarketplaceActiveChip label={`In ${formatStayNightHuman(checkIn)}`} onRemove={() => setCheckIn('')} />
+              ) : null}
+              {checkOut ? (
+                <MarketplaceActiveChip label={`Out ${formatStayNightHuman(checkOut)}`} onRemove={() => setCheckOut('')} />
+              ) : null}
+              {guests ? (
+                <MarketplaceActiveChip
+                  label={`${guests} ${guests === '1' ? 'guest' : 'guests'}`}
+                  onRemove={() => setGuests('')}
+                />
+              ) : null}
+              {propertyType !== 'all' && propertyType ? (
+                <MarketplaceActiveChip label={propertyType} onRemove={() => setPropertyType('all')} />
+              ) : null}
+              {priceRange !== 'all' ? (
+                <MarketplaceActiveChip
+                  label={priceChips.find((c) => c.id === priceRange)?.label ?? priceRange}
+                  onRemove={() => setPriceRange('all')}
+                />
+              ) : null}
+              {selectedAmenities.map((amenity) => (
+                <MarketplaceActiveChip key={amenity} label={amenity} onRemove={() => toggleAmenity(amenity)} />
+              ))}
+              {ratingFilter !== 'all' ? (
+                <MarketplaceActiveChip
+                  label={RATING_FILTER_CHIPS.find((c) => c.id === ratingFilter)?.label ?? ratingFilter}
+                  onRemove={() => setRatingFilter('all')}
+                />
+              ) : null}
+              <button
+                type="button"
+                onClick={clearAllFilters}
+                className="lux-flat rounded-full bg-finland px-3 py-1.5 text-xs font-semibold text-white shadow-sm ring-1 ring-finland/30"
+              >
+                Clear all
+              </button>
+            </div>
+          ) : null
+        }
+      >
         {paymentBanner === 'cancelled' ? (
           <div className="mb-5 max-w-xl">
             <NoticeCallout title="Checkout cancelled" tone="warn">
@@ -176,253 +507,6 @@ export default function Stays({ onStaySelect }: Props) {
             </NoticeCallout>
           </div>
         ) : null}
-
-        <div className="mb-10 max-w-4xl">
-          {/* Mobile: compact trigger → dedicated search sheet */}
-          <button
-            type="button"
-            onClick={() => setMobileSearchOpen(true)}
-            className="sm:hidden w-full flex items-center gap-3 rounded-2xl bg-paper-raised text-ink px-4 py-3.5 shadow-soft-lg ring-1 ring-black/[0.06] text-left active:scale-[0.99] transition-transform"
-            aria-haspopup="dialog"
-            aria-expanded={mobileSearchOpen}
-          >
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-finland text-white" aria-hidden>
-              <Search className="w-4 h-4" />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-[15px] font-semibold text-ink truncate">{mobileSearchSummary.where}</span>
-              <span className="mt-0.5 block text-sm text-ink-muted truncate">
-                {mobileSearchSummary.whenLabel}
-                <span className="mx-1.5 text-ink-faint" aria-hidden>
-                  ·
-                </span>
-                {mobileSearchSummary.whoLabel}
-              </span>
-            </span>
-          </button>
-          <p className="sm:hidden mt-2 px-1 text-sm text-ink-muted">{resultsCountNode}</p>
-
-          {/* Desktop / tablet: integrated search bar */}
-          <form
-            className="hidden sm:grid grid-cols-[1.2fr_1fr_1fr_0.85fr_auto] gap-1 bg-paper-raised rounded-full p-1.5 shadow-soft-lg ring-1 ring-black/[0.06]"
-            onSubmit={(e) => e.preventDefault()}
-            aria-label="Search stays"
-          >
-            <div className="relative min-w-0 rounded-full px-3.5 py-2 hover:bg-black/[0.03] focus-within:ring-2 focus-within:ring-finland/25">
-              <label htmlFor="stays-q" className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
-                Where
-              </label>
-              <div className="relative">
-                <Search className="absolute left-0 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-faint pointer-events-none" />
-                <input
-                  id="stays-q"
-                  type="search"
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                  placeholder="City or stay"
-                  className="w-full h-9 pl-6 pr-2 border-0 text-ink placeholder:text-ink-muted focus:ring-0 text-[15px] bg-transparent"
-                />
-              </div>
-            </div>
-            <div className="relative min-w-0 rounded-full px-3.5 py-2 hover:bg-black/[0.03] focus-within:ring-2 focus-within:ring-finland/25">
-              <label htmlFor="stays-in" className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
-                Check-in
-              </label>
-              <input
-                id="stays-in"
-                type="date"
-                value={checkIn}
-                onChange={(e) => handleCheckInChange(e.target.value)}
-                className="w-full h-9 border-0 text-ink focus:ring-0 text-[15px] bg-transparent"
-              />
-            </div>
-            <div className="relative min-w-0 rounded-full px-3.5 py-2 hover:bg-black/[0.03] focus-within:ring-2 focus-within:ring-finland/25">
-              <label htmlFor="stays-out" className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
-                Check-out
-              </label>
-              <input
-                id="stays-out"
-                type="date"
-                value={checkOut}
-                min={checkIn ? addCalendarDays(checkIn, 1) : undefined}
-                onChange={(e) => setCheckOut(e.target.value)}
-                className="w-full h-9 border-0 text-ink focus:ring-0 text-[15px] bg-transparent"
-              />
-            </div>
-            <div className="relative min-w-0 rounded-full px-3.5 py-2 hover:bg-black/[0.03] focus-within:ring-2 focus-within:ring-finland/25">
-              <label htmlFor="stays-guests" className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
-                Guests
-              </label>
-              <input
-                id="stays-guests"
-                type="number"
-                min={1}
-                max={99}
-                value={guests}
-                onChange={(e) => setGuests(e.target.value)}
-                placeholder="Guests"
-                className="w-full h-9 border-0 text-ink placeholder:text-ink-muted focus:ring-0 text-[15px] bg-transparent"
-              />
-            </div>
-            <p className="self-center text-sm text-ink-muted px-3 py-2 sm:text-right">{resultsCountNode}</p>
-          </form>
-        </div>
-
-        {mobileSearchOpen && (
-          <div ref={mobileSearchSheetRef} className="tv-sheet-overlay sm:hidden">
-            <button type="button" tabIndex={-1} className="absolute inset-0" aria-label="Close search" onClick={closeMobileSearch} />
-            <aside
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="stays-mobile-search-title"
-              className="tv-sheet-panel relative flex max-h-[min(92dvh,40rem)] flex-col overflow-hidden motion-safe:animate-slide-up"
-            >
-              <div className="mb-5 flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland">Search</p>
-                  <h2 id="stays-mobile-search-title" className="font-display text-xl text-ink tracking-tight mt-1">
-                    Find a stay
-                  </h2>
-                </div>
-                <button type="button" onClick={closeMobileSearch} className="lux-tap-target p-2 -mr-1" aria-label="Close">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              <div className="min-h-0 flex-1 overflow-y-auto space-y-1 rounded-2xl bg-black/[0.02] p-1 ring-1 ring-black/[0.04]">
-                <div className="relative min-w-0 rounded-xl px-3.5 py-2 hover:bg-black/[0.03] focus-within:ring-2 focus-within:ring-finland/25">
-                  <label htmlFor="stays-sheet-q" className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
-                    Where
-                  </label>
-                  <div className="relative">
-                    <Search className="absolute left-0 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-faint pointer-events-none" />
-                    <input
-                      id="stays-sheet-q"
-                      type="search"
-                      value={q}
-                      onChange={(e) => setQ(e.target.value)}
-                      placeholder="City or stay"
-                      className="w-full h-9 pl-6 pr-2 border-0 text-ink placeholder:text-ink-muted focus:ring-0 text-[15px] bg-transparent"
-                    />
-                  </div>
-                </div>
-                <div className="relative min-w-0 rounded-xl px-3.5 py-2 hover:bg-black/[0.03] focus-within:ring-2 focus-within:ring-finland/25">
-                  <label htmlFor="stays-sheet-in" className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
-                    Check-in
-                  </label>
-                  <input
-                    id="stays-sheet-in"
-                    type="date"
-                    value={checkIn}
-                    onChange={(e) => handleCheckInChange(e.target.value)}
-                    className="w-full h-9 border-0 text-ink focus:ring-0 text-[15px] bg-transparent"
-                  />
-                </div>
-                <div className="relative min-w-0 rounded-xl px-3.5 py-2 hover:bg-black/[0.03] focus-within:ring-2 focus-within:ring-finland/25">
-                  <label htmlFor="stays-sheet-out" className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
-                    Check-out
-                  </label>
-                  <input
-                    id="stays-sheet-out"
-                    type="date"
-                    value={checkOut}
-                    min={checkIn ? addCalendarDays(checkIn, 1) : undefined}
-                    onChange={(e) => setCheckOut(e.target.value)}
-                    className="w-full h-9 border-0 text-ink focus:ring-0 text-[15px] bg-transparent"
-                  />
-                </div>
-                <div className="relative min-w-0 rounded-xl px-3.5 py-2 hover:bg-black/[0.03] focus-within:ring-2 focus-within:ring-finland/25">
-                  <label htmlFor="stays-sheet-guests" className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
-                    Guests
-                  </label>
-                  <input
-                    id="stays-sheet-guests"
-                    type="number"
-                    min={1}
-                    max={99}
-                    value={guests}
-                    onChange={(e) => setGuests(e.target.value)}
-                    placeholder="Guests"
-                    className="w-full h-9 border-0 text-ink placeholder:text-ink-muted focus:ring-0 text-[15px] bg-transparent"
-                  />
-                </div>
-              </div>
-              <div className="mt-5 flex gap-2 shrink-0">
-                {(q.trim() || checkIn || checkOut || guests) ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setQ('');
-                      setCheckIn('');
-                      setCheckOut('');
-                      setGuests('');
-                    }}
-                    className="tv-btn-secondary flex-1"
-                  >
-                    Clear
-                  </button>
-                ) : null}
-                <button type="button" onClick={closeMobileSearch} className="tv-btn-primary flex-1">
-                  Show {filtered.length}
-                </button>
-              </div>
-            </aside>
-          </div>
-        )}
-
-        {(q.trim() || checkIn || checkOut || guests) ? (
-          <div className="mb-5 flex flex-wrap items-center gap-2" aria-label="Active filters">
-            {q.trim() ? (
-              <button
-                type="button"
-                onClick={() => setQ('')}
-                className="lux-flat inline-flex items-center gap-1.5 rounded-full bg-finland/10 px-3 py-1.5 text-xs font-semibold text-finland ring-1 ring-finland/20"
-              >
-                “{q.trim().slice(0, 36)}
-                {q.trim().length > 36 ? '…' : ''}” <X className="w-3.5 h-3.5" />
-              </button>
-            ) : null}
-            {checkIn ? (
-              <button
-                type="button"
-                onClick={() => setCheckIn('')}
-                className="lux-flat inline-flex items-center gap-1.5 rounded-full bg-finland/10 px-3 py-1.5 text-xs font-semibold text-finland ring-1 ring-finland/20"
-              >
-                In {formatStayNightHuman(checkIn)} <X className="w-3.5 h-3.5" />
-              </button>
-            ) : null}
-            {checkOut ? (
-              <button
-                type="button"
-                onClick={() => setCheckOut('')}
-                className="lux-flat inline-flex items-center gap-1.5 rounded-full bg-finland/10 px-3 py-1.5 text-xs font-semibold text-finland ring-1 ring-finland/20"
-              >
-                Out {formatStayNightHuman(checkOut)} <X className="w-3.5 h-3.5" />
-              </button>
-            ) : null}
-            {guests ? (
-              <button
-                type="button"
-                onClick={() => setGuests('')}
-                className="lux-flat inline-flex items-center gap-1.5 rounded-full bg-finland/10 px-3 py-1.5 text-xs font-semibold text-finland ring-1 ring-finland/20"
-              >
-                {guests} {guests === '1' ? 'guest' : 'guests'} <X className="w-3.5 h-3.5" />
-              </button>
-            ) : null}
-            <button
-              type="button"
-              onClick={() => {
-                setQ('');
-                setCheckIn('');
-                setCheckOut('');
-                setGuests('');
-              }}
-              className="lux-flat rounded-full bg-finland px-3 py-1.5 text-xs font-semibold text-white shadow-sm ring-1 ring-finland/30"
-            >
-              Clear all
-            </button>
-          </div>
-        ) : null}
-
         {error && supplierListings === null ? (
           <ErrorState
             title="Stays unavailable"
@@ -430,7 +514,7 @@ export default function Stays({ onStaySelect }: Props) {
             retry={{ onClick: () => reload() }}
           />
         ) : catalogLoading || waitingOnOccupancy ? (
-          <SkeletonCardGrid count={3} />
+          <SkeletonCardGrid count={6} />
         ) : filtered.length === 0 ? (
           <div className="rounded-2xl bg-paper-raised px-6 py-2 shadow-soft ring-1 ring-black/[0.06] sm:px-8">
             {stays.length === 0 ? (
@@ -456,17 +540,8 @@ export default function Stays({ onStaySelect }: Props) {
                     : 'Try another place, dates, or guest count — or clear filters to see live stays again.'
                 }
                 action={
-                  q || checkIn || checkOut || guests ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setQ('');
-                        setCheckIn('');
-                        setCheckOut('');
-                        setGuests('');
-                      }}
-                      className="tv-btn-primary"
-                    >
+                  hasActiveFilters ? (
+                    <button type="button" onClick={clearAllFilters} className="tv-btn-primary">
                       Clear filters
                     </button>
                   ) : undefined
@@ -475,7 +550,7 @@ export default function Stays({ onStaySelect }: Props) {
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+          <div className={MARKETPLACE_BROWSE_GRID_CLASS}>
             {filtered.map((item, index) => {
               const guestN = Number.parseInt(guests, 10) || 1;
               const stayQuote =
@@ -483,26 +558,93 @@ export default function Stays({ onStaySelect }: Props) {
                   ? quoteStayNights({ tour: item, checkIn, checkOut, guests: guestN })
                   : null;
               return (
-              <PublicListingBrowseCard
-                key={item.id}
-                tour={item}
-                index={index}
-                onSelect={() => onStaySelect(item)}
-                discountsByListing={new Map()}
-                tagLabels={{}}
-                showTagPills={false}
-                size="default"
-                stayStayTotal={
-                  stayQuote?.ok
-                    ? { nights: stayQuote.nights, total: stayQuote.totalAmount, currency: stayQuote.currency }
-                    : null
-                }
-              />
+                <PublicListingBrowseCard
+                  key={item.id}
+                  tour={item}
+                  index={index}
+                  onSelect={() => onStaySelect(item)}
+                  discountsByListing={new Map()}
+                  reviewAggregate={reviewAggregates.get(item.id)}
+                  tagLabels={{}}
+                  showTagPills={false}
+                  size="default"
+                  stayStayTotal={
+                    stayQuote?.ok
+                      ? { nights: stayQuote.nights, total: stayQuote.totalAmount, currency: stayQuote.currency }
+                      : null
+                  }
+                  wishlist={
+                    wishlist.enabled
+                      ? {
+                          saved: wishlist.isSaved(item.id),
+                          busy: wishlist.busyId === item.id,
+                          onToggle: () => wishlist.toggle(item.id),
+                        }
+                      : null
+                  }
+                />
               );
             })}
           </div>
         )}
-      </div>
-    </div>
+      </MarketplaceBrowseShell>
+
+      {mobileSearchOpen ? (
+        <div ref={mobileSearchSheetRef} className="tv-sheet-overlay sm:hidden">
+          <button type="button" tabIndex={-1} className="absolute inset-0" aria-label="Close search" onClick={closeMobileSearch} />
+          <aside
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="stays-mobile-search-title"
+            className="tv-sheet-panel relative flex max-h-[min(92dvh,40rem)] flex-col overflow-hidden motion-safe:animate-slide-up"
+          >
+            <div className="mb-5 flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland">Search</p>
+                <h2 id="stays-mobile-search-title" className="font-display text-xl text-ink tracking-tight mt-1">
+                  Find a stay
+                </h2>
+              </div>
+              <button type="button" onClick={closeMobileSearch} className="lux-tap-target p-2 -mr-1" aria-label="Close">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto space-y-1 rounded-2xl bg-black/[0.02] p-1 ring-1 ring-black/[0.04]">
+              <MarketplaceSearchFields
+                family="stays"
+                values={searchValues}
+                onChange={(patch) => {
+                  if (patch.where !== undefined) setQ(patch.where);
+                  if (patch.date !== undefined) handleCheckInChange(patch.date);
+                  if (patch.checkout !== undefined) setCheckOut(patch.checkout);
+                  if (patch.guests !== undefined) setGuests(patch.guests);
+                }}
+                idPrefix="stays-sheet"
+                stacked
+              />
+            </div>
+            <div className="mt-5 flex gap-2 shrink-0">
+              {q.trim() || checkIn || checkOut || guests ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQ('');
+                    setCheckIn('');
+                    setCheckOut('');
+                    setGuests('');
+                  }}
+                  className="tv-btn-secondary flex-1"
+                >
+                  Clear
+                </button>
+              ) : null}
+              <button type="button" onClick={closeMobileSearch} className="tv-btn-primary flex-1">
+                Show {filtered.length}
+              </button>
+            </div>
+          </aside>
+        </div>
+      ) : null}
+    </>
   );
 }

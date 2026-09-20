@@ -14,6 +14,8 @@ import { fetchDiscountsByListingIds } from '../data/supabase-discounts';
 import { isSupabaseListingId } from '../lib/discount-display';
 import { filterCatalogByFamily } from '../lib/inventory';
 import { PublicListingBrowseCard } from '../components/PublicListingBrowseCard';
+import { MARKETPLACE_GRID_CLASS } from '../lib/marketplaceBrowse';
+import { useTravelerWishlist } from '../hooks/useTravelerWishlist';
 import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
 import { HERO_IMG } from '../lib/heroImages';
 
@@ -43,6 +45,7 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
     emptyOnFirstError: false,
   });
   const catalogLoading = isSupabaseConfigured() && supplierListings === null && !listingsError;
+  const wishlist = useTravelerWishlist();
   const [reviewAggregates, setReviewAggregates] = useState<Map<string, { rating: number; count: number }>>(
     () => new Map()
   );
@@ -203,7 +206,7 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
                     {tourListings.length} {tourListings.length === 1 ? 'experience' : 'experiences'} in {label}
                   </p>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                <div className={MARKETPLACE_GRID_CLASS}>
                   {tourListings.map((tour, index) => (
                     <PublicListingBrowseCard
                       key={tour.id}
@@ -214,7 +217,16 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
                       reviewAggregate={reviewAggregates.get(tour.id)}
                       tagLabels={TAG_LABELS}
                       size="default"
-                      showTagPills
+                      showTagPills={false}
+                      wishlist={
+                        wishlist.enabled
+                          ? {
+                              saved: wishlist.isSaved(tour.id),
+                              busy: wishlist.busyId === tour.id,
+                              onToggle: () => wishlist.toggle(tour.id),
+                            }
+                          : null
+                      }
                     />
                   ))}
                 </div>
@@ -228,7 +240,7 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
                     {stayListings.length} {stayListings.length === 1 ? 'place' : 'places'} to stay
                   </p>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                <div className={MARKETPLACE_GRID_CLASS}>
                   {stayListings.map((stay, index) => (
                     <PublicListingBrowseCard
                       key={stay.id}
@@ -239,7 +251,16 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
                       reviewAggregate={reviewAggregates.get(stay.id)}
                       tagLabels={TAG_LABELS}
                       size="default"
-                      showTagPills
+                      showTagPills={false}
+                      wishlist={
+                        wishlist.enabled
+                          ? {
+                              saved: wishlist.isSaved(stay.id),
+                              busy: wishlist.busyId === stay.id,
+                              onToggle: () => wishlist.toggle(stay.id),
+                            }
+                          : null
+                      }
                     />
                   ))}
                 </div>

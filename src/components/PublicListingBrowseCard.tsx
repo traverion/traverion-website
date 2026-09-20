@@ -1,9 +1,9 @@
 import { memo } from 'react';
-import { ArrowRight, Clock, MapPin } from 'lucide-react';
+import { Heart } from 'lucide-react';
 import { prefetchTourDetailsPage } from '../lib/routePrefetch';
 import type { TourPackage } from '../types/tour';
 import type { ListingDiscount } from '../data/supabase-discounts';
-import { getDisplayPriceForTour } from '../lib/discount-display';
+import { getDisplayPriceForTour, isSupabaseListingId } from '../lib/discount-display';
 import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
 import { listingShowsFreeCancellation } from '../lib/listingTruth';
 import { formatTourDurationDisplay, materializedBookingOptions, parseListingExtras } from '../types/listingExtras';
@@ -26,6 +26,12 @@ export type PublicListingBrowseCardProps = {
   showViewDetailsHint?: boolean;
   /** When stay dates are selected, show nights × total instead of only nightly. */
   stayStayTotal?: { nights: number; total: number; currency: string } | null;
+  /** Real persisted wishlist. Omit when the listing cannot be saved. */
+  wishlist?: {
+    saved: boolean;
+    busy?: boolean;
+    onToggle: () => void;
+  } | null;
 };
 
 /**
@@ -42,9 +48,8 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
   showTagPills = false,
   showViewDetailsHint = false,
   stayStayTotal = null,
+  wishlist = null,
 }: PublicListingBrowseCardProps) {
-  const imgClass = size === 'compact' ? 'h-40' : 'h-48 sm:h-56';
-  const padClass = size === 'compact' ? 'p-3' : 'p-3.5 sm:p-4';
   const { price, originalPrice, label, qualifier, summary } = getDisplayPriceForTour(tour, discountsByListing);
   const hasDiscount = Boolean(label && price < originalPrice);
   const fromAmount = hasDiscount ? price : originalPrice;
@@ -63,169 +68,164 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
     bookingOpts.some((o) => (o.pickupPlace ?? '').trim().length > 0 || /pickup/i.test(o.name));
   const privateOnly =
     !isStay && bookingOpts.length > 0 && bookingOpts.every((o) => Boolean(o.isPrivate));
-  const durationOnly = isStay
-    ? stay?.maxGuests
-      ? `Up to ${stay.maxGuests} guests`
-      : tour.groupSize || ''
-    : formatTourDurationDisplay(tour.duration || '');
-  const durationLine = [
-    durationOnly || null,
-    !isStay && pickupIncluded ? 'Pickup included' : null,
-    privateOnly ? 'Private tour' : null,
-  ]
-    .filter(Boolean)
-    .join(' · ');
+  const stayBits = isStay
+    ? [
+        stay?.maxGuests ? `${stay.maxGuests} guest${stay.maxGuests === 1 ? '' : 's'}` : tour.groupSize || null,
+        typeof stay?.bedrooms === 'number' ? `${stay.bedrooms} bedroom${stay.bedrooms === 1 ? '' : 's'}` : null,
+        stay?.propertyType?.trim() || null,
+      ].filter(Boolean)
+    : [];
+  const tourBits = isStay
+    ? []
+    : [
+        formatTourDurationDisplay(tour.duration || '') || null,
+        pickupIncluded ? 'Pickup included' : null,
+        privateOnly ? 'Private' : null,
+      ].filter(Boolean);
+  const metaLine = (isStay ? stayBits : tourBits).join(' · ');
   const extraTags =
     tour.tags?.filter((t) => t !== 'free-cancellation' && t !== 'bestseller') ?? [];
   const heroSrc = listingHeroImageSrc(tour.image);
+  const showWishlist = Boolean(wishlist && isSupabaseListingId(tour.id));
+  const priceAria = isStay
+    ? stayStayTotal
+      ? `${formatMoney(stayStayTotal.total, stayStayTotal.currency)} total for ${stayStayTotal.nights} nights`
+      : `${formatMoney(stayNightly, currency)} per night`
+    : hasDiscount
+      ? `From ${formatMoney(fromAmount, currency)} ${unitLabel}, ${label}`
+      : `From ${formatMoney(originalPrice, currency)} ${unitLabel}`;
 
   return (
-    <article
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onSelect();
-        }
-      }}
-      onClick={onSelect}
-      onPointerEnter={prefetchTourDetailsPage}
-      className="group relative bg-paper-raised rounded-2xl overflow-hidden cursor-pointer shadow-soft ring-1 ring-black/[0.06] hover:shadow-soft-lg hover:ring-finland/20 hover:-translate-y-0.5 transition-all duration-300 ease-[cubic-bezier(0.33,1,0.68,1)] motion-safe:animate-fade-in-up focus:outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2"
-      style={{ animationDelay: `${Math.min(index * 45, 320)}ms` }}
-      aria-label={`View ${tour.title}`}
-    >
-      <div className={`relative ${imgClass} overflow-hidden bg-black/[0.04]`}>
-        {heroSrc ? (
-          <img
-            src={heroSrc}
-            alt={tour.title}
-            loading={index < 2 ? 'eager' : 'lazy'}
-            fetchPriority={index === 0 ? 'high' : 'low'}
-            decoding="async"
-            width={800}
-            height={640}
-            className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.04]"
+    <article className="group relative">
+      {showWishlist && wishlist ? (
+        <button
+          type="button"
+          className="lux-flat absolute top-2.5 right-2.5 z-10 inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/92 text-ink shadow-sm ring-1 ring-black/[0.08] hover:bg-white disabled:opacity-60"
+          aria-label={wishlist.saved ? `Remove ${tour.title} from saved` : `Save ${tour.title}`}
+          aria-pressed={wishlist.saved}
+          disabled={wishlist.busy}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            wishlist.onToggle();
+          }}
+        >
+          <Heart
+            className={`h-4 w-4 ${wishlist.saved ? 'fill-finland text-finland' : 'text-ink'}`}
+            strokeWidth={2}
           />
-        ) : null}
-        {heroSrc ? (
-        <div
-          className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent opacity-80"
-          aria-hidden
-        />
-        ) : null}
-        <div className="absolute top-2.5 left-2.5 flex flex-wrap gap-1.5">
-          {listingShowsFreeCancellation(tour) && (
-            <span className="bg-emerald-50/95 text-emerald-800 text-[11px] font-semibold px-2.5 py-1 rounded-full ring-1 ring-emerald-200/80 shadow-sm">
-              Free cancellation
-            </span>
-          )}
-          {privateOnly ? (
-            <span className="bg-ink/90 text-white text-[11px] font-semibold px-2.5 py-1 rounded-full shadow-sm">
-              Private
-            </span>
-          ) : null}
-          {isStay ? (
-            <span className="bg-white/95 text-finland text-[11px] font-semibold px-2.5 py-1 rounded-full ring-1 ring-finland/20 shadow-sm">
-              {stay?.propertyType?.trim() || 'Stay'}
-            </span>
-          ) : (
-            <span className="bg-white/95 text-finland text-[11px] font-semibold px-2.5 py-1 rounded-full ring-1 ring-finland/20 shadow-sm">
-              Tour
-            </span>
-          )}
-        </div>
-        {hasDiscount && label ? (
-          <div className="absolute bottom-2.5 right-2.5">
-            <span className="pointer-events-none rounded-lg bg-finland px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-white">
-              {label}
-            </span>
-          </div>
-        ) : null}
-      </div>
-      <div className={padClass}>
-        <div className="flex min-w-0 items-center gap-1.5 text-sm font-medium text-ink-muted">
-          <MapPin className="h-4 w-4 flex-shrink-0 text-ink-faint" aria-hidden />
-          <span className="truncate">{locationLine}</span>
-        </div>
-        <h3
-          className={`mt-1 line-clamp-2 font-semibold leading-snug tracking-tight text-ink transition-colors duration-200 group-hover:text-finland ${
-            size === 'compact' ? 'text-base sm:text-lg' : 'text-lg sm:text-xl'
-          }`}
-        >
-          {tour.title}
-        </h3>
-        {durationLine ? (
-          <div className="mt-1 flex min-w-0 items-center gap-1.5 text-sm text-ink-muted">
-            <Clock className="h-4 w-4 flex-shrink-0 text-ink-faint" aria-hidden />
-            <span className="truncate">{durationLine}</span>
-          </div>
-        ) : null}
-        <div className="mt-2">
-          <ListingCardRating tour={tour} aggregate={reviewAggregate} compact={size === 'compact'} />
-        </div>
-        <p
-          className={`mt-2.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 tabular-nums ${
-            isStay && stayStayTotal ? (size === 'compact' ? 'text-xl' : 'text-2xl') : size === 'compact' ? 'text-lg' : 'text-xl'
-          }`}
-          aria-label={
-            isStay
-              ? stayStayTotal
-                ? `${formatMoney(stayStayTotal.total, stayStayTotal.currency)} total for ${stayStayTotal.nights} nights`
-                : `${formatMoney(stayNightly, currency)} per night`
-              : hasDiscount
-                ? `From ${formatMoney(fromAmount, currency)} ${unitLabel}, ${label}`
-                : `From ${formatMoney(originalPrice, currency)} ${unitLabel}`
+        </button>
+      ) : null}
+      <button
+        type="button"
+        onClick={onSelect}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onSelect();
           }
-        >
-          {isStay && stayStayTotal ? (
-            <>
-              <span className="font-bold tracking-tight text-ink">
-                {formatMoney(stayStayTotal.total, stayStayTotal.currency)}
+        }}
+        onPointerEnter={prefetchTourDetailsPage}
+        className="lux-flat block w-full overflow-hidden rounded-xl bg-paper-raised text-left shadow-soft ring-1 ring-black/[0.06] transition-[box-shadow,ring-color] duration-200 hover:shadow-soft-lg hover:ring-finland/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2"
+        style={{ animationDelay: `${Math.min(index * 35, 240)}ms` }}
+        aria-label={`View ${tour.title}. ${priceAria}`}
+      >
+        <div className={`relative overflow-hidden bg-black/[0.04] ${size === 'compact' ? 'aspect-[4/3]' : 'aspect-[4/3]'}`}>
+          {heroSrc ? (
+            <img
+              src={heroSrc}
+              alt=""
+              loading={index < 2 ? 'eager' : 'lazy'}
+              fetchPriority={index === 0 ? 'high' : 'low'}
+              decoding="async"
+              width={800}
+              height={600}
+              className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]"
+            />
+          ) : null}
+          <div className="absolute top-2.5 left-2.5 flex flex-wrap gap-1.5 pr-12">
+            {listingShowsFreeCancellation(tour) ? (
+              <span className="rounded-md bg-white/95 px-2 py-0.5 text-[11px] font-semibold text-emerald-800 ring-1 ring-black/[0.04]">
+                Free cancellation
               </span>
-              <span className="text-sm font-medium text-ink-muted">
-                total · {stayStayTotal.nights} night{stayStayTotal.nights === 1 ? '' : 's'}
+            ) : null}
+            {isStay && stay?.propertyType?.trim() && !listingShowsFreeCancellation(tour) ? (
+              <span className="rounded-md bg-white/95 px-2 py-0.5 text-[11px] font-semibold text-ink ring-1 ring-black/[0.04]">
+                {stay.propertyType.trim()}
               </span>
-              <span className="w-full text-xs font-medium text-ink-faint">
-                {formatMoney(stayNightly, currency)} per night
-              </span>
-            </>
-          ) : (
-            <>
-              {isStay ? null : (
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">From</span>
-              )}
-              {showStrikethrough && !isStay ? (
-                <span className="text-sm font-medium text-ink-faint line-through">{formatMoney(originalPrice, currency)}</span>
-              ) : null}
-              <span className={`font-bold tracking-tight ${hasDiscount && !isStay ? 'text-finland' : 'text-ink'}`}>
-                {formatMoney(isStay ? stayNightly : fromAmount, currency)}
-              </span>
-              <span className="text-sm font-medium text-ink-muted">{unitLabel}</span>
-              {!isStay && summary ? (
-                <span className="w-full text-xs font-medium text-ink-muted">{summary}</span>
-              ) : null}
-            </>
-          )}
-        </p>
-        {showTagPills && extraTags.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {extraTags.slice(0, 3).map((tagId) => (
-              <span
-                key={tagId}
-                className="rounded-md bg-finland/10 px-2 py-0.5 text-[11px] font-medium text-finland ring-1 ring-finland/15"
-              >
-                {tagLabels[tagId] ?? tagId}
-              </span>
-            ))}
+            ) : null}
           </div>
-        )}
-        {showViewDetailsHint && (
-          <p className="text-finland font-medium mt-3 flex items-center text-sm group-hover:gap-1 transition-all">
-            View details <ArrowRight className="w-4 h-4 ml-1" aria-hidden />
+          {hasDiscount && label ? (
+            <div className="absolute bottom-2.5 left-2.5">
+              <span className="rounded-md bg-finland px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-white">
+                {label}
+              </span>
+            </div>
+          ) : null}
+        </div>
+        <div className={size === 'compact' ? 'p-3' : 'px-3.5 py-3'}>
+          <p className="truncate text-[13px] text-ink-muted">{locationLine}</p>
+          <h3 className="mt-0.5 line-clamp-2 text-[15px] sm:text-base font-semibold leading-snug tracking-tight text-ink">
+            {tour.title}
+          </h3>
+          <div className="mt-1.5">
+            <ListingCardRating tour={tour} aggregate={reviewAggregate} compact />
+          </div>
+          {metaLine ? <p className="mt-1 truncate text-[13px] text-ink-muted">{metaLine}</p> : null}
+          <p
+            className={`mt-2 flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 tabular-nums ${
+              isStay && stayStayTotal ? 'text-lg' : 'text-base'
+            }`}
+          >
+            {isStay && stayStayTotal ? (
+              <>
+                <span className="font-bold tracking-tight text-ink">
+                  {formatMoney(stayStayTotal.total, stayStayTotal.currency)}
+                </span>
+                <span className="text-[13px] font-medium text-ink-muted">
+                  total · {stayStayTotal.nights} night{stayStayTotal.nights === 1 ? '' : 's'}
+                </span>
+                <span className="w-full text-xs font-medium text-ink-faint">
+                  {formatMoney(stayNightly, currency)} per night
+                </span>
+              </>
+            ) : (
+              <>
+                {isStay ? null : (
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">From</span>
+                )}
+                {showStrikethrough && !isStay ? (
+                  <span className="text-sm font-medium text-ink-faint line-through">
+                    {formatMoney(originalPrice, currency)}
+                  </span>
+                ) : null}
+                <span className={`font-bold tracking-tight ${hasDiscount && !isStay ? 'text-finland' : 'text-ink'}`}>
+                  {formatMoney(isStay ? stayNightly : fromAmount, currency)}
+                </span>
+                <span className="text-[13px] font-medium text-ink-muted">{unitLabel}</span>
+                {!isStay && summary ? (
+                  <span className="w-full text-xs font-medium text-ink-muted">{summary}</span>
+                ) : null}
+              </>
+            )}
           </p>
-        )}
-      </div>
+          {showTagPills && extraTags.length > 0 ? (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {extraTags.slice(0, 3).map((tagId) => (
+                <span
+                  key={tagId}
+                  className="rounded-md bg-finland/10 px-2 py-0.5 text-[11px] font-medium text-finland ring-1 ring-finland/15"
+                >
+                  {tagLabels[tagId] ?? tagId}
+                </span>
+              ))}
+            </div>
+          ) : null}
+          {showViewDetailsHint ? (
+            <p className="mt-2 text-sm font-medium text-finland">View details</p>
+          ) : null}
+        </div>
+      </button>
     </article>
   );
 });

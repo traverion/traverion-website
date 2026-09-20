@@ -11,6 +11,11 @@ import { getReviewAggregatesForListingIds } from '../data/supabase-reviews';
 import { isSupabaseListingId, getDisplayPriceForTour } from '../lib/discount-display';
 import { formatMoney, normalizeCurrency } from '../lib/money';
 import { PublicListingBrowseCard } from '../components/PublicListingBrowseCard';
+import {
+  MarketplaceSearchFields,
+} from '../components/marketplace/MarketplaceSearchBar';
+import { MARKETPLACE_GRID_CLASS } from '../lib/marketplaceBrowse';
+import { useTravelerWishlist } from '../hooks/useTravelerWishlist';
 import { supplierPortalLandingHref } from '../lib/partnerHost';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
@@ -61,6 +66,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
   const allListings = useMemo(() => filterCatalogByFamily(catalogBase, 'tour'), [catalogBase]);
   const stayListings = useMemo(() => filterCatalogByFamily(catalogBase, 'stay'), [catalogBase]);
   const [searchFamily, setSearchFamily] = useState<'tours' | 'stays'>('tours');
+  const wishlist = useTravelerWishlist();
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const mobileSearchSheetRef = useRef<HTMLDivElement>(null);
   const closeMobileSearch = useCallback(() => setMobileSearchOpen(false), []);
@@ -76,10 +82,11 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
   const featuredListing = displayedListings[0];
   const featuredSrc = featuredListing ? listingHeroImageSrc(featuredListing.image) : undefined;
 
-  const displayedIds = useMemo(
-    () => displayedListings.map((t) => t.id).filter(isSupabaseListingId),
-    [displayedListings]
-  );
+  const displayedIds = useMemo(() => {
+    const tourIds = displayedListings.map((t) => t.id).filter(isSupabaseListingId);
+    const stayIds = stayListings.slice(0, 6).map((t) => t.id).filter(isSupabaseListingId);
+    return [...new Set([...tourIds, ...stayIds])];
+  }, [displayedListings, stayListings]);
   const displayedIdsKey = useMemo(() => displayedIds.join(','), [displayedIds]);
 
   useEffect(() => {
@@ -215,74 +222,24 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
     </div>
   );
 
-  const searchFields = (idPrefix: string) => (
-    <>
-      <div className="relative min-w-0 rounded-xl sm:rounded-full px-3.5 py-2 hover:bg-black/[0.03] focus-within:bg-black/[0.03] focus-within:ring-2 focus-within:ring-finland/25 transition-colors">
-        <label htmlFor={`${idPrefix}-search`} className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
-          Where
-        </label>
-        <div className="relative">
-          <Search className="absolute left-0 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-faint pointer-events-none" />
-          <input
-            id={`${idPrefix}-search`}
-            type="search"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder={searchFamily === 'stays' ? 'City or stay' : 'City or tour'}
-            className="w-full h-9 pl-6 pr-2 border-0 text-ink placeholder:text-ink-muted focus:ring-0 text-[15px] bg-transparent"
-          />
-        </div>
-      </div>
-      <div className="relative min-w-0 rounded-xl sm:rounded-full px-3.5 py-2 hover:bg-black/[0.03] focus-within:bg-black/[0.03] focus-within:ring-2 focus-within:ring-finland/25 transition-colors">
-        <label htmlFor={`${idPrefix}-when`} className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
-          {searchFamily === 'stays' ? 'Check-in' : 'Date'}
-        </label>
-        <input
-          id={`${idPrefix}-when`}
-          type="date"
-          value={when}
-          onChange={(e) => {
-            const next = e.target.value;
-            setWhen(next);
-            if (checkout && next && checkout <= next) {
-              setCheckout(addCalendarDays(next, 1));
-            }
-          }}
-          className="w-full h-9 border-0 text-ink focus:ring-0 text-[15px] bg-transparent"
-        />
-      </div>
-      {searchFamily === 'stays' ? (
-        <div className="relative min-w-0 rounded-xl sm:rounded-full px-3.5 py-2 hover:bg-black/[0.03] focus-within:bg-black/[0.03] focus-within:ring-2 focus-within:ring-finland/25 transition-colors">
-          <label htmlFor={`${idPrefix}-checkout`} className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
-            Check-out
-          </label>
-          <input
-            id={`${idPrefix}-checkout`}
-            type="date"
-            value={checkout}
-            min={when ? addCalendarDays(when, 1) : undefined}
-            onChange={(e) => setCheckout(e.target.value)}
-            className="w-full h-9 border-0 text-ink focus:ring-0 text-[15px] bg-transparent"
-          />
-        </div>
-      ) : null}
-      <div className="relative min-w-0 rounded-xl sm:rounded-full px-3.5 py-2 hover:bg-black/[0.03] focus-within:bg-black/[0.03] focus-within:ring-2 focus-within:ring-finland/25 transition-colors">
-        <label htmlFor={`${idPrefix}-who`} className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
-          {searchFamily === 'stays' ? 'Guests' : 'Travelers'}
-        </label>
-        <input
-          id={`${idPrefix}-who`}
-          type="number"
-          min={1}
-          max={99}
-          inputMode="numeric"
-          value={who}
-          onChange={(e) => setWho(e.target.value)}
-          placeholder={searchFamily === 'stays' ? 'Guests' : 'Travelers'}
-          className="w-full h-9 border-0 text-ink placeholder:text-ink-muted focus:ring-0 text-[15px] bg-transparent"
-        />
-      </div>
-    </>
+  const searchValues = useMemo(
+    () => ({ where: searchTerm, date: when, checkout, guests: who }),
+    [searchTerm, when, checkout, who]
+  );
+
+  const searchFields = (idPrefix: string, stacked = false) => (
+    <MarketplaceSearchFields
+      family={searchFamily}
+      values={searchValues}
+      onChange={(patch) => {
+        if (patch.where !== undefined) setSearchTerm(patch.where);
+        if (patch.date !== undefined) setWhen(patch.date);
+        if (patch.checkout !== undefined) setCheckout(patch.checkout);
+        if (patch.guests !== undefined) setWho(patch.guests);
+      }}
+      idPrefix={idPrefix}
+      stacked={stacked}
+    />
   );
 
   return (
@@ -375,7 +332,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
             </div>
             <div className="mb-4">{familyTabs('sheet')}</div>
             <form onSubmit={submitSearch} className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
-              <div className="space-y-1 rounded-2xl bg-black/[0.02] p-1 ring-1 ring-black/[0.04]">{searchFields('home-sheet')}</div>
+              <div className="space-y-1 rounded-2xl bg-black/[0.02] p-1 ring-1 ring-black/[0.04]">{searchFields('home-sheet', true)}</div>
               <div className="mt-auto pt-5 space-y-2">
                 <button type="submit" className="tv-btn-primary w-full h-12">
                   Search {searchFamily === 'stays' ? 'stays' : 'tours'}
@@ -591,7 +548,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                   </div>
                 </button>
               ) : null}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+              <div className={MARKETPLACE_GRID_CLASS}>
                 {displayedListings.slice(1).map((item, index) => (
                   <PublicListingBrowseCard
                     key={item.id}
@@ -603,6 +560,15 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                     tagLabels={TAG_LABELS}
                     size="default"
                     showTagPills={false}
+                    wishlist={
+                      wishlist.enabled
+                        ? {
+                            saved: wishlist.isSaved(item.id),
+                            busy: wishlist.busyId === item.id,
+                            onToggle: () => wishlist.toggle(item.id),
+                          }
+                        : null
+                    }
                   />
                 ))}
               </div>
@@ -638,7 +604,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
               }
             />
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+            <div className={MARKETPLACE_GRID_CLASS}>
               {stayListings.slice(0, 6).map((item, index) => (
                 <PublicListingBrowseCard
                   key={item.id}
@@ -646,9 +612,19 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                   index={index}
                   onSelect={() => onTourSelect(item)}
                   discountsByListing={new Map()}
+                  reviewAggregate={reviewAggregates.get(item.id)}
                   tagLabels={{}}
                   size="default"
                   showTagPills={false}
+                  wishlist={
+                    wishlist.enabled
+                      ? {
+                          saved: wishlist.isSaved(item.id),
+                          busy: wishlist.busyId === item.id,
+                          onToggle: () => wishlist.toggle(item.id),
+                        }
+                      : null
+                  }
                 />
               ))}
             </div>

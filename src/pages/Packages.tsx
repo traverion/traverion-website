@@ -1,61 +1,63 @@
 import { useState, useEffect, useMemo, useCallback, useDeferredValue, useRef } from 'react';
 import { useDialogFocus } from '../hooks/useDialogFocus';
-import { Search, Filter, X, Compass } from 'lucide-react';
+import { Search, X, Compass } from 'lucide-react';
 import { getAllListings, SHOW_SEED_LISTINGS, durationToMinutes } from '../data/listings';
 import { filterCatalogByFamily } from '../lib/inventory';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { usePublishedSupplierListings } from '../hooks/usePublishedSupplierListings';
+import { useTravelerWishlist } from '../hooks/useTravelerWishlist';
 import { analytics } from '../lib/analytics';
 import { TAG_OPTIONS, getDestinationsFromListings, SEED_DESTINATION_OPTIONS } from '../data/catalogMeta';
 import { TourPackage } from '../types/tour';
 import { fetchDiscountsByListingIds } from '../data/supabase-discounts';
 import { getReviewAggregatesForListingIds } from '../data/supabase-reviews';
-import { isSupabaseListingId, catalogHeadlineAmount } from '../lib/discount-display';
+import { isSupabaseListingId } from '../lib/discount-display';
 import { setListingsJsonLd } from '../lib/seo';
 import { listingRunsOnDate } from '../lib/booking-quote';
 import { getPartySizeBounds } from '../lib/booking-flow';
 import { tourDateLacksCapacityForParty } from '../lib/tour-calendar';
 import { listingTourCapacityFromOptions } from '../lib/availability-ops';
 import { fetchAvailabilityByListingId, fetchPublishedTourPaidGuests } from '../data/supabase-availability';
-import { parseListingExtras, materializedBookingOptions } from '../types/listingExtras';
+import { parseListingExtras } from '../types/listingExtras';
 import { SkeletonCardGrid } from '../components/ui/Skeleton';
 import { PublicListingBrowseCard } from '../components/PublicListingBrowseCard';
+import { MarketplaceBrowseShell, MarketplaceSortSelect } from '../components/marketplace/MarketplaceBrowseShell';
+import {
+  MarketplaceFilterChip,
+  MarketplaceFilterChipRow,
+  MarketplaceFilterSection,
+  MarketplaceActiveChip,
+} from '../components/marketplace/MarketplaceFilterPanel';
+import {
+  MarketplaceMobileSearchTrigger,
+  MarketplaceSearchFields,
+  MarketplaceSearchPill,
+} from '../components/marketplace/MarketplaceSearchBar';
 import { supplierPortalLandingHref } from '../lib/partnerHost';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 import { formatMoney, normalizeCurrency } from '../lib/money';
-
-type SortOption = 'recommended' | 'price-asc' | 'price-desc' | 'rating' | 'duration';
-
-type PriceChipId = 'all' | 'under100' | '100-500' | '500-1000' | '1000plus';
-
-/**
- * Price-chip labels used to be hardcoded with a € sign, but listings are genuinely
- * priced in any of SUPPORTED_CURRENCIES — a hardcoded € both mislabels a non-EUR
- * catalog and silently mixes magnitudes from different currencies into the same bucket.
- * When every visible listing shares one real currency we label chips in that currency;
- * otherwise (no invented conversion rate) we fall back to plain numbers so nothing here
- * claims a currency it did not earn.
- */
-function buildPriceChips(currency: string | null): { id: PriceChipId; label: string }[] {
-  if (currency) {
-    return [
-      { id: 'all', label: 'Any price' },
-      { id: 'under100', label: `Under ${formatMoney(100, currency)}` },
-      { id: '100-500', label: `${formatMoney(100, currency)} – ${formatMoney(500, currency)}` },
-      { id: '500-1000', label: `${formatMoney(500, currency)} – ${formatMoney(1000, currency)}` },
-      { id: '1000plus', label: `${formatMoney(1000, currency)}+` },
-    ];
-  }
-  return [
-    { id: 'all', label: 'Any price' },
-    { id: 'under100', label: 'Under 100' },
-    { id: '100-500', label: '100 – 500' },
-    { id: '500-1000', label: '500 – 1,000' },
-    { id: '1000plus', label: '1,000+' },
-  ];
-}
+import {
+  buildPriceChips,
+  catalogHasParseableDurations,
+  catalogSharedCurrency,
+  collectTourLanguages,
+  DURATION_FILTER_CHIPS,
+  languageLabel,
+  listingBrowseAmount,
+  MARKETPLACE_BROWSE_GRID_CLASS,
+  parseDurationFilterId,
+  parseMarketplaceSort,
+  parsePriceChipId,
+  parseRatingFilterId,
+  RATING_FILTER_CHIPS,
+  tourMatchesCatalogFilters,
+  type DurationFilterId,
+  type MarketplaceSortOption,
+  type PriceChipId,
+  type RatingFilterId,
+} from '../lib/marketplaceBrowse';
 
 const TAG_LABELS: Record<string, string> = {
   'free-cancellation': 'Free cancellation',
@@ -64,20 +66,13 @@ const TAG_LABELS: Record<string, string> = {
   'mobile-ticket': 'Mobile ticket',
 };
 
-type DestOption = { id: string; label: string; type: 'world' | 'region' | 'city' };
-
-function matchesDestination(tour: TourPackage, destId: string, destinationOptions: DestOption[]): boolean {
-  if (destId === 'all') return true;
-  const opt = destinationOptions.find(d => d.id === destId);
-  if (!opt) return true;
-  if (opt.type === 'region') return (tour.country?.toLowerCase() ?? '') === opt.label.toLowerCase();
-  if (opt.type === 'city') {
-    const cityNorm = (tour.city ?? '').toLowerCase().replace(/\s+/g, '-');
-    const idNorm = destId.toLowerCase().replace(/\s+/g, '-');
-    return cityNorm === idNorm || (tour.city?.toLowerCase() ?? '') === opt.label.toLowerCase();
-  }
-  return true;
-}
+const TOUR_SORT_OPTIONS = [
+  { id: 'recommended', label: 'Catalog order' },
+  { id: 'price-asc', label: 'Price: low to high' },
+  { id: 'price-desc', label: 'Price: high to low' },
+  { id: 'rating', label: 'Guest rating' },
+  { id: 'duration', label: 'Duration' },
+];
 
 interface PackagesProps {
   onTourSelect: (tour: TourPackage) => void;
@@ -88,11 +83,14 @@ function parsePackagesSearchParams(search: string): {
   searchTerm: string;
   destination: string;
   tags: string[];
-  sort: SortOption;
-  price: string;
+  sort: MarketplaceSortOption;
+  price: PriceChipId;
   date: string;
   guests: string;
   privateOnly: boolean;
+  rating: RatingFilterId;
+  duration: DurationFilterId;
+  language: string;
 } {
   const params = new URLSearchParams(search);
   const tagsParam = params.get('tags');
@@ -100,11 +98,14 @@ function parsePackagesSearchParams(search: string): {
     searchTerm: params.get('q') ?? '',
     destination: params.get('destination') ?? 'all',
     tags: tagsParam ? tagsParam.split(',').filter(Boolean) : [],
-    sort: (params.get('sort') as SortOption) ?? 'recommended',
-    price: params.get('price') ?? 'all',
+    sort: parseMarketplaceSort(params.get('sort')),
+    price: parsePriceChipId(params.get('price')),
     date: params.get('date') ?? '',
     guests: params.get('guests') ?? '',
     privateOnly: params.get('private') === '1',
+    rating: parseRatingFilterId(params.get('rating')),
+    duration: parseDurationFilterId(params.get('duration')),
+    language: (params.get('lang') ?? '').trim().toLowerCase(),
   };
 }
 
@@ -112,11 +113,14 @@ function buildPackagesSearchParams(state: {
   searchTerm: string;
   selectedDestination: string;
   selectedTags: string[];
-  sortBy: SortOption;
-  priceRange: string;
+  sortBy: MarketplaceSortOption;
+  priceRange: PriceChipId;
   date: string;
   guests: string;
   privateOnly: boolean;
+  rating: RatingFilterId;
+  duration: DurationFilterId;
+  language: string;
 }): string {
   const p = new URLSearchParams();
   if (state.searchTerm) p.set('q', state.searchTerm);
@@ -127,13 +131,11 @@ function buildPackagesSearchParams(state: {
   if (state.date) p.set('date', state.date);
   if (state.guests) p.set('guests', state.guests);
   if (state.privateOnly) p.set('private', '1');
+  if (state.rating !== 'all') p.set('rating', state.rating);
+  if (state.duration !== 'all') p.set('duration', state.duration);
+  if (state.language && state.language !== 'all') p.set('lang', state.language);
   const s = p.toString();
   return s ? `?${s}` : '';
-}
-
-function listingIsPrivateOnly(tour: TourPackage): boolean {
-  const opts = materializedBookingOptions(parseListingExtras(tour.listingExtras).bookingOptions);
-  return opts.length > 0 && opts.every((o) => Boolean(o.isPrivate));
 }
 
 export default function Packages({ onTourSelect }: PackagesProps) {
@@ -143,11 +145,15 @@ export default function Packages({ onTourSelect }: PackagesProps) {
   const [searchTerm, setSearchTerm] = useState(initialFilters.searchTerm);
   const [selectedDestination, setSelectedDestination] = useState(initialFilters.destination);
   const [selectedTags, setSelectedTags] = useState<string[]>(initialFilters.tags);
-  const [sortBy, setSortBy] = useState<SortOption>(initialFilters.sort);
+  const [sortBy, setSortBy] = useState<MarketplaceSortOption>(initialFilters.sort);
   const [priceRange, setPriceRange] = useState(initialFilters.price);
   const [filterDate, setFilterDate] = useState(initialFilters.date);
   const [filterGuests, setFilterGuests] = useState(initialFilters.guests);
   const [privateOnly, setPrivateOnly] = useState(initialFilters.privateOnly);
+  const [ratingFilter, setRatingFilter] = useState<RatingFilterId>(initialFilters.rating);
+  const [durationFilter, setDurationFilter] = useState<DurationFilterId>(initialFilters.duration);
+  const [languageFilter, setLanguageFilter] = useState(initialFilters.language);
+  const wishlist = useTravelerWishlist();
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const filterSheetRef = useRef<HTMLDivElement>(null);
   const closeMobileFilters = useCallback(() => setMobileFiltersOpen(false), []);
@@ -183,6 +189,9 @@ export default function Packages({ onTourSelect }: PackagesProps) {
     setFilterDate(parsed.date);
     setFilterGuests(parsed.guests);
     setPrivateOnly(parsed.privateOnly);
+    setRatingFilter(parsed.rating);
+    setDurationFilter(parsed.duration);
+    setLanguageFilter(parsed.language);
   }, []);
 
   useEffect(() => {
@@ -227,12 +236,15 @@ export default function Packages({ onTourSelect }: PackagesProps) {
       date: filterDate,
       guests: filterGuests,
       privateOnly,
+      rating: ratingFilter,
+      duration: durationFilter,
+      language: languageFilter,
     });
     const newUrl = `${window.location.pathname}${query}`;
     if (window.location.pathname + window.location.search !== newUrl) {
       window.history.replaceState({}, '', newUrl);
     }
-  }, [searchTerm, selectedDestination, selectedTags, sortBy, priceRange, filterDate, filterGuests, privateOnly]);
+  }, [searchTerm, selectedDestination, selectedTags, sortBy, priceRange, filterDate, filterGuests, privateOnly, ratingFilter, durationFilter, languageFilter]);
 
   const allListings = useMemo(() => {
     const base =
@@ -334,13 +346,20 @@ export default function Packages({ onTourSelect }: PackagesProps) {
   // Real per-listing currency (SUPPORTED_CURRENCIES has 9 codes) — null when the
   // visible catalog spans more than one, so price-chip labels never claim a
   // currency that isn't actually true for every listing they cover.
-  const catalogCurrency = useMemo(() => {
-    if (allListings.length === 0) return null;
-    const codes = new Set(allListings.map((t) => normalizeCurrency(t.price?.currency)));
-    return codes.size === 1 ? [...codes][0] : null;
-  }, [allListings]);
+  const catalogCurrency = useMemo(() => catalogSharedCurrency(allListings, normalizeCurrency), [allListings]);
+  const priceChips = useMemo(() => buildPriceChips(catalogCurrency, formatMoney), [catalogCurrency]);
+  const languageOptions = useMemo(() => collectTourLanguages(allListings), [allListings]);
+  const showDurationFilter = useMemo(() => catalogHasParseableDurations(allListings), [allListings]);
 
-  const priceChips = useMemo(() => buildPriceChips(catalogCurrency), [catalogCurrency]);
+  const ratingScoreForFilter = useCallback(
+    (tour: TourPackage) => {
+      if (!isSupabaseListingId(tour.id)) return null;
+      const agg = reviewAggregates.get(tour.id);
+      if (agg && agg.count > 0) return agg.rating;
+      return null;
+    },
+    [reviewAggregates]
+  );
 
   const ratingSortScore = useCallback(
     (tour: TourPackage) => {
@@ -353,43 +372,26 @@ export default function Packages({ onTourSelect }: PackagesProps) {
   );
 
   const { filteredPackages, matchingExceptCapacityCount } = useMemo(() => {
-    const q = deferredSearch.trim().toLowerCase();
     const guestCount = Number.parseInt(filterGuests, 10);
     const partySize = Number.isFinite(guestCount) && guestCount > 0 ? guestCount : 1;
 
-    const matchExceptCapacity = (tour: TourPackage) => {
-      const matchesSearch =
-        !q ||
-        tour.title.toLowerCase().includes(q) ||
-        (tour.destination && tour.destination.toLowerCase().includes(q)) ||
-        (tour.city && tour.city.toLowerCase().includes(q)) ||
-        (tour.country && tour.country.toLowerCase().includes(q));
-      const matchesDest = matchesDestination(tour, selectedDestination, destinationOptions);
-      const matchesTag =
-        selectedTags.length === 0 || (tour.tags && selectedTags.every((tagId) => tour.tags!.includes(tagId)));
-      let matchesPrice = true;
-      const headline = catalogHeadlineAmount(tour);
-      if (priceRange === 'under100') matchesPrice = headline < 100;
-      else if (priceRange === '100-500') matchesPrice = headline >= 100 && headline < 500;
-      else if (priceRange === '500-1000') matchesPrice = headline >= 500 && headline <= 1000;
-      else if (priceRange === '1000plus') matchesPrice = headline > 1000;
-      const matchesDate = !filterDate || listingRunsOnDate(tour, filterDate);
-      const matchesGuests =
-        !filterGuests ||
-        !Number.isFinite(guestCount) ||
-        guestCount < 1 ||
-        guestCount <= getPartySizeBounds(tour).max;
-      const matchesPrivate = !privateOnly || listingIsPrivateOnly(tour);
-      return (
-        matchesSearch &&
-        matchesDest &&
-        matchesTag &&
-        matchesPrice &&
-        matchesDate &&
-        matchesGuests &&
-        matchesPrivate
-      );
-    };
+    const matchExceptCapacity = (tour: TourPackage) =>
+      tourMatchesCatalogFilters(tour, {
+        q: deferredSearch,
+        destinationId: selectedDestination,
+        destinationOptions,
+        tags: selectedTags,
+        price: priceRange,
+        date: filterDate,
+        guests: filterGuests,
+        privateOnly,
+        rating: ratingFilter,
+        duration: durationFilter,
+        language: languageFilter,
+        ratingScore: ratingScoreForFilter(tour),
+        partyMax: getPartySizeBounds(tour).max,
+        runsOnDate: !filterDate || listingRunsOnDate(tour, filterDate),
+      });
 
     const exceptCapacity = allListings.filter(matchExceptCapacity);
     let list = exceptCapacity.filter((tour) => {
@@ -404,8 +406,8 @@ export default function Packages({ onTourSelect }: PackagesProps) {
       });
     });
 
-    if (sortBy === 'price-asc') list = [...list].sort((a, b) => catalogHeadlineAmount(a) - catalogHeadlineAmount(b));
-    else if (sortBy === 'price-desc') list = [...list].sort((a, b) => catalogHeadlineAmount(b) - catalogHeadlineAmount(a));
+    if (sortBy === 'price-asc') list = [...list].sort((a, b) => listingBrowseAmount(a) - listingBrowseAmount(b));
+    else if (sortBy === 'price-desc') list = [...list].sort((a, b) => listingBrowseAmount(b) - listingBrowseAmount(a));
     else if (sortBy === 'rating')
       list = [...list].sort((a, b) => ratingSortScore(b) - ratingSortScore(a));
     else if (sortBy === 'duration') list = [...list].sort((a, b) => durationToMinutes(a.duration) - durationToMinutes(b.duration));
@@ -421,7 +423,11 @@ export default function Packages({ onTourSelect }: PackagesProps) {
     filterDate,
     filterGuests,
     privateOnly,
+    ratingFilter,
+    durationFilter,
+    languageFilter,
     ratingSortScore,
+    ratingScoreForFilter,
     dateCapacityByListing,
   ]);
 
@@ -438,7 +444,10 @@ export default function Packages({ onTourSelect }: PackagesProps) {
     priceRange !== 'all' ||
     filterDate !== '' ||
     filterGuests !== '' ||
-    privateOnly;
+    privateOnly ||
+    ratingFilter !== 'all' ||
+    durationFilter !== 'all' ||
+    Boolean(languageFilter && languageFilter !== 'all');
 
   const clearAllFilters = () => {
     setSearchTerm('');
@@ -449,6 +458,9 @@ export default function Packages({ onTourSelect }: PackagesProps) {
     setFilterDate('');
     setFilterGuests('');
     setPrivateOnly(false);
+    setRatingFilter('all');
+    setDurationFilter('all');
+    setLanguageFilter('');
   };
 
   const toggleTag = (tagId: string) => {
@@ -460,20 +472,19 @@ export default function Packages({ onTourSelect }: PackagesProps) {
     if (onTourSelect) onTourSelect(tour);
   };
 
-  useEffect(() => {
-    if (!mobileFiltersOpen) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [mobileFiltersOpen]);
-
   const extraFilterCount =
     (selectedDestination !== 'all' ? 1 : 0) +
     selectedTags.length +
     (priceRange !== 'all' ? 1 : 0) +
-    (privateOnly ? 1 : 0);
+    (privateOnly ? 1 : 0) +
+    (ratingFilter !== 'all' ? 1 : 0) +
+    (durationFilter !== 'all' ? 1 : 0) +
+    (languageFilter && languageFilter !== 'all' ? 1 : 0);
+
+  const searchValues = useMemo(
+    () => ({ where: searchTerm, date: filterDate, checkout: '', guests: filterGuests }),
+    [searchTerm, filterDate, filterGuests]
+  );
 
   const mobileSearchSummary = useMemo(() => {
     const where = searchTerm.trim() || 'Anywhere';
@@ -485,28 +496,245 @@ export default function Packages({ onTourSelect }: PackagesProps) {
     return { where, whenLabel, whoLabel };
   }, [searchTerm, filterDate, filterGuests]);
 
-  return (
-    <div className="min-h-screen bg-paper tv-page">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8 pb-12 motion-safe:animate-fade-in">
-        <header className="mb-5 tv-card p-4 sm:p-5">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Browse</p>
-          <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Tours</h1>
-          <p className="mt-3 text-ink-muted">
-            {showCatalogLoading ? (
-              <span className="inline-block h-4 w-24 rounded bg-black/[0.06] animate-pulse align-middle" aria-hidden />
-            ) : (
-              <>
-                {filteredPackages.length} {filteredPackages.length === 1 ? 'tour' : 'tours'}
-                {searchTerm.trim() !== '' && searchTerm !== deferredSearch ? ' · Updating…' : ''}
-                <span className="hidden sm:inline text-ink-faint"> · Where, date, and travelers refine live results</span>
-              </>
-            )}
-          </p>
-        </header>
+  const destLabel =
+    selectedDestination !== 'all'
+      ? destinationOptions.find((c) => c.id === selectedDestination)?.label
+      : searchTerm.trim() || null;
+  const resultTitle = showCatalogLoading ? (
+    <span className="inline-block h-6 w-40 rounded bg-black/[0.06] animate-pulse align-middle" aria-hidden />
+  ) : (
+    <>
+      {filteredPackages.length} {filteredPackages.length === 1 ? 'tour' : 'tours'}
+      {destLabel ? ` in ${destLabel}` : ''}
+      {searchTerm.trim() !== '' && searchTerm !== deferredSearch ? ' · Updating…' : ''}
+    </>
+  );
 
-        {listingsLoadError && isSupabaseConfigured() && (
+  const filterPanel = (
+    <>
+      <MarketplaceFilterSection title="Destination">
+        <MarketplaceFilterChipRow>
+          {destinationOptions.map((chip) => (
+            <MarketplaceFilterChip
+              key={chip.id}
+              pressed={selectedDestination === chip.id}
+              onClick={() => setSelectedDestination(chip.id)}
+            >
+              {chip.label}
+            </MarketplaceFilterChip>
+          ))}
+        </MarketplaceFilterChipRow>
+      </MarketplaceFilterSection>
+      <MarketplaceFilterSection
+        title="Price"
+        hint={!catalogCurrency ? 'Amounts in each tour’s own currency' : undefined}
+      >
+        <MarketplaceFilterChipRow>
+          {priceChips.map((chip) => (
+            <MarketplaceFilterChip
+              key={chip.id}
+              pressed={priceRange === chip.id}
+              onClick={() => setPriceRange(chip.id)}
+            >
+              {chip.label}
+            </MarketplaceFilterChip>
+          ))}
+        </MarketplaceFilterChipRow>
+      </MarketplaceFilterSection>
+      <MarketplaceFilterSection title="Rating">
+        <MarketplaceFilterChipRow>
+          {RATING_FILTER_CHIPS.map((chip) => (
+            <MarketplaceFilterChip
+              key={chip.id}
+              pressed={ratingFilter === chip.id}
+              onClick={() => setRatingFilter(chip.id)}
+            >
+              {chip.label}
+            </MarketplaceFilterChip>
+          ))}
+        </MarketplaceFilterChipRow>
+      </MarketplaceFilterSection>
+      {showDurationFilter ? (
+        <MarketplaceFilterSection title="Duration">
+          <MarketplaceFilterChipRow>
+            {DURATION_FILTER_CHIPS.map((chip) => (
+              <MarketplaceFilterChip
+                key={chip.id}
+                pressed={durationFilter === chip.id}
+                onClick={() => setDurationFilter(chip.id)}
+              >
+                {chip.label}
+              </MarketplaceFilterChip>
+            ))}
+          </MarketplaceFilterChipRow>
+        </MarketplaceFilterSection>
+      ) : null}
+      {languageOptions.length > 0 ? (
+        <MarketplaceFilterSection title="Languages">
+          <MarketplaceFilterChipRow>
+            <MarketplaceFilterChip
+              pressed={!languageFilter || languageFilter === 'all'}
+              onClick={() => setLanguageFilter('')}
+            >
+              Any language
+            </MarketplaceFilterChip>
+            {languageOptions.map((chip) => (
+              <MarketplaceFilterChip
+                key={chip.id}
+                pressed={languageFilter === chip.id}
+                onClick={() => setLanguageFilter(chip.id)}
+              >
+                {chip.label}
+              </MarketplaceFilterChip>
+            ))}
+          </MarketplaceFilterChipRow>
+        </MarketplaceFilterSection>
+      ) : null}
+      <MarketplaceFilterSection title="Details">
+        <MarketplaceFilterChipRow>
+          <MarketplaceFilterChip pressed={privateOnly} onClick={() => setPrivateOnly((v) => !v)}>
+            Private tours
+          </MarketplaceFilterChip>
+          {TAG_OPTIONS.map((tag) => (
+            <MarketplaceFilterChip
+              key={tag.id}
+              pressed={selectedTags.includes(tag.id)}
+              onClick={() => toggleTag(tag.id)}
+            >
+              {tag.label}
+            </MarketplaceFilterChip>
+          ))}
+        </MarketplaceFilterChipRow>
+      </MarketplaceFilterSection>
+    </>
+  );
+
+  return (
+    <>
+      <MarketplaceBrowseShell
+        headingId="tours-heading"
+        resultTitle={resultTitle}
+        search={
+          <MarketplaceSearchPill
+            family="tours"
+            values={searchValues}
+            onChange={(patch) => {
+              if (patch.where !== undefined) setSearchTerm(patch.where);
+              if (patch.date !== undefined) setFilterDate(patch.date);
+              if (patch.guests !== undefined) setFilterGuests(patch.guests);
+            }}
+            idPrefix="tours"
+          />
+        }
+        mobileSearch={
+          <MarketplaceMobileSearchTrigger
+            where={mobileSearchSummary.where}
+            whenLabel={mobileSearchSummary.whenLabel}
+            whoLabel={mobileSearchSummary.whoLabel}
+            onClick={() => setMobileSearchOpen(true)}
+            expanded={mobileSearchOpen}
+          />
+        }
+        filterCount={extraFilterCount}
+        filtersOpen={mobileFiltersOpen}
+        onOpenFilters={() => setMobileFiltersOpen(true)}
+        onCloseFilters={closeMobileFilters}
+        filterSheetRef={filterSheetRef}
+        filterPanel={filterPanel}
+        filterFooter={
+          <>
+            {extraFilterCount > 0 ? (
+              <button
+                type="button"
+                onClick={() => {
+                  clearAllFilters();
+                  setMobileFiltersOpen(false);
+                }}
+                className="tv-btn-secondary flex-1"
+              >
+                Clear
+              </button>
+            ) : null}
+            <button type="button" onClick={closeMobileFilters} className="tv-btn-primary flex-1">
+              Show {filteredPackages.length}
+            </button>
+          </>
+        }
+        sortControl={
+          <MarketplaceSortSelect
+            value={sortBy}
+            onChange={(v) => setSortBy(parseMarketplaceSort(v))}
+            options={TOUR_SORT_OPTIONS}
+          />
+        }
+        activeChips={
+          hasActiveFilters ? (
+            <div className="mb-4 flex flex-wrap items-center gap-2" aria-label="Active filters">
+              {searchTerm.trim() !== '' ? (
+                <MarketplaceActiveChip
+                  label={`“${searchTerm.trim().slice(0, 36)}${searchTerm.trim().length > 36 ? '…' : ''}”`}
+                  onRemove={() => setSearchTerm('')}
+                />
+              ) : null}
+              {selectedDestination !== 'all' ? (
+                <MarketplaceActiveChip
+                  label={destinationOptions.find((c) => c.id === selectedDestination)?.label ?? selectedDestination}
+                  onRemove={() => setSelectedDestination('all')}
+                />
+              ) : null}
+              {selectedTags.map((tagId) => (
+                <MarketplaceActiveChip
+                  key={tagId}
+                  label={TAG_OPTIONS.find((t) => t.id === tagId)?.label ?? tagId}
+                  onRemove={() => toggleTag(tagId)}
+                />
+              ))}
+              {priceRange !== 'all' ? (
+                <MarketplaceActiveChip
+                  label={priceChips.find((c) => c.id === priceRange)?.label ?? priceRange}
+                  onRemove={() => setPriceRange('all')}
+                />
+              ) : null}
+              {filterDate ? <MarketplaceActiveChip label={filterDate} onRemove={() => setFilterDate('')} /> : null}
+              {filterGuests ? (
+                <MarketplaceActiveChip
+                  label={`${filterGuests} ${filterGuests === '1' ? 'traveler' : 'travelers'}`}
+                  onRemove={() => setFilterGuests('')}
+                />
+              ) : null}
+              {privateOnly ? <MarketplaceActiveChip label="Private tours" onRemove={() => setPrivateOnly(false)} /> : null}
+              {ratingFilter !== 'all' ? (
+                <MarketplaceActiveChip
+                  label={RATING_FILTER_CHIPS.find((c) => c.id === ratingFilter)?.label ?? ratingFilter}
+                  onRemove={() => setRatingFilter('all')}
+                />
+              ) : null}
+              {durationFilter !== 'all' ? (
+                <MarketplaceActiveChip
+                  label={DURATION_FILTER_CHIPS.find((c) => c.id === durationFilter)?.label ?? durationFilter}
+                  onRemove={() => setDurationFilter('all')}
+                />
+              ) : null}
+              {languageFilter && languageFilter !== 'all' ? (
+                <MarketplaceActiveChip
+                  label={languageLabel(languageFilter) || languageFilter}
+                  onRemove={() => setLanguageFilter('')}
+                />
+              ) : null}
+              <button
+                type="button"
+                onClick={clearAllFilters}
+                className="lux-flat rounded-full bg-finland px-3 py-1.5 text-xs font-semibold text-white shadow-sm ring-1 ring-finland/30"
+              >
+                Clear all
+              </button>
+            </div>
+          ) : null
+        }
+      >
+        {listingsLoadError && isSupabaseConfigured() ? (
           <ErrorState
-            className="mt-6 py-6"
+            className="mb-6 py-6"
             title="Tours unavailable"
             body={userFacingError(listingsLoadError, USER_ERROR.tours)}
             retry={{ onClick: () => reloadSupplierListings() }}
@@ -516,395 +744,12 @@ export default function Packages({ onTourSelect }: PackagesProps) {
               </a>
             }
           />
-        )}
-
-        <div className="flex flex-col sm:flex-row gap-2">
-          {/* Mobile: compact trigger → dedicated search sheet */}
-          <button
-            type="button"
-            onClick={() => setMobileSearchOpen(true)}
-            className="sm:hidden w-full flex items-center gap-3 rounded-2xl bg-paper-raised text-ink px-4 py-3.5 shadow-soft-lg ring-1 ring-black/[0.06] text-left active:scale-[0.99] transition-transform"
-            aria-haspopup="dialog"
-            aria-expanded={mobileSearchOpen}
-          >
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-finland text-white" aria-hidden>
-              <Search className="w-4 h-4" />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-[15px] font-semibold text-ink truncate">{mobileSearchSummary.where}</span>
-              <span className="mt-0.5 block text-sm text-ink-muted truncate">
-                {mobileSearchSummary.whenLabel}
-                <span className="mx-1.5 text-ink-faint" aria-hidden>
-                  ·
-                </span>
-                {mobileSearchSummary.whoLabel}
-              </span>
-            </span>
-          </button>
-
-          {/* Desktop / tablet: integrated search bar */}
-          <div className="hidden sm:grid flex-1 bg-paper-raised rounded-full p-1.5 grid-cols-[1.4fr_1fr_0.85fr] gap-1 shadow-soft-lg ring-1 ring-black/[0.06]">
-            <div className="relative min-w-0 rounded-full px-3.5 py-2 hover:bg-black/[0.03] focus-within:ring-2 focus-within:ring-finland/25">
-              <label htmlFor="tours-where" className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
-                Where
-              </label>
-              <div className="relative">
-                <Search className="absolute left-0 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-faint pointer-events-none" />
-                <input
-                  id="tours-where"
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="City or tour"
-                  className="w-full h-9 pl-6 pr-2 border-0 text-ink placeholder:text-ink-muted focus:ring-0 text-[15px] bg-transparent"
-                />
-              </div>
-            </div>
-            <div className="relative min-w-0 rounded-full px-3.5 py-2 hover:bg-black/[0.03] focus-within:ring-2 focus-within:ring-finland/25">
-              <label htmlFor="tours-date" className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
-                Date
-              </label>
-              <input
-                id="tours-date"
-                type="date"
-                value={filterDate}
-                onChange={(e) => setFilterDate(e.target.value)}
-                className="w-full h-9 border-0 text-ink focus:ring-0 text-[15px] bg-transparent"
-              />
-            </div>
-            <div className="relative min-w-0 rounded-full px-3.5 py-2 hover:bg-black/[0.03] focus-within:ring-2 focus-within:ring-finland/25">
-              <label htmlFor="tours-guests" className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
-                Travelers
-              </label>
-              <input
-                id="tours-guests"
-                type="number"
-                min={1}
-                max={99}
-                inputMode="numeric"
-                value={filterGuests}
-                onChange={(e) => setFilterGuests(e.target.value)}
-                placeholder="Travelers"
-                className="w-full h-9 border-0 text-ink placeholder:text-ink-muted focus:ring-0 text-[15px] bg-transparent"
-              />
-            </div>
-          </div>
-
-          <button
-            type="button"
-            className="tv-btn-secondary h-12 sm:h-14 sm:self-stretch"
-            onClick={() => setMobileFiltersOpen(true)}
-            aria-expanded={mobileFiltersOpen}
-            aria-controls="tours-filters"
-          >
-            <Filter className="w-4 h-4" />
-            Filters{extraFilterCount > 0 ? ` · ${extraFilterCount}` : ''}
-          </button>
-        </div>
-        <div className="mt-3 flex justify-end">
-          <label className="inline-flex items-center gap-2 rounded-full bg-paper-raised px-3 py-1.5 text-sm text-ink-muted shadow-soft ring-1 ring-black/[0.06]">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-finland">Sort</span>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as SortOption)}
-              className="h-8 bg-transparent text-sm font-medium text-ink"
-              aria-label="Sort"
-            >
-              <option value="recommended">Catalog order</option>
-              <option value="price-asc">Price: low to high</option>
-              <option value="price-desc">Price: high to low</option>
-              <option value="rating">Guest rating</option>
-              <option value="duration">Duration</option>
-            </select>
-          </label>
-        </div>
-
-        {hasActiveFilters && (
-          <div className="mt-4 flex flex-wrap items-center gap-2" aria-label="Active filters">
-            {searchTerm.trim() !== '' && (
-              <button
-                type="button"
-                onClick={() => setSearchTerm('')}
-                className="lux-flat inline-flex items-center gap-1.5 rounded-full bg-finland/10 px-3 py-1.5 text-xs font-semibold text-finland ring-1 ring-finland/20"
-              >
-                “{searchTerm.trim().slice(0, 36)}{searchTerm.trim().length > 36 ? '…' : ''}” <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-            {selectedDestination !== 'all' && (
-              <button
-                type="button"
-                onClick={() => setSelectedDestination('all')}
-                className="lux-flat inline-flex items-center gap-1.5 rounded-full bg-finland/10 px-3 py-1.5 text-xs font-semibold text-finland ring-1 ring-finland/20"
-              >
-                {destinationOptions.find((c) => c.id === selectedDestination)?.label ?? selectedDestination} <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-            {selectedTags.map((tagId) => (
-              <button
-                key={tagId}
-                type="button"
-                onClick={() => toggleTag(tagId)}
-                className="lux-flat inline-flex items-center gap-1.5 rounded-full bg-finland/10 px-3 py-1.5 text-xs font-semibold text-finland ring-1 ring-finland/20"
-              >
-                {TAG_OPTIONS.find((t) => t.id === tagId)?.label ?? tagId} <X className="w-3.5 h-3.5" />
-              </button>
-            ))}
-            {priceRange !== 'all' && (
-              <button
-                type="button"
-                onClick={() => setPriceRange('all')}
-                className="lux-flat inline-flex items-center gap-1.5 rounded-full bg-finland/10 px-3 py-1.5 text-xs font-semibold text-finland ring-1 ring-finland/20"
-              >
-                {priceChips.find((c) => c.id === priceRange)?.label ?? priceRange} <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-            {filterDate && (
-              <button
-                type="button"
-                onClick={() => setFilterDate('')}
-                className="lux-flat inline-flex items-center gap-1.5 rounded-full bg-finland/10 px-3 py-1.5 text-xs font-semibold text-finland ring-1 ring-finland/20"
-              >
-                {filterDate} <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-            {filterGuests && (
-              <button
-                type="button"
-                onClick={() => setFilterGuests('')}
-                className="lux-flat inline-flex items-center gap-1.5 rounded-full bg-finland/10 px-3 py-1.5 text-xs font-semibold text-finland ring-1 ring-finland/20"
-              >
-                {filterGuests} {filterGuests === '1' ? 'guest' : 'guests'} <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-            {privateOnly && (
-              <button
-                type="button"
-                onClick={() => setPrivateOnly(false)}
-                className="lux-flat inline-flex items-center gap-1.5 rounded-full bg-finland/10 px-3 py-1.5 text-xs font-semibold text-finland ring-1 ring-finland/20"
-              >
-                Private tours <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-            <button type="button" onClick={clearAllFilters} className="lux-flat rounded-full bg-finland px-3 py-1.5 text-xs font-semibold text-white shadow-sm ring-1 ring-finland/30">
-              Clear all
-            </button>
-          </div>
-        )}
-
-        {mobileSearchOpen && (
-          <div ref={mobileSearchSheetRef} className="tv-sheet-overlay sm:hidden">
-            <button type="button" tabIndex={-1} className="absolute inset-0" aria-label="Close search" onClick={closeMobileSearch} />
-            <aside
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="tours-mobile-search-title"
-              className="tv-sheet-panel relative flex max-h-[min(92dvh,40rem)] flex-col overflow-hidden motion-safe:animate-slide-up"
-            >
-              <div className="mb-5 flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland">Search</p>
-                  <h2 id="tours-mobile-search-title" className="font-display text-2xl text-ink tracking-tight mt-1">
-                    Find a tour
-                  </h2>
-                </div>
-                <button type="button" onClick={closeMobileSearch} className="lux-tap-target p-2 -mr-1" aria-label="Close">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              <div className="min-h-0 flex-1 overflow-y-auto space-y-1 rounded-2xl bg-black/[0.02] p-1 ring-1 ring-black/[0.04]">
-                <div className="relative min-w-0 rounded-xl px-3.5 py-2 hover:bg-black/[0.03] focus-within:ring-2 focus-within:ring-finland/25">
-                  <label htmlFor="tours-sheet-where" className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
-                    Where
-                  </label>
-                  <div className="relative">
-                    <Search className="absolute left-0 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-faint pointer-events-none" />
-                    <input
-                      id="tours-sheet-where"
-                      type="text"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      placeholder="City or tour"
-                      className="w-full h-9 pl-6 pr-2 border-0 text-ink placeholder:text-ink-muted focus:ring-0 text-[15px] bg-transparent"
-                    />
-                  </div>
-                </div>
-                <div className="relative min-w-0 rounded-xl px-3.5 py-2 hover:bg-black/[0.03] focus-within:ring-2 focus-within:ring-finland/25">
-                  <label htmlFor="tours-sheet-date" className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
-                    Date
-                  </label>
-                  <input
-                    id="tours-sheet-date"
-                    type="date"
-                    value={filterDate}
-                    onChange={(e) => setFilterDate(e.target.value)}
-                    className="w-full h-9 border-0 text-ink focus:ring-0 text-[15px] bg-transparent"
-                  />
-                </div>
-                <div className="relative min-w-0 rounded-xl px-3.5 py-2 hover:bg-black/[0.03] focus-within:ring-2 focus-within:ring-finland/25">
-                  <label htmlFor="tours-sheet-guests" className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
-                    Travelers
-                  </label>
-                  <input
-                    id="tours-sheet-guests"
-                    type="number"
-                    min={1}
-                    max={99}
-                    inputMode="numeric"
-                    value={filterGuests}
-                    onChange={(e) => setFilterGuests(e.target.value)}
-                    placeholder="Travelers"
-                    className="w-full h-9 border-0 text-ink placeholder:text-ink-muted focus:ring-0 text-[15px] bg-transparent"
-                  />
-                </div>
-              </div>
-              <div className="mt-5 flex gap-2 shrink-0">
-                {(searchTerm || filterDate || filterGuests) ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSearchTerm('');
-                      setFilterDate('');
-                      setFilterGuests('');
-                    }}
-                    className="tv-btn-secondary flex-1"
-                  >
-                    Clear
-                  </button>
-                ) : null}
-                <button type="button" onClick={closeMobileSearch} className="tv-btn-primary flex-1">
-                  Show {filteredPackages.length}
-                </button>
-              </div>
-            </aside>
-          </div>
-        )}
-        {mobileFiltersOpen && (
-          <div ref={filterSheetRef} className="tv-sheet-overlay">
-            <button type="button" tabIndex={-1} className="absolute inset-0" aria-label="Close filters" onClick={closeMobileFilters} />
-            <aside
-              id="tours-filters"
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="filters-drawer-title"
-              className="tv-sheet-panel relative flex flex-col overflow-hidden motion-safe:animate-slide-up"
-            >
-              <div className="mb-6">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland">Browse</p>
-                <div className="mt-2 flex items-center justify-between gap-3">
-                  <h3 id="filters-drawer-title" className="font-display text-xl sm:text-2xl text-ink tracking-tight">
-                    Filters
-                    {extraFilterCount > 0 ? (
-                      <span className="ml-2 align-middle text-base font-sans font-semibold text-finland tabular-nums">
-                        · {extraFilterCount}
-                      </span>
-                    ) : null}
-                  </h3>
-                  <button type="button" onClick={() => setMobileFiltersOpen(false)} className="lux-tap-target p-2" aria-label="Close">
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-              <div className="space-y-6 min-h-0 flex-1 overflow-y-auto">
-                <div>
-                  <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">Destination</p>
-                  <div className="flex flex-wrap gap-2">
-                    {destinationOptions.map((chip) => (
-                      <button
-                        key={chip.id}
-                        type="button"
-                        aria-pressed={selectedDestination === chip.id}
-                        onClick={() => setSelectedDestination(chip.id)}
-                        className={`tv-chip transition-colors duration-150 ${
-                          selectedDestination === chip.id
-                            ? 'bg-finland text-white shadow-sm ring-2 ring-finland/40'
-                            : 'bg-paper text-ink hover:bg-finland/10 hover:text-finland'
-                        }`}
-                      >
-                        {chip.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">
-                    Price
-                    {!catalogCurrency ? (
-                      <span className="ml-2 normal-case tracking-normal text-ink-faint/80">
-                        · amounts in each tour’s own currency
-                      </span>
-                    ) : null}
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {priceChips.map((chip) => (
-                      <button
-                        key={chip.id}
-                        type="button"
-                        aria-pressed={priceRange === chip.id}
-                        onClick={() => setPriceRange(chip.id)}
-                        className={`tv-chip transition-colors duration-150 ${
-                          priceRange === chip.id
-                            ? 'bg-finland text-white shadow-sm ring-2 ring-finland/40'
-                            : 'bg-paper text-ink hover:bg-finland/10 hover:text-finland'
-                        }`}
-                      >
-                        {chip.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">Details</p>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      aria-pressed={privateOnly}
-                      onClick={() => setPrivateOnly((v) => !v)}
-                      className={`tv-chip transition-colors duration-150 ${
-                        privateOnly
-                          ? 'bg-finland text-white shadow-sm ring-2 ring-finland/40'
-                          : 'bg-paper text-ink hover:bg-finland/10 hover:text-finland'
-                      }`}
-                    >
-                      Private tours
-                    </button>
-                    {TAG_OPTIONS.map((tag) => (
-                      <button
-                        key={tag.id}
-                        type="button"
-                        aria-pressed={selectedTags.includes(tag.id)}
-                        onClick={() => toggleTag(tag.id)}
-                        className={`tv-chip transition-colors duration-150 ${
-                          selectedTags.includes(tag.id)
-                            ? 'bg-finland text-white shadow-sm ring-2 ring-finland/40'
-                            : 'bg-paper text-ink hover:bg-finland/10 hover:text-finland'
-                        }`}
-                      >
-                        {tag.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <div className="mt-6 flex gap-2 shrink-0">
-                {extraFilterCount > 0 ? (
-                  <button type="button" onClick={() => { clearAllFilters(); setMobileFiltersOpen(false); }} className="tv-btn-secondary flex-1">
-                    Clear
-                  </button>
-                ) : null}
-                <button type="button" onClick={() => setMobileFiltersOpen(false)} className="tv-btn-primary flex-1">
-                  Show {filteredPackages.length}
-                </button>
-              </div>
-            </aside>
-          </div>
-        )}
+        ) : null}
         {showCatalogLoading ? (
-          <div className="mt-6 py-6">
-            <SkeletonCardGrid count={6} />
-          </div>
+          <SkeletonCardGrid count={6} />
         ) : allListings.length > 0 && filteredPackages.length > 0 ? (
           <>
-            <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+            <div className={MARKETPLACE_BROWSE_GRID_CLASS}>
               {filteredPackages.map((tour, index) => (
                 <PublicListingBrowseCard
                   key={tour.id}
@@ -916,6 +761,15 @@ export default function Packages({ onTourSelect }: PackagesProps) {
                   tagLabels={TAG_LABELS}
                   size="default"
                   showTagPills={false}
+                  wishlist={
+                    wishlist.enabled
+                      ? {
+                          saved: wishlist.isSaved(tour.id),
+                          busy: wishlist.busyId === tour.id,
+                          onToggle: () => wishlist.toggle(tour.id),
+                        }
+                      : null
+                  }
                 />
               ))}
             </div>
@@ -924,7 +778,7 @@ export default function Packages({ onTourSelect }: PackagesProps) {
             </p>
           </>
         ) : (
-          <div className="mt-6 rounded-2xl bg-paper-raised px-6 py-2 shadow-soft ring-1 ring-black/[0.06] sm:px-8">
+          <div className="rounded-2xl bg-paper-raised px-6 py-2 shadow-soft ring-1 ring-black/[0.06] sm:px-8">
             {allListings.length > 0 ? (
               <EmptyState
                 className="py-8 sm:py-10 max-w-lg"
@@ -958,7 +812,62 @@ export default function Packages({ onTourSelect }: PackagesProps) {
             )}
           </div>
         )}
-      </div>
-    </div>
+      </MarketplaceBrowseShell>
+
+      {mobileSearchOpen ? (
+        <div ref={mobileSearchSheetRef} className="tv-sheet-overlay sm:hidden">
+          <button type="button" tabIndex={-1} className="absolute inset-0" aria-label="Close search" onClick={closeMobileSearch} />
+          <aside
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="tours-mobile-search-title"
+            className="tv-sheet-panel relative flex max-h-[min(92dvh,40rem)] flex-col overflow-hidden motion-safe:animate-slide-up"
+          >
+            <div className="mb-5 flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland">Search</p>
+                <h2 id="tours-mobile-search-title" className="font-display text-2xl text-ink tracking-tight mt-1">
+                  Find a tour
+                </h2>
+              </div>
+              <button type="button" onClick={closeMobileSearch} className="lux-tap-target p-2 -mr-1" aria-label="Close">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto space-y-1 rounded-2xl bg-black/[0.02] p-1 ring-1 ring-black/[0.04]">
+              <MarketplaceSearchFields
+                family="tours"
+                values={searchValues}
+                onChange={(patch) => {
+                  if (patch.where !== undefined) setSearchTerm(patch.where);
+                  if (patch.date !== undefined) setFilterDate(patch.date);
+                  if (patch.guests !== undefined) setFilterGuests(patch.guests);
+                }}
+                idPrefix="tours-sheet"
+                stacked
+              />
+            </div>
+            <div className="mt-5 flex gap-2 shrink-0">
+              {searchTerm || filterDate || filterGuests ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchTerm('');
+                    setFilterDate('');
+                    setFilterGuests('');
+                  }}
+                  className="tv-btn-secondary flex-1"
+                >
+                  Clear
+                </button>
+              ) : null}
+              <button type="button" onClick={closeMobileSearch} className="tv-btn-primary flex-1">
+                Show {filteredPackages.length}
+              </button>
+            </div>
+          </aside>
+        </div>
+      ) : null}
+    </>
   );
 }

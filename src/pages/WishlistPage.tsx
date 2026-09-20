@@ -183,27 +183,21 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
             }
           />
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 sm:gap-5">
             {listings.map((tour, index) => (
-              <div key={tour.id} className="relative">
-                <PublicListingBrowseCard
-                  tour={tour}
-                  index={index}
-                  onSelect={() => onTourSelect(tour)}
-                  discountsByListing={new Map()}
-                  tagLabels={{}}
-                  size="compact"
-                />
-                <button
-                  type="button"
-                  onClick={() => void handleRemove(tour.id)}
-                  className="lux-flat absolute top-3 right-3 z-10 rounded-full bg-paper-raised/95 p-2.5 text-rose-700 shadow-soft ring-1 ring-rose-200/80 hover:bg-rose-50 hover:text-rose-900"
-                  title="Remove from wishlist"
-                  aria-label={`Remove ${tour.title} from wishlist`}
-                >
-                  <Heart className="w-4 h-4 fill-current" />
-                </button>
-              </div>
+              <PublicListingBrowseCard
+                key={tour.id}
+                tour={tour}
+                index={index}
+                onSelect={() => onTourSelect(tour)}
+                discountsByListing={new Map()}
+                tagLabels={{}}
+                size="compact"
+                wishlist={{
+                  saved: true,
+                  onToggle: () => void handleRemove(tour.id),
+                }}
+              />
             ))}
           </div>
         )}

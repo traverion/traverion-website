@@ -16,11 +16,11 @@ export function Skeleton({ className = '', children }: SkeletonProps) {
 /** Card-shaped skeleton matching public tour cards (paper, no white border). */
 export function SkeletonCard() {
   return (
-    <div className="tv-card overflow-hidden">
-      <Skeleton className="h-48 sm:h-56 w-full rounded-none" />
+    <div className="overflow-hidden rounded-xl bg-paper-raised shadow-soft ring-1 ring-black/[0.06]">
+      <Skeleton className="aspect-[4/3] w-full rounded-none" />
       <div className="p-3 space-y-2">
-        <Skeleton className="h-4 w-3/4" />
         <Skeleton className="h-3.5 w-1/2" />
+        <Skeleton className="h-4 w-3/4" />
         <Skeleton className="h-7 w-20" />
       </div>
     </div>
@@ -30,7 +30,7 @@ export function SkeletonCard() {
 /** Grid of skeleton cards. */
 export function SkeletonCardGrid({ count = 6 }: { count?: number }) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-3 gap-4 sm:gap-5">
       {Array.from({ length: count }, (_, i) => (
         <div key={i} style={{ animationDelay: `${i * 50}ms` }} className="animate-fade-in-up">
           <SkeletonCard />
