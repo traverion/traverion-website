@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   filterPartnerListings,
   parsePartnerListingsWorkspaceFilter,
+  partnerListingsVisibleWorkspaceFilters,
   partnerListingsWorkspaceCounts,
   partnerListingMatchesQuery,
 } from './partner-listings-filter';
@@ -52,5 +53,16 @@ describe('partner listings filter', () => {
       draft: 1,
       published: 1,
     });
+  });
+
+  it('hides empty workspace tabs unless they are selected', () => {
+    const tourOnly = partnerListingsWorkspaceCounts([tour]);
+    expect(partnerListingsVisibleWorkspaceFilters(tourOnly, 'all')).toEqual(['all', 'tour', 'published']);
+    expect(partnerListingsVisibleWorkspaceFilters(tourOnly, 'stay')).toEqual([
+      'all',
+      'tour',
+      'stay',
+      'published',
+    ]);
   });
 });

@@ -69,3 +69,19 @@ export function partnerListingsWorkspaceCounts(
     published,
   };
 }
+
+const WORKSPACE_FILTER_ORDER: PartnerListingsWorkspaceFilter[] = [
+  'all',
+  'tour',
+  'stay',
+  'draft',
+  'published',
+];
+
+/** Hide empty family/status tabs unless that tab is currently selected. */
+export function partnerListingsVisibleWorkspaceFilters(
+  counts: Record<PartnerListingsWorkspaceFilter, number>,
+  current: PartnerListingsWorkspaceFilter
+): PartnerListingsWorkspaceFilter[] {
+  return WORKSPACE_FILTER_ORDER.filter((id) => id === 'all' || counts[id] > 0 || current === id);
+}

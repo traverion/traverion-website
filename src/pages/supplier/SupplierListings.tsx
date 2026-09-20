@@ -51,6 +51,7 @@ import { inventoryFamilyFromListing, PARTNER_CREATE_INVENTORY } from '../../lib/
 import {
   filterPartnerListings,
   parsePartnerListingsWorkspaceFilter,
+  partnerListingsVisibleWorkspaceFilters,
   partnerListingsWorkspaceCounts,
   type PartnerListingsWorkspaceFilter,
 } from '../../lib/partner-listings-filter';
@@ -754,7 +755,9 @@ export default function SupplierListings() {
               { id: 'stay', label: 'Stays' },
               { id: 'draft', label: 'Draft' },
               { id: 'published', label: 'Live' },
-            ] as const).map((tab) => (
+            ] as const)
+              .filter((tab) => partnerListingsVisibleWorkspaceFilters(workspaceCounts, workspaceFilter).includes(tab.id))
+              .map((tab) => (
               <button
                 key={tab.id}
                 type="button"
