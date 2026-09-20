@@ -657,14 +657,14 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
         </div>
       </section>
 
-      <section className="pb-20 sm:pb-28">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 border-t border-black/[0.06] pt-16">
+      <section className="pb-12 sm:pb-16">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 border-t border-black/[0.06] pt-10 sm:pt-12">
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Trust</p>
-          <h2 className="font-display text-3xl sm:text-4xl text-ink tracking-tight mb-3">Why book on Traverion</h2>
-          <p className="text-sm text-ink-muted mb-10 max-w-xl leading-relaxed">
+          <h2 className="font-display text-3xl sm:text-4xl text-ink tracking-tight mb-2">Why book on Traverion</h2>
+          <p className="text-sm text-ink-muted mb-6 max-w-xl leading-relaxed">
             A marketplace for independent operators — clear booking truth, honest money, separate product types.
           </p>
-          <div className="grid sm:grid-cols-3 gap-6 sm:gap-8">
+          <div className="grid sm:grid-cols-3 gap-4 sm:gap-5">
             <div className="tv-card p-4 sm:p-5">
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">01</p>
               <p className="font-semibold text-ink mb-1.5">Real operators</p>
