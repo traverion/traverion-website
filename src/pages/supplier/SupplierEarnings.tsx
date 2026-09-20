@@ -535,6 +535,20 @@ export default function SupplierEarnings() {
                 className="py-6"
                 title="No rows for this filter"
                 body={PARTNER_MONEY_FILTER_EMPTY_BODY}
+                action={
+                  statusFilter !== 'all' || listWindow !== 'all' ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStatusFilterAndUrl('all');
+                        setListWindowAndUrl('all');
+                      }}
+                      className="tv-btn-secondary"
+                    >
+                      Show all money
+                    </button>
+                  ) : undefined
+                }
               />
               )
             ) : (
