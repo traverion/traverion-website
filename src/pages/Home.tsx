@@ -395,7 +395,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
           <p className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-ink-muted">
             <span className="inline-flex items-center gap-2">
               <ShieldCheck className="w-4 h-4 text-finland" aria-hidden />
-              Free cancellation up to 24 hours before
+              Cancellation terms on each listing
             </span>
             <span className="inline-flex items-center gap-2">
               <span className="h-1.5 w-1.5 rounded-full bg-finland" aria-hidden />
