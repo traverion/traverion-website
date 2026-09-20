@@ -277,8 +277,8 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
     const b = bookings.find((row) => row.id === openTripId);
     if (!b) return;
     const today = localYmd();
-    if (bookingIsCancelledTrip(b)) setTripView('cancelled');
-    else if (b.booking_date && b.booking_date < today) setTripView('past');
+    if (bookingMatchesTripView(b, 'cancelled', today)) setTripView('cancelled');
+    else if (bookingMatchesTripView(b, 'past', today)) setTripView('past');
     else setTripView('upcoming');
   }, [openTripId, bookings]);
 
