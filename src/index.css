@@ -286,6 +286,43 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
   color: #57534e;
 }
 
+@keyframes listing-creation-scene-in-forward {
+  from {
+    opacity: 0;
+    transform: translateX(1.15rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes listing-creation-scene-in-back {
+  from {
+    opacity: 0;
+    transform: translateX(-1.15rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.listing-creation-scene--forward {
+  animation: listing-creation-scene-in-forward 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.listing-creation-scene--back {
+  animation: listing-creation-scene-in-back 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .listing-creation-scene--forward,
+  .listing-creation-scene--back {
+    animation: none;
+  }
+}
+
 @layer base {
   html {
     font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
