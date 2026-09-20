@@ -11,6 +11,14 @@ import {
 } from './cancelled-booking-checkout.ts';
 import { paidPromotionShouldRefuseFullyRefundedCharge } from './stripe-charge-refund.ts';
 
+function listingKindFromExtras(extras: unknown): 'stay' | 'tour' {
+  if (extras && typeof extras === 'object') {
+    const family = (extras as { inventoryFamily?: unknown }).inventoryFamily;
+    if (family === 'stay') return 'stay';
+  }
+  return 'tour';
+}
+
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -78,9 +86,15 @@ export async function notifyPaidBookingSideEffects(params: {
 
   const { data: listing } = await admin
     .from('listings')
-    .select('supplier_id, title')
+    .select('supplier_id, title, listing_extras')
     .eq('id', booking.listing_id)
     .maybeSingle();
+
+  const listingKind = listingKindFromExtras(listing?.listing_extras);
+  const checkOut =
+    typeof booking.check_out === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(booking.check_out.trim())
+      ? booking.check_out.trim()
+      : undefined;
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -127,9 +141,10 @@ export async function notifyPaidBookingSideEffects(params: {
         body: JSON.stringify({
           customerEmail: guestEmailResolved,
           customerName: booking.guest_name ?? undefined,
-          listingTitle: listing?.title ?? 'Experience',
+          listingTitle: listing?.title?.trim() || 'Your booking',
           bookingId,
           bookingDate: booking.booking_date ?? undefined,
+          checkOutDate: listingKind === 'stay' ? checkOut : undefined,
           guests: Number(booking.guests ?? 0),
           totalAmount: amountPaid ?? undefined,
           currency,
@@ -138,6 +153,8 @@ export async function notifyPaidBookingSideEffects(params: {
           paidAtIso,
           paymentIntentId,
           bookingNumber: orderNum,
+          listingKind,
+          idempotencyKey: `customer:booking_confirmed_paid:${bookingId}`,
         }),
       });
     } catch {
@@ -631,6 +648,16 @@ export async function promotePaidFromCheckoutSession(params: {
             throw refundErr;
           }
         }
+      }
+      if (againPay === 'paid' && !unpromotedRefunded) {
+        await notifyPaidBookingSideEffects({
+          admin,
+          supabaseUrl,
+          serviceRoleKey,
+          bookingId,
+          amountPaid,
+          currency: String(again?.currency || currency || 'eur').toUpperCase(),
+        });
       }
       await markProcessed('processed');
       return json({

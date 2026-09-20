@@ -64,7 +64,9 @@ type Payload = {
   supplierName?: string;
   /** booking_cancelled / refund: truthful refund line for body. */
   refundStatusNote?: string;
-  /** Reminder/review copy: tour vs stay. */
+  /** Stay check-out (YYYY-MM-DD) when listingKind is stay. */
+  checkOutDate?: string;
+  /** Reminder/review/confirmation copy: tour vs stay. */
   listingKind?: 'tour' | 'stay' | string;
 };
 
@@ -129,13 +131,37 @@ function orderTag(n: number | undefined): string {
   return typeof n === 'number' && Number.isFinite(n) && n > 0 ? String(Math.floor(n)) : '';
 }
 
+function listingKindIsStay(kind: string | undefined): boolean {
+  return String(kind ?? '').trim().toLowerCase() === 'stay';
+}
+
+function confirmationListingLabel(kind: string | undefined): string {
+  return listingKindIsStay(kind) ? 'Stay' : 'Tour';
+}
+
+function paidReceiptLine(kind: string | undefined): string {
+  return listingKindIsStay(kind)
+    ? 'Charged for this stay. Trips is the durable receipt — keep this email if it arrives.'
+    : 'Charged for this tour. Trips is the durable receipt — keep this email if it arrives.';
+}
+
+function paidConfirmationMaySend(paymentStatus: string | null | undefined): boolean {
+  return String(paymentStatus ?? '').trim().toLowerCase() === 'paid';
+}
+
 function buildDetailRows(p: Payload): string {
-  const title = String(p.listingTitle ?? 'Your tour').trim() || 'Your tour';
+  const title = String(p.listingTitle ?? 'Your booking').trim() || 'Your booking';
   const rows: string[] = [];
   const ref = orderTag(p.bookingNumber);
-  rows.push(detailRow('Tour', title));
+  rows.push(detailRow(confirmationListingLabel(p.listingKind), title));
   if (ref) rows.push(detailRow('Booking number', `#${ref}`));
-  if (p.bookingDate) rows.push(detailRow('Date', p.bookingDate));
+  const checkOut = String(p.checkOutDate ?? '').trim();
+  if (listingKindIsStay(p.listingKind) && p.bookingDate && /^\d{4}-\d{2}-\d{2}$/.test(checkOut)) {
+    rows.push(detailRow('Check-in', p.bookingDate));
+    rows.push(detailRow('Check-out', checkOut));
+  } else if (p.bookingDate) {
+    rows.push(detailRow('Date', p.bookingDate));
+  }
   if (typeof p.guests === 'number' && p.guests > 0) rows.push(detailRow('Guests', String(p.guests)));
   if (!ref && p.bookingId) rows.push(detailRow('Internal id', p.bookingId));
   return rows.join('');
@@ -209,6 +235,9 @@ serve(async (req) => {
     }
 
     const kind: EmailKind = body.emailKind ?? 'booking_request';
+    if (kind === 'booking_confirmed_paid' && !String(body.bookingId ?? '').trim()) {
+      return json({ success: false, error: 'bookingId required for paid confirmation' }, 400);
+    }
     const title = String(body.listingTitle ?? 'Your booking').trim() || 'Your booking';
     const name = String(body.customerName ?? '').trim();
     const greeting = name ? `Hi ${name},` : 'Hi,';
@@ -221,6 +250,16 @@ serve(async (req) => {
         : undefined;
 
     const admin = adminClientFromEnv();
+    if (kind === 'booking_confirmed_paid' && admin) {
+      const { data: paidRow } = await admin
+        .from('bookings')
+        .select('payment_status')
+        .eq('id', String(body.bookingId).trim())
+        .maybeSingle();
+      if (!paidConfirmationMaySend(paidRow?.payment_status as string | undefined)) {
+        return json({ success: false, error: 'Booking is not paid' }, 409);
+      }
+    }
     const idempotencyKey =
       (typeof body.idempotencyKey === 'string' && body.idempotencyKey.trim()) ||
       (body.bookingId
@@ -267,7 +306,7 @@ serve(async (req) => {
         extraHtml = `<table role="presentation" style="margin:12px 0 0;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:14px 16px;width:100%;">
 <tr><td style="font-size:12px;color:#166534;text-transform:uppercase;letter-spacing:0.05em;font-weight:600;">Payment receipt</td></tr>
 <tr><td style="font-size:22px;font-weight:700;color:#14532d;padding-top:4px;">${escapeHtml(currency)} ${amount.toFixed(2)}</td></tr>
-<tr><td style="font-size:13px;color:#15803d;padding-top:6px;">Charged for this tour. Trips is the durable receipt — keep this email if it arrives.</td></tr>
+<tr><td style="font-size:13px;color:#15803d;padding-top:6px;">${escapeHtml(paidReceiptLine(body.listingKind))}</td></tr>
 </table>`;
       }
       footerNote =

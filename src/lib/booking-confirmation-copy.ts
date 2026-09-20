@@ -350,6 +350,24 @@ export const BOOKING_CONFIRMED_PAID_FOLLOWUP_NOTE =
 export const BOOKING_CONFIRMED_PAID_RECEIPT_LINE =
   'Charged for this tour. Trips is the durable receipt — keep this email if it arrives.';
 
+/** Keep in sync with notify-customer-booking receipt cell. */
+export function paidConfirmationReceiptLine(listingKind?: string | null): string {
+  const stay = String(listingKind ?? '').trim().toLowerCase() === 'stay';
+  return stay
+    ? 'Charged for this stay. Trips is the durable receipt — keep this email if it arrives.'
+    : BOOKING_CONFIRMED_PAID_RECEIPT_LINE;
+}
+
+/** Keep in sync with notify-customer-booking detail row label. */
+export function confirmationEmailListingLabel(listingKind?: string | null): string {
+  return String(listingKind ?? '').trim().toLowerCase() === 'stay' ? 'Stay' : 'Tour';
+}
+
+/** Paid confirmation may send only after the booking row is paid. */
+export function paidConfirmationEmailMaySend(paymentStatus: string | null | undefined): boolean {
+  return String(paymentStatus ?? '').trim().toLowerCase() === 'paid';
+}
+
 /**
  * Money page collected total caption — not a Stripe payout.
  */

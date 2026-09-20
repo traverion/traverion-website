@@ -45,6 +45,9 @@ import {
   SUPPLIER_CANCELLATION_DECLINED_NOTIFY_SUB,
   BOOKING_CONFIRMED_PAID_FOLLOWUP_NOTE,
   BOOKING_CONFIRMED_PAID_RECEIPT_LINE,
+  paidConfirmationReceiptLine,
+  confirmationEmailListingLabel,
+  paidConfirmationEmailMaySend,
   BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE,
   PARTNER_MONEY_COLLECTED_TO_DATE_NOTE,
   PARTNER_MONEY_PAID_OUT_TO_DATE_NOTE,
@@ -385,6 +388,13 @@ describe('booking confirmation copy', () => {
     expect(bookingConfirmationPromisesEmailSent(BOOKING_CONFIRMED_PAID_RECEIPT_LINE)).toBe(false);
     expect(BOOKING_CONFIRMED_PAID_RECEIPT_LINE.toLowerCase()).toContain('trips is the durable receipt');
     expect(BOOKING_CONFIRMED_PAID_RECEIPT_LINE.toLowerCase()).not.toContain('keep this email for your records');
+    expect(paidConfirmationReceiptLine('stay').toLowerCase()).toContain('charged for this stay');
+    expect(paidConfirmationReceiptLine('tour')).toBe(BOOKING_CONFIRMED_PAID_RECEIPT_LINE);
+    expect(confirmationEmailListingLabel('stay')).toBe('Stay');
+    expect(confirmationEmailListingLabel('tour')).toBe('Tour');
+    expect(paidConfirmationEmailMaySend('paid')).toBe(true);
+    expect(paidConfirmationEmailMaySend('pending')).toBe(false);
+    expect(paidConfirmationEmailMaySend('failed')).toBe(false);
     expect(PARTNER_MONEY_COLLECTED_TO_DATE_NOTE.toLowerCase()).toContain('not a stripe payout');
     expect(PARTNER_MONEY_COLLECTED_TO_DATE_NOTE.toLowerCase()).toContain('payouts stay manual');
     expect(PARTNER_MONEY_PAID_OUT_TO_DATE_NOTE.toLowerCase()).toContain('payouts recorded on this ledger');

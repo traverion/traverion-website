@@ -23,6 +23,9 @@ describe('transactional email idempotency keys', () => {
     expect(customerEmailIdempotencyKey('booking_confirmed_paid', 'b1')).toBe(
       'customer:booking_confirmed_paid:b1'
     );
+    expect(customerEmailIdempotencyKey('booking_confirmed_paid', 'b1')).toBe(
+      customerEmailIdempotencyKey('booking_confirmed_paid', 'b1')
+    );
     expect(customerEmailIdempotencyKey('refund_completed', 'b1')).toBe('customer:refund_completed:b1');
     expect(customerEmailIdempotencyKey('traveler_welcome', undefined, 'a@b.com')).toBe(
       'customer:traveler_welcome:a@b.com'
