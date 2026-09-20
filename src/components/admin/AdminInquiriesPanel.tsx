@@ -69,14 +69,14 @@ export default function AdminInquiriesPanel() {
   const openCount = items.filter((row) => !isResolved(row)).length;
 
   return (
-    <div className="space-y-6">
-      <div className="rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft ring-1 ring-black/[0.06]">
-        <div className="flex items-start gap-3 mb-4">
-          <div className="w-10 h-10 rounded-xl bg-finland/10 flex items-center justify-center shrink-0">
-            <Mail className="w-5 h-5 text-finland" aria-hidden />
+    <div className="space-y-4">
+      <div className="tv-card p-4 sm:p-5">
+        <div className="flex items-start gap-3 mb-3">
+          <div className="w-9 h-9 rounded-lg bg-finland/10 flex items-center justify-center shrink-0">
+            <Mail className="w-4 h-4 text-finland" aria-hidden />
           </div>
           <div className="flex-1 min-w-0">
-            <h2 className="font-display text-xl text-ink tracking-tight">Inquiries</h2>
+            <h2 className="font-display text-lg text-ink tracking-tight">Inquiries</h2>
             <p className="text-sm text-ink-muted mt-1 leading-relaxed">
               Contact, affiliate, and content-creator form submissions. Each one already emails{' '}
               <code className="text-xs font-mono">info@traverion.com</code> when it's submitted — this list is
@@ -91,14 +91,14 @@ export default function AdminInquiriesPanel() {
           </NoticeCallout>
         ) : null}
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => setShowResolved((v) => !v)}
             aria-pressed={showResolved}
-            className={`lux-flat rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ring-1 ${
+            className={`lux-flat rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ring-1 ${
               showResolved
-                ? 'bg-finland text-white shadow-sm ring-finland/30'
+                ? 'bg-finland text-white ring-finland'
                 : 'bg-paper text-ink-muted ring-black/[0.06] hover:bg-finland/10 hover:text-finland'
             }`}
           >
@@ -123,7 +123,7 @@ export default function AdminInquiriesPanel() {
       ) : null}
 
       {!loading && !error && visible.length === 0 ? (
-        <div className="rounded-2xl bg-paper-raised px-4 py-2 shadow-soft ring-1 ring-black/[0.06]">
+        <div className="tv-card px-4 py-2">
           <EmptyState
             icon={Mail}
             title={items.length === 0 ? 'No inquiries yet' : 'Nothing open'}
@@ -136,13 +136,13 @@ export default function AdminInquiriesPanel() {
         </div>
       ) : null}
 
-      <div className="space-y-2">
+      <div className="space-y-1.5">
         {visible.map((row) => {
           const resolved = isResolved(row);
           return (
             <div
               key={row.id}
-              className="rounded-2xl bg-paper-raised px-4 py-3.5 shadow-soft ring-1 ring-black/[0.06]"
+              className="tv-card px-3.5 py-3"
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
