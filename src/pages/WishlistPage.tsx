@@ -104,7 +104,7 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
           <EmptyState
             icon={LogIn}
             className="pt-2 pb-0"
-            title="Log in to see saved experiences"
+            title="Log in to see saved tours and stays"
             body="Wishlist is tied to your traveler account. Sign in to save tours and stays while you browse."
             action={
               <div className="flex flex-wrap gap-2">

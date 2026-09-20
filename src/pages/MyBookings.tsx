@@ -938,7 +938,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
               </h3>
               <div className="mt-4 rounded-2xl bg-paper px-4 py-3.5 ring-1 ring-black/[0.05]">
                 <p className="font-semibold text-ink leading-snug">
-                  {titles[cancelConfirm.listing_id] ?? 'Experience'}
+                  {titles[cancelConfirm.listing_id] ?? 'This booking'}
                 </p>
                 <p className="mt-1 text-sm text-ink-muted">
                   {cancelConfirm.booking_date
