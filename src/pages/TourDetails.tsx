@@ -1522,7 +1522,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                       <Shield className="w-3.5 h-3.5 text-finland flex-shrink-0" /> Pay via Stripe TEST until live
                     </p>
                     <p className="leading-relaxed">
-                      {TOUR_LISTING_CONFIRMATION_NOTE} {BOOKING_CONFIRMATION_EMAIL_DISCLAIMER}
+                      {TOUR_LISTING_CONFIRMATION_NOTE} {BOOKING_CONFIRMATION_EMAIL_DISCLAIMER} Stripe TEST until live.
                     </p>
                   </div>
                 </div>
