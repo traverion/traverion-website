@@ -792,7 +792,7 @@ export default function Packages({ onTourSelect }: PackagesProps) {
               <div className="mb-6">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland">Browse</p>
                 <div className="mt-2 flex items-center justify-between gap-3">
-                  <h3 id="filters-drawer-title" className="font-display text-2xl sm:text-3xl text-ink tracking-tight">
+                  <h3 id="filters-drawer-title" className="font-display text-xl sm:text-2xl text-ink tracking-tight">
                     Filters
                     {extraFilterCount > 0 ? (
                       <span className="ml-2 align-middle text-base font-sans font-semibold text-finland tabular-nums">
@@ -920,7 +920,7 @@ export default function Packages({ onTourSelect }: PackagesProps) {
                 />
               ))}
             </div>
-            <p className="mt-16 text-sm text-ink-faint max-w-lg">
+            <p className="mt-8 text-sm text-ink-faint max-w-lg">
               Live tours from operators appear here when they publish. Traverion does not fill this page with sample trips.
             </p>
           </>
@@ -946,7 +946,7 @@ export default function Packages({ onTourSelect }: PackagesProps) {
               />
             ) : (
               <EmptyState
-                className="py-10 sm:py-12 max-w-lg"
+                className="py-8 sm:py-10 max-w-lg"
                 icon={Compass}
                 title="No tours published yet"
                 body="Operators have not published live tours. That is expected — Traverion does not show a demo catalog. If you run tours, you can list yours today."
