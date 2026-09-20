@@ -879,31 +879,31 @@ export default function SupplierBookings() {
                 <article
                   key={booking.id}
                   id={`supplier-booking-row-${booking.id}`}
-                  className={`overflow-hidden rounded-xl bg-white ring-1 ring-slate-200/90 ${statusAccent} ${
-                    highlightBookingId === booking.id ? 'ring-finland/35' : ''
+                  className={`overflow-hidden rounded-lg border border-black/[0.06] bg-paper ${statusAccent} ${
+                    highlightBookingId === booking.id ? 'ring-1 ring-finland/35' : ''
                   }`}
                 >
                   <button
                     type="button"
                     onClick={() => setSelectedBookingId(booking.id)}
-                    className="lux-flat flex w-full min-w-0 items-center gap-3 px-3 py-2.5 text-left sm:px-3.5 sm:py-3"
+                    className="lux-flat flex w-full min-w-0 items-center gap-2.5 px-3 py-2 text-left"
                   >
                     {meta?.imageUrl ? (
                       <img
                         src={meta.imageUrl}
                         alt=""
-                        className="h-14 w-14 sm:h-16 sm:w-16 rounded-xl object-cover shrink-0 ring-1 ring-black/[0.06]"
+                        className="h-12 w-12 rounded-lg object-cover shrink-0 ring-1 ring-black/[0.06]"
                       />
                     ) : (
-                      <div className="h-14 w-14 sm:h-16 sm:w-16 rounded-xl bg-finland/10 shrink-0 ring-1 ring-finland/15" aria-hidden />
+                      <div className="h-12 w-12 rounded-lg bg-finland/10 shrink-0 ring-1 ring-finland/15" aria-hidden />
                     )}
                     <div className="min-w-0 flex-1">
                       <div className="flex items-baseline justify-between gap-3">
-                        <p className="font-semibold text-ink truncate">{booking.guest_name || 'Guest'}</p>
-                        <span className="text-xs font-medium capitalize text-ink-muted shrink-0">{partnerPaymentLabel(booking)}</span>
+                        <p className="text-sm font-semibold text-ink truncate">{booking.guest_name || 'Guest'}</p>
+                        <span className="text-[11px] font-medium capitalize text-ink-muted shrink-0">{partnerPaymentLabel(booking)}</span>
                       </div>
-                      <p className="mt-0.5 text-sm text-ink-muted truncate">{listingTitle}</p>
-                      <p className="mt-1 text-sm text-ink-muted">
+                      <p className="mt-0.5 text-xs text-ink-muted truncate">{listingTitle}</p>
+                      <p className="mt-0.5 text-xs text-ink-muted">
                         {typeof booking.booking_number === 'number' && booking.booking_number > 0 ? (
                           <>
                             <span className="font-mono text-finland font-semibold tracking-wide">
