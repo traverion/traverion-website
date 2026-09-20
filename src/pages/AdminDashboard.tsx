@@ -111,12 +111,10 @@ export default function AdminDashboard() {
     <div className="min-h-screen bg-paper text-ink">
       <header className="border-b border-black/[0.06] bg-paper-raised/90 backdrop-blur-md shadow-soft">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-wrap justify-between items-center gap-4 py-6">
+          <div className="flex flex-wrap justify-between items-center gap-4 py-4">
             <div>
-              <div className="inline-flex items-center gap-2 rounded-full bg-finland/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland ring-1 ring-finland/15 mb-2">
-                Traverion Admin
-              </div>
-              <h1 className="font-display text-2xl sm:text-3xl tracking-tight text-ink">Operations</h1>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-1">Traverion Admin</p>
+              <h1 className="font-display text-xl sm:text-2xl tracking-tight text-ink">Operations</h1>
               <p className="text-ink-muted text-sm mt-1">
                 Signed in as <span className="font-medium text-ink">{user?.email ?? '—'}</span>
               </p>
