@@ -269,7 +269,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
   if (!isSupabaseConfigured()) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-6 py-16 bg-paper">
-        <div className="w-full max-w-md rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft-lg ring-1 ring-black/[0.06] text-center">
+        <div className="w-full max-w-md tv-card p-4 sm:p-5 text-center">
           <img src={BRAND_LOGO_SRC} alt="Traverion" className="h-9 w-auto mx-auto mb-6 opacity-90" />
           <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">Booking confirmation</p>
           <h1 className="font-display text-2xl tracking-tight text-ink">Booking confirmation unavailable</h1>
@@ -290,7 +290,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
   if (!sessionId) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-6 py-16 bg-paper">
-        <div className="w-full max-w-md rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft-lg ring-1 ring-black/[0.06] text-center">
+        <div className="w-full max-w-md tv-card p-4 sm:p-5 text-center">
           <img src={BRAND_LOGO_SRC} alt="Traverion" className="h-9 w-auto mx-auto mb-6 opacity-90" />
           <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">Booking confirmation</p>
           <h1 className="font-display text-2xl tracking-tight text-ink">No checkout in this link</h1>
@@ -320,7 +320,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
   if (!user?.email) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-6 py-16 bg-paper">
-        <div className="w-full max-w-md rounded-2xl bg-paper-raised p-5 sm:p-6 shadow-soft-lg ring-1 ring-black/[0.06] text-center">
+        <div className="w-full max-w-md tv-card p-4 sm:p-5 text-center">
           <img src={BRAND_LOGO_SRC} alt="Traverion" className="h-9 w-auto mx-auto mb-6 opacity-90" />
           <p className="text-ink font-medium">Sign in to see your confirmation</p>
           <p className="text-ink-muted text-sm mt-2 mb-6 leading-relaxed">
@@ -390,7 +390,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
 
         {!booking && !error && (
           <div
-            className="rounded-2xl bg-paper-raised p-6 shadow-soft ring-1 ring-black/[0.06] space-y-4"
+            className="tv-card p-4 sm:p-5 space-y-3"
             aria-busy="true"
             aria-label="Loading your booking"
           >
@@ -407,7 +407,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
         )}
 
         {booking && (
-          <div className="overflow-hidden rounded-2xl bg-paper-raised shadow-soft-lg ring-1 ring-black/[0.06]">
+          <div className="overflow-hidden tv-card">
             <div
               className={`px-5 sm:px-6 pt-6 pb-5 text-center ${
                 paidActive
