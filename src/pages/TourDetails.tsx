@@ -77,6 +77,10 @@ import {
 } from '../lib/participant-mix';
 import { activePriceCategories } from '../lib/price-categories';
 import { quoteBooking } from '../lib/booking-quote';
+import {
+  listingOptionHasSchedules,
+  listingOptionReadySchedules,
+} from '../lib/listing-option-schedules';
 import { formatTourAvailabilityHeading, optionsOnDate } from '../lib/tour-available-options';
 import { fetchWishlistListingIds, toggleWishlist } from '../data/supabase-wishlist';
 import { formatMoney, normalizeCurrency } from '../lib/money';
@@ -180,7 +184,19 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     [tourVariants]
   );
   const weekdayHint = useMemo(() => {
-    const unique = [...new Set(tourVariants.map((v) => formatOptionWeekdays(v.listingOption?.weekdays)))];
+    const labels = new Set<string>();
+    for (const v of tourVariants) {
+      const o = v.listingOption;
+      if (!o) continue;
+      if (listingOptionHasSchedules(o)) {
+        for (const s of listingOptionReadySchedules(o)) {
+          labels.add(formatOptionWeekdays(s.weekdays));
+        }
+      } else {
+        labels.add(formatOptionWeekdays(o.weekdays));
+      }
+    }
+    const unique = [...labels];
     if (unique.length === 1) return `Runs ${unique[0]}`;
     if (unique.length > 1) return 'Each option has its own schedule';
     return undefined;
@@ -195,7 +211,19 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     if (!tour) return [];
     const x = tour.listingExtras;
     const lines: string[] = [];
-    const optionStartTimes = [...new Set((x?.bookingOptions ?? []).map((o) => String(o.startTime ?? '').trim()).filter(Boolean))];
+    const optionStartTimes = [
+      ...new Set(
+        (x?.bookingOptions ?? []).flatMap((o) => {
+          if (listingOptionHasSchedules(o)) {
+            return listingOptionReadySchedules(o)
+              .map((s) => s.startTime.trim())
+              .filter(Boolean);
+          }
+          const t = String(o.startTime ?? '').trim();
+          return t ? [t] : [];
+        })
+      ),
+    ];
     if (optionStartTimes.length === 1) lines.push(`Usually starts at ${optionStartTimes[0]}.`);
     else if (optionStartTimes.length > 1) {
       lines.push(`Set start times: ${optionStartTimes.slice(0, 3).join(', ')}${optionStartTimes.length > 3 ? '…' : ''}.`);

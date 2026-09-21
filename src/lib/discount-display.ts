@@ -10,6 +10,11 @@ import { participantPriceSummaryFromBookingOptions, pickHeadlineOption, pricedNa
 import { formatMoney, normalizeCurrency } from './money';
 import { localYmd } from './local-ymd';
 import { listingIsFamily } from './inventory';
+import {
+  listingOptionHasSchedules,
+  listingOptionReadySchedules,
+} from './listing-option-schedules';
+import { optionHeadlineUnitPrice, optionPricingMode } from './price-categories';
 
 export function isSupabaseListingId(id: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
@@ -122,18 +127,30 @@ export function getDisplayPriceForTour(
   const picked = pickHeadlineOption(named.length > 0 ? named : opts);
   if (picked.option && (picked.mode === 'participant-standard' || picked.mode === 'single')) {
     const host =
-      opts.find(
-        (o) =>
-          o.id &&
-          ((o.pricingMode === 'age_dependent' &&
+      opts.find((o) => {
+        if (listingOptionHasSchedules(o)) {
+          return listingOptionReadySchedules(o).some((s) =>
+            optionPricingMode(s) === 'age_dependent'
+              ? (s.priceCategories ?? []).some(
+                  (c) =>
+                    !c.notPermitted &&
+                    c.label.trim() === picked.option!.name.trim() &&
+                    c.priceUsd === picked.option!.priceUsd
+                )
+              : s.priceUsd === picked.option!.priceUsd
+          );
+        }
+        return (
+          (o.pricingMode === 'age_dependent' &&
             (o.priceCategories ?? []).some(
               (c) =>
                 !c.notPermitted &&
                 c.label.trim() === picked.option!.name.trim() &&
                 c.priceUsd === picked.option!.priceUsd
             )) ||
-            (o.name.trim() === picked.option!.name.trim() && o.priceUsd === picked.option!.priceUsd))
-      ) ?? opts[0];
+          (o.name.trim() === picked.option!.name.trim() && o.priceUsd === picked.option!.priceUsd)
+        );
+      }) ?? opts[0];
     return discountedHeadline(
       tour,
       { id: host.id, name: picked.option.name, priceUsd: picked.option.priceUsd },
@@ -148,13 +165,20 @@ export function getDisplayPriceForTour(
   let bestLabel: string | undefined;
 
   for (const opt of opts) {
-    const base = typeof opt.priceUsd === 'number' && opt.priceUsd > 0 ? opt.priceUsd : fallbackBase;
+    const bases =
+      listingOptionHasSchedules(opt)
+        ? listingOptionReadySchedules(opt)
+            .map((s) => optionHeadlineUnitPrice(s))
+            .filter((n) => n > 0)
+        : [typeof opt.priceUsd === 'number' && opt.priceUsd > 0 ? opt.priceUsd : fallbackBase];
     const applicable = discountsApplicableToOption(discounts, opt.id, at);
-    const { price, label } = bestDiscountedPrice(base, applicable, currency);
-    if (price < bestPrice) {
-      bestPrice = price;
-      bestOriginal = base;
-      bestLabel = label;
+    for (const base of bases) {
+      const { price, label } = bestDiscountedPrice(base, applicable, currency);
+      if (price < bestPrice) {
+        bestPrice = price;
+        bestOriginal = base;
+        bestLabel = label;
+      }
     }
   }
 

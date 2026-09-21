@@ -8,6 +8,10 @@
 
 import type { ListingBookingOption } from '../types/listingExtras';
 import { activePriceCategories, optionPricingMode } from './price-categories';
+import {
+  listingOptionHasSchedules,
+  listingOptionReadySchedules,
+} from './listing-option-schedules';
 
 export type PricedNamedOption = {
   name: string;
@@ -61,13 +65,21 @@ function cheapest<T extends PricedNamedOption>(opts: T[]): T {
 export function pricedNamesFromBookingOptions(opts: ListingBookingOption[]): PricedNamedOption[] {
   const out: PricedNamedOption[] = [];
   for (const o of opts) {
-    if (optionPricingMode(o) === 'age_dependent') {
-      for (const c of activePriceCategories(o)) {
-        if (c.priceUsd > 0) out.push({ name: c.label, priceUsd: c.priceUsd });
+    const pricedShapes = listingOptionHasSchedules(o)
+      ? listingOptionReadySchedules(o)
+      : [o];
+    for (const shape of pricedShapes) {
+      if (optionPricingMode(shape) === 'age_dependent') {
+        for (const c of activePriceCategories(shape)) {
+          if (c.priceUsd > 0) out.push({ name: c.label, priceUsd: c.priceUsd });
+        }
+        continue;
       }
-      continue;
+      if (shape.priceUsd > 0) {
+        const label = o.name.trim() || ('name' in shape ? String(shape.name ?? '').trim() : '') || 'Tour';
+        out.push({ name: label, priceUsd: shape.priceUsd });
+      }
     }
-    if (o.priceUsd > 0 && o.name.trim()) out.push({ name: o.name, priceUsd: o.priceUsd });
   }
   return out;
 }

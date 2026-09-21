@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   headlineStartingAmount,
+  headlineStartingAmountFromBookingOptions,
   participantKindFromName,
   participantPriceSummary,
   pickHeadlineOption,
+  pricedNamesFromBookingOptions,
 } from './headline-price';
+import type { ListingBookingOption } from '../types/listingExtras';
+import { defaultAgeDependentCategories } from './price-categories';
 
 describe('headline price', () => {
   it('does not treat child as the catalog from-price when adult exists', () => {
@@ -60,5 +64,61 @@ describe('headline price', () => {
     expect(participantKindFromName('Children (7–15)')).toBe('reduced');
     expect(participantKindFromName('Senior')).toBe('reduced');
     expect(participantKindFromName('Private boat')).toBe('other');
+  });
+
+  it('reads catalog from-prices from ready schedules when option-level price is empty', () => {
+    const option = {
+      id: 'opt-1',
+      name: 'Small group',
+      priceUsd: 0,
+      startTime: '',
+      duration: '6 hours',
+      pickupPlace: 'City centre hotels',
+      minPersons: 1,
+      maxPersons: 8,
+      maxSpotsPerSlot: 8,
+      optionInfo: '',
+      weekdays: [true, true, true, true, true, true, true],
+      availabilityDateFrom: '',
+      availabilityDateTo: '',
+      pricingMode: 'uniform' as const,
+      schedules: [
+        {
+          id: 'sch-sep',
+          name: 'September',
+          availabilityDateFrom: '2026-09-01',
+          availabilityDateTo: '2026-09-30',
+          weekdays: [true, true, true, true, true, true, true],
+          startTime: '20:00',
+          pricingMode: 'age_dependent' as const,
+          priceUsd: 119,
+          priceCategories: defaultAgeDependentCategories(119, 89),
+          minPersons: 1,
+          maxPersons: 8,
+          maxSpotsPerSlot: 8,
+          status: 'ready' as const,
+        },
+        {
+          id: 'sch-oct',
+          name: 'October',
+          availabilityDateFrom: '2026-10-01',
+          availabilityDateTo: '2026-10-31',
+          weekdays: [true, true, true, true, true, true, true],
+          startTime: '19:00',
+          pricingMode: 'age_dependent' as const,
+          priceUsd: 149,
+          priceCategories: defaultAgeDependentCategories(149, 109),
+          minPersons: 1,
+          maxPersons: 8,
+          maxSpotsPerSlot: 8,
+          status: 'ready' as const,
+        },
+      ],
+    } as ListingBookingOption;
+
+    const named = pricedNamesFromBookingOptions([option]);
+    expect(named.some((n) => n.name === 'Adult' && n.priceUsd === 119)).toBe(true);
+    expect(named.some((n) => n.name === 'Adult' && n.priceUsd === 149)).toBe(true);
+    expect(headlineStartingAmountFromBookingOptions([option], 0)).toBe(119);
   });
 });
