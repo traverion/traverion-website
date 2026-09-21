@@ -2962,25 +2962,31 @@ export default function SupplierListingForm({
               accountReason: publishAccountBlockedReason,
             });
             return (
-            <div id="supplier-listing-field-review" className="space-y-8">
+            <div id="supplier-listing-field-review" className="space-y-10">
               <div>
                 <h3 className="font-display text-[2rem] font-bold leading-[1.12] tracking-tight text-ink sm:text-[2.4rem]">
-                  Review
+                  Review & publish
                 </h3>
+                {form.title.trim() ? (
+                  <p className="mt-3 max-w-xl font-display text-xl font-bold leading-snug tracking-tight text-ink [overflow-wrap:anywhere]">
+                    {form.title.trim()}
+                  </p>
+                ) : null}
                 <p className="mt-2 max-w-xl text-base leading-relaxed text-ink-muted">
-                  A quiet last look before this {isStayForm ? 'stay' : 'tour'} can go live. Save as draft is always
-                  available.
+                  {[form.city.trim(), form.country.trim()].filter(Boolean).join(', ') ||
+                    (isStayForm ? 'A last look before this stay can go live.' : 'A last look before this tour can go live.')}
                 </p>
               </div>
               {truth.bannerTitle ? (
-                <div className="border-y border-black/[0.08] py-5" role="status">
-                  <p className="font-display text-xl tracking-tight text-ink">{truth.bannerTitle}</p>
+                <div className="border-y border-black/[0.08] py-6" role="status">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted">Publish status</p>
+                  <p className="mt-2 font-display text-2xl font-bold tracking-tight text-ink">{truth.bannerTitle}</p>
                   <p className="mt-2 max-w-xl text-sm leading-relaxed text-ink-muted">{truth.bannerBody}</p>
                   <a
                     href={`${PARTNER_APP_BASE}/business-profile`}
                     className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-finland hover:underline"
                   >
-                    Open Settings
+                    Go to Settings
                   </a>
                 </div>
               ) : null}
@@ -2989,9 +2995,9 @@ export default function SupplierListingForm({
                   <li key={row.label} className="flex flex-wrap items-start justify-between gap-3 py-5">
                     <div className="min-w-0 max-w-xl">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">{row.label}</p>
-                      <p className="mt-1 text-base leading-relaxed text-ink [overflow-wrap:anywhere]">{row.summary}</p>
+                      <p className="mt-1 text-base font-medium leading-relaxed text-ink [overflow-wrap:anywhere]">{row.summary}</p>
                       <p className="mt-1 text-sm text-ink-muted">
-                        {row.ready ? 'Ready' : row.missing || 'Needs attention'}
+                        {row.ready ? 'Complete' : row.missing || 'Needs attention'}
                       </p>
                     </div>
                     <button
@@ -3005,7 +3011,8 @@ export default function SupplierListingForm({
                 ))}
               </ul>
               <div className="space-y-2">
-                <p className="text-sm leading-relaxed text-ink">{truth.listingLine}</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted">Publish status</p>
+                <p className="text-base leading-relaxed text-ink">{truth.listingLine}</p>
                 {truth.accountLine ? (
                   <p className="text-sm leading-relaxed text-ink-muted">{truth.accountLine}</p>
                 ) : listingReady ? (
