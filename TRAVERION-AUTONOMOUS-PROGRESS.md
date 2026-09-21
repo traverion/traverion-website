@@ -2,40 +2,36 @@
 
 **Mission:** Phases 401→800 autonomous continuation  
 **Started:** 2026-09-22  
-**Starting SHA (actual HEAD):** `6bbe875`  
-**Current SHA:** `6bbe875`  
-**Current phase:** 401  
+**Starting SHA:** `6bbe875`  
+**Current SHA:** `59d5407`  
+**Current phase:** 402  
 **Current band:** 401–450 Production-truth certification  
-**Stripe:** TEST only  
+**Stripe:** TEST only (publishable key prefix `pk_test_`)  
 **Preserve untracked:** `scripts/cert-transactional-emails.cjs`
 
-## SHA truth (Phase 401)
+## SHA truth
 
-| Claim | Actual |
-|-------|--------|
-| Phase 400 doc ending SHA `e268b14` | Parent of handoff commit — gallery/stay focus finish |
-| Autonomous close `6bbe875` | **True HEAD** — `Add Phase 400 founder handoff` |
-| Progress file said `e268b14` | Stale; corrected here |
-
-`e268b14` is an ancestor of `6bbe875`. No reset/force-push. Branch `reconstruction/phase-0-audit` ahead of origin by 323.
+HEAD at mission start was `6bbe875` (Phase 400 handoff). Phase 400 doc had listed parent `e268b14` — corrected. Branch linked to Supabase project `xcopqllkulxfkpunetbc` (Traverionapp).
 
 ## Phase 401 — Establish truth + baseline gates
 
-**Problem:** Resolve SHA discrepancy; prove repo gates before certification work.  
-**Evidence:** `git rev-parse HEAD` → `6bbe875`; merge-base confirms both SHAs ancestral.  
-**Gates:**
-- `tsc --noEmit` clean
-- `vitest run src/lib` — 80 files, **438** passed
-- `npm run build` — succeeded (~37s)
-- Supabase CLI **2.84.2** present; `.env.local` + `supabase/config.toml` present
-**Result:** Baseline green. Edge deploy not yet attempted (next phases).  
-**Remaining risk:** Production TEST may lag local edge code until deploy.
+- tsc clean; src/lib 438 passed; build OK  
+- Commit: `59d5407`
+
+## Phase 402 — Deploy TEST checkout edge
+
+**Problem:** Production TEST lagged local `startTime` + slot capacity code.  
+**Evidence:** Linked project; CLI deploy succeeded.  
+**Deployed:** `create-booking-checkout-session` (+ shared booking-quote, booking-hold, checkout-resume, stay-checkout-guest)  
+**Dashboard:** https://supabase.com/dashboard/project/xcopqllkulxfkpunetbc/functions  
+**Stripe:** publishable key is TEST (`pk_test_…`). Live not activated.  
+**Result:** Edge code for departure-scoped capacity + start_time persistence is live on TEST project.  
+**Remaining risk:** No live traveler booking smoke yet; public paid-guest RPC still day-scoped.
 
 ## Next
 
-- Phase 402: Inspect/deploy TEST checkout edge (`startTime`, slot capacity)
-- Multi-departure occupancy architecture (day-scoped RPC → departure-scoped)
-- Tour/Stay golden journey certification (code + browser where session allows)
+- Phase 403+: Per-departure paid occupancy RPC + client remaining spots
+- Tour/Stay golden journey certification (browser/session)
 
 ## Do not
 
