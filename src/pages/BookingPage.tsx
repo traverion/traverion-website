@@ -24,6 +24,10 @@ import type { ListingDiscount } from '../data/supabase-discounts';
 import { fetchConsumerProfileRow } from '../data/supabase-consumer-profile';
 import { getDisplayPriceForBookingVariant } from '../lib/discount-display';
 import { quoteBooking, formatOptionWeekdays, tourQuotePriceLines } from '../lib/booking-quote';
+import {
+  listingOptionHasSchedules,
+  listingOptionReadySchedules,
+} from '../lib/listing-option-schedules';
 import { localYmd } from '../lib/local-ymd';
 import { formatMoney, normalizeCurrency } from '../lib/money';
 import PriceBreakdown from '../components/PriceBreakdown';
@@ -262,6 +266,14 @@ export default function BookingPage({
   const weekdayHint = useMemo(() => {
     const opt = selectedVariant?.listingOption;
     if (!opt) return undefined;
+    if (listingOptionHasSchedules(opt)) {
+      const labels = [
+        ...new Set(listingOptionReadySchedules(opt).map((s) => formatOptionWeekdays(s.weekdays))),
+      ];
+      if (labels.length === 1) return `Runs ${labels[0]}`;
+      if (labels.length > 1) return 'Each schedule has its own days';
+      return undefined;
+    }
     return `Runs ${formatOptionWeekdays(opt.weekdays)}`;
   }, [selectedVariant]);
 
