@@ -2761,7 +2761,7 @@ export default function SupplierListingForm({
           {stepIdx === 2 && form.inventoryFamily !== 'stay' && (
             <div id="supplier-listing-field-options" className="space-y-4 transition-all duration-300 ease-out opacity-100 translate-y-0">
               <div>
-                <h3 className="font-display text-xl text-ink">Options</h3>
+                <h3 className="font-display text-[1.85rem] font-bold tracking-tight text-ink">Options</h3>
                 <p className="mt-1 text-sm text-ink-muted leading-relaxed max-w-2xl">
                   Each option is a bookable version of this tour. Drafts stay on this listing but do not count as ready
                   until pricing, meeting place, and schedule are complete.
@@ -2775,7 +2775,7 @@ export default function SupplierListingForm({
                   return (
                     <div
                       key={opt.id}
-                      className="flex flex-wrap items-start justify-between gap-3 border-b border-black/[0.06] py-4 first:pt-0 last:border-b-0"
+                      className="lc-tile flex flex-wrap items-start justify-between gap-3 rounded-xl px-4 py-4"
                     >
                       <div className="min-w-0 space-y-1">
                         <div className="flex flex-wrap items-center gap-2">
@@ -2859,7 +2859,7 @@ export default function SupplierListingForm({
                 <button
                   type="button"
                   onClick={openOptionModalCreate}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-4 text-sm font-semibold text-finland ring-1 ring-finland/30 hover:bg-finland/10 min-h-[52px]"
+                  className="lc-upload inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-xl px-4 py-4 text-sm font-semibold text-finland"
                 >
                   <Plus className="w-5 h-5 shrink-0" aria-hidden />
                   Add option
