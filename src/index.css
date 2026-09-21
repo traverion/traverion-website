@@ -369,6 +369,8 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
     animation: none;
   }
 }
+
+@keyframes listing-creation-option-in {
   from {
     opacity: 0;
     transform: translateX(1.25rem);
