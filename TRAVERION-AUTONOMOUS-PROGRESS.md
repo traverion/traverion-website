@@ -3,41 +3,42 @@
 **Mission:** Phases 0→400 autonomous product completion  
 **Started:** 2026-09-21  
 **Starting SHA:** `d38ff80`  
-**Current SHA:** `70ea49a`  
-**Current phase:** ~140  
-**Current band:** 140–159 Price + quote clarity (schedule-aware)
+**Current SHA:** `03375d5`  
+**Current phase:** ~175  
+**Current band:** 160–179 Checkout (departure time through Stripe TEST)
 
 ## Completed
 
 - 0–19: Product audit; Tour Details slim; orphan schedule cancel fix
-- 20–39: Multi-schedule cert copy + Sep/Oct overlap tests
+- 20–39: Multi-schedule cert copy + Sep/Oct overlap tests  
 - 40–59: Home Stripe TEST honesty
-- 80–139: Tour detail/booking/calendar/capacity wired to ready schedules
-- 140+: Catalog + variant + Options-list + date-resolved display prices from schedules
+- 80–159: Schedule-aware catalog, variants, capacity, Options list, date-resolved prices
+- 160–175: Traveler departure-time picker; checkout URL `time`; edge quote + booking `start_time`; stay mobile CTA quote gate
 
 ## In progress
 
-- Stay quote/detail polish; then checkout/trips bands
+- Checkout/trips polish; supplier ops if P0
 
 ## Next
 
-- Stay detail / availability copy if friction remains
-- Checkout duplicate-submit / mobile keyboard
-- Supplier Home only if P0
+- Verify booking row displays start time (already wired in Trips/Bookings)
+- Mobile tour sticky CTA when time required
+- Stay creation cert / Availability ops
+- Broader typecheck/build before Phase 400
 
 ## Tests
 
-- headline-price, booking-flow.schedules, marketplace-loop, discount-display, listing-option-schedules
+- tourCheckoutUrl, booking-quote, headline-price, booking-flow.schedules, marketplace-loop
 
 ## Decisions
 
-- Ready schedules are canonical for traveler price, capacity, start time, and weekday display
+- Ready schedules own traveler price/capacity/time; checkout must pass `startTime` when ambiguous
 - Stripe stays TEST; do not commit `scripts/cert-transactional-emails.cjs`
 
 ## Known issues
 
-- Listing-wide paid guests vs per-schedule capacity is still coarse
-- Partner browser E2E creation needs live session
+- Edge deploy required for live TEST checkout to receive startTime (code committed locally)
+- Listing-wide paid guests vs per-schedule capacity still coarse
 
 ## Deferred
 
