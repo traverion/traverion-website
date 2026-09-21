@@ -147,8 +147,12 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   } | null>(null);
   const [legalModal, setLegalModal] = useState<'privacy' | 'terms' | null>(null);
   const legalSheetRef = useRef<HTMLDivElement>(null);
+  const gallerySheetRef = useRef<HTMLDivElement>(null);
+  const [galleryLightboxOpen, setGalleryLightboxOpen] = useState(false);
   const closeLegalModal = useCallback(() => setLegalModal(null), []);
+  const closeGalleryLightbox = useCallback(() => setGalleryLightboxOpen(false), []);
   useDialogFocus(legalModal !== null, legalSheetRef, closeLegalModal);
+  useDialogFocus(galleryLightboxOpen, gallerySheetRef, closeGalleryLightbox);
   const [bookingCardError, setBookingCardError] = useState<string | null>(null);
   const [bookingVariantsOpen, setBookingVariantsOpen] = useState(() => Boolean(readSearchPrefill().date));
   const [locationSearch, setLocationSearch] = useState(
@@ -159,7 +163,6 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   const [selectedDepartureTime, setSelectedDepartureTime] = useState('');
   const [participantMix, setParticipantMix] = useState<ParticipantMixSelection>({});
   const [variantChecking, setVariantChecking] = useState(false);
-  const [galleryLightboxOpen, setGalleryLightboxOpen] = useState(false);
   const [savedToWishlist, setSavedToWishlist] = useState(false);
   const [wishlistBusy, setWishlistBusy] = useState(false);
   const [savePop, setSavePop] = useState(false);
