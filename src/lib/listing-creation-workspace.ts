@@ -1,6 +1,12 @@
 /** Shared listing-creation shell (tour + stay). Navigation states only — no fake completion. */
 
-export type ListingCreationStepState = 'complete' | 'current' | 'upcoming';
+import {
+  listingCreationAccessState,
+  listingCreationProgressCopy as truthfulProgressCopy,
+  type ListingCreationAccess,
+} from './listing-creation-progression';
+
+export type ListingCreationStepState = ListingCreationAccess;
 
 export type ListingCreationNavItem = {
   id: string;
@@ -18,28 +24,32 @@ export type ListingCreationContextNav = {
 export function listingCreationStepState(
   index: number,
   currentIndex: number,
-  satisfied: boolean
+  satisfied: boolean,
+  locked = false
 ): ListingCreationStepState {
   if (index === currentIndex) return 'current';
+  if (locked) return 'locked';
   if (satisfied) return 'complete';
   return 'upcoming';
 }
 
-export function listingCreationProgressCopy(completeCount: number, total: number): string {
-  if (total <= 0) return '';
-  if (completeCount <= 0) return `${total} steps`;
-  if (completeCount >= total) return 'All steps complete';
-  return `${completeCount} of ${total} complete`;
-}
+export const listingCreationProgressCopy = truthfulProgressCopy;
 
 export function listingCreationNavItems(
   steps: readonly { id: string; label: string }[],
   currentIndex: number,
-  isSatisfied: (index: number) => boolean
+  isSatisfied: (index: number) => boolean,
+  options?: { isNewCreation?: boolean }
 ): ListingCreationNavItem[] {
+  const isNewCreation = options?.isNewCreation === true;
   return steps.map((step, index) => ({
     id: step.id,
     label: step.label,
-    state: listingCreationStepState(index, currentIndex, isSatisfied(index)),
+    state: listingCreationAccessState({
+      index,
+      currentIndex,
+      isNewCreation,
+      isSatisfied,
+    }),
   }));
 }

@@ -58,12 +58,21 @@ import {
   listingCreationProgressCopy,
 } from '../../lib/listing-creation-workspace';
 import {
+  canContinueFromPhotos,
+  canVisitListingCreationStep,
+  listingCreationContinueHint,
+  listingCreationLockedReason,
+} from '../../lib/listing-creation-progression';
+import {
   TOUR_BASICS_DESCRIPTION_MAX,
   TOUR_BASICS_SCENE_COUNT,
   TOUR_BASICS_SUBTITLE_MAX,
   TOUR_HIGHLIGHT_MIN_VISIBLE,
   canAdvanceTourBasicsScene,
   canSelectTourBasicsScene,
+  isTourIdentitySatisfied,
+  isTourProductTypeSatisfied,
+  isTourStorySatisfied,
   clampTourBasicsSceneIndex,
   initialTourBasicsSceneIndex,
   nextTourBasicsScene,
@@ -705,10 +714,15 @@ function isStepSatisfied(idx: number, form: ListingFormState): boolean {
   return true;
 }
 
-/** Soft gate so draft wizards can move past Photos with a single cover while publish still needs four. */
-function canContinueListingStep(idx: number, form: ListingFormState): boolean {
+/** Soft gate so existing drafts can move past Photos with a single cover. New creation requires publish-ready photos. */
+function canContinueListingStep(idx: number, form: ListingFormState, isNewCreation: boolean): boolean {
   if (idx === 3) {
-    return orderedPhotoUrls(normalizePhotoSlots(form.photoSlots)).length >= 1;
+    const photoCount = orderedPhotoUrls(normalizePhotoSlots(form.photoSlots)).length;
+    return canContinueFromPhotos({
+      isNewCreation,
+      photoCount,
+      photosPublishReady: listingPhotosReadyToPublish(form),
+    });
   }
   return isStepSatisfied(idx, form);
 }
@@ -831,6 +845,7 @@ export default function SupplierListingForm({
    * which feels like “wizard jumped back to the start” when you reopen create.
    */
   const [lastStepSubmitArmed, setLastStepSubmitArmed] = useState(true);
+  const [stepLockHint, setStepLockHint] = useState<string | null>(null);
   const submitInFlightRef = useRef(false);
   const lastFocused = useRef<string | null>(null);
   const stepContainerRef = useRef<HTMLDivElement | null>(null);
@@ -1014,12 +1029,54 @@ export default function SupplierListingForm({
     (next: number | ((prev: number) => number)) => {
       setStepIdx((prev) => {
         const resolved = typeof next === 'function' ? (next as (p: number) => number)(prev) : next;
+        const isNew = sessionOpenedAsCreateRef.current === true;
+        const allowed = canVisitListingCreationStep({
+          targetIndex: resolved,
+          isNewCreation: isNew,
+          isSatisfied: (i) => isStepSatisfied(i, form),
+        });
+        if (!allowed) {
+          const reason = listingCreationLockedReason({
+            targetIndex: resolved,
+            isStay: form.inventoryFamily === 'stay',
+            isSatisfied: (i) => isStepSatisfied(i, form),
+          });
+          queueMicrotask(() => setStepLockHint(reason));
+          return prev;
+        }
+        queueMicrotask(() => setStepLockHint(null));
         writeWizardStepToStorage(editingId, resolved, form.inventoryFamily === 'stay');
         return resolved;
       });
     },
-    [editingId, form.inventoryFamily]
+    [editingId, form]
   );
+
+  useLayoutEffect(() => {
+    if (sessionOpenedAsCreateRef.current !== true) return;
+    if (
+      canVisitListingCreationStep({
+        targetIndex: stepIdx,
+        isNewCreation: true,
+        isSatisfied: (i) => isStepSatisfied(i, form),
+      })
+    ) {
+      return;
+    }
+    let next = 0;
+    for (let i = 0; i <= stepIdx; i += 1) {
+      if (
+        canVisitListingCreationStep({
+          targetIndex: i,
+          isNewCreation: true,
+          isSatisfied: (idx) => isStepSatisfied(idx, form),
+        })
+      ) {
+        next = i;
+      }
+    }
+    if (next !== stepIdx) setStepIdxPersisted(next);
+  }, [form, stepIdx, setStepIdxPersisted]);
 
   const focusToStep: Record<string, number> = useMemo(() => {
     const stay = form.inventoryFamily === 'stay';
@@ -1665,9 +1722,22 @@ export default function SupplierListingForm({
     published: form.status === 'published',
   });
 
-  const canContinueStep = () => canContinueListingStep(stepIdx, form);
+  const canContinueStep = () => canContinueListingStep(stepIdx, form, sessionOpenedAsCreateRef.current === true);
   const tourBasicsGuided = !isStayForm && stepIdx === 0;
   const canContinueBasicsScene = canAdvanceTourBasicsScene(basicsSceneIdx, form);
+  const tourBasicsContinueHint = !canContinueBasicsScene
+    ? basicsSceneIdx === 0 && !isTourProductTypeSatisfied(form)
+      ? 'Choose a product type to continue.'
+      : basicsSceneIdx === 1 && !isTourIdentitySatisfied(form)
+        ? 'Add a title, language and subtitle to continue.'
+        : basicsSceneIdx === 2 && !isTourStorySatisfied(form)
+          ? 'Add a description of at least 100 characters to continue.'
+          : listingCreationContinueHint({
+              stepIndex: 0,
+              isStay: false,
+              canContinue: false,
+            })
+    : null;
 
   const creationTitle = editingId
     ? form.title.trim() || (form.inventoryFamily === 'stay' ? 'Stay' : 'Tour')
@@ -1681,7 +1751,9 @@ export default function SupplierListingForm({
     : createFamily === 'stay'
       ? 'Create stay steps'
       : 'Create tour steps';
-  const creationNavItems = listingCreationNavItems(steps, stepIdx, (idx) => isStepSatisfied(idx, form));
+  const creationNavItems = listingCreationNavItems(steps, stepIdx, (idx) => isStepSatisfied(idx, form), {
+    isNewCreation: sessionOpenedAsCreateRef.current === true,
+  });
   const creationProgressCopy = listingCreationProgressCopy(
     steps.filter((_, idx) => isStepSatisfied(idx, form)).length,
     steps.length
@@ -1744,6 +1816,11 @@ export default function SupplierListingForm({
           scrollRef={stepContainerRef}
           banners={
             <>
+              {stepLockHint ? (
+                <div className="listing-creation-hint shrink-0 px-4 pt-3 sm:px-8 lg:px-12" role="status">
+                  <p className="text-sm text-ink-muted">{stepLockHint}</p>
+                </div>
+              ) : null}
               {draftCloseError ? (
                 <div className="shrink-0 px-4 pt-3 sm:px-8 lg:px-12">
                   <NoticeCallout title="Could not save draft" tone="danger">
@@ -1786,6 +1863,7 @@ export default function SupplierListingForm({
             </>
           }
           footer={
+            <div className="flex flex-col gap-2">
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
               <button
                 type="button"
@@ -1898,7 +1976,6 @@ export default function SupplierListingForm({
                           disabled={
                             submitting ||
                             draftCloseBusy ||
-                            !isStepSatisfied(steps.length - 1, form) ||
                             !lastStepSubmitArmed
                           }
                           className="touch-manipulation tv-btn-secondary !min-h-11 sm:flex-none disabled:opacity-50"
@@ -1925,6 +2002,18 @@ export default function SupplierListingForm({
                   </div>
                 )}
               </div>
+            </div>
+            {!tourOptionGuided && stepIdx < steps.length - 1 ? (
+              <p className="listing-creation-hint min-h-4 text-xs leading-relaxed text-ink-muted sm:text-right" role="status">
+                {tourBasicsGuided
+                  ? tourBasicsContinueHint
+                  : listingCreationContinueHint({
+                      stepIndex: stepIdx,
+                      isStay: isStayForm,
+                      canContinue: canContinueStep(),
+                    })}
+              </p>
+            ) : null}
             </div>
           }
         >
@@ -2789,7 +2878,9 @@ export default function SupplierListingForm({
                 {!photosPublishReady && photoCount >= 1 ? (
                   <p className="text-sm text-amber-900">
                     {photoCount < LISTING_PHOTO_MIN
-                      ? `You can continue with this cover. Add ${LISTING_PHOTO_MIN - photoCount} more before publish (${LISTING_PHOTO_MIN}–${LISTING_PHOTO_MAX} photos required).`
+                      ? sessionOpenedAsCreateRef.current
+                        ? `Add ${LISTING_PHOTO_MIN - photoCount} more photos to continue (${LISTING_PHOTO_MIN}–${LISTING_PHOTO_MAX} required).`
+                        : `You can continue with this cover. Add ${LISTING_PHOTO_MIN - photoCount} more before publish (${LISTING_PHOTO_MIN}–${LISTING_PHOTO_MAX} photos required).`
                       : 'Replace the placeholder cover photo before publishing.'}
                   </p>
                 ) : null}

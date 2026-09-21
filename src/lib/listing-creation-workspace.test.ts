@@ -22,7 +22,7 @@ describe('listingCreationStepState', () => {
 
 describe('listingCreationProgressCopy', () => {
   it('describes an empty start without implying an error', () => {
-    expect(listingCreationProgressCopy(0, 5)).toBe('5 steps');
+    expect(listingCreationProgressCopy(0, 5)).toBe('0 of 5 complete');
   });
 
   it('reports a truthful complete count', () => {
@@ -50,6 +50,28 @@ describe('listingCreationNavItems', () => {
       'upcoming',
       'upcoming',
       'upcoming',
+    ]);
+  });
+
+  it('locks later steps on a new listing until earlier ones are satisfied', () => {
+    const items = listingCreationNavItems(
+      [
+        { id: 'the_experience', label: 'Basics' },
+        { id: 'practical', label: 'Details' },
+        { id: 'cost_options', label: 'Options' },
+        { id: 'photos', label: 'Photos' },
+        { id: 'review', label: 'Review' },
+      ],
+      0,
+      () => false,
+      { isNewCreation: true }
+    );
+    expect(items.map((item) => item.state)).toEqual([
+      'current',
+      'locked',
+      'locked',
+      'locked',
+      'locked',
     ]);
   });
 });
