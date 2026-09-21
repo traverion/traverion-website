@@ -2067,17 +2067,25 @@ export default function SupplierListingForm({
                 )}
               </div>
             </div>
-            {!tourOptionGuided && stepIdx < steps.length - 1 ? (
-              <p className="listing-creation-hint min-h-4 text-xs leading-relaxed text-ink-muted sm:text-right" role="status">
-                {tourBasicsGuided
-                  ? tourBasicsContinueHint
-                  : listingCreationContinueHint({
-                      stepIndex: stepIdx,
-                      isStay: isStayForm,
-                      canContinue: canContinueStep(),
-                    })}
-              </p>
-            ) : null}
+            {!tourOptionGuided && stepIdx < steps.length - 1
+              ? (() => {
+                  const hint = tourBasicsGuided
+                    ? tourBasicsContinueHint
+                    : listingCreationContinueHint({
+                        stepIndex: stepIdx,
+                        isStay: isStayForm,
+                        canContinue: canContinueStep(),
+                      });
+                  return hint ? (
+                    <p
+                      className="listing-creation-hint text-xs leading-relaxed text-ink-muted sm:text-right"
+                      role="status"
+                    >
+                      {hint}
+                    </p>
+                  ) : null;
+                })()
+              : null}
             </div>
           }
         >
