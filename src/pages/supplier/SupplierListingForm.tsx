@@ -43,7 +43,15 @@ import {
   LISTING_PHOTO_MIN,
 } from '../../lib/listingPhotoGrid';
 import { getListingPublishBlockers } from '../../lib/listingPublishGate';
-import { listingBuilderSections } from '../../lib/listingBuilderProgress';
+import {
+  listingPublishTruth,
+  reviewBasicsSummary,
+  reviewDetailsSummary,
+  reviewOptionsSummary,
+  reviewPhotosSummary,
+  reviewStayLocationSummary,
+  reviewStayPricingSummary,
+} from '../../lib/listing-creation-review';
 import { listingWizardPersistLabel } from '../../lib/listing-wizard-persist';
 import {
   listingCreationNavItems,
@@ -82,6 +90,7 @@ import {
 import { DEFAULT_CURRENCY, formatMoney, normalizeCurrency } from '../../lib/money';
 import { STAY_AMENITY_PRESETS } from '../../lib/stay-amenities';
 import { publicStayListingUrl, publicTourListingUrl } from '../../lib/publicSiteUrl';
+import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import NoticeCallout from '../../components/NoticeCallout';
 
 const TAG_OPTIONS = [
@@ -760,6 +769,8 @@ interface SupplierListingFormProps {
   onFocusConsumed?: () => void;
   /** False when business / payout verification blocks going live (Settings). */
   canPostNewListing?: boolean;
+  /** Truthful account-gate copy when canPostNewListing is false. */
+  publishAccountBlockedReason?: string | null;
   createFamily?: 'tour' | 'stay';
 }
 
@@ -775,6 +786,7 @@ export default function SupplierListingForm({
   focusSection,
   onFocusConsumed,
   canPostNewListing = true,
+  publishAccountBlockedReason = null,
   createFamily = 'tour',
 }: SupplierListingFormProps) {
   const { user } = useAuth();
@@ -898,30 +910,94 @@ export default function SupplierListingForm({
     ] as const;
   }, [form.inventoryFamily, createFamily]);
 
-  const builderSections = useMemo(
-    () => (isStayForm ? [] : listingBuilderSections(form)),
-    [form, isStayForm]
-  );
-
-  // Review step: jump links into prior sections via step navigation
-  const reviewJumpTargets = useMemo(() => {
-    const stay = form.inventoryFamily === 'stay' || createFamily === 'stay';
-    if (stay) {
+  const reviewRows = useMemo(() => {
+    const photoCount = orderedPhotoUrls(normalizePhotoSlots(form.photoSlots)).length;
+    const coverUrl = orderedPhotoUrls(normalizePhotoSlots(form.photoSlots))[0] ?? '';
+    const coverSelected = Boolean(coverUrl && !isPlaceholderListingImageUrl(coverUrl));
+    const photosMissing = !isStepSatisfied(3, form)
+      ? photoCount < LISTING_PHOTO_MIN
+        ? `Add at least ${LISTING_PHOTO_MIN} photos, with a real cover.`
+        : 'Replace the placeholder cover photo.'
+      : null;
+    if (isStayForm) {
+      const nightly = Number.parseFloat(form.stayNightly);
+      const nightlyLabel = Number.isFinite(nightly) && nightly > 0 ? formatMoney(nightly, listingCurrency) + ' / night' : '';
       return [
-        { step: 0, label: 'Property' },
-        { step: 1, label: 'Location' },
-        { step: 2, label: 'Pricing & rooms' },
-        { step: 3, label: 'Photos' },
-      ] as const;
+        {
+          step: 0,
+          label: 'Property',
+          summary: form.title.trim() || 'Untitled stay',
+          ready: isStepSatisfied(0, form),
+          missing: !form.title.trim() ? 'Add a clear title.' : null,
+        },
+        {
+          step: 1,
+          label: 'Location',
+          summary: reviewStayLocationSummary(form.city, form.country),
+          ready: isStepSatisfied(1, form),
+          missing: !form.city.trim() || !form.country.trim() ? 'Add city and country.' : null,
+        },
+        {
+          step: 2,
+          label: 'Pricing',
+          summary: reviewStayPricingSummary(nightlyLabel, form.stayMaxGuests),
+          ready: isStepSatisfied(2, form),
+          missing: !isStepSatisfied(2, form) ? 'Set nightly rate, capacity, and check-in times.' : null,
+        },
+        {
+          step: 3,
+          label: 'Photos',
+          summary: reviewPhotosSummary(photoCount, coverSelected && photoCount > 0),
+          ready: isStepSatisfied(3, form),
+          missing: photosMissing,
+        },
+      ];
     }
+    const languageLabel =
+      LANGUAGE_OPTIONS.find((row) => row.code === form.experienceLanguage)?.label ?? form.experienceLanguage;
+    const options = materializedBookingOptions(form.bookingOptions);
+    const readyCount = readyBookingOptions(options, getBookingOptionValidationMessages).length;
+    const amount = headlineStartingAmountFromBookingOptions(options);
+    const priceSummary =
+      typeof amount === 'number' && amount > 0 ? `From ${formatMoney(amount, listingCurrency)}` : '';
     return [
-      { step: 0, label: 'Basics' },
-      { step: 0, label: 'Content' },
-      { step: 1, label: 'Location' },
-      { step: 2, label: 'Options & pricing' },
-      { step: 3, label: 'Photos' },
-    ] as const;
-  }, [form.inventoryFamily, createFamily]);
+      {
+        step: 0,
+        label: 'Basics',
+        summary: reviewBasicsSummary(form.title, form.experienceKind, languageLabel),
+        ready: isStepSatisfied(0, form),
+        missing: !isStepSatisfied(0, form)
+          ? 'Finish product type, title, subtitle, language, and description.'
+          : null,
+      },
+      {
+        step: 1,
+        label: 'Details',
+        summary: reviewDetailsSummary(
+          form.city,
+          form.country,
+          form.includes.map((s) => s.trim()).filter(Boolean).length,
+          form.excludes.map((s) => s.trim()).filter(Boolean).length
+        ),
+        ready: isStepSatisfied(1, form),
+        missing: !isStepSatisfied(1, form) ? 'Add city, country, inclusions, and exclusions.' : null,
+      },
+      {
+        step: 2,
+        label: 'Options',
+        summary: reviewOptionsSummary(readyCount, options.length, priceSummary),
+        ready: isStepSatisfied(2, form),
+        missing: !isStepSatisfied(2, form) ? 'Add at least one complete bookable option.' : null,
+      },
+      {
+        step: 3,
+        label: 'Photos',
+        summary: reviewPhotosSummary(photoCount, Boolean(coverSelected && photoCount > 0)),
+        ready: isStepSatisfied(3, form),
+        missing: photosMissing,
+      },
+    ];
+  }, [form, isStayForm, listingCurrency]);
 
   useEffect(() => {
     const last = steps.length - 1;
@@ -2753,138 +2829,91 @@ export default function SupplierListingForm({
             );
           })()}
 
-          {stepIdx === 4 && (
-            <div id="supplier-listing-field-review" className="space-y-6">
+          {stepIdx === 4 && (() => {
+            const listingReady = publishBlockersPreview.length === 0;
+            const truth = listingPublishTruth({
+              listingReady,
+              accountEligible: canPostNewListing,
+              listingMissing: publishBlockersPreview[0] ?? null,
+              accountReason: publishAccountBlockedReason,
+            });
+            return (
+            <div id="supplier-listing-field-review" className="space-y-8">
               <div>
-                <h3 className="font-display text-xl text-ink">Review &amp; publish</h3>
-                <p className="mt-1 text-sm text-ink-muted leading-relaxed max-w-2xl">
-                  {form.inventoryFamily === 'stay' || createFamily === 'stay'
-                    ? 'Check property details, pricing, and photos. Fix anything incomplete below, then save or publish.'
-                    : 'Options are versions of this experience. Adult and Child prices belong inside an option — not as separate options. Fix anything incomplete below, then save or publish.'}
+                <h3 className="font-display text-[1.85rem] leading-[1.15] tracking-tight text-ink sm:text-[2.15rem]">
+                  Review
+                </h3>
+                <p className="mt-2 max-w-xl text-base leading-relaxed text-ink-muted">
+                  A quiet last look before this {isStayForm ? 'stay' : 'tour'} can go live. Save as draft is always
+                  available.
                 </p>
               </div>
-              {form.inventoryFamily === 'stay' || createFamily === 'stay' ? (
-                <ul className="space-y-2">
-                  {reviewJumpTargets.map((jump) => {
-                    const ready = isStepSatisfied(jump.step, form);
-                    const softOk = canContinueListingStep(jump.step, form);
-                    const tone = ready
-                      ? 'bg-emerald-50 ring-emerald-200/80 text-emerald-950'
-                      : softOk
-                        ? 'bg-amber-50 ring-amber-200/80 text-amber-950'
-                        : 'bg-paper ring-black/[0.06] text-ink';
-                    return (
-                      <li key={`${jump.step}-${jump.label}`}>
-                        <button
-                          type="button"
-                          onClick={() => setStepIdxPersisted(jump.step)}
-                          className={`lux-flat flex w-full items-start justify-between gap-3 rounded-xl px-4 py-3.5 text-left ring-1 ${tone}`}
-                        >
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold">
-                              {ready ? '✓ ' : softOk ? '! ' : '○ '}
-                              {jump.label}
-                            </p>
-                            <p className="mt-1 text-xs opacity-80">
-                              {ready ? 'Ready for publish' : softOk ? 'Draft OK — finish before publish' : 'Needs attention'}
-                            </p>
-                          </div>
-                          <span className="text-xs font-medium shrink-0 opacity-70">Edit</span>
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              ) : (
-              <ul className="space-y-2">
-                {builderSections.map((section) => {
-                  const jump =
-                    reviewJumpTargets.find((t) => t.label === section.label) ??
-                    (section.id === 'basics' || section.id === 'content'
-                      ? { step: 0, label: section.label }
-                      : section.id === 'location'
-                        ? { step: 1, label: section.label }
-                        : section.id === 'options'
-                          ? { step: 2, label: section.label }
-                          : { step: 3, label: section.label });
-                  const tone =
-                    section.status === 'complete'
-                      ? 'bg-emerald-50 ring-emerald-200/80 text-emerald-950'
-                      : section.status === 'incomplete'
-                        ? 'bg-amber-50 ring-amber-200/80 text-amber-950'
-                        : 'bg-paper ring-black/[0.06] text-ink';
-                  return (
-                    <li key={section.id}>
-                      <button
-                        type="button"
-                        onClick={() => setStepIdxPersisted(jump.step)}
-                        className={`lux-flat flex w-full items-start justify-between gap-3 rounded-xl px-4 py-3.5 text-left ring-1 ${tone}`}
-                      >
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold">
-                            {section.status === 'complete' ? '✓ ' : section.status === 'incomplete' ? '! ' : '○ '}
-                            {section.label}
-                          </p>
-                          {section.issues.length > 0 ? (
-                            <p className="mt-1 text-xs leading-snug opacity-90">
-                              {section.issues.slice(0, 2).join(' · ')}
-                              {section.issues.length > 2 ? ` · +${section.issues.length - 2} more` : ''}
-                            </p>
-                          ) : (
-                            <p className="mt-1 text-xs opacity-80">Ready</p>
-                          )}
-                        </div>
-                        <span className="text-xs font-medium shrink-0 opacity-70">Edit</span>
-                      </button>
-                    </li>
-                  );
-                })}
+              {truth.bannerTitle ? (
+                <div className="border-y border-black/[0.08] py-5" role="status">
+                  <p className="font-display text-xl tracking-tight text-ink">{truth.bannerTitle}</p>
+                  <p className="mt-2 max-w-xl text-sm leading-relaxed text-ink-muted">{truth.bannerBody}</p>
+                  <a
+                    href={`${PARTNER_APP_BASE}/business-profile`}
+                    className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-finland hover:underline"
+                  >
+                    Open Settings
+                  </a>
+                </div>
+              ) : null}
+              <ul className="divide-y divide-black/[0.08] border-y border-black/[0.08]">
+                {reviewRows.map((row) => (
+                  <li key={row.label} className="flex flex-wrap items-start justify-between gap-3 py-5">
+                    <div className="min-w-0 max-w-xl">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">{row.label}</p>
+                      <p className="mt-1 text-base leading-relaxed text-ink [overflow-wrap:anywhere]">{row.summary}</p>
+                      <p className="mt-1 text-sm text-ink-muted">
+                        {row.ready ? 'Ready' : row.missing || 'Needs attention'}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setStepIdxPersisted(row.step)}
+                      className="tv-btn-ghost shrink-0"
+                    >
+                      Edit
+                    </button>
+                  </li>
+                ))}
               </ul>
-              )}
-              <div className="rounded-xl bg-finland/[0.05] px-4 py-4 ring-1 ring-finland/15">
-                <p className="font-medium text-ink">
-                  {form.status === 'published' ? 'Update your live listing' : PARTNER_LISTING_PUBLISH_STEP_TITLE}
-                </p>
-                <p className="mt-2 text-sm text-ink-muted leading-relaxed">{PARTNER_LISTING_PUBLISH_STEP_NOTE}</p>
-                {publishBlockersPreview.length === 0 ? (
-                  <p className="mt-3 text-sm font-medium text-emerald-800">All sections look ready to publish.</p>
+              <div className="space-y-2">
+                <p className="text-sm leading-relaxed text-ink">{truth.listingLine}</p>
+                {truth.accountLine ? (
+                  <p className="text-sm leading-relaxed text-ink-muted">{truth.accountLine}</p>
+                ) : listingReady ? (
+                  <p className="text-sm leading-relaxed text-ink-muted">
+                    {form.status === 'published'
+                      ? 'This listing is live. Save changes from the footer when you are done.'
+                      : 'Your account can publish when you choose Publish in the footer.'}
+                  </p>
                 ) : (
-                  <div className="mt-3 space-y-1.5">
-                    <p className="text-sm font-medium text-amber-900">
-                      {publishBlockersPreview.length} item{publishBlockersPreview.length === 1 ? '' : 's'} still needed before
-                      publish. You can always save a draft.
-                    </p>
-                    <ul className="list-disc pl-4 text-xs text-amber-950/90 space-y-0.5">
-                      {publishBlockersPreview.slice(0, 4).map((line) => (
-                        <li key={line}>{line}</li>
-                      ))}
-                    </ul>
-                  </div>
+                  <p className="text-sm leading-relaxed text-ink-muted">You can keep this as a draft until it is ready.</p>
                 )}
-                {(form.inventoryFamily === 'stay' || createFamily === 'stay') &&
-                !form.stayAmenities.trim() ? (
-                  <p className="mt-3 text-xs text-ink-muted leading-snug">
-                    Tip: add amenities on Pricing so travelers see Wi‑Fi, parking, and other basics — optional for
-                    publish, expected by guests.
+                {!canPostNewListing ? (
+                  <p className="text-sm text-ink-muted">
+                    Publish stays unavailable until verification is complete. Draft save still works.
                   </p>
                 ) : null}
                 {form.status === 'published' && editingId ? (
                   <a
                     href={
-                      form.inventoryFamily === 'stay' || createFamily === 'stay'
-                        ? publicStayListingUrl(editingId)
-                        : publicTourListingUrl(editingId)
+                      isStayForm ? publicStayListingUrl(editingId) : publicTourListingUrl(editingId)
                     }
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="mt-3 inline-flex text-sm font-semibold text-finland hover:underline"
+                    className="inline-flex min-h-11 items-center text-sm font-semibold text-finland hover:underline"
                   >
                     View live listing
                   </a>
                 ) : null}
               </div>
             </div>
-          )}
+            );
+          })()}
           </div>
           )}
         </ListingCreationWorkspace>

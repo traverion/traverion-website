@@ -1090,6 +1090,7 @@ export default function SupplierListings() {
           existingListings={listings}
           onSave={handleSave}
           canPostNewListing={canPostNewListing}
+          publishAccountBlockedReason={!canPostNewListing ? profileGateMessage : null}
           createFamily={createFamily}
           enableDraftOnClose={Boolean(isSupabase && canEditListings)}
           onSaveDraft={async (tour) => {
