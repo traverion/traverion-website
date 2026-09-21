@@ -3,40 +3,40 @@
 **Mission:** Phases 0→400 autonomous product completion  
 **Started:** 2026-09-21  
 **Starting SHA:** `d38ff80`  
-**Current SHA:** (pending)  
-**Current phase:** 45  
-**Current band:** 40–59 Traveler home + discovery (creation cert largely code-complete)
+**Current SHA:** `e41cb9d`  
+**Current phase:** ~90  
+**Current band:** 80–99 Tour detail (schedule truth wired through catalog/booking/capacity)
 
 ## Completed
 
-- Phase 0: Product map + `traverion-product-truth-audit.md`
-- Phases 1–19: Tour Details slim; orphan schedule cancel fix
-- Phases 20–35: Multi-schedule copy/cert tests; Sep/Oct same-time overlap proof
-- Phases 36–44: Catalog/headline prices read ready schedules; Tour detail weekday/start hints from schedules
+- 0–19: Product audit; Tour Details slim; no orphan empty schedules
+- 20–39: Multi-schedule certification copy + Sep/Oct overlap tests
+- 40–59: Home Stripe TEST honesty; search empty states already solid
+- 80–99: Catalog from-price from schedules; variant prices/times; date-scoped party bounds; capacity fallbacks across Tour detail / Packages / Booking / Calendar
 
 ## In progress
 
-- Traveler discovery honesty + Tour/Stay detail polish
+- Finish tour schedule traveler surface; then Stay detail / quote bands
 
 ## Next
 
-- Search URL/back persistence audit
-- Stay detail quote clarity
-- Checkout / Trips when discovery stable
+- Stay detail quote/calendar pass
+- Checkout / Trips status language
+- Supplier ops only if P0 found
 
 ## Tests
 
-- headline-price, discount-display, listing-option-schedules — pass
+- headline-price, booking-flow.schedules, marketplace-loop, listing-option-schedules — pass
 
 ## Decisions
 
-- Schedule prices are canonical for catalog “from” when option.priceUsd is empty
+- Ready schedules are canonical for traveler price, capacity, and start-time display when present
 - Stripe stays TEST; do not commit `scripts/cert-transactional-emails.cjs`
 
 ## Known issues
 
-- Full browser partner creation E2E needs live session
-- Supplier Home operational desk still partial
+- Browser partner E2E creation needs live session
+- Date-specific sold-out vs per-schedule capacity still coarse (listing-wide paid guests)
 
 ## Deferred
 
