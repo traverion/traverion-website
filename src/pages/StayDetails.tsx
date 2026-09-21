@@ -894,6 +894,11 @@ export default function StayDetails({ stayId, onBack }: Props) {
                 className="tv-btn-primary shrink-0"
                 onClick={() => {
                   document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  window.requestAnimationFrame(() => {
+                    const root = document.getElementById('stay-night-picker');
+                    const firstOpen = root?.querySelector('button:not([disabled])') as HTMLButtonElement | null;
+                    (firstOpen ?? root)?.focus();
+                  });
                 }}
               >
                 Select dates
