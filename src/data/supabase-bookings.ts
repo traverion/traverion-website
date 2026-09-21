@@ -198,6 +198,8 @@ export async function createBookingCheckoutSession(params: {
   totalAmount?: number;
   currency?: string;
   bookingOptionId?: string;
+  /** HH:MM when multiple schedules apply on the departure date. */
+  startTime?: string;
   guestBreakdown?: { categoryId: string; label: string; kind: string; quantity: number; unitPrice: number }[];
   participantMix?: Record<string, number>;
   checkoutDate?: string;
@@ -217,6 +219,7 @@ export async function createBookingCheckoutSession(params: {
       specialRequests: params.specialRequests,
       currency: params.currency,
       bookingOptionId: params.bookingOptionId,
+      startTime: params.startTime,
       guestBreakdown: params.guestBreakdown,
       participantMix: params.participantMix,
       checkoutDate: params.checkoutDate,

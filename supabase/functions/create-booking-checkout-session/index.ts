@@ -104,6 +104,10 @@ serve(async (req) => {
     const customerPhone = String(body.customerPhone ?? '').trim();
     const specialRequests = String(body.specialRequests ?? '').trim();
     const requestedOptionId = String(body.bookingOptionId ?? '').trim();
+    const startTimeRaw = String((body as { startTime?: unknown }).startTime ?? '').trim();
+    const startTime = /^\d{1,2}:\d{2}$/.test(startTimeRaw)
+      ? startTimeRaw.padStart(5, '0')
+      : '';
     let checkoutDate = String(body.checkoutDate ?? '').trim();
     const successPath = sanitizePath(body.successPath, '/booking-confirmed');
     const cancelPath = sanitizePath(body.cancelPath, '/bookings?payment=cancelled');
@@ -280,6 +284,7 @@ serve(async (req) => {
       bookingOptionId: storedOptionId,
       checkoutDate: checkoutDate || null,
       participantMix,
+      startTime: startTime || null,
     });
     if (!quote.ok) {
       return json({ success: false, error: quote.error }, 400);
@@ -354,9 +359,24 @@ serve(async (req) => {
           return json({ success: false, error: 'This date is not available.' }, 409);
         }
       } else {
-        const extras = listingRow.listing_extras as { bookingOptions?: Array<{ maxSpotsPerSlot?: unknown }> } | null;
+        const extras = listingRow.listing_extras as {
+          bookingOptions?: Array<{
+            maxSpotsPerSlot?: unknown;
+            schedules?: Array<{ maxSpotsPerSlot?: unknown; status?: string } | null> | null;
+          }>;
+        } | null;
         let max = 0;
         for (const opt of extras?.bookingOptions ?? []) {
+          const schedules = Array.isArray(opt.schedules) ? opt.schedules : null;
+          if (schedules && schedules.length > 0) {
+            for (const s of schedules) {
+              if (!s || s.status === 'draft') continue;
+              const spots = s.maxSpotsPerSlot;
+              if (typeof spots !== 'number' || !Number.isFinite(spots) || spots < 1) continue;
+              max = Math.max(max, Math.floor(spots));
+            }
+            continue;
+          }
           const spots = opt.maxSpotsPerSlot;
           if (typeof spots !== 'number' || !Number.isFinite(spots) || spots < 1) continue;
           max = Math.max(max, Math.floor(spots));
@@ -439,6 +459,7 @@ serve(async (req) => {
           booking_option_id: quote.optionId,
           hold_expires_at: holdExpiresAtIso,
         };
+        if (startTime) insertBase.start_time = startTime;
         if (quote.guestBreakdown?.length) {
           insertBase.guest_breakdown = quote.guestBreakdown;
         }
@@ -459,6 +480,9 @@ serve(async (req) => {
         const id = claimed.data as string | null;
         if (!id) return json({ success: false, error: 'Could not create booking' }, 500);
         targetBookingId = id;
+        if (startTime) {
+          await admin.from('bookings').update({ start_time: startTime }).eq('id', id);
+        }
       }
     } else {
       const { error: inventoryErr } = await admin.rpc('assert_checkout_inventory', {

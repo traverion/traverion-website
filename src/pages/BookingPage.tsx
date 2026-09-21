@@ -722,6 +722,7 @@ export default function BookingPage({
           customerPhone: phone.trim() || undefined,
           specialRequests: specialWithMix || undefined,
           bookingOptionId: quoted.optionId ?? undefined,
+          startTime: departureTime,
           guestBreakdown: quoted.guestBreakdown,
           participantMix: Object.keys(participantMix).length > 0 ? participantMix : undefined,
           currency: quoted.currency,
@@ -734,6 +735,7 @@ export default function BookingPage({
                 mix: Object.keys(participantMix).length > 0 ? participantMix : null,
                 step: 'confirm',
                 paymentCancelled: true,
+                startTime: departureTime,
               })
             : '/bookings?payment=cancelled',
         });
