@@ -772,7 +772,62 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                 ) : null}
                 {open ? (
                 <div className="space-y-3 border-t border-black/[0.05] px-3 py-3 sm:px-3.5 motion-safe:animate-fade-in">
-                  {b.pickup_time ? (
+                  <dl className="grid gap-2 rounded-xl bg-paper px-3 py-2.5 ring-1 ring-black/[0.05] sm:grid-cols-2">
+                    <div>
+                      <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
+                        {isStay ? 'Stay dates' : 'Departure'}
+                      </dt>
+                      <dd className="mt-0.5 text-sm font-medium text-ink">
+                        {dateLine}
+                        {timeBit ? ` · ${timeBit}` : ''}
+                      </dd>
+                    </div>
+                    {placeLine ? (
+                      <div>
+                        <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
+                          Location
+                        </dt>
+                        <dd className="mt-0.5 text-sm text-ink">{placeLine}</dd>
+                      </div>
+                    ) : null}
+                    {!isStay && ops?.meeting_point?.trim() ? (
+                      <div className="sm:col-span-2">
+                        <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
+                          Meeting point
+                        </dt>
+                        <dd className="mt-0.5 text-sm text-ink whitespace-pre-wrap">{ops.meeting_point.trim()}</dd>
+                      </div>
+                    ) : null}
+                    {!isStay && ops?.pickup_instructions?.trim() && !pickupMissing ? (
+                      <div className="sm:col-span-2">
+                        <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
+                          Pickup
+                        </dt>
+                        <dd className="mt-0.5 text-sm text-ink whitespace-pre-wrap">
+                          {b.pickup_time ? `${pgTimeToHm(b.pickup_time)} · ` : ''}
+                          {ops.pickup_instructions.trim()}
+                        </dd>
+                      </div>
+                    ) : null}
+                    <div>
+                      <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
+                        Guests
+                      </dt>
+                      <dd className="mt-0.5 text-sm text-ink">
+                        {formatBookingParticipantsLabel(b)}
+                        {b.nights ? ` · ${b.nights === 1 ? '1 night' : `${b.nights} nights`}` : ''}
+                      </dd>
+                    </div>
+                    {ref ? (
+                      <div>
+                        <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
+                          Reference
+                        </dt>
+                        <dd className="mt-0.5 font-mono text-sm font-semibold tracking-wide text-finland">{ref}</dd>
+                      </div>
+                    ) : null}
+                  </dl>
+                  {b.pickup_time && (pickupMissing || !ops?.pickup_instructions?.trim()) ? (
                     <p className="text-sm text-ink-muted">Pickup {pgTimeToHm(b.pickup_time)}</p>
                   ) : pickupMissing ? (
                     <NoticeCallout title="Pickup details pending" tone="warn">
@@ -949,6 +1004,9 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         year: 'numeric',
                       })
                     : 'Date TBC'}
+                  {cancelConfirm.start_time && !cancelConfirm.check_out
+                    ? ` · ${pgTimeToHm(cancelConfirm.start_time)}`
+                    : ''}
                   {typeof cancelConfirm.booking_number === 'number' && cancelConfirm.booking_number > 0
                     ? ` · #${cancelConfirm.booking_number}`
                     : ''}

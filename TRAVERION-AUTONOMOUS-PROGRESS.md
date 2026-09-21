@@ -3,9 +3,9 @@
 **Mission:** Phases 0→400 autonomous product completion  
 **Started:** 2026-09-21  
 **Starting SHA:** `d38ff80`  
-**Current SHA:** `7f7926d`  
-**Current phase:** ~185  
-**Current band:** 180–199 Post-booking / checkout continuity
+**Current SHA:** `91620ca`  
+**Current phase:** ~190  
+**Current band:** 180–199 Post-booking / Trips
 
 ## Completed
 
@@ -17,6 +17,8 @@
 - Checkout age pricing uses resolved schedule
 - Stay mobile CTA requires valid quote
 - Calendar copy for schedule windows
+- Party bounds use selected departure
+- Checkout capacity scoped to departure schedule/slot
 
 ## In progress
 
@@ -24,24 +26,26 @@
 
 ## Next
 
-- Trips detail language if raw statuses remain
+- Trips detail: ensure start time + clear status language
 - Stay creation cert / Availability ops
 - Typecheck/build gates approaching Phase 400
 
 ## Tests / gates
 
-- tsc --noEmit clean (post checkout schedule apply)
-- Unit: tourCheckoutUrl, booking-quote, schedules, marketplace-loop
+- booking-hold + tour-departure-slot-capacity unit green
+- Prior: tsc, tourCheckoutUrl, booking-quote, schedules, marketplace-loop
 
 ## Decisions
 
 - Schedules are traveler commercial truth when present
+- Same-day multi-time inventory is per departure slot when start_time known
+- Day-level listing_availability override remains day-wide
 - Stripe TEST; no cert-transactional-emails commit
 
 ## Known issues
 
-- Edge function must be deployed for production TEST to store startTime
-- Coarse listing-wide capacity vs per-schedule inventory
+- Edge function must be deployed for production TEST to store startTime + slot capacity
+- Partner Calendar still day-level (not per-slot ops UI)
 
 ## Deferred
 
