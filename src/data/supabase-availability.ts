@@ -1,4 +1,4 @@
-import { listingTourCapacityFromOptions, remainingCapacity } from '../lib/availability-ops';
+import { listingTourCapacityFromOptions, remainingCapacity, capacitySpotsFromBookingOptions } from '../lib/availability-ops';
 import { localYmd } from '../lib/local-ymd';
 import { supabase } from '../lib/supabase';
 
@@ -51,11 +51,13 @@ export async function fetchPublishedTourPaidGuests(
 async function fetchTourOptionCapacity(listingId: string): Promise<number> {
   if (!supabase) return listingTourCapacityFromOptions([]);
   const { data } = await supabase.from('listings').select('listing_extras').eq('id', listingId).maybeSingle();
-  const extras = data?.listing_extras as { bookingOptions?: Array<{ maxSpotsPerSlot?: unknown }> } | null;
-  const spots = (extras?.bookingOptions ?? []).map((o) =>
-    typeof o.maxSpotsPerSlot === 'number' ? o.maxSpotsPerSlot : null
-  );
-  return listingTourCapacityFromOptions(spots);
+  const extras = data?.listing_extras as {
+    bookingOptions?: Array<{
+      maxSpotsPerSlot?: unknown;
+      schedules?: Array<{ maxSpotsPerSlot?: unknown; status?: string } | null> | null;
+    }>;
+  } | null;
+  return listingTourCapacityFromOptions(capacitySpotsFromBookingOptions(extras?.bookingOptions ?? []));
 }
 
 export type AvailabilityCheckOption = {

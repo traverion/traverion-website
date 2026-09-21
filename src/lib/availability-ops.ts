@@ -94,3 +94,26 @@ export function listingTourCapacityFromOptions(spots: Array<number | undefined |
   }
   return Math.min(99, max >= 1 ? max : 8);
 }
+
+/** Flatten option- and schedule-level maxSpotsPerSlot for listing-wide fallback capacity. */
+export function capacitySpotsFromBookingOptions(
+  options: Array<{
+    maxSpotsPerSlot?: number | null;
+    schedules?: Array<{ maxSpotsPerSlot?: number | null; status?: string } | null> | null;
+  } | null | undefined>
+): Array<number | null> {
+  const spots: Array<number | null> = [];
+  for (const o of options) {
+    if (!o) continue;
+    const schedules = Array.isArray(o.schedules) ? o.schedules : null;
+    if (schedules && schedules.length > 0) {
+      for (const s of schedules) {
+        if (!s || s.status === 'draft') continue;
+        spots.push(typeof s.maxSpotsPerSlot === 'number' ? s.maxSpotsPerSlot : null);
+      }
+      continue;
+    }
+    spots.push(typeof o.maxSpotsPerSlot === 'number' ? o.maxSpotsPerSlot : null);
+  }
+  return spots;
+}

@@ -39,7 +39,7 @@ import AvailabilityOptionsModal from '../components/booking/AvailabilityOptionsM
 import TourDatePicker from '../components/TourDatePicker';
 import GuestStepper from '../components/booking/GuestStepper';
 import ParticipantCategoryStepper from '../components/booking/ParticipantCategoryStepper';
-import { listingTourCapacityFromOptions, remainingCapacity } from '../lib/availability-ops';
+import { listingTourCapacityFromOptions, remainingCapacity, capacitySpotsFromBookingOptions } from '../lib/availability-ops';
 import { tourSoldOutDates } from '../lib/tour-calendar';
 import { useDialogFocus } from '../hooks/useDialogFocus';
 import { analytics } from '../lib/analytics';
@@ -277,7 +277,7 @@ export default function BookingPage({
     void Promise.all([fetchAvailabilityByListingId(tour.id), fetchPublishedTourPaidGuests(tour.id)]).then(
       ([caps, paidByDay]) => {
         if (cancelled) return;
-        const fallbackCap = listingTourCapacityFromOptions(calendarOptions.map((o) => o.maxSpotsPerSlot));
+        const fallbackCap = listingTourCapacityFromOptions(capacitySpotsFromBookingOptions(calendarOptions));
         const capByDay = new Map<string, number>();
         for (const row of caps) {
           const day = String(row.available_date ?? '').slice(0, 10);

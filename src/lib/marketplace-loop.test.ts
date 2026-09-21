@@ -3,6 +3,7 @@ import { marketplaceLoopAssertions, runMarketplaceLoop, sampleNorthernLightsExpe
 import { getListingPublishBlockers } from './listingPublishGate';
 import {
   buildMonthCells,
+  capacitySpotsFromBookingOptions,
   listingTourCapacityFromOptions,
   nextBookedCount,
   previousBookedCount,
@@ -62,6 +63,20 @@ describe('availability ops', () => {
     expect(remainingCapacity(listingTourCapacityFromOptions([8, 12]), 1)).toBe(11);
     expect(remainingCapacity(listingTourCapacityFromOptions([8, 12]), 1) >= 12).toBe(false);
     expect(remainingCapacity(listingTourCapacityFromOptions([8, 12]), 0) >= 12).toBe(true);
+    expect(
+      listingTourCapacityFromOptions(
+        capacitySpotsFromBookingOptions([
+          {
+            maxSpotsPerSlot: 1,
+            schedules: [
+              { maxSpotsPerSlot: 8, status: 'ready' },
+              { maxSpotsPerSlot: 12, status: 'ready' },
+              { maxSpotsPerSlot: 99, status: 'draft' },
+            ],
+          },
+        ])
+      )
+    ).toBe(12);
   });
 
   it('does not let refunded or failed guests reduce partner remaining spots', () => {

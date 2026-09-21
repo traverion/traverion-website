@@ -18,7 +18,9 @@ import { inventoryFamilyFromListing } from '../../lib/inventory';
 import { nightsOccupiedByStay, stayRangeFromBooking, partnerStayDayKind, partnerStayCalendarOccupiesNight, addCalendarDays } from '../../lib/stayOccupancy';
 import {
   buildMonthCells,
+  capacitySpotsFromBookingOptions,
   defaultCapacityForOpenDay,
+  listingTourCapacityFromOptions,
   partnerTourDaySpotDisplay,
 } from '../../lib/availability-ops';
 import { formatPartnerCheckoutHoldLabel } from '../../lib/booking-hold';
@@ -53,7 +55,7 @@ function enumerateIsoDates(fromIso: string, toIso: string): string[] {
 
 function defaultSpots(listing: TourPackage | null): number {
   const opts = listing ? materializedBookingOptions(listing.listingExtras?.bookingOptions) : [];
-  const max = opts.length > 0 ? Math.max(...opts.map((o) => o.maxSpotsPerSlot || o.maxPersons || 8)) : 8;
+  const max = listingTourCapacityFromOptions(capacitySpotsFromBookingOptions(opts));
   return defaultCapacityForOpenDay(max);
 }
 

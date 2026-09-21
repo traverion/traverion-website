@@ -16,7 +16,7 @@ import { setListingsJsonLd } from '../lib/seo';
 import { listingRunsOnDate } from '../lib/booking-quote';
 import { getPartySizeBounds } from '../lib/booking-flow';
 import { tourDateLacksCapacityForParty } from '../lib/tour-calendar';
-import { listingTourCapacityFromOptions } from '../lib/availability-ops';
+import { listingTourCapacityFromOptions, capacitySpotsFromBookingOptions } from '../lib/availability-ops';
 import { fetchAvailabilityByListingId, fetchPublishedTourPaidGuests } from '../data/supabase-availability';
 import { parseListingExtras } from '../types/listingExtras';
 import { SkeletonCardGrid } from '../components/ui/Skeleton';
@@ -301,7 +301,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
       allListings.map(async (tour) => {
         const extras = parseListingExtras(tour.listingExtras);
         const fallbackCap = listingTourCapacityFromOptions(
-          (extras.bookingOptions ?? []).map((o) => o.maxSpotsPerSlot)
+          capacitySpotsFromBookingOptions(extras.bookingOptions ?? [])
         );
         const [caps, paidByDay] = await Promise.all([
           fetchAvailabilityByListingId(tour.id),

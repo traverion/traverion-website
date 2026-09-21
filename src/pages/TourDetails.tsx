@@ -38,7 +38,7 @@ import { isListingVisibleToTravelers } from '../lib/product-workflows';
 import { listingIsOnTravelerCatalog } from '../lib/inventory';
 import { listingShowsFreeCancellation, publicReviewLabel } from '../lib/listingTruth';
 import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
-import { listingTourCapacityFromOptions, remainingCapacity } from '../lib/availability-ops';
+import { listingTourCapacityFromOptions, remainingCapacity, capacitySpotsFromBookingOptions } from '../lib/availability-ops';
 import { tourSoldOutDates } from '../lib/tour-calendar';
 import BookingPage from './BookingPage';
 import {
@@ -292,13 +292,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     void Promise.all([fetchAvailabilityByListingId(tour.id), fetchPublishedTourPaidGuests(tour.id)]).then(
       ([caps, paidByDay]) => {
         if (cancelled) return;
-        const fallbackCap = listingTourCapacityFromOptions(
-          calendarOptions.flatMap((o) =>
-            listingOptionHasSchedules(o)
-              ? listingOptionReadySchedules(o).map((s) => s.maxSpotsPerSlot)
-              : [o.maxSpotsPerSlot]
-          )
-        );
+        const fallbackCap = listingTourCapacityFromOptions(capacitySpotsFromBookingOptions(calendarOptions));
         const capByDay = new Map<string, number>();
         for (const row of caps) {
           const day = String(row.available_date ?? '').slice(0, 10);
