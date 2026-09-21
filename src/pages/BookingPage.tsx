@@ -997,6 +997,12 @@ export default function BookingPage({
                     <dt className="text-ink-faint">Date</dt>
                     <dd className="font-medium text-ink text-right">{dateDisplay || date || '—'}</dd>
                   </div>
+                  {departureLabel ? (
+                    <div className="flex justify-between gap-3">
+                      <dt className="text-ink-faint">Departure</dt>
+                      <dd className="font-medium text-ink text-right tabular-nums">{departureLabel}</dd>
+                    </div>
+                  ) : null}
                   {selectedVariant ? (
                     <div className="flex justify-between gap-3">
                       <dt className="text-ink-faint">Option</dt>
