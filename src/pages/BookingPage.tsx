@@ -27,6 +27,8 @@ import { quoteBooking, formatOptionWeekdays, tourQuotePriceLines } from '../lib/
 import {
   listingOptionHasSchedules,
   listingOptionReadySchedules,
+  resolveScheduleForDate,
+  applyScheduleToOption,
 } from '../lib/listing-option-schedules';
 import { localYmd } from '../lib/local-ymd';
 import { formatMoney, normalizeCurrency } from '../lib/money';
@@ -233,6 +235,14 @@ export default function BookingPage({
   const currency = normalizeCurrency(tour.price?.currency);
   const fallbackBasePrice = tour.price?.startingFrom ?? 0;
   const departureTime = (initialStartTime ?? '').trim() || undefined;
+  const appliedOption = useMemo(() => {
+    const opt = selectedVariant?.listingOption ?? null;
+    if (!opt) return null;
+    if (!listingOptionHasSchedules(opt)) return opt;
+    const day = date.trim() || localYmd();
+    const resolved = resolveScheduleForDate(opt, day, departureTime);
+    return resolved ? applyScheduleToOption(opt, resolved) : opt;
+  }, [selectedVariant, date, departureTime]);
   const priceInfo = useMemo(() => {
     const day = date.trim() || localYmd();
     const optionId =
@@ -347,7 +357,7 @@ export default function BookingPage({
 
   useEffect(() => {
     if (presentation === 'modal') return;
-    const fromLabel = optionUsesAgePricing(selectedVariant?.listingOption) ? 'per adult' : 'per person';
+    const fromLabel = optionUsesAgePricing(appliedOption) ? 'per adult' : 'per person';
     setPageMetaWithOg(
       `Book: ${tour.title}`,
       `Reserve ${tour.title}. From ${formatMoney(fallbackBasePrice, currency)} ${fromLabel}.`,
@@ -449,11 +459,11 @@ export default function BookingPage({
   }, [tour.id, initialDate, initialGuests, presentation, selectedVariant?.id]);
 
   useEffect(() => {
-    const opt = selectedVariant?.listingOption;
+    const opt = appliedOption;
     if (!opt || !optionUsesAgePricing(opt)) return;
     const next = totalGuestsFromMix(buildParticipantMixLines(opt, participantMix));
     if (next > 0) setGuests(next);
-  }, [participantMix, selectedVariant]);
+  }, [participantMix, appliedOption]);
 
   useEffect(() => {
     if (!user?.id || !isSupabaseConfigured() || profileHydratedRef.current) return;
@@ -645,8 +655,8 @@ export default function BookingPage({
 
   const handleContinueFromReview = () => {
     setError(null);
-    if (usesAgePricingOnVariant && selectedVariant?.listingOption) {
-      const mixErr = validateParticipantMix(selectedVariant.listingOption, participantMix);
+    if (usesAgePricingOnVariant && appliedOption) {
+      const mixErr = validateParticipantMix(appliedOption, participantMix);
       if (mixErr) {
         setError(mixErr);
         return;
@@ -764,13 +774,12 @@ export default function BookingPage({
   };
 
   const dateDisplay = formatBookingDateDisplay(date.trim());
-  const usesAgePricingOnVariant = optionUsesAgePricing(selectedVariant?.listingOption);
+  const usesAgePricingOnVariant = optionUsesAgePricing(appliedOption);
   const participantsSummary = quoted?.guestBreakdown?.length
     ? quoted.guestBreakdown.map((r) => `${r.quantity} ${r.label}`).join(' · ')
-    : selectedVariant?.listingOption && usesAgePricingOnVariant
-      ? formatMixSummaryCompact(
-          buildParticipantMixLines(selectedVariant.listingOption, participantMix)
-        ) || `${guests} ${guests === 1 ? 'guest' : 'guests'}`
+    : appliedOption && usesAgePricingOnVariant
+      ? formatMixSummaryCompact(buildParticipantMixLines(appliedOption, participantMix)) ||
+        `${guests} ${guests === 1 ? 'guest' : 'guests'}`
       : `${guests} ${guests === 1 ? 'guest' : 'guests'}`;
   const priceFromQualifier = usesAgePricingOnVariant ? 'per adult' : 'per person';
   const summaryLineModal = `${dateDisplay || date || '—'} · ${participantsSummary}`;
@@ -808,16 +817,16 @@ export default function BookingPage({
                 </p>
               ) : null}
             </div>
-            {usesAgePricingOnVariant && selectedVariant.listingOption ? (
+            {usesAgePricingOnVariant && appliedOption ? (
               <div className="mb-6 space-y-2">
                 <p className="text-sm font-medium text-ink">Adjust participants</p>
-                {activePriceCategories(selectedVariant.listingOption).map((cat) => (
+                {activePriceCategories(appliedOption).map((cat) => (
                   <ParticipantCategoryStepper
                     key={cat.id}
                     category={cat}
                     quantity={participantMix[cat.id] ?? 0}
                     currency={currency}
-                    max={selectedVariant.listingOption!.maxPersons}
+                    max={appliedOption.maxPersons}
                     onChange={(qty) => {
                       setParticipantMix((prev) => ({ ...prev, [cat.id]: qty }));
                       setError(null);
@@ -894,16 +903,16 @@ export default function BookingPage({
                       : `${selectedDaySpotsLeft} spots left this day`}
                 </p>
               ) : null}
-              {usesAgePricingOnVariant && selectedVariant?.listingOption ? (
+              {usesAgePricingOnVariant && appliedOption ? (
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-ink">Participants</p>
-                  {activePriceCategories(selectedVariant.listingOption).map((cat) => (
+                  {activePriceCategories(appliedOption).map((cat) => (
                     <ParticipantCategoryStepper
                       key={cat.id}
                       category={cat}
                       quantity={participantMix[cat.id] ?? 0}
                       currency={currency}
-                      max={Math.min(selectedVariant.listingOption!.maxPersons, partyMaxForSelectedDay)}
+                      max={Math.min(appliedOption.maxPersons, partyMaxForSelectedDay)}
                       onChange={(qty) => {
                         setParticipantMix((prev) => ({ ...prev, [cat.id]: qty }));
                         setError(null);
