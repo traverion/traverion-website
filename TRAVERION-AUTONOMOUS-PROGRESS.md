@@ -3,31 +3,32 @@
 **Mission:** Phases 0→400 autonomous product completion  
 **Started:** 2026-09-21  
 **Starting SHA:** `d38ff80`  
-**Current SHA:** `da65f6d`  
-**Current phase:** ~365  
-**Current band:** 360–369 motion / a11y
+**Current SHA:** `e268b14`  
+**Current phase:** **400** (handoff)  
+**Current band:** Phase 400 founder handoff
 
-## Completed (recent)
+## Completed
 
-- Schedule commercial truth + slot capacity through checkout
-- Trips/Calendar/Reviews; CTA focus guidance; gallery focus trap
-- Departure capacity error copy
-- Gates: src/lib, build, tsc green
+- Product truth audit → schedule commercial truth → checkout/trips/Calendar
+- Slot capacity + departure UI + mobile/desktop CTA focus guidance
+- Gallery focus trap; NoticeCallout alerts; Reviews empty CTA
+- Gates: tsc, build, src/lib 438 tests
+- **TRAVERION-PHASE-400.md** written
 
-## Next
+## Stopped for
 
-- Motion polish; mobile cert; Phase 400 handoff when stopping
-- Edge deploy for startTime + slot capacity
+- Phase 400 handoff complete (no live-money / no edge deploy credentials in this session)
 
-## Decisions
+## Founder must do
 
-- Schedules = commercial truth; Stripe TEST; no cert-email script
+1. Deploy `create-booking-checkout-session` for TEST startTime + slot capacity  
+2. Live partner + traveler Sep/Oct and stay apartment certification  
+3. Push branch only when ready (`reconstruction/phase-0-audit`)
 
-## Known issues
+## Do not commit
 
-- Edge deploy required for production TEST
-- Public paid-guest RPC still day-level
+- `scripts/cert-transactional-emails.cjs`
 
 ## Deferred
 
-- Live money, new verticals, fake inventory
+- Live money, new verticals, fake inventory, per-slot public RPC
