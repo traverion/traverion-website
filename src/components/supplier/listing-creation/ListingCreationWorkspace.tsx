@@ -67,7 +67,7 @@ export function ListingCreationWorkspace({
         {banners}
         <div
           ref={scrollRef}
-          className="listing-creation-content min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-8 sm:py-6 lg:px-12 lg:py-10"
+          className="listing-creation-content min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-8 sm:py-8 lg:px-12 lg:py-12"
         >
           {children}
         </div>

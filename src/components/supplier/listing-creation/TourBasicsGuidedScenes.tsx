@@ -82,15 +82,15 @@ export function TourBasicsGuidedScenes({
       headingId={headingId}
     >
       {scene.id === 'product_type' ? (
-        <fieldset id="supplier-listing-field-category" className="min-w-0 max-w-xl">
+        <fieldset id="supplier-listing-field-category" className="min-w-0 max-w-2xl">
           <legend className="sr-only">Product type</legend>
-          <div className="space-y-2.5" role="radiogroup" aria-labelledby={headingId}>
+          <div className="space-y-3" role="radiogroup" aria-labelledby={headingId}>
             {TOUR_PRODUCT_TYPE_OPTIONS.map((opt) => {
               const selected = form.experienceKind === opt.id;
               return (
                 <label
                   key={opt.id}
-                  className={`lc-choice flex min-h-11 cursor-pointer flex-col rounded-2xl px-4 py-4 text-left ${
+                  className={`lc-choice flex min-h-11 cursor-pointer flex-col rounded-2xl px-5 py-5 text-left ${
                     selected ? 'lc-choice--selected' : ''
                   }`}
                 >

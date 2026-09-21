@@ -41,7 +41,7 @@ export function ListingCreationSceneFrame({
           >
             {question}
           </h3>
-          <p className="mt-2 max-w-md text-base leading-relaxed text-ink-muted">{support}</p>
+          <p className="mt-2 max-w-xl text-base leading-relaxed text-ink-muted">{support}</p>
         </div>
         <ListingCreationSceneProgress
           index={sceneIndex}
