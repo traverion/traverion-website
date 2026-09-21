@@ -23,6 +23,7 @@ export function ListingCreationWorkspace({
   banners,
   scrollRef,
   footer,
+  overlay,
   children,
 }: {
   title: string;
@@ -41,6 +42,8 @@ export function ListingCreationWorkspace({
   banners?: ReactNode;
   scrollRef?: Ref<HTMLDivElement>;
   footer: ReactNode;
+  /** Level-3 nested configuration surface. Covers the working column only. */
+  overlay?: ReactNode;
   children: ReactNode;
 }) {
   const headerProps = {
@@ -62,7 +65,7 @@ export function ListingCreationWorkspace({
       </h2>
       <ListingCreationRail {...headerProps} />
       {contextNav ? <ListingCreationContextRail nav={contextNav} /> : null}
-      <div className="listing-creation-main flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+      <div className="listing-creation-main relative flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <ListingCreationMobileProgress {...headerProps} currentLabel={currentLabel} />
         {banners}
         <div
@@ -74,6 +77,7 @@ export function ListingCreationWorkspace({
         <div className="listing-creation-footer relative z-10 shrink-0 border-t border-black/[0.08] px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-8 sm:py-4 lg:px-12">
           {footer}
         </div>
+        {overlay}
       </div>
     </div>
   );

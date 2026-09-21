@@ -1,24 +1,26 @@
 import type { ListingBookingOption } from '../types/listingExtras';
 import { isListingBookingOptionEffectivelyEmpty } from '../types/listingExtras';
-import { listingCreationStepState, type ListingCreationNavItem } from './listing-creation-workspace';
+import {
+  TOUR_OPTION_SCENE_COUNT,
+  TOUR_OPTION_SCENES,
+  clampTourOptionSceneIndex,
+  nextTourOptionScene,
+  previousTourOptionScene,
+  tourOptionContextNavItems,
+  type TourOptionSceneId,
+} from './listing-option-progression';
 
-export const TOUR_OPTION_SCENES = [
-  { id: 'setup', label: 'Setup', question: 'Name this bookable option' },
-  { id: 'meeting', label: 'Meeting', question: 'Where do guests meet or get picked up?' },
-  { id: 'pricing', label: 'Pricing', question: 'How is this option priced?' },
-  { id: 'schedule', label: 'Schedule', question: 'When can travelers book it?' },
-  { id: 'review', label: 'Review', question: 'Does this option look right?' },
-] as const;
-
-export type TourOptionSceneId = (typeof TOUR_OPTION_SCENES)[number]['id'];
-export const TOUR_OPTION_SCENE_COUNT = TOUR_OPTION_SCENES.length;
+export {
+  TOUR_OPTION_SCENE_COUNT,
+  TOUR_OPTION_SCENES,
+  clampTourOptionSceneIndex,
+  nextTourOptionScene,
+  previousTourOptionScene,
+  tourOptionContextNavItems,
+};
+export type { TourOptionSceneId };
 
 export type TourOptionReadiness = 'draft' | 'incomplete' | 'ready';
-
-export function clampTourOptionSceneIndex(index: number): number {
-  if (!Number.isFinite(index)) return 0;
-  return Math.max(0, Math.min(TOUR_OPTION_SCENE_COUNT - 1, Math.trunc(index)));
-}
 
 export function tourOptionReadiness(
   option: ListingBookingOption | null | undefined,
@@ -42,14 +44,6 @@ export function readyBookingOptions<T extends ListingBookingOption>(
   return options.filter((option) => tourOptionReadiness(option, messagesFor(option)) === 'ready');
 }
 
-export function nextTourOptionScene(index: number): number {
-  return clampTourOptionSceneIndex(index + 1);
-}
-
-export function previousTourOptionScene(index: number): number {
-  return clampTourOptionSceneIndex(index - 1);
-}
-
 /** Upsert by canonical option id so retries never create a second option. */
 export function upsertBookingOption<T extends { id: string }>(options: T[], next: T): T[] {
   const exists = options.some((option) => option.id === next.id);
@@ -67,13 +61,4 @@ export function duplicateBookingOption<T extends ListingBookingOption>(
     id: nextId,
     name: name ? `${name} (copy)` : 'Untitled option (copy)',
   };
-}
-
-export function tourOptionContextNavItems(currentIndex: number): ListingCreationNavItem[] {
-  const current = clampTourOptionSceneIndex(currentIndex);
-  return TOUR_OPTION_SCENES.map((scene, index) => ({
-    id: scene.id,
-    label: scene.label,
-    state: listingCreationStepState(index, current, index < current),
-  }));
 }

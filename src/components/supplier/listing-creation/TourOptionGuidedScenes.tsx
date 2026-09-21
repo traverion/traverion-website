@@ -1,4 +1,6 @@
+import { useEffect, useRef, type ReactNode } from 'react';
 import { ListingCreationSceneFrame } from './ListingCreationSceneFrame';
+import { TourOptionAvailabilityPricingSummary } from './TourOptionAvailabilityPricingSummary';
 import BookingOptionEditor from '../BookingOptionEditor';
 import {
   TOUR_OPTION_SCENE_COUNT,
@@ -7,19 +9,21 @@ import {
   tourOptionReadinessLabel,
   type TourOptionSceneId,
 } from '../../../lib/listing-option-scenes';
+import type { TourOptionConfigPanel } from '../../../lib/listing-option-progression';
+import {
+  isOptionAvailabilityConfigured,
+  summarizeOptionAvailability,
+  summarizeOptionCapacity,
+} from '../../../lib/listing-option-progression';
 import type { ListingCreationSceneDirection } from '../../../lib/listing-creation-scenes';
 import type { ListingBookingOption } from '../../../types/listingExtras';
-import { useEffect, useRef } from 'react';
 
 const SUPPORT: Record<TourOptionSceneId, string> = {
-  setup: 'A traveler-facing name and what makes this variant different.',
-  meeting: 'The exact place for this option. Listing city is not enough.',
-  pricing: 'One option can include Adult and Child prices. Do not create separate Adult/Child options.',
-  schedule: 'Capacity and the days this option actually runs.',
-  review: 'Save it ready, or keep a draft and finish later. Drafts are not bookable.',
+  setup: 'A traveler-facing name, why this variant exists, and how long it runs.',
+  meeting: 'Choose meeting point or pickup, then add the exact place for this option.',
+  availability_pricing: 'Configure when travelers can book this option and what they pay.',
+  review: 'Finish only when this option is actually ready. Drafts are not bookable.',
 };
-
-const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 export function TourOptionGuidedScenes({
   option,
@@ -29,9 +33,13 @@ export function TourOptionGuidedScenes({
   hasEndingDate,
   onHasEndingDateChange,
   onSelectScene,
+  canSelectScene,
   onChange,
+  onConfigureAvailabilityPricing,
+  formatAmount,
   priceSummary,
   validationMessages,
+  attempted,
 }: {
   option: ListingBookingOption;
   sceneIndex: number;
@@ -40,9 +48,13 @@ export function TourOptionGuidedScenes({
   hasEndingDate: boolean;
   onHasEndingDateChange: (on: boolean) => void;
   onSelectScene: (index: number) => void;
+  canSelectScene?: (index: number) => boolean;
   onChange: (patch: Partial<ListingBookingOption>) => void;
+  onConfigureAvailabilityPricing: (panel: TourOptionConfigPanel) => void;
+  formatAmount: (n: number) => string;
   priceSummary: string;
   validationMessages: string[];
+  attempted?: boolean;
 }) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const scene = TOUR_OPTION_SCENES[sceneIndex] ?? TOUR_OPTION_SCENES[0];
@@ -60,6 +72,7 @@ export function TourOptionGuidedScenes({
       sceneIndex={sceneIndex}
       sceneTotal={TOUR_OPTION_SCENE_COUNT}
       sceneLabels={TOUR_OPTION_SCENES.map((item) => item.label)}
+      canSelectScene={canSelectScene}
       onSelectScene={onSelectScene}
       direction={direction}
       headingRef={headingRef}
@@ -70,7 +83,15 @@ export function TourOptionGuidedScenes({
           option={option}
           priceSummary={priceSummary}
           validationMessages={validationMessages}
+          onEdit={(index) => onSelectScene(index)}
+          onConfigure={onConfigureAvailabilityPricing}
+        />
+      ) : scene.id === 'availability_pricing' ? (
+        <TourOptionAvailabilityPricingSummary
+          option={option}
           currencyLabel={currencyLabel}
+          formatAmount={formatAmount}
+          onConfigure={onConfigureAvailabilityPricing}
         />
       ) : (
         <BookingOptionEditor
@@ -80,6 +101,7 @@ export function TourOptionGuidedScenes({
           onHasEndingDateChange={onHasEndingDateChange}
           onChange={onChange}
           activeSection={scene.id}
+          attempted={attempted}
         />
       )}
     </ListingCreationSceneFrame>
@@ -90,56 +112,64 @@ function OptionReviewSummary({
   option,
   priceSummary,
   validationMessages,
-  currencyLabel,
+  onEdit,
+  onConfigure,
 }: {
   option: ListingBookingOption;
   priceSummary: string;
   validationMessages: string[];
-  currencyLabel: string;
+  onEdit: (sceneIndex: number) => void;
+  onConfigure: (panel: TourOptionConfigPanel) => void;
 }) {
   const status = tourOptionReadiness(option, validationMessages);
-  const days = option.weekdays
-    .map((on, index) => (on ? WEEKDAY_LABELS[index] : null))
-    .filter(Boolean)
-    .join(', ');
+  const meeting =
+    option.fulfillment === 'pickup'
+      ? `Pickup · ${option.pickupPlace.trim() || 'Not set'}`
+      : option.fulfillment === 'meeting_point'
+        ? `Meeting point · ${option.pickupPlace.trim() || 'Not set'}`
+        : option.pickupPlace.trim() || 'Not set';
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <p className="text-sm text-ink-muted">
         Status:{' '}
-        <span className={status === 'ready' ? 'font-semibold text-ink' : 'font-semibold text-ink'}>
-          {tourOptionReadinessLabel(status)}
-        </span>
+        <span className="font-semibold text-ink">{tourOptionReadinessLabel(status)}</span>
         {status !== 'ready' ? ' — this option will not count as bookable until the gaps below are fixed.' : null}
       </p>
-      <dl className="divide-y divide-black/[0.06] border-y border-black/[0.06]">
-        <ReviewRow label="Name" value={option.name.trim() || 'Untitled option'} />
-        <ReviewRow
-          label="Type"
-          value={
-            option.isPrivate
-              ? option.privatePricing === 'flat_group'
-                ? `Private · flat group (${currencyLabel})`
-                : 'Private · per person'
-              : 'Shared'
-          }
-        />
-        <ReviewRow
-          label="Duration"
-          value={[option.duration.trim() || 'Not set', option.startTime.trim() ? `starts ${option.startTime}` : '']
+      <ReviewBlock
+        title="Option"
+        complete={Boolean(option.name.trim() && option.duration.trim())}
+        onEdit={() => onEdit(0)}
+      >
+        <p className="text-sm font-semibold text-ink">{option.name.trim() || 'Untitled option'}</p>
+        <p className="text-sm text-ink-muted">
+          {[option.duration.trim() || 'Duration not set', option.startTime.trim() ? `starts ${option.startTime}` : '']
             .filter(Boolean)
             .join(' · ')}
-        />
-        <ReviewRow label="Meeting or pickup" value={option.pickupPlace.trim() || 'Not set'} />
-        <ReviewRow label="Price" value={priceSummary || 'Not set'} />
-        <ReviewRow
-          label="Capacity"
-          value={`${option.minPersons}–${option.maxPersons} guests · ${option.maxSpotsPerSlot} spots per departure`}
-        />
-        <ReviewRow label="Days" value={days || 'No weekdays selected'} />
-      </dl>
+        </p>
+      </ReviewBlock>
+      <ReviewBlock title="Meeting / pickup" complete={option.pickupPlace.trim().length >= 8} onEdit={() => onEdit(1)}>
+        <p className="text-sm text-ink">{meeting}</p>
+      </ReviewBlock>
+      <ReviewBlock
+        title="Availability"
+        complete={isOptionAvailabilityConfigured(option)}
+        onEdit={() => onConfigure('availability')}
+      >
+        <p className="text-sm text-ink">{summarizeOptionAvailability(option)}</p>
+      </ReviewBlock>
+      <ReviewBlock
+        title="Pricing"
+        complete={Boolean(priceSummary && !/set price/i.test(priceSummary))}
+        onEdit={() => onConfigure('pricing')}
+      >
+        <p className="text-sm text-ink">{priceSummary || 'Not set'}</p>
+      </ReviewBlock>
+      <ReviewBlock title="Capacity" complete={option.maxSpotsPerSlot >= 1} onEdit={() => onConfigure('capacity')}>
+        <p className="text-sm text-ink">{summarizeOptionCapacity(option)}</p>
+      </ReviewBlock>
       {validationMessages.length > 0 ? (
-        <div role="status">
+        <div className="lc-section rounded-xl px-4 py-4" role="status">
           <p className="text-sm font-semibold text-ink">Still needed</p>
           <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-ink-muted">
             {validationMessages.map((line) => (
@@ -154,11 +184,37 @@ function OptionReviewSummary({
   );
 }
 
-function ReviewRow({ label, value }: { label: string; value: string }) {
+function ReviewBlock({
+  title,
+  complete,
+  onEdit,
+  children,
+}: {
+  title: string;
+  complete: boolean;
+  onEdit: () => void;
+  children: ReactNode;
+}) {
   return (
-    <div className="grid gap-1 py-3 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-4">
-      <dt className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">{label}</dt>
-      <dd className="min-w-0 break-words text-sm leading-relaxed text-ink [overflow-wrap:anywhere]">{value}</dd>
+    <div className="lc-section rounded-xl px-4 py-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">{title}</p>
+            <span
+              className={`text-[11px] font-semibold uppercase tracking-[0.12em] ${
+                complete ? 'text-finland' : 'text-ink-muted'
+              }`}
+            >
+              {complete ? 'Complete' : 'Needs work'}
+            </span>
+          </div>
+          <div className="mt-2 space-y-0.5">{children}</div>
+        </div>
+        <button type="button" onClick={onEdit} className="tv-btn-ghost !min-h-10 shrink-0 px-3 text-xs">
+          Edit
+        </button>
+      </div>
     </div>
   );
 }

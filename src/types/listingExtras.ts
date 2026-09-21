@@ -28,6 +28,9 @@ export type ListingPricingMode = 'uniform' | 'age_dependent';
 
 export type ListingPrivatePricing = 'per_person' | 'flat_group';
 
+/** How travelers begin THIS option. Listing-level experienceStartStyle remains the catalog filter. */
+export type ListingOptionFulfillment = 'meeting_point' | 'pickup';
+
 export interface ListingPriceCategory {
   id: string;
   label: string;
@@ -64,6 +67,8 @@ export interface ListingBookingOption {
   duration: string;
   /** Where guests meet or are picked up for this option. */
   pickupPlace: string;
+  /** Optional: meet at a point vs pickup. Omitted on legacy options that only stored pickupPlace. */
+  fulfillment?: ListingOptionFulfillment;
   minPersons: number;
   maxPersons: number;
   /** Max guests for one departure / start time. */
@@ -235,7 +240,7 @@ function syncHeadlinePriceFromCategories(
 
 export function normalizeListingBookingOption(raw: Record<string, unknown>, fallbackId: string): ListingBookingOption {
   const minP = typeof raw.minPersons === 'number' && raw.minPersons >= 1 ? Math.floor(raw.minPersons) : 1;
-  let maxP = typeof raw.maxPersons === 'number' && raw.maxPersons >= minP ? Math.floor(raw.maxPersons) : Math.max(minP, 12);
+  const maxP = typeof raw.maxPersons === 'number' && raw.maxPersons >= minP ? Math.floor(raw.maxPersons) : Math.max(minP, 12);
   const spots =
     typeof raw.maxSpotsPerSlot === 'number' && raw.maxSpotsPerSlot >= 1
       ? Math.floor(raw.maxSpotsPerSlot)
@@ -280,6 +285,9 @@ export function normalizeListingBookingOption(raw: Record<string, unknown>, fall
     availabilityDateFrom: typeof raw.availabilityDateFrom === 'string' ? raw.availabilityDateFrom : '',
     availabilityDateTo: typeof raw.availabilityDateTo === 'string' ? raw.availabilityDateTo : '',
   };
+  if (raw.fulfillment === 'meeting_point' || raw.fulfillment === 'pickup') {
+    out.fulfillment = raw.fulfillment;
+  }
   if (pricingMode) out.pricingMode = pricingMode;
   if (priceCategories) out.priceCategories = priceCategories;
   if (isPrivate) {

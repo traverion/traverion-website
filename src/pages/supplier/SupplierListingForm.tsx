@@ -5,7 +5,6 @@ import { TourPackage } from '../../types/tour';
 import type { ListingBookingOption, ListingExtras, ScheduleStyle, VenueSetting } from '../../types/listingExtras';
 import {
   formatBookingOptionDuration,
-  getListingBookingOptionDurationIssue,
   isListingBookingOptionEffectivelyEmpty,
   materializedBookingOptions,
   normalizeListingBookingOption,
@@ -15,7 +14,7 @@ import {
 } from '../../types/listingExtras';
 import ListingImageFields from '../../components/supplier/ListingImageFields';
 import { useAuth } from '../../contexts/AuthContext';
-import { priceCategoryValidationMessages, summarizeOptionPricing } from '../../lib/price-categories';
+import { summarizeOptionPricing } from '../../lib/price-categories';
 import { headlineStartingAmountFromBookingOptions } from '../../lib/headline-price';
 import { listingDurationForPersist } from '../../lib/listing-option-ownership';
 import {
@@ -31,6 +30,22 @@ import {
   tourOptionReadinessLabel,
   upsertBookingOption,
 } from '../../lib/listing-option-scenes';
+import {
+  canContinueTourOptionScene,
+  canVisitTourOptionScene,
+  isTourOptionSceneSatisfied,
+  summarizeOptionAvailability,
+  summarizeOptionCapacity,
+  tourOptionConfigPanelIssues,
+  tourOptionConfigSaveHint,
+  tourOptionLockedReason,
+  tourOptionSceneContinueHint,
+  type TourOptionConfigPanel,
+} from '../../lib/listing-option-progression';
+import {
+  firstBookingOptionIssueFocusId,
+  getBookingOptionValidationMessages,
+} from '../../lib/listing-option-validation';
 import {
   compactPhotoSlotsAndLabels,
   normalizePhotoSlots,
@@ -98,6 +113,7 @@ import {
 import { ListingCreationWorkspace } from '../../components/supplier/listing-creation/ListingCreationWorkspace';
 import { TourBasicsGuidedScenes } from '../../components/supplier/listing-creation/TourBasicsGuidedScenes';
 import { TourOptionGuidedScenes } from '../../components/supplier/listing-creation/TourOptionGuidedScenes';
+import { TourOptionConfigWorkspace } from '../../components/supplier/listing-creation/TourOptionConfigWorkspace';
 import { isSupabaseConfigured } from '../../lib/supabase';
 import {
   shouldHydrateExistingListing,
@@ -357,36 +373,23 @@ function legacyTourToBookingOptions(tour: TourPackage): ListingBookingOption[] {
   ];
 }
 
-/** Plain-language issues for the option editor. */
-function getBookingOptionValidationMessages(o: ListingBookingOption): string[] {
-  const msg: string[] = [];
-  if (!o.name.trim()) {
-    msg.push('Add an option name (e.g. Hotel pickup · 20:00 — not “Adult”).');
-  }
-  msg.push(...priceCategoryValidationMessages(o));
-  const durIssue = getListingBookingOptionDurationIssue(o.duration);
-  if (durIssue) msg.push(durIssue);
-  if (o.pickupPlace.trim().length < 8) {
-    msg.push('Describe where guests meet or where you pick them up (at least 8 characters).');
-  }
-  if (o.minPersons < 1 || o.maxPersons < o.minPersons) {
-    msg.push('Set minimum and maximum guests so max is not below min.');
-  }
-  if (o.maxSpotsPerSlot < 1) msg.push('Set max spots per departure or start time.');
-  if (o.optionInfo.trim().length < 3) {
-    msg.push('Add a short note about this option (e.g. pickup included, language, group size) — 3+ characters.');
-  }
-  if (!o.weekdays.some(Boolean)) msg.push('Choose at least one weekday when this option runs.');
-  const df = o.availabilityDateFrom.trim();
-  const dt = o.availabilityDateTo.trim();
-  if (dt) {
-    if (!df) {
-      msg.push('Add a starting date when you set an ending date, or clear the ending date.');
-    } else if (df > dt) {
-      msg.push('Ending date must be on or after the starting date.');
-    }
-  }
-  return msg;
+function optionValidationMessages(o: ListingBookingOption, hasEndingDate?: boolean): string[] {
+  return getBookingOptionValidationMessages(o, {
+    hasEndingDate: hasEndingDate ?? o.availabilityDateTo.trim().length > 0,
+  });
+}
+
+function focusListingField(fieldId: string | null) {
+  if (!fieldId || typeof document === 'undefined') return;
+  requestAnimationFrame(() => {
+    const root = document.getElementById(fieldId);
+    if (!root) return;
+    root.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const target = root.matches('input, textarea, select, button')
+      ? root
+      : root.querySelector<HTMLElement>('input, textarea, select, button');
+    target?.focus();
+  });
 }
 
 function normalizeHighlightSlots(fromDb: string[] | undefined): string[] {
@@ -757,7 +760,7 @@ function isStepSatisfied(idx: number, form: ListingFormState): boolean {
       );
     }
     const active = materializedBookingOptions(form.bookingOptions);
-    return readyBookingOptions(active, getBookingOptionValidationMessages).length >= 1;
+    return readyBookingOptions(active, optionValidationMessages).length >= 1;
   }
   if (idx === 3) {
     // Photos: green check / ready count always match publish (4–12, real cover).
@@ -932,6 +935,13 @@ export default function SupplierListingForm({
   const [optionSceneIdx, setOptionSceneIdx] = useState(0);
   const [optionSceneDirection, setOptionSceneDirection] = useState<ListingCreationSceneDirection>('forward');
   const [optionPendingDeleteId, setOptionPendingDeleteId] = useState<string | null>(null);
+  const [optionLockHint, setOptionLockHint] = useState<string | null>(null);
+  const [optionAttempted, setOptionAttempted] = useState(false);
+  const [optionConfigPanel, setOptionConfigPanel] = useState<TourOptionConfigPanel | null>(null);
+  const [optionConfigAttempted, setOptionConfigAttempted] = useState(false);
+  const [optionConfigHint, setOptionConfigHint] = useState<string | null>(null);
+  const optionSessionOpenedAsCreateRef = useRef(false);
+  const optionConfigSnapshotRef = useRef<ListingBookingOption | null>(null);
   const listingCurrency = useMemo(() => {
     const existing = editingId ? existingListings.find((t) => t.id === editingId) : undefined;
     return normalizeCurrency(existing?.price?.currency ?? DEFAULT_CURRENCY);
@@ -945,6 +955,7 @@ export default function SupplierListingForm({
   }, []);
   const [optionModalHasEndingDate, setOptionModalHasEndingDate] = useState(false);
   const optionModalOpenRef = useRef(false);
+  const optionConfigPanelRef = useRef<TourOptionConfigPanel | null>(null);
 
   const steps = useMemo(() => {
     const stay = form.inventoryFamily === 'stay' || createFamily === 'stay';
@@ -1032,7 +1043,7 @@ export default function SupplierListingForm({
     const languageLabel =
       LANGUAGE_OPTIONS.find((row) => row.code === form.experienceLanguage)?.label ?? form.experienceLanguage;
     const options = materializedBookingOptions(form.bookingOptions);
-    const readyCount = readyBookingOptions(options, getBookingOptionValidationMessages).length;
+    const readyCount = readyBookingOptions(options, optionValidationMessages).length;
     const amount = headlineStartingAmountFromBookingOptions(options);
     const priceSummary =
       typeof amount === 'number' && amount > 0 ? `From ${formatMoney(amount, listingCurrency)}` : '';
@@ -1301,6 +1312,10 @@ export default function SupplierListingForm({
   }, [optionModalOpen]);
 
   useEffect(() => {
+    optionConfigPanelRef.current = optionConfigPanel;
+  }, [optionConfigPanel]);
+
+  useEffect(() => {
     if (!publishChecklistKey) {
       setPublishChecklistDismissed(false);
       return;
@@ -1558,6 +1573,14 @@ export default function SupplierListingForm({
       if (optionModalOpenRef.current) {
         e.preventDefault();
         e.stopPropagation();
+        if (optionConfigPanelRef.current) {
+          setOptionConfigPanel(null);
+          setOptionConfigAttempted(false);
+          setOptionConfigHint(null);
+          const snap = optionConfigSnapshotRef.current;
+          if (snap) setOptionModalDraft(snap);
+          return;
+        }
         setOptionModalOpen(false);
         setOptionModalDraft(null);
         setOptionModalEditingId(null);
@@ -1565,6 +1588,10 @@ export default function SupplierListingForm({
         setOptionModalHasEndingDate(false);
         setOptionSceneIdx(0);
         setOptionSceneDirection('forward');
+        setOptionLockHint(null);
+        setOptionAttempted(false);
+        setOptionConfigPanel(null);
+        optionSessionOpenedAsCreateRef.current = false;
         return;
       }
       e.preventDefault();
@@ -1663,26 +1690,65 @@ export default function SupplierListingForm({
     setOptionModalHasEndingDate(false);
     setOptionSceneIdx(0);
     setOptionSceneDirection('forward');
+    setOptionLockHint(null);
+    setOptionAttempted(false);
+    setOptionConfigPanel(null);
+    setOptionConfigAttempted(false);
+    setOptionConfigHint(null);
+    optionConfigSnapshotRef.current = null;
+    optionSessionOpenedAsCreateRef.current = false;
   }, []);
 
-  const setOptionSceneIdxPersisted = useCallback((index: number, direction: ListingCreationSceneDirection) => {
-    setOptionSceneDirection(direction);
-    setOptionSceneIdx(clampTourOptionSceneIndex(index));
-  }, []);
+  const optionEndingState = useCallback(
+    (): { hasEndingDate: boolean } => ({ hasEndingDate: optionModalHasEndingDate }),
+    [optionModalHasEndingDate]
+  );
+
+  const setOptionSceneIdxPersisted = useCallback(
+    (index: number, direction: ListingCreationSceneDirection) => {
+      const draft = optionModalDraft;
+      if (!draft) return;
+      const ending = optionEndingState();
+      const isNewOption = optionSessionOpenedAsCreateRef.current;
+      const allowed = canVisitTourOptionScene({
+        targetIndex: index,
+        isNewOption,
+        option: draft,
+        ending,
+      });
+      if (!allowed) {
+        const reason = tourOptionLockedReason({ targetIndex: index, option: draft, ending });
+        setOptionLockHint(reason);
+        setOptionAttempted(true);
+        focusListingField(firstBookingOptionIssueFocusId(draft, ending));
+        return;
+      }
+      setOptionLockHint(null);
+      setOptionAttempted(false);
+      setOptionSceneDirection(direction);
+      setOptionSceneIdx(clampTourOptionSceneIndex(index));
+    },
+    [optionModalDraft, optionEndingState]
+  );
 
   const openOptionModalCreate = useCallback(() => {
+    optionSessionOpenedAsCreateRef.current = true;
     setOptionModalEditingId(null);
     setOptionModalDraft(createEmptyBookingOption());
     setOptionModalErrors([]);
     setOptionModalHasEndingDate(false);
     setOptionSceneIdx(0);
     setOptionSceneDirection('forward');
+    setOptionLockHint(null);
+    setOptionAttempted(false);
+    setOptionConfigPanel(null);
     setOptionModalOpen(true);
   }, []);
 
   const openOptionModalEdit = useCallback((id: string) => {
     const opt = form.bookingOptions.find((o) => o.id === id);
     if (!opt) return;
+    optionSessionOpenedAsCreateRef.current = false;
     setOptionModalEditingId(id);
     setOptionModalDraft(
       normalizeListingBookingOption({ ...(opt as unknown as Record<string, unknown>) }, opt.id)
@@ -1691,6 +1757,9 @@ export default function SupplierListingForm({
     setOptionModalHasEndingDate(opt.availabilityDateTo.trim().length > 0);
     setOptionSceneIdx(0);
     setOptionSceneDirection('forward');
+    setOptionLockHint(null);
+    setOptionAttempted(false);
+    setOptionConfigPanel(null);
     setOptionModalOpen(true);
   }, [form.bookingOptions]);
 
@@ -1703,16 +1772,6 @@ export default function SupplierListingForm({
       );
     });
   }, []);
-
-  const optionEndingDateErrors = useCallback(
-    (draft: ListingBookingOption) => {
-      if (optionModalHasEndingDate && !draft.availabilityDateTo.trim()) {
-        return ['Choose an ending date, or turn off "This activity has an ending date".'];
-      }
-      return [];
-    },
-    [optionModalHasEndingDate]
-  );
 
   const persistOptionDraftToForm = useCallback(
     (draft: ListingBookingOption) => {
@@ -1734,38 +1793,97 @@ export default function SupplierListingForm({
 
   const saveOptionModal = useCallback(() => {
     if (!optionModalDraft) return;
-    const errs = [
-      ...getBookingOptionValidationMessages(optionModalDraft),
-      ...optionEndingDateErrors(optionModalDraft),
-    ];
+    const ending = optionEndingState();
+    const errs = optionValidationMessages(optionModalDraft, ending.hasEndingDate);
     if (errs.length) {
+      setOptionAttempted(true);
       setOptionModalErrors(errs);
-      const durErr = getListingBookingOptionDurationIssue(optionModalDraft.duration);
-      if (durErr && errs.includes(durErr)) {
-        setOptionSceneIdxPersisted(0, 'back');
-        requestAnimationFrame(() => {
-          document.getElementById('supplier-listing-field-option-duration')?.scrollIntoView({
-            behavior: 'smooth',
-            block: 'center',
-          });
-          document.getElementById('booking-option-duration-amount')?.focus();
-        });
-      } else if (errs.some((line) => /meet or where you pick/i.test(line))) {
-        setOptionSceneIdxPersisted(1, 'back');
-      } else if (errs.some((line) => /price|adult|child/i.test(line))) {
-        setOptionSceneIdxPersisted(2, 'back');
+      setOptionLockHint(errs[0] ?? 'Finish the remaining option details before completing.');
+      const firstIncomplete = [0, 1, 2].find(
+        (idx) => !isTourOptionSceneSatisfied(idx, optionModalDraft, ending)
+      );
+      if (firstIncomplete != null) {
+        setOptionSceneIdxPersisted(firstIncomplete, 'back');
       }
+      focusListingField(firstBookingOptionIssueFocusId(optionModalDraft, ending));
       return;
     }
     persistOptionDraftToForm(optionModalDraft);
     closeOptionModal();
   }, [
     optionModalDraft,
-    optionEndingDateErrors,
+    optionEndingState,
     persistOptionDraftToForm,
     closeOptionModal,
     setOptionSceneIdxPersisted,
   ]);
+
+  const advanceOptionScene = useCallback(() => {
+    if (!optionModalDraft) return;
+    const ending = optionEndingState();
+    const canContinue = canContinueTourOptionScene({
+      sceneIndex: optionSceneIdx,
+      option: optionModalDraft,
+      ending,
+    });
+    if (!canContinue) {
+      setOptionAttempted(true);
+      const hint = tourOptionSceneContinueHint({
+        sceneIndex: optionSceneIdx,
+        option: optionModalDraft,
+        ending,
+        canContinue: false,
+      });
+      setOptionLockHint(hint);
+      focusListingField(firstBookingOptionIssueFocusId(optionModalDraft, ending));
+      return;
+    }
+    persistOptionDraftToForm(optionModalDraft);
+    setOptionLockHint(null);
+    setOptionAttempted(false);
+    setOptionModalErrors([]);
+    setOptionSceneIdxPersisted(nextTourOptionScene(optionSceneIdx), 'forward');
+  }, [
+    optionModalDraft,
+    optionEndingState,
+    optionSceneIdx,
+    persistOptionDraftToForm,
+    setOptionSceneIdxPersisted,
+  ]);
+
+  const openOptionConfigPanel = useCallback((panel: TourOptionConfigPanel) => {
+    if (!optionModalDraft) return;
+    optionConfigSnapshotRef.current = optionModalDraft;
+    setOptionConfigPanel(panel);
+    setOptionConfigAttempted(false);
+    setOptionConfigHint(null);
+  }, [optionModalDraft]);
+
+  const cancelOptionConfigPanel = useCallback(() => {
+    const snap = optionConfigSnapshotRef.current;
+    if (snap) setOptionModalDraft(snap);
+    optionConfigSnapshotRef.current = null;
+    setOptionConfigPanel(null);
+    setOptionConfigAttempted(false);
+    setOptionConfigHint(null);
+  }, []);
+
+  const saveOptionConfigPanel = useCallback(() => {
+    if (!optionModalDraft || !optionConfigPanel) return;
+    const ending = optionEndingState();
+    const issues = tourOptionConfigPanelIssues(optionConfigPanel, optionModalDraft, ending);
+    if (issues.length) {
+      setOptionConfigAttempted(true);
+      setOptionConfigHint(tourOptionConfigSaveHint(optionConfigPanel, optionModalDraft, ending));
+      focusListingField(firstBookingOptionIssueFocusId(optionModalDraft, ending));
+      return;
+    }
+    persistOptionDraftToForm(optionModalDraft);
+    optionConfigSnapshotRef.current = null;
+    setOptionConfigPanel(null);
+    setOptionConfigAttempted(false);
+    setOptionConfigHint(null);
+  }, [optionModalDraft, optionConfigPanel, optionEndingState, persistOptionDraftToForm]);
 
   const saveOptionAsDraft = useCallback(() => {
     if (!optionModalDraft) return;
@@ -1776,6 +1894,31 @@ export default function SupplierListingForm({
   }, [optionModalDraft, persistOptionDraftToForm, closeOptionModal]);
 
   const tourOptionGuided = Boolean(optionModalOpen && optionModalDraft && !isStayForm);
+  const optionEnding = { hasEndingDate: optionModalHasEndingDate };
+  const optionCanFinish = Boolean(
+    optionModalDraft && optionValidationMessages(optionModalDraft, optionModalHasEndingDate).length === 0
+  );
+  const optionContinueHint = tourOptionGuided && optionModalDraft
+    ? optionSceneIdx < TOUR_OPTION_SCENE_COUNT - 1
+      ? tourOptionSceneContinueHint({
+          sceneIndex: optionSceneIdx,
+          option: optionModalDraft,
+          ending: optionEnding,
+          canContinue: canContinueTourOptionScene({
+            sceneIndex: optionSceneIdx,
+            option: optionModalDraft,
+            ending: optionEnding,
+          }),
+        })
+      : optionCanFinish
+        ? null
+        : tourOptionSceneContinueHint({
+            sceneIndex: optionSceneIdx,
+            option: optionModalDraft,
+            ending: optionEnding,
+            canContinue: false,
+          })
+    : null;
 
   const persistLabel = listingWizardPersistLabel({
     saving: draftCloseBusy || submitting,
@@ -1864,10 +2007,18 @@ export default function SupplierListingForm({
           exitDisabled={draftCloseBusy || submitting}
           exitBusy={draftCloseBusy}
           contextNav={
-            tourOptionGuided
+            tourOptionGuided && optionModalDraft
               ? {
-                  title: optionModalEditingId ? 'Edit option' : 'New option',
-                  items: tourOptionContextNavItems(optionSceneIdx),
+                  title: optionSessionOpenedAsCreateRef.current
+                    ? 'New option'
+                    : optionModalEditingId
+                      ? 'Edit option'
+                      : 'New option',
+                  items: tourOptionContextNavItems(optionSceneIdx, {
+                    isNewOption: optionSessionOpenedAsCreateRef.current,
+                    option: optionModalDraft,
+                    ending: { hasEndingDate: optionModalHasEndingDate },
+                  }),
                   onSelect: (id) => {
                     const next = TOUR_OPTION_SCENES.findIndex((scene) => scene.id === id);
                     if (next < 0) return;
@@ -1876,9 +2027,31 @@ export default function SupplierListingForm({
                 }
               : null
           }
+          overlay={
+            tourOptionGuided && optionModalDraft && optionConfigPanel ? (
+              <TourOptionConfigWorkspace
+                panel={optionConfigPanel}
+                option={optionModalDraft}
+                listingTitle={form.title}
+                currencyLabel={listingCurrency}
+                hasEndingDate={optionModalHasEndingDate}
+                onHasEndingDateChange={setOptionModalHasEndingDate}
+                onChange={patchOptionDraft}
+                onCancel={cancelOptionConfigPanel}
+                onSave={saveOptionConfigPanel}
+                attempted={optionConfigAttempted}
+                saveHint={optionConfigHint}
+              />
+            ) : null
+          }
           scrollRef={stepContainerRef}
           banners={
             <>
+              {optionLockHint ? (
+                <div className="listing-creation-hint shrink-0 px-4 pt-3 sm:px-8 lg:px-12" role="status">
+                  <p className="text-sm text-ink-muted">{optionLockHint}</p>
+                </div>
+              ) : null}
               {stepLockHint ? (
                 <div className="listing-creation-hint shrink-0 px-4 pt-3 sm:px-8 lg:px-12" role="status">
                   <p className="text-sm text-ink-muted">{stepLockHint}</p>
@@ -1969,15 +2142,19 @@ export default function SupplierListingForm({
                       type="button"
                       onClick={() => {
                         if (optionSceneIdx < TOUR_OPTION_SCENE_COUNT - 1) {
-                          setOptionSceneIdxPersisted(nextTourOptionScene(optionSceneIdx), 'forward');
+                          advanceOptionScene();
                           return;
                         }
                         saveOptionModal();
                       }}
-                      disabled={draftCloseBusy || submitting}
+                      disabled={
+                        draftCloseBusy ||
+                        submitting ||
+                        (optionSceneIdx === TOUR_OPTION_SCENE_COUNT - 1 && !optionCanFinish)
+                      }
                       className="touch-manipulation tv-btn-primary !min-h-11 flex-1 sm:flex-none disabled:opacity-50"
                     >
-                      {optionSceneIdx < TOUR_OPTION_SCENE_COUNT - 1 ? 'Continue' : 'Save option'}
+                      {optionSceneIdx < TOUR_OPTION_SCENE_COUNT - 1 ? 'Continue' : 'Finish option'}
                     </button>
                   </>
                 ) : stepIdx < steps.length - 1 ? (
@@ -2066,6 +2243,11 @@ export default function SupplierListingForm({
                 )}
               </div>
             </div>
+            {tourOptionGuided && optionContinueHint ? (
+              <p className="listing-creation-hint text-xs leading-relaxed text-ink-muted sm:text-right" role="status">
+                {optionContinueHint}
+              </p>
+            ) : null}
             {!tourOptionGuided && stepIdx < steps.length - 1
               ? (() => {
                   const hint = tourBasicsGuided
@@ -2110,12 +2292,20 @@ export default function SupplierListingForm({
                 onSelectScene={(index) => {
                   setOptionSceneIdxPersisted(index, index >= optionSceneIdx ? 'forward' : 'back');
                 }}
+                canSelectScene={(index) =>
+                  canVisitTourOptionScene({
+                    targetIndex: index,
+                    isNewOption: optionSessionOpenedAsCreateRef.current,
+                    option: optionModalDraft,
+                    ending: optionEnding,
+                  })
+                }
                 onChange={patchOptionDraft}
+                onConfigureAvailabilityPricing={openOptionConfigPanel}
+                formatAmount={(n) => formatMoney(n, listingCurrency)}
                 priceSummary={summarizeOptionPricing(optionModalDraft, (n) => formatMoney(n, listingCurrency))}
-                validationMessages={[
-                  ...getBookingOptionValidationMessages(optionModalDraft),
-                  ...optionEndingDateErrors(optionModalDraft),
-                ]}
+                validationMessages={optionValidationMessages(optionModalDraft, optionModalHasEndingDate)}
+                attempted={optionAttempted}
               />
             </div>
           ) : (
@@ -2757,7 +2947,7 @@ export default function SupplierListingForm({
               </div>
               <div className="space-y-3">
                 {materializedBookingOptions(form.bookingOptions).map((opt) => {
-                  const messages = getBookingOptionValidationMessages(opt);
+                  const messages = optionValidationMessages(opt);
                   const status = tourOptionReadiness(opt, messages);
                   const pendingDelete = optionPendingDeleteId === opt.id;
                   return (
@@ -2767,7 +2957,7 @@ export default function SupplierListingForm({
                     >
                       <div className="min-w-0 space-y-1">
                         <div className="flex flex-wrap items-center gap-2">
-                          <p className="text-sm font-semibold text-ink truncate">
+                          <p className="text-sm font-bold text-ink truncate">
                             {opt.name.trim() || 'Untitled option'}
                           </p>
                           <span
@@ -2778,13 +2968,23 @@ export default function SupplierListingForm({
                             {tourOptionReadinessLabel(status)}
                           </span>
                         </div>
-                        <p className="text-xs text-ink-muted tabular-nums">
-                          {summarizeOptionPricing(opt, (n) => formatMoney(n, listingCurrency))}
-                          {opt.duration.trim() ? ` · ${opt.duration.trim()}` : ''}
-                          {opt.isPrivate ? ' · Private' : ''}
+                        <p className="text-xs text-ink-muted">
+                          {[
+                            opt.duration.trim() || null,
+                            summarizeOptionAvailability(opt) !== 'Not configured'
+                              ? summarizeOptionAvailability(opt)
+                              : null,
+                            summarizeOptionPricing(opt, (n) => formatMoney(n, listingCurrency)),
+                            summarizeOptionCapacity(opt),
+                          ]
+                            .filter(Boolean)
+                            .join(' · ')}
                         </p>
                         {opt.pickupPlace.trim() ? (
-                          <p className="text-xs text-ink-faint line-clamp-1">{opt.pickupPlace.trim()}</p>
+                          <p className="text-xs text-ink-faint line-clamp-1">
+                            {opt.fulfillment === 'pickup' ? 'Pickup · ' : opt.fulfillment === 'meeting_point' ? 'Meet · ' : ''}
+                            {opt.pickupPlace.trim()}
+                          </p>
                         ) : null}
                         {status !== 'ready' && messages[0] ? (
                           <p className="text-xs text-ink-muted">{messages[0]}</p>
