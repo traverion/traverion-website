@@ -151,7 +151,6 @@ export function getListingPublishBlockers(listing: TourPackage, todayIso?: strin
 
 /**
  * Draft list cards: never say “Ready for travelers” while publish blockers remain.
- * Health % can still look high when gallery/options fail the gate.
  */
 export function partnerListingDraftPublishSubtitle(
   listing: TourPackage,
@@ -167,5 +166,54 @@ export function partnerListingDraftPublishSubtitle(
     blockers,
     subtitle: `${n} before publish · ${first}`,
     readyToPublish: false,
+  };
+}
+
+export function partnerListingCardPresentation(args: {
+  isLive: boolean;
+  publishBlockers: string[];
+  accountEligible: boolean;
+}): {
+  statusLabel: string;
+  draftStateLabel: string | null;
+  primaryCta: 'publish' | 'continue' | 'verify' | 'view';
+  primaryCtaLabel: string;
+  publishDisabledReason: string | null;
+} {
+  if (args.isLive) {
+    return {
+      statusLabel: 'Live',
+      draftStateLabel: null,
+      primaryCta: 'view',
+      primaryCtaLabel: 'View',
+      publishDisabledReason: null,
+    };
+  }
+  const listingReady = args.publishBlockers.length === 0;
+  if (!listingReady) {
+    return {
+      statusLabel: 'Draft',
+      draftStateLabel: 'Incomplete',
+      primaryCta: 'continue',
+      primaryCtaLabel: 'Edit',
+      publishDisabledReason: args.publishBlockers[0] ?? 'This listing still needs required details.',
+    };
+  }
+  if (!args.accountEligible) {
+    return {
+      statusLabel: 'Draft',
+      draftStateLabel: 'Ready to publish',
+      primaryCta: 'verify',
+      primaryCtaLabel: 'Verification required',
+      publishDisabledReason:
+        'Business and payout verification (IBAN + BIC) must be approved before this listing can go live.',
+    };
+  }
+  return {
+    statusLabel: 'Draft',
+    draftStateLabel: 'Ready to publish',
+    primaryCta: 'publish',
+    primaryCtaLabel: 'Publish',
+    publishDisabledReason: null,
   };
 }

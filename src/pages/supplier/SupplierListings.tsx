@@ -44,7 +44,7 @@ import {
 import { canManageBookings } from '../../lib/supplierTeamRoles';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { publicStayListingUrl, publicTourListingUrl } from '../../lib/publicSiteUrl';
-import { getListingPublishBlockers, partnerListingDraftPublishSubtitle } from '../../lib/listingPublishGate';
+import { getListingPublishBlockers, partnerListingCardPresentation, partnerListingDraftPublishSubtitle } from '../../lib/listingPublishGate';
 import {
   PARTNER_LISTINGS_BUSINESS_REVIEW_NOTE,
   PARTNER_LISTINGS_PAYOUT_REVIEW_NOTE,
@@ -68,10 +68,6 @@ import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import { SUPPLIER_PAGE_CLASS, SupplierEmptyState, SupplierModalHeader, SupplierPageHero } from '../../components/supplier/supplierUi';
 import { PARTNER_FIRST_LISTING_STEP_NOTE } from '../../lib/booking-confirmation-copy';
-import {
-  computeListingQualityPartnerFocus,
-  listingQualityPercentPartnerFocus,
-} from '../../lib/listingQualityScore';
 import StatusChip from '../../components/StatusChip';
 
 function verificationStatusLabel(status: string): string {
@@ -1174,7 +1170,6 @@ export default function SupplierListings() {
               const family = inventoryFamilyFromListing(listing);
               const isStay = family === 'stay';
               const familyLabel = isStay ? 'Stay' : 'Tour';
-              const statusLabel = isLive ? 'Live' : 'Draft';
               const currency = listing.price?.currency ?? 'EUR';
               const from = catalogHeadlineAmount(listing);
               const money = from == null ? null : formatMoney(from, currency);
@@ -1182,40 +1177,24 @@ export default function SupplierListings() {
               const qualifier = pickHeadlineOption(opts).qualifier;
               const place = [listing.city, listing.country ?? listing.destination].filter(Boolean).join(', ');
               const heroSrc = listingHeroImageSrc(listing.image);
-              const healthPct = listingQualityPercentPartnerFocus(listing);
-              const healthTip =
-                healthPct < 100
-                  ? computeListingQualityPartnerFocus(listing).checks.find((c) => c.earned < c.max)?.tip ?? null
-                  : null;
               const draftPublish = !isLive ? partnerListingDraftPublishSubtitle(listing) : null;
-              const readinessLine = draftPublish
-                ? draftPublish.readyToPublish
-                  ? healthTip ?? draftPublish.subtitle
-                  : draftPublish.subtitle
-                : healthTip
-                  ? healthTip
-                  : 'Ready for travelers';
-              const healthTone =
-                healthPct >= 85 && (!draftPublish || draftPublish.readyToPublish)
-                  ? 'text-emerald-800'
-                  : healthPct >= 60 || (draftPublish && !draftPublish.readyToPublish)
-                    ? 'text-amber-900'
-                    : 'text-rose-800';
-              const healthBar =
-                healthPct >= 85 && (!draftPublish || draftPublish.readyToPublish)
-                  ? 'bg-emerald-500'
-                  : healthPct >= 60 || (draftPublish && !draftPublish.readyToPublish)
-                    ? 'bg-amber-500'
-                    : 'bg-rose-400';
+              const card = partnerListingCardPresentation({
+                isLive,
+                publishBlockers: draftPublish?.blockers ?? [],
+                accountEligible: canPostNewListing,
+              });
+              const readinessLine = !isLive
+                ? card.draftStateLabel === 'Incomplete'
+                  ? draftPublish?.subtitle ?? card.publishDisabledReason
+                  : card.draftStateLabel === 'Ready to publish' && !canPostNewListing
+                    ? 'Listing is complete. Verification is required before it can go live.'
+                    : 'Ready to publish'
+                : null;
               const cardAccent = !isLive
-                ? draftPublish && !draftPublish.readyToPublish
+                ? card.draftStateLabel === 'Incomplete'
                   ? 'border-l-[3px] border-l-amber-500'
                   : 'border-l-[3px] border-l-slate-400'
-                : healthPct >= 85
-                  ? 'border-l-[3px] border-l-emerald-500'
-                  : healthPct >= 60
-                    ? 'border-l-[3px] border-l-amber-500'
-                    : 'border-l-[3px] border-l-rose-400';
+                : 'border-l-[3px] border-l-finland';
               return (
                 <article
                   key={listing.id}
@@ -1238,7 +1217,12 @@ export default function SupplierListings() {
                       </div>
                       <div className="min-w-0 flex-1 py-0.5">
                         <div className="flex flex-wrap items-center gap-1.5">
-                          <StatusChip tone={isLive ? 'good' : 'neutral'}>{statusLabel}</StatusChip>
+                          <StatusChip tone={isLive ? 'good' : 'neutral'}>{card.statusLabel}</StatusChip>
+                          {card.draftStateLabel ? (
+                            <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
+                              {card.draftStateLabel}
+                            </span>
+                          ) : null}
                           <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
                             {familyLabel}
                           </span>
@@ -1259,11 +1243,6 @@ export default function SupplierListings() {
                               Draft copy
                             </span>
                           ) : null}
-                          {draftPublish && !draftPublish.readyToPublish ? (
-                            <StatusChip tone="warn">
-                              {`${draftPublish.blockers.length} before publish`}
-                            </StatusChip>
-                          ) : null}
                         </div>
                         <h2 className="mt-1.5 font-sans text-base font-semibold text-ink leading-snug line-clamp-2">
                           {listing.title}
@@ -1273,57 +1252,50 @@ export default function SupplierListings() {
                             .filter(Boolean)
                             .join(' · ')}
                         </p>
-                        <div className="mt-2 flex max-w-xs items-center gap-2">
-                          <div
-                            className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-black/[0.08]"
-                            role="progressbar"
-                            aria-valuenow={healthPct}
-                            aria-valuemin={0}
-                            aria-valuemax={100}
-                            aria-label={`Listing health ${healthPct} percent`}
-                          >
-                            <div className={`h-full rounded-full ${healthBar}`} style={{ width: `${healthPct}%` }} />
-                          </div>
-                          <span className={`text-xs font-semibold tabular-nums shrink-0 ${healthTone}`}>{healthPct}%</span>
-                        </div>
-                        <p
-                          className={`mt-1 text-xs leading-snug line-clamp-2 ${
-                            draftPublish && !draftPublish.readyToPublish ? 'text-amber-900' : 'text-ink-muted'
-                          }`}
-                        >
-                          {readinessLine}
-                        </p>
+                        {readinessLine ? (
+                          <p className="mt-1 text-xs leading-snug text-ink-muted line-clamp-2">{readinessLine}</p>
+                        ) : null}
                       </div>
                     </button>
                     <div className="flex shrink-0 flex-wrap items-center gap-2 border-t border-black/[0.06] pt-3 sm:flex-col sm:items-stretch sm:justify-center sm:border-t-0 sm:border-l sm:pl-4 sm:pt-0">
-                      {isSupabase && canEditListings && !isLive ? (
+                      {isSupabase && canEditListings && card.primaryCta === 'publish' ? (
                         <button
                           type="button"
                           onClick={() => handleStatusChange(listing, 'published')}
-                          disabled={!canPostNewListing}
-                          title={
-                            !canPostNewListing
-                              ? 'Business verification and payout verification (IBAN + BIC) required.'
-                              : draftPublish && !draftPublish.readyToPublish
-                                ? `${draftPublish.blockers.length} item${draftPublish.blockers.length === 1 ? '' : 's'} still block publish.`
-                                : 'Publish this listing on Traverion for travelers to book.'
-                          }
-                          className="lux-flat inline-flex min-h-9 items-center justify-center rounded-full bg-finland px-3.5 text-xs font-semibold text-white hover:bg-finland/90 disabled:opacity-40"
+                          className="lux-flat inline-flex min-h-11 items-center justify-center rounded-full bg-finland px-3.5 text-xs font-semibold text-white hover:bg-finland/90"
                         >
-                          {draftPublish && !draftPublish.readyToPublish
-                            ? `Publish (${draftPublish.blockers.length})`
-                            : 'Publish'}
+                          Publish
                         </button>
                       ) : null}
-                      {isLive ? (
+                      {isSupabase && canEditListings && card.primaryCta === 'verify' ? (
+                        <button
+                          type="button"
+                          onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/business-profile`)}
+                          title={card.publishDisabledReason ?? undefined}
+                          className="lux-flat inline-flex min-h-11 items-center justify-center rounded-full px-3.5 text-xs font-semibold text-ink ring-1 ring-black/[0.08] hover:bg-black/[0.04]"
+                        >
+                          Verification required
+                        </button>
+                      ) : null}
+                      {card.primaryCta === 'view' ? (
                         <a
                           href={isStay ? publicStayListingUrl(listing.id) : publicTourListingUrl(listing.id)}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="lux-flat inline-flex min-h-9 items-center justify-center rounded-full bg-finland/10 px-3.5 text-xs font-semibold text-finland ring-1 ring-finland/20 hover:bg-finland/15"
+                          className="lux-flat inline-flex min-h-11 items-center justify-center rounded-full bg-finland/10 px-3.5 text-xs font-semibold text-finland ring-1 ring-finland/20 hover:bg-finland/15"
                         >
                           View
                         </a>
+                      ) : null}
+                      {canEditListings ? (
+                        <button
+                          type="button"
+                          onClick={() => openSupplierListingEditor(listing.id)}
+                          className="tv-btn-ghost min-h-11"
+                        >
+                          <Pencil className="h-3.5 w-3.5" aria-hidden />
+                          Edit
+                        </button>
                       ) : null}
                       <button
                         type="button"
@@ -1335,7 +1307,7 @@ export default function SupplierListings() {
                         aria-expanded={listingActionsMenuId === listing.id}
                         aria-haspopup="menu"
                         aria-label={isStay ? 'Stay actions' : 'Tour actions'}
-                        className="lux-flat inline-flex h-9 w-9 items-center justify-center rounded-full text-ink-muted hover:bg-black/[0.05] hover:text-ink disabled:opacity-40 sm:self-end"
+                        className="lux-flat inline-flex h-11 w-11 items-center justify-center rounded-full text-ink-muted hover:bg-black/[0.05] hover:text-ink disabled:opacity-40 sm:self-end"
                       >
                         <Cog className="h-4 w-4" aria-hidden />
                       </button>
