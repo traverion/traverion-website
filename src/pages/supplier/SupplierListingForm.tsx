@@ -83,6 +83,8 @@ import {
   type ListingCreationSceneDirection,
 } from '../../lib/listing-creation-scenes';
 import {
+  STAY_HIGHLIGHT_MAX,
+  STAY_HIGHLIGHT_MIN_VISIBLE,
   TOUR_EXCLUDE_MAX,
   TOUR_EXCLUDE_MIN_VISIBLE,
   TOUR_INCLUDE_MAX,
@@ -153,7 +155,6 @@ const EXPERIENCE_START_OPTIONS: {
 
 const MAX_SUBTITLE_LENGTH = TOUR_BASICS_SUBTITLE_MAX;
 const MAX_DESCRIPTION_LENGTH = TOUR_BASICS_DESCRIPTION_MAX;
-const STAY_HIGHLIGHT_SLOT_COUNT = 5;
 const MAX_ACCESSIBILITY_LENGTH = 500;
 const MAX_TIMELINE_LENGTH = 800;
 
@@ -389,10 +390,7 @@ function getBookingOptionValidationMessages(o: ListingBookingOption): string[] {
 }
 
 function normalizeHighlightSlots(fromDb: string[] | undefined): string[] {
-  const base = Array.isArray(fromDb) ? fromDb.map((s) => String(s ?? '').trim()) : [];
-  const out = base.slice(0, STAY_HIGHLIGHT_SLOT_COUNT);
-  while (out.length < STAY_HIGHLIGHT_SLOT_COUNT) out.push('');
-  return out;
+  return normalizeProgressiveSlots(fromDb, STAY_HIGHLIGHT_MIN_VISIBLE, STAY_HIGHLIGHT_MAX);
 }
 
 function normalizeLineSlots(count: number, fromDb: string[] | undefined): string[] {
@@ -590,7 +588,10 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
       ? form.experienceKind
       : undefined;
   const desc = form.description.trim().slice(0, MAX_DESCRIPTION_LENGTH);
-  const highlightList = persistableTourHighlights(form.highlights);
+  const highlightList =
+    form.inventoryFamily === 'stay'
+      ? persistableProgressiveSlots(form.highlights, STAY_HIGHLIGHT_MAX)
+      : persistableTourHighlights(form.highlights);
   const includeList = persistableProgressiveSlots(form.includes, TOUR_INCLUDE_MAX);
   const excludeList = persistableProgressiveSlots(form.excludes, TOUR_EXCLUDE_MAX);
   const orderedPhotos = orderedPhotoUrls(form.photoSlots);
@@ -1281,7 +1282,7 @@ export default function SupplierListingForm({
                 experienceLanguage: 'en',
                 duration: 'Per night',
                 experienceKind: 'tour' as const,
-                highlights: Array.from({ length: STAY_HIGHLIGHT_SLOT_COUNT }, () => ''),
+                highlights: Array.from({ length: STAY_HIGHLIGHT_MIN_VISIBLE }, () => ''),
               }
             : {}),
         };
@@ -2138,10 +2139,8 @@ export default function SupplierListingForm({
                           key={type}
                           type="button"
                           onClick={() => setForm((f) => ({ ...f, stayPropertyType: type }))}
-                          className={`rounded-xl border-2 px-3 py-3 text-left text-sm font-semibold transition-all ${
-                            selected
-                              ? 'border-finland bg-finland/5 text-ink ring-1 ring-finland/25 shadow-sm'
-                              : 'border-black/[0.08] bg-paper-raised text-ink-muted hover:border-finland/35 hover:bg-finland/5 hover:text-ink'
+                          className={`lc-choice rounded-xl px-3 py-3 text-left text-sm font-bold ${
+                            selected ? 'lc-choice--selected text-ink' : 'text-ink-muted'
                           }`}
                         >
                           {type}
@@ -2234,34 +2233,16 @@ export default function SupplierListingForm({
                   </p>
                 ) : null}
               </div>
-              <div id="supplier-listing-field-highlights" className="space-y-3">
-                <div>
-                  <label className="block text-sm font-semibold text-ink">Highlights (optional)</label>
-                  <p className="text-xs text-ink-muted mt-1">
-                    Up to five short selling points — each on its own line below.
-                  </p>
-                </div>
-                {form.highlights.map((line, index) => (
-                  <div key={index}>
-                    <label className="block text-xs font-medium text-ink-muted mb-1" htmlFor={`supplier-listing-highlight-${index}`}>
-                      Highlight {index + 1}
-                    </label>
-                    <input
-                      id={`supplier-listing-highlight-${index}`}
-                      type="text"
-                      value={line}
-                      onChange={(e) =>
-                        setForm((f) => ({
-                          ...f,
-                          highlights: f.highlights.map((h, i) => (i === index ? e.target.value : h)),
-                        }))
-                      }
-                      className="tv-input"
-                      placeholder={index === 0 ? 'e.g. Skip-the-line entry' : `Optional highlight ${index + 1}`}
-                    />
-                  </div>
-                ))}
-              </div>
+              <ProgressiveLinesEditor
+                fieldId="supplier-listing-field-highlights"
+                label="Highlights (optional)"
+                hint={`Short selling points. You can add up to ${STAY_HIGHLIGHT_MAX}.`}
+                values={form.highlights}
+                minVisible={STAY_HIGHLIGHT_MIN_VISIBLE}
+                max={STAY_HIGHLIGHT_MAX}
+                placeholder={(index) => (index === 0 ? 'e.g. River view' : `Optional highlight ${index + 1}`)}
+                onChange={(highlights) => setForm((f) => ({ ...f, highlights }))}
+              />
             </div>
           )}
           {stepIdx === 0 && !isStayForm && (
