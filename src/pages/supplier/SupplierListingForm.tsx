@@ -1824,7 +1824,7 @@ export default function SupplierListingForm({
 
   const shell = (
     <div
-      className="fixed inset-0 z-[80] flex flex-col overflow-hidden overscroll-none"
+      className="fixed inset-0 z-[80] flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden overscroll-none"
       role="dialog"
       aria-modal="true"
       aria-labelledby="supplier-listing-editor-title"
@@ -1835,7 +1835,7 @@ export default function SupplierListingForm({
         aria-label={form.inventoryFamily === 'stay' || createFamily === 'stay' ? 'Close stay editor' : 'Close tour editor'}
         onClick={() => void handleCloseIntent()}
       />
-      <div className="relative z-[81] flex min-h-0 w-full flex-1 flex-col justify-stretch px-0 py-0 pointer-events-none">
+      <div className="relative z-[81] flex h-full min-h-0 w-full flex-1 flex-col justify-stretch px-0 py-0 pointer-events-none">
         <form
           onSubmit={handleSubmit}
           onKeyDown={(e) => {
