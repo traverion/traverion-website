@@ -1548,6 +1548,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
 
       {galleryLightboxOpen && hasGallery ? (
         <div
+          ref={gallerySheetRef}
           className="fixed inset-0 z-[80] flex flex-col bg-ink/90"
           role="dialog"
           aria-modal="true"
@@ -1560,7 +1561,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
             <button
               type="button"
               className="tv-btn-ghost text-white hover:bg-white/10"
-              onClick={() => setGalleryLightboxOpen(false)}
+              onClick={closeGalleryLightbox}
             >
               Close
             </button>
