@@ -68,10 +68,16 @@ export default function TourDatePicker({
 
   return (
     <div>
-      <p id={id} className="mb-1.5 block text-sm font-medium tracking-tight text-ink">
+      <p id={`${id}-label`} className="mb-1.5 block text-sm font-medium tracking-tight text-ink">
         {label}
       </p>
-      <div role="group" aria-labelledby={id} className="rounded-xl bg-paper-raised p-3 ring-1 ring-black/[0.06]">
+      <div
+        id={id}
+        role="group"
+        aria-labelledby={`${id}-label`}
+        tabIndex={-1}
+        className="rounded-xl bg-paper-raised p-3 ring-1 ring-black/[0.06] outline-none focus-visible:ring-2 focus-visible:ring-finland/40"
+      >
         <div className="flex items-center justify-between mb-2">
           <p className="text-sm font-semibold text-ink">{monthTitle(cursor.y, cursor.m)}</p>
           <div className="flex gap-1">

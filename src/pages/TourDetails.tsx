@@ -666,7 +666,9 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     if (!bookingDate.trim()) {
       scrollElementIntoView('tour-booking-panel', { behavior: 'smooth', block: 'start' });
       window.requestAnimationFrame(() => {
-        document.getElementById('tour-booking-date-input')?.focus();
+        const root = document.getElementById('tour-booking-date-input');
+        const firstOpen = root?.querySelector('button:not([disabled])') as HTMLButtonElement | null;
+        (firstOpen ?? root)?.focus();
       });
       return;
     }
@@ -1083,7 +1085,11 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                     onChoose={handleSelectTourVariant}
                     onChangeDate={() => {
                       scrollElementIntoView('tour-booking-date-input', { behavior: 'smooth', block: 'center' });
-                      window.requestAnimationFrame(() => document.getElementById('tour-booking-date-input')?.focus());
+                      window.requestAnimationFrame(() => {
+                        const root = document.getElementById('tour-booking-date-input');
+                        const firstOpen = root?.querySelector('button:not([disabled])') as HTMLButtonElement | null;
+                        (firstOpen ?? root)?.focus();
+                      });
                     }}
                     onChangeGuests={() => {
                       scrollElementIntoView('tour-booking-guests', { behavior: 'smooth', block: 'center' });
