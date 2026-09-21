@@ -58,6 +58,7 @@ export default function ListingImageFields({
   const [pendingRemoveIndex, setPendingRemoveIndex] = useState<number | null>(null);
   const [dragOverCover, setDragOverCover] = useState(false);
   const [dropActive, setDropActive] = useState(false);
+  const [coverFlash, setCoverFlash] = useState(false);
 
   const pushBundle = (nextSlots: string[], nextLabels: string[]) => {
     onPhotosChange(compactPhotoSlotsAndLabels(nextSlots, nextLabels));
@@ -162,6 +163,8 @@ export default function ListingImageFields({
   const makeCover = (index: number) => {
     if (index <= 0) return;
     moveToIndex(index, 0);
+    setCoverFlash(true);
+    window.setTimeout(() => setCoverFlash(false), 320);
   };
 
   const onPhotoDragStart = (e: React.DragEvent, index: number) => {
@@ -175,7 +178,12 @@ export default function ListingImageFields({
     setDragOverCover(false);
     const raw = e.dataTransfer.getData(PHOTO_DRAG_TYPE) || e.dataTransfer.getData('text/plain');
     const from = Number.parseInt(raw, 10);
-    if (Number.isFinite(from)) moveToIndex(from, to);
+    if (!Number.isFinite(from)) return;
+    moveToIndex(from, to);
+    if (to === 0 && from !== 0) {
+      setCoverFlash(true);
+      window.setTimeout(() => setCoverFlash(false), 320);
+    }
   };
 
   const dropIncomingFiles = (e: React.DragEvent, replaceIndex: number | null) => {
@@ -285,13 +293,14 @@ export default function ListingImageFields({
         {LISTING_PHOTO_MIN} minimum · {LISTING_PHOTO_MAX} maximum · {LISTING_IMAGE_MAX_MB} MB each
       </p>
 
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)] xl:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
       <section aria-label="Cover photo" className="space-y-3">
         {coverPreview ? (
           <>
             <div
-              className={`relative overflow-hidden rounded-xl bg-black/[0.04] ring-1 ${
-                dragOverCover ? 'ring-2 ring-finland' : 'ring-black/[0.08]'
-              }`}
+              className={`lc-tile lc-tile--cover relative overflow-hidden rounded-xl ${
+                dragOverCover ? 'lc-tile--drop' : ''
+              } ${coverFlash ? 'lc-tile--just-cover' : ''}`}
               onDragOver={(e) => {
                 e.preventDefault();
                 setDragOverCover(true);
@@ -310,7 +319,7 @@ export default function ListingImageFields({
                 alt=""
                 draggable={!busy}
                 onDragStart={(e) => onPhotoDragStart(e, 0)}
-                className="aspect-[16/10] w-full object-cover"
+                className="aspect-[4/3] w-full object-cover"
               />
               <span className="absolute left-3 top-3 bg-paper/95 px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink">
                 Cover
@@ -340,6 +349,7 @@ export default function ListingImageFields({
         )}
       </section>
 
+      <div className="min-w-0 space-y-4">
       {filledCount > 1 ? (
         <section aria-label="Supporting photos" className="space-y-3">
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">More photos</p>
@@ -360,7 +370,7 @@ export default function ListingImageFields({
                     }}
                     onDrop={(e) => dropPhotoIndex(e, index)}
                     aria-label={`${caption}. Photo ${index + 1} of ${filledCount}. Drag to the cover to make it the cover.`}
-                    className="relative block w-full overflow-hidden rounded-xl bg-black/[0.04] ring-1 ring-black/[0.08]"
+                    className="lc-tile relative block w-full overflow-hidden rounded-xl"
                   >
                     {preview ? (
                       <img src={preview} alt="" className="aspect-square w-full object-cover" />
@@ -384,6 +394,8 @@ export default function ListingImageFields({
           onDropFiles={(files) => void ingestFiles(files, null)}
         />
       ) : null}
+      </div>
+      </div>
 
       {!uploadsEnabled && (
         <div className="space-y-2">
@@ -448,8 +460,8 @@ function AddPhotosDropzone({
         const files = e.dataTransfer.files ? Array.from(e.dataTransfer.files) : [];
         if (files.length) onDropFiles(files);
       }}
-      className={`flex min-h-[7.5rem] w-full flex-col items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold text-finland ring-1 ring-dashed disabled:opacity-40 ${
-        active ? 'bg-finland/[0.08] ring-finland' : 'ring-finland/30 hover:bg-finland/10'
+      className={`lc-upload flex min-h-[7.5rem] w-full flex-col items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold text-finland disabled:opacity-40 ${
+        active ? 'lc-upload--active' : ''
       }`}
     >
       <Plus className="h-6 w-6" strokeWidth={1.75} aria-hidden />

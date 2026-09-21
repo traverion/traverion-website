@@ -2116,7 +2116,7 @@ export default function SupplierListingForm({
             className={`w-full ${
               stepIdx === 0 && !isStayForm
                 ? ''
-                : `motion-safe:animate-fade-in ${stepIdx === 3 ? 'max-w-3xl' : 'max-w-xl'}`
+                : `motion-safe:animate-fade-in ${stepIdx === 3 ? 'max-w-5xl' : 'max-w-xl'}`
             }`}
           >
           {stepIdx !== 4 && !(stepIdx === 0 && !isStayForm) && !(stepIdx === 2 && !isStayForm) && stepIdx !== 3 ? (
