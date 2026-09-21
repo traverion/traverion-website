@@ -32,7 +32,7 @@ import { fetchSupplierPublicLegal } from '../data/supabase-supplier-profile';
 import { setPageMetaWithOg, setTourJsonLd, clearTourJsonLd } from '../lib/seo';
 import { Skeleton } from '../components/ui/Skeleton';
 import { dateNotInPast } from '../lib/validation';
-import { checkAvailability, fetchAvailabilityByListingId, fetchPublishedTourPaidGuests } from '../data/supabase-availability';
+import { checkAvailability, fetchAvailabilityByListingId, fetchPublishedTourPaidGuests, fetchPublishedTourPaidGuestsBySlot, tourPaidSlotKey } from '../data/supabase-availability';
 import { optionRunsOnDate, formatOptionWeekdays } from '../lib/booking-quote';
 import { isListingVisibleToTravelers } from '../lib/product-workflows';
 import { listingIsOnTravelerCatalog } from '../lib/inventory';
@@ -170,6 +170,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   const [soldOutDates, setSoldOutDates] = useState<ReadonlySet<string>>(() => new Set());
   const [dayCapacitySnap, setDayCapacitySnap] = useState<{
     paidByDay: Record<string, number>;
+    paidBySlot: Record<string, number>;
     capByDay: Map<string, number>;
     fallback: number;
   } | null>(null);
@@ -326,8 +327,11 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       return;
     }
     let cancelled = false;
-    void Promise.all([fetchAvailabilityByListingId(tour.id), fetchPublishedTourPaidGuests(tour.id)]).then(
-      ([caps, paidByDay]) => {
+    void Promise.all([
+      fetchAvailabilityByListingId(tour.id),
+      fetchPublishedTourPaidGuests(tour.id),
+      fetchPublishedTourPaidGuestsBySlot(tour.id),
+    ]).then(([caps, paidByDay, paidBySlot]) => {
         if (cancelled) return;
         const fallbackCap = listingTourCapacityFromOptions(capacitySpotsFromBookingOptions(calendarOptions));
         const capByDay = new Map<string, number>();
@@ -336,10 +340,9 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
           if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) continue;
           capByDay.set(day, row.capacity);
         }
-        setDayCapacitySnap({ paidByDay, capByDay, fallback: fallbackCap });
+        setDayCapacitySnap({ paidByDay, paidBySlot, capByDay, fallback: fallbackCap });
         setSoldOutDates(tourSoldOutDates({ paidByDay, capByDay, fallbackCapacity: fallbackCap }));
-      }
-    );
+      });
     return () => {
       cancelled = true;
     };
@@ -350,7 +353,6 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !dayCapacitySnap) return null;
     if (soldOutDates.has(day)) return 0;
     const dayCapOverride = dayCapacitySnap.capByDay.has(day);
-    // Multi-departure days: don't subtract listing-wide paid from one slot — that falsely shrinks other times.
     if (
       !dayCapOverride &&
       selectedOptionApplied &&
@@ -358,10 +360,12 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       selectedDepartureTime.trim()
     ) {
       const spots = selectedOptionApplied.maxSpotsPerSlot;
-      if (typeof spots === 'number' && Number.isFinite(spots) && spots >= 1) {
-        return Math.min(99, Math.floor(spots));
-      }
-      return Math.min(99, Math.max(1, selectedOptionApplied.maxPersons));
+      const cap =
+        typeof spots === 'number' && Number.isFinite(spots) && spots >= 1
+          ? Math.min(99, Math.floor(spots))
+          : Math.min(99, Math.max(1, selectedOptionApplied.maxPersons));
+      const paid = dayCapacitySnap.paidBySlot[tourPaidSlotKey(day, selectedDepartureTime)] ?? 0;
+      return remainingCapacity(cap, paid);
     }
     const cap = dayCapacitySnap.capByDay.get(day) ?? dayCapacitySnap.fallback;
     return remainingCapacity(cap, dayCapacitySnap.paidByDay[day] ?? 0);
@@ -375,13 +379,14 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   ]);
 
   const spotsLeftIsDepartureCapacity =
-    departureTimes.length > 1 && Boolean(selectedDepartureTime.trim()) && !dayCapacitySnap?.capByDay.has(bookingDate.trim());
+    departureTimes.length > 1 &&
+    Boolean(selectedDepartureTime.trim()) &&
+    !dayCapacitySnap?.capByDay.has(bookingDate.trim());
 
   const partyMaxForSelectedDay = useMemo(() => {
     if (!tour) return partyBounds.max;
     const base = getPartySizeBoundsForVariant(tour, selectedBookingVariant, bookingDate, selectedDepartureTime).max;
     if (selectedDaySpotsLeft == null || selectedDaySpotsLeft < 1) return base;
-    // Departure-capacity display is a slot ceiling, not remaining — still cap party size to it.
     return Math.max(1, Math.min(base, selectedDaySpotsLeft));
   }, [tour, selectedBookingVariant, partyBounds.max, selectedDaySpotsLeft, bookingDate, selectedDepartureTime]);
 
@@ -1170,8 +1175,8 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                             ? 'Fully booked this day'
                             : spotsLeftIsDepartureCapacity
                               ? selectedDaySpotsLeft === 1
-                                ? `Up to 1 spot for the ${selectedDepartureTime} departure`
-                                : `Up to ${selectedDaySpotsLeft} spots for the ${selectedDepartureTime} departure`
+                                ? `1 spot left for the ${selectedDepartureTime} departure`
+                                : `${selectedDaySpotsLeft} spots left for the ${selectedDepartureTime} departure`
                               : selectedDaySpotsLeft === 1
                                 ? '1 spot left this day'
                                 : `${selectedDaySpotsLeft} spots left this day`}

@@ -30,7 +30,7 @@ export async function fetchAvailabilityByListingId(
   return (data ?? []) as AvailabilityRow[];
 }
 
-/** Paid guest counts per departure. Failed, unpaid, and refunded bookings are omitted. */
+/** Paid guest counts per departure date. Failed, unpaid, and refunded bookings are omitted. */
 export async function fetchPublishedTourPaidGuests(
   listingId: string
 ): Promise<Record<string, number>> {
@@ -44,6 +44,37 @@ export async function fetchPublishedTourPaidGuests(
     const day = String(row.departure ?? '').slice(0, 10);
     const n = Number(row.paid_guests ?? 0);
     if (/^\d{4}-\d{2}-\d{2}$/.test(day) && Number.isFinite(n)) out[day] = n;
+  }
+  return out;
+}
+
+/** Slot key: `YYYY-MM-DD|HH:MM` (or `YYYY-MM-DD|` when start_time is null). */
+export function tourPaidSlotKey(dayIso: string, startTimeHm?: string | null): string {
+  const day = dayIso.slice(0, 10);
+  const hm = String(startTimeHm ?? '')
+    .trim()
+    .match(/^(\d{1,2}):(\d{2})/);
+  if (!hm) return `${day}|`;
+  return `${day}|${hm[1].padStart(2, '0')}:${hm[2]}`;
+}
+
+/** Paid guests per date+startTime. Falls back to empty when RPC is missing. */
+export async function fetchPublishedTourPaidGuestsBySlot(
+  listingId: string
+): Promise<Record<string, number>> {
+  if (!supabase) return {};
+  const { data, error } = await supabase.rpc('published_tour_paid_guests_by_slot', {
+    p_listing_id: listingId,
+  });
+  if (error || !Array.isArray(data)) return {};
+  const out: Record<string, number> = {};
+  for (const row of data as { departure?: unknown; start_time_hm?: unknown; paid_guests?: unknown }[]) {
+    const day = String(row.departure ?? '').slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) continue;
+    const n = Number(row.paid_guests ?? 0);
+    if (!Number.isFinite(n)) continue;
+    const key = tourPaidSlotKey(day, row.start_time_hm == null ? null : String(row.start_time_hm));
+    out[key] = n;
   }
   return out;
 }

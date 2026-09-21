@@ -188,12 +188,12 @@ export async function promotePaidFromCheckoutSession(params: {
   const withStay = await admin
     .from('bookings')
     .select(
-      'id, status, payment_status, currency, total_amount, checkout_session_id, payment_intent_id, listing_id, booking_date, guests, check_out'
+      'id, status, payment_status, currency, total_amount, checkout_session_id, payment_intent_id, listing_id, booking_date, guests, check_out, start_time'
     )
     .eq('id', bookingId)
     .maybeSingle();
   let existingBooking = withStay.data as Record<string, unknown> | null;
-  if (withStay.error && /check_out/i.test(withStay.error.message)) {
+  if (withStay.error && /check_out|start_time/i.test(withStay.error.message)) {
     const fallback = await admin
       .from('bookings')
       .select(
@@ -508,6 +508,10 @@ export async function promotePaidFromCheckoutSession(params: {
   const bookingDate = String(existingBooking?.booking_date ?? '').trim();
   const guests = Number(existingBooking?.guests ?? 0);
   const checkOutRaw = String(existingBooking?.check_out ?? '').trim();
+  const startTimeRaw = String(existingBooking?.start_time ?? '').trim();
+  const startTimeHm = /^\d{1,2}:\d{2}/.test(startTimeRaw)
+    ? startTimeRaw.slice(0, 5).padStart(5, '0')
+    : '';
   if (listingId && bookingDate && Number.isFinite(guests) && guests >= 1) {
     const { error: inventoryErr } = await admin.rpc('assert_checkout_inventory', {
       p_listing_id: listingId,
@@ -515,6 +519,7 @@ export async function promotePaidFromCheckoutSession(params: {
       p_guests: guests,
       p_check_out: checkOutRaw || null,
       p_exclude_booking_id: bookingId,
+      p_start_time: startTimeHm || null,
     });
     if (
       inventoryErr &&

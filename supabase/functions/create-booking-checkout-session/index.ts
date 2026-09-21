@@ -465,6 +465,7 @@ serve(async (req) => {
             ? Math.round((quote.totalAmount - quote.unitPrice * stayNights) * 100) / 100
             : null,
         p_hold_expires_at: holdExpiresAtIso,
+        p_start_time: startTime || null,
       };
       const claimed = await admin.rpc('claim_pending_checkout_booking', claimArgs);
       if (claimed.error) {
@@ -478,6 +479,7 @@ serve(async (req) => {
           p_guests: guests,
           p_check_out: extrasFamily === 'stay' && checkoutDate ? checkoutDate : null,
           p_exclude_booking_id: null,
+          p_start_time: startTime || null,
         });
         if (inventoryErr && !/could not find the function|schema cache/i.test(inventoryErr.message)) {
           const invConflict = /already booked|not enough capacity|occupied/i.test(inventoryErr.message);
@@ -531,6 +533,7 @@ serve(async (req) => {
         p_guests: guests,
         p_check_out: extrasFamily === 'stay' && checkoutDate ? checkoutDate : null,
         p_exclude_booking_id: targetBookingId,
+        p_start_time: startTime || null,
       });
       if (inventoryErr && !/could not find the function|schema cache/i.test(inventoryErr.message)) {
         const conflict = /already booked|not enough capacity|occupied/i.test(inventoryErr.message);
