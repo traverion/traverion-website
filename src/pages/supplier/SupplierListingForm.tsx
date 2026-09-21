@@ -1033,7 +1033,7 @@ export default function SupplierListingForm({
     }
     return [
       'Name this listing, choose the language you run it in, and pick a category.',
-      'Location, inclusions, itinerary, and important day-of details.',
+      'What guests get, where it happens, and how it starts. Optional itinerary and guest notes fold away.',
       'Options are versions of this experience (pickup, time, private). Age prices live inside each option.',
       'Cover photo first, then supporting shots travelers swipe through.',
       'Check what’s ready, fix gaps, then save as draft or publish.',
@@ -1946,21 +1946,21 @@ export default function SupplierListingForm({
     window.setTimeout(() => {
       addScheduleLockRef.current = false;
     }, 400);
+    // Materialize explicit schedules for overlap checks, but do not upsert the blank
+    // until the first save — cancel must not leave an empty orphan schedule.
     const prepared = ensureExplicitSchedules(optionModalDraft);
+    if (prepared !== optionModalDraft) setOptionModalDraft(prepared);
     const blank = blankOptionSchedule(newListingOptionScheduleId());
     scheduleSessionOpenedAsCreateRef.current = true;
     scheduleSnapshotRef.current = JSON.stringify(blank);
-    const next = upsertOptionSchedule(prepared, blank);
-    setOptionModalDraft(next);
-    persistOptionDraftToForm(next);
     setScheduleDraft(blank);
     setScheduleSceneIdx(0);
     setScheduleHasEndingDate(true);
     setScheduleAttempted(false);
-    setSchedulePersistLabel('Draft saved');
+    setSchedulePersistLabel(null);
     setScheduleSaveError(null);
     setScheduleLeaveOpen(false);
-  }, [optionModalDraft, persistOptionDraftToForm]);
+  }, [optionModalDraft]);
 
   const openScheduleEdit = useCallback(
     (scheduleId: string) => {
@@ -2703,7 +2703,7 @@ export default function SupplierListingForm({
           )}
 
           {stepIdx === 1 && form.inventoryFamily !== 'stay' && (
-            <div className="space-y-10">
+            <div className="space-y-8">
               <section className="space-y-5" aria-labelledby="tour-details-guests">
                 <h4 id="tour-details-guests" className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted">
                   What guests get
@@ -2729,17 +2729,161 @@ export default function SupplierListingForm({
                   onChange={(excludes) => setForm((f) => ({ ...f, excludes }))}
                 />
               </section>
-              <details
-                id="supplier-listing-field-accessibility"
-                className="group py-2"
-              >
+
+              <section className="space-y-4" aria-labelledby="listing-details-place">
+                <h4 id="listing-details-place" className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted">
+                  Where it happens
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" id="supplier-listing-field-location">
+                  <div>
+                    <label className="block text-sm font-semibold text-ink mb-1">City *</label>
+                    <input
+                      type="text"
+                      value={form.city}
+                      onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
+                      className="tv-input"
+                      placeholder="e.g. Lisbon — neighbourhood or street"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-ink mb-1">Country *</label>
+                    <input
+                      type="text"
+                      value={form.country}
+                      onChange={(e) => setForm((f) => ({ ...f, country: e.target.value }))}
+                      className="tv-input"
+                      placeholder="Primary country for this tour"
+                      required
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-ink-muted">
+                  Use the main base or usual starting city. Exact meeting and pickup belong on each bookable option.
+                </p>
+              </section>
+
+              <section className="space-y-4" aria-labelledby="tour-details-expect">
+                <h4 id="tour-details-expect" className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted">
+                  How it starts
+                </h4>
+                <div id="supplier-listing-field-start">
+                  <label className="block text-sm font-semibold text-ink mb-1">How this tour generally starts *</label>
+                  <select
+                    value={form.experienceStartStyle}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        experienceStartStyle: e.target.value as ListingFormState['experienceStartStyle'],
+                      }))
+                    }
+                    className="tv-input"
+                  >
+                    {EXPERIENCE_START_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-ink-muted mt-1">
+                    Product-level: meeting, pickup, or both. Each option still has its own exact place and start time.
+                  </p>
+                </div>
+              </section>
+
+              <details id="supplier-listing-field-schedule" className="group rounded-xl border border-black/[0.08] px-4 py-3">
+                <summary className="cursor-pointer list-none flex items-start justify-between gap-3">
+                  <span>
+                    <span className="block text-sm font-semibold text-ink">Optional: shared itinerary</span>
+                    <span className="block text-xs text-ink-muted mt-0.5">
+                      Common flow and difficulty — not option clock times
+                    </span>
+                  </span>
+                  <span className="text-xs text-finland font-medium mt-0.5 shrink-0">
+                    {form.typicalTimelineNotes.trim() ||
+                    (form.scheduleStyle && form.scheduleStyle !== 'flexible') ||
+                    form.difficulty !== 'Easy'
+                      ? 'Saved'
+                      : 'Add'}
+                  </span>
+                </summary>
+                <div className="mt-4 space-y-4">
+                  <div id="supplier-listing-field-difficulty">
+                    <label className="block text-sm font-semibold text-ink mb-1">Overall difficulty</label>
+                    <select
+                      value={form.difficulty}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          difficulty: e.target.value as 'Easy' | 'Moderate' | 'Challenging',
+                        }))
+                      }
+                      className="tv-input"
+                    >
+                      <option value="Easy">Easy</option>
+                      <option value="Moderate">Moderate</option>
+                      <option value="Challenging">Challenging</option>
+                    </select>
+                  </div>
+                  <p className="text-xs text-ink-muted">
+                    Describe the shared flow in relative order. Each option has its own start time.
+                  </p>
+                  <div className="space-y-2">
+                    {SCHEDULE_STYLE_OPTIONS.map((o) => (
+                      <label
+                        key={o.value}
+                        className={`lc-choice flex cursor-pointer gap-3 rounded-xl p-3 ${
+                          form.scheduleStyle === o.value ? 'lc-choice--selected' : ''
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="scheduleStyle"
+                          value={o.value}
+                          checked={form.scheduleStyle === o.value}
+                          onChange={() => setForm((f) => ({ ...f, scheduleStyle: o.value }))}
+                          className="mt-1 border-black/[0.12] text-finland focus:ring-finland"
+                        />
+                        <span>
+                          <span className="block text-sm font-semibold text-ink">{o.label}</span>
+                          <span className="block text-xs text-ink-muted mt-0.5">{o.hint}</span>
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-ink mb-1">Typical flow (optional)</label>
+                    <textarea
+                      value={form.typicalTimelineNotes}
+                      maxLength={MAX_TIMELINE_LENGTH}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          typicalTimelineNotes: e.target.value.slice(0, MAX_TIMELINE_LENGTH),
+                        }))
+                      }
+                      rows={4}
+                      className="tv-input"
+                      placeholder="e.g. Meet and brief → transfer to viewing area → time to watch and photograph → return"
+                    />
+                    <p className="text-xs text-ink-muted mt-1 tabular-nums">
+                      {form.typicalTimelineNotes.length}/{MAX_TIMELINE_LENGTH}
+                    </p>
+                  </div>
+                </div>
+              </details>
+
+              <details id="supplier-listing-field-accessibility" className="group rounded-xl border border-black/[0.08] px-4 py-3">
                 <summary className="cursor-pointer list-none flex items-start justify-between gap-3">
                   <span>
                     <span className="block text-sm font-semibold text-ink">Optional: good to know</span>
-                    <span className="block text-xs text-ink-muted mt-0.5">Accessibility, age, setting, extra languages</span>
+                    <span className="block text-xs text-ink-muted mt-0.5">
+                      Place label, accessibility, age, setting, languages
+                    </span>
                   </span>
-                  <span className="text-xs text-finland font-medium mt-0.5">
-                    {form.accessibilitySummary.trim() ||
+                  <span className="text-xs text-finland font-medium mt-0.5 shrink-0">
+                    {form.destination.trim() ||
+                    form.accessibilitySummary.trim() ||
                     form.minGuestAge.trim() ||
                     (form.venueSetting && form.venueSetting !== 'unspecified') ||
                     form.additionalLanguages.length > 0
@@ -2748,247 +2892,146 @@ export default function SupplierListingForm({
                   </span>
                 </summary>
                 <div className="mt-4 space-y-4">
-                <div>
-                  <label className="block text-sm font-semibold text-ink mb-1">Accessibility &amp; mobility (optional)</label>
-                  <textarea
-                    value={form.accessibilitySummary}
-                    maxLength={MAX_ACCESSIBILITY_LENGTH}
-                    onChange={(e) =>
-                      setForm((f) => ({
-                        ...f,
-                        accessibilitySummary: e.target.value.slice(0, MAX_ACCESSIBILITY_LENGTH),
-                      }))
-                    }
-                    rows={3}
-                    className="tv-input"
-                    placeholder="Steps, uneven ground, wheelchair access, hearing loops, etc."
-                  />
-                  <p className="text-xs text-ink-muted mt-1 tabular-nums">
-                    {form.accessibilitySummary.length}/{MAX_ACCESSIBILITY_LENGTH}
-                  </p>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-ink mb-1">Minimum guest age (optional)</label>
+                  <div id="supplier-listing-field-destination" className="space-y-2">
+                    <label className="block text-sm font-semibold text-ink">How it shows as a place</label>
                     <input
                       type="text"
-                      value={form.minGuestAge}
-                      onChange={(e) => setForm((f) => ({ ...f, minGuestAge: e.target.value }))}
+                      value={form.destination}
+                      onChange={(e) => setForm((f) => ({ ...f, destination: e.target.value }))}
                       className="tv-input"
-                      placeholder="e.g. 8+ or none"
+                      placeholder="e.g. coastal route · several towns — or leave blank"
                     />
+                    <p className="text-xs text-ink-muted">
+                      If blank, cards use city and country. Fill this only for a route-style label.
+                    </p>
                   </div>
-                  <div id="supplier-listing-field-venue">
-                    <label className="block text-sm font-semibold text-ink mb-1">Setting</label>
-                    <select
-                      value={form.venueSetting}
+                  <div>
+                    <label className="block text-sm font-semibold text-ink mb-1">Accessibility &amp; mobility</label>
+                    <textarea
+                      value={form.accessibilitySummary}
+                      maxLength={MAX_ACCESSIBILITY_LENGTH}
                       onChange={(e) =>
-                        setForm((f) => ({ ...f, venueSetting: e.target.value as VenueSetting }))
+                        setForm((f) => ({
+                          ...f,
+                          accessibilitySummary: e.target.value.slice(0, MAX_ACCESSIBILITY_LENGTH),
+                        }))
                       }
+                      rows={3}
                       className="tv-input"
-                    >
-                      {VENUE_SETTING_OPTIONS.map((o) => (
-                        <option key={o.value} value={o.value}>
-                          {o.label}
-                        </option>
-                      ))}
-                    </select>
+                      placeholder="Steps, uneven ground, wheelchair access, hearing loops, etc."
+                    />
+                    <p className="text-xs text-ink-muted mt-1 tabular-nums">
+                      {form.accessibilitySummary.length}/{MAX_ACCESSIBILITY_LENGTH}
+                    </p>
                   </div>
-                </div>
-                <div id="supplier-listing-field-languages">
-                  <label className="block text-sm font-semibold text-ink mb-2">Additional languages offered (optional)</label>
-                  <p className="text-xs text-ink-muted mb-2">Besides the primary language you set earlier.</p>
-                  <div className="flex flex-wrap gap-2">
-                    {LANGUAGE_OPTIONS.filter((o) => o.code !== 'other').map((o) => {
-                      const disabled = o.code === form.experienceLanguage;
-                      return (
-                        <label
-                          key={o.code}
-                          className={`inline-flex items-center gap-1.5 ${disabled ? 'opacity-40' : ''}`}
-                        >
-                          <input
-                            type="checkbox"
-                            disabled={disabled}
-                            checked={form.additionalLanguages.includes(o.code)}
-                            onChange={() =>
-                              setForm((f) => ({
-                                ...f,
-                                additionalLanguages: f.additionalLanguages.includes(o.code)
-                                  ? f.additionalLanguages.filter((c) => c !== o.code)
-                                  : [...f.additionalLanguages, o.code],
-                              }))
-                            }
-                            className="rounded border-black/[0.12] text-finland focus:ring-finland"
-                          />
-                          <span className="text-sm text-ink">{o.label}</span>
-                        </label>
-                      );
-                    })}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-ink mb-1">Minimum guest age</label>
+                      <input
+                        type="text"
+                        value={form.minGuestAge}
+                        onChange={(e) => setForm((f) => ({ ...f, minGuestAge: e.target.value }))}
+                        className="tv-input"
+                        placeholder="e.g. 8+ or none"
+                      />
+                    </div>
+                    <div id="supplier-listing-field-venue">
+                      <label className="block text-sm font-semibold text-ink mb-1">Setting</label>
+                      <select
+                        value={form.venueSetting}
+                        onChange={(e) =>
+                          setForm((f) => ({ ...f, venueSetting: e.target.value as VenueSetting }))
+                        }
+                        className="tv-input"
+                      >
+                        {VENUE_SETTING_OPTIONS.map((o) => (
+                          <option key={o.value} value={o.value}>
+                            {o.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
-                </div>
+                  <div id="supplier-listing-field-languages">
+                    <label className="block text-sm font-semibold text-ink mb-2">Additional languages offered</label>
+                    <p className="text-xs text-ink-muted mb-2">Besides the primary language you set earlier.</p>
+                    <div className="flex flex-wrap gap-2">
+                      {LANGUAGE_OPTIONS.filter((o) => o.code !== 'other').map((o) => {
+                        const disabled = o.code === form.experienceLanguage;
+                        return (
+                          <label
+                            key={o.code}
+                            className={`inline-flex items-center gap-1.5 ${disabled ? 'opacity-40' : ''}`}
+                          >
+                            <input
+                              type="checkbox"
+                              disabled={disabled}
+                              checked={form.additionalLanguages.includes(o.code)}
+                              onChange={() =>
+                                setForm((f) => ({
+                                  ...f,
+                                  additionalLanguages: f.additionalLanguages.includes(o.code)
+                                    ? f.additionalLanguages.filter((c) => c !== o.code)
+                                    : [...f.additionalLanguages, o.code],
+                                }))
+                              }
+                              className="rounded border-black/[0.12] text-finland focus:ring-finland"
+                            />
+                            <span className="text-sm text-ink">{o.label}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               </details>
             </div>
           )}
 
-          {stepIdx === 1 && (
-            <div className={`space-y-10 ${form.inventoryFamily === 'stay' ? '' : 'mt-10'}`}>
+          {stepIdx === 1 && form.inventoryFamily === 'stay' && (
+            <div className="space-y-10">
               <section className="space-y-4" aria-labelledby="listing-details-place">
                 <h4 id="listing-details-place" className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted">
-                  {form.inventoryFamily === 'stay' ? 'Where it is' : 'Where it happens'}
+                  Where it is
                 </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" id="supplier-listing-field-location">
-                <div>
-                  <label className="block text-sm font-semibold text-ink mb-1">City *</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" id="supplier-listing-field-location">
+                  <div>
+                    <label className="block text-sm font-semibold text-ink mb-1">City *</label>
+                    <input
+                      type="text"
+                      value={form.city}
+                      onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
+                      className="tv-input"
+                      placeholder="e.g. Lisbon — neighbourhood or street"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-ink mb-1">Country *</label>
+                    <input
+                      type="text"
+                      value={form.country}
+                      onChange={(e) => setForm((f) => ({ ...f, country: e.target.value }))}
+                      className="tv-input"
+                      placeholder="Country of the property"
+                      required
+                    />
+                  </div>
+                </div>
+                <div id="supplier-listing-field-destination" className="space-y-2">
+                  <label className="block text-sm font-semibold text-ink">How it shows as a place (optional)</label>
                   <input
                     type="text"
-                    value={form.city}
-                    onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
+                    value={form.destination}
+                    onChange={(e) => setForm((f) => ({ ...f, destination: e.target.value }))}
                     className="tv-input"
-                    placeholder="e.g. Lisbon — neighbourhood or street"
-                    required
+                    placeholder="e.g. riverside neighbourhood — or leave blank"
                   />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-ink mb-1">Country *</label>
-                  <input
-                    type="text"
-                    value={form.country}
-                    onChange={(e) => setForm((f) => ({ ...f, country: e.target.value }))}
-                    className="tv-input"
-                    placeholder={form.inventoryFamily === 'stay' ? 'Country of the property' : 'Primary country for this tour'}
-                    required
-                  />
-                </div>
-              </div>
-              <div id="supplier-listing-field-destination" className="space-y-2">
-                <label className="block text-sm font-semibold text-ink">How it shows as a place (optional)</label>
-                <input
-                  type="text"
-                  value={form.destination}
-                  onChange={(e) => setForm((f) => ({ ...f, destination: e.target.value }))}
-                  className="tv-input"
-                  placeholder="e.g. coastal route · several towns — or leave blank"
-                />
-                <p className="text-xs text-ink-muted">
-                  If you skip this, we use city and country from above; if you fill this instead, cards can show this route label.
-                </p>
-              </div>
-              {form.inventoryFamily !== 'stay' ? (
-              <p className="text-xs text-ink-muted">
-                Use the main base or usual starting city. Exact meeting and pickup belong on each bookable option.
-              </p>
-              ) : null}
-              </section>
-              {form.inventoryFamily !== 'stay' ? (
-              <section className="space-y-4" aria-labelledby="tour-details-expect">
-                <h4 id="tour-details-expect" className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted">
-                  What to expect
-                </h4>
-              <div id="supplier-listing-field-start">
-                <label className="block text-sm font-semibold text-ink mb-1">How this tour generally starts *</label>
-                <select
-                  value={form.experienceStartStyle}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      experienceStartStyle: e.target.value as ListingFormState['experienceStartStyle'],
-                    }))
-                  }
-                  className="tv-input"
-                >
-                  {EXPERIENCE_START_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-xs text-ink-muted mt-1">
-                  Product-level: meeting, pickup, or both. Each option still has its own exact place and start time.
-                </p>
-              </div>
-              <div id="supplier-listing-field-difficulty">
-                <label className="block text-sm font-semibold text-ink mb-1">Overall difficulty</label>
-                <select
-                  value={form.difficulty}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      difficulty: e.target.value as 'Easy' | 'Moderate' | 'Challenging',
-                    }))
-                  }
-                  className="tv-input"
-                >
-                  <option value="Easy">Easy</option>
-                  <option value="Moderate">Moderate</option>
-                  <option value="Challenging">Challenging</option>
-                </select>
-              </div>
-              <details
-                id="supplier-listing-field-schedule"
-                className="group py-2"
-              >
-                <summary className="cursor-pointer list-none flex items-start justify-between gap-3">
-                  <span>
-                    <span className="block text-sm font-semibold text-ink">Shared itinerary</span>
-                    <span className="block text-xs text-ink-muted mt-0.5">The common experience, not option-specific clock times</span>
-                  </span>
-                  <span className="text-xs text-finland font-medium mt-0.5">
-                    {form.typicalTimelineNotes.trim() || (form.scheduleStyle && form.scheduleStyle !== 'flexible')
-                      ? 'Saved'
-                      : 'Add'}
-                  </span>
-                </summary>
-                <div className="mt-4 space-y-3">
-                <p className="text-xs text-ink-muted">
-                  Describe the shared flow in relative order. Each option has its own start time — do not treat this as the clock for every variant.
-                </p>
-                <div className="space-y-2">
-                  {SCHEDULE_STYLE_OPTIONS.map((o) => (
-                    <label
-                      key={o.value}
-                      className={`lc-choice flex cursor-pointer gap-3 rounded-xl p-3 ${
-                        form.scheduleStyle === o.value ? 'lc-choice--selected' : ''
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="scheduleStyle"
-                        value={o.value}
-                        checked={form.scheduleStyle === o.value}
-                        onChange={() => setForm((f) => ({ ...f, scheduleStyle: o.value }))}
-                        className="mt-1 border-black/[0.12] text-finland focus:ring-finland"
-                      />
-                      <span>
-                        <span className="block text-sm font-semibold text-ink">{o.label}</span>
-                        <span className="block text-xs text-ink-muted mt-0.5">{o.hint}</span>
-                      </span>
-                    </label>
-                  ))}
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-ink mb-1">Typical flow (optional)</label>
-                  <textarea
-                    value={form.typicalTimelineNotes}
-                    maxLength={MAX_TIMELINE_LENGTH}
-                    onChange={(e) =>
-                      setForm((f) => ({
-                        ...f,
-                        typicalTimelineNotes: e.target.value.slice(0, MAX_TIMELINE_LENGTH),
-                      }))
-                    }
-                    rows={4}
-                    className="tv-input"
-                    placeholder="e.g. Meet and brief → transfer to viewing area → time to watch and photograph → return"
-                  />
-                  <p className="text-xs text-ink-muted mt-1 tabular-nums">
-                    {form.typicalTimelineNotes.length}/{MAX_TIMELINE_LENGTH}
+                  <p className="text-xs text-ink-muted">
+                    If you skip this, we use city and country from above.
                   </p>
                 </div>
-                </div>
-              </details>
               </section>
-              ) : null}
             </div>
           )}
 
