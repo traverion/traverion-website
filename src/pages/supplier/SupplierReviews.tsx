@@ -21,7 +21,8 @@ import {
   type ReviewReplyRow,
 } from '../../data/supabase-reviews';
 import type { InventoryFamily } from '../../lib/inventory';
-import { openSupplierListingEditor } from '../../lib/supplierPortalNavigation';
+import { openSupplierListingEditor, navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
+import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { reviewHasWrittenFeedback, reviewNeedsSupplierReply } from '../../lib/review-feedback';
 
 function familyLabel(family: InventoryFamily | undefined): 'Stay' | 'Tour' {
@@ -279,6 +280,15 @@ export default function SupplierReviews() {
           icon={Star}
           title="No reviews yet"
           body="Guests have not rated a tour or stay yet. That is normal for new products. Feedback appears here after a trip."
+          action={
+            <button
+              type="button"
+              className="tv-btn-secondary"
+              onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/listings`)}
+            >
+              Open listings
+            </button>
+          }
         />
       ) : (
         <div className="space-y-4 sm:space-y-5">
