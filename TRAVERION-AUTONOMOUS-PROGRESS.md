@@ -3,37 +3,35 @@
 **Mission:** Phases 0→400 autonomous product completion  
 **Started:** 2026-09-21  
 **Starting SHA:** `d38ff80`  
-**Current SHA:** `91620ca`  
-**Current phase:** ~190  
-**Current band:** 180–199 Post-booking / Trips
+**Current SHA:** (update after commit)  
+**Current phase:** ~225  
+**Current band:** 220–239 Supplier availability ops
 
 ## Completed
 
 - Product truth audit + Tour Details slim + orphan schedule fix
-- Multi-schedule creation cert (copy + Sep/Oct tests)
-- Home Stripe TEST honesty
-- Full schedule → traveler price/capacity/time wiring
-- Departure-time picker + checkout URL + edge start_time + booking record
-- Checkout age pricing uses resolved schedule
+- Multi-schedule creation → traveler price/capacity/time wiring
+- Departure picker + checkout URL + edge start_time
+- Checkout age pricing + party bounds from schedule
 - Stay mobile CTA requires valid quote
-- Calendar copy for schedule windows
-- Party bounds use selected departure
-- Checkout capacity scoped to departure schedule/slot
+- Checkout capacity scoped to departure slot
+- Trips detail facts (departure, meeting, guests, ref)
+- Calendar day sheet: “Selling this day” schedule list
 
 ## In progress
 
-- Trips/status polish; supplier ops; mobile/a11y as found
+- Supplier ops polish; mobile/a11y; marketplace cert as runway allows
 
 ## Next
 
-- Trips detail: ensure start time + clear status language
-- Stay creation cert / Availability ops
-- Typecheck/build gates approaching Phase 400
+- Stay availability empty/block clarity if friction remains
+- Mobile product pass on booking rails
+- Broader typecheck/build before Phase 400 handoff
 
 ## Tests / gates
 
-- booking-hold + tour-departure-slot-capacity unit green
-- Prior: tsc, tourCheckoutUrl, booking-quote, schedules, marketplace-loop
+- listing-option-schedules + booking-hold + slot capacity green
+- tsc --noEmit clean
 
 ## Decisions
 
@@ -44,8 +42,8 @@
 
 ## Known issues
 
-- Edge function must be deployed for production TEST to store startTime + slot capacity
-- Partner Calendar still day-level (not per-slot ops UI)
+- Edge function must be deployed for production TEST startTime + slot capacity
+- Partner Calendar capacity edits remain day-level (not per-slot)
 
 ## Deferred
 
