@@ -852,7 +852,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
               <button
                 type="button"
                 className="tv-btn-primary shrink-0 disabled:opacity-50"
-                disabled={paying || selectionOccupied}
+                disabled={!quoteOk || paying || selectionOccupied}
                 onClick={startStayCheckout}
               >
                 {selectionOccupied
