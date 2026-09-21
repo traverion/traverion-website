@@ -90,7 +90,8 @@ describe('missing-requirement copy', () => {
   });
 
   it('uses stay copy for stay steps', () => {
-    expect(listingCreationStepRequirement(2, true)).toContain('nightly rate');
+    expect(listingCreationStepRequirement(2, true)).toContain('guests');
+    expect(listingCreationStepRequirement(3, true)).toContain('nightly rate');
   });
 });
 
