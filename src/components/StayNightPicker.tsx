@@ -10,6 +10,7 @@ type Props = {
   todayIso: string;
   minNights: number;
   onChange: (checkIn: string, checkOut: string) => void;
+  id?: string;
 };
 
 function monthTitle(year: number, month0: number): string {
@@ -26,6 +27,7 @@ export default function StayNightPicker({
   todayIso,
   minNights,
   onChange,
+  id = 'stay-night-picker',
 }: Props) {
   const occupied = useMemo(() => new Set(occupiedNights), [occupiedNights]);
   const start = checkIn && /^\d{4}-\d{2}-\d{2}$/.test(checkIn) ? checkIn : todayIso;
@@ -69,7 +71,13 @@ export default function StayNightPicker({
   };
 
   return (
-    <div>
+    <div
+      id={id}
+      role="group"
+      aria-label="Stay dates"
+      tabIndex={-1}
+      className="outline-none focus-visible:ring-2 focus-visible:ring-finland/40 rounded-xl"
+    >
       <div className="flex items-center justify-between mb-2">
         <p className="text-sm font-semibold text-ink">{monthTitle(cursor.y, cursor.m)}</p>
         <div className="flex gap-1">

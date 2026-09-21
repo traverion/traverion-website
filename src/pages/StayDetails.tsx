@@ -692,6 +692,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
             )}
             <div className="mt-4">
               <StayNightPicker
+                id="stay-night-picker"
                 checkIn={checkIn}
                 checkOut={checkOut}
                 occupiedNights={occupiedNights}
@@ -793,7 +794,9 @@ export default function StayDetails({ stayId, onBack }: Props) {
                     if (!quoteOk) {
                       document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                       window.requestAnimationFrame(() => {
-                        document.getElementById('stay-guests')?.focus();
+                        const root = document.getElementById('stay-night-picker');
+                        const firstOpen = root?.querySelector('button:not([disabled])') as HTMLButtonElement | null;
+                        (firstOpen ?? root)?.focus();
                       });
                       return;
                     }
