@@ -33,23 +33,39 @@ export type TourCheckoutOccupancyRow = InventoryHoldRow & {
   id?: string | null;
   booking_date?: string | null;
   guests?: number | null;
+  start_time?: string | null;
 };
+
+/** Normalize HH:MM / HH:MM:SS to HH:MM for departure-slot matching. */
+export function normalizeTourStartTimeHm(raw: string | null | undefined): string {
+  const t = String(raw ?? '').trim();
+  const m = t.match(/^(\d{1,2}):(\d{2})/);
+  if (!m) return '';
+  return `${m[1].padStart(2, '0')}:${m[2]}`;
+}
 
 /**
  * Checkout tour occupancy: paid + live holds.
  * Refunded, cancelled, and failed bookings must not fill capacity.
+ * When startTime is set, only count bookings on that departure slot (multi-schedule same day).
  */
 export function tourCheckoutOccupiedGuests(
   rows: TourCheckoutOccupancyRow[],
   departure: string,
   excludeBookingId?: string | null,
-  nowMs: number = Date.now()
+  nowMs: number = Date.now(),
+  startTime?: string | null
 ): number {
+  const slot = normalizeTourStartTimeHm(startTime);
   let n = 0;
   for (const row of rows) {
     if (excludeBookingId && String(row.id ?? '') === excludeBookingId) continue;
     if (!bookingOccupiesInventory(row, nowMs)) continue;
     if (String(row.booking_date ?? '').slice(0, 10) !== departure) continue;
+    if (slot) {
+      const rowSlot = normalizeTourStartTimeHm(row.start_time);
+      if (rowSlot !== slot) continue;
+    }
     const g = Math.floor(Number(row.guests ?? 0));
     if (Number.isFinite(g) && g >= 1) n += g;
   }

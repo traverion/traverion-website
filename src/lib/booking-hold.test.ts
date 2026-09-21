@@ -42,6 +42,31 @@ describe('booking inventory holds', () => {
     expect(partnerTourRemainingSpots(8, tourCheckoutOccupiedGuests(rows, '2026-09-11', null, now))).toBe(7);
   });
 
+  it('scopes same-day occupancy to the selected departure time', () => {
+    const rows = [
+      {
+        id: 'am',
+        status: 'confirmed',
+        payment_status: 'paid',
+        booking_date: '2026-09-15',
+        guests: 4,
+        start_time: '09:00:00',
+      },
+      {
+        id: 'pm',
+        status: 'confirmed',
+        payment_status: 'paid',
+        booking_date: '2026-09-15',
+        guests: 3,
+        start_time: '19:00',
+      },
+    ];
+    expect(tourCheckoutOccupiedGuests(rows, '2026-09-15', null, now)).toBe(7);
+    expect(tourCheckoutOccupiedGuests(rows, '2026-09-15', null, now, '09:00')).toBe(4);
+    expect(tourCheckoutOccupiedGuests(rows, '2026-09-15', null, now, '19:00')).toBe(3);
+    expect(checkoutTourOccupiedGuests(rows, '2026-09-15', null, now, '09:00')).toBe(4);
+  });
+
   it('keeps checkout-session occupancy in sync with the app helper', () => {
     const rows = [
       { status: 'confirmed', payment_status: 'paid' },

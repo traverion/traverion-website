@@ -2,7 +2,7 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 import Stripe from 'https://esm.sh/stripe@16.12.0?target=deno';
-import { quoteListingBooking, stayCheckoutNightsAlreadyBooked, stayNightIsOperatorBlocked, stayRangeFromBooking, type DiscountRow, type ListingQuoteRow, type StayCheckoutOccupancyRow } from '../_shared/booking-quote.ts';
+import { quoteListingBooking, stayCheckoutNightsAlreadyBooked, stayNightIsOperatorBlocked, stayRangeFromBooking, tourDepartureSlotCapacity, type DiscountRow, type ListingQuoteRow, type StayCheckoutOccupancyRow } from '../_shared/booking-quote.ts';
 import { tourCheckoutOccupiedGuests, type TourCheckoutOccupancyRow } from '../_shared/booking-hold.ts';
 import { checkoutPaymentStatusCanResume, resumeStayCheckoutDate, checkoutResumeLostRaceToPaid } from '../_shared/checkout-resume.ts';
 import { resumeStayLeadGuestName, stayCheckoutLeadGuestNameReady } from '../_shared/stay-checkout-guest.ts';
@@ -334,55 +334,87 @@ serve(async (req) => {
         }
       }
     } else {
-      const { data: tourRows, error: tourBusyErr } = await admin
-        .from('bookings')
-        .select('id, booking_date, guests, status, payment_status, hold_expires_at, created_at')
-        .eq('listing_id', listingId)
-        .eq('booking_date', bookingDate);
-      if (tourBusyErr) return json({ success: false, error: tourBusyErr.message }, 500);
-      const occupied = tourCheckoutOccupiedGuests(
-        (tourRows ?? []) as TourCheckoutOccupancyRow[],
-        bookingDate,
-        targetBookingId
-      );
+      let tourRows: TourCheckoutOccupancyRow[] | null = null;
+      let canScopeByStartTime = Boolean(startTime);
+      {
+        const withTime = await admin
+          .from('bookings')
+          .select('id, booking_date, guests, status, payment_status, hold_expires_at, created_at, start_time')
+          .eq('listing_id', listingId)
+          .eq('booking_date', bookingDate);
+        if (withTime.error && /start_time/i.test(withTime.error.message)) {
+          const fallback = await admin
+            .from('bookings')
+            .select('id, booking_date, guests, status, payment_status, hold_expires_at, created_at')
+            .eq('listing_id', listingId)
+            .eq('booking_date', bookingDate);
+          if (fallback.error) return json({ success: false, error: fallback.error.message }, 500);
+          tourRows = (fallback.data ?? []) as TourCheckoutOccupancyRow[];
+          canScopeByStartTime = false;
+        } else if (withTime.error) {
+          return json({ success: false, error: withTime.error.message }, 500);
+        } else {
+          tourRows = (withTime.data ?? []) as TourCheckoutOccupancyRow[];
+        }
+      }
+
       const { data: capRow } = await admin
         .from('listing_availability')
         .select('capacity')
         .eq('listing_id', listingId)
         .eq('available_date', bookingDate)
         .maybeSingle();
-      // Explicit capacity 0 = partner closed the day. Missing row = fall back to option max.
+      // Explicit capacity 0 = partner closed the day. Missing row = option/schedule max.
       let capacity: number;
+      let slotScoped = false;
       if (capRow != null && Number.isFinite(Number(capRow.capacity))) {
         capacity = Number(capRow.capacity);
         if (capacity < 1) {
           return json({ success: false, error: 'This date is not available.' }, 409);
         }
       } else {
-        const extras = listingRow.listing_extras as {
-          bookingOptions?: Array<{
-            maxSpotsPerSlot?: unknown;
-            schedules?: Array<{ maxSpotsPerSlot?: unknown; status?: string } | null> | null;
-          }>;
-        } | null;
-        let max = 0;
-        for (const opt of extras?.bookingOptions ?? []) {
-          const schedules = Array.isArray(opt.schedules) ? opt.schedules : null;
-          if (schedules && schedules.length > 0) {
-            for (const s of schedules) {
-              if (!s || s.status === 'draft') continue;
-              const spots = s.maxSpotsPerSlot;
-              if (typeof spots !== 'number' || !Number.isFinite(spots) || spots < 1) continue;
-              max = Math.max(max, Math.floor(spots));
+        const slotCap = tourDepartureSlotCapacity({
+          listing_extras: listingRow.listing_extras,
+          bookingDate,
+          bookingOptionId: storedOptionId || quote.optionId,
+          startTime: startTime || null,
+        });
+        if (slotCap != null) {
+          capacity = slotCap;
+          slotScoped = canScopeByStartTime;
+        } else {
+          const extras = listingRow.listing_extras as {
+            bookingOptions?: Array<{
+              maxSpotsPerSlot?: unknown;
+              schedules?: Array<{ maxSpotsPerSlot?: unknown; status?: string } | null> | null;
+            }>;
+          } | null;
+          let max = 0;
+          for (const opt of extras?.bookingOptions ?? []) {
+            const schedules = Array.isArray(opt.schedules) ? opt.schedules : null;
+            if (schedules && schedules.length > 0) {
+              for (const s of schedules) {
+                if (!s || s.status === 'draft') continue;
+                const spots = s.maxSpotsPerSlot;
+                if (typeof spots !== 'number' || !Number.isFinite(spots) || spots < 1) continue;
+                max = Math.max(max, Math.floor(spots));
+              }
+              continue;
             }
-            continue;
+            const spots = opt.maxSpotsPerSlot;
+            if (typeof spots !== 'number' || !Number.isFinite(spots) || spots < 1) continue;
+            max = Math.max(max, Math.floor(spots));
           }
-          const spots = opt.maxSpotsPerSlot;
-          if (typeof spots !== 'number' || !Number.isFinite(spots) || spots < 1) continue;
-          max = Math.max(max, Math.floor(spots));
+          capacity = Math.min(99, max >= 1 ? max : 8);
         }
-        capacity = Math.min(99, max >= 1 ? max : 8);
       }
+      const occupied = tourCheckoutOccupiedGuests(
+        tourRows ?? [],
+        bookingDate,
+        targetBookingId,
+        Date.now(),
+        slotScoped ? startTime : null
+      );
       if (Math.max(0, capacity - occupied) < guests) {
         return json({ success: false, error: 'Not enough capacity left for this date.' }, 409);
       }

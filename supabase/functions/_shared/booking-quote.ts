@@ -432,6 +432,9 @@ function parseOptions(extras: unknown): Option[] {
     if (typeof o.pickupPlace === 'string' && o.pickupPlace.trim()) opt.pickupPlace = o.pickupPlace.trim();
     if (typeof o.startTime === 'string' && o.startTime.trim()) opt.startTime = o.startTime.trim();
     if (typeof o.duration === 'string' && o.duration.trim()) opt.duration = o.duration.trim();
+    if (typeof o.maxSpotsPerSlot === 'number' && Number.isFinite(o.maxSpotsPerSlot) && o.maxSpotsPerSlot >= 1) {
+      opt.maxSpotsPerSlot = Math.floor(o.maxSpotsPerSlot);
+    }
     if (o.pricingMode === 'age_dependent' || o.pricingMode === 'uniform') opt.pricingMode = String(o.pricingMode);
     if (cats) opt.priceCategories = cats;
     if (o.isPrivate) {
@@ -452,6 +455,41 @@ function parseOptions(extras: unknown): Option[] {
     if (!isEmptyOption(opt)) opts.push(opt);
   }
   return coalesceLegacyParticipantTicketOptions(opts);
+}
+
+/**
+ * Spots for the traveler's chosen departure (option + date + optional start time).
+ * Null when options are missing or the slot cannot be resolved — caller may fall back.
+ */
+export function tourDepartureSlotCapacity(input: {
+  listing_extras: unknown;
+  bookingDate: string;
+  bookingOptionId?: string | null;
+  startTime?: string | null;
+}): number | null {
+  const opts = parseOptions(input.listing_extras);
+  if (opts.length === 0) return null;
+  const requestedId = (input.bookingOptionId ?? '').trim();
+  let option: Option | undefined;
+  if (requestedId) {
+    option = opts.find((o) => o.id === requestedId);
+    if (!option) return null;
+  } else if (opts.length === 1) {
+    option = opts[0];
+  } else {
+    return null;
+  }
+  const date = (input.bookingDate ?? '').trim();
+  if (option.schedules && option.schedules.length > 0) {
+    const resolved = resolveScheduleForDate(option, date, input.startTime);
+    if (!resolved) return null;
+    return Math.min(99, Math.max(1, resolved.maxSpotsPerSlot));
+  }
+  const spots = option.maxSpotsPerSlot;
+  if (typeof spots === 'number' && Number.isFinite(spots) && spots >= 1) {
+    return Math.min(99, Math.floor(spots));
+  }
+  return Math.min(99, Math.max(1, option.maxPersons));
 }
 
 function legacyParticipantKind(name: string): 'adult' | 'reduced' | 'other' {
