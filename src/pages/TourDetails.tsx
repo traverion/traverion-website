@@ -1413,8 +1413,8 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                   const currency = normalizeCurrency(tour.price?.currency);
                   const dateLabel = bookingDate.trim() ? formatTourAvailabilityHeading(bookingDate.trim()) : '';
                   const guestsLine =
-                    usesAgePricing && selectedOption
-                      ? formatMixSummaryCompact(buildParticipantMixLines(selectedOption, participantMix)) ||
+                    usesAgePricing && selectedOptionApplied
+                      ? formatMixSummaryCompact(buildParticipantMixLines(selectedOptionApplied, participantMix)) ||
                         `${guests} ${guests === 1 ? 'guest' : 'guests'}`
                       : `${guests} ${guests === 1 ? 'guest' : 'guests'}`;
                   const priceLine =
@@ -1423,7 +1423,13 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                       : `From ${formatMoney(Number(price), currency)}`;
                   const subLine =
                     selectedBookingVariant
-                      ? [selectedBookingVariant.label, dateLabel].filter(Boolean).join(' · ')
+                      ? [
+                          selectedBookingVariant.label,
+                          selectedDepartureTime || (departureTimes.length === 1 ? departureTimes[0] : null),
+                          dateLabel,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')
                       : dateLabel
                         ? `${dateLabel} · ${guestsLine}`
                         : listingShowsFreeCancellation(tour)
@@ -1446,13 +1452,15 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                 >
                   {variantChecking
                     ? 'Checking…'
-                    : selectedBookingVariant
-                      ? 'Continue · TEST'
-                      : !bookingDate.trim()
-                        ? 'Pick a date'
-                        : bookingVariantsOpen
-                          ? 'Choose option'
-                          : 'See options'}
+                    : selectedBookingVariant && departureTimes.length > 1 && !selectedDepartureTime
+                      ? 'Pick time'
+                      : selectedBookingVariant
+                        ? 'Continue · TEST'
+                        : !bookingDate.trim()
+                          ? 'Pick a date'
+                          : bookingVariantsOpen
+                            ? 'Choose option'
+                            : 'See options'}
                 </button>
               </div>
             </div>,
