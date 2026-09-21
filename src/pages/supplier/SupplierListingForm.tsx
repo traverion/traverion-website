@@ -869,6 +869,10 @@ export default function SupplierListingForm({
   const [stepIdx, setStepIdx] = useState(
     () => readWizardStepFromStorage(editingId, createFamily === 'stay') ?? 0
   );
+  const formRef = useRef(form);
+  formRef.current = form;
+  const stepIdxRef = useRef(stepIdx);
+  stepIdxRef.current = stepIdx;
   const [basicsSceneIdx, setBasicsSceneIdx] = useState(() =>
     initialTourBasicsSceneIndex({
       stored: readBasicsSceneFromStorage(editingId),
@@ -1084,29 +1088,31 @@ export default function SupplierListingForm({
 
   const setStepIdxPersisted = useCallback(
     (next: number | ((prev: number) => number)) => {
-      setStepIdx((prev) => {
-        const resolved = typeof next === 'function' ? (next as (p: number) => number)(prev) : next;
-        const isNew = sessionOpenedAsCreateRef.current === true;
-        const allowed = canVisitListingCreationStep({
-          targetIndex: resolved,
-          isNewCreation: isNew,
-          isSatisfied: (i) => isStepSatisfied(i, form),
-        });
-        if (!allowed) {
-          const reason = listingCreationLockedReason({
-            targetIndex: resolved,
-            isStay: form.inventoryFamily === 'stay',
-            isSatisfied: (i) => isStepSatisfied(i, form),
-          });
-          queueMicrotask(() => setStepLockHint(reason));
-          return prev;
-        }
-        queueMicrotask(() => setStepLockHint(null));
-        writeWizardStepToStorage(editingId, resolved, form.inventoryFamily === 'stay');
-        return resolved;
+      const prev = stepIdxRef.current;
+      const resolved = typeof next === 'function' ? (next as (p: number) => number)(prev) : next;
+      const currentForm = formRef.current;
+      const isNew = sessionOpenedAsCreateRef.current === true;
+      const allowed = canVisitListingCreationStep({
+        targetIndex: resolved,
+        isNewCreation: isNew,
+        isSatisfied: (i) => isStepSatisfied(i, currentForm),
       });
+      if (!allowed) {
+        setStepLockHint(
+          listingCreationLockedReason({
+            targetIndex: resolved,
+            isStay: currentForm.inventoryFamily === 'stay',
+            isSatisfied: (i) => isStepSatisfied(i, currentForm),
+          })
+        );
+        return;
+      }
+      setStepLockHint(null);
+      writeWizardStepToStorage(editingId, resolved, currentForm.inventoryFamily === 'stay');
+      stepIdxRef.current = resolved;
+      setStepIdx(resolved);
     },
-    [editingId, form]
+    [editingId]
   );
 
   useLayoutEffect(() => {

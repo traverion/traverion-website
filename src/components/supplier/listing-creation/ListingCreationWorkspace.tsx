@@ -56,18 +56,18 @@ export function ListingCreationWorkspace({
   };
 
   return (
-    <div className="listing-creation-workspace flex min-h-0 flex-1">
+    <div className="listing-creation-workspace flex h-full min-h-0 w-full min-w-0 flex-1 overflow-hidden">
       <h2 id={titleId} className="sr-only">
         {title}
       </h2>
       <ListingCreationRail {...headerProps} />
       {contextNav ? <ListingCreationContextRail nav={contextNav} /> : null}
-      <div className="listing-creation-main flex min-h-0 min-w-0 flex-1 flex-col">
+      <div className="listing-creation-main flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <ListingCreationMobileProgress {...headerProps} currentLabel={currentLabel} />
         {banners}
         <div
           ref={scrollRef}
-          className="listing-creation-content min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-8 sm:py-8 lg:px-12 lg:py-12"
+          className="listing-creation-content min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 pb-8 sm:px-8 sm:py-8 lg:px-12 lg:py-12"
         >
           {children}
         </div>
