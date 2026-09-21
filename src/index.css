@@ -344,6 +344,160 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
   }
 }
 
+/*
+ * Creation visual depth — scoped to the listing workspace only.
+ * Quiet edge by default; hover lifts; focus uses Traverion blue.
+ */
+.listing-creation-workspace .tv-input {
+  border: 1px solid rgba(28, 25, 23, 0.14);
+  background: #fffcf8;
+  box-shadow: 0 1px 2px rgba(28, 25, 23, 0.05);
+  transition:
+    border-color 160ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 160ms cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.listing-creation-workspace .tv-input:hover:not(:disabled):not(:focus) {
+  border-color: rgba(28, 25, 23, 0.22);
+  box-shadow: 0 2px 6px rgba(28, 25, 23, 0.07);
+}
+
+.listing-creation-workspace .tv-input:focus {
+  border-color: #003580;
+  box-shadow: 0 0 0 3px rgba(0, 53, 128, 0.2);
+}
+
+.listing-creation-workspace .tv-input:disabled {
+  opacity: 0.55;
+  box-shadow: none;
+}
+
+.listing-creation-workspace .tv-input[aria-invalid='true'] {
+  border-color: #b45309;
+  box-shadow: 0 0 0 3px rgba(180, 83, 9, 0.16);
+}
+
+.listing-creation-workspace .lc-choice {
+  border: 1px solid rgba(28, 25, 23, 0.12);
+  background: #fffcf8;
+  box-shadow: 0 1px 2px rgba(28, 25, 23, 0.04);
+  transition:
+    border-color 160ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 160ms cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 160ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 140ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.listing-creation-workspace .lc-choice:hover {
+  border-color: rgba(28, 25, 23, 0.2);
+  box-shadow: 0 3px 10px rgba(28, 25, 23, 0.08);
+}
+
+.listing-creation-workspace .lc-choice:active {
+  transform: translateY(1px);
+  box-shadow: 0 1px 2px rgba(28, 25, 23, 0.06);
+}
+
+.listing-creation-workspace .lc-choice:focus-within,
+.listing-creation-workspace .lc-choice:focus-visible {
+  outline: 2px solid #003580;
+  outline-offset: 2px;
+}
+
+.listing-creation-workspace .lc-choice--selected {
+  border-color: #003580;
+  background: rgba(0, 53, 128, 0.06);
+  box-shadow: 0 0 0 1px rgba(0, 53, 128, 0.28), 0 2px 8px rgba(0, 53, 128, 0.08);
+}
+
+.listing-creation-workspace .lc-tile {
+  border: 1px solid rgba(28, 25, 23, 0.12);
+  background: #fffcf8;
+  box-shadow: 0 1px 2px rgba(28, 25, 23, 0.05);
+  transition:
+    border-color 160ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.listing-creation-workspace .lc-tile:hover,
+.listing-creation-workspace .lc-tile:focus-visible {
+  border-color: rgba(0, 53, 128, 0.45);
+  box-shadow: 0 4px 12px rgba(28, 25, 23, 0.08);
+}
+
+.listing-creation-workspace .lc-tile--cover {
+  border-color: rgba(0, 53, 128, 0.35);
+}
+
+.listing-creation-workspace .lc-tile--drop {
+  border-color: #003580;
+  box-shadow: 0 0 0 3px rgba(0, 53, 128, 0.2);
+}
+
+.listing-creation-workspace .lc-upload {
+  border: 1px dashed rgba(28, 25, 23, 0.22);
+  background: rgba(255, 252, 248, 0.7);
+  transition:
+    border-color 160ms cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 160ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.listing-creation-workspace .lc-upload:hover,
+.listing-creation-workspace .lc-upload:focus-visible {
+  border-color: #003580;
+  border-style: solid;
+  background: #fffcf8;
+  box-shadow: 0 2px 8px rgba(28, 25, 23, 0.06);
+}
+
+.listing-creation-workspace .lc-upload--active {
+  border-color: #003580;
+  border-style: solid;
+  background: rgba(0, 53, 128, 0.05);
+}
+
+.listing-creation-workspace .lc-preview {
+  border: 1px solid rgba(28, 25, 23, 0.1);
+  background: #fffcf8;
+  box-shadow: 0 1px 3px rgba(28, 25, 23, 0.05);
+}
+
+.listing-creation-workspace .listing-creation-footer .tv-btn-primary:hover:not(:disabled) {
+  box-shadow: 0 4px 12px rgba(0, 53, 128, 0.22);
+  transform: translateY(-1px);
+}
+
+.listing-creation-workspace .listing-creation-footer .tv-btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.listing-creation-workspace .listing-creation-footer .tv-btn-secondary:hover:not(:disabled) {
+  box-shadow: 0 2px 8px rgba(28, 25, 23, 0.08);
+}
+
+.listing-creation-workspace .tv-btn-primary:disabled,
+.listing-creation-workspace .tv-btn-secondary:disabled,
+.listing-creation-workspace .tv-btn-ghost:disabled {
+  opacity: 0.42;
+  box-shadow: none;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .listing-creation-workspace .tv-input,
+  .listing-creation-workspace .lc-choice,
+  .listing-creation-workspace .lc-tile,
+  .listing-creation-workspace .lc-upload,
+  .listing-creation-workspace .listing-creation-footer .tv-btn-primary,
+  .listing-creation-workspace .listing-creation-footer .tv-btn-secondary {
+    transition: none;
+    transform: none;
+  }
+}
+
 @layer base {
   html {
     font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;

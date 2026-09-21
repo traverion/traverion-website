@@ -16,7 +16,7 @@ export function ListingCreationIdentityPreview({
 
   return (
     <aside
-      className="listing-creation-identity-preview min-w-0 max-w-full overflow-hidden rounded-2xl border border-black/[0.06] bg-paper-raised px-5 py-5"
+      className="listing-creation-identity-preview lc-preview min-w-0 max-w-full overflow-hidden rounded-2xl px-5 py-5"
       aria-label="How travelers will see this name"
     >
       <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">Travelers see</p>
