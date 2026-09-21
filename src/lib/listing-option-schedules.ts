@@ -275,6 +275,70 @@ export function departureTimesOnDate(option: ListingBookingOption, localDateIso:
   return [...new Set(times)].sort();
 }
 
+export type TourSellingDeparture = {
+  optionId: string;
+  optionName: string;
+  scheduleId: string;
+  scheduleName: string;
+  startTime: string;
+  maxSpotsPerSlot: number;
+};
+
+/** Partner Calendar: what travelers can still book on this date (ready schedules only). */
+export function tourSellingDeparturesOnDate(
+  options: ListingBookingOption[] | null | undefined,
+  localDateIso: string
+): TourSellingDeparture[] {
+  const out: TourSellingDeparture[] = [];
+  for (const option of options ?? []) {
+    if (!option) continue;
+    const optionName = (option.name ?? '').trim() || 'Option';
+    if (listingOptionHasSchedules(option)) {
+      for (const s of matchingSchedulesForDate(option, localDateIso)) {
+        out.push({
+          optionId: option.id,
+          optionName,
+          scheduleId: s.id,
+          scheduleName: scheduleHeadlineName(s, 0),
+          startTime: s.startTime.trim(),
+          maxSpotsPerSlot: s.maxSpotsPerSlot,
+        });
+      }
+      continue;
+    }
+    // Legacy option without schedules: use option-level window.
+    const from = listingLocalDateKey(option.availabilityDateFrom ?? '');
+    const to = listingLocalDateKey(option.availabilityDateTo ?? '');
+    const key = listingLocalDateKey(localDateIso);
+    if (from && key < from) continue;
+    if (to && key > to) continue;
+    const wd = scheduleWeekdayIndexMondayFirst(key);
+    if (wd == null) continue;
+    const weekdays = Array.isArray(option.weekdays) ? option.weekdays : [];
+    if (weekdays.length >= 7 && !weekdays[wd]) continue;
+    const start = (option.startTime ?? '').trim();
+    const spots =
+      typeof option.maxSpotsPerSlot === 'number' && option.maxSpotsPerSlot >= 1
+        ? Math.floor(option.maxSpotsPerSlot)
+        : typeof option.maxPersons === 'number' && option.maxPersons >= 1
+          ? Math.floor(option.maxPersons)
+          : 8;
+    out.push({
+      optionId: option.id,
+      optionName,
+      scheduleId: option.id,
+      scheduleName: optionName,
+      startTime: start,
+      maxSpotsPerSlot: Math.min(99, spots),
+    });
+  }
+  return out.sort((a, b) => {
+    const t = a.startTime.localeCompare(b.startTime);
+    if (t !== 0) return t;
+    return a.optionName.localeCompare(b.optionName);
+  });
+}
+
 /**
  * Resolve the unique ready schedule for a traveler date (and optional departure).
  * Returns null when none apply, or when several apply with different times and no time was given.

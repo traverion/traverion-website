@@ -14,6 +14,7 @@ import {
   scheduleAppliesOnDate,
   scheduleOverlapMessage,
   scheduleWizardIsComplete,
+  tourSellingDeparturesOnDate,
   upsertOptionSchedule,
 } from './listing-option-schedules';
 import { optionScheduleManagementIssues, scheduleCanSaveReady } from './listing-schedule-wizard';
@@ -284,5 +285,21 @@ describe('wizard completeness', () => {
   it('does not treat an empty schedule list as a ready option', () => {
     expect(optionScheduleManagementIssues(option({ schedules: [] }))[0]).toMatch(/complete schedule/i);
     expect(listingOptionHasSchedules(option({ schedules: [] }))).toBe(false);
+  });
+});
+
+describe('tourSellingDeparturesOnDate', () => {
+  it('lists ready schedule departures for the partner calendar day sheet', () => {
+    const opt = option({ schedules: [september, october] });
+    const sep = tourSellingDeparturesOnDate([opt], '2026-09-15');
+    expect(sep).toHaveLength(1);
+    expect(sep[0]?.startTime).toBe('20:00');
+    expect(sep[0]?.maxSpotsPerSlot).toBe(8);
+    expect(sep[0]?.scheduleName).toMatch(/September/i);
+
+    const oct = tourSellingDeparturesOnDate([opt], '2026-10-15');
+    expect(oct).toHaveLength(1);
+    expect(oct[0]?.startTime).toBe('19:00');
+    expect(tourSellingDeparturesOnDate([opt], '2026-11-15')).toEqual([]);
   });
 });

@@ -23,6 +23,7 @@ import {
   listingTourCapacityFromOptions,
   partnerTourDaySpotDisplay,
 } from '../../lib/availability-ops';
+import { tourSellingDeparturesOnDate } from '../../lib/listing-option-schedules';
 import { formatPartnerCheckoutHoldLabel } from '../../lib/booking-hold';
 import { navigateSupplierUrl, openSupplierBooking } from '../../lib/supplierPortalNavigation';
 import { PARTNER_CREATE_PATH } from '../../lib/partnerPortalPaths';
@@ -175,6 +176,12 @@ export default function SupplierAvailability() {
       })
       .sort((a, b) => (a.created_at ?? '').localeCompare(b.created_at ?? ''));
   }, [bookings, editing, listingId, viewingAll, stayCalendar]);
+
+  const daySellingDepartures = useMemo(() => {
+    if (!editing || stayCalendar || viewingAll || !listing) return [];
+    const opts = materializedBookingOptions(listing.listingExtras?.bookingOptions);
+    return tourSellingDeparturesOnDate(opts, editing.iso);
+  }, [editing, stayCalendar, viewingAll, listing]);
 
   const daySheetTimesLine = (b: BookingRow) => {
     const start = pgTimeToHm(b.start_time);
@@ -755,6 +762,33 @@ export default function SupplierAvailability() {
                   ))}
                 </ul>
               )}
+              {!stayCalendar && !viewingAll && listing && editing ? (
+                daySellingDepartures.length > 0 ? (
+                  <div className="mt-4 rounded-xl bg-finland/[0.05] px-3 py-2.5 ring-1 ring-finland/15">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-finland">
+                      Selling this day
+                    </p>
+                    <ul className="mt-1.5 space-y-1">
+                      {daySellingDepartures.map((d) => (
+                        <li key={`${d.optionId}-${d.scheduleId}-${d.startTime}`} className="text-sm text-ink">
+                          {[
+                            d.scheduleName !== d.optionName ? d.scheduleName : null,
+                            d.optionName,
+                            d.startTime || null,
+                            `${d.maxSpotsPerSlot} spot${d.maxSpotsPerSlot === 1 ? '' : 's'}`,
+                          ]
+                            .filter(Boolean)
+                            .join(' · ')}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : weekdayOpen(editing.iso) ? null : (
+                  <p className="mt-4 text-sm text-ink-muted">
+                    Nothing is offered to travelers on this date from your ready schedules.
+                  </p>
+                )
+              ) : null}
               {viewingAll ? (
                 <p className="mt-5 text-sm text-ink-muted">
                   Choose a listing above to edit that day. Caps are per tour. Stays use occupied nights.
