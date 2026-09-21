@@ -153,7 +153,7 @@ describe('getTourBookingVariants with schedules', () => {
 
     const tour = tourWithOption(option);
     const variant = getTourBookingVariants(tour)[0];
-    expect(getPartySizeBoundsForVariant(tour, variant, '2026-09-15')).toEqual({ min: 2, max: 8 });
-    expect(getPartySizeBoundsForVariant(tour, variant, '2026-10-15')).toEqual({ min: 4, max: 6 });
+    expect(getPartySizeBoundsForVariant(tour, variant, '2026-09-15', '20:00')).toEqual({ min: 2, max: 8 });
+    expect(getPartySizeBoundsForVariant(tour, variant, '2026-10-15', '19:00')).toEqual({ min: 4, max: 6 });
   });
 });

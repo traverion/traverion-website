@@ -89,14 +89,15 @@ export function getPartySizeBounds(tour: TourPackage): { min: number; max: numbe
 export function getPartySizeBoundsForVariant(
   tour: TourPackage,
   variant: TourBookingVariant | null,
-  bookingDateIso?: string
+  bookingDateIso?: string,
+  startTime?: string
 ): { min: number; max: number } {
   const opt = variant?.listingOption;
   if (opt) {
     if (listingOptionHasSchedules(opt)) {
       const day = bookingDateIso?.trim() ?? '';
       if (/^\d{4}-\d{2}-\d{2}$/.test(day)) {
-        const resolved = resolveScheduleForDate(opt, day);
+        const resolved = resolveScheduleForDate(opt, day, startTime?.trim() || undefined);
         if (resolved) {
           const min = Math.max(1, Math.floor(resolved.minPersons));
           const max = Math.min(99, Math.max(min, Math.floor(resolved.maxPersons)));

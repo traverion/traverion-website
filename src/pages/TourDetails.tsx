@@ -352,10 +352,10 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
 
   const partyMaxForSelectedDay = useMemo(() => {
     if (!tour) return partyBounds.max;
-    const base = getPartySizeBoundsForVariant(tour, selectedBookingVariant, bookingDate).max;
+    const base = getPartySizeBoundsForVariant(tour, selectedBookingVariant, bookingDate, selectedDepartureTime).max;
     if (selectedDaySpotsLeft == null || selectedDaySpotsLeft < 1) return base;
     return Math.max(1, Math.min(base, selectedDaySpotsLeft));
-  }, [tour, selectedBookingVariant, partyBounds.max, selectedDaySpotsLeft, bookingDate]);
+  }, [tour, selectedBookingVariant, partyBounds.max, selectedDaySpotsLeft, bookingDate, selectedDepartureTime]);
 
   useEffect(() => {
     if (!tour?.id) return;
@@ -709,7 +709,12 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
         buildParticipantMixLines(selectedOptionApplied!, participantMix)
       );
     } else {
-      const variantBounds = getPartySizeBoundsForVariant(tour, selectedBookingVariant, bookingDate);
+      const variantBounds = getPartySizeBoundsForVariant(
+        tour,
+        selectedBookingVariant,
+        bookingDate,
+        selectedDepartureTime
+      );
       const guestErr = guestCountValidationError(guests, variantBounds);
       if (guestErr) {
         setBookingCardError(guestErr);
