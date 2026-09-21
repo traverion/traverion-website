@@ -177,7 +177,16 @@ describe('overlap detection', () => {
     expect(scheduleOverlapMessage(conflict!)).toContain('20:00');
   });
 
-  it('allows adjacent seasons with different times', () => {
+  it('allows adjacent seasons with the same start time when dates do not overlap', () => {
+    const octSameTime = { ...october, startTime: '20:00' };
+    expect(findScheduleOverlap(octSameTime, [september])).toBeNull();
+    expect(
+      scheduleCanSaveReady(octSameTime, option({ schedules: [september, octSameTime] })).ok
+    ).toBe(true);
+    expect(optionScheduleManagementIssues(option({ schedules: [september, octSameTime] }))).toEqual([]);
+  });
+
+  it('allows overlapping date windows when departure times differ', () => {
     expect(findScheduleOverlap(october, [september])).toBeNull();
   });
 

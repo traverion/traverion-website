@@ -22,7 +22,8 @@ import type { ListingBookingOption } from '../../../types/listingExtras';
 const SUPPORT: Record<TourOptionSceneId, string> = {
   setup: 'A traveler-facing name, why this variant exists, and how long it runs.',
   meeting: 'Choose meeting point or pickup, then add the exact place for this option.',
-  availability_pricing: 'Configure when travelers can book this option and what they pay.',
+  availability_pricing:
+    'Add one or more schedules — for example September and October — each with its own dates, time, capacity, and price.',
   review: 'Finish only when this option is actually ready. Drafts are not bookable.',
 };
 

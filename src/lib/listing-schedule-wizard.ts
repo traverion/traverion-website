@@ -42,7 +42,7 @@ export function schedulePeriodIssues(schedule: ListingOptionSchedule): string[] 
   if (to && !from) msg.push('Add a starting date when you set an ending date, or clear the ending date.');
   if (from && to && from > to) msg.push('Ending date must be after starting date.');
   if (!schedule.weekdays.some(Boolean)) msg.push('Choose at least one operating day.');
-  if (!schedule.startTime.trim()) msg.push('Add at least one departure time.');
+  if (!schedule.startTime.trim()) msg.push('Add a start time.');
   return msg;
 }
 

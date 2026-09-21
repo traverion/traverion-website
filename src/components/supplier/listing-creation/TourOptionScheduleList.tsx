@@ -41,12 +41,15 @@ export function TourOptionScheduleList({
   return (
     <div id="supplier-listing-field-option-schedules" className="space-y-3">
       <p className="text-sm leading-relaxed text-ink-muted">
-        Create schedules to control when this option is available and what travelers pay.
+        Each schedule is a date window with its own days, start time, capacity, and price. Add as many as you need —
+        for example one for September and another for October.
       </p>
       {rows.length === 0 ? (
         <div className="lc-section rounded-xl px-4 py-6 text-center sm:px-5">
           <p className="font-display text-lg font-bold text-ink">No schedules yet</p>
-          <p className="mt-1 text-sm text-ink-muted">Add your first schedule to make this option bookable.</p>
+          <p className="mt-1 text-sm text-ink-muted">
+            Add your first schedule so travelers can pick a date and see the right price.
+          </p>
           <button type="button" onClick={onAdd} className="tv-btn-primary mt-4 !min-h-11">
             Add schedule
           </button>
