@@ -1274,15 +1274,32 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                           ) : null}
                           <button
                             type="button"
-                            onClick={() => void handleContinueToCheckout()}
-                            disabled={
-                              variantChecking ||
-                              (panelQuote != null && !panelQuote.ok) ||
-                              (departureTimes.length > 1 && !selectedDepartureTime)
-                            }
+                            onClick={() => {
+                              if (departureTimes.length > 1 && !selectedDepartureTime.trim()) {
+                                setBookingCardError('Choose a departure time to continue.');
+                                scrollElementIntoView('tour-departure-times', {
+                                  behavior: 'smooth',
+                                  block: 'center',
+                                });
+                                window.requestAnimationFrame(() => {
+                                  const first = document.querySelector(
+                                    '#tour-departure-times button'
+                                  ) as HTMLButtonElement | null;
+                                  first?.focus();
+                                });
+                                return;
+                              }
+                              void handleContinueToCheckout();
+                            }}
+                            disabled={variantChecking || (panelQuote != null && !panelQuote.ok)}
+                            aria-describedby={bookingCardError ? 'tour-booking-card-error' : undefined}
                             className="tv-btn-primary w-full disabled:opacity-60"
                           >
-                            {variantChecking ? 'Checking…' : 'Continue · TEST'}
+                            {variantChecking
+                              ? 'Checking…'
+                              : departureTimes.length > 1 && !selectedDepartureTime.trim()
+                                ? 'Pick time'
+                                : 'Continue · TEST'}
                           </button>
                         </div>
                       ) : (
@@ -1292,7 +1309,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                             : 'Choose a date to see available options.'}
                         </p>
                       )}
-                      <div role="status" aria-live="polite" aria-atomic="true" className="min-h-[1.25rem]">
+                      <div id="tour-booking-card-error" className="min-h-[1.25rem]">
                         {bookingCardError ? (
                           <NoticeCallout title="Check your selection" tone="danger">
                             {bookingCardError}
