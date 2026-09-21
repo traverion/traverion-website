@@ -346,14 +346,39 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     const day = bookingDate.trim();
     if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !dayCapacitySnap) return null;
     if (soldOutDates.has(day)) return 0;
+    const dayCapOverride = dayCapacitySnap.capByDay.has(day);
+    // Multi-departure days: don't subtract listing-wide paid from one slot — that falsely shrinks other times.
+    if (
+      !dayCapOverride &&
+      selectedOptionApplied &&
+      departureTimes.length > 1 &&
+      selectedDepartureTime.trim()
+    ) {
+      const spots = selectedOptionApplied.maxSpotsPerSlot;
+      if (typeof spots === 'number' && Number.isFinite(spots) && spots >= 1) {
+        return Math.min(99, Math.floor(spots));
+      }
+      return Math.min(99, Math.max(1, selectedOptionApplied.maxPersons));
+    }
     const cap = dayCapacitySnap.capByDay.get(day) ?? dayCapacitySnap.fallback;
     return remainingCapacity(cap, dayCapacitySnap.paidByDay[day] ?? 0);
-  }, [bookingDate, dayCapacitySnap, soldOutDates]);
+  }, [
+    bookingDate,
+    dayCapacitySnap,
+    soldOutDates,
+    selectedOptionApplied,
+    departureTimes.length,
+    selectedDepartureTime,
+  ]);
+
+  const spotsLeftIsDepartureCapacity =
+    departureTimes.length > 1 && Boolean(selectedDepartureTime.trim()) && !dayCapacitySnap?.capByDay.has(bookingDate.trim());
 
   const partyMaxForSelectedDay = useMemo(() => {
     if (!tour) return partyBounds.max;
     const base = getPartySizeBoundsForVariant(tour, selectedBookingVariant, bookingDate, selectedDepartureTime).max;
     if (selectedDaySpotsLeft == null || selectedDaySpotsLeft < 1) return base;
+    // Departure-capacity display is a slot ceiling, not remaining — still cap party size to it.
     return Math.max(1, Math.min(base, selectedDaySpotsLeft));
   }, [tour, selectedBookingVariant, partyBounds.max, selectedDaySpotsLeft, bookingDate, selectedDepartureTime]);
 
@@ -1134,9 +1159,13 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                         >
                           {selectedDaySpotsLeft === 0
                             ? 'Fully booked this day'
-                            : selectedDaySpotsLeft === 1
-                              ? '1 spot left this day'
-                              : `${selectedDaySpotsLeft} spots left this day`}
+                            : spotsLeftIsDepartureCapacity
+                              ? selectedDaySpotsLeft === 1
+                                ? `Up to 1 spot for the ${selectedDepartureTime} departure`
+                                : `Up to ${selectedDaySpotsLeft} spots for the ${selectedDepartureTime} departure`
+                              : selectedDaySpotsLeft === 1
+                                ? '1 spot left this day'
+                                : `${selectedDaySpotsLeft} spots left this day`}
                         </p>
                       ) : null}
                       {selectedBookingVariant ? (
