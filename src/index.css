@@ -338,8 +338,54 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
   animation: listing-creation-option-in 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+@keyframes listing-creation-option-out {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(1.25rem);
+  }
+}
+
+.listing-creation-option-workspace--exit {
+  animation: listing-creation-option-out 200ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes listing-creation-hint-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.2rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.listing-creation-hint {
+  animation: listing-creation-hint-in 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes listing-creation-cover-confirm {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 53, 128, 0.28);
+  }
+  100% {
+    box-shadow: 0 0 0 8px rgba(0, 53, 128, 0);
+  }
+}
+
+.lc-tile--just-cover {
+  animation: listing-creation-cover-confirm 280ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .listing-creation-option-workspace--enter {
+  .listing-creation-option-workspace--enter,
+  .listing-creation-option-workspace--exit,
+  .listing-creation-hint,
+  .lc-tile--just-cover {
     animation: none;
   }
 }
