@@ -80,12 +80,18 @@ export function formatPriceCategoryAgeRange(c: Pick<ListingPriceCategory, 'ageMi
   return `Age ${min}–${max}`;
 }
 
-export function activePriceCategories(option: ListingBookingOption): ListingPriceCategory[] {
+/** Pricing fields shared by a bookable option and a seasonal schedule. */
+export type PricedBookingShape = Pick<
+  ListingBookingOption,
+  'pricingMode' | 'priceUsd' | 'priceCategories' | 'isPrivate' | 'privatePricing' | 'privateGroupPriceUsd'
+>;
+
+export function activePriceCategories(option: PricedBookingShape): ListingPriceCategory[] {
   if (option.pricingMode !== 'age_dependent') return [];
   return (option.priceCategories ?? []).filter((c) => !c.notPermitted && c.label.trim());
 }
 
-export function optionPricingMode(option: ListingBookingOption): ListingPricingMode {
+export function optionPricingMode(option: PricedBookingShape): ListingPricingMode {
   return option.pricingMode === 'age_dependent' ? 'age_dependent' : 'uniform';
 }
 
@@ -93,7 +99,7 @@ export function optionPricingMode(option: ListingBookingOption): ListingPricingM
  * Catalog / legacy unit price: adult (or first priced) category when age-dependent;
  * otherwise option.priceUsd.
  */
-export function optionHeadlineUnitPrice(option: ListingBookingOption): number {
+export function optionHeadlineUnitPrice(option: PricedBookingShape): number {
   if (option.isPrivate && option.privatePricing === 'flat_group') {
     const flat = option.privateGroupPriceUsd ?? 0;
     if (flat > 0) return flat;
@@ -117,7 +123,11 @@ export function syncOptionHeadlinePrice(option: ListingBookingOption): ListingBo
   return option;
 }
 
-export function priceCategoryValidationMessages(option: ListingBookingOption): string[] {
+export function listingShapeHasBookablePrice(option: PricedBookingShape): boolean {
+  return optionHeadlineUnitPrice(option) > 0;
+}
+
+export function priceCategoryValidationMessages(option: PricedBookingShape): string[] {
   const msg: string[] = [];
   if (option.isPrivate && option.privatePricing === 'flat_group') {
     const flat = option.privateGroupPriceUsd ?? 0;
@@ -154,7 +164,7 @@ export function priceCategoryValidationMessages(option: ListingBookingOption): s
 }
 
 export function summarizeOptionPricing(
-  option: ListingBookingOption,
+  option: PricedBookingShape,
   formatAmount: (n: number) => string
 ): string {
   if (option.isPrivate && option.privatePricing === 'flat_group') {

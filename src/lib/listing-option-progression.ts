@@ -13,6 +13,7 @@ import type { ListingCreationNavItem } from './listing-creation-workspace';
 import { formatOptionWeekdays } from './booking-quote';
 import {
   bookingOptionAvailabilityIssues,
+  bookingOptionAvailabilityPricingIssues,
   bookingOptionCapacityIssues,
   bookingOptionMeetingIssues,
   bookingOptionPricingIssues,
@@ -77,18 +78,12 @@ export function isTourOptionSceneSatisfied(
   if (scene.id === 'setup') return bookingOptionSetupIssues(option).length === 0;
   if (scene.id === 'meeting') return bookingOptionMeetingIssues(option).length === 0;
   if (scene.id === 'availability_pricing') {
-    return (
-      bookingOptionAvailabilityIssues(option, ending).length === 0 &&
-      bookingOptionPricingIssues(option).length === 0 &&
-      bookingOptionCapacityIssues(option).length === 0
-    );
+    return bookingOptionAvailabilityPricingIssues(option, ending).length === 0;
   }
   return (
     bookingOptionSetupIssues(option).length === 0 &&
     bookingOptionMeetingIssues(option).length === 0 &&
-    bookingOptionAvailabilityIssues(option, ending).length === 0 &&
-    bookingOptionPricingIssues(option).length === 0 &&
-    bookingOptionCapacityIssues(option).length === 0
+    bookingOptionAvailabilityPricingIssues(option, ending).length === 0
   );
 }
 
@@ -126,9 +121,7 @@ export function tourOptionSceneContinueHint(input: {
   }
   if (scene?.id === 'availability_pricing') {
     return (
-      bookingOptionAvailabilityIssues(input.option, input.ending)[0] ??
-      bookingOptionPricingIssues(input.option)[0] ??
-      bookingOptionCapacityIssues(input.option)[0] ??
+      bookingOptionAvailabilityPricingIssues(input.option, input.ending)[0] ??
       'Finish availability and pricing to continue.'
     );
   }

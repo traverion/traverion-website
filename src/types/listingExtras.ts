@@ -93,6 +93,37 @@ export interface ListingBookingOption {
   privatePricing?: ListingPrivatePricing;
   /** Flat buy-out price when privatePricing is flat_group. */
   privateGroupPriceUsd?: number;
+  /**
+   * Seasonal / period rule-sets for THIS option. When present, quote and availability
+   * resolve the matching schedule for the traveler's date. Omitted on legacy options.
+   */
+  schedules?: ListingOptionSchedule[];
+}
+
+export type ListingOptionScheduleStatus = 'draft' | 'ready';
+
+/**
+ * One operating period for a bookable option. Identity is stable; saves update this id.
+ * Multiple schedules may exist on one option (e.g. September vs October pricing).
+ */
+export interface ListingOptionSchedule {
+  id: string;
+  name: string;
+  availabilityDateFrom: string;
+  availabilityDateTo: string;
+  weekdays: boolean[];
+  /** Local departure HH:MM. One time per schedule; another departure is another schedule. */
+  startTime: string;
+  pricingMode?: ListingPricingMode;
+  priceUsd: number;
+  priceCategories?: ListingPriceCategory[];
+  isPrivate?: boolean;
+  privatePricing?: ListingPrivatePricing;
+  privateGroupPriceUsd?: number;
+  minPersons: number;
+  maxPersons: number;
+  maxSpotsPerSlot: number;
+  status?: ListingOptionScheduleStatus;
 }
 
 export interface ListingExtras {
@@ -295,7 +326,79 @@ export function normalizeListingBookingOption(raw: Record<string, unknown>, fall
     if (privatePricing) out.privatePricing = privatePricing;
     if (privateGroupPriceUsd != null) out.privateGroupPriceUsd = privateGroupPriceUsd;
   }
+  if (Array.isArray(raw.schedules)) {
+    out.schedules = normalizeListingOptionSchedules(raw.schedules, out.id);
+  }
   return out;
+}
+
+export function normalizeListingOptionSchedule(
+  raw: Record<string, unknown>,
+  fallbackId: string
+): ListingOptionSchedule {
+  const minP = typeof raw.minPersons === 'number' && raw.minPersons >= 1 ? Math.floor(raw.minPersons) : 1;
+  const maxP =
+    typeof raw.maxPersons === 'number' && raw.maxPersons >= minP ? Math.floor(raw.maxPersons) : Math.max(minP, 12);
+  const spots =
+    typeof raw.maxSpotsPerSlot === 'number' && raw.maxSpotsPerSlot >= 1
+      ? Math.floor(raw.maxSpotsPerSlot)
+      : maxP;
+  const pricingMode: ListingPricingMode | undefined =
+    raw.pricingMode === 'age_dependent' ? 'age_dependent' : raw.pricingMode === 'uniform' ? 'uniform' : undefined;
+  const priceCategories = normalizePriceCategories(raw.priceCategories);
+  const isPrivate = Boolean(raw.isPrivate);
+  const privatePricing: ListingPrivatePricing | undefined =
+    raw.privatePricing === 'flat_group'
+      ? 'flat_group'
+      : raw.privatePricing === 'per_person'
+        ? 'per_person'
+        : isPrivate
+          ? 'per_person'
+          : undefined;
+  const privateGroupPriceUsd =
+    typeof raw.privateGroupPriceUsd === 'number' && !Number.isNaN(raw.privateGroupPriceUsd)
+      ? Math.max(0, raw.privateGroupPriceUsd)
+      : undefined;
+  let priceUsd = typeof raw.priceUsd === 'number' && !Number.isNaN(raw.priceUsd) ? Math.max(0, raw.priceUsd) : 0;
+  priceUsd = syncHeadlinePriceFromCategories(
+    priceUsd,
+    pricingMode,
+    priceCategories,
+    isPrivate,
+    privatePricing,
+    privateGroupPriceUsd
+  );
+  const out: ListingOptionSchedule = {
+    id: typeof raw.id === 'string' && raw.id.trim() ? raw.id.trim() : fallbackId,
+    name: typeof raw.name === 'string' ? raw.name : '',
+    availabilityDateFrom: typeof raw.availabilityDateFrom === 'string' ? raw.availabilityDateFrom : '',
+    availabilityDateTo: typeof raw.availabilityDateTo === 'string' ? raw.availabilityDateTo : '',
+    weekdays: normalizeWeekdays(raw.weekdays),
+    startTime: typeof raw.startTime === 'string' ? raw.startTime : '',
+    priceUsd,
+    minPersons: minP,
+    maxPersons: maxP,
+    maxSpotsPerSlot: Math.max(1, spots),
+  };
+  if (pricingMode) out.pricingMode = pricingMode;
+  if (priceCategories) out.priceCategories = priceCategories;
+  if (isPrivate) {
+    out.isPrivate = true;
+    if (privatePricing) out.privatePricing = privatePricing;
+    if (privateGroupPriceUsd != null) out.privateGroupPriceUsd = privateGroupPriceUsd;
+  }
+  if (raw.status === 'ready' || raw.status === 'draft') out.status = raw.status;
+  return out;
+}
+
+function normalizeListingOptionSchedules(raw: unknown, optionId: string): ListingOptionSchedule[] {
+  if (!Array.isArray(raw) || raw.length === 0) return [];
+  return raw
+    .filter((x) => x != null && typeof x === 'object')
+    .map((x, i) =>
+      normalizeListingOptionSchedule(x as Record<string, unknown>, `${optionId}-sch-${i}`)
+    )
+    .slice(0, 24);
 }
 
 /**
@@ -314,7 +417,8 @@ export function isListingBookingOptionEffectivelyEmpty(o: ListingBookingOption):
     !o.startTime.trim() &&
     !o.availabilityDateFrom.trim() &&
     !o.availabilityDateTo.trim() &&
-    !o.isPrivate
+    !o.isPrivate &&
+    !(o.schedules && o.schedules.length > 0)
   );
 }
 

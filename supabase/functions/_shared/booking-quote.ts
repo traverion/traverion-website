@@ -49,6 +49,27 @@ type Option = {
   pickupPlace?: string;
   startTime?: string;
   duration?: string;
+  maxSpotsPerSlot?: number;
+  schedules?: OptionSchedule[];
+};
+
+type OptionSchedule = {
+  id: string;
+  name: string;
+  availabilityDateFrom: string;
+  availabilityDateTo: string;
+  weekdays: boolean[];
+  startTime: string;
+  pricingMode?: string;
+  priceUsd: number;
+  priceCategories?: PriceCat[];
+  isPrivate?: boolean;
+  privatePricing?: string;
+  privateGroupPriceUsd?: number;
+  minPersons: number;
+  maxPersons: number;
+  maxSpotsPerSlot: number;
+  status?: string;
 };
 
 export type QuoteOk = {
@@ -215,11 +236,18 @@ function weekdayIndexMondayFirst(isoDate: string): number | null {
 }
 
 function isEmptyOption(o: Option): boolean {
+  const hasCats = (o.priceCategories ?? []).some((c) => c.label.trim() || c.priceUsd > 0);
+  const hasSchedules = (o.schedules ?? []).length > 0;
   return (
     !o.name.trim() &&
     o.priceUsd <= 0 &&
+    !hasCats &&
+    !(o.pickupPlace ?? '').trim() &&
+    !(o.startTime ?? '').trim() &&
     !o.availabilityDateFrom.trim() &&
-    !o.availabilityDateTo.trim()
+    !o.availabilityDateTo.trim() &&
+    !o.isPrivate &&
+    !hasSchedules
   );
 }
 
@@ -250,6 +278,115 @@ function parsePriceCategories(raw: unknown): PriceCat[] | undefined {
     });
   }
   return out.length > 0 ? out : undefined;
+}
+
+function parseSchedule(raw: Record<string, unknown>, fallbackId: string): OptionSchedule {
+  const minP = typeof raw.minPersons === 'number' && raw.minPersons >= 1 ? Math.floor(raw.minPersons) : 1;
+  const maxP =
+    typeof raw.maxPersons === 'number' && raw.maxPersons >= minP ? Math.floor(raw.maxPersons) : Math.max(minP, 12);
+  const spots =
+    typeof raw.maxSpotsPerSlot === 'number' && raw.maxSpotsPerSlot >= 1
+      ? Math.floor(raw.maxSpotsPerSlot)
+      : maxP;
+  const cats = parsePriceCategories(raw.priceCategories);
+  let priceUsd = typeof raw.priceUsd === 'number' && !Number.isNaN(raw.priceUsd) ? Math.max(0, raw.priceUsd) : 0;
+  if (raw.pricingMode === 'age_dependent' && cats?.length) {
+    const usable = cats.filter((c) => !c.notPermitted);
+    const adult = usable.find((c) => c.kind === 'adult' && c.priceUsd > 0);
+    if (adult) priceUsd = adult.priceUsd;
+    else {
+      const priced = usable.filter((c) => c.priceUsd > 0).sort((a, b) => b.priceUsd - a.priceUsd);
+      if (priced[0]) priceUsd = priced[0].priceUsd;
+    }
+  }
+  if (raw.isPrivate && raw.privatePricing === 'flat_group') {
+    const flat =
+      typeof raw.privateGroupPriceUsd === 'number' && !Number.isNaN(raw.privateGroupPriceUsd)
+        ? Math.max(0, raw.privateGroupPriceUsd)
+        : 0;
+    if (flat > 0) priceUsd = flat;
+  }
+  const out: OptionSchedule = {
+    id: typeof raw.id === 'string' && raw.id.trim() ? raw.id.trim() : fallbackId,
+    name: typeof raw.name === 'string' ? raw.name : '',
+    availabilityDateFrom: typeof raw.availabilityDateFrom === 'string' ? raw.availabilityDateFrom : '',
+    availabilityDateTo: typeof raw.availabilityDateTo === 'string' ? raw.availabilityDateTo : '',
+    weekdays: normalizeWeekdays(raw.weekdays),
+    startTime: typeof raw.startTime === 'string' ? raw.startTime : '',
+    priceUsd,
+    minPersons: minP,
+    maxPersons: maxP,
+    maxSpotsPerSlot: Math.max(1, spots),
+  };
+  if (raw.pricingMode === 'age_dependent' || raw.pricingMode === 'uniform') out.pricingMode = String(raw.pricingMode);
+  if (cats) out.priceCategories = cats;
+  if (raw.isPrivate) {
+    out.isPrivate = true;
+    if (raw.privatePricing === 'flat_group' || raw.privatePricing === 'per_person') {
+      out.privatePricing = String(raw.privatePricing);
+    }
+    if (typeof raw.privateGroupPriceUsd === 'number' && !Number.isNaN(raw.privateGroupPriceUsd)) {
+      out.privateGroupPriceUsd = Math.max(0, raw.privateGroupPriceUsd);
+    }
+  }
+  if (raw.status === 'ready' || raw.status === 'draft') out.status = String(raw.status);
+  return out;
+}
+
+function scheduleIsBookable(s: OptionSchedule): boolean {
+  if (s.status === 'draft') return false;
+  if (!(s.priceUsd > 0) && !(s.privateGroupPriceUsd && s.privateGroupPriceUsd > 0)) {
+    const catPriced = (s.priceCategories ?? []).some((c) => !c.notPermitted && c.priceUsd > 0);
+    if (!catPriced) return false;
+  }
+  if (!s.weekdays.some(Boolean)) return false;
+  const from = (s.availabilityDateFrom ?? '').trim();
+  const to = (s.availabilityDateTo ?? '').trim();
+  if (to && !from) return false;
+  if (from && to && from > to) return false;
+  if (!from || !s.startTime.trim()) return false;
+  return s.minPersons >= 1 && s.maxPersons >= s.minPersons && s.maxSpotsPerSlot >= 1;
+}
+
+function scheduleAppliesOnDate(s: OptionSchedule, isoDate: string): boolean {
+  const from = (s.availabilityDateFrom ?? '').trim();
+  const to = (s.availabilityDateTo ?? '').trim();
+  if (from && isoDate < from) return false;
+  if (to && isoDate > to) return false;
+  const idx = weekdayIndexMondayFirst(isoDate);
+  if (idx == null) return false;
+  if (s.weekdays.length >= 7 && !s.weekdays[idx]) return false;
+  return true;
+}
+
+function resolveScheduleForDate(option: Option, isoDate: string, startTime?: string | null): OptionSchedule | null {
+  const ready = (option.schedules ?? []).filter((s) => scheduleIsBookable(s) && scheduleAppliesOnDate(s, isoDate));
+  const time = (startTime ?? '').trim();
+  const pool = time ? ready.filter((s) => s.startTime.trim() === time) : ready;
+  if (pool.length === 0) return null;
+  if (pool.length === 1) return pool[0];
+  const times = new Set(pool.map((s) => s.startTime.trim()));
+  if (times.size === 1) return pool[0];
+  return null;
+}
+
+function applyScheduleToOption(option: Option, schedule: OptionSchedule): Option {
+  return {
+    ...option,
+    startTime: schedule.startTime,
+    weekdays: [...schedule.weekdays],
+    availabilityDateFrom: schedule.availabilityDateFrom,
+    availabilityDateTo: schedule.availabilityDateTo,
+    pricingMode: schedule.pricingMode,
+    priceUsd: schedule.priceUsd,
+    priceCategories: schedule.priceCategories,
+    isPrivate: schedule.isPrivate,
+    privatePricing: schedule.privatePricing,
+    privateGroupPriceUsd: schedule.privateGroupPriceUsd,
+    minPersons: schedule.minPersons,
+    maxPersons: schedule.maxPersons,
+    maxSpotsPerSlot: schedule.maxSpotsPerSlot,
+  };
 }
 
 function parseOptions(extras: unknown): Option[] {
@@ -305,6 +442,12 @@ function parseOptions(extras: unknown): Option[] {
       if (typeof o.privateGroupPriceUsd === 'number' && !Number.isNaN(o.privateGroupPriceUsd)) {
         opt.privateGroupPriceUsd = Math.max(0, o.privateGroupPriceUsd);
       }
+    }
+    if (Array.isArray(o.schedules) && o.schedules.length > 0) {
+      opt.schedules = o.schedules
+        .filter((x): x is Record<string, unknown> => x != null && typeof x === 'object')
+        .map((x, si) => parseSchedule(x, `${opt.id}-sch-${si}`))
+        .slice(0, 24);
     }
     if (!isEmptyOption(opt)) opts.push(opt);
   }
@@ -412,7 +555,16 @@ function applicable(discounts: DiscountRow[], optionId: string | null, day: stri
   });
 }
 
-function optionRunsOnDate(option: Option, isoDate: string): string | null {
+function optionRunsOnDate(option: Option, isoDate: string, startTime?: string | null): string | null {
+  if (option.schedules && option.schedules.length > 0) {
+    const ready = option.schedules.filter((s) => scheduleIsBookable(s) && scheduleAppliesOnDate(s, isoDate));
+    if (ready.length === 0) return 'This option is not available on that date.';
+    const time = (startTime ?? '').trim();
+    if (time && !ready.some((s) => s.startTime.trim() === time)) {
+      return 'This option is not offered at that time on that date.';
+    }
+    return null;
+  }
   const idx = weekdayIndexMondayFirst(isoDate);
   if (idx == null) return 'Choose a valid date.';
   if (option.weekdays.length >= 7 && !option.weekdays[idx]) {
@@ -443,6 +595,7 @@ export function quoteListingBooking(input: {
   todayIso?: string;
   checkoutDate?: string | null;
   participantMix?: Record<string, number> | null;
+  startTime?: string | null;
 }): QuoteOk | QuoteErr {
   const today = input.todayIso ?? new Date().toISOString().slice(0, 10);
   const date = (input.bookingDate ?? '').trim();
@@ -486,8 +639,14 @@ export function quoteListingBooking(input: {
     } else {
       return { ok: false, error: 'Choose a booking option to continue.' };
     }
-    const dayErr = optionRunsOnDate(option, date);
+    const dayErr = optionRunsOnDate(option, date, input.startTime);
     if (dayErr) return { ok: false, error: dayErr };
+
+    if (option.schedules && option.schedules.length > 0) {
+      const resolved = resolveScheduleForDate(option, date, input.startTime);
+      if (!resolved) return { ok: false, error: 'Choose a departure time to continue.' };
+      option = applyScheduleToOption(option, resolved);
+    }
 
     if (option.isPrivate && option.privatePricing === 'flat_group') {
       if (!Number.isFinite(guests) || guests < 1 || guests > 99) {

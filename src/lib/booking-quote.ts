@@ -28,6 +28,12 @@ import {
   validateParticipantMix,
   type ParticipantMixSelection,
 } from './participant-mix';
+import {
+  applyScheduleToOption,
+  listingOptionHasSchedules,
+  optionHasScheduleCoverageOnDate,
+  resolveScheduleForDate,
+} from './listing-option-schedules';
 import { optionHeadlineUnitPrice } from './price-categories';
 
 export type BookingQuoteDiscount = Pick<
@@ -74,7 +80,17 @@ export function isIsoDateNotInPast(isoDate: string, todayIso: string): boolean {
   return ISO_DATE.test(isoDate) && isoDate >= todayIso;
 }
 
-export function optionRunsOnDate(option: ListingBookingOption, isoDate: string): string | null {
+export function optionRunsOnDate(option: ListingBookingOption, isoDate: string, startTime?: string): string | null {
+  if (listingOptionHasSchedules(option)) {
+    if (optionHasScheduleCoverageOnDate(option, isoDate)) {
+      if (startTime?.trim()) {
+        const resolved = resolveScheduleForDate(option, isoDate, startTime);
+        if (!resolved) return 'This option is not offered at that time on that date.';
+      }
+      return null;
+    }
+    return 'This option is not available on that date.';
+  }
   const idx = weekdayIndexMondayFirst(isoDate);
   if (idx == null) return 'Choose a valid date.';
   const days = option.weekdays;
@@ -171,6 +187,8 @@ export function quoteBooking(input: {
   bookingOptionId?: string | null;
   /** Age-category quantities when the selected option uses age-dependent pricing. */
   participantMix?: ParticipantMixSelection | null;
+  /** Local departure HH:MM when an option has more than one time on this date. */
+  startTime?: string | null;
   /** YYYY-MM-DD; defaults to the operator’s local calendar day. */
   todayIso?: string;
 }): BookingQuoteResult {
@@ -212,10 +230,22 @@ export function quoteBooking(input: {
       return { ok: false, code: 'option', error: 'Choose a booking option to continue.' };
     }
 
-    const dayErr = optionRunsOnDate(option, date);
+    const dayErr = optionRunsOnDate(option, date, input.startTime ?? undefined);
     if (dayErr) {
-      const code = dayErr.includes('week') ? 'weekday' : dayErr.includes('yet') || dayErr.includes('longer') ? 'season' : 'weekday';
+      const code = dayErr.includes('week') ? 'weekday' : dayErr.includes('yet') || dayErr.includes('longer') || dayErr.includes('not available') ? 'season' : 'weekday';
       return { ok: false, code, error: dayErr };
+    }
+
+    if (listingOptionHasSchedules(option)) {
+      const resolved = resolveScheduleForDate(option, date, input.startTime ?? undefined);
+      if (!resolved) {
+        return {
+          ok: false,
+          code: 'option',
+          error: 'Choose a departure time to continue.',
+        };
+      }
+      option = applyScheduleToOption(option, resolved);
     }
 
     if (optionUsesPrivateFlatPrice(option)) {

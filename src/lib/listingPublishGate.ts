@@ -4,6 +4,7 @@ import type { ListingBookingOption } from '../types/listingExtras';
 import { LISTING_PLACEHOLDER_IMAGE, MIN_LISTING_DESCRIPTION_LENGTH } from './listingQualityScore';
 import { priceCategoryValidationMessages } from './price-categories';
 import { localYmd } from './local-ymd';
+import { optionScheduleManagementIssues } from './listing-schedule-wizard';
 
 function optionPublishIssues(
   o: ListingBookingOption,
@@ -18,34 +19,45 @@ function optionPublishIssues(
       `${prefix}Add a name for this bookable option (e.g. hotel pickup or 20:00 departure — not “Adult”).`.trim()
     );
   }
-  for (const m of priceCategoryValidationMessages(o)) {
-    issues.push(`${prefix}${m}`.trim());
+  const usesSchedules = Array.isArray(o.schedules);
+  if (!usesSchedules) {
+    for (const m of priceCategoryValidationMessages(o)) {
+      issues.push(`${prefix}${m}`.trim());
+    }
   }
   const durIssue = getListingBookingOptionDurationIssue(o.duration ?? '');
   if (durIssue) issues.push(`${prefix}${durIssue}`.trim());
   const meet = o.pickupPlace?.trim() ?? '';
   if (meet.length < 8) issues.push(`${prefix}Add where guests meet or are picked up for this option.`.trim());
-  if (o.minPersons < 1 || o.maxPersons < o.minPersons) {
-    issues.push(`${prefix}Set minimum and maximum guests per booking (max ≥ min).`.trim());
+  if (!usesSchedules) {
+    if (o.minPersons < 1 || o.maxPersons < o.minPersons) {
+      issues.push(`${prefix}Set minimum and maximum guests per booking (max ≥ min).`.trim());
+    }
+    if (o.maxSpotsPerSlot < 1) issues.push(`${prefix}Set how many spots you offer per start time.`.trim());
   }
-  if (o.maxSpotsPerSlot < 1) issues.push(`${prefix}Set how many spots you offer per start time.`.trim());
   const info = o.optionInfo?.trim() ?? '';
   if (info.length < 8) {
     issues.push(`${prefix}Add a short note about this option (e.g. private, small group, language).`.trim());
   }
-  const wd = o.weekdays ?? [];
-  if (!wd.some(Boolean)) issues.push(`${prefix}Select at least one weekday when this option runs.`.trim());
-  const df = o.availabilityDateFrom?.trim() ?? '';
-  const dt = o.availabilityDateTo?.trim() ?? '';
-  if (dt) {
-    if (!df) {
-      issues.push(`${prefix}Add a starting date when an ending date is set, or remove the ending date.`.trim());
-    } else if (df > dt) {
-      issues.push(`${prefix}Ending date must be on or after the starting date.`.trim());
-    } else if (dt < todayIso) {
-      issues.push(
-        `${prefix}The last available date is in the past. Extend the season or travelers cannot pick a date.`.trim()
-      );
+  if (usesSchedules) {
+    for (const m of optionScheduleManagementIssues(o)) {
+      issues.push(`${prefix}${m}`.trim());
+    }
+  } else {
+    const wd = o.weekdays ?? [];
+    if (!wd.some(Boolean)) issues.push(`${prefix}Select at least one weekday when this option runs.`.trim());
+    const df = o.availabilityDateFrom?.trim() ?? '';
+    const dt = o.availabilityDateTo?.trim() ?? '';
+    if (dt) {
+      if (!df) {
+        issues.push(`${prefix}Add a starting date when an ending date is set, or remove the ending date.`.trim());
+      } else if (df > dt) {
+        issues.push(`${prefix}Ending date must be on or after the starting date.`.trim());
+      } else if (dt < todayIso) {
+        issues.push(
+          `${prefix}The last available date is in the past. Extend the season or travelers cannot pick a date.`.trim()
+        );
+      }
     }
   }
   return issues;

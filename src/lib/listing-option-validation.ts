@@ -6,6 +6,7 @@
 import type { ListingBookingOption } from '../types/listingExtras';
 import { getListingBookingOptionDurationIssue } from '../types/listingExtras';
 import { priceCategoryValidationMessages } from './price-categories';
+import { optionScheduleManagementIssues } from './listing-schedule-wizard';
 
 export type OptionEndingDateState = {
   hasEndingDate: boolean;
@@ -40,6 +41,20 @@ export function bookingOptionMeetingIssues(option: ListingBookingOption): string
     return ['Describe where guests meet or where you pick them up (at least 8 characters).'];
   }
   return [];
+}
+
+export function bookingOptionAvailabilityPricingIssues(
+  option: ListingBookingOption,
+  ending?: OptionEndingDateState
+): string[] {
+  if (Array.isArray(option.schedules)) {
+    return optionScheduleManagementIssues(option);
+  }
+  return [
+    ...bookingOptionAvailabilityIssues(option, ending),
+    ...bookingOptionPricingIssues(option),
+    ...bookingOptionCapacityIssues(option),
+  ];
 }
 
 export function bookingOptionAvailabilityIssues(
@@ -90,6 +105,13 @@ export function getBookingOptionValidationMessages(
   option: ListingBookingOption,
   ending?: OptionEndingDateState
 ): string[] {
+  if (Array.isArray(option.schedules)) {
+    return [
+      ...bookingOptionSetupIssues(option),
+      ...bookingOptionMeetingIssues(option),
+      ...bookingOptionAvailabilityPricingIssues(option, ending),
+    ];
+  }
   return [
     ...bookingOptionSetupIssues(option),
     ...bookingOptionMeetingIssues(option),
@@ -111,6 +133,12 @@ export function firstBookingOptionIssueFocusId(
   }
   if (bookingOptionSetupIssues(option).length > 0) return 'supplier-listing-field-pickup';
   if (bookingOptionMeetingIssues(option).length > 0) return 'supplier-listing-field-meeting';
+  if (Array.isArray(option.schedules)) {
+    if (bookingOptionAvailabilityPricingIssues(option, ending).length > 0) {
+      return 'supplier-listing-field-option-schedules';
+    }
+    return null;
+  }
   if (bookingOptionPricingIssues(option).length > 0) return 'supplier-listing-field-price';
   if (bookingOptionCapacityIssues(option).length > 0) return 'supplier-listing-field-group';
   if (bookingOptionAvailabilityIssues(option, ending).length > 0) {
