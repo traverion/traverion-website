@@ -3,22 +3,22 @@
 **Mission:** Phases 0→400 autonomous product completion  
 **Started:** 2026-09-21  
 **Starting SHA:** `d38ff80`  
-**Current SHA:** `3066dfb`  
-**Current phase:** ~325  
-**Current band:** 320–339 / 370–389 a11y+account overlap
+**Current SHA:** `576148e`  
+**Current phase:** ~340  
+**Current band:** 340–359 UI coherence / a11y
 
 ## Completed (recent)
 
-- Schedule commercial truth + slot capacity + departure UI through checkout
-- Trips facts; Calendar selling-day; Reviews empty CTA
-- Mobile CTA → focus date/night pickers (tour + stay)
-- NoticeCallout alerts; src/lib 438 + build green
+- Schedule truth + slot capacity + departure through checkout/trips
+- Calendar selling-day; mobile/desktop CTA → date/time pickers
+- NoticeCallout alerts; Reviews empty CTA
+- src/lib 438 + build green
 
 ## Next
 
-- Continue a11y / cert / polish
-- Edge deploy for startTime + slot capacity
-- Phase 400 handoff when stopping
+- Visual coherence / motion / cert
+- Edge deploy reminder
+- Phase 400 when stopping
 
 ## Gates
 
