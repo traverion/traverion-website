@@ -37,7 +37,7 @@ export function ListingCreationSceneFrame({
             ref={headingRef}
             id={headingId}
             tabIndex={-1}
-            className="font-display text-[1.85rem] leading-[1.15] tracking-tight text-ink outline-none sm:text-[2.15rem]"
+            className="font-display text-[2rem] font-bold leading-[1.12] tracking-tight text-ink outline-none sm:text-[2.4rem]"
           >
             {question}
           </h3>

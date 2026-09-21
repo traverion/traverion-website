@@ -33,7 +33,7 @@ export function ListingCreationRail({
         >
           {exitBusy ? 'Saving…' : '← Exit'}
         </button>
-        <p className="mt-6 font-display text-[1.7rem] leading-[1.15] tracking-tight text-ink">{title}</p>
+        <p className="mt-6 font-display text-[1.85rem] font-bold leading-[1.12] tracking-tight text-ink">{title}</p>
         <div className="mt-2 min-h-5">
           {persistLabel ? (
             <p

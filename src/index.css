@@ -282,6 +282,10 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
   color: #1c1917;
 }
 
+.listing-creation-workspace .font-display {
+  font-weight: 700;
+}
+
 .listing-creation-content p.text-ink-muted {
   color: #57534e;
 }

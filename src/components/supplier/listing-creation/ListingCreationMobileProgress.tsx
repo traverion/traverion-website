@@ -48,7 +48,7 @@ export function ListingCreationMobileProgress({
           <span className="min-h-11" />
         )}
       </div>
-      <p className="mt-1 font-display text-2xl leading-tight tracking-tight text-ink">{title}</p>
+      <p className="mt-1 font-display text-[1.65rem] font-bold leading-tight tracking-tight text-ink">{title}</p>
       <div className="mt-3 flex items-baseline justify-between gap-3">
         <p className="text-sm font-semibold text-ink">{currentLabel}</p>
         {progressCopy ? <p className="text-xs text-ink-muted">{progressCopy}</p> : null}
