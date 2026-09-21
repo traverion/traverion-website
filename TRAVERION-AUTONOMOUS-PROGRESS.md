@@ -3,41 +3,40 @@
 **Mission:** Phases 0→400 autonomous product completion  
 **Started:** 2026-09-21  
 **Starting SHA:** `d38ff80`  
-**Current SHA:** (pending commit)  
-**Current phase:** 20  
-**Current band:** 20–39 Creation certification  
+**Current SHA:** (pending)  
+**Current phase:** 45  
+**Current band:** 40–59 Traveler home + discovery (creation cert largely code-complete)
 
 ## Completed
 
 - Phase 0: Product map + `traverion-product-truth-audit.md`
-- Phases 1–19: Prioritize P0 creation; slim Tour Details; fix orphan empty schedule on cancel
-- Prior missions: multi-schedule model, schedule UI, Stay Space/Price
+- Phases 1–19: Tour Details slim; orphan schedule cancel fix
+- Phases 20–35: Multi-schedule copy/cert tests; Sep/Oct same-time overlap proof
+- Phases 36–44: Catalog/headline prices read ready schedules; Tour detail weekday/start hints from schedules
 
 ## In progress
 
-- Phases 20–39: Creation certification (Tour 1 option + Sep/Oct schedules; Stay apartment)
+- Traveler discovery honesty + Tour/Stay detail polish
 
 ## Next
 
-- Manual/code-path cert of schedule persistence + Stay Space/Price
-- Traveler discovery honesty (band 40) after creation cert
+- Search URL/back persistence audit
+- Stay detail quote clarity
+- Checkout / Trips when discovery stable
 
 ## Tests
 
-- `listing-option-schedules` + `booking-quote` + `listingBuilderProgress` — 39 passed
+- headline-price, discount-display, listing-option-schedules — pass
 
 ## Decisions
 
-- Tour Details primary path: includes/excludes → city/country → start style; optional itinerary + good-to-know
-- New schedule: do not upsert blank until first save (cancel must not orphan)
-- Do not commit `scripts/cert-transactional-emails.cjs`
-- Stripe stays TEST
+- Schedule prices are canonical for catalog “from” when option.priceUsd is empty
+- Stripe stays TEST; do not commit `scripts/cert-transactional-emails.cjs`
 
 ## Known issues
 
-- Full browser E2E creation still needs live partner session
-- Browse filter honesty unaudited
-- Supplier Home operational signals partial
+- Full browser partner creation E2E needs live session
+- Supplier Home operational desk still partial
 
 ## Deferred
 
