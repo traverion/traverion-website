@@ -782,7 +782,14 @@ export default function BookingPage({
         `${guests} ${guests === 1 ? 'guest' : 'guests'}`
       : `${guests} ${guests === 1 ? 'guest' : 'guests'}`;
   const priceFromQualifier = usesAgePricingOnVariant ? 'per adult' : 'per person';
-  const summaryLineModal = `${dateDisplay || date || '—'} · ${participantsSummary}`;
+  const departureLabel = departureTime || null;
+  const summaryLineModal = [
+    dateDisplay || date || '—',
+    departureLabel,
+    participantsSummary,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
   const contactBackStep: Step =
     flowMode === 'modal' || hasPreselectedVariant ? 'review' : 'date-guests';
@@ -807,6 +814,11 @@ export default function BookingPage({
               <p>
                 <span className="font-medium text-ink">Date</span> — {dateDisplay || date}
               </p>
+              {departureLabel ? (
+                <p>
+                  <span className="font-medium text-ink">Departure</span> — {departureLabel}
+                </p>
+              ) : null}
               <p>
                 <span className="font-medium text-ink">Participants</span> — {participantsSummary}
               </p>
