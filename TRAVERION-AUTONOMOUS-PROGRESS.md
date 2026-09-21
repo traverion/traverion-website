@@ -3,41 +3,40 @@
 **Mission:** Phases 0→400 autonomous product completion  
 **Started:** 2026-09-21  
 **Starting SHA:** `d38ff80`  
-**Current SHA:** `47d998d`  
-**Current phase:** ~245  
-**Current band:** 240–259 Inbox / trust / ops continuity (after mobile CTA)
+**Current SHA:** `808e149`  
+**Current phase:** ~255  
+**Current band:** 240–259 communication/trust + availability truth
 
 ## Completed
 
-- Product truth audit + schedule → traveler/checkout wiring
-- Departure picker + start_time persistence + slot capacity
-- Trips detail facts; Calendar “Selling this day”
-- Mobile: Stay Select dates + Tour Pick time scroll/focus guidance
+- Schedule → traveler/checkout/booking wiring + slot capacity
+- Trips facts; Calendar selling-day; mobile CTA guidance
+- Multi-departure UI no longer shares day-wide remaining spots
 
 ## In progress
 
-- Inbox/reviews/trust; a11y; marketplace cert as runway allows
+- A11y/resilience; marketplace certification as runway allows
 
 ## Next
 
-- Inbox empty/unread honesty if friction
-- Broader vitest + build gates before Phase 400
-- Phase 400 handoff doc when stopping
+- Broader vitest + production build gate
+- Deploy note: edge function for startTime + slot capacity
+- Phase 400 handoff when stopping
 
 ## Tests / gates
 
-- listing-option-schedules, booking-hold, slot capacity green
-- tsc --noEmit clean
+- schedule/hold/checkout unit suites green; tsc clean
 
 ## Decisions
 
 - Schedules = commercial truth; slot inventory when start_time known
+- Day-level listing_availability override remains day-wide
 - Stripe TEST; no cert-transactional-emails commit
 
 ## Known issues
 
-- Edge deploy needed for production TEST startTime + slot capacity
-- Partner Calendar caps remain day-level
+- Edge deploy required for production TEST
+- Public paid-guest RPC still day-level (UI uses schedule cap when time picked)
 
 ## Deferred
 
