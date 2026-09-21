@@ -13,6 +13,7 @@ import { listingIsFamily } from './inventory';
 import {
   listingOptionHasSchedules,
   listingOptionReadySchedules,
+  resolveScheduleForDate,
 } from './listing-option-schedules';
 import { optionHeadlineUnitPrice, optionPricingMode } from './price-categories';
 
@@ -218,7 +219,14 @@ export function getDisplayPriceForBookingVariant(
   const day = (bookingDateIso.trim() || localYmd()).slice(0, 10);
   const at = new Date(`${day}T12:00:00`);
   const fallbackBase = tour.price?.startingFrom ?? 0;
-  const base = variant.pricePerPerson > 0 ? variant.pricePerPerson : fallbackBase;
+  let base = variant.pricePerPerson > 0 ? variant.pricePerPerson : fallbackBase;
+  if (variant.listingOption && listingOptionHasSchedules(variant.listingOption)) {
+    const resolved = resolveScheduleForDate(variant.listingOption, day);
+    if (resolved) {
+      const scheduled = optionHeadlineUnitPrice(resolved);
+      if (scheduled > 0) base = scheduled;
+    }
+  }
   const currency = normalizeCurrency(tour.price?.currency);
   if (variant.listingOption) {
     const applicable = discountsApplicableToOption(discounts, variant.listingOption.id, at);
