@@ -3,40 +3,41 @@
 **Mission:** Phases 0→400 autonomous product completion  
 **Started:** 2026-09-21  
 **Starting SHA:** `d38ff80`  
-**Current SHA:** `e41cb9d`  
-**Current phase:** ~90  
-**Current band:** 80–99 Tour detail (schedule truth wired through catalog/booking/capacity)
+**Current SHA:** `70ea49a`  
+**Current phase:** ~140  
+**Current band:** 140–159 Price + quote clarity (schedule-aware)
 
 ## Completed
 
-- 0–19: Product audit; Tour Details slim; no orphan empty schedules
-- 20–39: Multi-schedule certification copy + Sep/Oct overlap tests
-- 40–59: Home Stripe TEST honesty; search empty states already solid
-- 80–99: Catalog from-price from schedules; variant prices/times; date-scoped party bounds; capacity fallbacks across Tour detail / Packages / Booking / Calendar
+- 0–19: Product audit; Tour Details slim; orphan schedule cancel fix
+- 20–39: Multi-schedule cert copy + Sep/Oct overlap tests
+- 40–59: Home Stripe TEST honesty
+- 80–139: Tour detail/booking/calendar/capacity wired to ready schedules
+- 140+: Catalog + variant + Options-list + date-resolved display prices from schedules
 
 ## In progress
 
-- Finish tour schedule traveler surface; then Stay detail / quote bands
+- Stay quote/detail polish; then checkout/trips bands
 
 ## Next
 
-- Stay detail quote/calendar pass
-- Checkout / Trips status language
-- Supplier ops only if P0 found
+- Stay detail / availability copy if friction remains
+- Checkout duplicate-submit / mobile keyboard
+- Supplier Home only if P0
 
 ## Tests
 
-- headline-price, booking-flow.schedules, marketplace-loop, listing-option-schedules — pass
+- headline-price, booking-flow.schedules, marketplace-loop, discount-display, listing-option-schedules
 
 ## Decisions
 
-- Ready schedules are canonical for traveler price, capacity, and start-time display when present
+- Ready schedules are canonical for traveler price, capacity, start time, and weekday display
 - Stripe stays TEST; do not commit `scripts/cert-transactional-emails.cjs`
 
 ## Known issues
 
-- Browser partner E2E creation needs live session
-- Date-specific sold-out vs per-schedule capacity still coarse (listing-wide paid guests)
+- Listing-wide paid guests vs per-schedule capacity is still coarse
+- Partner browser E2E creation needs live session
 
 ## Deferred
 
