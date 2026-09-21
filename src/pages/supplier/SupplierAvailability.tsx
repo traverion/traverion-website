@@ -843,44 +843,45 @@ export default function SupplierAvailability() {
                     </button>
                   </div>
                 </>
-              ) : (                <>
-              {!weekdayOpen(editing.iso) ? (
-                <p className="mt-4 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-950 ring-1 ring-amber-200/80">
-                  No departures this day per your option schedule. A saved cap does not open traveler
-                  booking — clear the cap or adjust options on the listing.
-                </p>
-              ) : null}
-              <p className="mt-5 text-sm text-ink-muted">
-                Daily cap is optional. Clearing it returns the date to weekday rules.
-              </p>
-              <div className="mt-4 flex flex-col sm:flex-row gap-2 sm:items-center">
-                <label className="text-sm text-ink" htmlFor="day-capacity">
-                  Spots
-                </label>
-                <input
-                  id="day-capacity"
-                  type="number"
-                  min={0}
-                  max={99}
-                  value={editing.capacity}
-                  onChange={(e) => setEditing({ ...editing, capacity: e.target.value })}
-                  className="tv-input w-24"
-                />
-                <button
-                  type="button"
-                  onClick={() => void saveCap(editing.iso, Math.max(0, Math.floor(Number(editing.capacity) || 0)))}
-                  className="tv-btn-primary"
-                >
-                  Save cap
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void clearCap(editing.iso)}
-                  className="tv-btn-ghost"
-                >
-                  Clear
-                </button>
-              </div>
+              ) : (
+                <>
+                  {!weekdayOpen(editing.iso) ? (
+                    <p className="mt-4 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-950 ring-1 ring-amber-200/80">
+                      No departures this day per your option schedule. A saved cap does not open traveler
+                      booking — clear the cap or adjust options on the listing.
+                    </p>
+                  ) : null}
+                  <p className="mt-5 text-sm text-ink-muted">
+                    Daily cap is optional. Clearing it returns the date to weekday rules.
+                  </p>
+                  <div className="mt-4 flex flex-col sm:flex-row gap-2 sm:items-center">
+                    <label className="text-sm text-ink" htmlFor="day-capacity">
+                      Spots
+                    </label>
+                    <input
+                      id="day-capacity"
+                      type="number"
+                      min={0}
+                      max={99}
+                      value={editing.capacity}
+                      onChange={(e) => setEditing({ ...editing, capacity: e.target.value })}
+                      className="tv-input w-24"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void saveCap(editing.iso, Math.max(0, Math.floor(Number(editing.capacity) || 0)))}
+                      className="tv-btn-primary"
+                    >
+                      Save cap
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void clearCap(editing.iso)}
+                      className="tv-btn-ghost"
+                    >
+                      Clear
+                    </button>
+                  </div>
                 </>
               )}
               <button type="button" onClick={() => setEditing(null)} className="tv-btn-ghost mt-4">

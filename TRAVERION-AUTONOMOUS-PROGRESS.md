@@ -3,22 +3,21 @@
 **Mission:** Phases 0→400 autonomous product completion  
 **Started:** 2026-09-21  
 **Starting SHA:** `d38ff80`  
-**Current SHA:** `d76886b`  
-**Current phase:** ~355  
-**Current band:** 340–359 / checkout truth polish
+**Current SHA:** `da65f6d`  
+**Current phase:** ~365  
+**Current band:** 360–369 motion / a11y
 
 ## Completed (recent)
 
-- Schedule commercial truth + slot capacity + departure UI
-- Trips/Calendar/Reviews; CTA → date/time pickers (tour+stay)
-- Departure-specific capacity error copy
-- Gates: src/lib 438, build, tsc; changed-file eslint clean
+- Schedule commercial truth + slot capacity through checkout
+- Trips/Calendar/Reviews; CTA focus guidance; gallery focus trap
+- Departure capacity error copy
+- Gates: src/lib, build, tsc green
 
 ## Next
 
-- Motion/mobile pass leftovers; cert journeys
+- Motion polish; mobile cert; Phase 400 handoff when stopping
 - Edge deploy for startTime + slot capacity
-- Phase 400 handoff when stopping
 
 ## Decisions
 
