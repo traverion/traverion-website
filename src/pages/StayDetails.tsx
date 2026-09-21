@@ -787,8 +787,18 @@ export default function StayDetails({ stayId, onBack }: Props) {
                 <button
                   type="button"
                   className="tv-btn-primary w-full mt-4 disabled:opacity-50"
-                  disabled={!quoteOk || paying || selectionOccupied}
-                  onClick={startStayCheckout}
+                  disabled={paying || selectionOccupied}
+                  onClick={() => {
+                    if (selectionOccupied) return;
+                    if (!quoteOk) {
+                      document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      window.requestAnimationFrame(() => {
+                        document.getElementById('stay-guests')?.focus();
+                      });
+                      return;
+                    }
+                    void startStayCheckout();
+                  }}
                 >
                   {selectionOccupied
                     ? 'Dates unavailable'
@@ -852,8 +862,15 @@ export default function StayDetails({ stayId, onBack }: Props) {
               <button
                 type="button"
                 className="tv-btn-primary shrink-0 disabled:opacity-50"
-                disabled={!quoteOk || paying || selectionOccupied}
-                onClick={startStayCheckout}
+                disabled={paying || selectionOccupied}
+                onClick={() => {
+                  if (selectionOccupied) return;
+                  if (!quoteOk) {
+                    document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    return;
+                  }
+                  void startStayCheckout();
+                }}
               >
                 {selectionOccupied
                   ? 'Dates unavailable'

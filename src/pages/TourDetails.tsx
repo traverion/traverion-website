@@ -646,8 +646,12 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       return;
     }
     if (selectedBookingVariant && departureTimes.length > 1 && !selectedDepartureTime.trim()) {
-      scrollElementIntoView('tour-booking-panel', { behavior: 'smooth', block: 'start' });
+      scrollElementIntoView('tour-departure-times', { behavior: 'smooth', block: 'center' });
       setBookingCardError('Choose a departure time to continue.');
+      window.requestAnimationFrame(() => {
+        const first = document.querySelector('#tour-departure-times button') as HTMLButtonElement | null;
+        first?.focus();
+      });
       return;
     }
     if (selectedBookingVariant && !checkoutFromUrl) {
@@ -1142,7 +1146,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                             <p className="text-sm font-semibold text-ink">{selectedBookingVariant.label}</p>
                           </div>
                           {departureTimes.length > 1 ? (
-                            <div>
+                            <div id="tour-departure-times">
                               <p className="text-sm font-medium text-ink mb-2">Departure time</p>
                               <div className="flex flex-wrap gap-2" role="group" aria-label="Departure time">
                                 {departureTimes.map((time) => {
