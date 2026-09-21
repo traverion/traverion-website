@@ -35,7 +35,7 @@ export function ListingCreationSceneProgress({
                 aria-current={current ? 'step' : undefined}
                 aria-label={`${label}, scene ${i + 1} of ${total}${current ? ', current' : ''}`}
                 className={`lux-flat block min-h-11 min-w-11 rounded-full p-3 disabled:cursor-default ${
-                  current ? 'text-finland' : 'text-ink-faint hover:text-ink-muted disabled:hover:text-ink-faint'
+                  current ? 'text-finland' : selectable ? 'text-ink-faint hover:text-ink-muted' : 'text-ink-faint/70'
                 }`}
               >
                 <span

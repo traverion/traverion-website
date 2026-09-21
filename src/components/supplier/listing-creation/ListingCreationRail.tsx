@@ -46,7 +46,9 @@ export function ListingCreationRail({
             </p>
           ) : null}
         </div>
-        {progressCopy ? <p className="mt-1 text-xs text-ink-muted">{progressCopy}</p> : null}
+        {progressCopy ? (
+          <p className="mt-1 text-xs font-medium tabular-nums text-ink-muted">{progressCopy}</p>
+        ) : null}
       </div>
       <nav aria-label={navLabel} className="min-h-0 flex-1 overflow-y-auto px-2 pb-6">
         <ol className="space-y-0.5">
