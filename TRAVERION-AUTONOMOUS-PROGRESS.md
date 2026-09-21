@@ -3,42 +3,45 @@
 **Mission:** Phases 0→400 autonomous product completion  
 **Started:** 2026-09-21  
 **Starting SHA:** `d38ff80`  
-**Current SHA:** `03375d5`  
-**Current phase:** ~175  
-**Current band:** 160–179 Checkout (departure time through Stripe TEST)
+**Current SHA:** `7f7926d`  
+**Current phase:** ~185  
+**Current band:** 180–199 Post-booking / checkout continuity
 
 ## Completed
 
-- 0–19: Product audit; Tour Details slim; orphan schedule cancel fix
-- 20–39: Multi-schedule cert copy + Sep/Oct overlap tests  
-- 40–59: Home Stripe TEST honesty
-- 80–159: Schedule-aware catalog, variants, capacity, Options list, date-resolved prices
-- 160–175: Traveler departure-time picker; checkout URL `time`; edge quote + booking `start_time`; stay mobile CTA quote gate
+- Product truth audit + Tour Details slim + orphan schedule fix
+- Multi-schedule creation cert (copy + Sep/Oct tests)
+- Home Stripe TEST honesty
+- Full schedule → traveler price/capacity/time wiring
+- Departure-time picker + checkout URL + edge start_time + booking record
+- Checkout age pricing uses resolved schedule
+- Stay mobile CTA requires valid quote
+- Calendar copy for schedule windows
 
 ## In progress
 
-- Checkout/trips polish; supplier ops if P0
+- Trips/status polish; supplier ops; mobile/a11y as found
 
 ## Next
 
-- Verify booking row displays start time (already wired in Trips/Bookings)
-- Mobile tour sticky CTA when time required
+- Trips detail language if raw statuses remain
 - Stay creation cert / Availability ops
-- Broader typecheck/build before Phase 400
+- Typecheck/build gates approaching Phase 400
 
-## Tests
+## Tests / gates
 
-- tourCheckoutUrl, booking-quote, headline-price, booking-flow.schedules, marketplace-loop
+- tsc --noEmit clean (post checkout schedule apply)
+- Unit: tourCheckoutUrl, booking-quote, schedules, marketplace-loop
 
 ## Decisions
 
-- Ready schedules own traveler price/capacity/time; checkout must pass `startTime` when ambiguous
-- Stripe stays TEST; do not commit `scripts/cert-transactional-emails.cjs`
+- Schedules are traveler commercial truth when present
+- Stripe TEST; no cert-transactional-emails commit
 
 ## Known issues
 
-- Edge deploy required for live TEST checkout to receive startTime (code committed locally)
-- Listing-wide paid guests vs per-schedule capacity still coarse
+- Edge function must be deployed for production TEST to store startTime
+- Coarse listing-wide capacity vs per-schedule inventory
 
 ## Deferred
 
