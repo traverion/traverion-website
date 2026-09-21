@@ -3,38 +3,35 @@
 **Mission:** Phases 0→400 autonomous product completion  
 **Started:** 2026-09-21  
 **Starting SHA:** `d38ff80`  
-**Current SHA:** `0963427`  
-**Current phase:** ~270  
-**Current band:** 260–279 trust / checkout clarity
+**Current SHA:** `cb95238`  
+**Current phase:** ~285  
+**Current band:** 280–299 commercial / trust polish
 
-## Completed
+## Completed (recent)
 
-- Schedule commercial truth end-to-end + slot checkout capacity
+- Schedule commercial truth + slot checkout capacity
 - Trips facts; Calendar selling-day; mobile CTA guidance
-- Multi-departure spots UI; checkout shows departure time
-- src/lib vitest 438 green; production build green
-
-## In progress
-
-- Reviews/trust polish; a11y; cert journeys as runway allows
+- Multi-departure spots UI; checkout departure summaries
+- NoticeCallout a11y live regions; Reviews empty → listings
+- src/lib 438 tests + production build green
 
 ## Next
 
-- Stay quote breakdown clarity if needed
-- Edge deploy reminder for startTime
+- More supplier ops / mobile / a11y as found
+- Edge deploy for startTime + slot capacity
 - Phase 400 handoff when stopping
 
 ## Gates
 
-- tsc + build + src/lib tests green (2026-09-21)
+- tsc + build + src/lib green
 
 ## Decisions
 
-- Schedules = commercial truth; Stripe TEST; no cert-email script commit
+- Schedules = commercial truth; Stripe TEST; no cert-email script
 
 ## Known issues
 
-- Edge must be deployed for production TEST startTime + slot capacity
+- Edge deploy required for production TEST
 - Public paid-guest RPC still day-level
 
 ## Deferred
