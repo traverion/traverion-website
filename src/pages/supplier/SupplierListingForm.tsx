@@ -14,7 +14,7 @@ import {
 } from '../../types/listingExtras';
 import ListingImageFields from '../../components/supplier/ListingImageFields';
 import { useAuth } from '../../contexts/AuthContext';
-import { summarizeOptionPricing } from '../../lib/price-categories';
+import { optionHeadlineUnitPrice, summarizeOptionPricing } from '../../lib/price-categories';
 import { headlineStartingAmountFromBookingOptions } from '../../lib/headline-price';
 import { listingDurationForPersist } from '../../lib/listing-option-ownership';
 import {
@@ -3278,8 +3278,28 @@ export default function SupplierListingForm({
                               const tos = ready.map((s) => s.availabilityDateTo).filter(Boolean).sort();
                               return formatScheduleRange(froms[0] ?? '', tos[tos.length - 1] ?? '');
                             })(),
-                            summarizeOptionPricing(opt, (n) => formatMoney(n, listingCurrency)),
-                            opt.maxSpotsPerSlot >= 1 ? `Max ${opt.maxSpotsPerSlot}` : null,
+                            (() => {
+                              const ready = listingOptionReadySchedules(opt);
+                              if (ready.length === 0) {
+                                return summarizeOptionPricing(opt, (n) => formatMoney(n, listingCurrency));
+                              }
+                              if (ready.length === 1) {
+                                return summarizeOptionPricing(ready[0], (n) => formatMoney(n, listingCurrency));
+                              }
+                              const prices = ready
+                                .map((s) => optionHeadlineUnitPrice(s))
+                                .filter((n) => n > 0);
+                              if (prices.length === 0) return 'Set schedule prices';
+                              return `From ${formatMoney(Math.min(...prices), listingCurrency)}`;
+                            })(),
+                            (() => {
+                              const ready = listingOptionReadySchedules(opt);
+                              if (ready.length > 0) {
+                                const max = Math.max(...ready.map((s) => s.maxSpotsPerSlot));
+                                return max >= 1 ? `Max ${max}` : null;
+                              }
+                              return opt.maxSpotsPerSlot >= 1 ? `Max ${opt.maxSpotsPerSlot}` : null;
+                            })(),
                           ]
                             .filter(Boolean)
                             .join(' · ')}
