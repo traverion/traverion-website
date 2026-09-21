@@ -1206,7 +1206,14 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                             <GuestStepper
                               id="tour-booking-guests"
                               value={guests}
-                              min={getPartySizeBoundsForVariant(tour, selectedBookingVariant, bookingDate).min}
+                              min={
+                                getPartySizeBoundsForVariant(
+                                  tour,
+                                  selectedBookingVariant,
+                                  bookingDate,
+                                  selectedDepartureTime
+                                ).min
+                              }
                               max={partyMaxForSelectedDay}
                               onChange={(next) => {
                                 setGuests(next);
