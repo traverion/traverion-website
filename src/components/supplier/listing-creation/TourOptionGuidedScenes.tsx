@@ -1,6 +1,6 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { ListingCreationSceneFrame } from './ListingCreationSceneFrame';
-import { TourOptionAvailabilityPricingSummary } from './TourOptionAvailabilityPricingSummary';
+import { TourOptionScheduleList } from './TourOptionScheduleList';
 import BookingOptionEditor from '../BookingOptionEditor';
 import {
   TOUR_OPTION_SCENE_COUNT,
@@ -9,12 +9,13 @@ import {
   tourOptionReadinessLabel,
   type TourOptionSceneId,
 } from '../../../lib/listing-option-scenes';
-import type { TourOptionConfigPanel } from '../../../lib/listing-option-progression';
 import {
-  isOptionAvailabilityConfigured,
-  summarizeOptionAvailability,
-  summarizeOptionCapacity,
-} from '../../../lib/listing-option-progression';
+  formatScheduleRange,
+  listingOptionReadySchedules,
+  optionScheduleCountLabel,
+  scheduleHeadlineName,
+} from '../../../lib/listing-option-schedules';
+import { optionHeadlineUnitPrice } from '../../../lib/price-categories';
 import type { ListingCreationSceneDirection } from '../../../lib/listing-creation-scenes';
 import type { ListingBookingOption } from '../../../types/listingExtras';
 
@@ -35,11 +36,16 @@ export function TourOptionGuidedScenes({
   onSelectScene,
   canSelectScene,
   onChange,
-  onConfigureAvailabilityPricing,
   formatAmount,
   priceSummary,
   validationMessages,
   attempted,
+  onAddSchedule,
+  onEditSchedule,
+  onDuplicateSchedule,
+  onDeleteSchedule,
+  pendingScheduleDeleteId,
+  onCancelScheduleDelete,
 }: {
   option: ListingBookingOption;
   sceneIndex: number;
@@ -50,11 +56,16 @@ export function TourOptionGuidedScenes({
   onSelectScene: (index: number) => void;
   canSelectScene?: (index: number) => boolean;
   onChange: (patch: Partial<ListingBookingOption>) => void;
-  onConfigureAvailabilityPricing: (panel: TourOptionConfigPanel) => void;
   formatAmount: (n: number) => string;
   priceSummary: string;
   validationMessages: string[];
   attempted?: boolean;
+  onAddSchedule: () => void;
+  onEditSchedule: (scheduleId: string) => void;
+  onDuplicateSchedule: (scheduleId: string) => void;
+  onDeleteSchedule: (scheduleId: string) => void;
+  pendingScheduleDeleteId: string | null;
+  onCancelScheduleDelete: () => void;
 }) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const scene = TOUR_OPTION_SCENES[sceneIndex] ?? TOUR_OPTION_SCENES[0];
@@ -84,14 +95,18 @@ export function TourOptionGuidedScenes({
           priceSummary={priceSummary}
           validationMessages={validationMessages}
           onEdit={(index) => onSelectScene(index)}
-          onConfigure={onConfigureAvailabilityPricing}
+          formatAmount={formatAmount}
         />
       ) : scene.id === 'availability_pricing' ? (
-        <TourOptionAvailabilityPricingSummary
+        <TourOptionScheduleList
           option={option}
-          currencyLabel={currencyLabel}
           formatAmount={formatAmount}
-          onConfigure={onConfigureAvailabilityPricing}
+          onAdd={onAddSchedule}
+          onEdit={onEditSchedule}
+          onDuplicate={onDuplicateSchedule}
+          onDelete={onDeleteSchedule}
+          pendingDeleteId={pendingScheduleDeleteId}
+          onCancelDelete={onCancelScheduleDelete}
         />
       ) : (
         <BookingOptionEditor
@@ -113,13 +128,13 @@ function OptionReviewSummary({
   priceSummary,
   validationMessages,
   onEdit,
-  onConfigure,
+  formatAmount,
 }: {
   option: ListingBookingOption;
   priceSummary: string;
   validationMessages: string[];
   onEdit: (sceneIndex: number) => void;
-  onConfigure: (panel: TourOptionConfigPanel) => void;
+  formatAmount: (n: number) => string;
 }) {
   const status = tourOptionReadiness(option, validationMessages);
   const meeting =
@@ -128,6 +143,7 @@ function OptionReviewSummary({
       : option.fulfillment === 'meeting_point'
         ? `Meeting point · ${option.pickupPlace.trim() || 'Not set'}`
         : option.pickupPlace.trim() || 'Not set';
+  const ready = listingOptionReadySchedules(option);
 
   return (
     <div className="space-y-4">
@@ -142,31 +158,34 @@ function OptionReviewSummary({
         onEdit={() => onEdit(0)}
       >
         <p className="text-sm font-semibold text-ink">{option.name.trim() || 'Untitled option'}</p>
-        <p className="text-sm text-ink-muted">
-          {[option.duration.trim() || 'Duration not set', option.startTime.trim() ? `starts ${option.startTime}` : '']
-            .filter(Boolean)
-            .join(' · ')}
-        </p>
+        <p className="text-sm text-ink-muted">{option.duration.trim() || 'Duration not set'}</p>
       </ReviewBlock>
       <ReviewBlock title="Meeting / pickup" complete={option.pickupPlace.trim().length >= 8} onEdit={() => onEdit(1)}>
         <p className="text-sm text-ink">{meeting}</p>
       </ReviewBlock>
       <ReviewBlock
-        title="Availability"
-        complete={isOptionAvailabilityConfigured(option)}
-        onEdit={() => onConfigure('availability')}
+        title="Availability & pricing"
+        complete={ready.length > 0}
+        onEdit={() => onEdit(2)}
       >
-        <p className="text-sm text-ink">{summarizeOptionAvailability(option)}</p>
-      </ReviewBlock>
-      <ReviewBlock
-        title="Pricing"
-        complete={Boolean(priceSummary && !/set price/i.test(priceSummary))}
-        onEdit={() => onConfigure('pricing')}
-      >
-        <p className="text-sm text-ink">{priceSummary || 'Not set'}</p>
-      </ReviewBlock>
-      <ReviewBlock title="Capacity" complete={option.maxSpotsPerSlot >= 1} onEdit={() => onConfigure('capacity')}>
-        <p className="text-sm text-ink">{summarizeOptionCapacity(option)}</p>
+        <p className="text-sm font-semibold text-ink">{optionScheduleCountLabel(option)}</p>
+        {ready.length > 0 ? (
+          <ul className="mt-2 space-y-1.5">
+            {ready.map((s, i) => (
+              <li key={s.id} className="text-sm text-ink">
+                {scheduleHeadlineName(s, i)}
+                {' · '}
+                {formatScheduleRange(s.availabilityDateFrom, s.availabilityDateTo)}
+                {' · '}
+                {s.startTime.trim()}
+                {' · From '}
+                {formatAmount(optionHeadlineUnitPrice(s))}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-ink-muted">{priceSummary || 'Add a ready schedule'}</p>
+        )}
       </ReviewBlock>
       {validationMessages.length > 0 ? (
         <div className="lc-section rounded-xl px-4 py-4" role="status">

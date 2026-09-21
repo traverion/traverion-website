@@ -1,5 +1,6 @@
 import { optionRunsOnDate } from './booking-quote';
 import type { TourBookingVariant } from './booking-flow';
+import { listingOptionHasSchedules, listingOptionReadySchedules } from './listing-option-schedules';
 
 export type TourOptionAvailabilityKind = 'none' | 'one' | 'many';
 
@@ -47,6 +48,13 @@ export function formatTourAvailabilityHeading(isoDate: string): string {
 export function optionMetaParts(variant: TourBookingVariant): string[] {
   const opt = variant.listingOption;
   if (!opt) return variant.subtitle ? [variant.subtitle] : [];
+  const times = listingOptionHasSchedules(opt)
+    ? [...new Set(listingOptionReadySchedules(opt).map((s) => s.startTime.trim()).filter(Boolean))].sort()
+    : opt.startTime.trim()
+      ? [opt.startTime.trim()]
+      : [];
+  const timeLine =
+    times.length === 1 ? `Starts ${times[0]}` : times.length > 1 ? `Starts ${times.join(', ')}` : null;
   const groupLine =
     opt.minPersons && opt.maxPersons
       ? opt.minPersons === opt.maxPersons
@@ -54,7 +62,7 @@ export function optionMetaParts(variant: TourBookingVariant): string[] {
         : `${opt.minPersons}–${opt.maxPersons} guests`
       : null;
   return [
-    opt.startTime.trim() ? `Starts ${opt.startTime.trim()}` : null,
+    timeLine,
     opt.duration.trim() || null,
     opt.isPrivate ? 'Private · your group only' : null,
     groupLine,

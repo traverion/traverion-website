@@ -4,7 +4,7 @@ import { ListingCreationNavButton } from './ListingCreationNavButton';
 /** Optional nested-object rail. Render only when a real nested workflow is supplied. */
 export function ListingCreationContextRail({ nav }: { nav: ListingCreationContextNav }) {
   return (
-    <aside className="listing-creation-context-rail hidden min-h-0 w-52 shrink-0 flex-col border-r border-black/[0.08] lg:flex">
+    <aside className="listing-creation-context-rail hidden h-full min-h-0 w-52 shrink-0 flex-col overflow-hidden border-r border-black/[0.08] lg:flex">
       <div className="px-4 pb-3 pt-8">
         <p className="font-display text-xl font-bold leading-snug tracking-tight text-ink">{nav.title}</p>
       </div>

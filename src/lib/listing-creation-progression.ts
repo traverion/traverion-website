@@ -85,8 +85,9 @@ export function listingCreationStepRequirement(stepIndex: number, isStay: boolea
   if (isStay) {
     if (stepIndex === 0) return 'Add a title, subtitle and description to continue.';
     if (stepIndex === 1) return 'Add city and country to continue.';
-    if (stepIndex === 2) return 'Set nightly rate, guest capacity, and check-in times to continue.';
-    if (stepIndex === 3) return 'Add at least four photos to continue.';
+    if (stepIndex === 2) return 'Set how many guests can stay to continue.';
+    if (stepIndex === 3) return 'Set nightly rate and check-in times to continue.';
+    if (stepIndex === 4) return 'Add at least four photos to continue.';
     return 'Finish the previous step to continue.';
   }
   if (stepIndex === 0) return 'Add a title, language and description to continue.';

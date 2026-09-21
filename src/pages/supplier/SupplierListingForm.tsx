@@ -34,18 +34,35 @@ import {
   canContinueTourOptionScene,
   canVisitTourOptionScene,
   isTourOptionSceneSatisfied,
-  summarizeOptionAvailability,
-  summarizeOptionCapacity,
-  tourOptionConfigPanelIssues,
-  tourOptionConfigSaveHint,
   tourOptionLockedReason,
   tourOptionSceneContinueHint,
-  type TourOptionConfigPanel,
 } from '../../lib/listing-option-progression';
 import {
   firstBookingOptionIssueFocusId,
   getBookingOptionValidationMessages,
 } from '../../lib/listing-option-validation';
+import {
+  blankOptionSchedule,
+  duplicateOptionSchedule,
+  ensureExplicitSchedules,
+  formatScheduleRange,
+  listingOptionReadySchedules,
+  newListingOptionScheduleId,
+  optionScheduleCountLabel,
+  removeOptionSchedule,
+  upsertOptionSchedule,
+} from '../../lib/listing-option-schedules';
+import type { ListingOptionSchedule } from '../../types/listingExtras';
+import {
+  canContinueTourScheduleScene,
+  canVisitTourScheduleScene,
+  firstScheduleIssueFocusId,
+  nextTourScheduleScene,
+  previousTourScheduleScene,
+  scheduleCanSaveReady,
+  tourScheduleSceneContinueHint,
+  clampTourScheduleSceneIndex,
+} from '../../lib/listing-schedule-wizard';
 import {
   compactPhotoSlotsAndLabels,
   normalizePhotoSlots,
@@ -113,7 +130,7 @@ import {
 import { ListingCreationWorkspace } from '../../components/supplier/listing-creation/ListingCreationWorkspace';
 import { TourBasicsGuidedScenes } from '../../components/supplier/listing-creation/TourBasicsGuidedScenes';
 import { TourOptionGuidedScenes } from '../../components/supplier/listing-creation/TourOptionGuidedScenes';
-import { TourOptionConfigWorkspace } from '../../components/supplier/listing-creation/TourOptionConfigWorkspace';
+import { TourScheduleWorkspace } from '../../components/supplier/listing-creation/TourScheduleWorkspace';
 import { isSupabaseConfigured } from '../../lib/supabase';
 import {
   shouldHydrateExistingListing,
@@ -174,13 +191,13 @@ const MAX_DESCRIPTION_LENGTH = TOUR_BASICS_DESCRIPTION_MAX;
 const MAX_ACCESSIBILITY_LENGTH = 500;
 const MAX_TIMELINE_LENGTH = 800;
 
-/** Stay and tour both end on Review (publish readiness). */
-function wizardStepCount(): number {
-  return 5;
+/** Tour: 5 steps. Stay: 6 (Property → Location → Space → Price → Photos → Review). */
+function wizardStepCount(isStay: boolean): number {
+  return isStay ? 6 : 5;
 }
 
 function wizardStepStorageKey(editingId: string | null, isStay: boolean) {
-  return `traverion-listing-wizard-step-v3-${isStay ? 'stay' : 'tour'}-${editingId ?? 'create'}`;
+  return `traverion-listing-wizard-step-v4-${isStay ? 'stay' : 'tour'}-${editingId ?? 'create'}`;
 }
 
 function readWizardStepFromStorage(editingId: string | null, isStay: boolean): number | null {
@@ -189,7 +206,7 @@ function readWizardStepFromStorage(editingId: string | null, isStay: boolean): n
     const raw = sessionStorage.getItem(wizardStepStorageKey(editingId, isStay));
     if (!raw) return null;
     const n = Number.parseInt(raw, 10);
-    const max = wizardStepCount();
+    const max = wizardStepCount(isStay);
     if (Number.isNaN(n) || n < 0 || n >= max) return null;
     return n;
   } catch {
@@ -321,6 +338,7 @@ function createEmptyBookingOption(): ListingBookingOption {
       availabilityDateFrom: '',
       availabilityDateTo: '',
       pricingMode: 'uniform',
+      schedules: [],
     },
     id
   );
@@ -746,37 +764,53 @@ function isStepSatisfied(idx: number, form: ListingFormState): boolean {
   }
   if (idx === 2) {
     if (form.inventoryFamily === 'stay') {
-      const nightly = Number.parseFloat(form.stayNightly);
       const maxG = Number.parseInt(form.stayMaxGuests, 10);
-      const checkIn = form.stayCheckIn.trim();
-      const checkOut = form.stayCheckOut.trim();
-      return (
-        Number.isFinite(nightly) &&
-        nightly > 0 &&
-        Number.isFinite(maxG) &&
-        maxG >= 1 &&
-        /^\d{2}:\d{2}$/.test(checkIn) &&
-        /^\d{2}:\d{2}$/.test(checkOut)
-      );
+      return Number.isFinite(maxG) && maxG >= 1;
     }
     const active = materializedBookingOptions(form.bookingOptions);
     return readyBookingOptions(active, optionValidationMessages).length >= 1;
   }
   if (idx === 3) {
-    // Photos: green check / ready count always match publish (4–12, real cover).
-    // Draft Continue still allows one photo so partners are not trapped mid-wizard.
+    if (form.inventoryFamily === 'stay') {
+      const nightly = Number.parseFloat(form.stayNightly);
+      const checkIn = form.stayCheckIn.trim();
+      const checkOut = form.stayCheckOut.trim();
+      return (
+        Number.isFinite(nightly) &&
+        nightly > 0 &&
+        /^\d{2}:\d{2}$/.test(checkIn) &&
+        /^\d{2}:\d{2}$/.test(checkOut)
+      );
+    }
     return listingPhotosReadyToPublish(form);
   }
   if (idx === 4) {
-    // Review — allow Continue/Save when prior steps are complete enough to publish or draft-save
-    return isStepSatisfied(0, form) && isStepSatisfied(1, form) && isStepSatisfied(2, form) && isStepSatisfied(3, form);
+    if (form.inventoryFamily === 'stay') {
+      return listingPhotosReadyToPublish(form);
+    }
+    return (
+      isStepSatisfied(0, form) &&
+      isStepSatisfied(1, form) &&
+      isStepSatisfied(2, form) &&
+      isStepSatisfied(3, form)
+    );
+  }
+  if (idx === 5) {
+    return (
+      isStepSatisfied(0, form) &&
+      isStepSatisfied(1, form) &&
+      isStepSatisfied(2, form) &&
+      isStepSatisfied(3, form) &&
+      isStepSatisfied(4, form)
+    );
   }
   return true;
 }
 
 /** Soft gate so existing drafts can move past Photos with a single cover. New creation requires publish-ready photos. */
 function canContinueListingStep(idx: number, form: ListingFormState, isNewCreation: boolean): boolean {
-  if (idx === 3) {
+  const photosIdx = form.inventoryFamily === 'stay' ? 4 : 3;
+  if (idx === photosIdx) {
     const photoCount = orderedPhotoUrls(normalizePhotoSlots(form.photoSlots)).length;
     return canContinueFromPhotos({
       isNewCreation,
@@ -848,7 +882,7 @@ interface SupplierListingFormProps {
   createFamily?: 'tour' | 'stay';
 }
 
-type StepId = 'the_experience' | 'practical' | 'cost_options' | 'photos' | 'review';
+type StepId = 'the_experience' | 'practical' | 'cost_options' | 'stay_price' | 'photos' | 'review';
 
 export default function SupplierListingForm({
   editingId,
@@ -937,11 +971,7 @@ export default function SupplierListingForm({
   const [optionPendingDeleteId, setOptionPendingDeleteId] = useState<string | null>(null);
   const [optionLockHint, setOptionLockHint] = useState<string | null>(null);
   const [optionAttempted, setOptionAttempted] = useState(false);
-  const [optionConfigPanel, setOptionConfigPanel] = useState<TourOptionConfigPanel | null>(null);
-  const [optionConfigAttempted, setOptionConfigAttempted] = useState(false);
-  const [optionConfigHint, setOptionConfigHint] = useState<string | null>(null);
   const optionSessionOpenedAsCreateRef = useRef(false);
-  const optionConfigSnapshotRef = useRef<ListingBookingOption | null>(null);
   const listingCurrency = useMemo(() => {
     const existing = editingId ? existingListings.find((t) => t.id === editingId) : undefined;
     return normalizeCurrency(existing?.price?.currency ?? DEFAULT_CURRENCY);
@@ -955,7 +985,18 @@ export default function SupplierListingForm({
   }, []);
   const [optionModalHasEndingDate, setOptionModalHasEndingDate] = useState(false);
   const optionModalOpenRef = useRef(false);
-  const optionConfigPanelRef = useRef<TourOptionConfigPanel | null>(null);
+  const [scheduleDraft, setScheduleDraft] = useState<ListingOptionSchedule | null>(null);
+  const [scheduleSceneIdx, setScheduleSceneIdx] = useState(0);
+  const [scheduleHasEndingDate, setScheduleHasEndingDate] = useState(true);
+  const [scheduleAttempted, setScheduleAttempted] = useState(false);
+  const [schedulePersistLabel, setSchedulePersistLabel] = useState<string | null>(null);
+  const [scheduleSaveError, setScheduleSaveError] = useState<string | null>(null);
+  const [scheduleLeaveOpen, setScheduleLeaveOpen] = useState(false);
+  const [pendingScheduleDeleteId, setPendingScheduleDeleteId] = useState<string | null>(null);
+  const scheduleSessionOpenedAsCreateRef = useRef(false);
+  const scheduleSnapshotRef = useRef<string>('');
+  const scheduleDraftRef = useRef<ListingOptionSchedule | null>(null);
+  const addScheduleLockRef = useRef(false);
 
   const steps = useMemo(() => {
     const stay = form.inventoryFamily === 'stay' || createFamily === 'stay';
@@ -963,7 +1004,8 @@ export default function SupplierListingForm({
       return [
         { id: 'the_experience' as StepId, label: 'Property' },
         { id: 'practical' as StepId, label: 'Location' },
-        { id: 'cost_options' as StepId, label: 'Pricing' },
+        { id: 'cost_options' as StepId, label: 'Space' },
+        { id: 'stay_price' as StepId, label: 'Price' },
         { id: 'photos' as StepId, label: 'Photos' },
         { id: 'review' as StepId, label: 'Review' },
       ];
@@ -983,7 +1025,8 @@ export default function SupplierListingForm({
       return [
         'Choose the property type and a clear title guests will recognize.',
         'Where is it, and what should guests know before they arrive?',
-        'Nightly rate, rooms, and capacity — priced for the whole stay, not per person.',
+        'How many guests can stay, and what space are they booking?',
+        'Nightly rate and arrival times. Block unavailable nights on Calendar after you publish.',
         'Add your strongest photo first — it becomes the cover in search.',
         'Check what’s ready, fix gaps, then save as draft or publish.',
       ] as const;
@@ -1001,7 +1044,8 @@ export default function SupplierListingForm({
     const photoCount = orderedPhotoUrls(normalizePhotoSlots(form.photoSlots)).length;
     const coverUrl = orderedPhotoUrls(normalizePhotoSlots(form.photoSlots))[0] ?? '';
     const coverSelected = Boolean(coverUrl && !isPlaceholderListingImageUrl(coverUrl));
-    const photosMissing = !isStepSatisfied(3, form)
+    const photosStepIdx = isStayForm ? 4 : 3;
+    const photosMissing = !isStepSatisfied(photosStepIdx, form)
       ? photoCount < LISTING_PHOTO_MIN
         ? `Add at least ${LISTING_PHOTO_MIN} photos, with a real cover.`
         : 'Replace the placeholder cover photo.'
@@ -1009,6 +1053,13 @@ export default function SupplierListingForm({
     if (isStayForm) {
       const nightly = Number.parseFloat(form.stayNightly);
       const nightlyLabel = Number.isFinite(nightly) && nightly > 0 ? formatMoney(nightly, listingCurrency) + ' / night' : '';
+      const spaceSummary = [
+        form.stayMaxGuests.trim() ? `${form.stayMaxGuests} guests` : null,
+        form.stayBedrooms.trim() ? `${form.stayBedrooms} bedroom${form.stayBedrooms === '1' ? '' : 's'}` : null,
+        form.stayBeds.trim() ? `${form.stayBeds} bed${form.stayBeds === '1' ? '' : 's'}` : null,
+      ]
+        .filter(Boolean)
+        .join(' · ');
       return [
         {
           step: 0,
@@ -1026,16 +1077,23 @@ export default function SupplierListingForm({
         },
         {
           step: 2,
-          label: 'Pricing',
-          summary: reviewStayPricingSummary(nightlyLabel, form.stayMaxGuests),
+          label: 'Space',
+          summary: spaceSummary || 'Guest capacity not set',
           ready: isStepSatisfied(2, form),
-          missing: !isStepSatisfied(2, form) ? 'Set nightly rate, capacity, and check-in times.' : null,
+          missing: !isStepSatisfied(2, form) ? 'Set how many guests can stay.' : null,
         },
         {
           step: 3,
+          label: 'Price',
+          summary: reviewStayPricingSummary(nightlyLabel, form.stayMaxGuests),
+          ready: isStepSatisfied(3, form),
+          missing: !isStepSatisfied(3, form) ? 'Set nightly rate and check-in times.' : null,
+        },
+        {
+          step: 4,
           label: 'Photos',
           summary: reviewPhotosSummary(photoCount, coverSelected && photoCount > 0),
-          ready: isStepSatisfied(3, form),
+          ready: isStepSatisfied(4, form),
           missing: photosMissing,
         },
       ];
@@ -1154,7 +1212,7 @@ export default function SupplierListingForm({
 
   const focusToStep: Record<string, number> = useMemo(() => {
     const stay = form.inventoryFamily === 'stay';
-    const photos = stay ? 3 : 3;
+    const photos = stay ? 4 : 3;
     return {
       language: 0,
       title: 0,
@@ -1312,8 +1370,8 @@ export default function SupplierListingForm({
   }, [optionModalOpen]);
 
   useEffect(() => {
-    optionConfigPanelRef.current = optionConfigPanel;
-  }, [optionConfigPanel]);
+    scheduleDraftRef.current = scheduleDraft;
+  }, [scheduleDraft]);
 
   useEffect(() => {
     if (!publishChecklistKey) {
@@ -1570,17 +1628,15 @@ export default function SupplierListingForm({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
+      if (scheduleDraftRef.current) {
+        e.preventDefault();
+        e.stopPropagation();
+        setScheduleLeaveOpen(true);
+        return;
+      }
       if (optionModalOpenRef.current) {
         e.preventDefault();
         e.stopPropagation();
-        if (optionConfigPanelRef.current) {
-          setOptionConfigPanel(null);
-          setOptionConfigAttempted(false);
-          setOptionConfigHint(null);
-          const snap = optionConfigSnapshotRef.current;
-          if (snap) setOptionModalDraft(snap);
-          return;
-        }
         setOptionModalOpen(false);
         setOptionModalDraft(null);
         setOptionModalEditingId(null);
@@ -1590,7 +1646,6 @@ export default function SupplierListingForm({
         setOptionSceneDirection('forward');
         setOptionLockHint(null);
         setOptionAttempted(false);
-        setOptionConfigPanel(null);
         optionSessionOpenedAsCreateRef.current = false;
         return;
       }
@@ -1623,8 +1678,12 @@ export default function SupplierListingForm({
             const photosRelated = blockers.some((b) =>
               /image|photo|gallery|hero|placeholder/i.test(b)
             );
-            const photosStep = form.inventoryFamily === 'stay' ? 3 : 3;
-            const go = photosRelated ? photosStep : form.inventoryFamily === 'stay' ? 0 : 4;
+            const photosStep = form.inventoryFamily === 'stay' ? 4 : 3;
+            const go = photosRelated
+              ? photosStep
+              : form.inventoryFamily === 'stay'
+                ? 5
+                : 4;
             writeWizardStepToStorage(editingId, go, form.inventoryFamily === 'stay');
             setStepIdx(go);
             return;
@@ -1692,11 +1751,10 @@ export default function SupplierListingForm({
     setOptionSceneDirection('forward');
     setOptionLockHint(null);
     setOptionAttempted(false);
-    setOptionConfigPanel(null);
-    setOptionConfigAttempted(false);
-    setOptionConfigHint(null);
-    optionConfigSnapshotRef.current = null;
+    setScheduleDraft(null);
+    setPendingScheduleDeleteId(null);
     optionSessionOpenedAsCreateRef.current = false;
+    scheduleSessionOpenedAsCreateRef.current = false;
   }, []);
 
   const optionEndingState = useCallback(
@@ -1741,7 +1799,7 @@ export default function SupplierListingForm({
     setOptionSceneDirection('forward');
     setOptionLockHint(null);
     setOptionAttempted(false);
-    setOptionConfigPanel(null);
+    setScheduleDraft(null);
     setOptionModalOpen(true);
   }, []);
 
@@ -1751,7 +1809,9 @@ export default function SupplierListingForm({
     optionSessionOpenedAsCreateRef.current = false;
     setOptionModalEditingId(id);
     setOptionModalDraft(
-      normalizeListingBookingOption({ ...(opt as unknown as Record<string, unknown>) }, opt.id)
+      ensureExplicitSchedules(
+        normalizeListingBookingOption({ ...(opt as unknown as Record<string, unknown>) }, opt.id)
+      )
     );
     setOptionModalErrors([]);
     setOptionModalHasEndingDate(opt.availabilityDateTo.trim().length > 0);
@@ -1759,7 +1819,7 @@ export default function SupplierListingForm({
     setOptionSceneDirection('forward');
     setOptionLockHint(null);
     setOptionAttempted(false);
-    setOptionConfigPanel(null);
+    setScheduleDraft(null);
     setOptionModalOpen(true);
   }, [form.bookingOptions]);
 
@@ -1851,39 +1911,209 @@ export default function SupplierListingForm({
     setOptionSceneIdxPersisted,
   ]);
 
-  const openOptionConfigPanel = useCallback((panel: TourOptionConfigPanel) => {
-    if (!optionModalDraft) return;
-    optionConfigSnapshotRef.current = optionModalDraft;
-    setOptionConfigPanel(panel);
-    setOptionConfigAttempted(false);
-    setOptionConfigHint(null);
-  }, [optionModalDraft]);
+  const scheduleIsDirty = useCallback(() => {
+    if (!scheduleDraft) return false;
+    return JSON.stringify(scheduleDraft) !== scheduleSnapshotRef.current;
+  }, [scheduleDraft]);
 
-  const cancelOptionConfigPanel = useCallback(() => {
-    const snap = optionConfigSnapshotRef.current;
-    if (snap) setOptionModalDraft(snap);
-    optionConfigSnapshotRef.current = null;
-    setOptionConfigPanel(null);
-    setOptionConfigAttempted(false);
-    setOptionConfigHint(null);
-  }, []);
-
-  const saveOptionConfigPanel = useCallback(() => {
-    if (!optionModalDraft || !optionConfigPanel) return;
-    const ending = optionEndingState();
-    const issues = tourOptionConfigPanelIssues(optionConfigPanel, optionModalDraft, ending);
-    if (issues.length) {
-      setOptionConfigAttempted(true);
-      setOptionConfigHint(tourOptionConfigSaveHint(optionConfigPanel, optionModalDraft, ending));
-      focusListingField(firstBookingOptionIssueFocusId(optionModalDraft, ending));
+  const closeScheduleWorkspace = useCallback((force = false) => {
+    if (!force && scheduleIsDirty()) {
+      setScheduleLeaveOpen(true);
       return;
     }
-    persistOptionDraftToForm(optionModalDraft);
-    optionConfigSnapshotRef.current = null;
-    setOptionConfigPanel(null);
-    setOptionConfigAttempted(false);
-    setOptionConfigHint(null);
-  }, [optionModalDraft, optionConfigPanel, optionEndingState, persistOptionDraftToForm]);
+    setScheduleLeaveOpen(false);
+    setScheduleDraft(null);
+    setScheduleSaveError(null);
+    setScheduleAttempted(false);
+    setSchedulePersistLabel(null);
+    scheduleSessionOpenedAsCreateRef.current = false;
+  }, [scheduleIsDirty]);
+
+  const applyScheduleToOptionDraft = useCallback(
+    (schedule: ListingOptionSchedule, persist: boolean) => {
+      if (!optionModalDraft) return optionModalDraft;
+      const next = upsertOptionSchedule(ensureExplicitSchedules(optionModalDraft), schedule);
+      setOptionModalDraft(next);
+      if (persist) persistOptionDraftToForm(next);
+      return next;
+    },
+    [optionModalDraft, persistOptionDraftToForm]
+  );
+
+  const openScheduleCreate = useCallback(() => {
+    if (!optionModalDraft || addScheduleLockRef.current) return;
+    addScheduleLockRef.current = true;
+    window.setTimeout(() => {
+      addScheduleLockRef.current = false;
+    }, 400);
+    const prepared = ensureExplicitSchedules(optionModalDraft);
+    const blank = blankOptionSchedule(newListingOptionScheduleId());
+    scheduleSessionOpenedAsCreateRef.current = true;
+    scheduleSnapshotRef.current = JSON.stringify(blank);
+    const next = upsertOptionSchedule(prepared, blank);
+    setOptionModalDraft(next);
+    persistOptionDraftToForm(next);
+    setScheduleDraft(blank);
+    setScheduleSceneIdx(0);
+    setScheduleHasEndingDate(true);
+    setScheduleAttempted(false);
+    setSchedulePersistLabel('Draft saved');
+    setScheduleSaveError(null);
+    setScheduleLeaveOpen(false);
+  }, [optionModalDraft, persistOptionDraftToForm]);
+
+  const openScheduleEdit = useCallback(
+    (scheduleId: string) => {
+      if (!optionModalDraft) return;
+      const prepared = ensureExplicitSchedules(optionModalDraft);
+      const existing = (prepared.schedules ?? []).find((s) => s.id === scheduleId);
+      if (!existing) return;
+      scheduleSessionOpenedAsCreateRef.current = false;
+      scheduleSnapshotRef.current = JSON.stringify(existing);
+      setOptionModalDraft(prepared);
+      setScheduleDraft(existing);
+      setScheduleSceneIdx(0);
+      setScheduleHasEndingDate(existing.availabilityDateTo.trim().length > 0);
+      setScheduleAttempted(false);
+      setSchedulePersistLabel(null);
+      setScheduleSaveError(null);
+      setScheduleLeaveOpen(false);
+    },
+    [optionModalDraft]
+  );
+
+  const duplicateSchedule = useCallback(
+    (scheduleId: string) => {
+      if (!optionModalDraft || addScheduleLockRef.current) return;
+      addScheduleLockRef.current = true;
+      window.setTimeout(() => {
+        addScheduleLockRef.current = false;
+      }, 400);
+      const prepared = ensureExplicitSchedules(optionModalDraft);
+      const source = (prepared.schedules ?? []).find((s) => s.id === scheduleId);
+      if (!source) return;
+      const copy = duplicateOptionSchedule(source, newListingOptionScheduleId());
+      scheduleSessionOpenedAsCreateRef.current = true;
+      scheduleSnapshotRef.current = JSON.stringify(copy);
+      const next = upsertOptionSchedule(prepared, copy);
+      setOptionModalDraft(next);
+      persistOptionDraftToForm(next);
+      setScheduleDraft(copy);
+      setScheduleSceneIdx(0);
+      setScheduleHasEndingDate(copy.availabilityDateTo.trim().length > 0);
+      setScheduleAttempted(false);
+      setSchedulePersistLabel('Draft saved');
+      setScheduleSaveError(null);
+    },
+    [optionModalDraft, persistOptionDraftToForm]
+  );
+
+  const deleteSchedule = useCallback(
+    (scheduleId: string) => {
+      if (!optionModalDraft) return;
+      if (pendingScheduleDeleteId !== scheduleId) {
+        setPendingScheduleDeleteId(scheduleId);
+        return;
+      }
+      const next = removeOptionSchedule(ensureExplicitSchedules(optionModalDraft), scheduleId);
+      setOptionModalDraft(next);
+      persistOptionDraftToForm(next);
+      setPendingScheduleDeleteId(null);
+    },
+    [optionModalDraft, pendingScheduleDeleteId, persistOptionDraftToForm]
+  );
+
+  const persistScheduleDraft = useCallback(
+    (schedule: ListingOptionSchedule) => {
+      try {
+        applyScheduleToOptionDraft(schedule, true);
+        scheduleSnapshotRef.current = JSON.stringify(schedule);
+        setSchedulePersistLabel('Draft saved');
+        setScheduleSaveError(null);
+        return true;
+      } catch (err) {
+        setSchedulePersistLabel('Save failed');
+        setScheduleSaveError(userFacingError(err, 'Couldn’t save this schedule. Your changes are still here.'));
+        return false;
+      }
+    },
+    [applyScheduleToOptionDraft]
+  );
+
+  const patchScheduleDraft = useCallback((patch: Partial<ListingOptionSchedule>) => {
+    setScheduleDraft((d) => (d ? { ...d, ...patch } : d));
+    setSchedulePersistLabel(null);
+  }, []);
+
+  const setScheduleSceneIdxPersisted = useCallback(
+    (index: number) => {
+      if (!scheduleDraft) return;
+      const allowed = canVisitTourScheduleScene({
+        targetIndex: index,
+        isNewSchedule: scheduleSessionOpenedAsCreateRef.current,
+        schedule: scheduleDraft,
+      });
+      if (!allowed) {
+        setScheduleAttempted(true);
+        focusListingField(firstScheduleIssueFocusId(scheduleDraft));
+        return;
+      }
+      setScheduleSceneIdx(clampTourScheduleSceneIndex(index));
+      setScheduleAttempted(false);
+    },
+    [scheduleDraft]
+  );
+
+  const saveScheduleAsDraft = useCallback(() => {
+    if (!scheduleDraft) return;
+    persistScheduleDraft({ ...scheduleDraft, status: 'draft' });
+  }, [scheduleDraft, persistScheduleDraft]);
+
+  const advanceScheduleScene = useCallback(() => {
+    if (!scheduleDraft || !optionModalDraft) return;
+    const canContinue = canContinueTourScheduleScene({
+      sceneIndex: scheduleSceneIdx,
+      schedule: scheduleDraft,
+      option: optionModalDraft,
+    });
+    if (!canContinue) {
+      setScheduleAttempted(true);
+      focusListingField(firstScheduleIssueFocusId(scheduleDraft));
+      return;
+    }
+    persistScheduleDraft({ ...scheduleDraft, status: 'draft' });
+    setScheduleSceneIdx(nextTourScheduleScene(scheduleSceneIdx));
+  }, [scheduleDraft, optionModalDraft, scheduleSceneIdx, persistScheduleDraft]);
+
+  const saveScheduleReady = useCallback(() => {
+    if (!scheduleDraft || !optionModalDraft) return;
+    const ready = { ...scheduleDraft, status: 'ready' as const };
+    const gate = scheduleCanSaveReady(ready, optionModalDraft);
+    if (!gate.ok) {
+      setScheduleAttempted(true);
+      setScheduleSaveError(gate.error);
+      focusListingField(firstScheduleIssueFocusId(ready));
+      return;
+    }
+    if (!persistScheduleDraft(ready)) return;
+    setScheduleDraft(null);
+    setScheduleLeaveOpen(false);
+    scheduleSessionOpenedAsCreateRef.current = false;
+  }, [scheduleDraft, optionModalDraft, persistScheduleDraft]);
+
+  const scheduleContinueHint =
+    scheduleDraft && optionModalDraft
+      ? tourScheduleSceneContinueHint({
+          sceneIndex: scheduleSceneIdx,
+          schedule: scheduleDraft,
+          option: optionModalDraft,
+          canContinue: canContinueTourScheduleScene({
+            sceneIndex: scheduleSceneIdx,
+            schedule: scheduleDraft,
+            option: optionModalDraft,
+          }),
+        })
+      : null;
 
   const saveOptionAsDraft = useCallback(() => {
     if (!optionModalDraft) return;
@@ -1920,7 +2150,11 @@ export default function SupplierListingForm({
           })
     : null;
 
-  const persistLabel = listingWizardPersistLabel({
+  const persistLabel = scheduleDraft
+    ? scheduleIsDirty()
+      ? 'Unsaved changes'
+      : schedulePersistLabel
+    : listingWizardPersistLabel({
     saving: draftCloseBusy || submitting,
     failed: Boolean(draftCloseError || submitError),
     dirty: isDirty(),
@@ -1989,7 +2223,7 @@ export default function SupplierListingForm({
             e.preventDefault();
           }}
           onClick={(e) => e.stopPropagation()}
-          className="pointer-events-auto motion-safe:animate-fade-in motion-reduce:animate-none flex min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden border-0 bg-paper shadow-none h-full rounded-none"
+          className="pointer-events-auto relative motion-safe:animate-fade-in motion-reduce:animate-none flex min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden border-0 bg-paper shadow-none h-full rounded-none"
         >
         <ListingCreationWorkspace
           title={creationTitle}
@@ -2027,23 +2261,7 @@ export default function SupplierListingForm({
                 }
               : null
           }
-          overlay={
-            tourOptionGuided && optionModalDraft && optionConfigPanel ? (
-              <TourOptionConfigWorkspace
-                panel={optionConfigPanel}
-                option={optionModalDraft}
-                listingTitle={form.title}
-                currencyLabel={listingCurrency}
-                hasEndingDate={optionModalHasEndingDate}
-                onHasEndingDateChange={setOptionModalHasEndingDate}
-                onChange={patchOptionDraft}
-                onCancel={cancelOptionConfigPanel}
-                onSave={saveOptionConfigPanel}
-                attempted={optionConfigAttempted}
-                saveHint={optionConfigHint}
-              />
-            ) : null
-          }
+          overlay={null}
           scrollRef={stepContainerRef}
           banners={
             <>
@@ -2301,11 +2519,16 @@ export default function SupplierListingForm({
                   })
                 }
                 onChange={patchOptionDraft}
-                onConfigureAvailabilityPricing={openOptionConfigPanel}
                 formatAmount={(n) => formatMoney(n, listingCurrency)}
                 priceSummary={summarizeOptionPricing(optionModalDraft, (n) => formatMoney(n, listingCurrency))}
                 validationMessages={optionValidationMessages(optionModalDraft, optionModalHasEndingDate)}
                 attempted={optionAttempted}
+                onAddSchedule={openScheduleCreate}
+                onEditSchedule={openScheduleEdit}
+                onDuplicateSchedule={duplicateSchedule}
+                onDeleteSchedule={deleteSchedule}
+                pendingScheduleDeleteId={pendingScheduleDeleteId}
+                onCancelScheduleDelete={() => setPendingScheduleDeleteId(null)}
               />
             </div>
           ) : (
@@ -2314,10 +2537,18 @@ export default function SupplierListingForm({
             className={`w-full ${
               stepIdx === 0 && !isStayForm
                 ? ''
-                : `motion-safe:animate-fade-in ${stepIdx === 3 ? 'max-w-5xl' : 'max-w-xl'}`
+                : `motion-safe:animate-fade-in ${
+                    stepIdx === (isStayForm ? 4 : 3) ? 'max-w-5xl' : 'max-w-xl'
+                  }`
             }`}
           >
-          {stepIdx !== 4 && !(stepIdx === 0 && !isStayForm) && !(stepIdx === 2 && !isStayForm) && stepIdx !== 3 ? (
+          {!(
+            (stepIdx === 0 && !isStayForm) ||
+            (stepIdx === 2 && !isStayForm) ||
+            stepIdx === (isStayForm ? 4 : 3) ||
+            stepIdx === (isStayForm ? 5 : 4) ||
+            (isStayForm && (stepIdx === 2 || stepIdx === 3))
+          ) ? (
             <header className="mb-8">
               <h3 className="font-display text-[1.85rem] font-bold tracking-tight text-ink">{steps[stepIdx].label}</h3>
               <p className="mt-1.5 text-sm leading-relaxed text-ink-muted">{stepGuidance[stepIdx]}</p>
@@ -2762,132 +2993,61 @@ export default function SupplierListingForm({
           )}
 
           {stepIdx === 2 && form.inventoryFamily === 'stay' && (
-            <div className="space-y-4">
-              <h3 id="supplier-listing-field-stay-price" className="font-display text-[1.85rem] font-bold tracking-tight text-ink">
-                Stay price and rooms
-              </h3>
-              <p className="text-sm text-ink-muted leading-snug">
-                Nightly rate for the whole property, not per guest. Travelers pay nights × rate (+ cleaning fee if set).
-                Block unavailable nights on Calendar after you publish — pricing here does not close dates.
-              </p>
-              <div className="grid sm:grid-cols-2 gap-3">
-                <label className="block text-sm">
-                  Nightly price ({listingCurrency})
-                  <input
-                    type="number"
-                    min={1}
-                    value={form.stayNightly}
-                    onChange={(e) => setForm((f) => ({ ...f, stayNightly: e.target.value }))}
-                    className="tv-input mt-1 w-full"
-                  />
-                </label>
-                <label className="block text-sm">
-                  Max guests
-                  <input
-                    type="number"
-                    min={1}
-                    value={form.stayMaxGuests}
-                    onChange={(e) => setForm((f) => ({ ...f, stayMaxGuests: e.target.value }))}
-                    className="tv-input mt-1 w-full"
-                  />
-                </label>
-                <label className="block text-sm">
-                  Bedrooms
-                  <input
-                    type="number"
-                    min={0}
-                    value={form.stayBedrooms}
-                    onChange={(e) => setForm((f) => ({ ...f, stayBedrooms: e.target.value }))}
-                    className="tv-input mt-1 w-full"
-                  />
-                </label>
-                <label className="block text-sm">
-                  Beds
-                  <input
-                    type="number"
-                    min={0}
-                    value={form.stayBeds}
-                    onChange={(e) => setForm((f) => ({ ...f, stayBeds: e.target.value }))}
-                    className="tv-input mt-1 w-full"
-                  />
-                </label>
-                <label className="block text-sm">
-                  Bathrooms
-                  <input
-                    type="number"
-                    min={0}
-                    step={0.5}
-                    value={form.stayBathrooms}
-                    onChange={(e) => setForm((f) => ({ ...f, stayBathrooms: e.target.value }))}
-                    className="tv-input mt-1 w-full"
-                  />
-                </label>
-                <label className="block text-sm">
-                  Minimum nights
-                  <input
-                    type="number"
-                    min={1}
-                    value={form.stayMinNights}
-                    onChange={(e) => setForm((f) => ({ ...f, stayMinNights: e.target.value }))}
-                    className="tv-input mt-1 w-full"
-                  />
-                </label>
-                <label className="block text-sm">
-                  Check-in
-                  <input
-                    type="time"
-                    value={form.stayCheckIn}
-                    onChange={(e) => setForm((f) => ({ ...f, stayCheckIn: e.target.value }))}
-                    className="tv-input mt-1 w-full"
-                    required
-                  />
-                </label>
-                <label className="block text-sm">
-                  Check-out
-                  <input
-                    type="time"
-                    value={form.stayCheckOut}
-                    onChange={(e) => setForm((f) => ({ ...f, stayCheckOut: e.target.value }))}
-                    className="tv-input mt-1 w-full"
-                    required
-                  />
-                </label>
+            <div className="space-y-5">
+              <div>
+                <h3 className="font-display text-[1.85rem] font-bold tracking-tight text-ink">Space</h3>
+                <p className="mt-1 text-sm text-ink-muted leading-snug max-w-xl">
+                  How many guests can stay, and what rooms they get.
+                </p>
               </div>
-              <label className="block text-sm">
-                Cleaning fee ({listingCurrency}, optional)
-                <input
-                  type="number"
-                  min={0}
-                  value={form.stayCleaningFee}
-                  onChange={(e) => setForm((f) => ({ ...f, stayCleaningFee: e.target.value }))}
-                  className="tv-input mt-1 w-full"
-                />
-              </label>
-              {Number.parseFloat(form.stayNightly) > 0 ? (
-                <div className="rounded-2xl bg-finland/[0.05] px-3.5 py-3.5 ring-1 ring-finland/15 space-y-1.5">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-finland">Traveler price preview</p>
-                  <p className="text-sm text-ink leading-relaxed">
-                    Example {Number.parseInt(form.stayMinNights, 10) > 1 ? `${form.stayMinNights}-night` : '1-night'} stay:{' '}
-                    {formatMoney(Number.parseFloat(form.stayNightly), listingCurrency)} ×{' '}
-                    {Math.max(1, Number.parseInt(form.stayMinNights, 10) || 1)} nights
-                    {Number.parseFloat(form.stayCleaningFee) > 0
-                      ? ` + ${formatMoney(Number.parseFloat(form.stayCleaningFee), listingCurrency)} cleaning`
-                      : ''}
-                    {' = '}
-                    <span className="font-semibold">
-                      {formatMoney(
-                        Number.parseFloat(form.stayNightly) * Math.max(1, Number.parseInt(form.stayMinNights, 10) || 1) +
-                          (Number.parseFloat(form.stayCleaningFee) > 0 ? Number.parseFloat(form.stayCleaningFee) : 0),
-                        listingCurrency
-                      )}
-                    </span>
-                    . Guests see this breakdown before they pay.
-                  </p>
+              <div className="lc-section space-y-4 rounded-xl px-4 py-4 sm:px-5">
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <label className="block text-sm">
+                    Max guests *
+                    <input
+                      type="number"
+                      min={1}
+                      value={form.stayMaxGuests}
+                      onChange={(e) => setForm((f) => ({ ...f, stayMaxGuests: e.target.value }))}
+                      className="tv-input mt-1 w-full"
+                    />
+                  </label>
+                  <label className="block text-sm">
+                    Bedrooms
+                    <input
+                      type="number"
+                      min={0}
+                      value={form.stayBedrooms}
+                      onChange={(e) => setForm((f) => ({ ...f, stayBedrooms: e.target.value }))}
+                      className="tv-input mt-1 w-full"
+                    />
+                  </label>
+                  <label className="block text-sm">
+                    Beds
+                    <input
+                      type="number"
+                      min={0}
+                      value={form.stayBeds}
+                      onChange={(e) => setForm((f) => ({ ...f, stayBeds: e.target.value }))}
+                      className="tv-input mt-1 w-full"
+                    />
+                  </label>
+                  <label className="block text-sm">
+                    Bathrooms
+                    <input
+                      type="number"
+                      min={0}
+                      step={0.5}
+                      value={form.stayBathrooms}
+                      onChange={(e) => setForm((f) => ({ ...f, stayBathrooms: e.target.value }))}
+                      className="tv-input mt-1 w-full"
+                    />
+                  </label>
                 </div>
-              ) : null}
-              <div id="supplier-listing-field-stay-amenities">
-                <p className="text-sm font-medium text-ink">Amenities</p>
-                <p className="text-xs text-ink-muted mt-0.5 mb-2">Travelers see these on the stay page. Tick what is actually there.</p>
+              </div>
+              <div id="supplier-listing-field-stay-amenities" className="lc-section space-y-3 rounded-xl px-4 py-4 sm:px-5">
+                <p className="text-sm font-semibold text-ink">Amenities</p>
+                <p className="text-xs text-ink-muted">Travelers see these on the stay page. Tick what is actually there.</p>
                 <div className="flex flex-wrap gap-2">
                   {STAY_AMENITY_PRESETS.map((label) => {
                     const on = stayAmenityHas(form.stayAmenities, label);
@@ -2908,7 +3068,7 @@ export default function SupplierListingForm({
                     );
                   })}
                 </div>
-                <label className="block text-sm mt-3">
+                <label className="block text-sm mt-1">
                   Other (comma separated)
                   <input
                     value={stayAmenityTokens(form.stayAmenities)
@@ -2926,12 +3086,108 @@ export default function SupplierListingForm({
                   />
                 </label>
               </div>
-              <label id="supplier-listing-field-stay-rules" className="block text-sm">
+            </div>
+          )}
+          {stepIdx === 3 && form.inventoryFamily === 'stay' && (
+            <div className="space-y-5">
+              <div>
+                <h3 id="supplier-listing-field-stay-price" className="font-display text-[1.85rem] font-bold tracking-tight text-ink">
+                  Price
+                </h3>
+                <p className="mt-1 text-sm text-ink-muted leading-snug max-w-xl">
+                  Nightly rate for the whole place, not per guest. Block unavailable nights on Calendar after you publish —
+                  this price does not close dates.
+                </p>
+              </div>
+              <div className="lc-section space-y-4 rounded-xl px-4 py-4 sm:px-5">
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <label className="block text-sm">
+                    Nightly price ({listingCurrency}) *
+                    <input
+                      type="number"
+                      min={1}
+                      value={form.stayNightly}
+                      onChange={(e) => setForm((f) => ({ ...f, stayNightly: e.target.value }))}
+                      className="tv-input mt-1 w-full"
+                    />
+                  </label>
+                  <label className="block text-sm">
+                    Minimum nights
+                    <input
+                      type="number"
+                      min={1}
+                      value={form.stayMinNights}
+                      onChange={(e) => setForm((f) => ({ ...f, stayMinNights: e.target.value }))}
+                      className="tv-input mt-1 w-full"
+                    />
+                  </label>
+                  <label className="block text-sm">
+                    Check-in *
+                    <input
+                      type="time"
+                      value={form.stayCheckIn}
+                      onChange={(e) => setForm((f) => ({ ...f, stayCheckIn: e.target.value }))}
+                      className="tv-input mt-1 w-full"
+                      required
+                    />
+                  </label>
+                  <label className="block text-sm">
+                    Check-out *
+                    <input
+                      type="time"
+                      value={form.stayCheckOut}
+                      onChange={(e) => setForm((f) => ({ ...f, stayCheckOut: e.target.value }))}
+                      className="tv-input mt-1 w-full"
+                      required
+                    />
+                  </label>
+                </div>
+                <label className="block text-sm">
+                  Cleaning fee ({listingCurrency}, optional)
+                  <input
+                    type="number"
+                    min={0}
+                    value={form.stayCleaningFee}
+                    onChange={(e) => setForm((f) => ({ ...f, stayCleaningFee: e.target.value }))}
+                    className="tv-input mt-1 w-full"
+                  />
+                </label>
+                {Number.parseFloat(form.stayNightly) > 0 ? (
+                  <div className="rounded-xl bg-finland/[0.05] px-3.5 py-3.5 ring-1 ring-finland/15 space-y-1.5">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-finland">
+                      Traveler price preview
+                    </p>
+                    <p className="text-sm text-ink leading-relaxed">
+                      Example {Number.parseInt(form.stayMinNights, 10) > 1 ? `${form.stayMinNights}-night` : '1-night'}{' '}
+                      stay:{' '}
+                      {formatMoney(Number.parseFloat(form.stayNightly), listingCurrency)} ×{' '}
+                      {Math.max(1, Number.parseInt(form.stayMinNights, 10) || 1)} nights
+                      {Number.parseFloat(form.stayCleaningFee) > 0
+                        ? ` + ${formatMoney(Number.parseFloat(form.stayCleaningFee), listingCurrency)} cleaning`
+                        : ''}
+                      {' = '}
+                      <span className="font-semibold">
+                        {formatMoney(
+                          Number.parseFloat(form.stayNightly) *
+                            Math.max(1, Number.parseInt(form.stayMinNights, 10) || 1) +
+                            (Number.parseFloat(form.stayCleaningFee) > 0
+                              ? Number.parseFloat(form.stayCleaningFee)
+                              : 0),
+                          listingCurrency
+                        )}
+                      </span>
+                      .
+                    </p>
+                  </div>
+                ) : null}
+              </div>
+              <label id="supplier-listing-field-stay-rules" className="lc-section block rounded-xl px-4 py-4 text-sm sm:px-5">
                 House rules
                 <textarea
                   value={form.stayHouseRules}
                   onChange={(e) => setForm((f) => ({ ...f, stayHouseRules: e.target.value }))}
-                  className="tv-input mt-1 w-full min-h-[5rem]"
+                  className="tv-input mt-2 w-full min-h-[5rem]"
+                  placeholder="Quiet hours, smoking, pets…"
                 />
               </label>
             </div>
@@ -2941,8 +3197,8 @@ export default function SupplierListingForm({
               <div>
                 <h3 className="font-display text-[1.85rem] font-bold tracking-tight text-ink">Options</h3>
                 <p className="mt-1 text-sm text-ink-muted leading-relaxed max-w-2xl">
-                  Each option is a bookable version of this tour. Drafts stay on this listing but do not count as ready
-                  until pricing, meeting place, and schedule are complete.
+                  Each option is a bookable version of this tour. Availability and seasonal prices live in schedules
+                  inside the option.
                 </p>
               </div>
               <div className="space-y-3">
@@ -2971,11 +3227,16 @@ export default function SupplierListingForm({
                         <p className="text-xs text-ink-muted">
                           {[
                             opt.duration.trim() || null,
-                            summarizeOptionAvailability(opt) !== 'Not configured'
-                              ? summarizeOptionAvailability(opt)
-                              : null,
+                            optionScheduleCountLabel(opt),
+                            (() => {
+                              const ready = listingOptionReadySchedules(opt);
+                              if (ready.length === 0) return null;
+                              const froms = ready.map((s) => s.availabilityDateFrom).filter(Boolean).sort();
+                              const tos = ready.map((s) => s.availabilityDateTo).filter(Boolean).sort();
+                              return formatScheduleRange(froms[0] ?? '', tos[tos.length - 1] ?? '');
+                            })(),
                             summarizeOptionPricing(opt, (n) => formatMoney(n, listingCurrency)),
-                            summarizeOptionCapacity(opt),
+                            opt.maxSpotsPerSlot >= 1 ? `Max ${opt.maxSpotsPerSlot}` : null,
                           ]
                             .filter(Boolean)
                             .join(' · ')}
@@ -3092,7 +3353,7 @@ export default function SupplierListingForm({
             </div>
           )}
 
-          {stepIdx === 3 && (() => {
+          {stepIdx === (isStayForm ? 4 : 3) && (() => {
             const photoCount = orderedPhotoUrls(normalizePhotoSlots(form.photoSlots)).length;
             const photosPublishReady = listingPhotosReadyToPublish(form);
             return (
@@ -3160,7 +3421,7 @@ export default function SupplierListingForm({
             );
           })()}
 
-          {stepIdx === 4 && (() => {
+          {stepIdx === (isStayForm ? 5 : 4) && (() => {
             const listingReady = publishBlockersPreview.length === 0;
             const truth = listingPublishTruth({
               listingReady,
@@ -3255,6 +3516,57 @@ export default function SupplierListingForm({
           </div>
           )}
         </ListingCreationWorkspace>
+        {scheduleDraft && optionModalDraft ? (
+          <>
+            <TourScheduleWorkspace
+              option={optionModalDraft}
+              schedule={scheduleDraft}
+              sceneIndex={scheduleSceneIdx}
+              isNewSchedule={scheduleSessionOpenedAsCreateRef.current}
+              persistLabel={scheduleIsDirty() ? 'Unsaved changes' : schedulePersistLabel}
+              currencyLabel={listingCurrency}
+              formatAmount={(n) => formatMoney(n, listingCurrency)}
+              hasEndingDate={scheduleHasEndingDate}
+              saveError={scheduleSaveError}
+              attempted={scheduleAttempted}
+              continueHint={scheduleContinueHint}
+              onHasEndingDateChange={setScheduleHasEndingDate}
+              onChange={patchScheduleDraft}
+              onSelectScene={setScheduleSceneIdxPersisted}
+              onBack={() => {
+                if (scheduleSceneIdx > 0) {
+                  setScheduleSceneIdx(previousTourScheduleScene(scheduleSceneIdx));
+                  return;
+                }
+                closeScheduleWorkspace();
+              }}
+              onCancel={() => closeScheduleWorkspace()}
+              onSaveDraft={saveScheduleAsDraft}
+              onContinue={advanceScheduleScene}
+              onSaveReady={saveScheduleReady}
+            />
+            {scheduleLeaveOpen ? (
+              <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+                <div className="lc-section w-full max-w-sm rounded-xl px-5 py-5" role="alertdialog" aria-labelledby="schedule-leave-title">
+                  <p id="schedule-leave-title" className="font-display text-lg font-bold text-ink">
+                    Leave without saving changes?
+                  </p>
+                  <p className="mt-2 text-sm text-ink-muted">
+                    This schedule still has edits that have not been saved.
+                  </p>
+                  <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                    <button type="button" className="tv-btn-ghost !min-h-11" onClick={() => setScheduleLeaveOpen(false)}>
+                      Keep editing
+                    </button>
+                    <button type="button" className="tv-btn-primary !min-h-11" onClick={() => closeScheduleWorkspace(true)}>
+                      Leave
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </>
+        ) : null}
       </form>
       </div>
     </div>

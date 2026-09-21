@@ -398,6 +398,27 @@ export function blankOptionSchedule(id: string): ListingOptionSchedule {
   };
 }
 
+export function ensureExplicitSchedules(option: ListingBookingOption): ListingBookingOption {
+  if (option.schedules !== undefined) return option;
+  const implicit = listingOptionSchedules(option);
+  if (implicit.length === 0) return { ...option, schedules: [] };
+  return {
+    ...option,
+    schedules: implicit.map((s) => ({
+      ...s,
+      id: isImplicitScheduleId(s.id) ? newListingOptionScheduleId() : s.id,
+    })),
+  };
+}
+
+export function optionScheduleCountLabel(option: ListingBookingOption): string {
+  const n = listingOptionHasSchedules(option)
+    ? (option.schedules ?? []).length
+    : listingOptionSchedules(option).length;
+  if (n === 0) return 'No schedules';
+  return n === 1 ? '1 schedule' : `${n} schedules`;
+}
+
 export function optionHasReadySchedule(option: ListingBookingOption): boolean {
   if (listingOptionHasSchedules(option)) {
     return (option.schedules ?? []).some((s) => s.status !== 'draft' && scheduleWizardIsComplete(s) && scheduleIsBookable(s));

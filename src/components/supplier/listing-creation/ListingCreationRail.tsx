@@ -23,7 +23,7 @@ export function ListingCreationRail({
   exitBusy: boolean;
 }) {
   return (
-    <aside className="listing-creation-rail hidden min-h-0 w-[15.75rem] shrink-0 flex-col border-r border-black/[0.08] lg:flex xl:w-[16.5rem]">
+    <aside className="listing-creation-rail hidden h-full min-h-0 w-[15.75rem] shrink-0 flex-col overflow-hidden border-r border-black/[0.08] lg:flex xl:w-[16.5rem]">
       <div className="px-4 pb-4 pt-[max(0.75rem,env(safe-area-inset-top))]">
         <button
           type="button"

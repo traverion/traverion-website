@@ -26,7 +26,8 @@ export type BookingOptionEditorSection =
   | 'pricing'
   | 'schedule'
   | 'availability'
-  | 'capacity';
+  | 'capacity'
+  | 'price_capacity';
 
 type Props = {
   option: ListingBookingOption;
@@ -132,10 +133,14 @@ export default function BookingOptionEditor({
 
   const showSetup = !activeSection || activeSection === 'setup';
   const showMeeting = !activeSection || activeSection === 'meeting';
-  const showPricing = !activeSection || activeSection === 'pricing';
+  const showPricing = !activeSection || activeSection === 'pricing' || activeSection === 'price_capacity';
   const showAvailability =
     !activeSection || activeSection === 'schedule' || activeSection === 'availability';
-  const showCapacity = !activeSection || activeSection === 'schedule' || activeSection === 'capacity';
+  const showCapacity =
+    !activeSection ||
+    activeSection === 'schedule' ||
+    activeSection === 'capacity' ||
+    activeSection === 'price_capacity';
 
   const nameInvalid = attempted && !option.name.trim();
   const infoInvalid = attempted && option.optionInfo.trim().length < 3;
@@ -613,7 +618,7 @@ export default function BookingOptionEditor({
                 aria-invalid={startInvalid || undefined}
               />
               <p className="mt-1 text-xs text-ink-muted">
-                One departure time per option. A second time is a separate option.
+                One departure time for this schedule. A second time is another schedule on the same option.
               </p>
             </div>
           </div>
