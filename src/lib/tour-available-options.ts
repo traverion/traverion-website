@@ -48,18 +48,17 @@ export function formatTourAvailabilityHeading(isoDate: string): string {
 export function optionMetaParts(variant: TourBookingVariant): string[] {
   const opt = variant.listingOption;
   if (!opt) return variant.subtitle ? [variant.subtitle] : [];
-  const times = listingOptionHasSchedules(opt)
-    ? [...new Set(listingOptionReadySchedules(opt).map((s) => s.startTime.trim()).filter(Boolean))].sort()
-    : opt.startTime.trim()
-      ? [opt.startTime.trim()]
-      : [];
+  const timedShapes = listingOptionHasSchedules(opt) ? listingOptionReadySchedules(opt) : [opt];
+  const times = [...new Set(timedShapes.map((s) => s.startTime.trim()).filter(Boolean))].sort();
   const timeLine =
     times.length === 1 ? `Starts ${times[0]}` : times.length > 1 ? `Starts ${times.join(', ')}` : null;
+  const minPersons = Math.min(...timedShapes.map((s) => s.minPersons));
+  const maxPersons = Math.max(...timedShapes.map((s) => s.maxPersons));
   const groupLine =
-    opt.minPersons && opt.maxPersons
-      ? opt.minPersons === opt.maxPersons
-        ? `${opt.maxPersons} guests`
-        : `${opt.minPersons}–${opt.maxPersons} guests`
+    Number.isFinite(minPersons) && Number.isFinite(maxPersons)
+      ? minPersons === maxPersons
+        ? `${maxPersons} guests`
+        : `${minPersons}–${maxPersons} guests`
       : null;
   return [
     timeLine,

@@ -3,6 +3,12 @@ import type { TourPackage } from '../types/tour';
 import type { ListingBookingOption } from '../types/listingExtras';
 import { materializedBookingOptions } from '../types/listingExtras';
 import { travelerFacingBookingOptions } from './legacy-participant-options';
+import {
+  listingOptionHasSchedules,
+  listingOptionReadySchedules,
+  resolveScheduleForDate,
+} from './listing-option-schedules';
+import { optionHeadlineUnitPrice } from './price-categories';
 
 const DRAFT_KEY = (tourId: string) => `traverion_booking_draft_v1_${tourId}`;
 
@@ -44,12 +50,30 @@ export function parseGroupSizeRange(groupSize: string | undefined): { min: numbe
 export function getPartySizeBounds(tour: TourPackage): { min: number; max: number } {
   const opts = materializedBookingOptions(tour.listingExtras?.bookingOptions);
   if (opts.length > 0) {
-    const min = Math.min(...opts.map((o) => o.minPersons));
-    const max = Math.max(...opts.map((o) => o.maxPersons));
-    return {
-      min: Math.max(1, min),
-      max: Math.min(99, Math.max(min, max)),
-    };
+    const mins: number[] = [];
+    const maxes: number[] = [];
+    for (const o of opts) {
+      if (listingOptionHasSchedules(o)) {
+        const ready = listingOptionReadySchedules(o);
+        if (ready.length > 0) {
+          for (const s of ready) {
+            mins.push(s.minPersons);
+            maxes.push(s.maxPersons);
+          }
+          continue;
+        }
+      }
+      mins.push(o.minPersons);
+      maxes.push(o.maxPersons);
+    }
+    if (mins.length > 0 && maxes.length > 0) {
+      const min = Math.min(...mins);
+      const max = Math.max(...maxes);
+      return {
+        min: Math.max(1, min),
+        max: Math.min(99, Math.max(min, max)),
+      };
+    }
   }
   const parsed = parseGroupSizeRange(tour.groupSize);
   if (parsed) {
@@ -64,10 +88,28 @@ export function getPartySizeBounds(tour: TourPackage): { min: number; max: numbe
 /** Min/max for a specific bookable option; falls back to listing-wide bounds. */
 export function getPartySizeBoundsForVariant(
   tour: TourPackage,
-  variant: TourBookingVariant | null
+  variant: TourBookingVariant | null,
+  bookingDateIso?: string
 ): { min: number; max: number } {
   const opt = variant?.listingOption;
   if (opt) {
+    if (listingOptionHasSchedules(opt)) {
+      const day = bookingDateIso?.trim() ?? '';
+      if (/^\d{4}-\d{2}-\d{2}$/.test(day)) {
+        const resolved = resolveScheduleForDate(opt, day);
+        if (resolved) {
+          const min = Math.max(1, Math.floor(resolved.minPersons));
+          const max = Math.min(99, Math.max(min, Math.floor(resolved.maxPersons)));
+          return { min, max };
+        }
+      }
+      const ready = listingOptionReadySchedules(opt);
+      if (ready.length > 0) {
+        const min = Math.max(1, Math.min(...ready.map((s) => Math.floor(s.minPersons))));
+        const max = Math.min(99, Math.max(min, Math.max(...ready.map((s) => Math.floor(s.maxPersons)))));
+        return { min, max };
+      }
+    }
     const min = Math.max(1, Math.floor(opt.minPersons));
     const max = Math.min(99, Math.max(min, Math.floor(opt.maxPersons)));
     return { min, max };
@@ -114,10 +156,20 @@ export function getTourBookingVariants(tour: TourPackage): TourBookingVariant[] 
   const basePrice = tour.price?.startingFrom ?? 0;
   if (opts.length > 0) {
     return opts.map((o) => {
-      const price = typeof o.priceUsd === 'number' && o.priceUsd >= 0 ? o.priceUsd : basePrice;
+      let price = typeof o.priceUsd === 'number' && o.priceUsd >= 0 ? o.priceUsd : basePrice;
+      let startLabel: string | null = o.startTime?.trim() ? `Starts ${o.startTime.trim()}` : null;
+      if (listingOptionHasSchedules(o)) {
+        const ready = listingOptionReadySchedules(o);
+        const schedulePrices = ready.map((s) => optionHeadlineUnitPrice(s)).filter((n) => n > 0);
+        if (schedulePrices.length > 0) price = Math.min(...schedulePrices);
+        const times = [...new Set(ready.map((s) => s.startTime.trim()).filter(Boolean))].sort();
+        if (times.length === 1) startLabel = `Starts ${times[0]}`;
+        else if (times.length > 1) startLabel = `From ${times[0]}`;
+        else startLabel = null;
+      }
       const subtitleParts = [
         o.duration?.trim(),
-        o.startTime?.trim() ? `Starts ${o.startTime.trim()}` : null,
+        startLabel,
         o.isPrivate ? 'Private' : null,
         o.pickupPlace?.trim() || null,
         o.maxPersons ? `Up to ${o.maxPersons} guests` : null,

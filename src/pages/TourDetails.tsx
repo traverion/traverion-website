@@ -318,10 +318,10 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
 
   const partyMaxForSelectedDay = useMemo(() => {
     if (!tour) return partyBounds.max;
-    const base = getPartySizeBoundsForVariant(tour, selectedBookingVariant).max;
+    const base = getPartySizeBoundsForVariant(tour, selectedBookingVariant, bookingDate).max;
     if (selectedDaySpotsLeft == null || selectedDaySpotsLeft < 1) return base;
     return Math.max(1, Math.min(base, selectedDaySpotsLeft));
-  }, [tour, selectedBookingVariant, partyBounds.max, selectedDaySpotsLeft]);
+  }, [tour, selectedBookingVariant, partyBounds.max, selectedDaySpotsLeft, bookingDate]);
 
   useEffect(() => {
     if (!tour?.id) return;
@@ -635,7 +635,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     if (optionUsesAgePricing(variant.listingOption)) {
       setParticipantMix(emptyMixSelection(variant.listingOption!));
     } else {
-      const bounds = getPartySizeBoundsForVariant(tour, variant);
+      const bounds = getPartySizeBoundsForVariant(tour, variant, bookingDate);
       setGuests((g) => Math.min(bounds.max, Math.max(bounds.min, g)));
     }
   };
@@ -662,7 +662,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
         buildParticipantMixLines(selectedBookingVariant.listingOption!, participantMix)
       );
     } else {
-      const variantBounds = getPartySizeBoundsForVariant(tour, selectedBookingVariant);
+      const variantBounds = getPartySizeBoundsForVariant(tour, selectedBookingVariant, bookingDate);
       const guestErr = guestCountValidationError(guests, variantBounds);
       if (guestErr) {
         setBookingCardError(guestErr);
@@ -1104,7 +1104,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                             <GuestStepper
                               id="tour-booking-guests"
                               value={guests}
-                              min={getPartySizeBoundsForVariant(tour, selectedBookingVariant).min}
+                              min={getPartySizeBoundsForVariant(tour, selectedBookingVariant, bookingDate).min}
                               max={partyMaxForSelectedDay}
                               onChange={(next) => {
                                 setGuests(next);
