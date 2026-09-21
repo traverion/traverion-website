@@ -34,6 +34,15 @@ describe('tour checkout URL', () => {
       ...baseState,
       guests: 1,
       step: 'review',
+      startTime: undefined,
+    });
+  });
+
+  it('round-trips an optional departure time', () => {
+    const href = tourCheckoutPath(TOUR_ID, { ...baseState, startTime: '19:00' });
+    expect(href).toContain('time=19%3A00');
+    expect(parseTourCheckoutSearch(href.slice(href.indexOf('?')))).toMatchObject({
+      startTime: '19:00',
     });
   });
 
@@ -56,6 +65,7 @@ describe('tour checkout URL', () => {
       mix: { adult: 2, child: 1 },
       step: 'contact',
       paymentCancelled: false,
+      startTime: undefined,
     });
   });
 

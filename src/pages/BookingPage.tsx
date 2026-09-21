@@ -96,6 +96,8 @@ interface BookingPageProps {
   /** When opening booking from tour sidebar after “Check availability”. */
   initialDate?: string;
   initialGuests?: number;
+  /** Departure HH:MM when multiple schedules apply on the date. */
+  initialStartTime?: string;
   /** Age-category quantities when the selected option uses age-dependent pricing. */
   initialParticipantMix?: Record<string, number>;
   presentation?: 'page' | 'modal';
@@ -111,6 +113,7 @@ interface BookingPageProps {
     date: string;
     guests: number;
     mix: Record<string, number> | null;
+    startTime?: string;
   }) => void;
 }
 
@@ -178,6 +181,7 @@ export default function BookingPage({
   onBack,
   initialDate,
   initialGuests,
+  initialStartTime,
   initialParticipantMix,
   presentation = 'page',
   selectedVariant = null,
@@ -228,6 +232,7 @@ export default function BookingPage({
   const bookingModalRef = useRef<HTMLDivElement>(null);
   const currency = normalizeCurrency(tour.price?.currency);
   const fallbackBasePrice = tour.price?.startingFrom ?? 0;
+  const departureTime = (initialStartTime ?? '').trim() || undefined;
   const priceInfo = useMemo(() => {
     const day = date.trim() || localYmd();
     const optionId =
@@ -239,6 +244,7 @@ export default function BookingPage({
       guests,
       bookingOptionId: optionId,
       participantMix: Object.keys(participantMix).length > 0 ? participantMix : null,
+      startTime: departureTime,
     });
     if (quoted.ok) {
       return {
@@ -255,7 +261,7 @@ export default function BookingPage({
       };
     }
     return { price: fallbackBasePrice, originalPrice: fallbackBasePrice, label: undefined as string | undefined, quote: quoted };
-  }, [presentation, selectedVariant, tour, date, guests, discountsByListing, fallbackBasePrice, participantMix]);
+  }, [presentation, selectedVariant, tour, date, guests, discountsByListing, fallbackBasePrice, participantMix, departureTime]);
 
   const pricePerPerson = priceInfo.price;
   const quoted = priceInfo.quote && priceInfo.quote.ok ? priceInfo.quote : null;
@@ -496,8 +502,9 @@ export default function BookingPage({
       date: date.trim(),
       guests,
       mix: Object.keys(participantMix).length > 0 ? participantMix : null,
+      startTime: departureTime,
     });
-  }, [step, date, guests, participantMix, onCheckoutUrlState, presentation, selectedVariant]);
+  }, [step, date, guests, participantMix, onCheckoutUrlState, presentation, selectedVariant, departureTime]);
 
   useEffect(() => {
     if (presentation !== 'modal') return;
@@ -693,6 +700,7 @@ export default function BookingPage({
           guests,
           bookingOptionId: optionId,
           participantMix: Object.keys(participantMix).length > 0 ? participantMix : null,
+          startTime: departureTime,
         });
         if (!quoted.ok) {
           setError(userFacingError(quoted.error, USER_ERROR.checkout));

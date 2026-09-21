@@ -80,6 +80,9 @@ import { quoteBooking } from '../lib/booking-quote';
 import {
   listingOptionHasSchedules,
   listingOptionReadySchedules,
+  departureTimesOnDate,
+  resolveScheduleForDate,
+  applyScheduleToOption,
 } from '../lib/listing-option-schedules';
 import { formatTourAvailabilityHeading, optionsOnDate } from '../lib/tour-available-options';
 import { fetchWishlistListingIds, toggleWishlist } from '../data/supabase-wishlist';
@@ -153,6 +156,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   );
   const openedCheckoutViaPushRef = useRef(false);
   const [selectedBookingVariant, setSelectedBookingVariant] = useState<TourBookingVariant | null>(null);
+  const [selectedDepartureTime, setSelectedDepartureTime] = useState('');
   const [participantMix, setParticipantMix] = useState<ParticipantMixSelection>({});
   const [variantChecking, setVariantChecking] = useState(false);
   const [galleryLightboxOpen, setGalleryLightboxOpen] = useState(false);
@@ -242,15 +246,43 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   }, [tour]);
 
   const selectedOption = selectedBookingVariant?.listingOption ?? null;
-  const usesAgePricing = optionUsesAgePricing(selectedOption);
-  const usesPrivateFlat = optionUsesPrivateFlatPrice(selectedOption);
+  const departureTimes = useMemo(() => {
+    if (!selectedOption || !bookingDate.trim()) return [] as string[];
+    return departureTimesOnDate(selectedOption, bookingDate.trim());
+  }, [selectedOption, bookingDate]);
+
+  useEffect(() => {
+    if (departureTimes.length === 1) {
+      setSelectedDepartureTime(departureTimes[0]);
+      return;
+    }
+    if (departureTimes.length === 0) {
+      setSelectedDepartureTime('');
+      return;
+    }
+    setSelectedDepartureTime((prev) => (departureTimes.includes(prev) ? prev : ''));
+  }, [departureTimes]);
+
+  const selectedOptionApplied = useMemo(() => {
+    if (!selectedOption) return null;
+    if (!listingOptionHasSchedules(selectedOption)) return selectedOption;
+    const resolved = resolveScheduleForDate(
+      selectedOption,
+      bookingDate.trim(),
+      selectedDepartureTime || undefined
+    );
+    return resolved ? applyScheduleToOption(selectedOption, resolved) : selectedOption;
+  }, [selectedOption, bookingDate, selectedDepartureTime]);
+
+  const usesAgePricing = optionUsesAgePricing(selectedOptionApplied);
+  const usesPrivateFlat = optionUsesPrivateFlatPrice(selectedOptionApplied);
 
   const panelQuote = useMemo(() => {
     if (!tour || !bookingDate.trim() || !selectedBookingVariant) return null;
     const optionId =
       selectedBookingVariant.id !== '__default__' ? selectedBookingVariant.id : null;
     const guestsForQuote = usesAgePricing
-      ? Math.max(1, totalGuestsFromMix(buildParticipantMixLines(selectedOption!, participantMix)))
+      ? Math.max(1, totalGuestsFromMix(buildParticipantMixLines(selectedOptionApplied!, participantMix)))
       : guests;
     return quoteBooking({
       tour,
@@ -259,16 +291,18 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       guests: guestsForQuote,
       bookingOptionId: optionId,
       participantMix: usesAgePricing ? participantMix : null,
+      startTime: selectedDepartureTime || undefined,
     });
   }, [
     tour,
     bookingDate,
     selectedBookingVariant,
-    selectedOption,
+    selectedOptionApplied,
     usesAgePricing,
     participantMix,
     guests,
     discountsByListing,
+    selectedDepartureTime,
   ]);
 
   const scrollToOptionsSection = useCallback(() => {
@@ -583,6 +617,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       date: string;
       guests: number;
       mix?: Record<string, number> | null;
+      startTime?: string;
     }) => {
       if (!tour || !checkoutFromUrl) return;
       const href = tourCheckoutPath(tour.id, {
@@ -591,6 +626,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
         guests: patch.guests,
         step: patch.step,
         mix: patch.mix !== undefined ? patch.mix : checkoutFromUrl.mix,
+        startTime: patch.startTime !== undefined ? patch.startTime : checkoutFromUrl.startTime,
       });
       const current = `${window.location.pathname}${window.location.search}`;
       if (current !== href) {
@@ -631,6 +667,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     }
     setBookingCardError(null);
     setSelectedBookingVariant(variant);
+    setSelectedDepartureTime('');
     setBookingVariantsOpen(true);
     if (optionUsesAgePricing(variant.listingOption)) {
       setParticipantMix(emptyMixSelection(variant.listingOption!));
@@ -652,14 +689,18 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       return;
     }
     let partySize = guests;
-    if (optionUsesAgePricing(selectedBookingVariant.listingOption)) {
-      const mixErr = validateParticipantMix(selectedBookingVariant.listingOption!, participantMix);
+    if (departureTimes.length > 1 && !selectedDepartureTime.trim()) {
+      setBookingCardError('Choose a departure time to continue.');
+      return;
+    }
+    if (optionUsesAgePricing(selectedOptionApplied)) {
+      const mixErr = validateParticipantMix(selectedOptionApplied!, participantMix);
       if (mixErr) {
         setBookingCardError(mixErr);
         return;
       }
       partySize = totalGuestsFromMix(
-        buildParticipantMixLines(selectedBookingVariant.listingOption!, participantMix)
+        buildParticipantMixLines(selectedOptionApplied!, participantMix)
       );
     } else {
       const variantBounds = getPartySizeBoundsForVariant(tour, selectedBookingVariant, bookingDate);
@@ -670,7 +711,11 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       }
     }
     if (selectedBookingVariant.listingOption) {
-      const dayErr = optionRunsOnDate(selectedBookingVariant.listingOption, bookingDate.trim());
+      const dayErr = optionRunsOnDate(
+        selectedBookingVariant.listingOption,
+        bookingDate.trim(),
+        selectedDepartureTime || undefined
+      );
       if (dayErr) {
         setBookingCardError(dayErr);
         return;
@@ -693,9 +738,10 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
         date: bookingDate.trim(),
         optionId: selectedBookingVariant.id,
         guests: partySize,
-        mix: optionUsesAgePricing(selectedBookingVariant.listingOption) ? participantMix : null,
+        mix: optionUsesAgePricing(selectedOptionApplied) ? participantMix : null,
         step: 'review',
         paymentCancelled: false,
+        startTime: selectedDepartureTime.trim() || undefined,
       };
       openedCheckoutViaPushRef.current = true;
       commitLocation(tourCheckoutPath(tour.id, checkoutState), 'push');
@@ -783,6 +829,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
         discountsByListing={discountsByListing}
         initialDate={checkoutFromUrl.date}
         initialGuests={Math.max(1, checkoutFromUrl.guests)}
+        initialStartTime={checkoutFromUrl.startTime}
         initialParticipantMix={
           optionUsesAgePricing(checkoutVariant.listingOption)
             ? checkoutFromUrl.mix ?? undefined
@@ -1051,6 +1098,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                           setBookingDate(next);
                           setBookingCardError(null);
                           setSelectedBookingVariant(null);
+                          setSelectedDepartureTime('');
                           const dateCheck = dateNotInPast(next.trim());
                           if (dateCheck.valid && isListingVisibleToTravelers(tour.status)) {
                             setBookingVariantsOpen(true);
@@ -1082,16 +1130,59 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                             <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">Selected</p>
                             <p className="text-sm font-semibold text-ink">{selectedBookingVariant.label}</p>
                           </div>
-                          {usesAgePricing && selectedOption ? (
+                          {departureTimes.length > 1 ? (
+                            <div>
+                              <p className="text-sm font-medium text-ink mb-2">Departure time</p>
+                              <div className="flex flex-wrap gap-2" role="group" aria-label="Departure time">
+                                {departureTimes.map((time) => {
+                                  const selected = selectedDepartureTime === time;
+                                  return (
+                                    <button
+                                      key={time}
+                                      type="button"
+                                      onClick={() => {
+                                        setSelectedDepartureTime(time);
+                                        setBookingCardError(null);
+                                        if (selectedOption) {
+                                          const resolved = resolveScheduleForDate(
+                                            selectedOption,
+                                            bookingDate.trim(),
+                                            time
+                                          );
+                                          if (resolved) {
+                                            const applied = applyScheduleToOption(selectedOption, resolved);
+                                            if (optionUsesAgePricing(applied)) {
+                                              setParticipantMix(emptyMixSelection(applied));
+                                            }
+                                          }
+                                        }
+                                      }}
+                                      className={`lux-flat min-h-11 rounded-xl px-3.5 py-2 text-sm font-semibold tabular-nums ring-1 transition-colors ${
+                                        selected
+                                          ? 'bg-finland text-white ring-finland'
+                                          : 'bg-paper-raised text-ink ring-black/[0.08] hover:bg-black/[0.03]'
+                                      }`}
+                                      aria-pressed={selected}
+                                    >
+                                      {time}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ) : departureTimes.length === 1 ? (
+                            <p className="text-sm text-ink-muted">Starts {departureTimes[0]}</p>
+                          ) : null}
+                          {usesAgePricing && selectedOptionApplied ? (
                             <div className="space-y-2">
                               <p className="text-sm font-medium text-ink">Participants</p>
-                              {activePriceCategories(selectedOption).map((cat) => (
+                              {activePriceCategories(selectedOptionApplied).map((cat) => (
                                 <ParticipantCategoryStepper
                                   key={cat.id}
                                   category={cat}
                                   quantity={participantMix[cat.id] ?? 0}
                                   currency={normalizeCurrency(tour.price?.currency)}
-                                  max={Math.min(selectedOption.maxPersons, partyMaxForSelectedDay)}
+                                  max={Math.min(selectedOptionApplied.maxPersons, partyMaxForSelectedDay)}
                                   onChange={(qty) => {
                                     setParticipantMix((prev) => ({ ...prev, [cat.id]: qty }));
                                     setBookingCardError(null);
@@ -1127,7 +1218,11 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                           <button
                             type="button"
                             onClick={() => void handleContinueToCheckout()}
-                            disabled={variantChecking || (panelQuote != null && !panelQuote.ok)}
+                            disabled={
+                              variantChecking ||
+                              (panelQuote != null && !panelQuote.ok) ||
+                              (departureTimes.length > 1 && !selectedDepartureTime)
+                            }
                             className="tv-btn-primary w-full disabled:opacity-60"
                           >
                             {variantChecking ? 'Checking…' : 'Continue · TEST'}

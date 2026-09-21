@@ -12,6 +12,7 @@ export const TOUR_CHECKOUT_OPTION = 'option';
 export const TOUR_CHECKOUT_MIX = 'mix';
 export const TOUR_CHECKOUT_STEP = 'step';
 export const TOUR_CHECKOUT_PAYMENT = 'payment';
+export const TOUR_CHECKOUT_TIME = 'time';
 
 export type TourCheckoutFlowStep = 'review' | 'contact' | 'confirm';
 
@@ -22,6 +23,8 @@ export type TourCheckoutState = {
   mix: Record<string, number> | null;
   step: TourCheckoutFlowStep;
   paymentCancelled: boolean;
+  /** HH:MM when multiple schedules apply on the date. */
+  startTime?: string;
 };
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -34,7 +37,10 @@ const CHECKOUT_ONLY_KEYS = [
   TOUR_CHECKOUT_MIX,
   TOUR_CHECKOUT_STEP,
   TOUR_CHECKOUT_PAYMENT,
+  TOUR_CHECKOUT_TIME,
 ] as const;
+
+const TIME_HM = /^\d{1,2}:\d{2}$/;
 
 export function isTourCheckoutFlowStep(raw: string | null | undefined): raw is TourCheckoutFlowStep {
   return raw === 'review' || raw === 'contact' || raw === 'confirm';
@@ -89,7 +95,9 @@ export function parseTourCheckoutSearch(
   if (mixRaw != null && mixRaw.trim() !== '' && mix == null) return null;
   const step = sanitizeTourCheckoutFlowStep(params.get(TOUR_CHECKOUT_STEP), true);
   const paymentCancelled = (params.get(TOUR_CHECKOUT_PAYMENT) ?? '').trim().toLowerCase() === 'cancelled';
-  return { date, optionId, guests, mix, step, paymentCancelled };
+  const timeRaw = (params.get(TOUR_CHECKOUT_TIME) ?? '').trim();
+  const startTime = TIME_HM.test(timeRaw) ? timeRaw.padStart(5, '0') : undefined;
+  return { date, optionId, guests, mix, step, paymentCancelled, startTime };
 }
 
 export function applyTourCheckoutSearch(params: URLSearchParams, state: TourCheckoutState): URLSearchParams {
@@ -104,6 +112,9 @@ export function applyTourCheckoutSearch(params: URLSearchParams, state: TourChec
   else next.delete(TOUR_CHECKOUT_MIX);
   if (state.paymentCancelled) next.set(TOUR_CHECKOUT_PAYMENT, 'cancelled');
   else next.delete(TOUR_CHECKOUT_PAYMENT);
+  const time = (state.startTime ?? '').trim();
+  if (TIME_HM.test(time)) next.set(TOUR_CHECKOUT_TIME, time);
+  else next.delete(TOUR_CHECKOUT_TIME);
   return next;
 }
 
