@@ -3,7 +3,7 @@
 **Date:** 2026-09-21  
 **Branch:** `reconstruction/phase-0-audit`  
 **Starting SHA (mission):** `d38ff80`  
-**Ending SHA:** `e268b14`  
+**Ending SHA:** `6bbe875` (handoff commit; parent `e268b14` was gallery/stay focus finish)  
 **Stripe:** TEST only (unchanged)  
 **Not committed:** `scripts/cert-transactional-emails.cjs` (preserved untracked)
 

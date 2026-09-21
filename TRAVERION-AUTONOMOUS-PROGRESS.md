@@ -1,34 +1,42 @@
 # TRAVERION-AUTONOMOUS-PROGRESS
 
-**Mission:** Phases 0→400 autonomous product completion  
-**Started:** 2026-09-21  
-**Starting SHA:** `d38ff80`  
-**Current SHA:** `e268b14`  
-**Current phase:** **400** (handoff)  
-**Current band:** Phase 400 founder handoff
+**Mission:** Phases 401→800 autonomous continuation  
+**Started:** 2026-09-22  
+**Starting SHA (actual HEAD):** `6bbe875`  
+**Current SHA:** `6bbe875`  
+**Current phase:** 401  
+**Current band:** 401–450 Production-truth certification  
+**Stripe:** TEST only  
+**Preserve untracked:** `scripts/cert-transactional-emails.cjs`
 
-## Completed
+## SHA truth (Phase 401)
 
-- Product truth audit → schedule commercial truth → checkout/trips/Calendar
-- Slot capacity + departure UI + mobile/desktop CTA focus guidance
-- Gallery focus trap; NoticeCallout alerts; Reviews empty CTA
-- Gates: tsc, build, src/lib 438 tests
-- **TRAVERION-PHASE-400.md** written
+| Claim | Actual |
+|-------|--------|
+| Phase 400 doc ending SHA `e268b14` | Parent of handoff commit — gallery/stay focus finish |
+| Autonomous close `6bbe875` | **True HEAD** — `Add Phase 400 founder handoff` |
+| Progress file said `e268b14` | Stale; corrected here |
 
-## Stopped for
+`e268b14` is an ancestor of `6bbe875`. No reset/force-push. Branch `reconstruction/phase-0-audit` ahead of origin by 323.
 
-- Phase 400 handoff complete (no live-money / no edge deploy credentials in this session)
+## Phase 401 — Establish truth + baseline gates
 
-## Founder must do
+**Problem:** Resolve SHA discrepancy; prove repo gates before certification work.  
+**Evidence:** `git rev-parse HEAD` → `6bbe875`; merge-base confirms both SHAs ancestral.  
+**Gates:**
+- `tsc --noEmit` clean
+- `vitest run src/lib` — 80 files, **438** passed
+- `npm run build` — succeeded (~37s)
+- Supabase CLI **2.84.2** present; `.env.local` + `supabase/config.toml` present
+**Result:** Baseline green. Edge deploy not yet attempted (next phases).  
+**Remaining risk:** Production TEST may lag local edge code until deploy.
 
-1. Deploy `create-booking-checkout-session` for TEST startTime + slot capacity  
-2. Live partner + traveler Sep/Oct and stay apartment certification  
-3. Push branch only when ready (`reconstruction/phase-0-audit`)
+## Next
 
-## Do not commit
+- Phase 402: Inspect/deploy TEST checkout edge (`startTime`, slot capacity)
+- Multi-departure occupancy architecture (day-scoped RPC → departure-scoped)
+- Tour/Stay golden journey certification (code + browser where session allows)
 
-- `scripts/cert-transactional-emails.cjs`
+## Do not
 
-## Deferred
-
-- Live money, new verticals, fake inventory, per-slot public RPC
+- Live Stripe, force-push, commit cert-transactional-emails.cjs
