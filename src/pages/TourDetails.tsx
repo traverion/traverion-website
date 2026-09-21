@@ -557,6 +557,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       setBookingDate(checkoutFromUrl.date);
       setGuests(checkoutFromUrl.guests);
       if (checkoutFromUrl.mix) setParticipantMix(checkoutFromUrl.mix);
+      if (checkoutFromUrl.startTime) setSelectedDepartureTime(checkoutFromUrl.startTime);
       return;
     }
     if (!checkoutVariant) {
