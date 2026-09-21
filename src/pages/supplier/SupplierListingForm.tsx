@@ -1891,7 +1891,7 @@ export default function SupplierListingForm({
                 : `motion-safe:animate-fade-in ${stepIdx === 3 ? 'max-w-3xl' : 'max-w-xl'}`
             }`}
           >
-          {stepIdx !== 4 && !(stepIdx === 0 && !isStayForm) && !(stepIdx === 2 && !isStayForm) ? (
+          {stepIdx !== 4 && !(stepIdx === 0 && !isStayForm) && !(stepIdx === 2 && !isStayForm) && stepIdx !== 3 ? (
             <header className="mb-8">
               <h3 className="font-display text-2xl tracking-tight text-ink">{steps[stepIdx].label}</h3>
               <p className="mt-1.5 text-sm leading-relaxed text-ink-muted">{stepGuidance[stepIdx]}</p>
@@ -2693,17 +2693,12 @@ export default function SupplierListingForm({
             return (
             <div id="supplier-listing-field-photos" className="space-y-6">
                 <div>
-                  <h3 className="font-display text-xl text-ink">
+                  <h3 className="font-display text-xl text-ink">Photos</h3>
+                  <p className="mt-1 text-sm text-ink-muted leading-relaxed">
                     {form.inventoryFamily === 'stay' || createFamily === 'stay'
-                      ? 'Stay photos'
-                      : 'Tour photos'}{' '}
-                    ({LISTING_PHOTO_MIN}–{LISTING_PHOTO_MAX} required to publish)
-                  </h3>
-                  <p className="mt-1 text-sm text-ink-muted">
-                    {form.inventoryFamily === 'stay' || createFamily === 'stay'
-                      ? 'Lead with the best room or exterior, then bedrooms, bathroom, kitchen, and outdoor space. First photo is the cover travelers see in search.'
-                      : 'Add photos in traveler order. The first photo is the main image on search and the product page.'}{' '}
-                    Use + Add photo or Replace to upload; paste a URL if needed. Select a thumbnail, then reorder with the arrows.
+                      ? 'Lead with the strongest room or exterior. The first photo is the cover guests see in search.'
+                      : 'Show travelers what the experience feels like. The first photo is the cover on search and the product page.'}{' '}
+                    Drag another photo onto the cover to make it the cover.
                   </p>
                 </div>
                 <ListingImageFields

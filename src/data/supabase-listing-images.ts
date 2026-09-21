@@ -1,7 +1,8 @@
 import { supabase } from '../lib/supabase';
 
 const BUCKET = 'listing-images';
-const MAX_BYTES = 5 * 1024 * 1024;
+export const LISTING_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+export const LISTING_IMAGE_MAX_MB = 5;
 const ALLOWED = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'] as const;
 
 function extForMime(mime: string): string {
@@ -35,7 +36,7 @@ export async function uploadListingImage(
   file: File
 ): Promise<{ publicUrl: string | null; error?: string }> {
   if (!supabase) return { publicUrl: null, error: 'Storage not configured' };
-  if (file.size > MAX_BYTES) return { publicUrl: null, error: 'Image must be 5 MB or smaller.' };
+  if (file.size > LISTING_IMAGE_MAX_BYTES) return { publicUrl: null, error: 'Image must be 5 MB or smaller.' };
   if (!ALLOWED.includes(file.type as (typeof ALLOWED)[number])) {
     return { publicUrl: null, error: 'Use JPEG, PNG, WebP, or GIF.' };
   }

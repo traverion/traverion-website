@@ -8,6 +8,33 @@ export const LISTING_PHOTO_GRID_SLOTS = LISTING_PHOTO_GRID_COLS * LISTING_PHOTO_
 export const LISTING_PHOTO_MIN = 4;
 export const LISTING_PHOTO_MAX = 12;
 
+export type ListingPhotoFileReject = { name: string; reason: string };
+
+export function remainingListingPhotoSlots(filledCount: number): number {
+  return Math.max(0, LISTING_PHOTO_MAX - Math.max(0, filledCount));
+}
+
+/** Cap extra files before upload so a 13th pick cannot wipe existing photos. */
+export function takeListingPhotoFiles(
+  names: string[],
+  remainingSlots: number
+): { accepted: string[]; rejected: ListingPhotoFileReject[] } {
+  const accepted: string[] = [];
+  const rejected: ListingPhotoFileReject[] = [];
+  const remaining = Math.max(0, remainingSlots);
+  for (const name of names) {
+    if (accepted.length >= remaining) {
+      rejected.push({
+        name,
+        reason: `You can add up to ${LISTING_PHOTO_MAX} photos.`,
+      });
+      continue;
+    }
+    accepted.push(name);
+  }
+  return { accepted, rejected };
+}
+
 export function isPlaceholderListingImageUrl(url: string): boolean {
   const u = url.trim();
   return !u || u === LISTING_PLACEHOLDER_IMAGE || u.includes('pexels.com/photos/346885');
@@ -55,6 +82,25 @@ export function compactPhotoSlotsAndLabels(
     nl[j] = pairs[j].label;
   }
   return { slots: ns, labels: nl };
+}
+
+/** Reorder filled photos. Index 0 is the cover; dragging a supporting photo to 0 makes it the cover. */
+export function reorderFilledPhotos(
+  slots: string[],
+  labels: string[],
+  from: number,
+  to: number
+): { slots: string[]; labels: string[] } {
+  const compacted = compactPhotoSlotsAndLabels(slots, labels);
+  const filled = compacted.slots.filter((url) => url.trim()).length;
+  if (from === to || from < 0 || to < 0 || from >= filled || to >= filled) return compacted;
+  const nextS = [...compacted.slots];
+  const nextL = [...compacted.labels];
+  const [movedUrl] = nextS.splice(from, 1);
+  const [movedLabel] = nextL.splice(from, 1);
+  nextS.splice(to, 0, movedUrl ?? '');
+  nextL.splice(to, 0, movedLabel ?? '');
+  return compactPhotoSlotsAndLabels(nextS, nextL);
 }
 
 /** Partner UI: show a file-style name instead of a long URL when possible. */

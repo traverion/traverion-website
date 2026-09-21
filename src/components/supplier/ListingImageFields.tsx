@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import {
+  LISTING_IMAGE_MAX_MB,
   isListingImageStoragePublicUrl,
   removeListingImageIfOwned,
   uploadListingImage,
@@ -14,6 +15,9 @@ import {
   normalizePhotoSlotLabels,
   normalizePhotoSlots,
   orderedPhotoUrls,
+  remainingListingPhotoSlots,
+  reorderFilledPhotos,
+  takeListingPhotoFiles,
 } from '../../lib/listingPhotoGrid';
 
 export type ListingPhotosValue = {
@@ -28,6 +32,10 @@ type ListingImageFieldsProps = {
   userId: string | null | undefined;
   uploadsEnabled: boolean;
 };
+
+type PhotoIssue = { name: string; message: string };
+
+const PHOTO_DRAG_TYPE = 'application/x-traverion-photo-index';
 
 function previewUrl(url: string): string | null {
   const t = url.trim();
@@ -44,10 +52,12 @@ export default function ListingImageFields({
   const slots = normalizePhotoSlots(photoSlots);
   const labels = normalizePhotoSlotLabels(photoSlotLabels);
   const fileRef = useRef<HTMLInputElement>(null);
-  const uploadIndexRef = useRef<number | null>(null);
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-  const [busyIndex, setBusyIndex] = useState<number | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const replaceIndexRef = useRef<number | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [issues, setIssues] = useState<PhotoIssue[]>([]);
+  const [pendingRemoveIndex, setPendingRemoveIndex] = useState<number | null>(null);
+  const [dragOverCover, setDragOverCover] = useState(false);
+  const [dropActive, setDropActive] = useState(false);
 
   const pushBundle = (nextSlots: string[], nextLabels: string[]) => {
     onPhotosChange(compactPhotoSlotsAndLabels(nextSlots, nextLabels));
@@ -55,46 +65,80 @@ export default function ListingImageFields({
 
   const filledCount = orderedPhotoUrls(slots).length;
   const canAddMore = filledCount < LISTING_PHOTO_MAX;
-  /** After compact, photos sit at 0 .. filledCount-1 */
-  const filledIndices = Array.from({ length: filledCount }, (_, i) => i);
+  const coverUrl = (slots[0] ?? '').trim();
+  const coverPreview = previewUrl(coverUrl);
 
-  const openPickerForIndex = (index: number) => {
-    if (!uploadsEnabled || !userId || busyIndex !== null) return;
-    if (!canAddMore && !slots[index]?.trim()) return;
-    setError(null);
-    uploadIndexRef.current = index;
+  const openPicker = (replaceIndex: number | null) => {
+    if (!uploadsEnabled || !userId || busy) return;
+    if (replaceIndex == null && !canAddMore) return;
+    replaceIndexRef.current = replaceIndex;
     fileRef.current?.click();
   };
 
-  const ingestFileAtIndex = async (file: File, index: number) => {
-    if (!userId || !uploadsEnabled) return;
-    setBusyIndex(index);
-    setError(null);
-    const prevUrl = (slots[index] ?? '').trim();
-    const { publicUrl, error: upErr } = await uploadListingImage(userId, file);
-    setBusyIndex(null);
-    if (upErr || !publicUrl) {
-      setError(userFacingError(upErr, USER_ERROR.upload));
+  const ingestFiles = async (files: File[], replaceIndex: number | null) => {
+    if (!userId || !uploadsEnabled || busy) return;
+    const list = Array.from(files).filter(Boolean);
+    if (list.length === 0) return;
+
+    let workingS = [...normalizePhotoSlots(slots)];
+    let workingL = [...normalizePhotoSlotLabels(labels)];
+    const nextIssues: PhotoIssue[] = [];
+
+    if (replaceIndex != null) {
+      const file = list[0];
+      if (!file) return;
+      if (list.length > 1) {
+        nextIssues.push({ name: list[1]?.name ?? 'extra', message: 'Replace uses one file. Extra files were ignored.' });
+      }
+      setBusy(true);
+      const prevUrl = (workingS[replaceIndex] ?? '').trim();
+      const { publicUrl, error: upErr } = await uploadListingImage(userId, file);
+      setBusy(false);
+      if (upErr || !publicUrl) {
+        setIssues([{ name: file.name, message: userFacingError(upErr, USER_ERROR.upload) }, ...nextIssues]);
+        return;
+      }
+      workingS[replaceIndex] = publicUrl;
+      workingL[replaceIndex] = file.name.trim().slice(0, 200) || 'Photo';
+      pushBundle(workingS, workingL);
+      setIssues(nextIssues);
+      if (prevUrl && isListingImageStoragePublicUrl(prevUrl)) {
+        void removeListingImageIfOwned(userId, prevUrl);
+      }
       return;
     }
-    const nextS = [...normalizePhotoSlots(slots)];
-    const nextL = [...normalizePhotoSlotLabels(labels)];
-    nextS[index] = publicUrl;
-    nextL[index] = file.name.trim().slice(0, 200) || 'Photo';
-    pushBundle(nextS, nextL);
-    setSelectedIndex(index);
-    if (prevUrl && isListingImageStoragePublicUrl(prevUrl)) {
-      void removeListingImageIfOwned(userId, prevUrl);
+
+    const remaining = remainingListingPhotoSlots(workingS.filter((url) => url.trim()).length);
+    const planned = takeListingPhotoFiles(
+      list.map((file) => file.name),
+      remaining
+    );
+    planned.rejected.forEach((item) => nextIssues.push({ name: item.name, message: item.reason }));
+    const toUpload = list.slice(0, planned.accepted.length);
+
+    setBusy(true);
+    let addIndex = workingS.filter((url) => url.trim()).length;
+    for (const file of toUpload) {
+      const { publicUrl, error: upErr } = await uploadListingImage(userId, file);
+      if (upErr || !publicUrl) {
+        nextIssues.push({ name: file.name, message: userFacingError(upErr, USER_ERROR.upload) });
+        continue;
+      }
+      workingS[addIndex] = publicUrl;
+      workingL[addIndex] = file.name.trim().slice(0, 200) || 'Photo';
+      addIndex += 1;
+      pushBundle(workingS, workingL);
     }
+    setBusy(false);
+    setIssues(nextIssues);
   };
 
-  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handleFileInput = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files ? Array.from(e.target.files) : [];
     e.target.value = '';
-    const index = uploadIndexRef.current;
-    uploadIndexRef.current = null;
-    if (!file || !userId || !uploadsEnabled || index == null) return;
-    await ingestFileAtIndex(file, index);
+    const replaceIndex = replaceIndexRef.current;
+    replaceIndexRef.current = null;
+    await ingestFiles(files, replaceIndex);
   };
 
   const clearSlot = (index: number) => {
@@ -107,241 +151,309 @@ export default function ListingImageFields({
     if (userId && prev && isListingImageStoragePublicUrl(prev)) {
       void removeListingImageIfOwned(userId, prev);
     }
-    setSelectedIndex(null);
-  };
-
-  const setSlotUrl = (index: number, url: string) => {
-    const nextS = [...normalizePhotoSlots(slots)];
-    const nextL = [...normalizePhotoSlotLabels(labels)];
-    nextS[index] = url;
-    nextL[index] = '';
-    pushBundle(nextS, nextL);
+    setPendingRemoveIndex(null);
   };
 
   const moveToIndex = (from: number, to: number) => {
-    if (from === to || from < 0 || to < 0 || from >= filledCount || to >= filledCount) return;
-    const nextS = [...normalizePhotoSlots(slots)];
-    const nextL = [...normalizePhotoSlotLabels(labels)];
-    const [s] = nextS.splice(from, 1);
-    const [l] = nextL.splice(from, 1);
-    nextS.splice(to, 0, s ?? '');
-    nextL.splice(to, 0, l ?? '');
-    pushBundle(nextS, nextL);
-    setSelectedIndex(to);
+    const next = reorderFilledPhotos(slots, labels, from, to);
+    pushBundle(next.slots, next.labels);
   };
 
-  const moveLeft = () => {
-    if (selectedIndex == null || selectedIndex <= 0) return;
-    moveToIndex(selectedIndex, selectedIndex - 1);
+  const makeCover = (index: number) => {
+    if (index <= 0) return;
+    moveToIndex(index, 0);
   };
 
-  const moveRight = () => {
-    if (selectedIndex == null || selectedIndex >= filledCount - 1) return;
-    moveToIndex(selectedIndex, selectedIndex + 1);
+  const onPhotoDragStart = (e: React.DragEvent, index: number) => {
+    e.dataTransfer.setData(PHOTO_DRAG_TYPE, String(index));
+    e.dataTransfer.setData('text/plain', String(index));
+    e.dataTransfer.effectAllowed = 'move';
   };
 
-  const addSlotIndex = filledCount;
-  const storageUrl =
-    selectedIndex !== null ? (slots[selectedIndex] ?? '').trim() : '';
-  const isSelectedStorage = Boolean(storageUrl && isListingImageStoragePublicUrl(storageUrl));
+  const dropPhotoIndex = (e: React.DragEvent, to: number) => {
+    e.preventDefault();
+    setDragOverCover(false);
+    const raw = e.dataTransfer.getData(PHOTO_DRAG_TYPE) || e.dataTransfer.getData('text/plain');
+    const from = Number.parseInt(raw, 10);
+    if (Number.isFinite(from)) moveToIndex(from, to);
+  };
+
+  const dropIncomingFiles = (e: React.DragEvent, replaceIndex: number | null) => {
+    e.preventDefault();
+    setDropActive(false);
+    setDragOverCover(false);
+    const files = e.dataTransfer.files ? Array.from(e.dataTransfer.files) : [];
+    if (files.length === 0) return;
+    void ingestFiles(files, replaceIndex);
+  };
+
+  const photoButtonClass =
+    'touch-manipulation inline-flex min-h-11 items-center px-3 text-sm font-medium text-ink hover:bg-black/[0.04] disabled:opacity-40';
+
+  const renderActions = (index: number) => {
+    const pending = pendingRemoveIndex === index;
+    if (pending) {
+      return (
+        <div className="flex flex-wrap items-center gap-1">
+          <button type="button" className={photoButtonClass} onClick={() => setPendingRemoveIndex(null)}>
+            Keep
+          </button>
+          <button
+            type="button"
+            className="touch-manipulation inline-flex min-h-11 items-center px-3 text-sm font-medium text-red-700 hover:bg-red-50"
+            onClick={() => clearSlot(index)}
+          >
+            Remove photo
+          </button>
+        </div>
+      );
+    }
+    return (
+      <div className="flex flex-wrap items-center gap-1">
+        {index > 0 ? (
+          <button type="button" className={photoButtonClass} disabled={busy} onClick={() => makeCover(index)}>
+            Make cover
+          </button>
+        ) : null}
+        {index > 0 ? (
+          <button
+            type="button"
+            className={photoButtonClass}
+            disabled={busy}
+            onClick={() => moveToIndex(index, index - 1)}
+            aria-label={`Move photo ${index + 1} earlier`}
+          >
+            Earlier
+          </button>
+        ) : null}
+        {index < filledCount - 1 ? (
+          <button
+            type="button"
+            className={photoButtonClass}
+            disabled={busy}
+            onClick={() => moveToIndex(index, index + 1)}
+            aria-label={`Move photo ${index + 1} later`}
+          >
+            Later
+          </button>
+        ) : null}
+        <button
+          type="button"
+          className={photoButtonClass}
+          disabled={!uploadsEnabled || busy}
+          onClick={() => openPicker(index)}
+        >
+          Replace
+        </button>
+        <button
+          type="button"
+          className="touch-manipulation inline-flex min-h-11 items-center px-3 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-40"
+          disabled={busy}
+          onClick={() => setPendingRemoveIndex(index)}
+        >
+          Remove
+        </button>
+      </div>
+    );
+  };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <input
         ref={fileRef}
         type="file"
         accept="image/jpeg,image/png,image/webp,image/gif"
-        aria-label="Upload listing photo"
+        multiple
+        aria-label="Upload listing photos"
         className="hidden"
-        onChange={(ev) => void handleFile(ev)}
+        onChange={(ev) => void handleFileInput(ev)}
       />
 
-      {error && (
-        <p className="text-sm text-red-800" role="alert">
-          {error}
-        </p>
-      )}
-
-      <div id="supplier-listing-field-image" className="space-y-2">
-        <p className="text-xs text-ink-muted leading-relaxed">
-          <span className="font-medium text-ink">Order = what travelers see</span> (first photo is the cover).
-          Select a photo and use the arrows to reorder, or drag photos into place. You can also drop a file onto Add photo.
-        </p>
-        <p className="text-xs text-finland font-medium tabular-nums">
-          {filledCount} / {LISTING_PHOTO_MIN}–{LISTING_PHOTO_MAX} photos added
-          {filledCount < LISTING_PHOTO_MIN ? ' — add more to publish' : ''}
-        </p>
-      </div>
-
-      <div id="supplier-listing-field-gallery" className="flex flex-col sm:flex-row gap-3 sm:items-start">
-        <div className="flex flex-row sm:flex-col gap-2 shrink-0 sm:pt-1">
-          <button
-            type="button"
-            aria-label="Move selected photo earlier in the order"
-            disabled={selectedIndex === null || selectedIndex <= 0 || busyIndex !== null}
-            onClick={moveLeft}
-            className="tv-btn-ghost h-11 w-11 sm:h-12 sm:w-12 p-0 disabled:opacity-40"
-          >
-            <ChevronLeft className="h-5 w-5" aria-hidden />
-          </button>
-          <button
-            type="button"
-            aria-label="Move selected photo later in the order"
-            disabled={
-              selectedIndex === null || selectedIndex >= filledCount - 1 || busyIndex !== null || filledCount < 2
-            }
-            onClick={moveRight}
-            className="tv-btn-ghost h-11 w-11 sm:h-12 sm:w-12 p-0 disabled:opacity-40"
-          >
-            <ChevronRight className="h-5 w-5" aria-hidden />
-          </button>
+      {issues.length > 0 ? (
+        <div className="space-y-1" role="alert">
+          {issues.map((issue, i) => (
+            <p key={`${issue.name}-${i}`} className="text-sm text-red-800">
+              {issue.name}: {issue.message}
+            </p>
+          ))}
         </div>
+      ) : null}
 
-        <div className="flex flex-wrap gap-2 sm:gap-3 flex-1 min-w-0 items-start">
-          {filledIndices.map((index) => {
-            const url = slots[index] ?? '';
-            const p = previewUrl(url);
-            const busy = busyIndex === index;
-            const selected = selectedIndex === index;
-            const caption = displayNameForPhotoSlot(url, labels[index] ?? '');
-            return (
-              <div key={`slot-${index}-${url.slice(-24)}`} className="flex w-[5.75rem] sm:w-[6.25rem] flex-col gap-1 min-w-0">
-                <button
-                  type="button"
-                  draggable={!busy}
-                  onDragStart={(e) => {
-                    e.dataTransfer.setData('text/plain', String(index));
-                    e.dataTransfer.effectAllowed = 'move';
-                  }}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    e.dataTransfer.dropEffect = 'move';
-                  }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    const from = Number.parseInt(e.dataTransfer.getData('text/plain'), 10);
-                    if (Number.isFinite(from)) moveToIndex(from, index);
-                  }}
-                  onClick={() => setSelectedIndex(selected ? null : index)}
-                  aria-pressed={selected}
-                  aria-label={`${selected ? 'Selected: ' : ''}${caption}. Photo ${index + 1} of ${filledCount}`}
-                  className={[
-                    'relative w-full overflow-hidden rounded-xl border-2 bg-paper transition-[box-shadow,transform,border-color] duration-150 touch-manipulation',
-                    'aspect-square max-h-[88px] sm:max-h-[96px]',
-                    selected ? 'border-finland ring-2 ring-finland/30 shadow-md scale-[1.04]' : 'border-black/[0.08] hover:border-ink/30',
-                  ].join(' ')}
-                >
-                  {p ? (
-                    <img src={p} alt="" className="h-full w-full object-cover" />
-                  ) : null}
-                  {busy && (
-                    <span className="absolute inset-0 flex items-center justify-center bg-black/40 text-[10px] font-medium text-white">
-                      …
-                    </span>
-                  )}
-                  {index === 0 && p && (
-                    <span className="absolute left-1 top-1 rounded bg-black/55 px-1 py-0.5 text-[9px] font-semibold text-white">
-                      Main
-                    </span>
-                  )}
-                </button>
-                <p className="truncate text-center text-[10px] text-ink-muted leading-tight px-0.5" title={caption}>
-                  {caption}
-                </p>
-                <div className="flex gap-0.5 justify-center flex-wrap">
+      <p className="text-sm text-ink-muted tabular-nums">
+        {filledCount} {filledCount === 1 ? 'photo' : 'photos'}
+        {' · '}
+        {LISTING_PHOTO_MIN} minimum · {LISTING_PHOTO_MAX} maximum · {LISTING_IMAGE_MAX_MB} MB each
+      </p>
+
+      <section aria-label="Cover photo" className="space-y-3">
+        {coverPreview ? (
+          <>
+            <div
+              className={`relative overflow-hidden rounded-xl bg-black/[0.04] ring-1 ${
+                dragOverCover ? 'ring-2 ring-finland' : 'ring-black/[0.08]'
+              }`}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragOverCover(true);
+              }}
+              onDragLeave={() => setDragOverCover(false)}
+              onDrop={(e) => {
+                if (e.dataTransfer.files?.length) {
+                  dropIncomingFiles(e, 0);
+                  return;
+                }
+                dropPhotoIndex(e, 0);
+              }}
+            >
+              <img
+                src={coverPreview}
+                alt=""
+                draggable={!busy}
+                onDragStart={(e) => onPhotoDragStart(e, 0)}
+                className="aspect-[16/10] w-full object-cover"
+              />
+              <span className="absolute left-3 top-3 bg-paper/95 px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink">
+                Cover
+              </span>
+              {busy ? (
+                <span className="absolute inset-0 flex items-center justify-center bg-black/35 text-sm font-medium text-white">
+                  Uploading…
+                </span>
+              ) : null}
+              {dragOverCover ? (
+                <span className="pointer-events-none absolute inset-x-0 bottom-0 bg-paper/90 px-3 py-2 text-center text-sm font-medium text-ink">
+                  Drop to make this the cover
+                </span>
+              ) : null}
+            </div>
+            {renderActions(0)}
+          </>
+        ) : (
+          <AddPhotosDropzone
+            disabled={!uploadsEnabled || busy}
+            active={dropActive}
+            label="Add cover photo"
+            onOpen={() => openPicker(null)}
+            onDragState={setDropActive}
+            onDropFiles={(files) => void ingestFiles(files, null)}
+          />
+        )}
+      </section>
+
+      {filledCount > 1 ? (
+        <section aria-label="Supporting photos" className="space-y-3">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">More photos</p>
+          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {Array.from({ length: filledCount - 1 }, (_, i) => i + 1).map((index) => {
+              const url = slots[index] ?? '';
+              const preview = previewUrl(url);
+              const caption = displayNameForPhotoSlot(url, labels[index] ?? '');
+              return (
+                <li key={`slot-${index}-${url.slice(-24)}`} className="min-w-0 space-y-2">
                   <button
                     type="button"
-                    disabled={!uploadsEnabled || busyIndex !== null || (!canAddMore && !p)}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openPickerForIndex(index);
+                    draggable={!busy}
+                    onDragStart={(e) => onPhotoDragStart(e, index)}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = 'move';
                     }}
-                    className="touch-manipulation rounded px-1 py-0.5 text-[10px] font-medium text-finland hover:bg-finland/10 disabled:opacity-40"
+                    onDrop={(e) => dropPhotoIndex(e, index)}
+                    aria-label={`${caption}. Photo ${index + 1} of ${filledCount}. Drag to the cover to make it the cover.`}
+                    className="relative block w-full overflow-hidden rounded-xl bg-black/[0.04] ring-1 ring-black/[0.08]"
                   >
-                    {p ? 'Replace' : 'Add'}
+                    {preview ? (
+                      <img src={preview} alt="" className="aspect-square w-full object-cover" />
+                    ) : null}
                   </button>
-                  {p && (
-                    <button
-                      type="button"
-                      disabled={busyIndex !== null}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        clearSlot(index);
-                      }}
-                      className="touch-manipulation rounded px-1 py-0.5 text-[10px] font-medium text-red-600 hover:bg-red-50 disabled:opacity-40"
-                    >
-                      Clear
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+                  {renderActions(index)}
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ) : null}
 
-          {canAddMore && (
-            <button
-              type="button"
-              disabled={!uploadsEnabled || busyIndex !== null}
-              onClick={() => {
-                setSelectedIndex(addSlotIndex);
-                openPickerForIndex(addSlotIndex);
-              }}
-              onDragOver={(e) => {
-                if (!uploadsEnabled || busyIndex !== null) return;
-                e.preventDefault();
-              }}
-              onDrop={(e) => {
-                e.preventDefault();
-                const file = e.dataTransfer.files?.[0];
-                if (!file || !file.type.startsWith('image/')) return;
-                void ingestFileAtIndex(file, addSlotIndex);
-              }}
-              className="touch-manipulation flex h-[88px] w-[5.75rem] sm:h-[96px] sm:w-[6.25rem] shrink-0 flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-black/[0.12] bg-paper text-ink-muted hover:border-finland/50 hover:bg-finland/5 hover:text-finland disabled:opacity-40"
-              aria-label="Add another photo"
-            >
-              <Plus className="h-7 w-7" strokeWidth={1.75} aria-hidden />
-              <span className="text-[10px] font-medium">Add photo</span>
-            </button>
-          )}
-        </div>
-      </div>
-
-      {selectedIndex !== null && selectedIndex < filledCount && (
-        <div className="rounded-lg border border-black/[0.06] bg-paper p-3 space-y-2">
-          {isSelectedStorage ? (
-            <>
-              <p className="text-xs font-medium text-ink">
-                {displayNameForPhotoSlot(storageUrl, labels[selectedIndex] ?? '')}
-              </p>
-              <p className="text-xs text-ink-muted leading-relaxed">
-                Uploaded from your device. Use <span className="font-medium">Replace</span> to swap the file, or{' '}
-                <span className="font-medium">Clear</span> to remove.
-              </p>
-            </>
-          ) : (
-            <>
-              <label className="block text-xs font-medium text-ink-muted">
-                Image URL (optional — or use Replace / Add photo to upload)
-                {selectedIndex === 0 ? ' — cover' : ''}
-              </label>
-              <input
-                type="url"
-                value={slots[selectedIndex] ?? ''}
-                onChange={(e) => setSlotUrl(selectedIndex, e.target.value)}
-                className="tv-input text-xs"
-                placeholder="https://…"
-              />
-            </>
-          )}
-        </div>
-      )}
+      {canAddMore && coverPreview ? (
+        <AddPhotosDropzone
+          disabled={!uploadsEnabled || busy}
+          active={dropActive}
+          label="Add photos"
+          onOpen={() => openPicker(null)}
+          onDragState={setDropActive}
+          onDropFiles={(files) => void ingestFiles(files, null)}
+        />
+      ) : null}
 
       {!uploadsEnabled && (
-        <p className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
-          Connect Supabase and sign in to upload files from your device. Until then, paste image URLs in the field above
-          when a photo is selected.
-        </p>
+        <div className="space-y-2">
+          <p className="text-sm text-ink-muted">
+            Sign in with storage connected to upload from your device. You can still paste an image URL.
+          </p>
+          {canAddMore ? (
+            <label className="block text-sm font-medium text-ink">
+              Image URL
+              <input
+                type="url"
+                className="tv-input mt-1"
+                placeholder="https://…"
+                onBlur={(e) => {
+                  const url = e.target.value.trim();
+                  if (!url) return;
+                  const nextS = [...normalizePhotoSlots(slots)];
+                  const nextL = [...normalizePhotoSlotLabels(labels)];
+                  nextS[filledCount] = url;
+                  nextL[filledCount] = '';
+                  pushBundle(nextS, nextL);
+                  e.target.value = '';
+                }}
+              />
+            </label>
+          ) : null}
+        </div>
       )}
     </div>
+  );
+}
+
+function AddPhotosDropzone({
+  disabled,
+  active,
+  label,
+  onOpen,
+  onDragState,
+  onDropFiles,
+}: {
+  disabled: boolean;
+  active: boolean;
+  label: string;
+  onOpen: () => void;
+  onDragState: (on: boolean) => void;
+  onDropFiles: (files: File[]) => void;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onOpen}
+      onDragOver={(e) => {
+        if (disabled) return;
+        e.preventDefault();
+        onDragState(true);
+      }}
+      onDragLeave={() => onDragState(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        onDragState(false);
+        const files = e.dataTransfer.files ? Array.from(e.dataTransfer.files) : [];
+        if (files.length) onDropFiles(files);
+      }}
+      className={`flex min-h-[7.5rem] w-full flex-col items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold text-finland ring-1 ring-dashed disabled:opacity-40 ${
+        active ? 'bg-finland/[0.08] ring-finland' : 'ring-finland/30 hover:bg-finland/10'
+      }`}
+    >
+      <Plus className="h-6 w-6" strokeWidth={1.75} aria-hidden />
+      {label}
+    </button>
   );
 }

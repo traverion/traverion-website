@@ -11,6 +11,7 @@ import {
   PRICE_CATEGORY_KIND_PRESETS,
 } from '../../lib/price-categories';
 import type { TourOptionSceneId } from '../../lib/listing-option-scenes';
+import { Plus, Trash2 } from 'lucide-react';
 
 const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
