@@ -208,7 +208,7 @@ export default function ListingImageFields({
           </button>
           <button
             type="button"
-            className="touch-manipulation inline-flex min-h-11 items-center px-3 text-sm font-medium text-red-700 hover:bg-red-50"
+            className="lc-btn-danger touch-manipulation inline-flex min-h-11 items-center px-3 text-sm font-medium"
             onClick={() => clearSlot(index)}
           >
             Remove photo
@@ -255,7 +255,7 @@ export default function ListingImageFields({
         </button>
         <button
           type="button"
-          className="touch-manipulation inline-flex min-h-11 items-center px-3 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-40"
+          className="lc-btn-danger touch-manipulation inline-flex min-h-11 items-center px-3 text-sm font-medium disabled:opacity-40"
           disabled={busy}
           onClick={() => setPendingRemoveIndex(index)}
         >

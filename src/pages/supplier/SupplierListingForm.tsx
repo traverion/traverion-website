@@ -2796,7 +2796,7 @@ export default function SupplierListingForm({
                             <button
                               type="button"
                               onClick={() => removeBookingOption(opt.id)}
-                              className="inline-flex min-h-[44px] items-center rounded-lg px-3 py-2 text-xs font-medium text-red-700 hover:bg-red-50"
+                              className="lc-btn-danger inline-flex min-h-[44px] items-center rounded-lg px-3 py-2 text-xs font-medium"
                             >
                               Delete option
                             </button>
@@ -2821,7 +2821,7 @@ export default function SupplierListingForm({
                             <button
                               type="button"
                               onClick={() => setOptionPendingDeleteId(opt.id)}
-                              className="inline-flex min-h-[44px] items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium text-red-700 hover:bg-red-50"
+                              className="lc-btn-danger inline-flex min-h-[44px] items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium"
                             >
                               <Trash2 className="w-3.5 h-3.5" aria-hidden />
                               Delete
