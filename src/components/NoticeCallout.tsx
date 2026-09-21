@@ -20,8 +20,13 @@ export default function NoticeCallout({
   tone?: Tone;
   action?: ReactNode;
 }) {
+  const assertive = tone === 'danger' || tone === 'warn';
   return (
-    <div className={`rounded-xl px-3.5 py-2.5 ${TONE[tone]}`}>
+    <div
+      className={`rounded-xl px-3.5 py-2.5 ${TONE[tone]}`}
+      role={assertive ? 'alert' : 'status'}
+      aria-live={assertive ? 'assertive' : 'polite'}
+    >
       <p className="text-sm font-semibold leading-snug">{title}</p>
       {children ? <div className="mt-1 text-sm leading-relaxed opacity-90">{children}</div> : null}
       {action ? <div className="mt-2.5">{action}</div> : null}
