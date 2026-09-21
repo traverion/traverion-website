@@ -80,8 +80,8 @@ export default function ListingImageFields({
     const list = Array.from(files).filter(Boolean);
     if (list.length === 0) return;
 
-    let workingS = [...normalizePhotoSlots(slots)];
-    let workingL = [...normalizePhotoSlotLabels(labels)];
+    const workingS = [...normalizePhotoSlots(slots)];
+    const workingL = [...normalizePhotoSlotLabels(labels)];
     const nextIssues: PhotoIssue[] = [];
 
     if (replaceIndex != null) {

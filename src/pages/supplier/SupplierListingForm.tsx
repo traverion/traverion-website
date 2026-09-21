@@ -140,7 +140,7 @@ const MAX_ACCESSIBILITY_LENGTH = 500;
 const MAX_TIMELINE_LENGTH = 800;
 
 /** Stay and tour both end on Review (publish readiness). */
-function wizardStepCount(_isStay: boolean): number {
+function wizardStepCount(): number {
   return 5;
 }
 
@@ -154,7 +154,7 @@ function readWizardStepFromStorage(editingId: string | null, isStay: boolean): n
     const raw = sessionStorage.getItem(wizardStepStorageKey(editingId, isStay));
     if (!raw) return null;
     const n = Number.parseInt(raw, 10);
-    const max = wizardStepCount(isStay);
+    const max = wizardStepCount();
     if (Number.isNaN(n) || n < 0 || n >= max) return null;
     return n;
   } catch {
