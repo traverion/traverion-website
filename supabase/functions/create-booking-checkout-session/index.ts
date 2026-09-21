@@ -416,7 +416,15 @@ serve(async (req) => {
         slotScoped ? startTime : null
       );
       if (Math.max(0, capacity - occupied) < guests) {
-        return json({ success: false, error: 'Not enough capacity left for this date.' }, 409);
+        return json(
+          {
+            success: false,
+            error: slotScoped
+              ? 'Not enough capacity left for this departure.'
+              : 'Not enough capacity left for this date.',
+          },
+          409
+        );
       }
     }
 
