@@ -644,6 +644,11 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       });
       return;
     }
+    if (selectedBookingVariant && departureTimes.length > 1 && !selectedDepartureTime.trim()) {
+      scrollElementIntoView('tour-booking-panel', { behavior: 'smooth', block: 'start' });
+      setBookingCardError('Choose a departure time to continue.');
+      return;
+    }
     if (selectedBookingVariant && !checkoutFromUrl) {
       void handleContinueToCheckout();
       return;

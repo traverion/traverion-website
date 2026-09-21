@@ -509,7 +509,7 @@ export default function SupplierAvailability() {
                 </p>
               ) : (
                 <p className="text-sm text-ink-muted max-w-xl leading-snug">
-                  Tap a day to set capacity. Closed weekdays follow your listing options.
+                  Tap a day to set capacity. Days outside your option schedules stay closed for travelers.
                 </p>
               )}
               <button
