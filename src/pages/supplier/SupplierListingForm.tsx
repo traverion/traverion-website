@@ -82,6 +82,17 @@ import {
   tourBasicsSceneForFocusSection,
   type ListingCreationSceneDirection,
 } from '../../lib/listing-creation-scenes';
+import {
+  TOUR_EXCLUDE_MAX,
+  TOUR_EXCLUDE_MIN_VISIBLE,
+  TOUR_INCLUDE_MAX,
+  TOUR_INCLUDE_MIN_VISIBLE,
+  addProgressiveSlot,
+  canAddProgressiveSlot,
+  normalizeProgressiveSlots,
+  persistableProgressiveSlots,
+  removeProgressiveSlot,
+} from '../../lib/listing-creation-lines';
 import { ListingCreationWorkspace } from '../../components/supplier/listing-creation/ListingCreationWorkspace';
 import { TourBasicsGuidedScenes } from '../../components/supplier/listing-creation/TourBasicsGuidedScenes';
 import { TourOptionGuidedScenes } from '../../components/supplier/listing-creation/TourOptionGuidedScenes';
@@ -143,8 +154,6 @@ const EXPERIENCE_START_OPTIONS: {
 const MAX_SUBTITLE_LENGTH = TOUR_BASICS_SUBTITLE_MAX;
 const MAX_DESCRIPTION_LENGTH = TOUR_BASICS_DESCRIPTION_MAX;
 const STAY_HIGHLIGHT_SLOT_COUNT = 5;
-const INCLUDE_SLOT_COUNT = 6;
-const EXCLUDE_SLOT_COUNT = 6;
 const MAX_ACCESSIBILITY_LENGTH = 500;
 const MAX_TIMELINE_LENGTH = 800;
 
@@ -393,6 +402,64 @@ function normalizeLineSlots(count: number, fromDb: string[] | undefined): string
   return out;
 }
 
+function ProgressiveLinesEditor({
+  fieldId,
+  label,
+  hint,
+  values,
+  minVisible,
+  max,
+  placeholder,
+  onChange,
+}: {
+  fieldId: string;
+  label: string;
+  hint: string;
+  values: string[];
+  minVisible: number;
+  max: number;
+  placeholder: (index: number) => string;
+  onChange: (next: string[]) => void;
+}) {
+  return (
+    <div id={fieldId}>
+      <label className="mb-1 block text-sm font-semibold text-ink">{label}</label>
+      <p className="mb-2 text-xs text-ink-muted">{hint}</p>
+      <div className="space-y-2">
+        {values.map((line, index) => (
+          <div key={`${fieldId}-${index}`} className="flex items-start gap-2">
+            <input
+              type="text"
+              value={line}
+              onChange={(e) => onChange(values.map((s, i) => (i === index ? e.target.value : s)))}
+              className="tv-input"
+              placeholder={placeholder(index)}
+            />
+            {index >= minVisible ? (
+              <button
+                type="button"
+                onClick={() => onChange(removeProgressiveSlot(values, index, minVisible))}
+                className="tv-btn-ghost !min-h-11 shrink-0 text-sm"
+              >
+                Remove
+              </button>
+            ) : null}
+          </div>
+        ))}
+      </div>
+      {canAddProgressiveSlot(values, max) ? (
+        <button
+          type="button"
+          onClick={() => onChange(addProgressiveSlot(values, max))}
+          className="mt-2 inline-flex min-h-11 items-center text-sm font-semibold text-finland"
+        >
+          + Add another
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 const SCHEDULE_STYLE_OPTIONS: { value: ScheduleStyle; label: string; hint: string }[] = [
   { value: 'flexible', label: 'Flexible timing', hint: 'Start time can vary or you confirm after booking.' },
   { value: 'fixed_slots', label: 'Fixed daily start', hint: 'You usually run at set times (set start time on each booking option).' },
@@ -524,12 +591,8 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
       : undefined;
   const desc = form.description.trim().slice(0, MAX_DESCRIPTION_LENGTH);
   const highlightList = persistableTourHighlights(form.highlights);
-  const includeList = normalizeLineSlots(INCLUDE_SLOT_COUNT, form.includes)
-    .map((s) => s.trim())
-    .filter(Boolean);
-  const excludeList = normalizeLineSlots(EXCLUDE_SLOT_COUNT, form.excludes)
-    .map((s) => s.trim())
-    .filter(Boolean);
+  const includeList = persistableProgressiveSlots(form.includes, TOUR_INCLUDE_MAX);
+  const excludeList = persistableProgressiveSlots(form.excludes, TOUR_EXCLUDE_MAX);
   const orderedPhotos = orderedPhotoUrls(form.photoSlots);
   const mainImage = orderedPhotos[0] ?? '';
   const galleryList = orderedPhotos.slice(1);
@@ -745,8 +808,8 @@ const emptyForm: ListingFormState = {
   status: 'draft',
   bookingOptions: [],
   experienceStartStyle: 'unspecified',
-  includes: Array.from({ length: INCLUDE_SLOT_COUNT }, () => ''),
-  excludes: Array.from({ length: EXCLUDE_SLOT_COUNT }, () => ''),
+  includes: Array.from({ length: TOUR_INCLUDE_MIN_VISIBLE }, () => ''),
+  excludes: Array.from({ length: TOUR_EXCLUDE_MIN_VISIBLE }, () => ''),
   scheduleStyle: 'flexible',
   typicalTimelineNotes: '',
   accessibilitySummary: '',
@@ -1161,8 +1224,8 @@ export default function SupplierListingForm({
           status: existing.status === 'draft' || existing.status === 'published' ? existing.status : 'draft',
           bookingOptions: legacyTourToBookingOptions(existing),
           experienceStartStyle: existing.experienceStartStyle ?? 'unspecified',
-          includes: normalizeLineSlots(INCLUDE_SLOT_COUNT, existing.includes),
-          excludes: normalizeLineSlots(EXCLUDE_SLOT_COUNT, existing.excludes),
+          includes: normalizeProgressiveSlots(existing.includes, TOUR_INCLUDE_MIN_VISIBLE, TOUR_INCLUDE_MAX),
+          excludes: normalizeProgressiveSlots(existing.excludes, TOUR_EXCLUDE_MIN_VISIBLE, TOUR_EXCLUDE_MAX),
           scheduleStyle: extras.scheduleStyle ?? 'flexible',
           typicalTimelineNotes: extras.typicalTimelineNotes ?? '',
           accessibilitySummary: extras.accessibilitySummary ?? '',
@@ -2231,49 +2294,32 @@ export default function SupplierListingForm({
           )}
 
           {stepIdx === 1 && form.inventoryFamily !== 'stay' && (
-            <div className="space-y-5 transition-all duration-300 ease-out opacity-100 translate-y-0">
-              <div id="supplier-listing-field-includes">
-                <label className="block text-sm font-semibold text-ink mb-1">What&apos;s included *</label>
-                <p className="text-xs text-ink-muted mb-2">At least two clear items (tickets, guide, transport, tastings, etc.).</p>
-                <div className="space-y-2">
-                  {form.includes.map((line, index) => (
-                    <input
-                      key={index}
-                      type="text"
-                      value={line}
-                      onChange={(e) =>
-                        setForm((f) => ({
-                          ...f,
-                          includes: f.includes.map((s, i) => (i === index ? e.target.value : s)),
-                        }))
-                      }
-                      className="tv-input"
-                      placeholder={`Included item ${index + 1}`}
-                    />
-                  ))}
-                </div>
-              </div>
-              <div id="supplier-listing-field-excludes">
-                <label className="block text-sm font-semibold text-ink mb-1">Not included *</label>
-                <p className="text-xs text-ink-muted mb-2">At least one line so guests know what to budget for.</p>
-                <div className="space-y-2">
-                  {form.excludes.map((line, index) => (
-                    <input
-                      key={index}
-                      type="text"
-                      value={line}
-                      onChange={(e) =>
-                        setForm((f) => ({
-                          ...f,
-                          excludes: f.excludes.map((s, i) => (i === index ? e.target.value : s)),
-                        }))
-                      }
-                      className="tv-input"
-                      placeholder={`Not included ${index + 1}`}
-                    />
-                  ))}
-                </div>
-              </div>
+            <div className="space-y-10">
+              <section className="space-y-5" aria-labelledby="tour-details-guests">
+                <h4 id="tour-details-guests" className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted">
+                  What guests get
+                </h4>
+                <ProgressiveLinesEditor
+                  fieldId="supplier-listing-field-includes"
+                  label="What's included *"
+                  hint={`At least two clear items. You can add up to ${TOUR_INCLUDE_MAX}.`}
+                  values={form.includes}
+                  minVisible={TOUR_INCLUDE_MIN_VISIBLE}
+                  max={TOUR_INCLUDE_MAX}
+                  placeholder={(index) => (index === 0 ? 'e.g. Guide and transfers' : `Included item ${index + 1}`)}
+                  onChange={(includes) => setForm((f) => ({ ...f, includes }))}
+                />
+                <ProgressiveLinesEditor
+                  fieldId="supplier-listing-field-excludes"
+                  label="Not included *"
+                  hint={`At least one line so guests know what to budget for. You can add up to ${TOUR_EXCLUDE_MAX}.`}
+                  values={form.excludes}
+                  minVisible={TOUR_EXCLUDE_MIN_VISIBLE}
+                  max={TOUR_EXCLUDE_MAX}
+                  placeholder={(index) => (index === 0 ? 'e.g. Meals' : `Not included ${index + 1}`)}
+                  onChange={(excludes) => setForm((f) => ({ ...f, excludes }))}
+                />
+              </section>
               <details
                 id="supplier-listing-field-accessibility"
                 className="group py-2"
@@ -2377,7 +2423,11 @@ export default function SupplierListingForm({
           )}
 
           {stepIdx === 1 && (
-            <div className="space-y-4 transition-all duration-300 ease-out opacity-100 translate-y-0">
+            <div className={`space-y-10 ${form.inventoryFamily === 'stay' ? '' : 'mt-10'}`}>
+              <section className="space-y-4" aria-labelledby="listing-details-place">
+                <h4 id="listing-details-place" className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted">
+                  {form.inventoryFamily === 'stay' ? 'Where it is' : 'Where it happens'}
+                </h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" id="supplier-listing-field-location">
                 <div>
                   <label className="block text-sm font-semibold text-ink mb-1">City *</label>
@@ -2416,12 +2466,16 @@ export default function SupplierListingForm({
                 </p>
               </div>
               {form.inventoryFamily !== 'stay' ? (
-              <p className="text-xs text-ink-muted -mt-2">
+              <p className="text-xs text-ink-muted">
                 Use the main base or usual starting city. Exact meeting and pickup belong on each bookable option.
               </p>
               ) : null}
+              </section>
               {form.inventoryFamily !== 'stay' ? (
-              <>
+              <section className="space-y-4" aria-labelledby="tour-details-expect">
+                <h4 id="tour-details-expect" className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted">
+                  What to expect
+                </h4>
               <div id="supplier-listing-field-start">
                 <label className="block text-sm font-semibold text-ink mb-1">How this tour generally starts *</label>
                 <select
@@ -2484,10 +2538,8 @@ export default function SupplierListingForm({
                   {SCHEDULE_STYLE_OPTIONS.map((o) => (
                     <label
                       key={o.value}
-                      className={`flex cursor-pointer gap-3 rounded-lg border p-3 transition-colors ${
-                        form.scheduleStyle === o.value
-                          ? 'border-finland bg-finland/5'
-                          : 'border-black/[0.08] bg-white hover:border-black/[0.12]'
+                      className={`lc-choice flex cursor-pointer gap-3 rounded-xl p-3 ${
+                        form.scheduleStyle === o.value ? 'lc-choice--selected' : ''
                       }`}
                     >
                       <input
@@ -2526,14 +2578,14 @@ export default function SupplierListingForm({
                 </div>
                 </div>
               </details>
-              </>
+              </section>
               ) : null}
             </div>
           )}
 
           {stepIdx === 2 && form.inventoryFamily === 'stay' && (
             <div className="space-y-4">
-              <h3 id="supplier-listing-field-stay-price" className="font-display text-xl text-ink">
+              <h3 id="supplier-listing-field-stay-price" className="font-display text-[1.85rem] font-bold tracking-tight text-ink">
                 Stay price and rooms
               </h3>
               <p className="text-sm text-ink-muted leading-snug">
@@ -2931,7 +2983,7 @@ export default function SupplierListingForm({
             return (
             <div id="supplier-listing-field-review" className="space-y-8">
               <div>
-                <h3 className="font-display text-[1.85rem] leading-[1.15] tracking-tight text-ink sm:text-[2.15rem]">
+                <h3 className="font-display text-[2rem] font-bold leading-[1.12] tracking-tight text-ink sm:text-[2.4rem]">
                   Review
                 </h3>
                 <p className="mt-2 max-w-xl text-base leading-relaxed text-ink-muted">
