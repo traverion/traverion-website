@@ -393,13 +393,6 @@ function normalizeHighlightSlots(fromDb: string[] | undefined): string[] {
   return normalizeProgressiveSlots(fromDb, STAY_HIGHLIGHT_MIN_VISIBLE, STAY_HIGHLIGHT_MAX);
 }
 
-function normalizeLineSlots(count: number, fromDb: string[] | undefined): string[] {
-  const base = Array.isArray(fromDb) ? fromDb.map((s) => String(s ?? '')) : [];
-  const out = base.slice(0, count);
-  while (out.length < count) out.push('');
-  return out;
-}
-
 function ProgressiveLinesEditor({
   fieldId,
   label,
