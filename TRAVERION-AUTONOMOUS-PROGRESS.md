@@ -3,9 +3,9 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `e038d1e`  
-**Current phase:** 411  
-**Band:** 401–450 → inventory; entering supplier ops  
+**Current SHA:** `d13be94`  
+**Current phase:** 412  
+**Band:** Supplier operating experience  
 **Stripe:** TEST  
 **Preserve:** `scripts/cert-transactional-emails.cjs`
 
@@ -13,21 +13,18 @@
 
 | Phase | SHA | Outcome |
 |------|-----|---------|
-| 401 | `59d5407` | Truth + gates; Phase 400 SHA = `6bbe875` |
-| 402 | `e771673` | Deploy checkout edge |
-| 403 | `a951668` | Per-departure slot inventory (076) |
-| 404 | `be270af` | Multi-departure unit cert |
-| 405–406 | `20819be` | Stay unit + purchase_snapshot (077) |
-| 407 | `1e3e3cb` | Protect paid commercial fields (078) |
-| 408 | `776bdd5` | Partner Calendar per-departure remaining |
-| 409 | `ecc02b2` | BookingPage slot-scoped remaining |
-| 410 | `e038d1e` | Honest departure remaining copy |
-| 411 | (pending) | Partner Bookings sort by date then departure |
+| 401–404 | …`be270af` | Truth, deploy, slot inventory, multi-departure cert |
+| 405–406 | `20819be` | Stay unit + purchase_snapshot |
+| 407 | `1e3e3cb` | Protect paid commercial fields |
+| 408 | `776bdd5` | Calendar per-departure remaining |
+| 409–410 | `e038d1e` | BookingPage slot remaining + honest copy |
+| 411 | `d13be94` | Bookings sort by date then departure |
+| 412 | (pending) | Bookings row shows option + purchase snapshot title |
 
 ## Next
-- Hold/abandoned checkout cert
-- Option label on partner booking rows
-- Traveler filter honesty audit
+- Detail drawer option/meeting from snapshot
+- Hold expiry cert
+- Traveler discovery honesty
 - Browser golden journeys when session allows
 
 ## Do not

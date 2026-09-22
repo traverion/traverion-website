@@ -70,6 +70,7 @@ import { partnerBookingHasPickupAttention } from '../../lib/pickup-completeness'
 import { openSupplierPickup } from '../../lib/supplierPortalNavigation';
 import { parseListingExtras, materializedBookingOptions } from '../../types/listingExtras';
 import { comparePartnerBookingsOperational } from '../../lib/partner-bookings-order';
+import { displayListingTitleFromPurchase, displayOptionLabelFromPurchase } from '../../lib/purchase-snapshot';
 
 const BOOKINGS_PAGE_SIZE = 10;
 
@@ -81,7 +82,7 @@ type ListingBookingMeta = {
   family: ReturnType<typeof inventoryFamilyFromListing>;
   meetingPoint: string | null;
   pickupInstructions: string | null;
-  bookingOptions: Array<{ id: string; pickupPlace: string; optionInfo: string }>;
+  bookingOptions: Array<{ id: string; name: string; pickupPlace: string; optionInfo: string }>;
   stayCheckInTime: string | null;
   stayCheckOutTime: string | null;
 };
@@ -96,6 +97,7 @@ function buildListingMeta(listing: TourPackage): ListingBookingMeta {
   const extras = parseListingExtras(listing.listingExtras as unknown);
   const opts = materializedBookingOptions(extras.bookingOptions).map((o) => ({
     id: o.id,
+    name: o.name?.trim() || '',
     pickupPlace: o.pickupPlace,
     optionInfo: o.optionInfo,
   }));
@@ -875,7 +877,19 @@ export default function SupplierBookings({
             {paginatedBookings.map((booking) => {
               const startHm = booking.start_time ? pgTimeToHm(booking.start_time) ?? null : null;
               const meta = listingMeta[booking.listing_id];
-              const listingTitle = meta?.title ?? (meta?.family === 'stay' ? 'Stay' : 'Tour');
+              const liveOptionLabel =
+                booking.booking_option_id && meta?.bookingOptions?.length
+                  ? meta.bookingOptions.find((o) => o.id === booking.booking_option_id)?.name?.trim() || ''
+                  : '';
+              const optionLabel = displayOptionLabelFromPurchase(
+                booking.purchase_snapshot,
+                liveOptionLabel
+              );
+              const listingTitle = displayListingTitleFromPurchase(
+                booking.purchase_snapshot,
+                meta?.title,
+                meta?.family === 'stay' ? 'Stay' : 'Tour'
+              );
               const stayOut =
                 booking.check_out && /^\d{4}-\d{2}-\d{2}$/.test(booking.check_out)
                   ? booking.check_out
@@ -941,7 +955,10 @@ export default function SupplierBookings({
                         <p className="text-sm font-semibold text-ink truncate">{booking.guest_name || 'Guest'}</p>
                         <span className="text-[11px] font-medium capitalize text-ink-muted shrink-0">{partnerPaymentLabel(booking)}</span>
                       </div>
-                      <p className="mt-0.5 text-xs text-ink-muted truncate">{listingTitle}</p>
+                      <p className="mt-0.5 text-xs text-ink-muted truncate">
+                        {listingTitle}
+                        {optionLabel ? ` · ${optionLabel}` : ''}
+                      </p>
                       <p className="mt-0.5 text-xs text-ink-muted">
                         {typeof booking.booking_number === 'number' && booking.booking_number > 0 ? (
                           <>
