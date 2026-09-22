@@ -60,10 +60,10 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 513 | Inventory band checkpoint journal (451–525 progress) | `e9438ab` |
 | 514 | Today schedule: wrap long meeting points (no silent truncate) | `6b1d88a` |
 | 515 | Wrap long guest emails on partner Bookings detail | `8e4621b` |
-| 516 | Clear hidden duration/language filters so they cannot silently filter | _(this commit)_ |
-| 517 | Clear hidden stay property/amenity filters when chips are hidden | `d41d635`
-| 518 | Production build + app tsc clean after hidden-filter honesty | _(this commit)_
-
+| 516 | Clear hidden duration/language filters so they cannot silently filter | `4ddcb80` |
+| 517 | Clear hidden stay property/amenity filters when chips are hidden | `d41d635` |
+| 518 | Production build + app tsc clean after hidden-filter honesty | `98a9c9e` |
+| 519 | Repair progress journal table rows for Phases 516–518 | _(this commit)_ |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
