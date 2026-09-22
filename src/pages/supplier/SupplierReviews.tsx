@@ -462,7 +462,7 @@ export default function SupplierReviews() {
                             Edit reply
                           </button>
                         </div>
-                        <p className="mt-0.5 text-sm text-ink-muted leading-snug">{replies[r.id].reply_text}</p>
+                        <p className="mt-0.5 text-sm text-ink-muted leading-snug break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{replies[r.id].reply_text}</p>
                         <p className="text-[11px] text-ink-faint mt-1">
                           {new Date(replies[r.id].created_at).toLocaleDateString()}
                         </p>
