@@ -1332,18 +1332,18 @@ export default function BookingPage({
                 </div>
                 <div className="flex justify-between gap-4">
                   <dt className="text-ink-muted">Email</dt>
-                  <dd className="font-medium text-ink text-right">{email}</dd>
+                  <dd className="break-all font-medium text-ink text-right [overflow-wrap:anywhere]">{email}</dd>
                 </div>
                 {phone.trim() ? (
                   <div className="flex justify-between gap-4">
                     <dt className="text-ink-muted">Phone</dt>
-                    <dd className="font-medium text-ink text-right">{phone.trim()}</dd>
+                    <dd className="break-all font-medium text-ink text-right [overflow-wrap:anywhere]">{phone.trim()}</dd>
                   </div>
                 ) : null}
                 {placeOfStay.trim() ? (
                   <div className="flex justify-between gap-4">
                     <dt className="text-ink-muted">Place of stay</dt>
-                    <dd className="font-medium text-ink text-right">{placeOfStay.trim()}</dd>
+                    <dd className="break-words font-medium text-ink text-right [overflow-wrap:anywhere]">{placeOfStay.trim()}</dd>
                   </div>
                 ) : null}
                 {specialRequests.trim() ? (

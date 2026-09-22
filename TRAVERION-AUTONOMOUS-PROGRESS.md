@@ -3,10 +3,10 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** _(pending 526)_  
-**Current phase:** 526  
+**Current SHA:** _(pending 527)_  
+**Current phase:** 527  
 **Branch:** `reconstruction/phase-0-audit`  
-**Commits this mission:** 109+  
+**Commits this mission:** 110+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
 **Preserve:** `scripts/cert-transactional-emails.cjs` (intentionally untracked)
 
@@ -70,7 +70,8 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 523 | Apply Settings verification feedback overflow-wrap | `37dd78a` |
 | 524 | Wrap partner portal notice bodies | `821112d` |
 | 525 | Journal checkout lead-guest wrap | `821112d` |
-| 526 | Apply checkout summary lead-guest name wrap | _(this commit)_ |
+| 526 | Apply checkout summary lead-guest name wrap | `474e8f6` |
+| 527 | Wrap checkout contact email/phone/place/requests | _(this commit)_ |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -130,6 +131,9 @@ Partner portal notices and checkout lead-guest summary wrap long strings.
 
 ### Phase 526 — checkout lead-guest wrap (code)
 Land the overflow-wrap on checkout lead-guest summary.
+
+### Phase 527 — checkout contact wrap
+Checkout contact summary wraps email, phone, place of stay, and requests.
 
 ## Known remaining risks (ranked)
 
