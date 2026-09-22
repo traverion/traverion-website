@@ -87,6 +87,7 @@ import {
 } from '../lib/listing-option-schedules';
 import { formatTourAvailabilityHeading, optionsOnDate } from '../lib/tour-available-options';
 import { tourSlotMaxSpotsFromOption } from '../lib/tour-slot-capacity';
+import { tourStickyBookCtaLabel } from '../lib/tour-sticky-cta';
 import { fetchWishlistListingIds, toggleWishlist } from '../data/supabase-wishlist';
 import { formatMoney, normalizeCurrency } from '../lib/money';
 import { PriceHero } from '../components/PriceBreakdown';
@@ -319,6 +320,14 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       const headerOffset = window.innerWidth >= 1024 ? 120 : 88;
       const top = el.getBoundingClientRect().top + window.scrollY - headerOffset;
       window.scrollTo({ top: Math.max(0, top), behavior: reduce ? 'auto' : 'smooth' });
+      window.requestAnimationFrame(() => {
+        const firstChoose =
+          (el.querySelector(
+            '[data-tour-option-cta="choose"]:not([aria-pressed="true"])'
+          ) as HTMLButtonElement | null) ??
+          (el.querySelector('[data-tour-option-cta="choose"]') as HTMLButtonElement | null);
+        firstChoose?.focus();
+      });
     }, 40);
   }, []);
 
@@ -1552,17 +1561,16 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                   disabled={variantChecking}
                   className="tv-btn-primary shrink-0"
                 >
-                  {variantChecking
-                    ? 'Checking…'
-                    : selectedBookingVariant && departureTimes.length > 1 && !selectedDepartureTime
-                      ? 'Pick time'
-                      : selectedBookingVariant
-                        ? 'Continue · TEST'
-                        : !bookingDate.trim()
-                          ? 'Pick a date'
-                          : bookingVariantsOpen
-                            ? 'Choose option'
-                            : 'See options'}
+                  {tourStickyBookCtaLabel({
+                    hasDate: Boolean(bookingDate.trim()),
+                    hasOption: Boolean(selectedBookingVariant),
+                    needsDeparture:
+                      Boolean(selectedBookingVariant) &&
+                      departureTimes.length > 1 &&
+                      !selectedDepartureTime,
+                    checking: variantChecking,
+                    variantsOpen: bookingVariantsOpen,
+                  })}
                 </button>
               </div>
             </div>,

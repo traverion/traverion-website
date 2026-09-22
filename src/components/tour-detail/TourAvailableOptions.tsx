@@ -141,6 +141,7 @@ function OptionRow({
       </div>
       <button
         type="button"
+        data-tour-option-cta="choose"
         onClick={() => onChoose(variant)}
         aria-pressed={selected}
         className={
