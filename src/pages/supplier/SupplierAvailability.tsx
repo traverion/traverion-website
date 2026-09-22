@@ -27,6 +27,7 @@ import {
 } from '../../lib/availability-ops';
 import { tourSellingDeparturesOnDate } from '../../lib/listing-option-schedules';
 import { formatPartnerCheckoutHoldLabel, tourCheckoutOccupiedGuests, normalizeTourStartTimeHm } from '../../lib/booking-hold';
+import { capacityBelowSoldWarning } from '../../lib/capacity-reduction-warn';
 import { localYmd } from '../../lib/local-ymd';
 import { navigateSupplierUrl, openSupplierBooking } from '../../lib/supplierPortalNavigation';
 import { PARTNER_CREATE_PATH } from '../../lib/partnerPortalPaths';
@@ -325,6 +326,10 @@ export default function SupplierAvailability() {
     setError(null);
     setSaveNote(null);
     const occupied = stayCalendar && (guestsByDate.get(iso)?.count ?? 0) > 0;
+    const tourOccupying = !stayCalendar ? guestsByDate.get(iso)?.guests ?? 0 : 0;
+    const underSold = !stayCalendar
+      ? capacityBelowSoldWarning({ newCapacity: capacity, occupyingGuests: tourOccupying, scopeLabel: 'this date' })
+      : null;
     const res = await upsertAvailability(listingId, [{ available_date: iso, capacity }]);
     setSavingIso(null);
     if (!res.success) {
@@ -336,6 +341,8 @@ export default function SupplierAvailability() {
       setSaveNote(
         'Block saved. The night stays Occupied while this guest is in-house; new travelers already cannot book it. The block remains after checkout.'
       );
+    } else if (underSold) {
+      setSaveNote(underSold);
     } else {
       setEditing(null);
     }
