@@ -296,11 +296,11 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
     };
   }, [supabaseListingIdsKey]);
 
-  useEffect(() => {
+  const reloadDateCapacity = useCallback(() => {
     if (!filterDate || !/^\d{4}-\d{2}-\d{2}$/.test(filterDate) || !isSupabaseConfigured() || allListings.length === 0) {
       setDateCapacityByListing(null);
       setDateCapacityLoading(false);
-      return;
+      return () => {};
     }
     let cancelled = false;
     setDateCapacityLoading(true);
@@ -344,6 +344,18 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
       cancelled = true;
     };
   }, [filterDate, allListings]);
+
+  useEffect(() => {
+    return reloadDateCapacity();
+  }, [reloadDateCapacity]);
+
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState === 'visible') reloadDateCapacity();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, [reloadDateCapacity]);
 
   // SEO: JSON-LD for listings (helps search engines understand tour offerings)
   useEffect(() => {
