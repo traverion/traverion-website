@@ -3,10 +3,10 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** _(pending 536)_  
-**Current phase:** 536  
+**Current SHA:** _(pending 537)_  
+**Current phase:** 537  
 **Branch:** `reconstruction/phase-0-audit`  
-**Commits this mission:** 119+  
+**Commits this mission:** 120+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
 **Preserve:** `scripts/cert-transactional-emails.cjs` (intentionally untracked)
 
@@ -80,7 +80,8 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 533 | Certify stay already-booked maps to human concurrent-checkout copy | `7c1e038` |
 | 534 | Progress note for homepage featured title wrap | `c6a5f63` |
 | 535 | Apply homepage featured listing title wrap | `03042da` |
-| 536 | Normalize invalid stay browse date ranges from shared URLs | _(this commit)_ |
+| 536 | Normalize invalid stay browse date ranges from shared URLs | `fc31b7a` |
+| 537 | Build + tsc + honesty 16/16 after stay date + wrap band | _(this commit)_ |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -170,6 +171,9 @@ Land the homepage featured title overflow-wrap.
 
 ### Phase 536 — stay date-range honesty
 If a shared URL has check-out ≤ check-in, Stays auto-bumps check-out to the next night instead of silently ignoring the date filter.
+
+### Phase 537 — checkpoint
+Production build clean; app tsc clean; focused honesty 16/16 after stay date-range fix.
 
 ## Known remaining risks (ranked)
 
