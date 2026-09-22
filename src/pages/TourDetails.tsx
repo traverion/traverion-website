@@ -39,6 +39,7 @@ import { listingIsOnTravelerCatalog } from '../lib/inventory';
 import { listingShowsFreeCancellation, publicReviewLabel } from '../lib/listingTruth';
 import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
 import { listingTourCapacityFromOptions, remainingCapacity, capacitySpotsFromBookingOptions } from '../lib/availability-ops';
+import { departureSlotSpotsLeft } from '../lib/departure-slot-remaining';
 import { tourSoldOutDates } from '../lib/tour-calendar';
 import BookingPage from './BookingPage';
 import {
@@ -1248,24 +1249,20 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                                   const selected = selectedDepartureTime === time;
                                   const day = bookingDate.trim();
                                   const slotSpotsLeft = (() => {
-                                    if (!dayCapacitySnap || !/^\d{4}-\d{2}-\d{2}$/.test(day) || !selectedOptionApplied) {
-                                      return null;
-                                    }
-                                    if (dayCapacitySnap.capByDay.has(day)) {
-                                      // Day-level override still uses day remaining for all times.
-                                      return remainingCapacity(
-                                        dayCapacitySnap.capByDay.get(day) ?? dayCapacitySnap.fallback,
-                                        dayCapacitySnap.paidByDay[day] ?? 0
-                                      );
-                                    }
-                                    const spots = selectedOptionApplied.maxSpotsPerSlot;
-                                    const cap =
-                                      typeof spots === 'number' && Number.isFinite(spots) && spots >= 1
-                                        ? Math.min(99, Math.floor(spots))
-                                        : Math.min(99, Math.max(1, selectedOptionApplied.maxPersons));
-                                    const paid =
-                                      dayCapacitySnap.paidBySlot[tourPaidSlotKey(day, time)] ?? 0;
-                                    return remainingCapacity(cap, paid);
+                                    if (!dayCapacitySnap || !selectedOptionApplied) return null;
+                                    const dayCap = dayCapacitySnap.capByDay.has(day)
+                                      ? dayCapacitySnap.capByDay.get(day)
+                                      : undefined;
+                                    return departureSlotSpotsLeft({
+                                      dayIso: day,
+                                      startTimeHm: time,
+                                      maxSpotsPerSlot: selectedOptionApplied.maxSpotsPerSlot,
+                                      maxPersonsFallback: selectedOptionApplied.maxPersons,
+                                      paidBySlot: dayCapacitySnap.paidBySlot,
+                                      paidByDay: dayCapacitySnap.paidByDay,
+                                      dayCapOverride: dayCap,
+                                      fallbackDayCap: dayCapacitySnap.fallback,
+                                    });
                                   })();
                                   const soldOut = slotSpotsLeft != null && slotSpotsLeft < 1;
                                   return (
