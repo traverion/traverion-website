@@ -3,32 +3,31 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `4d66e42`  
-**Current phase:** 415  
-**Commits this mission:** 13  
-**Band:** Inventory integrity → supplier ops → traveler honesty  
+**Current SHA:** (pending 417)  
+**Current phase:** 417  
+**Band:** Traveler honesty + inventory truth (subagent follow-up)  
 **Stripe:** TEST  
 **Preserve:** `scripts/cert-transactional-emails.cjs`
 
-## Phase log (condensed)
+## Subagent follow-up ([Find high-ROI product gaps](83383efd-7eb8-4894-81ea-812b28bfe5ac))
+
+| Item | Status |
+|------|--------|
+| Slot-aware `checkAvailability` | Done (417) |
+| soldOut + spots copy (TourDetails/BookingPage) | Done (417) |
+| Browse tag honesty (free cancel / pickup) | Done (417) |
+| Packages date slot filter | Partial (414 day-cap only; slot browse deferred) |
+| Partner Calendar month cells | Open |
+| Stay live holds on public calendar | Open |
+| Mobile CTA focus polish | Open |
+
+## Recent phases
 
 | Phase | SHA | Outcome |
 |------|-----|---------|
-| 401–407 | …`1e3e3cb` | Truth → slot inventory → purchase snapshot → paid field freeze |
-| 408–410 | `e038d1e` | Calendar remaining; BookingPage slot remaining + copy |
-| 411–413 | `b385079` | Bookings sort/option; unpublish paid-trip warn |
-| 414 | `4d66e42` | Multi-departure sold-out honesty (catalog + calendar) |
-| 415 | (docs) | Hold/resume/cancel-checkout unit cert: **23/23** green (`booking-hold`, `checkout-resume`, `cancelled-booking-checkout`). No code change. |
-
-## Deployed
-- Migrations 076–078 linked
-- Checkout edge with purchase_snapshot + slot inventory
-
-## Remaining high ROI
-- Browser golden journeys (needs partner session)
-- Mobile sticky CTA focus cert @ 390×844
-- Schedule edit after bookings (historical snapshot already protects display)
-- LIVE Stripe still blocked (intentional)
+| 415 | `e957b2c` | Hold/resume unit cert |
+| 416 | (this commit) | DST + stay night boundary tests |
+| 417 | (next commit) | Slot checkAvailability + tag filters + soldOut spot math |
 
 ## Do not
 - Live Stripe, force-push, commit cert-email script
