@@ -61,7 +61,7 @@ export default function TourListingSections({ tour, supplierLegal, onOpenLegal }
             {highlights.map((highlight) => (
               <li key={highlight} className="flex items-start gap-2.5 text-[15px] text-ink">
                 <Check className="mt-0.5 h-4 w-4 shrink-0 text-finland" strokeWidth={2.25} aria-hidden />
-                <span>{highlight}</span>
+                <span className="break-words [overflow-wrap:anywhere]">{highlight}</span>
               </li>
             ))}
           </ul>
@@ -91,10 +91,10 @@ export default function TourListingSections({ tour, supplierLegal, onOpenLegal }
                     {locationSuffix}
                   </p>
                   {day.title?.trim() ? (
-                    <h3 className="mt-1 font-semibold text-ink">{day.title.trim()}</h3>
+                    <h3 className="mt-1 font-semibold text-ink break-words [overflow-wrap:anywhere]">{day.title.trim()}</h3>
                   ) : null}
                   {day.description?.trim() ? (
-                    <p className="mt-1 text-[15px] leading-relaxed text-ink-muted">{day.description.trim()}</p>
+                    <p className="mt-1 text-[15px] leading-relaxed text-ink-muted break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{day.description.trim()}</p>
                   ) : null}
                   {(day.activities ?? []).filter((a) => String(a).trim()).length > 0 ? (
                     <ul className="mt-2 space-y-1 text-sm text-ink-muted">
@@ -102,7 +102,7 @@ export default function TourListingSections({ tour, supplierLegal, onOpenLegal }
                         .map((a) => String(a).trim())
                         .filter(Boolean)
                         .map((a) => (
-                          <li key={a}>{a}</li>
+                          <li key={a} className="break-words [overflow-wrap:anywhere]">{a}</li>
                         ))}
                     </ul>
                   ) : null}
@@ -123,7 +123,7 @@ export default function TourListingSections({ tour, supplierLegal, onOpenLegal }
                   {includes.map((item) => (
                     <li key={item} className="flex items-start gap-2.5 text-[15px] text-ink">
                       <Check className="mt-0.5 h-4 w-4 shrink-0 text-finland" strokeWidth={2.25} aria-hidden />
-                      <span>{item}</span>
+                      <span className="break-words [overflow-wrap:anywhere]">{item}</span>
                     </li>
                   ))}
                 </ul>
@@ -136,7 +136,7 @@ export default function TourListingSections({ tour, supplierLegal, onOpenLegal }
                   {excludes.map((item) => (
                     <li key={item} className="flex items-start gap-2.5 text-[15px] text-ink">
                       <X className="mt-0.5 h-4 w-4 shrink-0 text-ink-muted" strokeWidth={2.25} aria-hidden />
-                      <span>{item}</span>
+                      <span className="break-words [overflow-wrap:anywhere]">{item}</span>
                     </li>
                   ))}
                 </ul>
@@ -157,8 +157,12 @@ export default function TourListingSections({ tour, supplierLegal, onOpenLegal }
             ) : tour.experienceStartStyle === 'either_available' ? (
               <p>Pickup or meeting point — the operator confirms which applies to your booking.</p>
             ) : null}
-            {tour.meetingPoint?.trim() ? <p>{tour.meetingPoint.trim()}</p> : null}
-            {tour.pickupInstructions?.trim() ? <p>{tour.pickupInstructions.trim()}</p> : null}
+            {tour.meetingPoint?.trim() ? (
+              <p className="break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{tour.meetingPoint.trim()}</p>
+            ) : null}
+            {tour.pickupInstructions?.trim() ? (
+              <p className="break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{tour.pickupInstructions.trim()}</p>
+            ) : null}
           </div>
         </section>
       ) : null}
@@ -172,7 +176,9 @@ export default function TourListingSections({ tour, supplierLegal, onOpenLegal }
               <li>Minimum age: {tour.listingExtras.minGuestAge.trim()}</li>
             ) : null}
             {notes.map((n) => (
-              <li key={n}>{n}</li>
+              <li key={n} className="break-words [overflow-wrap:anywhere]">
+                {n}
+              </li>
             ))}
           </ul>
         </section>

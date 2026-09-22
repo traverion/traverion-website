@@ -3,10 +3,10 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** _(pending 489)_  
-**Current phase:** 489  
+**Current SHA:** _(pending 490–491)_  
+**Current phase:** 491  
 **Branch:** `reconstruction/phase-0-audit`  
-**Commits this mission:** 82+  
+**Commits this mission:** 83+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
 **Preserve:** `scripts/cert-transactional-emails.cjs` (intentionally untracked)
 
@@ -36,8 +36,9 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 483 | Progress journal catch-up + ROI triage | `f1a7a28` |
 | 484 | Sold-out party max no longer restores option max | `f1a7a28` |
 | 485–486 | Partner Bookings/Today/Calendar note purchased departure when ops time differs | `c3c1b97` |
-| 487 | Inventory honesty cert batch 20/20 (multi-departure, concurrency, party max, snapshot) | _(this commit)_ |
-| 488 | Sold-out guest stepper: no fake 0–N range; both buttons disabled | _(this commit)_ |
+| 487 | Inventory honesty cert batch 20/20 (multi-departure, concurrency, party max, snapshot) | `cb1bae1` |
+| 488 | Sold-out guest stepper: no fake 0–N range; both buttons disabled | `cb1bae1` |
+| 489 | Inbox shows ops start + Purchased note when times diverge | _(this commit)_ |
 
 ### Phase 483 — problem / evidence
 ROI explore subagent unavailable (usage limit). Solo triage: highest remaining honesty hole was guest stepper restoring full `optionMax` when `spotsLeft < 1` on TourDetails + BookingPage.
@@ -50,6 +51,9 @@ Added `partyMaxCappedByRemainingSpots`; sold-out → `0`. Tests 6/6.
 
 ### Phase 487–488 — sold-out party copy
 Cert batch green. `formatPartySizeHint` / validation / GuestStepper refuse inventing a guest range when max &lt; 1.
+
+### Phase 489 — Inbox departure honesty
+Same purchased-vs-ops display as Bookings/Today.
 
 ## Known remaining risks (ranked)
 
