@@ -15,5 +15,8 @@ describe('tourStickyBookCtaLabel', () => {
     expect(
       tourStickyBookCtaLabel({ hasDate: true, hasOption: true, needsDeparture: false })
     ).toBe('Continue · TEST');
+    expect(
+      tourStickyBookCtaLabel({ hasDate: true, hasOption: true, needsDeparture: false, soldOut: true })
+    ).toBe('Sold out');
   });
 });

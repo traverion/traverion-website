@@ -1574,8 +1574,13 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                 <button
                   type="button"
                   onClick={handleStickyBookCta}
-                  disabled={variantChecking}
-                  className="tv-btn-primary shrink-0"
+                  disabled={
+                    variantChecking ||
+                    (Boolean(selectedBookingVariant) &&
+                      selectedDaySpotsLeft != null &&
+                      selectedDaySpotsLeft < Math.max(1, guests))
+                  }
+                  className="tv-btn-primary shrink-0 disabled:opacity-60"
                 >
                   {tourStickyBookCtaLabel({
                     hasDate: Boolean(bookingDate.trim()),
@@ -1586,6 +1591,10 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                       !selectedDepartureTime,
                     checking: variantChecking,
                     variantsOpen: bookingVariantsOpen,
+                    soldOut:
+                      Boolean(selectedBookingVariant) &&
+                      selectedDaySpotsLeft != null &&
+                      selectedDaySpotsLeft < Math.max(1, guests),
                   })}
                 </button>
               </div>

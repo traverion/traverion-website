@@ -7,10 +7,12 @@ export function tourStickyBookCtaLabel(params: {
   needsDeparture: boolean;
   checking?: boolean;
   variantsOpen?: boolean;
+  soldOut?: boolean;
 }): string {
   if (params.checking) return 'Checking…';
   if (!params.hasDate) return 'Pick a date';
   if (params.hasOption && params.needsDeparture) return 'Pick time';
+  if (params.hasOption && params.soldOut) return 'Sold out';
   if (params.hasOption) return 'Continue · TEST';
   if (params.variantsOpen) return 'Choose option';
   return 'See options';
