@@ -924,10 +924,16 @@ export default function BookingPage({
                   }`}
                 >
                   {selectedDaySpotsLeft === 0
-                    ? 'Fully booked this day'
+                    ? departureTime
+                      ? `Fully booked for the ${departureTime} departure`
+                      : 'Fully booked this day'
                     : selectedDaySpotsLeft === 1
-                      ? '1 spot left this day'
-                      : `${selectedDaySpotsLeft} spots left this day`}
+                      ? departureTime
+                        ? `1 spot left for the ${departureTime} departure`
+                        : '1 spot left this day'
+                      : departureTime
+                        ? `${selectedDaySpotsLeft} spots left for the ${departureTime} departure`
+                        : `${selectedDaySpotsLeft} spots left this day`}
                 </p>
               ) : null}
               {usesAgePricingOnVariant && appliedOption ? (
