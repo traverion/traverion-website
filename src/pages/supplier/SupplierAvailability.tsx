@@ -21,10 +21,11 @@ import {
   capacitySpotsFromBookingOptions,
   defaultCapacityForOpenDay,
   listingTourCapacityFromOptions,
+  partnerDepartureRemainingLine,
   partnerTourDaySpotDisplay,
 } from '../../lib/availability-ops';
 import { tourSellingDeparturesOnDate } from '../../lib/listing-option-schedules';
-import { formatPartnerCheckoutHoldLabel } from '../../lib/booking-hold';
+import { formatPartnerCheckoutHoldLabel, tourCheckoutOccupiedGuests } from '../../lib/booking-hold';
 import { navigateSupplierUrl, openSupplierBooking } from '../../lib/supplierPortalNavigation';
 import { PARTNER_CREATE_PATH } from '../../lib/partnerPortalPaths';
 import {
@@ -769,18 +770,30 @@ export default function SupplierAvailability() {
                       Selling this day
                     </p>
                     <ul className="mt-1.5 space-y-1">
-                      {daySellingDepartures.map((d) => (
-                        <li key={`${d.optionId}-${d.scheduleId}-${d.startTime}`} className="text-sm text-ink">
-                          {[
-                            d.scheduleName !== d.optionName ? d.scheduleName : null,
-                            d.optionName,
-                            d.startTime || null,
-                            `${d.maxSpotsPerSlot} spot${d.maxSpotsPerSlot === 1 ? '' : 's'}`,
-                          ]
-                            .filter(Boolean)
-                            .join(' · ')}
-                        </li>
-                      ))}
+                      {daySellingDepartures.map((d) => {
+                        const occupying = tourCheckoutOccupiedGuests(
+                          dayBookings,
+                          editing.iso,
+                          null,
+                          Date.now(),
+                          d.startTime || null
+                        );
+                        const line = partnerDepartureRemainingLine({
+                          scheduleName: d.scheduleName,
+                          optionName: d.optionName,
+                          startTime: d.startTime,
+                          maxSpotsPerSlot: d.maxSpotsPerSlot,
+                          occupyingGuests: occupying,
+                        });
+                        return (
+                          <li
+                            key={`${d.optionId}-${d.scheduleId}-${d.startTime}`}
+                            className={`text-sm ${line.full ? 'font-medium text-rose-800' : 'text-ink'}`}
+                          >
+                            {line.label}
+                          </li>
+                        );
+                      })}
                     </ul>
                   </div>
                 ) : weekdayOpen(editing.iso) ? null : (

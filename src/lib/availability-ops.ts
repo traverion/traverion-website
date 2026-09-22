@@ -31,6 +31,30 @@ export function partnerTourRemainingSpots(capacity: number, occupyingGuests: num
   return remainingCapacity(capacity, occupyingGuests);
 }
 
+/** Per-departure remaining for partner Calendar day sheet (same-day multi-time). */
+export function partnerDepartureRemainingLine(params: {
+  scheduleName: string;
+  optionName: string;
+  startTime: string;
+  maxSpotsPerSlot: number;
+  occupyingGuests: number;
+}): { label: string; remaining: number; capacity: number; full: boolean } {
+  const capacity = Math.max(0, Math.floor(params.maxSpotsPerSlot));
+  const remaining = partnerTourRemainingSpots(capacity, params.occupyingGuests);
+  const nameBit =
+    params.scheduleName && params.scheduleName !== params.optionName
+      ? `${params.scheduleName} · ${params.optionName}`
+      : params.optionName || params.scheduleName || 'Departure';
+  const timeBit = params.startTime.trim() || null;
+  const spotsBit = remaining === 0 ? 'Full' : `${remaining} of ${capacity} left`;
+  return {
+    capacity,
+    remaining,
+    full: remaining === 0,
+    label: [nameBit, timeBit, spotsBit].filter(Boolean).join(' · '),
+  };
+}
+
 /**
  * Partner tour month cells: never show "spots left" / Full on days the product does not depart.
  * A listing_availability row on a closed weekday does not open traveler booking.

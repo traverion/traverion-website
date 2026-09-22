@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** (pending 407)  
-**Current phase:** 407  
+**Current SHA:** `1e3e3cb`  
+**Current phase:** 408  
 **Band:** 401–450 Production-truth / inventory integrity  
 **Stripe:** TEST  
 **Preserve:** `scripts/cert-transactional-emails.cjs`
