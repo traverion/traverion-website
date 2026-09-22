@@ -3,10 +3,10 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** _(pending 518)_  
-**Current phase:** 518  
+**Current SHA:** _(pending 520)_  
+**Current phase:** 520  
 **Branch:** `reconstruction/phase-0-audit`  
-**Commits this mission:** 102+  
+**Commits this mission:** 104+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
 **Preserve:** `scripts/cert-transactional-emails.cjs` (intentionally untracked)
 
@@ -63,7 +63,8 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 516 | Clear hidden duration/language filters so they cannot silently filter | `4ddcb80` |
 | 517 | Clear hidden stay property/amenity filters when chips are hidden | `d41d635` |
 | 518 | Production build + app tsc clean after hidden-filter honesty | `98a9c9e` |
-| 519 | Repair progress journal table rows for Phases 516–518 | _(this commit)_ |
+| 519 | Repair progress journal table rows for Phases 516–518 | `a719eaf` |
+| 520 | Wrap partner Reviews saved reply bodies | _(this commit)_ |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -105,6 +106,9 @@ When property-type or amenity chips are not shown, reset those filters so stays 
 
 ### Phase 518 — build checkpoint
 `npm run build` and `tsc -p tsconfig.app.json` clean after tour/stay hidden-filter honesty.
+
+### Phase 520 — Reviews reply wrap
+Saved partner review replies wrap long strings.
 
 ## Known remaining risks (ranked)
 
