@@ -31,6 +31,12 @@ describe('money', () => {
     expect(formatMoney(99, 'GBP')).not.toMatch(/€/);
   });
 
+  it('stays stable for NaN and very large amounts', () => {
+    expect(formatMoney(Number.NaN, 'EUR')).toMatch(/0/);
+    expect(formatMoney(Number.POSITIVE_INFINITY, 'EUR')).toMatch(/0/);
+    expect(formatMoney(1_000_000_000, 'EUR')).toMatch(/1/);
+  });
+
   it('detects Stripe TEST checkout sessions', () => {
     expect(isStripeTestCheckoutSession('cs_test_abc')).toBe(true);
     expect(isStripeTestCheckoutSession('cs_live_abc')).toBe(false);
