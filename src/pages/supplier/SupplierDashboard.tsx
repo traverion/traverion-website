@@ -773,7 +773,7 @@ export default function SupplierDashboard() {
                       />
                     </span>
                     <span className="min-w-0 py-3.5 pl-3 pr-2">
-                      <span className="block text-[15px] font-semibold text-slate-900 truncate">
+                      <span className="block break-words text-[15px] font-semibold text-slate-900 [overflow-wrap:anywhere] line-clamp-2">
                         {title}
                       </span>
                       <span className="mt-0.5 block text-[13px] text-slate-500">
@@ -930,10 +930,10 @@ export default function SupplierDashboard() {
                             }
                             className="partner-row-interact lux-flat group w-full rounded-md px-2.5 py-2 text-left"
                           >
-                            <span className="block text-[14px] font-semibold text-slate-900 truncate">
+                            <span className="block break-words text-[14px] font-semibold text-slate-900 [overflow-wrap:anywhere] line-clamp-2">
                               {title}
                             </span>
-                            <span className="mt-0.5 block text-[12.5px] text-slate-500 truncate">
+                            <span className="mt-0.5 block break-words text-[12.5px] text-slate-500 [overflow-wrap:anywhere] line-clamp-2">
                               {startHm ? `${startHm} · ` : ''}
                               {b.guest_name?.trim() ? `${b.guest_name.trim()} · ` : ''}
                               {formatBookingParticipantsLabel(b)}
@@ -986,10 +986,10 @@ export default function SupplierDashboard() {
                       }
                       className="partner-row-interact lux-flat grid w-full grid-cols-1 gap-0.5 py-3 text-left sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)_auto_auto] sm:items-center sm:gap-4"
                     >
-                      <span className="text-[14px] font-semibold text-slate-900 truncate">
+                      <span className="break-words text-[14px] font-semibold text-slate-900 [overflow-wrap:anywhere] line-clamp-2">
                         {b.guest_name?.trim() || 'Traveler'}
                       </span>
-                      <span className="text-[13px] text-slate-500 truncate">
+                      <span className="break-words text-[13px] text-slate-500 [overflow-wrap:anywhere] line-clamp-2">
                         {listingTitlesById[b.listing_id] ?? 'Listing'}
                       </span>
                       <span className="text-[13px] text-slate-500 tabular-nums">
