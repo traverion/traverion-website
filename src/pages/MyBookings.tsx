@@ -41,6 +41,7 @@ import { listingPickupCopyIncomplete } from '../lib/pickup-completeness';
 import {
   displayListingTitleFromPurchase,
   displayMeetingPointFromPurchase,
+  displayOptionLabelFromPurchase,
   displayPickupInstructionsFromPurchase,
 } from '../lib/purchase-snapshot';
 import { decrementAvailabilityBooked } from '../data/supabase-availability';
@@ -617,6 +618,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                 titles[b.listing_id] || ops?.title,
                 isStay ? 'Stay' : 'Tour'
               );
+              const tripOption = displayOptionLabelFromPurchase(b.purchase_snapshot, null);
               const tripMeeting = displayMeetingPointFromPurchase(
                 b.purchase_snapshot,
                 ops?.meeting_point
@@ -714,6 +716,9 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         <h3 className="mt-0.5 font-semibold text-ink line-clamp-2 leading-snug">
                           {tripTitle}
                         </h3>
+                        {tripOption ? (
+                          <p className="mt-0.5 text-sm text-ink-muted line-clamp-1">{tripOption}</p>
+                        ) : null}
                       </div>
                       <ChevronDown
                         className={`mt-1 h-4 w-4 shrink-0 text-ink-faint transition-transform ${open ? 'rotate-180' : ''}`}
