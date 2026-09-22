@@ -3,23 +3,25 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** _(pending 494–495)_  
-**Current phase:** 495  
+**Current SHA:** _(pending 496)_  
+**Current phase:** 496  
 **Branch:** `reconstruction/phase-0-audit`  
-**Commits this mission:** 86+  
+**Commits this mission:** 87+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
 **Preserve:** `scripts/cert-transactional-emails.cjs` (intentionally untracked)
 
-## Milestone Phase 480
+## Milestone Phase 496
 
-Production build + tsc clean after:
+Production **build clean**, `tsc -p tsconfig.app.json` **clean**, honesty suites **23/23**.
 
-- Slot-scoped remaining (incl. single departure)
-- Sold-out sticky / departure chips / pay disable
-- Purchased startTimeHm on Trips/confirmation/cancel
-- Stripe LIVE hard-block (edge + client)
-- Capacity-below-sold partner warnings
-- Stale-tab capacity refresh
+Since Phase 480 milestone also shipped:
+
+- Guest max capped at remaining seats (sold-out → 0)
+- Partner purchased-vs-ops departure on Bookings / Today / Calendar / Inbox
+- Sold-out guest stepper honest copy
+- StayDetails amenities ReferenceError fixed
+- Tour/stay long-copy overflow wraps
+- App TypeScript errors cleared (duplicate import + JSON capacity types)
 
 Browser golden journeys still **not** certified (partner session blocker).
 
@@ -27,27 +29,19 @@ Browser golden journeys still **not** certified (partner session blocker).
 
 | Phase | Outcome | SHA |
 |------|---------|-----|
-| 483 | Progress journal catch-up + ROI triage | `f1a7a28` |
-| 484 | Sold-out party max no longer restores option max | `f1a7a28` |
-| 485–486 | Partner Bookings/Today/Calendar note purchased departure when ops time differs | `c3c1b97` |
-| 487 | Inventory honesty cert batch 20/20 | `cb1bae1` |
-| 488 | Sold-out guest stepper honest copy | `cb1bae1` |
-| 489 | Inbox purchased-vs-ops departure | `4db3392` |
-| 490–491 | Webhook replay cert + tour long-copy wrap | `97a411e` |
-| 492 | Stay house rules / cancellation wrap | `7d5543c` |
-| 493 | Fix StayDetails crash: wire `amenities` via stayAmenityDisplayList | `253a3b9` |
-| 494 | Remove duplicate ListingOptionSchedule import (tsc) | _(this commit)_ |
-| 495 | Accept JSON unknown maxSpots in capacitySpotsFromBookingOptions | _(this commit)_ |
-
-### Phase 493 — P0 stay page crash
-`StayDetails` rendered `amenities.length` without defining `amenities` (ReferenceError once the amenities block ran). Wired `stayAmenityDisplayList(s?.amenities)`.
-
-### Phase 494–495 — app tsc clean
-Duplicate type import removed; capacity helper accepts untyped JSON extras. `tsc -p tsconfig.app.json` clean.
+| 483–484 | Party max sold-out honesty | `f1a7a28` |
+| 485–486 | Partner purchased-vs-ops departure | `c3c1b97` |
+| 487–488 | Sold-out guest stepper copy + cert batch | `cb1bae1` |
+| 489 | Inbox purchased-vs-ops | `4db3392` |
+| 490–491 | Webhook cert + tour long-copy wrap | `97a411e` |
+| 492 | Stay house rules wrap | `7d5543c` |
+| 493 | StayDetails amenities crash fix | `253a3b9` |
+| 494–495 | App tsc clean | `2a1f756` |
+| 496 | Build + tsc + honesty 23/23 milestone | _(this commit)_ |
 
 ## Known remaining risks (ranked)
 
-1. **P0/P1 — Browser golden journeys** not run (no partner session). Unit/integration cert only.
+1. **P0/P1 — Browser golden journeys** not run (no partner session).
 2. **P1 — Advisory lock listing-scoped** — safe but coarse.
 3. **P2 — LIVE Stripe** intentionally blocked.
 
