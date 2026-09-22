@@ -1225,15 +1225,24 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                             selectedDaySpotsLeft === 0 ? 'text-ink-muted' : 'text-finland'
                           }`}
                         >
-                          {selectedDaySpotsLeft === 0
-                            ? 'Fully booked this day'
-                            : spotsLeftIsDepartureCapacity
-                              ? selectedDaySpotsLeft === 1
-                                ? `1 spot left for the ${selectedDepartureTime} departure`
-                                : `${selectedDaySpotsLeft} spots left for the ${selectedDepartureTime} departure`
-                              : selectedDaySpotsLeft === 1
-                                ? '1 spot left this day'
-                                : `${selectedDaySpotsLeft} spots left this day`}
+                          {(() => {
+                            const departureLabel =
+                              selectedDepartureTime.trim() ||
+                              (departureTimes.length === 1 ? departureTimes[0] : '');
+                            if (selectedDaySpotsLeft === 0) {
+                              return spotsLeftIsDepartureCapacity && departureLabel
+                                ? `Fully booked for the ${departureLabel} departure`
+                                : 'Fully booked this day';
+                            }
+                            if (spotsLeftIsDepartureCapacity && departureLabel) {
+                              return selectedDaySpotsLeft === 1
+                                ? `1 spot left for the ${departureLabel} departure`
+                                : `${selectedDaySpotsLeft} spots left for the ${departureLabel} departure`;
+                            }
+                            return selectedDaySpotsLeft === 1
+                              ? '1 spot left this day'
+                              : `${selectedDaySpotsLeft} spots left this day`;
+                          })()}
                         </p>
                       ) : null}
                       {selectedBookingVariant ? (
