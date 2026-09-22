@@ -119,6 +119,9 @@ export function getPartySizeBoundsForVariant(
 }
 
 export function formatPartySizeHint(bounds: { min: number; max: number }): string {
+  if (bounds.max < 1) {
+    return 'No seats left on this departure.';
+  }
   if (bounds.min === bounds.max) {
     return bounds.min === 1
       ? 'This booking is for 1 guest only.'
@@ -128,6 +131,9 @@ export function formatPartySizeHint(bounds: { min: number; max: number }): strin
 }
 
 export function guestCountBoundaryMessage(boundary: 'min' | 'max', bounds: { min: number; max: number }): string {
+  if (bounds.max < 1) {
+    return 'No seats left on this departure.';
+  }
   if (boundary === 'min') {
     return bounds.min === 1
       ? 'At least 1 guest is required.'
@@ -142,6 +148,9 @@ export function guestCountValidationError(
   guests: number,
   bounds: { min: number; max: number }
 ): string | null {
+  if (bounds.max < 1) {
+    return 'No seats left on this departure.';
+  }
   if (guests < bounds.min) {
     return guestCountBoundaryMessage('min', bounds);
   }

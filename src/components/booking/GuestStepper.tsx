@@ -25,8 +25,8 @@ export default function GuestStepper({
 }: GuestStepperProps) {
   const generatedId = useId();
   const labelId = id ?? generatedId;
-  const atMin = value <= min;
-  const atMax = value >= max;
+  const atMin = value <= min || max < 1;
+  const atMax = value >= max || max < 1;
 
   const tryDecrease = () => {
     if (atMin) {

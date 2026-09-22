@@ -3,10 +3,10 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** _(pending 483–484)_  
-**Current phase:** 484  
+**Current SHA:** _(pending 487–488)_  
+**Current phase:** 488  
 **Branch:** `reconstruction/phase-0-audit`  
-**Commits this mission:** 79+  
+**Commits this mission:** 81+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
 **Preserve:** `scripts/cert-transactional-emails.cjs` (intentionally untracked)
 
