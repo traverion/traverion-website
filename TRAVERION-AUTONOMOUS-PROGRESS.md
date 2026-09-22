@@ -3,10 +3,10 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** _(pending 529)_  
-**Current phase:** 529  
+**Current SHA:** _(pending 530)_  
+**Current phase:** 530  
 **Branch:** `reconstruction/phase-0-audit`  
-**Commits this mission:** 112+  
+**Commits this mission:** 113+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
 **Preserve:** `scripts/cert-transactional-emails.cjs` (intentionally untracked)
 
@@ -73,7 +73,8 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 526 | Apply checkout summary lead-guest name wrap | `474e8f6` |
 | 527 | Wrap checkout contact email/phone/place/requests | `608a594` |
 | 528 | Re-cert sticky CTA + browse filter honesty 15/15 | `c42b7e1` |
-| 529 | Land checkout special-requests overflow-wrap | _(this commit)_ |
+| 529 | Land checkout special-requests overflow-wrap | `55f111e` |
+| 530 | Wrap partner listing readiness lines under line-clamp | _(this commit)_ |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -142,6 +143,9 @@ Tour/stay sticky CTA and marketplace browse filter suites 15/15.
 
 ### Phase 529 — checkout requests wrap
 Land remaining special-requests overflow-wrap on BookingPage summary.
+
+### Phase 530 — listing readiness wrap
+Draft readiness lines on partner Listings wrap long strings under line-clamp.
 
 ## Known remaining risks (ranked)
 
