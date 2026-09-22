@@ -124,7 +124,7 @@ export default function SupplierPortalNoticePanel({ userId }: SupplierPortalNoti
               <Icon className={`w-5 h-5 shrink-0 mt-0.5 ${vs.iconClass}`} aria-hidden />
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold leading-snug">{n.title}</p>
-                <p className="text-xs sm:text-sm mt-1 whitespace-pre-wrap opacity-95">{n.body}</p>
+                <p className="text-xs sm:text-sm mt-1 break-words [overflow-wrap:anywhere] whitespace-pre-wrap opacity-95">{n.body}</p>
               </div>
               <button
                 type="button"
