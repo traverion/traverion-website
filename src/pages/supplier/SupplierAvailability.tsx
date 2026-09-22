@@ -16,6 +16,7 @@ import type { TourPackage } from '../../types/tour';
 import { listingRunsOnDate } from '../../lib/booking-quote';
 import { inventoryFamilyFromListing } from '../../lib/inventory';
 import { nightsOccupiedByStay, stayRangeFromBooking, partnerStayDayKind, partnerStayCalendarOccupiesNight, addCalendarDays } from '../../lib/stayOccupancy';
+import { partnerOpsDepartureDisplay } from '../../lib/purchase-snapshot';
 import {
   buildMonthCells,
   capacitySpotsFromBookingOptions,
@@ -188,10 +189,12 @@ export default function SupplierAvailability() {
   }, [editing, stayCalendar, viewingAll, listing]);
 
   const daySheetTimesLine = (b: BookingRow) => {
-    const start = pgTimeToHm(b.start_time);
+    const opsStart = pgTimeToHm(b.start_time);
+    const dep = partnerOpsDepartureDisplay(b.purchase_snapshot, opsStart);
     const pickup = pgTimeToHm(b.pickup_time);
     const bits: string[] = [];
-    if (start) bits.push(`Start ${start}`);
+    if (dep.displayHm) bits.push(`Start ${dep.displayHm}`);
+    if (dep.purchasedNote) bits.push(dep.purchasedNote);
     if (pickup) bits.push(`Pickup ${pickup}`);
     return bits.join(' · ');
   };

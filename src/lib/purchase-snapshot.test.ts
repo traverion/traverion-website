@@ -6,6 +6,7 @@ import {
   displayOptionLabelFromPurchase,
   displayStartTimeFromPurchase,
   isPurchaseSnapshot,
+  partnerOpsDepartureDisplay,
 } from './purchase-snapshot';
 
 describe('purchase-snapshot', () => {
@@ -67,5 +68,25 @@ describe('purchase-snapshot', () => {
     });
     expect(displayStartTimeFromPurchase(snap, '09:30')).toBe('08:00');
     expect(displayStartTimeFromPurchase(null, '09:30')).toBe('09:30');
+  });
+
+  it('partner ops display prefers live start and notes purchased when different', () => {
+    const snap = buildPurchaseSnapshot({
+      listingTitle: 'Tour',
+      startTimeHm: '08:00',
+      capturedAt: '2026-09-22T00:00:00.000Z',
+    });
+    expect(partnerOpsDepartureDisplay(snap, '09:30')).toEqual({
+      displayHm: '09:30',
+      purchasedNote: 'Purchased 08:00',
+    });
+    expect(partnerOpsDepartureDisplay(snap, '08:00')).toEqual({
+      displayHm: '08:00',
+      purchasedNote: null,
+    });
+    expect(partnerOpsDepartureDisplay(snap, null)).toEqual({
+      displayHm: '08:00',
+      purchasedNote: null,
+    });
   });
 });

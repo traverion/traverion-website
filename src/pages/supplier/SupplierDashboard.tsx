@@ -36,6 +36,7 @@ import {
   displayListingTitleFromPurchase,
   displayMeetingPointFromPurchase,
   displayOptionLabelFromPurchase,
+  partnerOpsDepartureDisplay,
 } from '../../lib/purchase-snapshot';
 
 type AttentionTone = 'danger' | 'warn' | 'info';
@@ -712,7 +713,9 @@ export default function SupplierDashboard() {
             {todayDepartures.map((b, idx) => {
               const isStay = bookingIsStayNight(b);
               const stay = isStay ? stayRangeFromBooking(b) : null;
-              const startHm = pgTimeToHm(b.start_time) || pgTimeToHm(b.pickup_time) || null;
+              const opsHm = pgTimeToHm(b.start_time) || pgTimeToHm(b.pickup_time) || null;
+              const dep = partnerOpsDepartureDisplay(b.purchase_snapshot, opsHm);
+              const startHm = dep.displayHm || null;
               const pickupMissing = pickupGaps.some((g) => g.id === b.id);
               const timeLabel = isStay
                 ? stay && stay.checkIn === todayYmd
@@ -782,6 +785,9 @@ export default function SupplierDashboard() {
                         <span className="mt-0.5 block text-[12px] text-slate-400 truncate">
                           Meet · {meetingPoint}
                         </span>
+                      ) : null}
+                      {dep.purchasedNote ? (
+                        <span className="mt-0.5 block text-[12px] text-slate-400">{dep.purchasedNote}</span>
                       ) : null}
                       <span className="mt-0.5 block text-[12px] text-slate-400">
                         {typeof b.booking_number === 'number' && b.booking_number > 0 ? (
@@ -912,7 +918,9 @@ export default function SupplierDashboard() {
                           b.purchase_snapshot,
                           liveOption
                         );
-                        const startHm = pgTimeToHm(b.start_time) || pgTimeToHm(b.pickup_time) || null;
+                        const opsHm = pgTimeToHm(b.start_time) || pgTimeToHm(b.pickup_time) || null;
+                        const dep = partnerOpsDepartureDisplay(b.purchase_snapshot, opsHm);
+                        const startHm = dep.displayHm || null;
                         return (
                         <li key={b.id}>
                           <button
@@ -930,6 +938,7 @@ export default function SupplierDashboard() {
                               {b.guest_name?.trim() ? `${b.guest_name.trim()} · ` : ''}
                               {formatBookingParticipantsLabel(b)}
                               {optionLabel ? ` · ${optionLabel}` : ''}
+                              {dep.purchasedNote ? ` · ${dep.purchasedNote}` : ''}
                             </span>
                           </button>
                         </li>

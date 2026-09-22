@@ -70,7 +70,7 @@ import { partnerBookingHasPickupAttention } from '../../lib/pickup-completeness'
 import { openSupplierPickup } from '../../lib/supplierPortalNavigation';
 import { parseListingExtras, materializedBookingOptions } from '../../types/listingExtras';
 import { comparePartnerBookingsOperational } from '../../lib/partner-bookings-order';
-import { displayListingTitleFromPurchase, displayMeetingPointFromPurchase, displayOptionLabelFromPurchase, displayPickupInstructionsFromPurchase } from '../../lib/purchase-snapshot';
+import { displayListingTitleFromPurchase, displayMeetingPointFromPurchase, displayOptionLabelFromPurchase, displayPickupInstructionsFromPurchase, partnerOpsDepartureDisplay } from '../../lib/purchase-snapshot';
 
 const BOOKINGS_PAGE_SIZE = 10;
 
@@ -875,7 +875,9 @@ export default function SupplierBookings({
         <div className="space-y-4">
           <div className="space-y-3">
             {paginatedBookings.map((booking) => {
-              const startHm = booking.start_time ? pgTimeToHm(booking.start_time) ?? null : null;
+              const opsStartHm = booking.start_time ? pgTimeToHm(booking.start_time) ?? null : null;
+              const dep = partnerOpsDepartureDisplay(booking.purchase_snapshot, opsStartHm);
+              const startHm = dep.displayHm || null;
               const meta = listingMeta[booking.listing_id];
               const liveOptionLabel =
                 booking.booking_option_id && meta?.bookingOptions?.length
@@ -989,6 +991,7 @@ export default function SupplierBookings({
                           </>
                         ) : null}
                         {dateLine}
+                        {dep.purchasedNote ? ` · ${dep.purchasedNote}` : ''}
                         {' · '}
                         {formatBookingParticipantsLabel(booking)}
                         {meta?.family === 'stay' || Boolean(booking.check_out)
@@ -1094,7 +1097,9 @@ export default function SupplierBookings({
         <SupplierModalShell onClose={() => setSelectedBookingId(null)} maxWidth="lg">
           {(() => {
             const booking = selectedBooking;
-            const startHm = booking.start_time ? pgTimeToHm(booking.start_time) ?? null : null;
+            const opsStartHm = booking.start_time ? pgTimeToHm(booking.start_time) ?? null : null;
+            const dep = partnerOpsDepartureDisplay(booking.purchase_snapshot, opsStartHm);
+            const startHm = dep.displayHm || null;
             const pickupHm = booking.pickup_time ? pgTimeToHm(booking.pickup_time) ?? null : null;
             const meta = listingMeta[booking.listing_id];
             const isStay = meta?.family === 'stay' || Boolean(booking.check_out);
@@ -1221,6 +1226,9 @@ export default function SupplierBookings({
                       <div>
                         <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">When</dt>
                         <dd className="mt-0.5 text-ink">{whenLabel}</dd>
+                        {dep.purchasedNote ? (
+                          <dd className="mt-0.5 text-xs text-ink-muted">{dep.purchasedNote}</dd>
+                        ) : null}
                       </div>
                     )}
                     <div>

@@ -97,3 +97,19 @@ export function displayStartTimeFromPurchase(
   }
   return (liveStartTimeHm ?? '').trim();
 }
+
+/**
+ * Partner ops display: prefer live start_time (may be edited for the day),
+ * fall back to purchased departure. When they differ, surface purchased truth.
+ */
+export function partnerOpsDepartureDisplay(
+  snapshot: unknown,
+  opsStartTimeHm: string | null | undefined
+): { displayHm: string; purchasedNote: string | null } {
+  const purchased = displayStartTimeFromPurchase(snapshot, null);
+  const ops = (opsStartTimeHm ?? '').trim();
+  const displayHm = ops || purchased;
+  const purchasedNote =
+    purchased && ops && purchased !== ops ? `Purchased ${purchased}` : null;
+  return { displayHm, purchasedNote };
+}
