@@ -3,10 +3,10 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** _(pending 522)_  
-**Current phase:** 522  
+**Current SHA:** _(pending 523)_  
+**Current phase:** 523  
 **Branch:** `reconstruction/phase-0-audit`  
-**Commits this mission:** 106+  
+**Commits this mission:** 107+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
 **Preserve:** `scripts/cert-transactional-emails.cjs` (intentionally untracked)
 
@@ -66,7 +66,8 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 519 | Repair progress journal table rows for Phases 516–518 | `a719eaf` |
 | 520 | Progress note for Reviews reply wrap | `ea2bc6e` |
 | 521 | Apply partner Reviews saved reply body wrap | `c4f021f` |
-| 522 | Wrap verification feedback on partner Settings | _(this commit)_ |
+| 522 | Progress note for Settings verification wrap | `a7894cc` |
+| 523 | Apply Settings verification feedback overflow-wrap | _(this commit)_ |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -117,6 +118,9 @@ Land the overflow-wrap on saved partner review replies that Phase 520 journaled.
 
 ### Phase 522 — Settings verification wrap
 Business and payout verification feedback wrap long strings.
+
+### Phase 523 — Settings verification wrap (code)
+Land the overflow-wrap on business/payout verification feedback.
 
 ## Known remaining risks (ranked)
 

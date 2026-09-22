@@ -981,7 +981,7 @@ function BusinessProfilePage(p: Props) {
               <NoticeCallout title="Business verification was not approved" tone="danger">
                 <p>Update your details and documents, then save again.</p>
                 {p.businessVerificationFeedback.trim() ? (
-                  <p className="mt-2 whitespace-pre-wrap">{p.businessVerificationFeedback.trim()}</p>
+                  <p className="mt-2 break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{p.businessVerificationFeedback.trim()}</p>
                 ) : null}
               </NoticeCallout>
             )}
@@ -1176,7 +1176,7 @@ function BusinessProfilePage(p: Props) {
               <NoticeCallout title="Payout details need an update" tone="danger">
                 <p>Update IBAN and BIC, then save again to resubmit.</p>
                 {p.payoutVerificationFeedback.trim() ? (
-                  <p className="mt-2 whitespace-pre-wrap">{p.payoutVerificationFeedback.trim()}</p>
+                  <p className="mt-2 break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{p.payoutVerificationFeedback.trim()}</p>
                 ) : null}
               </NoticeCallout>
             )}
