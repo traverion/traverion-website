@@ -1291,7 +1291,7 @@ export default function SupplierBookings({
                     {guestFacingBookingNotes(booking.special_requests) ? (
                       <div className="sm:col-span-2">
                         <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Notes</dt>
-                        <dd className="mt-0.5 whitespace-pre-wrap text-ink">{guestFacingBookingNotes(booking.special_requests)}</dd>
+                        <dd className="mt-0.5 break-words [overflow-wrap:anywhere] whitespace-pre-wrap text-ink">{guestFacingBookingNotes(booking.special_requests)}</dd>
                       </div>
                     ) : null}
                   </dl>
