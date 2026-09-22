@@ -176,10 +176,12 @@ function PlannerBookingCard({
           <p className="mb-0.5 text-[11px] font-medium text-amber-800">Pickup details still incomplete</p>
         ) : null}
         <div className="flex items-baseline justify-between gap-3">
-          <p className="text-sm font-semibold text-ink truncate">{booking.guest_name ?? booking.guest_email ?? 'Guest'}</p>
+          <p className="min-w-0 break-words text-sm font-semibold text-ink [overflow-wrap:anywhere] line-clamp-2">
+            {booking.guest_name ?? booking.guest_email ?? 'Guest'}
+          </p>
           <span className="text-[11px] font-medium text-ink-muted shrink-0">{payLabel}</span>
         </div>
-        <p className="mt-0.5 text-xs text-ink-muted truncate">
+        <p className="mt-0.5 break-words text-xs text-ink-muted [overflow-wrap:anywhere] line-clamp-2">
           {ref ? `${ref} · ` : ''}
           {listingTitle}
         </p>

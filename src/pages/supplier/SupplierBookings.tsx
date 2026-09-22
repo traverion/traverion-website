@@ -968,10 +968,12 @@ export default function SupplierBookings({
                     )}
                     <div className="min-w-0 flex-1">
                       <div className="flex items-baseline justify-between gap-3">
-                        <p className="text-sm font-semibold text-ink truncate">{booking.guest_name || 'Guest'}</p>
+                        <p className="min-w-0 break-words text-sm font-semibold text-ink [overflow-wrap:anywhere] line-clamp-2">
+                          {booking.guest_name || 'Guest'}
+                        </p>
                         <span className="text-[11px] font-medium capitalize text-ink-muted shrink-0">{partnerPaymentLabel(booking)}</span>
                       </div>
-                      <p className="mt-0.5 text-xs text-ink-muted truncate">
+                      <p className="mt-0.5 break-words text-xs text-ink-muted [overflow-wrap:anywhere] line-clamp-2">
                         {listingTitle}
                         {optionLabel ? ` · ${optionLabel}` : ''}
                       </p>
@@ -1182,12 +1184,18 @@ export default function SupplierBookings({
                       <span className={`inline-flex rounded-md px-2 py-0.5 text-[11px] font-semibold capitalize ring-1 ${bookingStatusClass(booking.status, booking.payment_status)}`}>
                         {partnerPaymentLabel(booking)}
                       </span>
-                      <p className="mt-1.5 text-sm font-semibold text-ink truncate">{listingTitle}</p>
+                      <p className="mt-1.5 break-words text-sm font-semibold text-ink [overflow-wrap:anywhere] line-clamp-2">
+                        {listingTitle}
+                      </p>
                       {optionLabel ? (
-                        <p className="mt-0.5 text-xs text-ink-muted truncate">{optionLabel}</p>
+                        <p className="mt-0.5 break-words text-xs text-ink-muted [overflow-wrap:anywhere] line-clamp-2">
+                          {optionLabel}
+                        </p>
                       ) : null}
                       {meetingPoint && !isStay ? (
-                        <p className="mt-0.5 text-xs text-ink-muted truncate">Meet · {meetingPoint}</p>
+                        <p className="mt-0.5 break-words text-xs text-ink-muted [overflow-wrap:anywhere] line-clamp-2">
+                          Meet · {meetingPoint}
+                        </p>
                       ) : null}
                       {meta ? (
                         <p className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-xs text-ink-muted">
