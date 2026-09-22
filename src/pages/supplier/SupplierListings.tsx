@@ -1335,6 +1335,7 @@ export default function SupplierListings() {
           const menuListing = listings.find((l) => l.id === listingActionsMenuId);
           if (!menuListing) return null;
           const menuIsLive = menuListing.status !== 'draft';
+          const menuIsTour = inventoryFamilyFromListing(menuListing) !== 'stay';
           return createPortal(
             <>
               <button
@@ -1375,6 +1376,19 @@ export default function SupplierListings() {
                   <CalendarDays className="h-4 w-4 shrink-0" aria-hidden />
                   Calendar
                 </button>
+                {menuIsTour ? (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="flex w-full px-3 py-2.5 text-left text-sm text-ink hover:bg-paper"
+                    onClick={() => {
+                      closeListingActionsMenu();
+                      openSupplierListingEditor(menuListing.id, 'schedule');
+                    }}
+                  >
+                    Schedules
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   role="menuitem"

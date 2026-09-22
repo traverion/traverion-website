@@ -3,10 +3,10 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** _(pending 498–499)_  
-**Current phase:** 499  
+**Current SHA:** _(pending 500)_  
+**Current phase:** 500  
 **Branch:** `reconstruction/phase-0-audit`  
-**Commits this mission:** 89+  
+**Commits this mission:** 90+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
 **Preserve:** `scripts/cert-transactional-emails.cjs` (intentionally untracked)
 
@@ -39,10 +39,14 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 494–495 | App tsc clean | `2a1f756` |
 | 496 | Build + tsc + honesty 23/23 milestone | `432c148` |
 | 497 | Certify schedule overlap suite 15/15 (same date+time blocked; different times OK) | `f74352e` |
-| 498–499 | Extract stay sticky CTA helper with unit proof (matches tour sticky honesty) | _(this commit)_ |
+| 498–499 | Extract stay sticky CTA helper with unit proof (matches tour sticky honesty) | `c6a54db` |
+| 500 | Listings menu: Schedules deep-link (tours) without full wizard restart | _(this commit)_ |
 
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
+
+### Phase 500 — supplier schedule ops shortcut
+Tour listing overflow menu adds Schedules → editor `focus=schedule` so partners edit departures without hunting the creation wizard.
 
 ## Known remaining risks (ranked)
 
