@@ -1,6 +1,23 @@
 import { describe, expect, it } from 'vitest';
-import { departureSlotSpotsLeft } from './departure-slot-remaining';
+import { departureSlotSpotsLeft, partyMaxCappedByRemainingSpots } from './departure-slot-remaining';
 import { tourPaidSlotKey } from '../data/supabase-availability';
+
+describe('partyMaxCappedByRemainingSpots', () => {
+  it('keeps option max when remaining is unknown', () => {
+    expect(partyMaxCappedByRemainingSpots(12, null)).toBe(12);
+    expect(partyMaxCappedByRemainingSpots(12, undefined)).toBe(12);
+  });
+
+  it('returns 0 when sold out — never restores full option max', () => {
+    expect(partyMaxCappedByRemainingSpots(12, 0)).toBe(0);
+    expect(partyMaxCappedByRemainingSpots(12, -1)).toBe(0);
+  });
+
+  it('caps guests to remaining seats', () => {
+    expect(partyMaxCappedByRemainingSpots(12, 3)).toBe(3);
+    expect(partyMaxCappedByRemainingSpots(2, 8)).toBe(2);
+  });
+});
 
 describe('departureSlotSpotsLeft', () => {
   it('uses slot paid occupancy when no day cap override', () => {

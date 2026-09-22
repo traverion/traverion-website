@@ -39,7 +39,7 @@ import { listingIsOnTravelerCatalog } from '../lib/inventory';
 import { listingShowsFreeCancellation, publicReviewLabel } from '../lib/listingTruth';
 import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
 import { listingTourCapacityFromOptions, remainingCapacity, capacitySpotsFromBookingOptions } from '../lib/availability-ops';
-import { departureSlotSpotsLeft } from '../lib/departure-slot-remaining';
+import { departureSlotSpotsLeft, partyMaxCappedByRemainingSpots } from '../lib/departure-slot-remaining';
 import { tourSoldOutDates } from '../lib/tour-calendar';
 import BookingPage from './BookingPage';
 import {
@@ -455,8 +455,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   const partyMaxForSelectedDay = useMemo(() => {
     if (!tour) return partyBounds.max;
     const base = getPartySizeBoundsForVariant(tour, selectedBookingVariant, bookingDate, selectedDepartureTime).max;
-    if (selectedDaySpotsLeft == null || selectedDaySpotsLeft < 1) return base;
-    return Math.max(1, Math.min(base, selectedDaySpotsLeft));
+    return partyMaxCappedByRemainingSpots(base, selectedDaySpotsLeft);
   }, [tour, selectedBookingVariant, partyBounds.max, selectedDaySpotsLeft, bookingDate, selectedDepartureTime]);
 
   useEffect(() => {

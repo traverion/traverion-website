@@ -26,3 +26,18 @@ export function departureSlotSpotsLeft(params: {
   const paid = params.paidBySlot[tourPaidSlotKey(day, time)] ?? 0;
   return remainingCapacity(cap, paid);
 }
+
+/**
+ * Guest stepper upper bound from remaining inventory.
+ * Unknown remaining → keep option max. Sold out → 0 (never restore full option max).
+ */
+export function partyMaxCappedByRemainingSpots(
+  optionMax: number,
+  spotsLeft: number | null | undefined
+): number {
+  const base = Math.max(0, Math.floor(optionMax));
+  if (spotsLeft == null || !Number.isFinite(spotsLeft)) return base;
+  const left = Math.floor(spotsLeft);
+  if (left < 1) return 0;
+  return Math.max(1, Math.min(base, left));
+}

@@ -3,10 +3,10 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `c4e0ebf`  
-**Current phase:** 480  
+**Current SHA:** _(pending 483–484)_  
+**Current phase:** 484  
 **Branch:** `reconstruction/phase-0-audit`  
-**Commits this mission:** 76+  
+**Commits this mission:** 79+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
 **Preserve:** `scripts/cert-transactional-emails.cjs` (intentionally untracked)
 
@@ -30,7 +30,24 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 477 | Progress sync | `be6ba3e` |
 | 478 | Honesty suites 19/19 | `a6132f3` |
 | 479 | Sticky Sold out when all departures full | `c4e0ebf` |
-| 480 | Build + tsc milestone journal |
+| 480 | Build + tsc milestone journal | `c974b85` |
+| 481 | Wrap long titles on booking confirmation | `b6d9dbc` |
+| 482 | Wrap long titles on Trips cards | `88d4483` |
+| 483 | Progress journal catch-up + ROI triage | _(this commit)_ |
+| 484 | Sold-out party max no longer restores option max | _(this commit)_ |
+
+### Phase 483 — problem / evidence
+ROI explore subagent unavailable (usage limit). Solo triage: highest remaining honesty hole was guest stepper restoring full `optionMax` when `spotsLeft < 1` on TourDetails + BookingPage.
+
+### Phase 484 — fix
+Added `partyMaxCappedByRemainingSpots`; sold-out → `0`. Tests 6/6.
+
+## Known remaining risks (ranked)
+
+1. **P0/P1 — Browser golden journeys** not run (no partner session). Unit/integration cert only.
+2. **P1 — Advisory lock listing-scoped** — safe (serializes races) but coarse; different departures on same listing wait on each other.
+3. **P2 — LIVE Stripe** intentionally blocked until founder unlocks.
+4. **P2 — Purchase snapshot** covers title/option/meet/startTimeHm; money lives on booking columns (OK) but price history if columns missing on old rows is thin.
 
 ## Do not
 

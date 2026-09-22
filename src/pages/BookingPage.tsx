@@ -49,7 +49,7 @@ import TourDatePicker from '../components/TourDatePicker';
 import GuestStepper from '../components/booking/GuestStepper';
 import ParticipantCategoryStepper from '../components/booking/ParticipantCategoryStepper';
 import { listingTourCapacityFromOptions, remainingCapacity, capacitySpotsFromBookingOptions } from '../lib/availability-ops';
-import { departureSlotSpotsLeft } from '../lib/departure-slot-remaining';
+import { departureSlotSpotsLeft, partyMaxCappedByRemainingSpots } from '../lib/departure-slot-remaining';
 import { tourSoldOutDates } from '../lib/tour-calendar';
 import { tourSlotMaxSpotsFromOption } from '../lib/tour-slot-capacity';
 import { useDialogFocus } from '../hooks/useDialogFocus';
@@ -380,10 +380,10 @@ export default function BookingPage({
     Boolean(appliedOption) &&
     !dayCapacitySnap?.capByDay.has(date.trim());
 
-  const partyMaxForSelectedDay = useMemo(() => {
-    if (selectedDaySpotsLeft == null || selectedDaySpotsLeft < 1) return partyBounds.max;
-    return Math.max(1, Math.min(partyBounds.max, selectedDaySpotsLeft));
-  }, [partyBounds.max, selectedDaySpotsLeft]);
+  const partyMaxForSelectedDay = useMemo(
+    () => partyMaxCappedByRemainingSpots(partyBounds.max, selectedDaySpotsLeft),
+    [partyBounds.max, selectedDaySpotsLeft]
+  );
 
   const capacityBlocksPay =
     selectedDaySpotsLeft != null && selectedDaySpotsLeft < Math.max(1, guests);
