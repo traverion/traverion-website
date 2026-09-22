@@ -3,9 +3,9 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** (see Phase 438)  
-**Current phase:** 438  
-**Commits this mission:** 35+  
+**Current SHA:** `b50f706`  
+**Current phase:** 439  
+**Commits this mission:** 36+  
 **Stripe:** TEST  
 **Preserve:** `scripts/cert-transactional-emails.cjs`
 
@@ -13,9 +13,9 @@
 
 | Phase | Outcome |
 |------|---------|
-| 436 | `7493f23` Stays browse occupancy refresh on visibility |
-| 437 | Bookings detail prefer purchase_snapshot title/option/meet |
-| 438 | Tour/Stay descriptions wrap long unbroken strings (mobile edge) |
+| 437 | `aec7091` Bookings detail purchase_snapshot |
+| 438 | `b50f706` Tour/Stay description overflow-wrap |
+| 439 | Browse card titles wrap long unbroken strings |
 
 ## Do not
 - Live Stripe, force-push, commit cert-email script
