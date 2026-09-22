@@ -1280,9 +1280,9 @@ export default function SupplierBookings({
                         <dd className="mt-0.5">
                           <a
                             href={`mailto:${booking.guest_email}`}
-                            className="inline-flex items-center gap-1.5 text-finland hover:underline"
+                            className="inline-flex max-w-full items-center gap-1.5 break-all text-finland hover:underline [overflow-wrap:anywhere]"
                           >
-                            <Mail className="h-3.5 w-3.5" aria-hidden />
+                            <Mail className="h-3.5 w-3.5 shrink-0" aria-hidden />
                             {booking.guest_email}
                           </a>
                         </dd>
