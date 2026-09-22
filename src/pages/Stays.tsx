@@ -175,6 +175,13 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
 
   const dateFilterActive = Boolean(checkIn && checkOut && checkOut > checkIn);
 
+  // Invalid ranges from shared URLs must not silently ignore dates.
+  useEffect(() => {
+    if (checkIn && checkOut && checkOut <= checkIn) {
+      setCheckOut(addCalendarDays(checkIn, 1));
+    }
+  }, [checkIn, checkOut]);
+
   const handleCheckInChange = (next: string) => {
     setCheckIn(next);
     if (checkOut && next && checkOut <= next) {
