@@ -423,6 +423,28 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     Boolean(selectedOptionApplied) &&
     !dayCapacitySnap?.capByDay.has(bookingDate.trim());
 
+  const allDeparturesSoldOut = useMemo(() => {
+    const day = bookingDate.trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !dayCapacitySnap || !selectedOptionApplied) return false;
+    if (departureTimes.length < 1) return false;
+    if (dayCapacitySnap.capByDay.has(day)) {
+      const cap = dayCapacitySnap.capByDay.get(day) ?? dayCapacitySnap.fallback;
+      return remainingCapacity(cap, dayCapacitySnap.paidByDay[day] ?? 0) < 1;
+    }
+    return departureTimes.every((time) => {
+      const left = departureSlotSpotsLeft({
+        dayIso: day,
+        startTimeHm: time,
+        maxSpotsPerSlot: selectedOptionApplied.maxSpotsPerSlot,
+        maxPersonsFallback: selectedOptionApplied.maxPersons,
+        paidBySlot: dayCapacitySnap.paidBySlot,
+        paidByDay: dayCapacitySnap.paidByDay,
+        fallbackDayCap: dayCapacitySnap.fallback,
+      });
+      return left != null && left < 1;
+    });
+  }, [bookingDate, dayCapacitySnap, selectedOptionApplied, departureTimes]);
+
   useEffect(() => {
     if (!selectedDepartureTime.trim() || selectedDaySpotsLeft == null) return;
     if (selectedDaySpotsLeft < 1) {
@@ -727,7 +749,12 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       });
       return;
     }
-    if (selectedBookingVariant && departureTimes.length > 1 && !selectedDepartureTime.trim()) {
+    if (
+      selectedBookingVariant &&
+      departureTimes.length > 1 &&
+      !selectedDepartureTime.trim() &&
+      !allDeparturesSoldOut
+    ) {
       scrollElementIntoView('tour-departure-times', { behavior: 'smooth', block: 'center' });
       setBookingCardError('Choose a departure time to continue.');
       window.requestAnimationFrame(() => {
@@ -1621,6 +1648,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                   onClick={handleStickyBookCta}
                   disabled={
                     variantChecking ||
+                    allDeparturesSoldOut ||
                     (Boolean(selectedBookingVariant) &&
                       selectedDaySpotsLeft != null &&
                       selectedDaySpotsLeft < Math.max(1, guests))
@@ -1633,13 +1661,15 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                     needsDeparture:
                       Boolean(selectedBookingVariant) &&
                       departureTimes.length > 1 &&
-                      !selectedDepartureTime,
+                      !selectedDepartureTime &&
+                      !allDeparturesSoldOut,
                     checking: variantChecking,
                     variantsOpen: bookingVariantsOpen,
                     soldOut:
-                      Boolean(selectedBookingVariant) &&
-                      selectedDaySpotsLeft != null &&
-                      selectedDaySpotsLeft < Math.max(1, guests),
+                      allDeparturesSoldOut ||
+                      (Boolean(selectedBookingVariant) &&
+                        selectedDaySpotsLeft != null &&
+                        selectedDaySpotsLeft < Math.max(1, guests)),
                   })}
                 </button>
               </div>
