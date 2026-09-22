@@ -3,10 +3,10 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** _(pending 542)_  
-**Current phase:** 542  
+**Current SHA:** _(pending 543)_  
+**Current phase:** 543  
 **Branch:** `reconstruction/phase-0-audit`  
-**Commits this mission:** 124+  
+**Commits this mission:** 125+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
 **Preserve:** `scripts/cert-transactional-emails.cjs` (intentionally untracked)
 
@@ -86,7 +86,8 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 539 | Certify partner Money CSV export honesty 2/2 | `9b6a8c9` |
 | 540 | Certify partner Today empty-schedule copy 2/2 | `9b6a8c9` |
 | 541 | Wrap Account display name and email (no silent truncate) | `c55cb07` |
-| 542 | Certify schedule-edit / capacity-reduction / unpublish partner warnings 9/9 | _(this commit)_ |
+| 542 | Certify schedule-edit / capacity-reduction / unpublish partner warnings 9/9 | `ddc7ec8` |
+| 543 | Wrap Inbox guest names and listing lines under line-clamp | _(this commit)_ |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -191,6 +192,9 @@ Traveler Account display name/email wrap instead of truncating mid-string.
 
 ### Phase 542 — partner edit-impact certs
 Schedule delete, capacity reduction, and unpublish warning helpers 9/9 — historical bookings are not silently rewritten.
+
+### Phase 543 — Inbox wrap
+Partner Inbox guest names and listing lines wrap under line-clamp instead of mid-string truncate.
 
 ## Known remaining risks (ranked)
 

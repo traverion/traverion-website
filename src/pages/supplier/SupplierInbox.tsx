@@ -425,11 +425,11 @@ export default function SupplierInbox() {
                           aria-hidden={!unread}
                           aria-label={unread ? 'Unread' : undefined}
                         />
-                        <p className={`truncate text-sm ${unread ? 'font-semibold text-ink' : 'font-medium text-ink'}`}>
+                        <p className={`min-w-0 break-words text-sm [overflow-wrap:anywhere] line-clamp-2 ${unread ? 'font-semibold text-ink' : 'font-medium text-ink'}`}>
                           {b.guest_name?.trim() || 'Traveler'}
                         </p>
                       </div>
-                      <p className="mt-0.5 text-xs text-ink-muted truncate pl-4">
+                      <p className="mt-0.5 break-words pl-4 text-xs text-ink-muted [overflow-wrap:anywhere] line-clamp-2">
                         {inboxListingLine(b, titles[b.listing_id], listingsById[b.listing_id])}
                       </p>
                     </div>
