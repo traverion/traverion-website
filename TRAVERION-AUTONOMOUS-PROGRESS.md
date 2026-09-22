@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** (see Phase 466+)  
-**Current phase:** 467  
+**Current SHA:** `69b1672`  
+**Current phase:** 469  
 **Branch:** `reconstruction/phase-0-audit`  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
 **Preserve:** `scripts/cert-transactional-emails.cjs` (intentionally untracked)
@@ -13,11 +13,11 @@
 
 | Phase | Outcome | SHA |
 |------|---------|-----|
-| 463 | Client LIVE refusal copy names `pk_test_` | `1e8c6c5` |
-| 464 | Stripe TEST hard-block journal | `eeda515` |
-| 465 | TourDetails spots-left uses shared helper | (465) |
-| 466 | Single-departure tours use slot occupancy | (466) |
-| 467 | Progress sync |
+| 465 | TourDetails spots-left uses shared helper | `d56bff2` |
+| 466 | Single-departure slot occupancy | `bdfc8ac` |
+| 467 | Progress sync | `77f9dd9` |
+| 468 | Single-schedule spots-left names departure | `69b1672` |
+| 469 | Production `npm run build` **pass** |
 
 ## Do not
 
