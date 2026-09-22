@@ -305,7 +305,7 @@ export default function BookingPage({
       .filter((o): o is NonNullable<typeof o> => Boolean(o));
   }, [selectedVariant, tour]);
 
-  useEffect(() => {
+  const reloadBookingDayCapacity = useCallback(() => {
     let cancelled = false;
     void Promise.all([
       fetchAvailabilityByListingId(tour.id),
@@ -340,6 +340,18 @@ export default function BookingPage({
       cancelled = true;
     };
   }, [tour.id, calendarOptions]);
+
+  useEffect(() => {
+    return reloadBookingDayCapacity();
+  }, [reloadBookingDayCapacity]);
+
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState === 'visible') reloadBookingDayCapacity();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, [reloadBookingDayCapacity]);
 
   const selectedDaySpotsLeft = useMemo(() => {
     const day = date.trim();
