@@ -17,8 +17,9 @@ import { listingRunsOnDate } from '../lib/booking-quote';
 import { getPartySizeBounds } from '../lib/booking-flow';
 import { tourDateLacksCapacityForParty } from '../lib/tour-calendar';
 import { listingTourCapacityFromOptions, capacitySpotsFromBookingOptions } from '../lib/availability-ops';
-import { fetchAvailabilityByListingId, fetchPublishedTourPaidGuests } from '../data/supabase-availability';
-import { parseListingExtras } from '../types/listingExtras';
+import { fetchAvailabilityByListingId, fetchPublishedTourPaidGuests, fetchPublishedTourPaidGuestsBySlot, tourPaidSlotKey } from '../data/supabase-availability';
+import { parseListingExtras, materializedBookingOptions } from '../types/listingExtras';
+import { tourSellingDeparturesOnDate } from '../lib/listing-option-schedules';
 import { SkeletonCardGrid } from '../components/ui/Skeleton';
 import { PublicListingBrowseCard } from '../components/PublicListingBrowseCard';
 import { MarketplaceBrowseShell, MarketplaceFamilySwitch, MarketplaceSortSelect } from '../components/marketplace/MarketplaceBrowseShell';
@@ -172,7 +173,13 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
   );
   const [dateCapacityByListing, setDateCapacityByListing] = useState<Record<
     string,
-    { paid: number; dayCap?: number; fallbackCap: number }
+    {
+      paid: number;
+      dayCap?: number;
+      fallbackCap: number;
+      paidBySlot: Record<string, number>;
+      departures: Array<{ startTimeHm: string; maxSpots: number }>;
+    }
   > | null>(null);
   const [dateCapacityLoading, setDateCapacityLoading] = useState(false);
 
@@ -300,20 +307,31 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
     void Promise.all(
       allListings.map(async (tour) => {
         const extras = parseListingExtras(tour.listingExtras);
-        const fallbackCap = listingTourCapacityFromOptions(
-          capacitySpotsFromBookingOptions(extras.bookingOptions ?? [])
-        );
-        const [caps, paidByDay] = await Promise.all([
+        const opts = materializedBookingOptions(extras.bookingOptions ?? []);
+        const fallbackCap = listingTourCapacityFromOptions(capacitySpotsFromBookingOptions(opts));
+        const [caps, paidByDay, paidBySlot] = await Promise.all([
           fetchAvailabilityByListingId(tour.id),
           fetchPublishedTourPaidGuests(tour.id),
+          fetchPublishedTourPaidGuestsBySlot(tour.id),
         ]);
         const dayRow = caps.find((r) => String(r.available_date ?? '').slice(0, 10) === filterDate);
+        const departures = tourSellingDeparturesOnDate(opts, filterDate).map((d) => ({
+          startTimeHm: d.startTime,
+          maxSpots: d.maxSpotsPerSlot,
+        }));
+        const slotForDay: Record<string, number> = {};
+        for (const d of departures) {
+          const key = tourPaidSlotKey(filterDate, d.startTimeHm);
+          slotForDay[d.startTimeHm] = paidBySlot[key] ?? 0;
+        }
         return [
           tour.id,
           {
             paid: paidByDay[filterDate] ?? 0,
             dayCap: dayRow ? dayRow.capacity : undefined,
             fallbackCap,
+            paidBySlot: slotForDay,
+            departures,
           },
         ] as const;
       })
@@ -404,6 +422,9 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
         dayCapacity: cap.dayCap,
         fallbackCapacity: cap.fallbackCap,
         partySize,
+        paidBySlot: cap.paidBySlot,
+        departures: cap.departures,
+        slotKey: (hm) => hm,
       });
     });
 

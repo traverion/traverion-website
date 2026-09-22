@@ -172,6 +172,37 @@ describe('tour calendar states', () => {
     ).toBe(true);
   });
 
+  it('catalog date filter uses per-departure remaining when slot data is present', () => {
+    expect(
+      tourDateLacksCapacityForParty({
+        paidGuestsThatDay: 8,
+        dayCapacity: undefined,
+        fallbackCapacity: 8,
+        partySize: 2,
+        paidBySlot: { '08:00': 8, '20:00': 0 },
+        slotKey: (hm) => hm,
+        departures: [
+          { startTimeHm: '08:00', maxSpots: 8 },
+          { startTimeHm: '20:00', maxSpots: 6 },
+        ],
+      })
+    ).toBe(false);
+    expect(
+      tourDateLacksCapacityForParty({
+        paidGuestsThatDay: 14,
+        dayCapacity: undefined,
+        fallbackCapacity: 8,
+        partySize: 2,
+        paidBySlot: { '08:00': 8, '20:00': 6 },
+        slotKey: (hm) => hm,
+        departures: [
+          { startTimeHm: '08:00', maxSpots: 8 },
+          { startTimeHm: '20:00', maxSpots: 6 },
+        ],
+      })
+    ).toBe(true);
+  });
+
   it('multi-departure day is sold out only when every departure is full', () => {
     const sold = tourSoldOutDates({
       paidByDay: { '2026-10-01': 8 },

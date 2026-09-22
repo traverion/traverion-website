@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `c8728d7`  
-**Current phase:** 419  
+**Current SHA:** `cd84bf0`  
+**Current phase:** 420  
 **Stripe:** TEST  
 **Preserve:** `scripts/cert-transactional-emails.cjs`
 
@@ -12,9 +12,9 @@
 
 | Phase | SHA | Outcome |
 |------|-----|---------|
-| 417 | `ad5dd83` | Slot checkAvailability + honest browse tags |
 | 418 | `c8728d7` | Partner Calendar Partial vs Full |
-| 419 | (pending) | Stay calendar includes live holds + revalidate before checkout; min-nights CTA |
+| 419 | `cd84bf0` | Stay holds on public calendar + CTA |
+| 420 | (pending) | Packages date filter uses per-departure capacity |
 
 ## Do not
 - Live Stripe, force-push, commit cert-email script
