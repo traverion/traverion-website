@@ -1260,7 +1260,7 @@ export default function SupplierListings() {
                             .join(' · ')}
                         </p>
                         {readinessLine ? (
-                          <p className="mt-1 text-xs leading-snug text-ink-muted line-clamp-2">{readinessLine}</p>
+                          <p className="mt-1 break-words text-xs leading-snug text-ink-muted line-clamp-2 [overflow-wrap:anywhere]">{readinessLine}</p>
                         ) : null}
                       </div>
                     </button>
