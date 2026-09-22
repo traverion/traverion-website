@@ -1,0 +1,36 @@
+import { describe, expect, it } from 'vitest';
+import { departureSlotSpotsLeft } from './departure-slot-remaining';
+import { tourPaidSlotKey } from '../data/supabase-availability';
+
+describe('departureSlotSpotsLeft', () => {
+  it('uses slot paid occupancy when no day cap override', () => {
+    const day = '2026-10-01';
+    const n = departureSlotSpotsLeft({
+      dayIso: day,
+      startTimeHm: '08:00',
+      maxSpotsPerSlot: 8,
+      maxPersonsFallback: 12,
+      paidBySlot: { [tourPaidSlotKey(day, '08:00')]: 8 },
+      paidByDay: { [day]: 8 },
+      fallbackDayCap: 8,
+    });
+    expect(n).toBe(0);
+  });
+
+  it('keeps evening capacity independent of morning sell-out', () => {
+    const day = '2026-10-01';
+    const n = departureSlotSpotsLeft({
+      dayIso: day,
+      startTimeHm: '20:00',
+      maxSpotsPerSlot: 6,
+      maxPersonsFallback: 12,
+      paidBySlot: {
+        [tourPaidSlotKey(day, '08:00')]: 8,
+        [tourPaidSlotKey(day, '20:00')]: 1,
+      },
+      paidByDay: { [day]: 9 },
+      fallbackDayCap: 14,
+    });
+    expect(n).toBe(5);
+  });
+});
