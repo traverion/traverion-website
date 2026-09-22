@@ -523,11 +523,11 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                   <p className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">
                     {stayCheckOut ? 'Stay' : 'Tour'}
                   </p>
-                  <p className="mt-1 text-base font-semibold text-ink">
+                  <p className="mt-1 text-base font-semibold text-ink break-words [overflow-wrap:anywhere]">
                     {listingTitle || (stayCheckOut ? 'Your stay' : 'Your tour')}
                   </p>
                   {optionLabel ? (
-                    <p className="mt-1 text-sm text-ink-muted">
+                    <p className="mt-1 text-sm text-ink-muted break-words [overflow-wrap:anywhere]">
                       Option · <span className="font-medium text-ink">{optionLabel}</span>
                     </p>
                   ) : null}
