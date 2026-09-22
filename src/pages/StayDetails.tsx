@@ -285,15 +285,31 @@ export default function StayDetails({ stayId, onBack }: Props) {
     if (ph) setGuestPhone((prev) => prev.trim() || ph);
   }, [user]);
 
-  const amenities = useMemo(() => stayAmenityDisplayList(s?.amenities), [s?.amenities]);
+  const stickyStayCtaLabel = (() => {
+    if (selectionOccupied) return 'Dates unavailable';
+    if (paying) return 'Opening…';
+    if (quoteOk) return 'Continue · TEST';
+    if (checkIn && checkOut && stayQuote && !stayQuote.ok) {
+      if (/Minimum stay/i.test(stayQuote.error)) return `Need ${minNights}+ nights`;
+      return 'Fix dates';
+    }
+    if (checkIn && !checkOut) return 'Pick check-out';
+    return 'Select dates';
+  })();
 
-  const startStayCheckout = () => {
+  const startStayCheckout = async () => {
     if (!stay || !stayQuote?.ok) {
       document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       return;
     }
-    if (selectionOccupied) {
-      setPayError('Those dates were just booked by another traveler. Choose different dates to continue.');
+    // Re-fetch inventory so a concurrent hold is visible before Stripe opens.
+    const freshRanges = await fetchPublishedStayOccupiedRanges(stay.id);
+    setOccupiedRanges(freshRanges);
+    const stillTaken =
+      freshRanges.some((r) => stayDateRangesOverlap(stayQuote.checkIn, stayQuote.checkOut, r.checkIn, r.checkOut)) ||
+      nightsOccupiedByStay(stayQuote.checkIn, stayQuote.checkOut).some((n) => blockedNights.includes(n));
+    if (stillTaken) {
+      setPayError('Those dates were just taken. Choose different dates to continue.');
       document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       return;
     }
@@ -807,9 +823,9 @@ export default function StayDetails({ stayId, onBack }: Props) {
                     ? 'Dates unavailable'
                     : paying
                       ? 'Opening checkout…'
-                      : quoteOk
+                      : stickyStayCtaLabel === 'Continue · TEST'
                         ? 'Continue · TEST'
-                        : 'Select dates'}
+                        : stickyStayCtaLabel}
                 </button>
                 <p className="mt-3 text-xs text-ink-muted leading-relaxed">
                   Price is confirmed on the server. If checkout cannot start, you will see an error — never a fake success.
@@ -828,7 +844,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
                   });
                 }}
               >
-                Select dates
+                {stickyStayCtaLabel}
               </button>
             ) : (
               <a
@@ -885,13 +901,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
                   void startStayCheckout();
                 }}
               >
-                {selectionOccupied
-                  ? 'Dates unavailable'
-                  : quoteOk
-                    ? paying
-                      ? 'Opening…'
-                      : 'Continue · TEST'
-                    : 'Select dates'}
+                {stickyStayCtaLabel}
               </button>
             ) : !quoteOk ? (
               <button
@@ -906,7 +916,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
                   });
                 }}
               >
-                Select dates
+                {stickyStayCtaLabel}
               </button>
             ) : (
               <a

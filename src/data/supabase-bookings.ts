@@ -966,7 +966,7 @@ export async function reconcileCheckoutSession(sessionId: string): Promise<{
   };
 }
 
-/** Occupied stay ranges for a published listing (no guest PII). Checkout night is exclusive. */
+/** Occupied/held stay ranges for a published listing (no guest PII). Includes live checkout holds. */
 export async function fetchPublishedStayOccupiedRanges(
   listingId: string
 ): Promise<{ checkIn: string; checkOut: string }[]> {
