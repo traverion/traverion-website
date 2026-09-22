@@ -3,10 +3,10 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** _(pending 541)_  
-**Current phase:** 541  
+**Current SHA:** _(pending 542)_  
+**Current phase:** 542  
 **Branch:** `reconstruction/phase-0-audit`  
-**Commits this mission:** 123+  
+**Commits this mission:** 124+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
 **Preserve:** `scripts/cert-transactional-emails.cjs` (intentionally untracked)
 
@@ -85,7 +85,8 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 538 | Wrap destination page hero title | `994eb7e` |
 | 539 | Certify partner Money CSV export honesty 2/2 | `9b6a8c9` |
 | 540 | Certify partner Today empty-schedule copy 2/2 | `9b6a8c9` |
-| 541 | Wrap Account display name and email (no silent truncate) | _(this commit)_ |
+| 541 | Wrap Account display name and email (no silent truncate) | `c55cb07` |
+| 542 | Certify schedule-edit / capacity-reduction / unpublish partner warnings 9/9 | _(this commit)_ |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -187,6 +188,9 @@ Money CSV export honesty 2/2; Today empty-schedule copy never claims “nothing 
 
 ### Phase 541 — Account identity wrap
 Traveler Account display name/email wrap instead of truncating mid-string.
+
+### Phase 542 — partner edit-impact certs
+Schedule delete, capacity reduction, and unpublish warning helpers 9/9 — historical bookings are not silently rewritten.
 
 ## Known remaining risks (ranked)
 
