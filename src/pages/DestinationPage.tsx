@@ -153,7 +153,7 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
             <MapPin className="h-3.5 w-3.5" aria-hidden />
             Destination
           </p>
-          <h1 className="font-display text-3xl sm:text-4xl lg:text-5xl tracking-tight leading-[1.05]">{label}</h1>
+          <h1 className="font-display text-3xl sm:text-4xl lg:text-5xl tracking-tight leading-[1.05] break-words [overflow-wrap:anywhere]">{label}</h1>
           {catalogLoading ? (
             <Skeleton className="mt-3 h-4 w-40 bg-white/20" />
           ) : listings.length > 0 ? (
