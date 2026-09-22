@@ -38,7 +38,9 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 485–486 | Partner Bookings/Today/Calendar note purchased departure when ops time differs | `c3c1b97` |
 | 487 | Inventory honesty cert batch 20/20 (multi-departure, concurrency, party max, snapshot) | `cb1bae1` |
 | 488 | Sold-out guest stepper: no fake 0–N range; both buttons disabled | `cb1bae1` |
-| 489 | Inbox shows ops start + Purchased note when times diverge | _(this commit)_ |
+| 489 | Inbox shows ops start + Purchased note when times diverge | `4db3392` |
+| 490 | Certify Stripe webhook replay suite 6/6 (idempotency already implemented) | _(this commit)_ |
+| 491 | Wrap long itinerary / includes / meet copy on tour detail | _(this commit)_ |
 
 ### Phase 483 — problem / evidence
 ROI explore subagent unavailable (usage limit). Solo triage: highest remaining honesty hole was guest stepper restoring full `optionMax` when `spotsLeft < 1` on TourDetails + BookingPage.
@@ -54,6 +56,9 @@ Cert batch green. `formatPartySizeHint` / validation / GuestStepper refuse inven
 
 ### Phase 489 — Inbox departure honesty
 Same purchased-vs-ops display as Bookings/Today.
+
+### Phase 490–491 — webhook cert + long-copy wrap
+Webhook replay unit suite green. Tour listing sections break long Unicode/unbroken strings without truncating meaning.
 
 ## Known remaining risks (ranked)
 

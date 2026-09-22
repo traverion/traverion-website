@@ -560,12 +560,12 @@ export default function StayDetails({ stayId, onBack }: Props) {
             {s?.houseRules ? (
               <div>
                 <h2 className="font-display text-xl mb-2">House rules</h2>
-                <p className="text-ink-muted whitespace-pre-wrap">{s.houseRules}</p>
+                <p className="text-ink-muted break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{s.houseRules}</p>
               </div>
             ) : null}
             <div>
               <h2 className="font-display text-xl mb-2">Cancellation</h2>
-              <p className="text-ink-muted whitespace-pre-wrap">
+              <p className="text-ink-muted break-words [overflow-wrap:anywhere] whitespace-pre-wrap">
                 {stay.cancellationPolicy?.trim() || TRAVERION_STANDARD_CANCELLATION_POLICY}
               </p>
             </div>
