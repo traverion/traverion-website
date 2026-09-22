@@ -169,8 +169,8 @@ export function listingTourCapacityFromOptions(spots: Array<number | undefined |
 /** Flatten option- and schedule-level maxSpotsPerSlot for listing-wide fallback capacity. */
 export function capacitySpotsFromBookingOptions(
   options: Array<{
-    maxSpotsPerSlot?: number | null;
-    schedules?: Array<{ maxSpotsPerSlot?: number | null; status?: string } | null> | null;
+    maxSpotsPerSlot?: number | null | unknown;
+    schedules?: Array<{ maxSpotsPerSlot?: number | null | unknown; status?: string } | null> | null;
   } | null | undefined>
 ): Array<number | null> {
   const spots: Array<number | null> = [];

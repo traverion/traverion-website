@@ -60,7 +60,6 @@ import {
   removeOptionSchedule,
   upsertOptionSchedule,
 } from '../../lib/listing-option-schedules';
-import type { ListingOptionSchedule } from '../../types/listingExtras';
 import {
   canContinueTourScheduleScene,
   canVisitTourScheduleScene,
