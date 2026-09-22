@@ -21,6 +21,12 @@ import { formatMoney, isStripeTestCheckoutSession } from '../lib/money';
 import NoticeCallout from '../components/NoticeCallout';
 import StatusChip, { toneForPaymentLabel } from '../components/StatusChip';
 import { listingPickupCopyIncomplete } from '../lib/pickup-completeness';
+import {
+  displayListingTitleFromPurchase,
+  displayMeetingPointFromPurchase,
+  displayOptionLabelFromPurchase,
+  displayPickupInstructionsFromPurchase,
+} from '../lib/purchase-snapshot';
 import { clearBookingsUnread } from '../lib/customerBookingNotifications';
 import {
   BOOKING_CONFIRMATION_EMAIL_DISCLAIMER,
@@ -106,10 +112,20 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
       if (row.listing_id) {
         const ops = await fetchListingOpsByIds([row.listing_id]);
         const meta = ops[row.listing_id];
-        setListingTitle(meta?.title || 'Your tour');
+        setListingTitle(
+          displayListingTitleFromPurchase(row.purchase_snapshot, meta?.title, 'Your tour')
+        );
         const stay = Boolean(row.check_out);
+        const snapMeeting = displayMeetingPointFromPurchase(
+          row.purchase_snapshot,
+          meta?.meeting_point
+        );
+        const snapPickup = displayPickupInstructionsFromPurchase(
+          row.purchase_snapshot,
+          meta?.pickup_instructions
+        );
         setPickupPending(
-          !stay && listingPickupCopyIncomplete(meta?.meeting_point, meta?.pickup_instructions) && !row.pickup_time
+          !stay && listingPickupCopyIncomplete(snapMeeting || null, snapPickup || null) && !row.pickup_time
         );
         try {
           const listing = await fetchListingById(row.listing_id);
@@ -118,13 +134,15 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
             (row.booking_option_id
               ? opts.find((o) => o.id === row.booking_option_id)
               : null) ?? (opts.length === 1 ? opts[0] : null);
-          setOptionLabel(match?.name?.trim() || '');
+          setOptionLabel(
+            displayOptionLabelFromPurchase(row.purchase_snapshot, match?.name?.trim() || '')
+          );
         } catch {
-          setOptionLabel('');
+          setOptionLabel(displayOptionLabelFromPurchase(row.purchase_snapshot, ''));
         }
       } else {
-        setListingTitle('');
-        setOptionLabel('');
+        setListingTitle(displayListingTitleFromPurchase(row.purchase_snapshot, '', ''));
+        setOptionLabel(displayOptionLabelFromPurchase(row.purchase_snapshot, ''));
         setPickupPending(false);
       }
     } catch (e) {

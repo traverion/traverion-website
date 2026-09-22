@@ -77,15 +77,30 @@ export type BookingRow = {
   booking_option_id?: string | null;
   /** Pending checkout inventory hold expiry (Stripe session). */
   hold_expires_at?: string | null;
+  /** Checkout-time commercial display (title/option/meeting); prefer over live listing. */
+  purchase_snapshot?: {
+    listingTitle?: string;
+    optionLabel?: string | null;
+    meetingPoint?: string | null;
+    pickupInstructions?: string | null;
+    startTimeHm?: string | null;
+    capturedAt?: string;
+  } | null;
 };
 
 /** Consumer booking row including Stripe payment fields (RLS same as BookingRow). */
 export type BookingWithPaymentRow = BookingRow;
 
 const BOOKING_LIST_COLUMNS =
-  'id, listing_id, guest_email, guest_name, guests, booking_date, check_out, nights, nightly_amount, cleaning_fee, status, special_requests, cancellation_reason, refund_choice, cancelled_at, acknowledged_at, created_at, start_time, pickup_time, booking_number, guest_breakdown, booking_option_id, hold_expires_at';
+  'id, listing_id, guest_email, guest_name, guests, booking_date, check_out, nights, nightly_amount, cleaning_fee, status, special_requests, cancellation_reason, refund_choice, cancelled_at, acknowledged_at, created_at, start_time, pickup_time, booking_number, guest_breakdown, booking_option_id, hold_expires_at, purchase_snapshot';
 
 const BOOKING_PAYMENT_COLUMNS = `${BOOKING_LIST_COLUMNS}, payment_status, checkout_session_id, amount_paid, currency`;
+
+/** Pre–purchase_snapshot (migration 077). */
+const BOOKING_LIST_COLUMNS_NO_SNAPSHOT =
+  'id, listing_id, guest_email, guest_name, guests, booking_date, check_out, nights, nightly_amount, cleaning_fee, status, special_requests, cancellation_reason, refund_choice, cancelled_at, acknowledged_at, created_at, start_time, pickup_time, booking_number, guest_breakdown, booking_option_id, hold_expires_at';
+
+const BOOKING_PAYMENT_COLUMNS_NO_SNAPSHOT = `${BOOKING_LIST_COLUMNS_NO_SNAPSHOT}, payment_status, checkout_session_id, amount_paid, currency`;
 
 /** Pre–hold_expires_at on list selects (still has guest_breakdown). */
 const BOOKING_LIST_COLUMNS_NO_HOLD =
@@ -471,6 +486,7 @@ export async function fetchBookingsForSupplier(supplierId: string): Promise<Book
 
   const columnTiers = [
     BOOKING_PAYMENT_COLUMNS,
+    BOOKING_PAYMENT_COLUMNS_NO_SNAPSHOT,
     BOOKING_PAYMENT_COLUMNS_NO_HOLD,
     BOOKING_PAYMENT_COLUMNS_NO_BREAKDOWN,
     BOOKING_PAYMENT_COLUMNS_NO_HOLD_NO_BREAKDOWN,
@@ -862,11 +878,13 @@ export async function fetchMyBookings(): Promise<BookingRow[]> {
   if (!supabase) return [];
   const columnTiers = [
     BOOKING_PAYMENT_COLUMNS,
+    BOOKING_PAYMENT_COLUMNS_NO_SNAPSHOT,
     BOOKING_PAYMENT_COLUMNS_NO_HOLD,
     BOOKING_PAYMENT_COLUMNS_NO_BREAKDOWN,
     BOOKING_PAYMENT_COLUMNS_NO_HOLD_NO_BREAKDOWN,
     BOOKING_PAYMENT_COLUMNS_LEGACY,
     BOOKING_LIST_COLUMNS,
+    BOOKING_LIST_COLUMNS_NO_SNAPSHOT,
     BOOKING_LIST_COLUMNS_NO_HOLD,
     BOOKING_LIST_COLUMNS_NO_BREAKDOWN,
     BOOKING_LIST_COLUMNS_NO_HOLD_NO_BREAKDOWN,
@@ -898,6 +916,7 @@ export async function fetchMyBookingByCheckoutSessionId(
   if (!id) return null;
   const columnTiers = [
     BOOKING_PAYMENT_COLUMNS,
+    BOOKING_PAYMENT_COLUMNS_NO_SNAPSHOT,
     BOOKING_PAYMENT_COLUMNS_NO_HOLD,
     BOOKING_PAYMENT_COLUMNS_NO_BREAKDOWN,
     BOOKING_PAYMENT_COLUMNS_NO_HOLD_NO_BREAKDOWN,

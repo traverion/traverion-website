@@ -38,6 +38,11 @@ import BookingMessageThread from '../components/BookingMessageThread';
 import StatusChip, { toneForPaymentLabel } from '../components/StatusChip';
 import NoticeCallout from '../components/NoticeCallout';
 import { listingPickupCopyIncomplete } from '../lib/pickup-completeness';
+import {
+  displayListingTitleFromPurchase,
+  displayMeetingPointFromPurchase,
+  displayPickupInstructionsFromPurchase,
+} from '../lib/purchase-snapshot';
 import { decrementAvailabilityBooked } from '../data/supabase-availability';
 import { clearBookingsUnread } from '../lib/customerBookingNotifications';
 import { guestFacingBookingNotes } from '../lib/booking-notes';
@@ -225,7 +230,11 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
           accepted: accept,
           customerEmail: b.guest_email,
           customerName: b.guest_name,
-          listingTitle: ops.title || titles[b.listing_id] || 'Booking',
+          listingTitle: displayListingTitleFromPurchase(
+            b.purchase_snapshot,
+            ops.title || titles[b.listing_id],
+            'Booking'
+          ),
           bookingId: b.id,
           bookingNumber: typeof b.booking_number === 'number' ? b.booking_number : undefined,
           bookingDate: b.booking_date,
@@ -603,11 +612,24 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                 (b.check_out && /^\d{4}-\d{2}-\d{2}$/.test(b.check_out)) || parseStayCheckOutFromNotes(b.special_requests)
               );
               const ops = listingOps[b.listing_id];
+              const tripTitle = displayListingTitleFromPurchase(
+                b.purchase_snapshot,
+                titles[b.listing_id] || ops?.title,
+                isStay ? 'Stay' : 'Tour'
+              );
+              const tripMeeting = displayMeetingPointFromPurchase(
+                b.purchase_snapshot,
+                ops?.meeting_point
+              );
+              const tripPickupInstructions = displayPickupInstructionsFromPurchase(
+                b.purchase_snapshot,
+                ops?.pickup_instructions
+              );
               const liveTrip = travelerTripIsLive(b);
               const pickupMissing =
                 liveTrip &&
                 !isStay &&
-                listingPickupCopyIncomplete(ops?.meeting_point, ops?.pickup_instructions) &&
+                listingPickupCopyIncomplete(tripMeeting || null, tripPickupInstructions || null) &&
                 !b.pickup_time;
               const thumb = ops?.image ?? null;
               const placeLine = (ops?.city || ops?.destination || '').trim() || null;
@@ -690,7 +712,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                           {timeBit ? ` · ${timeBit}` : ''}
                         </p>
                         <h3 className="mt-0.5 font-semibold text-ink line-clamp-2 leading-snug">
-                          {titles[b.listing_id] ?? (isStay ? 'Stay' : 'Tour')}
+                          {tripTitle}
                         </h3>
                       </div>
                       <ChevronDown
@@ -790,22 +812,22 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         <dd className="mt-0.5 text-sm text-ink">{placeLine}</dd>
                       </div>
                     ) : null}
-                    {!isStay && ops?.meeting_point?.trim() ? (
+                    {!isStay && tripMeeting ? (
                       <div className="sm:col-span-2">
                         <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
                           Meeting point
                         </dt>
-                        <dd className="mt-0.5 text-sm text-ink whitespace-pre-wrap">{ops.meeting_point.trim()}</dd>
+                        <dd className="mt-0.5 text-sm text-ink whitespace-pre-wrap">{tripMeeting}</dd>
                       </div>
                     ) : null}
-                    {!isStay && ops?.pickup_instructions?.trim() && !pickupMissing ? (
+                    {!isStay && tripPickupInstructions && !pickupMissing ? (
                       <div className="sm:col-span-2">
                         <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
                           Pickup
                         </dt>
                         <dd className="mt-0.5 text-sm text-ink whitespace-pre-wrap">
                           {b.pickup_time ? `${pgTimeToHm(b.pickup_time)} · ` : ''}
-                          {ops.pickup_instructions.trim()}
+                          {tripPickupInstructions}
                         </dd>
                       </div>
                     ) : null}
@@ -960,7 +982,11 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                       canCompose={block === 'none'}
                       composeBlock={block === 'closed' ? 'closed' : 'unpaid'}
                       viewerRole="traveler"
-                      listingTitle={titles[b.listing_id] ?? 'Booking'}
+                      listingTitle={displayListingTitleFromPurchase(
+                        b.purchase_snapshot,
+                        titles[b.listing_id],
+                        'Booking'
+                      )}
                       listingId={b.listing_id}
                       supplierId={ops?.supplier_id}
                       customerEmail={b.guest_email}
@@ -993,7 +1019,11 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
               </h3>
               <div className="mt-4 rounded-2xl bg-paper px-4 py-3.5 ring-1 ring-black/[0.05]">
                 <p className="font-semibold text-ink leading-snug">
-                  {titles[cancelConfirm.listing_id] ?? 'This booking'}
+                  {displayListingTitleFromPurchase(
+                    cancelConfirm.purchase_snapshot,
+                    titles[cancelConfirm.listing_id],
+                    'This booking'
+                  )}
                 </p>
                 <p className="mt-1 text-sm text-ink-muted">
                   {cancelConfirm.booking_date

@@ -6,6 +6,7 @@ import { quoteListingBooking, stayCheckoutNightsAlreadyBooked, stayNightIsOperat
 import { tourCheckoutOccupiedGuests, type TourCheckoutOccupancyRow } from '../_shared/booking-hold.ts';
 import { checkoutPaymentStatusCanResume, resumeStayCheckoutDate, checkoutResumeLostRaceToPaid } from '../_shared/checkout-resume.ts';
 import { resumeStayLeadGuestName, stayCheckoutLeadGuestNameReady } from '../_shared/stay-checkout-guest.ts';
+import { buildPurchaseSnapshot, resolveMeetingPointForSnapshot } from '../_shared/purchase-snapshot.ts';
 
 type RequestBody = {
   bookingId?: string;
@@ -216,7 +217,9 @@ serve(async (req) => {
 
     const { data: listingRow, error: listingError } = await admin
       .from('listings')
-      .select('id, title, status, price_starting_from, price_currency, listing_extras, group_size')
+      .select(
+        'id, title, status, price_starting_from, price_currency, listing_extras, group_size, meeting_point, pickup_instructions'
+      )
       .eq('id', listingId)
       .maybeSingle();
     if (listingError) return json({ success: false, error: listingError.message }, 500);
@@ -292,6 +295,37 @@ serve(async (req) => {
     if (typeof quote.guests === 'number' && quote.guests >= 1) {
       guests = quote.guests;
     }
+
+    const optionPickupPlace = (() => {
+      const extras = listingRow.listing_extras;
+      if (!extras || typeof extras !== 'object') return null;
+      const opts = (extras as { bookingOptions?: unknown }).bookingOptions;
+      if (!Array.isArray(opts)) return null;
+      const want = (quote.optionId ?? '').trim();
+      for (const raw of opts) {
+        if (!raw || typeof raw !== 'object') continue;
+        const o = raw as { id?: unknown; pickupPlace?: unknown };
+        if (want && String(o.id ?? '').trim() !== want) continue;
+        if (!want && opts.length !== 1) continue;
+        const place = typeof o.pickupPlace === 'string' ? o.pickupPlace.trim() : '';
+        if (place) return place;
+        if (want) break;
+      }
+      return null;
+    })();
+
+    const purchaseSnapshot = buildPurchaseSnapshot({
+      listingTitle,
+      optionLabel: quote.optionLabel ?? null,
+      meetingPoint: resolveMeetingPointForSnapshot({
+        optionPickupPlace,
+        listingMeetingPoint:
+          typeof listingRow.meeting_point === 'string' ? listingRow.meeting_point : null,
+      }),
+      pickupInstructions:
+        typeof listingRow.pickup_instructions === 'string' ? listingRow.pickup_instructions : null,
+      startTimeHm: startTime || null,
+    });
 
     if (extrasFamily === 'stay' && checkoutDate) {
       const { data: existingStayBookings, error: stayBusyErr } = await admin
@@ -505,6 +539,7 @@ serve(async (req) => {
         if (quote.guestBreakdown?.length) {
           insertBase.guest_breakdown = quote.guestBreakdown;
         }
+        insertBase.purchase_snapshot = purchaseSnapshot;
         if (extrasFamily === 'stay' && checkoutDate) {
           insertBase.check_out = checkoutDate;
           if (stayNights != null && stayNights >= 1) {
@@ -513,7 +548,11 @@ serve(async (req) => {
             insertBase.cleaning_fee = Math.round((quote.totalAmount - quote.unitPrice * stayNights) * 100) / 100;
           }
         }
-        const res = await admin.from('bookings').insert(insertBase).select('id').single();
+        let res = await admin.from('bookings').insert(insertBase).select('id').single();
+        if (res.error && /purchase_snapshot/i.test(res.error.message)) {
+          const { purchase_snapshot: _drop, ...withoutSnap } = insertBase;
+          res = await admin.from('bookings').insert(withoutSnap).select('id').single();
+        }
         if (res.error || !res.data?.id) {
           return json({ success: false, error: res.error?.message ?? 'Could not create booking' }, 500);
         }
@@ -595,30 +634,53 @@ serve(async (req) => {
       },
     });
 
-    const { data: updatedRows, error: updateError } = await admin
-      .from('bookings')
-      .update({
-        checkout_session_id: session.id,
-        // Clear prior PI so stale payment_intent.payment_failed cannot kill this session.
-        payment_intent_id: null,
-        hold_expires_at: session.expires_at
-          ? new Date(session.expires_at * 1000).toISOString()
-          : holdExpiresAtIso,
-        ...(resumeQuoteSync
-          ? {
-              total_amount: resumeQuoteSync.totalAmount,
-              currency: resumeQuoteSync.currency,
-              // Revive holds that expire_stale_checkout_holds flipped to failed mid-Pay-now.
-              payment_status: 'pending',
-              ...(resumeQuoteSync.guestName ? { guest_name: resumeQuoteSync.guestName } : {}),
-              ...(resumeQuoteSync.optionId ? { booking_option_id: resumeQuoteSync.optionId } : {}),
-            }
-          : {}),
-      })
-      .eq('id', targetBookingId)
-      .in('payment_status', ['pending', 'failed'])
-      .neq('status', 'cancelled')
-      .select('id');
+    const sessionUpdateBase: Record<string, unknown> = {
+      checkout_session_id: session.id,
+      // Clear prior PI so stale payment_intent.payment_failed cannot kill this session.
+      payment_intent_id: null,
+      hold_expires_at: session.expires_at
+        ? new Date(session.expires_at * 1000).toISOString()
+        : holdExpiresAtIso,
+      purchase_snapshot: purchaseSnapshot,
+      ...(quote.guestBreakdown?.length ? { guest_breakdown: quote.guestBreakdown } : {}),
+      ...(resumeQuoteSync
+        ? {
+            total_amount: resumeQuoteSync.totalAmount,
+            currency: resumeQuoteSync.currency,
+            // Revive holds that expire_stale_checkout_holds flipped to failed mid-Pay-now.
+            payment_status: 'pending',
+            ...(resumeQuoteSync.guestName ? { guest_name: resumeQuoteSync.guestName } : {}),
+            ...(resumeQuoteSync.optionId ? { booking_option_id: resumeQuoteSync.optionId } : {}),
+          }
+        : {}),
+    };
+
+    let updatedRows: { id: string }[] | null = null;
+    let updateError: { message: string } | null = null;
+    {
+      const first = await admin
+        .from('bookings')
+        .update(sessionUpdateBase)
+        .eq('id', targetBookingId)
+        .in('payment_status', ['pending', 'failed'])
+        .neq('status', 'cancelled')
+        .select('id');
+      if (first.error && /purchase_snapshot/i.test(first.error.message)) {
+        const { purchase_snapshot: _drop, ...withoutSnap } = sessionUpdateBase;
+        const retry = await admin
+          .from('bookings')
+          .update(withoutSnap)
+          .eq('id', targetBookingId)
+          .in('payment_status', ['pending', 'failed'])
+          .neq('status', 'cancelled')
+          .select('id');
+        updatedRows = (retry.data ?? null) as { id: string }[] | null;
+        updateError = retry.error;
+      } else {
+        updatedRows = (first.data ?? null) as { id: string }[] | null;
+        updateError = first.error;
+      }
+    }
     if (updateError) {
       return json({ success: false, error: 'Checkout created but booking update failed' }, 500);
     }
