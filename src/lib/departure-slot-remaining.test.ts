@@ -33,4 +33,19 @@ describe('departureSlotSpotsLeft', () => {
     });
     expect(n).toBe(5);
   });
+
+  it('uses day-cap override for all departures when partner set a day limit', () => {
+    const day = '2026-10-01';
+    const n = departureSlotSpotsLeft({
+      dayIso: day,
+      startTimeHm: '20:00',
+      maxSpotsPerSlot: 6,
+      maxPersonsFallback: 12,
+      paidBySlot: { [tourPaidSlotKey(day, '20:00')]: 0 },
+      paidByDay: { [day]: 3 },
+      dayCapOverride: 4,
+      fallbackDayCap: 14,
+    });
+    expect(n).toBe(1);
+  });
 });
