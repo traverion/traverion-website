@@ -787,7 +787,7 @@ export default function SupplierPickupPlanner() {
               <span className="text-ink-faint uppercase tracking-[0.12em] text-[10px] block mb-1">Participants</span>
               {formatBookingParticipantsLabel(selectedBooking)}
             </p>
-            <p className="mt-3 text-sm text-ink-muted whitespace-pre-wrap">
+            <p className="mt-3 text-sm text-ink-muted break-words [overflow-wrap:anywhere] whitespace-pre-wrap">
               {guestFacingBookingNotes(selectedBooking.special_requests) ||
                 'No special requests or address notes.'}
             </p>

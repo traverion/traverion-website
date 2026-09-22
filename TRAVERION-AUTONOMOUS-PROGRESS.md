@@ -3,12 +3,16 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** _(pending 509–510)_  
-**Current phase:** 510  
+**Current SHA:** _(pending 511–513)_  
+**Current phase:** 513  
 **Branch:** `reconstruction/phase-0-audit`  
-**Commits this mission:** 96+  
+**Commits this mission:** 97+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
 **Preserve:** `scripts/cert-transactional-emails.cjs` (intentionally untracked)
+
+## Milestone Phase 513 (inventory band)
+
+Focused honesty/inventory suites **74/74**. Sold-out party max, purchased-vs-ops partner surfaces, StayDetails amenities crash, Schedules ops shortcut, and long-copy wraps landed since 496.
 
 ## Milestone Phase 496
 
@@ -49,8 +53,11 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 506 | Wrap traveler review titles/comments/replies on tour + stay | `f2e347c` |
 | 507 | Wrap inbox/message thread bodies | `415962e` |
 | 508 | Wrap Trips meeting, pickup, and cancel notes | `415962e` |
-| 509 | Certify booking-hold occupancy (cancel/refund release) 9/9 | _(this commit)_ |
-| 510 | Wrap partner Bookings special-request notes | _(this commit)_ |
+| 509 | Certify booking-hold occupancy (cancel/refund release) 9/9 | `014fde7` |
+| 510 | Wrap partner Bookings special-request notes | `014fde7` |
+| 511 | Wrap Pickup Planner special-request notes | _(this commit)_ |
+| 512 | Honesty/inventory cert batch 74/74 | _(this commit)_ |
+| 513 | Inventory band checkpoint journal (451–525 progress) | _(this commit)_ |
 
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
@@ -75,6 +82,9 @@ Booking message bodies and Trips meeting/pickup/cancel notes use overflow-wrap.
 
 ### Phase 509–510 — hold occupancy cert + Bookings notes wrap
 booking-hold suite 9/9. Partner booking special requests wrap long copy.
+
+### Phase 511–513 — Pickup wrap + inventory band checkpoint
+Pickup Planner notes wrap. Focused inventory/honesty suites **74/74**. Inventory integrity band largely unit-certified; browser golden journeys remain the gap.
 
 ## Known remaining risks (ranked)
 
