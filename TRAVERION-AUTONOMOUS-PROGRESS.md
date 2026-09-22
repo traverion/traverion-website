@@ -3,10 +3,9 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `3120917`  
-**Current phase:** 454  
-**Branch:** `reconstruction/phase-0-audit`  
-**Commits this mission:** 48+  
+**Current SHA:** `0b2e72a`  
+**Current phase:** 455  
+**Commits this mission:** 51  
 **Stripe:** TEST (no LIVE)  
 **Preserve:** `scripts/cert-transactional-emails.cjs` (intentionally untracked)
 
@@ -26,11 +25,10 @@
 
 | Phase | Outcome | SHA |
 |------|---------|-----|
-| 450 | TourDetails uses shared departure remaining | `3e628d2` |
-| 451 | Band status journal | `c777d55` |
 | 452 | BookingPage shared departure remaining | `2513787` |
 | 453 | Disable Pay when capacity gone | `3120917` |
-| 454 | Confirm handler hard-stops when capacityBlocksPay |
+| 454 | Confirm handler hard-stops when capacityBlocksPay | `0b2e72a` |
+| 455 | Inventory integrity suites **18/18** (slot remaining, holds, concurrency, sticky CTA) |
 
 ## Do not
 
