@@ -3,9 +3,9 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** (see Phase 429)  
-**Current phase:** 429  
-**Commits this mission:** 26+  
+**Current SHA:** `060166f`  
+**Current phase:** 430  
+**Commits this mission:** 27+  
 **Stripe:** TEST  
 **Preserve:** `scripts/cert-transactional-emails.cjs`
 
@@ -13,9 +13,9 @@
 
 | Phase | Outcome |
 |------|---------|
-| 427 | `908d2c8` Inventory concurrency/DST cert (doc) |
 | 428 | Dashboard Today/Next-7 purchase_snapshot title/option |
-| 429 | Today schedule shows Meet · meeting point from snapshot/live option |
+| 429 | `060166f` Today Meet · meeting point |
+| 430 | TourDetails refreshes slot capacity on tab visibility (stale-tab honesty) |
 
 ## Do not
 - Live Stripe, force-push, commit cert-email script

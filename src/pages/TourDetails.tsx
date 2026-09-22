@@ -331,11 +331,11 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     }, 40);
   }, []);
 
-  useEffect(() => {
+  const reloadTourDayCapacity = useCallback(() => {
     if (!tour?.id) {
       setSoldOutDates(new Set());
       setDayCapacitySnap(null);
-      return;
+      return () => {};
     }
     let cancelled = false;
     void Promise.all([
@@ -343,34 +343,46 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       fetchPublishedTourPaidGuests(tour.id),
       fetchPublishedTourPaidGuestsBySlot(tour.id),
     ]).then(([caps, paidByDay, paidBySlot]) => {
-        if (cancelled) return;
-        const fallbackCap = listingTourCapacityFromOptions(capacitySpotsFromBookingOptions(calendarOptions));
-        const capByDay = new Map<string, number>();
-        for (const row of caps) {
-          const day = String(row.available_date ?? '').slice(0, 10);
-          if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) continue;
-          capByDay.set(day, row.capacity);
-        }
-        setDayCapacitySnap({ paidByDay, paidBySlot, capByDay, fallback: fallbackCap });
-        setSoldOutDates(
-          tourSoldOutDates({
-            paidByDay,
-            paidBySlot,
-            capByDay,
-            fallbackCapacity: fallbackCap,
-            slotKey: tourPaidSlotKey,
-            departuresForDay: (day) =>
-              tourSellingDeparturesOnDate(calendarOptions, day).map((d) => ({
-                startTimeHm: d.startTime,
-                maxSpots: d.maxSpotsPerSlot,
-              })),
-          })
-        );
-      });
+      if (cancelled) return;
+      const fallbackCap = listingTourCapacityFromOptions(capacitySpotsFromBookingOptions(calendarOptions));
+      const capByDay = new Map<string, number>();
+      for (const row of caps) {
+        const day = String(row.available_date ?? '').slice(0, 10);
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) continue;
+        capByDay.set(day, row.capacity);
+      }
+      setDayCapacitySnap({ paidByDay, paidBySlot, capByDay, fallback: fallbackCap });
+      setSoldOutDates(
+        tourSoldOutDates({
+          paidByDay,
+          paidBySlot,
+          capByDay,
+          fallbackCapacity: fallbackCap,
+          slotKey: tourPaidSlotKey,
+          departuresForDay: (day) =>
+            tourSellingDeparturesOnDate(calendarOptions, day).map((d) => ({
+              startTimeHm: d.startTime,
+              maxSpots: d.maxSpotsPerSlot,
+            })),
+        })
+      );
+    });
     return () => {
       cancelled = true;
     };
   }, [tour?.id, calendarOptions]);
+
+  useEffect(() => {
+    return reloadTourDayCapacity();
+  }, [reloadTourDayCapacity]);
+
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState === 'visible') reloadTourDayCapacity();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, [reloadTourDayCapacity]);
 
   const selectedDaySpotsLeft = useMemo(() => {
     const day = bookingDate.trim();
