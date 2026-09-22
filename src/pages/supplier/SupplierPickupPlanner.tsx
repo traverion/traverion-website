@@ -25,6 +25,7 @@ import { openSupplierListingEditor, openSupplierBooking, openSupplierInbox } fro
 import { decrementAvailabilityBooked } from '../../data/supabase-availability';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { canManageBookings } from '../../lib/supplierTeamRoles';
+import { isPurchaseSnapshot } from '../../lib/purchase-snapshot';
 import { SUPPLIER_PAGE_CLASS, SupplierEmptyState, SupplierListSkeleton, SupplierPageHero } from '../../components/supplier/supplierUi';
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
@@ -590,7 +591,17 @@ export default function SupplierPickupPlanner() {
             : b
         )
       );
-      showActionFeedback('success', 'Times saved for this booking.');
+      const purchasedStart =
+        isPurchaseSnapshot(selectedBooking.purchase_snapshot) &&
+        selectedBooking.purchase_snapshot.startTimeHm?.trim();
+      const startChangedFromPurchase =
+        Boolean(purchasedStart) && purchasedStart !== startTrim;
+      showActionFeedback(
+        'success',
+        startChangedFromPurchase
+          ? `Times saved for ops. Traveler Trips still show the purchased ${purchasedStart} departure.`
+          : 'Times saved for this booking.'
+      );
     } else {
       showActionFeedback('error', res.error || 'Could not save times. Try again.');
     }
