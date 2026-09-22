@@ -1045,9 +1045,14 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         year: 'numeric',
                       })
                     : 'Date TBC'}
-                  {cancelConfirm.start_time && !cancelConfirm.check_out
-                    ? ` · ${pgTimeToHm(cancelConfirm.start_time)}`
-                    : ''}
+                  {(() => {
+                    if (cancelConfirm.check_out) return null;
+                    const shown = displayStartTimeFromPurchase(
+                      cancelConfirm.purchase_snapshot,
+                      cancelConfirm.start_time ? pgTimeToHm(cancelConfirm.start_time) : null
+                    );
+                    return shown ? ` · ${shown}` : null;
+                  })()}
                   {typeof cancelConfirm.booking_number === 'number' && cancelConfirm.booking_number > 0
                     ? ` · #${cancelConfirm.booking_number}`
                     : ''}
