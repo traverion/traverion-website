@@ -17,7 +17,7 @@ import {
 } from '../../../lib/listing-option-schedules';
 import { optionHeadlineUnitPrice } from '../../../lib/price-categories';
 import type { ListingCreationSceneDirection } from '../../../lib/listing-creation-scenes';
-import type { ListingBookingOption } from '../../../types/listingExtras';
+import type { ListingBookingOption, ListingOptionSchedule } from '../../../types/listingExtras';
 
 const SUPPORT: Record<TourOptionSceneId, string> = {
   setup: 'A traveler-facing name, why this variant exists, and how long it runs.',
@@ -47,6 +47,7 @@ export function TourOptionGuidedScenes({
   onDeleteSchedule,
   pendingScheduleDeleteId,
   onCancelScheduleDelete,
+  occupancyNoticeForSchedule,
 }: {
   option: ListingBookingOption;
   sceneIndex: number;
@@ -67,6 +68,7 @@ export function TourOptionGuidedScenes({
   onDeleteSchedule: (scheduleId: string) => void;
   pendingScheduleDeleteId: string | null;
   onCancelScheduleDelete: () => void;
+  occupancyNoticeForSchedule?: (schedule: ListingOptionSchedule) => string | null;
 }) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const scene = TOUR_OPTION_SCENES[sceneIndex] ?? TOUR_OPTION_SCENES[0];
@@ -108,6 +110,7 @@ export function TourOptionGuidedScenes({
           onDelete={onDeleteSchedule}
           pendingDeleteId={pendingScheduleDeleteId}
           onCancelDelete={onCancelScheduleDelete}
+          occupancyNoticeForSchedule={occupancyNoticeForSchedule}
         />
       ) : (
         <BookingOptionEditor

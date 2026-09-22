@@ -26,6 +26,7 @@ export function TourOptionScheduleList({
   onDelete,
   pendingDeleteId,
   onCancelDelete,
+  occupancyNoticeForSchedule,
 }: {
   option: ListingBookingOption;
   formatAmount: (n: number) => string;
@@ -35,6 +36,7 @@ export function TourOptionScheduleList({
   onDelete: (scheduleId: string) => void;
   pendingDeleteId: string | null;
   onCancelDelete: () => void;
+  occupancyNoticeForSchedule?: (schedule: ListingOptionSchedule) => string | null;
 }) {
   const rows = listingOptionHasSchedules(option) ? option.schedules ?? [] : listingOptionSchedules(option);
 
@@ -58,6 +60,7 @@ export function TourOptionScheduleList({
         rows.map((s, index) => {
           const status = scheduleStatus(s);
           const pending = pendingDeleteId === s.id;
+          const occupancyNotice = pending ? occupancyNoticeForSchedule?.(s) ?? null : null;
           return (
             <article key={s.id} className="lc-tile rounded-xl px-4 py-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
@@ -83,6 +86,11 @@ export function TourOptionScheduleList({
                   </p>
                   <p className="text-sm text-ink">{summarizeOptionPricing(s, formatAmount)}</p>
                   <p className="text-xs text-ink-muted">Max {s.maxSpotsPerSlot} travelers</p>
+                  {occupancyNotice ? (
+                    <p className="mt-2 text-sm leading-relaxed text-ink" role="status">
+                      {occupancyNotice}
+                    </p>
+                  ) : null}
                 </div>
                 <div className="flex flex-wrap items-center gap-2 shrink-0">
                   {pending ? (

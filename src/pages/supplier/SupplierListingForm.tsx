@@ -2,7 +2,7 @@ import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } fr
 import { createPortal } from 'react-dom';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { TourPackage } from '../../types/tour';
-import type { ListingBookingOption, ListingExtras, ScheduleStyle, VenueSetting } from '../../types/listingExtras';
+import type { ListingBookingOption, ListingExtras, ListingOptionSchedule, ScheduleStyle, VenueSetting } from '../../types/listingExtras';
 import {
   formatBookingOptionDuration,
   isListingBookingOptionEffectivelyEmpty,
@@ -14,6 +14,12 @@ import {
 } from '../../types/listingExtras';
 import ListingImageFields from '../../components/supplier/ListingImageFields';
 import { useAuth } from '../../contexts/AuthContext';
+import { fetchBookingsForSupplier, type BookingRow } from '../../data/supabase-bookings';
+import { scheduleSpotsBelowSoldWarning } from '../../lib/capacity-reduction-warn';
+import {
+  occupyingGuestsForOptionDeparture,
+  removeScheduleOccupancyNotice,
+} from '../../lib/schedule-edit-impact';
 import { optionHeadlineUnitPrice, summarizeOptionPricing } from '../../lib/price-categories';
 import { headlineStartingAmountFromBookingOptions } from '../../lib/headline-price';
 import { listingDurationForPersist } from '../../lib/listing-option-ownership';
@@ -993,10 +999,30 @@ export default function SupplierListingForm({
   const [scheduleSaveError, setScheduleSaveError] = useState<string | null>(null);
   const [scheduleLeaveOpen, setScheduleLeaveOpen] = useState(false);
   const [pendingScheduleDeleteId, setPendingScheduleDeleteId] = useState<string | null>(null);
+  const [listingOccupancyBookings, setListingOccupancyBookings] = useState<BookingRow[]>([]);
   const scheduleSessionOpenedAsCreateRef = useRef(false);
   const scheduleSnapshotRef = useRef<string>('');
   const scheduleDraftRef = useRef<ListingOptionSchedule | null>(null);
   const addScheduleLockRef = useRef(false);
+
+  useEffect(() => {
+    if (!user?.id || !editingId) {
+      setListingOccupancyBookings([]);
+      return;
+    }
+    let cancelled = false;
+    void fetchBookingsForSupplier(user.id)
+      .then((rows) => {
+        if (cancelled) return;
+        setListingOccupancyBookings(rows.filter((b) => b.listing_id === editingId));
+      })
+      .catch(() => {
+        if (!cancelled) setListingOccupancyBookings([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, editingId]);
 
   const steps = useMemo(() => {
     const stay = form.inventoryFamily === 'stay' || createFamily === 'stay';
@@ -2095,11 +2121,41 @@ export default function SupplierListingForm({
       focusListingField(firstScheduleIssueFocusId(ready));
       return;
     }
+    if (editingId) {
+      const occupying = occupyingGuestsForOptionDeparture({
+        bookings: listingOccupancyBookings,
+        listingId: editingId,
+        optionId: optionModalDraft.id,
+        startTimeHm: ready.startTime,
+      });
+      const underSold = scheduleSpotsBelowSoldWarning({
+        newMaxSpots: ready.maxSpotsPerSlot,
+        occupyingGuests: occupying,
+        startTimeHm: ready.startTime,
+      });
+      if (underSold && typeof window !== 'undefined' && !window.confirm(`${underSold}\n\nSave this capacity anyway?`)) {
+        return;
+      }
+    }
     if (!persistScheduleDraft(ready)) return;
     setScheduleDraft(null);
     setScheduleLeaveOpen(false);
     scheduleSessionOpenedAsCreateRef.current = false;
-  }, [scheduleDraft, optionModalDraft, persistScheduleDraft]);
+  }, [scheduleDraft, optionModalDraft, persistScheduleDraft, editingId, listingOccupancyBookings]);
+
+  const occupancyNoticeForSchedule = useCallback(
+    (schedule: ListingOptionSchedule) => {
+      if (!editingId || !optionModalDraft) return null;
+      const occupying = occupyingGuestsForOptionDeparture({
+        bookings: listingOccupancyBookings,
+        listingId: editingId,
+        optionId: optionModalDraft.id,
+        startTimeHm: schedule.startTime,
+      });
+      return removeScheduleOccupancyNotice(occupying, schedule.startTime);
+    },
+    [editingId, optionModalDraft, listingOccupancyBookings]
+  );
 
   const scheduleContinueHint =
     scheduleDraft && optionModalDraft
@@ -2529,6 +2585,7 @@ export default function SupplierListingForm({
                 onDeleteSchedule={deleteSchedule}
                 pendingScheduleDeleteId={pendingScheduleDeleteId}
                 onCancelScheduleDelete={() => setPendingScheduleDeleteId(null)}
+                occupancyNoticeForSchedule={occupancyNoticeForSchedule}
               />
             </div>
           ) : (
