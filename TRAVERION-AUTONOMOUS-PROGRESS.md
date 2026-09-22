@@ -3,10 +3,10 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** _(pending 496)_  
-**Current phase:** 496  
+**Current SHA:** _(pending 497)_  
+**Current phase:** 497  
 **Branch:** `reconstruction/phase-0-audit`  
-**Commits this mission:** 87+  
+**Commits this mission:** 88+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
 **Preserve:** `scripts/cert-transactional-emails.cjs` (intentionally untracked)
 
@@ -37,7 +37,8 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 492 | Stay house rules wrap | `7d5543c` |
 | 493 | StayDetails amenities crash fix | `253a3b9` |
 | 494–495 | App tsc clean | `2a1f756` |
-| 496 | Build + tsc + honesty 23/23 milestone | _(this commit)_ |
+| 496 | Build + tsc + honesty 23/23 milestone | `432c148` |
+| 497 | Certify schedule overlap suite 15/15 (same date+time blocked; different times OK) | _(this commit)_ |
 
 ## Known remaining risks (ranked)
 
