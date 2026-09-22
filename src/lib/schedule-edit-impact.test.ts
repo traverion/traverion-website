@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { occupyingGuestsForOptionDeparture, removeScheduleOccupancyNotice } from './schedule-edit-impact';
+import {
+  occupyingGuestsForBookingOption,
+  occupyingGuestsForOptionDeparture,
+  removeBookingOptionOccupancyNotice,
+  removeScheduleOccupancyNotice,
+} from './schedule-edit-impact';
 
 const listingId = 'listing-1';
 const optionId = 'opt-1';
@@ -68,6 +73,34 @@ describe('occupyingGuestsForOptionDeparture', () => {
   });
 });
 
+describe('occupyingGuestsForBookingOption', () => {
+  it('sums across departures for the option', () => {
+    const n = occupyingGuestsForBookingOption({
+      listingId,
+      optionId,
+      bookings: [
+        {
+          listing_id: listingId,
+          booking_option_id: optionId,
+          start_time: '08:00',
+          guests: 3,
+          status: 'confirmed',
+          payment_status: 'paid',
+        },
+        {
+          listing_id: listingId,
+          booking_option_id: optionId,
+          start_time: '20:00',
+          guests: 2,
+          status: 'confirmed',
+          payment_status: 'paid',
+        },
+      ],
+    });
+    expect(n).toBe(5);
+  });
+});
+
 describe('removeScheduleOccupancyNotice', () => {
   it('returns null when nobody occupies', () => {
     expect(removeScheduleOccupancyNotice(0)).toBeNull();
@@ -77,5 +110,12 @@ describe('removeScheduleOccupancyNotice', () => {
     expect(removeScheduleOccupancyNotice(2, '08:00')).toMatch(/2 guests/);
     expect(removeScheduleOccupancyNotice(2, '08:00')).toMatch(/08:00/);
     expect(removeScheduleOccupancyNotice(2, '08:00')).toMatch(/will not cancel/);
+  });
+});
+
+describe('removeBookingOptionOccupancyNotice', () => {
+  it('warns when option still has guests', () => {
+    expect(removeBookingOptionOccupancyNotice(1)).toMatch(/1 guest/);
+    expect(removeBookingOptionOccupancyNotice(0)).toBeNull();
   });
 });

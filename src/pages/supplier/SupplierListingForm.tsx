@@ -17,7 +17,9 @@ import { useAuth } from '../../contexts/AuthContext';
 import { fetchBookingsForSupplier, type BookingRow } from '../../data/supabase-bookings';
 import { scheduleSpotsBelowSoldWarning } from '../../lib/capacity-reduction-warn';
 import {
+  occupyingGuestsForBookingOption,
   occupyingGuestsForOptionDeparture,
+  removeBookingOptionOccupancyNotice,
   removeScheduleOccupancyNotice,
 } from '../../lib/schedule-edit-impact';
 import { optionHeadlineUnitPrice, summarizeOptionPricing } from '../../lib/price-categories';
@@ -3370,6 +3372,22 @@ export default function SupplierListingForm({
                         {status !== 'ready' && messages[0] ? (
                           <p className="text-xs text-ink-muted">{messages[0]}</p>
                         ) : null}
+                        {pendingDelete && editingId
+                          ? (() => {
+                              const notice = removeBookingOptionOccupancyNotice(
+                                occupyingGuestsForBookingOption({
+                                  bookings: listingOccupancyBookings,
+                                  listingId: editingId,
+                                  optionId: opt.id,
+                                })
+                              );
+                              return notice ? (
+                                <p className="text-sm leading-relaxed text-ink" role="status">
+                                  {notice}
+                                </p>
+                              ) : null;
+                            })()
+                          : null}
                       </div>
                       <div className="flex flex-wrap items-center gap-2 shrink-0">
                         {pendingDelete ? (

@@ -39,6 +39,28 @@ export function occupyingGuestsForOptionDeparture(params: {
   return n;
 }
 
+/** Occupying guests for an entire booking option (any departure). */
+export function occupyingGuestsForBookingOption(params: {
+  bookings: ScheduleOccupancyBooking[];
+  listingId: string;
+  optionId: string;
+  nowMs?: number;
+}): number {
+  const listingId = params.listingId.trim();
+  const optionId = params.optionId.trim();
+  if (!listingId || !optionId) return 0;
+  const nowMs = params.nowMs ?? Date.now();
+  let n = 0;
+  for (const row of params.bookings) {
+    if (String(row.listing_id ?? '').trim() !== listingId) continue;
+    if (String(row.booking_option_id ?? '').trim() !== optionId) continue;
+    if (!bookingOccupiesInventory(row, nowMs)) continue;
+    const g = Math.floor(Number(row.guests ?? 0));
+    if (Number.isFinite(g) && g >= 1) n += g;
+  }
+  return n;
+}
+
 /** Confirm copy when deleting a schedule that still has occupying guests. */
 export function removeScheduleOccupancyNotice(
   guestCount: number,
@@ -48,4 +70,11 @@ export function removeScheduleOccupancyNotice(
   if (sold < 1) return null;
   const when = startTimeHm?.trim() ? ` the ${startTimeHm.trim()} departure` : '';
   return `You already have ${sold} guest${sold === 1 ? '' : 's'} booked on${when}. Removing this schedule will not cancel those trips — travelers keep their seats. New travelers will no longer see this departure.`;
+}
+
+/** Confirm copy when deleting a booking option that still has occupying guests. */
+export function removeBookingOptionOccupancyNotice(guestCount: number): string | null {
+  const sold = Math.max(0, Math.floor(guestCount));
+  if (sold < 1) return null;
+  return `You already have ${sold} guest${sold === 1 ? '' : 's'} booked on this option. Removing it will not cancel those trips — travelers keep their seats. New travelers will no longer see this option.`;
 }
