@@ -264,6 +264,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
 
   const extras = stay ? parseListingExtras(stay.listingExtras) : {};
   const s = extras.stay;
+  const amenities = stayAmenityDisplayList(s?.amenities);
   const gallery = (extras.galleryImageUrls ?? []).map((u) => String(u).trim()).filter(Boolean);
   const stayQuote = stay
     ? quoteStayNights({
@@ -517,7 +518,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
                 <h2 className="font-display text-xl mb-2">Amenities</h2>
                 <ul className="flex flex-wrap gap-2">
                   {amenities.map((a) => (
-                    <li key={a} className="rounded-full bg-paper-raised px-3 py-1.5 text-sm text-ink ring-1 ring-black/[0.05]">
+                    <li key={a} className="rounded-full bg-paper-raised px-3 py-1.5 text-sm text-ink ring-1 ring-black/[0.05] break-words [overflow-wrap:anywhere]">
                       {a}
                     </li>
                   ))}
