@@ -428,10 +428,12 @@ export default function SupplierReviews() {
                             />
                           ))}
                         </div>
-                        {r.title && <p className="font-medium text-ink mb-1">{r.title}</p>}
+                        {r.title && (
+                          <p className="font-medium text-ink mb-1 break-words [overflow-wrap:anywhere]">{r.title}</p>
+                        )}
                         {reviewHasWrittenFeedback(r) ? (
                           (r.comment ?? '').trim() ? (
-                            <p className="text-ink-muted whitespace-pre-wrap">{r.comment}</p>
+                            <p className="text-ink-muted break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{r.comment}</p>
                           ) : null
                         ) : (
                           <p className="text-sm text-ink-muted italic">No written review — rating only.</p>
