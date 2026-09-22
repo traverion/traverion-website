@@ -395,16 +395,16 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       departureTimes.length > 1 &&
       selectedDepartureTime.trim();
     if (soldOutDates.has(day) && !slotSelected) return 0;
-    if (
-      slotSelected
-    ) {
-      const spots = selectedOptionApplied.maxSpotsPerSlot;
-      const cap =
-        typeof spots === 'number' && Number.isFinite(spots) && spots >= 1
-          ? Math.min(99, Math.floor(spots))
-          : Math.min(99, Math.max(1, selectedOptionApplied.maxPersons));
-      const paid = dayCapacitySnap.paidBySlot[tourPaidSlotKey(day, selectedDepartureTime)] ?? 0;
-      return remainingCapacity(cap, paid);
+    if (slotSelected && selectedOptionApplied && selectedDepartureTime.trim()) {
+      return departureSlotSpotsLeft({
+        dayIso: day,
+        startTimeHm: selectedDepartureTime,
+        maxSpotsPerSlot: selectedOptionApplied.maxSpotsPerSlot,
+        maxPersonsFallback: selectedOptionApplied.maxPersons,
+        paidBySlot: dayCapacitySnap.paidBySlot,
+        paidByDay: dayCapacitySnap.paidByDay,
+        fallbackDayCap: dayCapacitySnap.fallback,
+      });
     }
     const cap = dayCapacitySnap.capByDay.get(day) ?? dayCapacitySnap.fallback;
     return remainingCapacity(cap, dayCapacitySnap.paidByDay[day] ?? 0);
