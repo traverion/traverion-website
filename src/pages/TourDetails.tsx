@@ -86,6 +86,7 @@ import {
   tourSellingDeparturesOnDate,
 } from '../lib/listing-option-schedules';
 import { formatTourAvailabilityHeading, optionsOnDate } from '../lib/tour-available-options';
+import { tourSlotMaxSpotsFromOption } from '../lib/tour-slot-capacity';
 import { fetchWishlistListingIds, toggleWishlist } from '../data/supabase-wishlist';
 import { formatMoney, normalizeCurrency } from '../lib/money';
 import { PriceHero } from '../components/PriceBreakdown';
@@ -365,13 +366,15 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   const selectedDaySpotsLeft = useMemo(() => {
     const day = bookingDate.trim();
     if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !dayCapacitySnap) return null;
-    if (soldOutDates.has(day)) return 0;
     const dayCapOverride = dayCapacitySnap.capByDay.has(day);
-    if (
+    const slotSelected =
       !dayCapOverride &&
       selectedOptionApplied &&
       departureTimes.length > 1 &&
-      selectedDepartureTime.trim()
+      selectedDepartureTime.trim();
+    if (soldOutDates.has(day) && !slotSelected) return 0;
+    if (
+      slotSelected
     ) {
       const spots = selectedOptionApplied.maxSpotsPerSlot;
       const cap =
@@ -788,7 +791,10 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     setBookingCardError(null);
     setVariantChecking(true);
     try {
-      const avail = await checkAvailability(tour.id, bookingDate.trim(), partySize);
+      const avail = await checkAvailability(tour.id, bookingDate.trim(), partySize, {
+        startTimeHm: selectedDepartureTime.trim() || null,
+        slotMaxSpots: tourSlotMaxSpotsFromOption(selectedOptionApplied),
+      });
       if (!avail.available) {
         setBookingCardError(
           avail.remaining !== undefined && avail.remaining === 0

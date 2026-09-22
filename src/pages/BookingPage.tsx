@@ -50,6 +50,7 @@ import GuestStepper from '../components/booking/GuestStepper';
 import ParticipantCategoryStepper from '../components/booking/ParticipantCategoryStepper';
 import { listingTourCapacityFromOptions, remainingCapacity, capacitySpotsFromBookingOptions } from '../lib/availability-ops';
 import { tourSoldOutDates } from '../lib/tour-calendar';
+import { tourSlotMaxSpotsFromOption } from '../lib/tour-slot-capacity';
 import { useDialogFocus } from '../hooks/useDialogFocus';
 import { analytics } from '../lib/analytics';
 import { setPageMetaWithOg } from '../lib/seo';
@@ -343,9 +344,10 @@ export default function BookingPage({
   const selectedDaySpotsLeft = useMemo(() => {
     const day = date.trim();
     if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !dayCapacitySnap) return null;
-    if (soldOutDates.has(day)) return 0;
     const dayCapOverride = dayCapacitySnap.capByDay.has(day);
-    if (!dayCapOverride && departureTime && appliedOption) {
+    const slotSelected = !dayCapOverride && departureTime && appliedOption;
+    if (soldOutDates.has(day) && !slotSelected) return 0;
+    if (slotSelected) {
       const spots = appliedOption.maxSpotsPerSlot;
       const cap =
         typeof spots === 'number' && Number.isFinite(spots) && spots >= 1
@@ -357,6 +359,11 @@ export default function BookingPage({
     const cap = dayCapacitySnap.capByDay.get(day) ?? dayCapacitySnap.fallback;
     return remainingCapacity(cap, dayCapacitySnap.paidByDay[day] ?? 0);
   }, [date, dayCapacitySnap, soldOutDates, departureTime, appliedOption]);
+
+  const spotsLeftIsDepartureCapacity =
+    Boolean(departureTime) &&
+    Boolean(appliedOption) &&
+    !dayCapacitySnap?.capByDay.has(date.trim());
 
   const partyMaxForSelectedDay = useMemo(() => {
     if (selectedDaySpotsLeft == null || selectedDaySpotsLeft < 1) return partyBounds.max;
@@ -614,7 +621,10 @@ export default function BookingPage({
     setAvailabilityModalNote(null);
     setAvailabilityOptions([]);
     try {
-      const avail = await checkAvailability(tour.id, date.trim(), guests);
+      const avail = await checkAvailability(tour.id, date.trim(), guests, {
+        startTimeHm: departureTime ?? null,
+        slotMaxSpots: tourSlotMaxSpotsFromOption(appliedOption),
+      });
       if (avail.available && avail.options.some((o) => o.selectable)) {
         proceedToContactAfterOption();
         return;
@@ -718,7 +728,10 @@ export default function BookingPage({
     setError(null);
     try {
       if (isSupabaseConfigured()) {
-        const avail = await checkAvailability(tour.id, date, guests);
+        const avail = await checkAvailability(tour.id, date, guests, {
+          startTimeHm: departureTime ?? null,
+          slotMaxSpots: tourSlotMaxSpotsFromOption(appliedOption),
+        });
         if (!avail.available) {
           setError(
             avail.remaining !== undefined && avail.remaining === 0
@@ -938,14 +951,14 @@ export default function BookingPage({
                   }`}
                 >
                   {selectedDaySpotsLeft === 0
-                    ? departureTime
+                    ? spotsLeftIsDepartureCapacity
                       ? `Fully booked for the ${departureTime} departure`
                       : 'Fully booked this day'
                     : selectedDaySpotsLeft === 1
-                      ? departureTime
+                      ? spotsLeftIsDepartureCapacity
                         ? `1 spot left for the ${departureTime} departure`
                         : '1 spot left this day'
-                      : departureTime
+                      : spotsLeftIsDepartureCapacity
                         ? `${selectedDaySpotsLeft} spots left for the ${departureTime} departure`
                         : `${selectedDaySpotsLeft} spots left this day`}
                 </p>

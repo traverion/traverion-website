@@ -1,6 +1,45 @@
 import { describe, expect, it } from 'vitest';
 import { TRAVERION_STANDARD_CANCELLATION_POLICY } from '../types/listingExtras';
-import { listingShowsFreeCancellation, publicReviewLabel } from './listingTruth';
+import { listingShowsFreeCancellation, listingTourMatchesBrowseTag, publicReviewLabel } from './listingTruth';
+import type { TourPackage } from '../types/tour';
+
+describe('listingTourMatchesBrowseTag', () => {
+  const base = { id: '1', title: 'T', destination: 'X', tags: [] } as TourPackage;
+
+  it('matches free cancellation from standard policy without the tag', () => {
+    expect(listingTourMatchesBrowseTag({ ...base, cancellationPolicy: '' }, 'free-cancellation')).toBe(true);
+    expect(listingTourMatchesBrowseTag({ ...base, cancellationPolicy: 'Non-refundable.' }, 'free-cancellation')).toBe(
+      false
+    );
+  });
+
+  it('matches pickup from option meeting copy, not only tags', () => {
+    expect(
+      listingTourMatchesBrowseTag(
+        {
+          ...base,
+          listingExtras: {
+            bookingOptions: [
+              {
+                id: 'o1',
+                name: 'Standard',
+                pickupPlace: 'Harbour gate meeting point',
+                optionInfo: 'Small group',
+                minPersons: 1,
+                maxPersons: 8,
+                maxSpotsPerSlot: 8,
+                weekdays: [true, true, true, true, true, true, true],
+                duration: '3h',
+                priceUsd: 50,
+              },
+            ],
+          },
+        },
+        'pickup-available'
+      )
+    ).toBe(true);
+  });
+});
 
 describe('listingShowsFreeCancellation', () => {
   it('follows the tag or the standard Traverion policy, not empty tags', () => {

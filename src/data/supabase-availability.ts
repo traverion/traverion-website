@@ -1,6 +1,7 @@
-import { listingTourCapacityFromOptions, remainingCapacity, capacitySpotsFromBookingOptions } from '../lib/availability-ops';
+import { listingTourCapacityFromOptions, capacitySpotsFromBookingOptions } from '../lib/availability-ops';
 import { localYmd } from '../lib/local-ymd';
 import { supabase } from '../lib/supabase';
+import { tourAvailabilityCheckMessages, tourPublicAvailabilityRemaining } from '../lib/tour-check-availability';
 
 export type AvailabilityRow = {
   listing_id: string;
@@ -102,7 +103,12 @@ export type AvailabilityCheckOption = {
 export async function checkAvailability(
   listingId: string,
   date: string,
-  guests: number
+  guests: number,
+  opts?: {
+    /** HH:MM — when set with slotMaxSpots, counts paid guests for that departure only. */
+    startTimeHm?: string | null;
+    slotMaxSpots?: number | null;
+  }
 ): Promise<{
   available: boolean;
   remaining?: number;
@@ -143,38 +149,54 @@ export async function checkAvailability(
     };
   }
   const paidByDay = await fetchPublishedTourPaidGuests(listingId);
-  const capacity = data
-    ? Number(data.capacity ?? 0)
-    : await fetchTourOptionCapacity(listingId);
-  const remaining = remainingCapacity(capacity, paidByDay[date] ?? 0);
-  const available = remaining >= guests;
+  const fallbackCap = await fetchTourOptionCapacity(listingId);
+  const dayOverride =
+    data && typeof data.capacity === 'number' && Number.isFinite(Number(data.capacity))
+      ? Number(data.capacity)
+      : null;
+
+  let paidSlot = 0;
+  const startHm = (opts?.startTimeHm ?? '').trim();
+  if (startHm && dayOverride == null) {
+    const paidBySlot = await fetchPublishedTourPaidGuestsBySlot(listingId);
+    paidSlot = paidBySlot[tourPaidSlotKey(date, startHm)] ?? 0;
+  }
+
+  const { available, remaining, scope } = tourPublicAvailabilityRemaining({
+    date,
+    guests,
+    dayCapacityOverride: dayOverride,
+    paidGuestsDay: paidByDay[date] ?? 0,
+    fallbackDayCapacity: fallbackCap,
+    startTimeHm: startHm || null,
+    slotMaxSpots: opts?.slotMaxSpots ?? null,
+    paidGuestsSlot: paidSlot,
+  });
+
   if (!available) {
-    const spotsWord = remaining === 1 ? 'spot' : 'spots';
+    const msg = tourAvailabilityCheckMessages(remaining, guests, scope, startHm || null);
     return {
       available: false,
       remaining,
       options: [
         {
           id: 'full',
-          title:
-            remaining <= 0
-              ? 'This date is fully booked'
-              : `Only ${remaining} ${spotsWord} left`,
-          description: 'Not enough capacity for your party. Try fewer guests or another date.',
+          title: msg.title,
+          description: msg.description,
           selectable: false,
         },
       ],
     };
   }
-  const spotsWord = remaining === 1 ? 'spot' : 'spots';
+  const msg = tourAvailabilityCheckMessages(remaining, guests, scope, startHm || null);
   return {
     available: true,
     remaining,
     options: [
       {
         id: 'slot',
-        title: 'This date is available',
-        description: `${remaining} ${spotsWord} left · ${guests} ${guests === 1 ? 'guest' : 'guests'}`,
+        title: msg.title,
+        description: msg.description,
         selectable: true,
       },
     ],

@@ -5,6 +5,7 @@
 import { durationToMinutes } from '../data/listings';
 import { catalogHeadlineAmount } from './discount-display';
 import { listingIsFamily } from './inventory';
+import { listingTourMatchesBrowseTag } from './listingTruth';
 import { formatStayAmenityLabel, stayAmenityDisplayList } from './stay-amenities';
 import { addCalendarDays } from './stayOccupancy';
 import { materializedBookingOptions, parseListingExtras } from '../types/listingExtras';
@@ -284,7 +285,9 @@ export function tourMatchesCatalogFilters(tour: TourPackage, input: TourCatalogF
     (tour.city && tour.city.toLowerCase().includes(q)) ||
     (tour.country && tour.country.toLowerCase().includes(q));
   const matchesDest = matchesDestination(tour, input.destinationId, input.destinationOptions);
-  const matchesTag = input.tags.length === 0 || (tour.tags && input.tags.every((tagId) => tour.tags!.includes(tagId)));
+  const matchesTag =
+    input.tags.length === 0 ||
+    input.tags.every((tagId) => listingTourMatchesBrowseTag(tour, tagId));
   const matchesPrice = matchesPriceChip(listingBrowseAmount(tour), input.price);
   const matchesDate = !input.date || input.runsOnDate;
   const guestCount = Number.parseInt(input.guests, 10);
