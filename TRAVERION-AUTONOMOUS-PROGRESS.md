@@ -3,9 +3,9 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `908d2c8`  
-**Current phase:** 428  
-**Commits this mission:** 25+  
+**Current SHA:** (see Phase 429)  
+**Current phase:** 429  
+**Commits this mission:** 26+  
 **Stripe:** TEST  
 **Preserve:** `scripts/cert-transactional-emails.cjs`
 
@@ -13,9 +13,9 @@
 
 | Phase | Outcome |
 |------|---------|
-| 426 | `deb319e` Booking-option delete occupying-guest notice |
 | 427 | `908d2c8` Inventory concurrency/DST cert (doc) |
-| 428 | Dashboard Today + Next 7 days show purchase_snapshot title/option + departure time |
+| 428 | Dashboard Today/Next-7 purchase_snapshot title/option |
+| 429 | Today schedule shows Meet · meeting point from snapshot/live option |
 
 ## Do not
 - Live Stripe, force-push, commit cert-email script

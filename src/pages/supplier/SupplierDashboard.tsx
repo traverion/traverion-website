@@ -34,6 +34,7 @@ import { PARTNER_INBOX_MESSAGE_FETCH_CAP } from '../../lib/partner-inbox-cap';
 import { parseListingExtras, materializedBookingOptions } from '../../types/listingExtras';
 import {
   displayListingTitleFromPurchase,
+  displayMeetingPointFromPurchase,
   displayOptionLabelFromPurchase,
 } from '../../lib/purchase-snapshot';
 
@@ -721,18 +722,29 @@ export default function SupplierDashboard() {
                     : 'Stay'
                 : (startHm ?? '—');
               const fallbackTitle = isStay ? 'Stay' : 'Tour';
-              const liveOption =
-                !isStay && b.booking_option_id
-                  ? materializedBookingOptions(
+              const liveOpt = !isStay
+                ? (() => {
+                    const opts = materializedBookingOptions(
                       parseListingExtras(listingsById[b.listing_id]?.listingExtras as unknown).bookingOptions
-                    ).find((o) => o.id === b.booking_option_id)?.name?.trim() || ''
-                  : '';
+                    );
+                    return b.booking_option_id
+                      ? opts.find((o) => o.id === b.booking_option_id) ?? null
+                      : opts[0] ?? null;
+                  })()
+                : null;
               const title = displayListingTitleFromPurchase(
                 b.purchase_snapshot,
                 listingTitlesById[b.listing_id],
                 fallbackTitle
               );
-              const optionLabel = displayOptionLabelFromPurchase(b.purchase_snapshot, liveOption);
+              const optionLabel = displayOptionLabelFromPurchase(
+                b.purchase_snapshot,
+                liveOpt?.name?.trim() || ''
+              );
+              const meetingPoint = displayMeetingPointFromPurchase(
+                b.purchase_snapshot,
+                (liveOpt?.pickupPlace ?? '').trim()
+              );
               const isLast = idx === todayDepartures.length - 1;
               return (
                 <li key={b.id} className="relative">
@@ -766,6 +778,11 @@ export default function SupplierDashboard() {
                         {formatBookingParticipantsLabel(b)}
                         {optionLabel ? ` · ${optionLabel}` : ''}
                       </span>
+                      {meetingPoint ? (
+                        <span className="mt-0.5 block text-[12px] text-slate-400 truncate">
+                          Meet · {meetingPoint}
+                        </span>
+                      ) : null}
                       <span className="mt-0.5 block text-[12px] text-slate-400">
                         {typeof b.booking_number === 'number' && b.booking_number > 0 ? (
                           <span className="font-mono text-finland/80">Booking #{b.booking_number}</span>
