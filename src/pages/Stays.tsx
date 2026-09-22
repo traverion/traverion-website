@@ -182,11 +182,11 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
     }
   };
 
-  useEffect(() => {
+  const reloadStayBrowseOccupancy = useCallback(() => {
     if (!dateFilterActive || stays.length === 0 || !isSupabaseConfigured()) {
       setOccupiedByListing(null);
       setOccupancyLoading(false);
-      return;
+      return () => {};
     }
     let cancelled = false;
     setOccupancyLoading(true);
@@ -207,6 +207,18 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
       cancelled = true;
     };
   }, [dateFilterActive, stays]);
+
+  useEffect(() => {
+    return reloadStayBrowseOccupancy();
+  }, [reloadStayBrowseOccupancy]);
+
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState === 'visible') reloadStayBrowseOccupancy();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, [reloadStayBrowseOccupancy]);
 
   const stayIdsKey = useMemo(() => stays.map((s) => s.id).filter(isSupabaseListingId).join(','), [stays]);
 
