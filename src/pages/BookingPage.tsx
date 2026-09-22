@@ -1396,6 +1396,15 @@ export default function BookingPage({
               </p>
             </div>
 
+            {capacityBlocksPay ? (
+              <div className="mb-4">
+                <NoticeCallout title="Not enough spots left" tone="warn">
+                  {departureTime
+                    ? `The ${departureTime} departure no longer has enough space for your party. Go back and choose another time or fewer guests.`
+                    : 'This date no longer has enough space for your party. Go back and choose another date or fewer guests.'}
+                </NoticeCallout>
+              </div>
+            ) : null}
             {error ? (
               <div className="mb-4">
                 <NoticeCallout title="Payment could not start" tone="danger">
