@@ -719,7 +719,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                           {dateLine}
                           {timeBit ? ` · ${timeBit}` : ''}
                         </p>
-                        <h3 className="mt-0.5 font-semibold text-ink line-clamp-2 leading-snug">
+                        <h3 className="mt-0.5 break-words font-semibold text-ink line-clamp-2 leading-snug [overflow-wrap:anywhere]">
                           {tripTitle}
                         </h3>
                         {tripOption ? (
