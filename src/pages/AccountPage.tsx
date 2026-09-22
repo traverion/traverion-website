@@ -193,11 +193,11 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
         <header className="mb-5 tv-card p-4 sm:p-5">
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Traveler</p>
           <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Account</h1>
-          <p className="mt-2 text-sm text-ink-muted truncate" title={user.email ?? undefined}>
+          <p className="mt-2 break-words text-sm text-ink-muted [overflow-wrap:anywhere]" title={user.email ?? undefined}>
             {displayName.trim() || user.email}
           </p>
           {displayName.trim() && user.email ? (
-            <p className="mt-0.5 text-xs text-ink-faint truncate">{user.email}</p>
+            <p className="mt-0.5 break-all text-xs text-ink-faint [overflow-wrap:anywhere]">{user.email}</p>
           ) : null}
         </header>
 

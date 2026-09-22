@@ -3,10 +3,10 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** _(pending 539–540)_  
-**Current phase:** 540  
+**Current SHA:** _(pending 541)_  
+**Current phase:** 541  
 **Branch:** `reconstruction/phase-0-audit`  
-**Commits this mission:** 122+  
+**Commits this mission:** 123+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
 **Preserve:** `scripts/cert-transactional-emails.cjs` (intentionally untracked)
 
@@ -83,8 +83,9 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 536 | Normalize invalid stay browse date ranges from shared URLs | `fc31b7a` |
 | 537 | Build + tsc + honesty 16/16 after stay date + wrap band | `3a6ed7e` |
 | 538 | Wrap destination page hero title | `994eb7e` |
-| 539 | Certify partner Money CSV export honesty 2/2 | _(this commit)_ |
-| 540 | Certify partner Today empty-schedule copy 2/2 | _(this commit)_ |
+| 539 | Certify partner Money CSV export honesty 2/2 | `9b6a8c9` |
+| 540 | Certify partner Today empty-schedule copy 2/2 | `9b6a8c9` |
+| 541 | Wrap Account display name and email (no silent truncate) | _(this commit)_ |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -183,6 +184,9 @@ Destination page hero titles wrap long place names.
 
 ### Phase 539–540 — partner Money/Today certs
 Money CSV export honesty 2/2; Today empty-schedule copy never claims “nothing needs you” when attention exists (2/2).
+
+### Phase 541 — Account identity wrap
+Traveler Account display name/email wrap instead of truncating mid-string.
 
 ## Known remaining risks (ranked)
 
