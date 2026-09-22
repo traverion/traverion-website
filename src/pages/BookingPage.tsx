@@ -1349,7 +1349,7 @@ export default function BookingPage({
                 {specialRequests.trim() ? (
                   <div className="flex justify-between gap-4">
                     <dt className="text-ink-muted">Requests</dt>
-                    <dd className="font-medium text-ink text-right max-w-[65%]">{specialRequests.trim()}</dd>
+                    <dd className="max-w-[65%] break-words font-medium text-ink text-right [overflow-wrap:anywhere]">{specialRequests.trim()}</dd>
                   </div>
                 ) : null}
               </dl>
