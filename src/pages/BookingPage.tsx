@@ -49,6 +49,7 @@ import TourDatePicker from '../components/TourDatePicker';
 import GuestStepper from '../components/booking/GuestStepper';
 import ParticipantCategoryStepper from '../components/booking/ParticipantCategoryStepper';
 import { listingTourCapacityFromOptions, remainingCapacity, capacitySpotsFromBookingOptions } from '../lib/availability-ops';
+import { departureSlotSpotsLeft } from '../lib/departure-slot-remaining';
 import { tourSoldOutDates } from '../lib/tour-calendar';
 import { tourSlotMaxSpotsFromOption } from '../lib/tour-slot-capacity';
 import { useDialogFocus } from '../hooks/useDialogFocus';
@@ -359,14 +360,16 @@ export default function BookingPage({
     const dayCapOverride = dayCapacitySnap.capByDay.has(day);
     const slotSelected = !dayCapOverride && departureTime && appliedOption;
     if (soldOutDates.has(day) && !slotSelected) return 0;
-    if (slotSelected) {
-      const spots = appliedOption.maxSpotsPerSlot;
-      const cap =
-        typeof spots === 'number' && Number.isFinite(spots) && spots >= 1
-          ? Math.min(99, Math.floor(spots))
-          : Math.min(99, Math.max(1, appliedOption.maxPersons));
-      const paid = dayCapacitySnap.paidBySlot[tourPaidSlotKey(day, departureTime)] ?? 0;
-      return remainingCapacity(cap, paid);
+    if (slotSelected && departureTime && appliedOption) {
+      return departureSlotSpotsLeft({
+        dayIso: day,
+        startTimeHm: departureTime,
+        maxSpotsPerSlot: appliedOption.maxSpotsPerSlot,
+        maxPersonsFallback: appliedOption.maxPersons,
+        paidBySlot: dayCapacitySnap.paidBySlot,
+        paidByDay: dayCapacitySnap.paidByDay,
+        fallbackDayCap: dayCapacitySnap.fallback,
+      });
     }
     const cap = dayCapacitySnap.capByDay.get(day) ?? dayCapacitySnap.fallback;
     return remainingCapacity(cap, dayCapacitySnap.paidByDay[day] ?? 0);
@@ -747,8 +750,12 @@ export default function BookingPage({
         if (!avail.available) {
           setError(
             avail.remaining !== undefined && avail.remaining === 0
-              ? 'This date is fully booked. Go back and pick another date.'
-              : 'Not enough capacity left for your party. Adjust guests or choose another date.'
+              ? departureTime
+                ? `The ${departureTime} departure is fully booked. Go back and pick another time or date.`
+                : 'This date is fully booked. Go back and pick another date.'
+              : departureTime
+                ? `Not enough spots left for the ${departureTime} departure. Adjust guests or choose another time.`
+                : 'Not enough capacity left for your party. Adjust guests or choose another date.'
           );
           setSubmitting(false);
           return;
