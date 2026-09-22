@@ -76,6 +76,53 @@ export function partnerTourDaySpotDisplay(params: {
   };
 }
 
+/**
+ * Partner month-grid label for multi-departure days.
+ * Day-level listing_availability overrides stay day-wide.
+ * Without a day override and ≥2 departures: Full only when every departure is full;
+ * otherwise Open / Partial — never paint the whole day Full from one morning fill.
+ */
+export function partnerTourMonthCellCapacityLabel(params: {
+  offered: boolean;
+  dayCapacityOverride: number | null | undefined;
+  defaultCapacity: number;
+  occupyingGuestsDay: number;
+  departures: Array<{ startTimeHm: string; maxSpots: number; occupyingGuests: number }>;
+}): { short: string | null; aria: string | null; tone: 'full' | 'partial' | 'open' | null } {
+  if (!params.offered) return { short: null, aria: null, tone: null };
+  const dayCap =
+    typeof params.dayCapacityOverride === 'number' && Number.isFinite(params.dayCapacityOverride)
+      ? Math.max(0, Math.floor(params.dayCapacityOverride))
+      : null;
+  if (dayCap != null) {
+    const remaining = partnerTourRemainingSpots(dayCap, params.occupyingGuestsDay);
+    if (remaining === 0) return { short: 'Full', aria: 'fully booked this day', tone: 'full' };
+    return {
+      short: `${remaining}/${dayCap} left`,
+      aria: `${remaining} of ${dayCap} spots left`,
+      tone: 'open',
+    };
+  }
+  if (params.departures.length >= 2) {
+    const lines = params.departures.map((d) =>
+      partnerTourRemainingSpots(d.maxSpots, d.occupyingGuests)
+    );
+    const allFull = lines.every((r) => r === 0);
+    if (allFull) return { short: 'Full', aria: 'all departures full', tone: 'full' };
+    const anyTaken = params.departures.some((d) => d.occupyingGuests > 0);
+    if (anyTaken) return { short: 'Partial', aria: 'some departures still open', tone: 'partial' };
+    return { short: 'Open', aria: 'open', tone: 'open' };
+  }
+  const capacity = params.defaultCapacity;
+  const remaining = partnerTourRemainingSpots(capacity, params.occupyingGuestsDay);
+  if (remaining === 0) return { short: 'Full', aria: 'fully booked', tone: 'full' };
+  return {
+    short: `${remaining}/${capacity} left`,
+    aria: `${remaining} of ${capacity} spots left`,
+    tone: 'open',
+  };
+}
+
 export type MonthCell = {
   iso: string;
   day: number;

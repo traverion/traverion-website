@@ -22,10 +22,12 @@ import {
   defaultCapacityForOpenDay,
   listingTourCapacityFromOptions,
   partnerDepartureRemainingLine,
+  partnerTourMonthCellCapacityLabel,
   partnerTourDaySpotDisplay,
 } from '../../lib/availability-ops';
 import { tourSellingDeparturesOnDate } from '../../lib/listing-option-schedules';
-import { formatPartnerCheckoutHoldLabel, tourCheckoutOccupiedGuests } from '../../lib/booking-hold';
+import { formatPartnerCheckoutHoldLabel, tourCheckoutOccupiedGuests, normalizeTourStartTimeHm } from '../../lib/booking-hold';
+import { localYmd } from '../../lib/local-ymd';
 import { navigateSupplierUrl, openSupplierBooking } from '../../lib/supplierPortalNavigation';
 import { PARTNER_CREATE_PATH } from '../../lib/partnerPortalPaths';
 import {
@@ -399,13 +401,7 @@ export default function SupplierAvailability() {
     year: 'numeric',
     timeZone: 'UTC',
   });
-  const localTodayIso = (() => {
-    const n = new Date();
-    const y = n.getFullYear();
-    const m = String(n.getMonth() + 1).padStart(2, '0');
-    const d = String(n.getDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
-  })();
+  const localTodayIso = localYmd();
 
   return (
     <div className={`${SUPPLIER_PAGE_CLASS} min-h-[70vh]`}>
@@ -606,6 +602,36 @@ export default function SupplierAvailability() {
                       occupyingGuests: occupying?.guests ?? 0,
                     })
                   : { capacity: null, remaining: null };
+              const monthCapacityLabel =
+                !stayCalendar && listing && open
+                  ? (() => {
+                      const opts = materializedBookingOptions(listing.listingExtras?.bookingOptions);
+                      const deps = tourSellingDeparturesOnDate(opts, cell.iso);
+                      const dayBookingsForCell = bookings.filter((b) => {
+                        if (!partnerStayCalendarOccupiesNight(b)) return false;
+                        if (!viewingAll && b.listing_id !== listingId) return false;
+                        return b.booking_date === cell.iso;
+                      });
+                      return partnerTourMonthCellCapacityLabel({
+                        offered: open,
+                        dayCapacityOverride:
+                          typeof cap?.capacity === 'number' ? cap.capacity : null,
+                        defaultCapacity: defaultSpots(listing),
+                        occupyingGuestsDay: occupying?.guests ?? 0,
+                        departures: deps.map((d) => ({
+                          startTimeHm: normalizeTourStartTimeHm(d.startTime) || d.startTime,
+                          maxSpots: d.maxSpotsPerSlot,
+                          occupyingGuests: tourCheckoutOccupiedGuests(
+                            dayBookingsForCell,
+                            cell.iso,
+                            null,
+                            Date.now(),
+                            d.startTime || null
+                          ),
+                        })),
+                      });
+                    })()
+                  : { short: null, aria: null, tone: null as 'full' | 'partial' | 'open' | null };
               const tourCapacity = tourSpots.capacity;
               const remaining = tourSpots.remaining;
               const isToday = cell.iso === localTodayIso;
@@ -626,7 +652,9 @@ export default function SupplierAvailability() {
                       ? `${dateLabel}, check-out`
                       : occupying
                       ? `${dateLabel}, ${occupying.guests} guest${occupying.guests === 1 ? '' : 's'}`
-                      : remaining !== null && tourCapacity != null
+                      : monthCapacityLabel.aria
+                        ? `${dateLabel}, ${monthCapacityLabel.aria}`
+                        : remaining !== null && tourCapacity != null
                         ? `${dateLabel}, ${remaining} of ${tourCapacity} spots left`
                         : open
                           ? `${dateLabel}, ${stayCalendar ? 'available' : 'open'}`
@@ -662,7 +690,7 @@ export default function SupplierAvailability() {
                             ? 'bg-finland/15 ring-finland/20'
                         : departing
                           ? 'bg-amber-50 ring-amber-200/70'
-                        : stayKind === 'blocked' || (open && remaining === 0)
+                        : stayKind === 'blocked' || (open && monthCapacityLabel.tone === 'full')
                           ? 'bg-rose-50 ring-rose-200/70'
                           : (cap && (stayCalendar || open)) || (open && stayCalendar)
                           ? 'bg-emerald-50/80 ring-emerald-200/50'
@@ -672,9 +700,25 @@ export default function SupplierAvailability() {
                   }`}
                 >
                   <span className="block text-xs sm:text-sm font-semibold text-ink">{cell.day}</span>
-                  {cell.inMonth && (stayKind === 'occupied' || occupying) ? (
+                  {cell.inMonth && stayCalendar && (stayKind === 'occupied' || occupying) ? (
                     <span className="mt-0.5 block text-[10px] font-medium leading-tight text-finland">
-                      {stayCalendar ? 'Occupied' : `${occupying?.guests} guest${occupying?.guests === 1 ? '' : 's'}`}
+                      Occupied
+                    </span>
+                  ) : cell.inMonth && !stayCalendar && monthCapacityLabel.short ? (
+                    <span
+                      className={`mt-0.5 block text-[10px] leading-tight ${
+                        monthCapacityLabel.tone === 'full'
+                          ? 'font-semibold text-rose-700'
+                          : monthCapacityLabel.tone === 'partial'
+                            ? 'font-medium text-amber-800'
+                            : 'text-ink-muted'
+                      }`}
+                    >
+                      {monthCapacityLabel.short}
+                    </span>
+                  ) : cell.inMonth && occupying ? (
+                    <span className="mt-0.5 block text-[10px] font-medium leading-tight text-finland">
+                      {`${occupying.guests} guest${occupying.guests === 1 ? '' : 's'}`}
                     </span>
                   ) : cell.inMonth && departing ? (
                     <span className="mt-0.5 block text-[10px] font-medium leading-tight text-amber-800">Out</span>
