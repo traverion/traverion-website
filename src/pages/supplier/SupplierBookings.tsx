@@ -70,7 +70,7 @@ import { partnerBookingHasPickupAttention } from '../../lib/pickup-completeness'
 import { openSupplierPickup } from '../../lib/supplierPortalNavigation';
 import { parseListingExtras, materializedBookingOptions } from '../../types/listingExtras';
 import { comparePartnerBookingsOperational } from '../../lib/partner-bookings-order';
-import { displayListingTitleFromPurchase, displayOptionLabelFromPurchase } from '../../lib/purchase-snapshot';
+import { displayListingTitleFromPurchase, displayMeetingPointFromPurchase, displayOptionLabelFromPurchase, displayPickupInstructionsFromPurchase } from '../../lib/purchase-snapshot';
 
 const BOOKINGS_PAGE_SIZE = 10;
 
@@ -890,6 +890,20 @@ export default function SupplierBookings({
                 meta?.title,
                 meta?.family === 'stay' ? 'Stay' : 'Tour'
               );
+              const liveMeeting =
+                booking.booking_option_id && meta?.bookingOptions?.length
+                  ? meta.bookingOptions.find((o) => o.id === booking.booking_option_id)?.pickupPlace?.trim() ||
+                    meta?.meetingPoint ||
+                    ''
+                  : meta?.meetingPoint || '';
+              const rowMeeting = displayMeetingPointFromPurchase(
+                booking.purchase_snapshot,
+                liveMeeting
+              );
+              const rowPickupInstructions = displayPickupInstructionsFromPurchase(
+                booking.purchase_snapshot,
+                meta?.pickupInstructions
+              );
               const stayOut =
                 booking.check_out && /^\d{4}-\d{2}-\d{2}$/.test(booking.check_out)
                   ? booking.check_out
@@ -914,8 +928,8 @@ export default function SupplierBookings({
               const needsAck = partnerBookingNeedsLook(booking);
               const pickupGap = partnerBookingHasPickupAttention(
                 booking,
-                meta?.meetingPoint,
-                meta?.pickupInstructions,
+                rowMeeting || meta?.meetingPoint,
+                rowPickupInstructions || meta?.pickupInstructions,
                 meta?.bookingOptions
               );
               const openCancel = openCancels[booking.id];
@@ -1084,7 +1098,33 @@ export default function SupplierBookings({
             const pickupHm = booking.pickup_time ? pgTimeToHm(booking.pickup_time) ?? null : null;
             const meta = listingMeta[booking.listing_id];
             const isStay = meta?.family === 'stay' || Boolean(booking.check_out);
-            const listingTitle = meta?.title ?? (isStay ? 'Stay' : 'Tour');
+            const liveOptionLabel =
+              booking.booking_option_id && meta?.bookingOptions?.length
+                ? meta.bookingOptions.find((o) => o.id === booking.booking_option_id)?.name?.trim() || ''
+                : '';
+            const listingTitle = displayListingTitleFromPurchase(
+              booking.purchase_snapshot,
+              meta?.title,
+              isStay ? 'Stay' : 'Tour'
+            );
+            const optionLabel = displayOptionLabelFromPurchase(
+              booking.purchase_snapshot,
+              liveOptionLabel
+            );
+            const liveMeeting =
+              booking.booking_option_id && meta?.bookingOptions?.length
+                ? meta.bookingOptions.find((o) => o.id === booking.booking_option_id)?.pickupPlace?.trim() ||
+                  meta?.meetingPoint ||
+                  ''
+                : meta?.meetingPoint || '';
+            const meetingPoint = displayMeetingPointFromPurchase(
+              booking.purchase_snapshot,
+              liveMeeting
+            );
+            const pickupInstructions = displayPickupInstructionsFromPurchase(
+              booking.purchase_snapshot,
+              meta?.pickupInstructions
+            );
             const stayOut =
               booking.check_out && /^\d{4}-\d{2}-\d{2}$/.test(booking.check_out)
                 ? booking.check_out
@@ -1102,8 +1142,8 @@ export default function SupplierBookings({
               !isStay &&
               partnerBookingHasPickupAttention(
                 booking,
-                meta?.meetingPoint,
-                meta?.pickupInstructions,
+                meetingPoint || meta?.meetingPoint,
+                pickupInstructions || meta?.pickupInstructions,
                 meta?.bookingOptions
               );
             const busy = updatingId === booking.id;
@@ -1138,6 +1178,12 @@ export default function SupplierBookings({
                         {partnerPaymentLabel(booking)}
                       </span>
                       <p className="mt-1.5 text-sm font-semibold text-ink truncate">{listingTitle}</p>
+                      {optionLabel ? (
+                        <p className="mt-0.5 text-xs text-ink-muted truncate">{optionLabel}</p>
+                      ) : null}
+                      {meetingPoint && !isStay ? (
+                        <p className="mt-0.5 text-xs text-ink-muted truncate">Meet · {meetingPoint}</p>
+                      ) : null}
                       {meta ? (
                         <p className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-xs text-ink-muted">
                           <span className="inline-flex items-center gap-1">

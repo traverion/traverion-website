@@ -3,9 +3,9 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** (see Phase 436)  
-**Current phase:** 436  
-**Commits this mission:** 33+  
+**Current SHA:** `7493f23`  
+**Current phase:** 437  
+**Commits this mission:** 34+  
 **Stripe:** TEST  
 **Preserve:** `scripts/cert-transactional-emails.cjs`
 
@@ -13,9 +13,9 @@
 
 | Phase | Outcome |
 |------|---------|
-| 434 | `bfb443a` Packages date-capacity refresh on visibility |
-| 435 | Trips cards show purchased option label from snapshot |
-| 436 | Stays browse occupancy refresh on tab visibility |
+| 435 | `db9ccf8` Trips option label from snapshot |
+| 436 | `7493f23` Stays browse occupancy refresh on visibility |
+| 437 | Bookings detail/list prefer purchase_snapshot title/option/meet |
 
 ## Do not
 - Live Stripe, force-push, commit cert-email script
