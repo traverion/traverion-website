@@ -145,7 +145,7 @@ export default function BookingMessageThread({
                   {new Date(m.created_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
                 </span>
               </p>
-              <p className="mt-1 leading-relaxed whitespace-pre-wrap">{m.body}</p>
+              <p className="mt-1 leading-relaxed break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{m.body}</p>
             </li>
           ))}
         </ul>

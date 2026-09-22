@@ -3,10 +3,10 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** _(pending 506)_  
-**Current phase:** 506  
+**Current SHA:** _(pending 507–508)_  
+**Current phase:** 508  
 **Branch:** `reconstruction/phase-0-audit`  
-**Commits this mission:** 94+  
+**Commits this mission:** 95+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
 **Preserve:** `scripts/cert-transactional-emails.cjs` (intentionally untracked)
 
@@ -46,7 +46,9 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 503 | Certify checkout resume semantics 8/8 | `bb055db` |
 | 504 | Certify confirmation reconcile timing 2/2 | `92a6304` |
 | 505 | Wrap long review titles/comments on partner Reviews | `92a6304` |
-| 506 | Wrap traveler review titles/comments/replies on tour + stay | _(this commit)_ |
+| 506 | Wrap traveler review titles/comments/replies on tour + stay | `f2e347c` |
+| 507 | Wrap inbox/message thread bodies | _(this commit)_ |
+| 508 | Wrap Trips meeting, pickup, and cancel notes | _(this commit)_ |
 
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
@@ -65,6 +67,9 @@ Reconcile suite 2/2. Partner Reviews wrap long titles/comments.
 
 ### Phase 506 — traveler review wrap
 Tour and stay public reviews wrap long titles, comments, and operator replies.
+
+### Phase 507–508 — messaging + Trips long-copy wrap
+Booking message bodies and Trips meeting/pickup/cancel notes use overflow-wrap.
 
 ## Known remaining risks (ranked)
 

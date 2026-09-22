@@ -828,7 +828,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
                           Meeting point
                         </dt>
-                        <dd className="mt-0.5 text-sm text-ink whitespace-pre-wrap">{tripMeeting}</dd>
+                        <dd className="mt-0.5 text-sm text-ink break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{tripMeeting}</dd>
                       </div>
                     ) : null}
                     {!isStay && tripPickupInstructions && !pickupMissing ? (
@@ -836,7 +836,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
                           Pickup
                         </dt>
-                        <dd className="mt-0.5 text-sm text-ink whitespace-pre-wrap">
+                        <dd className="mt-0.5 text-sm text-ink break-words [overflow-wrap:anywhere] whitespace-pre-wrap">
                           {b.pickup_time ? `${pgTimeToHm(b.pickup_time)} · ` : ''}
                           {tripPickupInstructions}
                         </dd>
@@ -911,7 +911,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                     </NoticeCallout>
                   ) : null}
                   {b.status === 'cancelled' && guestNotes ? (
-                    <p className="text-sm text-ink-muted whitespace-pre-wrap">{guestNotes}</p>
+                    <p className="text-sm text-ink-muted break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{guestNotes}</p>
                   ) : null}
                   {liveTrip &&
                     (b.status === 'pending' || b.status === 'confirmed') &&
