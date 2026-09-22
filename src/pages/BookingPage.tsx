@@ -1328,7 +1328,7 @@ export default function BookingPage({
               <dl className="space-y-2.5 text-sm">
                 <div className="flex justify-between gap-4">
                   <dt className="text-ink-muted">Lead guest</dt>
-                  <dd className="font-medium text-ink text-right">{leadGuestName}</dd>
+                  <dd className="break-words font-medium text-ink text-right [overflow-wrap:anywhere]">{leadGuestName}</dd>
                 </div>
                 <div className="flex justify-between gap-4">
                   <dt className="text-ink-muted">Email</dt>
