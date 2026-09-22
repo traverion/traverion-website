@@ -1251,7 +1251,7 @@ export default function SupplierListings() {
                             </span>
                           ) : null}
                         </div>
-                        <h2 className="mt-1.5 font-sans text-base font-semibold text-ink leading-snug line-clamp-2">
+                        <h2 className="mt-1.5 break-words font-sans text-base font-semibold text-ink leading-snug line-clamp-2 [overflow-wrap:anywhere]">
                           {listing.title}
                         </h2>
                         <p className="mt-0.5 text-sm text-ink-muted truncate">
