@@ -3,10 +3,10 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** _(pending 511–513)_  
-**Current phase:** 513  
+**Current SHA:** _(pending 514)_  
+**Current phase:** 514  
 **Branch:** `reconstruction/phase-0-audit`  
-**Commits this mission:** 97+  
+**Commits this mission:** 98+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
 **Preserve:** `scripts/cert-transactional-emails.cjs` (intentionally untracked)
 
@@ -55,9 +55,10 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 508 | Wrap Trips meeting, pickup, and cancel notes | `415962e` |
 | 509 | Certify booking-hold occupancy (cancel/refund release) 9/9 | `014fde7` |
 | 510 | Wrap partner Bookings special-request notes | `014fde7` |
-| 511 | Wrap Pickup Planner special-request notes | _(this commit)_ |
-| 512 | Honesty/inventory cert batch 74/74 | _(this commit)_ |
-| 513 | Inventory band checkpoint journal (451–525 progress) | _(this commit)_ |
+| 511 | Wrap Pickup Planner special-request notes | `e9438ab` |
+| 512 | Honesty/inventory cert batch 74/74 | `e9438ab` |
+| 513 | Inventory band checkpoint journal (451–525 progress) | `e9438ab` |
+| 514 | Today schedule: wrap long meeting points (no silent truncate) | _(this commit)_ |
 
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
@@ -85,6 +86,9 @@ booking-hold suite 9/9. Partner booking special requests wrap long copy.
 
 ### Phase 511–513 — Pickup wrap + inventory band checkpoint
 Pickup Planner notes wrap. Focused inventory/honesty suites **74/74**. Inventory integrity band largely unit-certified; browser golden journeys remain the gap.
+
+### Phase 514 — Today meeting wrap
+Partner Today Meet lines wrap instead of truncating meeting points mid-address.
 
 ## Known remaining risks (ranked)
 

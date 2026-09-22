@@ -782,7 +782,7 @@ export default function SupplierDashboard() {
                         {optionLabel ? ` · ${optionLabel}` : ''}
                       </span>
                       {meetingPoint ? (
-                        <span className="mt-0.5 block text-[12px] text-slate-400 truncate">
+                        <span className="mt-0.5 block text-[12px] text-slate-400 break-words [overflow-wrap:anywhere]">
                           Meet · {meetingPoint}
                         </span>
                       ) : null}
