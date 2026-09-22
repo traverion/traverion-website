@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { appStripeIsTestMode } from '../lib/money';
-import { stripeLiveSecretBlockedMessage } from '../lib/stripe-test-only';
+import { stripeLivePublishableBlockedMessage } from '../lib/stripe-test-only';
 import { localYmd } from '../lib/local-ymd';
 import { publicSiteBaseUrl } from '../lib/publicSiteUrl';
 import { supplierPortalPublicBaseUrl } from '../lib/partnerHost';
@@ -225,7 +225,7 @@ export async function createBookingCheckoutSession(params: {
 }): Promise<{ success: boolean; checkoutUrl?: string; bookingId?: string; error?: string }> {
   if (!supabase) return { success: false, error: 'Supabase not configured' };
   if (!appStripeIsTestMode()) {
-    return { success: false, error: stripeLiveSecretBlockedMessage() };
+    return { success: false, error: stripeLivePublishableBlockedMessage() };
   }
   const { data, error } = await supabase.functions.invoke('create-booking-checkout-session', {
     body: {
@@ -264,7 +264,7 @@ export async function resumePendingBookingCheckout(params: {
 }): Promise<{ success: boolean; checkoutUrl?: string; bookingId?: string; error?: string }> {
   if (!supabase) return { success: false, error: 'Supabase not configured' };
   if (!appStripeIsTestMode()) {
-    return { success: false, error: stripeLiveSecretBlockedMessage() };
+    return { success: false, error: stripeLivePublishableBlockedMessage() };
   }
   const { data, error } = await supabase.functions.invoke('create-booking-checkout-session', {
     body: {
