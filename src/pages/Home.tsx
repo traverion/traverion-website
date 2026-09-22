@@ -520,7 +520,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                   <div className="absolute bottom-6 left-6 right-6 text-white">
                     <p className="text-xs uppercase tracking-[0.16em] text-white/70 mb-2">Tour · Live now</p>
                     <p className="text-sm text-white/80">{featuredListing.city || featuredListing.destination}</p>
-                    <p className="font-display text-3xl sm:text-4xl mt-1">{featuredListing.title}</p>
+                    <p className="font-display text-3xl sm:text-4xl mt-1 break-words [overflow-wrap:anywhere]">{featuredListing.title}</p>
                     {(() => {
                       const { price, qualifier, summary } = getDisplayPriceForTour(
                         featuredListing,

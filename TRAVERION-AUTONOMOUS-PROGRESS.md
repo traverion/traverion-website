@@ -3,10 +3,10 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** _(pending 534)_  
-**Current phase:** 534  
+**Current SHA:** _(pending 535)_  
+**Current phase:** 535  
 **Branch:** `reconstruction/phase-0-audit`  
-**Commits this mission:** 117+  
+**Commits this mission:** 118+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
 **Preserve:** `scripts/cert-transactional-emails.cjs` (intentionally untracked)
 
@@ -78,7 +78,8 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 531 | Apply listing readiness overflow-wrap | `103cb18` |
 | 532 | Honesty suite 30/30 + app tsc clean (supplier/traveler wrap band) | `fd89ecb` |
 | 533 | Certify stay already-booked maps to human concurrent-checkout copy | `7c1e038` |
-| 534 | Wrap homepage featured listing title | _(this commit)_ |
+| 534 | Progress note for homepage featured title wrap | `c6a5f63` |
+| 535 | Apply homepage featured listing title wrap | _(this commit)_ |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -162,6 +163,9 @@ userFacingError maps “Those nights are already booked” to traveler-safe conc
 
 ### Phase 534 — homepage featured title wrap
 Homepage featured listing title wraps long names.
+
+### Phase 535 — homepage featured title wrap (code)
+Land the homepage featured title overflow-wrap.
 
 ## Known remaining risks (ranked)
 
