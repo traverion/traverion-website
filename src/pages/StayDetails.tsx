@@ -449,7 +449,9 @@ export default function StayDetails({ stayId, onBack }: Props) {
               {[stay.city, stay.country].filter(Boolean).join(', ') || stay.destination}
             </p>
           </div>
-          <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight mb-4">{stay.title}</h1>
+          <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight mb-4 break-words [overflow-wrap:anywhere]">
+            {stay.title}
+          </h1>
           <dl className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {typeof s?.maxGuests === 'number' ? (
               <div className="rounded-xl bg-paper-raised px-3.5 py-3 ring-1 ring-black/[0.05]">

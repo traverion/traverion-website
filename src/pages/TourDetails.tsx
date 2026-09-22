@@ -1019,11 +1019,13 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
               </>
             ) : null}
           </p>
-          <h1 className="font-display text-3xl sm:text-4xl lg:text-[2.75rem] text-ink tracking-tight leading-[1.15]">
+          <h1 className="font-display text-3xl sm:text-4xl lg:text-[2.75rem] text-ink tracking-tight leading-[1.15] break-words [overflow-wrap:anywhere]">
             {tour.title}
           </h1>
           {tour.subtitle?.trim() ? (
-            <p className="mt-2 text-base sm:text-lg text-ink-muted leading-snug">{tour.subtitle.trim()}</p>
+            <p className="mt-2 text-base sm:text-lg text-ink-muted leading-snug break-words [overflow-wrap:anywhere]">
+              {tour.subtitle.trim()}
+            </p>
           ) : null}
         </header>
 
