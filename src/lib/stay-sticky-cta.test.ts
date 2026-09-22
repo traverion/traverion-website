@@ -1,0 +1,53 @@
+import { describe, expect, it } from 'vitest';
+import { stayStickyBookCtaLabel } from './stay-sticky-cta';
+
+describe('stayStickyBookCtaLabel', () => {
+  it('names unavailable dates instead of Continue', () => {
+    expect(
+      stayStickyBookCtaLabel({
+        selectionOccupied: true,
+        quoteOk: true,
+        checkIn: '2026-10-01',
+        checkOut: '2026-10-03',
+        minNights: 1,
+      })
+    ).toBe('Dates unavailable');
+  });
+
+  it('asks for check-out before implying ready', () => {
+    expect(
+      stayStickyBookCtaLabel({
+        selectionOccupied: false,
+        quoteOk: false,
+        checkIn: '2026-10-01',
+        checkOut: '',
+        minNights: 2,
+      })
+    ).toBe('Pick check-out');
+  });
+
+  it('surfaces minimum-stay failures honestly', () => {
+    expect(
+      stayStickyBookCtaLabel({
+        selectionOccupied: false,
+        quoteOk: false,
+        checkIn: '2026-10-01',
+        checkOut: '2026-10-02',
+        quoteError: 'Minimum stay is 2 nights.',
+        minNights: 2,
+      })
+    ).toBe('Need 2+ nights');
+  });
+
+  it('only says Continue · TEST when quote is ok', () => {
+    expect(
+      stayStickyBookCtaLabel({
+        selectionOccupied: false,
+        quoteOk: true,
+        checkIn: '2026-10-01',
+        checkOut: '2026-10-04',
+        minNights: 1,
+      })
+    ).toBe('Continue · TEST');
+  });
+});

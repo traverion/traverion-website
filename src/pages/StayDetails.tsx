@@ -39,6 +39,7 @@ import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 import { CHECKOUT_HOLD_MINUTES } from '../lib/booking-hold';
 import { formatOccupiedNightRanges, formatStayNightHuman } from '../lib/stay-calendar';
 import { stayAmenityDisplayList } from '../lib/stay-amenities';
+import { stayStickyBookCtaLabel } from '../lib/stay-sticky-cta';
 import { stayCheckoutLeadGuestNameReady } from '../lib/stay-checkout-guest';
 import {
   BOOKING_CONFIRMATION_EMAIL_DISCLAIMER,
@@ -307,17 +308,15 @@ export default function StayDetails({ stayId, onBack }: Props) {
     if (ph) setGuestPhone((prev) => prev.trim() || ph);
   }, [user]);
 
-  const stickyStayCtaLabel = (() => {
-    if (selectionOccupied) return 'Dates unavailable';
-    if (paying) return 'Opening…';
-    if (quoteOk) return 'Continue · TEST';
-    if (checkIn && checkOut && stayQuote && !stayQuote.ok) {
-      if (/Minimum stay/i.test(stayQuote.error)) return `Need ${minNights}+ nights`;
-      return 'Fix dates';
-    }
-    if (checkIn && !checkOut) return 'Pick check-out';
-    return 'Select dates';
-  })();
+  const stickyStayCtaLabel = stayStickyBookCtaLabel({
+    selectionOccupied,
+    paying,
+    quoteOk,
+    checkIn,
+    checkOut,
+    quoteError: stayQuote && !stayQuote.ok ? stayQuote.error : null,
+    minNights,
+  });
 
   const startStayCheckout = async () => {
     if (!stay || !stayQuote?.ok) {

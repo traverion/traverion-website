@@ -3,10 +3,10 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** _(pending 497)_  
-**Current phase:** 497  
+**Current SHA:** _(pending 498–499)_  
+**Current phase:** 499  
 **Branch:** `reconstruction/phase-0-audit`  
-**Commits this mission:** 88+  
+**Commits this mission:** 89+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
 **Preserve:** `scripts/cert-transactional-emails.cjs` (intentionally untracked)
 
@@ -38,7 +38,11 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 493 | StayDetails amenities crash fix | `253a3b9` |
 | 494–495 | App tsc clean | `2a1f756` |
 | 496 | Build + tsc + honesty 23/23 milestone | `432c148` |
-| 497 | Certify schedule overlap suite 15/15 (same date+time blocked; different times OK) | _(this commit)_ |
+| 497 | Certify schedule overlap suite 15/15 (same date+time blocked; different times OK) | `f74352e` |
+| 498–499 | Extract stay sticky CTA helper with unit proof (matches tour sticky honesty) | _(this commit)_ |
+
+### Phase 498–499 — stay sticky CTA
+`stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
 ## Known remaining risks (ranked)
 
