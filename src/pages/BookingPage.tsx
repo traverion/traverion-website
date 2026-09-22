@@ -385,6 +385,9 @@ export default function BookingPage({
     return Math.max(1, Math.min(partyBounds.max, selectedDaySpotsLeft));
   }, [partyBounds.max, selectedDaySpotsLeft]);
 
+  const capacityBlocksPay =
+    selectedDaySpotsLeft != null && selectedDaySpotsLeft < Math.max(1, guests);
+
   const quoteBlockReason =
     date.trim() && priceInfo.quote && !priceInfo.quote.ok ? priceInfo.quote.error : null;
 
@@ -1412,11 +1415,15 @@ export default function BookingPage({
                 <button
                   type="button"
                   onClick={handleConfirmBooking}
-                  disabled={submitting}
-                  className="tv-btn-primary w-full sm:w-auto whitespace-normal text-center"
+                  disabled={submitting || capacityBlocksPay}
+                  className="tv-btn-primary w-full sm:w-auto whitespace-normal text-center disabled:opacity-50"
                 >
                   {submitting
                     ? 'Redirecting to Stripe…'
+                    : capacityBlocksPay
+                      ? departureTime
+                        ? `Sold out · ${departureTime}`
+                        : 'Sold out'
                     : isSupabaseConfigured()
                       ? `Pay with Stripe TEST · ${formatMoney(total, currency)}`
                       : 'Continue to payment'}
@@ -1477,11 +1484,15 @@ export default function BookingPage({
           <button
             type="button"
             onClick={handleConfirmBooking}
-            disabled={submitting}
+            disabled={submitting || capacityBlocksPay}
             className="tv-btn-primary w-full whitespace-normal text-center disabled:opacity-50"
           >
             {submitting
               ? 'Redirecting to Stripe…'
+              : capacityBlocksPay
+                ? departureTime
+                  ? `Sold out · ${departureTime}`
+                  : 'Sold out'
               : isSupabaseConfigured()
                 ? `Pay with Stripe TEST · ${formatMoney(total, currency)}`
                 : 'Continue to payment'}
