@@ -421,6 +421,13 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     Boolean(selectedDepartureTime.trim()) &&
     !dayCapacitySnap?.capByDay.has(bookingDate.trim());
 
+  useEffect(() => {
+    if (!selectedDepartureTime.trim() || selectedDaySpotsLeft == null) return;
+    if (selectedDaySpotsLeft < 1) {
+      setSelectedDepartureTime('');
+    }
+  }, [selectedDepartureTime, selectedDaySpotsLeft]);
+
   const partyMaxForSelectedDay = useMemo(() => {
     if (!tour) return partyBounds.max;
     const base = getPartySizeBoundsForVariant(tour, selectedBookingVariant, bookingDate, selectedDepartureTime).max;
@@ -1239,11 +1246,35 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                               <div className="flex flex-wrap gap-2" role="group" aria-label="Departure time">
                                 {departureTimes.map((time) => {
                                   const selected = selectedDepartureTime === time;
+                                  const day = bookingDate.trim();
+                                  const slotSpotsLeft = (() => {
+                                    if (!dayCapacitySnap || !/^\d{4}-\d{2}-\d{2}$/.test(day) || !selectedOptionApplied) {
+                                      return null;
+                                    }
+                                    if (dayCapacitySnap.capByDay.has(day)) {
+                                      // Day-level override still uses day remaining for all times.
+                                      return remainingCapacity(
+                                        dayCapacitySnap.capByDay.get(day) ?? dayCapacitySnap.fallback,
+                                        dayCapacitySnap.paidByDay[day] ?? 0
+                                      );
+                                    }
+                                    const spots = selectedOptionApplied.maxSpotsPerSlot;
+                                    const cap =
+                                      typeof spots === 'number' && Number.isFinite(spots) && spots >= 1
+                                        ? Math.min(99, Math.floor(spots))
+                                        : Math.min(99, Math.max(1, selectedOptionApplied.maxPersons));
+                                    const paid =
+                                      dayCapacitySnap.paidBySlot[tourPaidSlotKey(day, time)] ?? 0;
+                                    return remainingCapacity(cap, paid);
+                                  })();
+                                  const soldOut = slotSpotsLeft != null && slotSpotsLeft < 1;
                                   return (
                                     <button
                                       key={time}
                                       type="button"
+                                      disabled={soldOut}
                                       onClick={() => {
+                                        if (soldOut) return;
                                         setSelectedDepartureTime(time);
                                         setBookingCardError(null);
                                         if (selectedOption) {
@@ -1260,14 +1291,15 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                                           }
                                         }
                                       }}
-                                      className={`lux-flat min-h-11 rounded-xl px-3.5 py-2 text-sm font-semibold tabular-nums ring-1 transition-colors ${
+                                      className={`lux-flat min-h-11 rounded-xl px-3.5 py-2 text-sm font-semibold tabular-nums ring-1 transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
                                         selected
                                           ? 'bg-finland text-white ring-finland'
                                           : 'bg-paper-raised text-ink ring-black/[0.08] hover:bg-black/[0.03]'
                                       }`}
                                       aria-pressed={selected}
+                                      aria-disabled={soldOut}
                                     >
-                                      {time}
+                                      {soldOut ? `${time} · Sold out` : time}
                                     </button>
                                   );
                                 })}
