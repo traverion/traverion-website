@@ -31,7 +31,7 @@ import StatusChip, { toneForPaymentLabel } from '../../components/StatusChip';
 import { formatBookingParticipantsLabel } from '../../lib/participant-mix';
 import { PARTNER_INBOX_MESSAGE_FETCH_CAP } from '../../lib/partner-inbox-cap';
 import { formatStayNightHuman } from '../../lib/stay-calendar';
-import { displayListingTitleFromPurchase, displayOptionLabelFromPurchase } from '../../lib/purchase-snapshot';
+import { displayListingTitleFromPurchase, displayOptionLabelFromPurchase, partnerOpsDepartureDisplay } from '../../lib/purchase-snapshot';
 import { materializedBookingOptions, parseListingExtras } from '../../types/listingExtras';
 import type { TourPackage } from '../../types/tour';
 
@@ -223,12 +223,19 @@ export default function SupplierInbox() {
   }, [openId, loading, threads]);
 
   const renderThreadBody = (b: BookingRow) => {
-    const startHm = pgTimeToHm(b.start_time);
+    const opsHm = pgTimeToHm(b.start_time);
+    const dep = partnerOpsDepartureDisplay(b.purchase_snapshot, opsHm);
     const pickupHm = pgTimeToHm(b.pickup_time);
     const isStay = Boolean(b.check_out && /^\d{4}-\d{2}-\d{2}$/.test(b.check_out));
     const timeBits = isStay
       ? null
-      : [startHm ? `Start ${startHm}` : null, pickupHm ? `Pickup ${pickupHm}` : null].filter(Boolean).join(' · ');
+      : [
+          dep.displayHm ? `Start ${dep.displayHm}` : null,
+          dep.purchasedNote,
+          pickupHm ? `Pickup ${pickupHm}` : null,
+        ]
+          .filter(Boolean)
+          .join(' · ');
     const whenBits = isStay
       ? `${formatStayNightHuman(b.booking_date ?? '')}${b.check_out ? ` → ${formatStayNightHuman(b.check_out)}` : ''}`
       : b.booking_date
@@ -448,7 +455,14 @@ export default function SupplierInbox() {
                           })
                         : 'Date TBC'}
                     {` · ${formatBookingParticipantsLabel(b)}`}
-                    {pgTimeToHm(b.start_time) ? ` · ${pgTimeToHm(b.start_time)}` : ''}
+                    {(() => {
+                      const opsHm = pgTimeToHm(b.start_time);
+                      const dep = partnerOpsDepartureDisplay(b.purchase_snapshot, opsHm);
+                      if (!dep.displayHm) return '';
+                      return dep.purchasedNote
+                        ? ` · ${dep.displayHm} (${dep.purchasedNote})`
+                        : ` · ${dep.displayHm}`;
+                    })()}
                     {last?.created_at
                       ? ` · ${new Date(last.created_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}`
                       : ''}
