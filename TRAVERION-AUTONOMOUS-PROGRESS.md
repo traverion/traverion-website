@@ -3,10 +3,10 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** _(pending 533)_  
-**Current phase:** 533  
+**Current SHA:** _(pending 534)_  
+**Current phase:** 534  
 **Branch:** `reconstruction/phase-0-audit`  
-**Commits this mission:** 116+  
+**Commits this mission:** 117+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
 **Preserve:** `scripts/cert-transactional-emails.cjs` (intentionally untracked)
 
@@ -77,7 +77,8 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 530 | Progress note for listing readiness wrap | `3801884` |
 | 531 | Apply listing readiness overflow-wrap | `103cb18` |
 | 532 | Honesty suite 30/30 + app tsc clean (supplier/traveler wrap band) | `fd89ecb` |
-| 533 | Certify stay already-booked maps to human concurrent-checkout copy | _(this commit)_ |
+| 533 | Certify stay already-booked maps to human concurrent-checkout copy | `7c1e038` |
+| 534 | Wrap homepage featured listing title | _(this commit)_ |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -158,6 +159,9 @@ Focused honesty suites 30/30; `tsc -p tsconfig.app.json` clean after Phases 526�
 
 ### Phase 533 — concurrent stay checkout copy
 userFacingError maps “Those nights are already booked” to traveler-safe concurrent-checkout language.
+
+### Phase 534 — homepage featured title wrap
+Homepage featured listing title wraps long names.
 
 ## Known remaining risks (ranked)
 
