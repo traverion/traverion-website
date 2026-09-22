@@ -31,9 +31,25 @@ import StatusChip, { toneForPaymentLabel } from '../../components/StatusChip';
 import { formatBookingParticipantsLabel } from '../../lib/participant-mix';
 import { PARTNER_INBOX_MESSAGE_FETCH_CAP } from '../../lib/partner-inbox-cap';
 import { formatStayNightHuman } from '../../lib/stay-calendar';
+import { displayListingTitleFromPurchase, displayOptionLabelFromPurchase } from '../../lib/purchase-snapshot';
+import { materializedBookingOptions, parseListingExtras } from '../../types/listingExtras';
+import type { TourPackage } from '../../types/tour';
 
-/** Message previews are only fetched for the most recent N paid bookings; older
- * closed/cancelled threads beyond this may not show here. See olderConversationsHidden. */
+function inboxListingLine(
+  b: BookingRow,
+  liveTitle: string | undefined,
+  listing: TourPackage | undefined
+): string {
+  const title = displayListingTitleFromPurchase(b.purchase_snapshot, liveTitle, 'Listing');
+  const liveOption =
+    b.booking_option_id && listing
+      ? materializedBookingOptions(parseListingExtras(listing.listingExtras).bookingOptions).find(
+          (o) => o.id === b.booking_option_id
+        )?.name?.trim() || ''
+      : '';
+  const option = displayOptionLabelFromPurchase(b.purchase_snapshot, liveOption);
+  return option ? `${title} · ${option}` : title;
+}
 
 function readBookingIdFromUrl(): string | null {
   const id = new URLSearchParams(window.location.search).get('booking');
@@ -44,6 +60,7 @@ export default function SupplierInbox() {
   const { user, isSupabase } = useSupplierAuth();
   const [bookings, setBookings] = useState<BookingRow[]>([]);
   const [titles, setTitles] = useState<Record<string, string>>({});
+  const [listingsById, setListingsById] = useState<Record<string, TourPackage>>({});
   const [lastByBooking, setLastByBooking] = useState<Record<string, BookingMessageRow>>({});
   const [openCancelIds, setOpenCancelIds] = useState<Set<string>>(new Set());
   const [openId, setOpenId] = useState<string | null>(() => readBookingIdFromUrl());
@@ -80,6 +97,7 @@ export default function SupplierInbox() {
       const [rows, listings] = await Promise.all([fetchBookingsForSupplier(uid), fetchMyListings(uid)]);
       const collected = rows.filter((b) => bookingPaymentWasCollected(b.payment_status));
       setTitles(Object.fromEntries(listings.map((l) => [l.id, l.title])));
+      setListingsById(Object.fromEntries(listings.map((l) => [l.id, l])));
       const cancels = await fetchCancellationRequestsForBookings(collected.map((b) => b.id));
       const openIds = new Set(cancels.filter((c) => c.status === 'requested').map((c) => c.booking_id));
       setOpenCancelIds(openIds);
@@ -225,7 +243,8 @@ export default function SupplierInbox() {
         <div className="mb-2.5 flex flex-wrap items-start justify-between gap-2">
           <p className="text-xs text-ink-muted leading-snug">
             {typeof b.booking_number === 'number' ? `#${b.booking_number} · ` : ''}
-            {isStay ? 'Stay' : 'Tour'} · {titles[b.listing_id] ?? 'Listing'} · {b.guest_name?.trim() || 'Traveler'} ·{' '}
+            {isStay ? 'Stay' : 'Tour'} · {inboxListingLine(b, titles[b.listing_id], listingsById[b.listing_id])} ·{' '}
+            {b.guest_name?.trim() || 'Traveler'} ·{' '}
             {formatBookingParticipantsLabel(b)}
             {whenBits ? ` · ${whenBits}` : ''}
             {timeBits ? ` · ${timeBits}` : ''}
@@ -263,7 +282,7 @@ export default function SupplierInbox() {
               : 'unpaid'
           }
           viewerRole="supplier"
-          listingTitle={titles[b.listing_id] ?? 'Listing'}
+          listingTitle={inboxListingLine(b, titles[b.listing_id], listingsById[b.listing_id])}
           listingId={b.listing_id}
           supplierId={user?.id}
           customerEmail={b.guest_email}
@@ -403,7 +422,9 @@ export default function SupplierInbox() {
                           {b.guest_name?.trim() || 'Traveler'}
                         </p>
                       </div>
-                      <p className="mt-0.5 text-xs text-ink-muted truncate pl-4">{titles[b.listing_id] ?? 'Listing'}</p>
+                      <p className="mt-0.5 text-xs text-ink-muted truncate pl-4">
+                        {inboxListingLine(b, titles[b.listing_id], listingsById[b.listing_id])}
+                      </p>
                     </div>
                     <div className="flex flex-wrap items-center justify-end gap-1.5 shrink-0 max-w-[45%]">
                       {showMoneyChip ? (
@@ -451,7 +472,11 @@ export default function SupplierInbox() {
           <SupplierModalHeader
             icon={MessageSquare}
             title={openBooking.guest_name?.trim() || 'Traveler'}
-            subtitle={titles[openBooking.listing_id] ?? 'Listing'}
+            subtitle={inboxListingLine(
+              openBooking,
+              titles[openBooking.listing_id],
+              listingsById[openBooking.listing_id]
+            )}
             onClose={() => setOpenBookingId(null)}
           />
           <div className="p-4 sm:p-5 space-y-3 max-h-[min(70vh,32rem)] overflow-y-auto">
