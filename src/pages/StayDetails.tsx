@@ -416,7 +416,9 @@ export default function StayDetails({ stayId, onBack }: Props) {
             className="w-full h-[18rem] sm:h-[22rem] object-cover rounded-3xl mb-3 shadow-soft ring-1 ring-black/[0.06]"
           />
         ) : (
-          <div className="w-full h-56 rounded-3xl bg-ink/10 mb-3 ring-1 ring-black/[0.06]" />
+          <div className="mb-3 flex h-56 w-full items-center justify-center rounded-3xl bg-ink/[0.06] ring-1 ring-black/[0.06]">
+            <p className="px-4 text-center text-sm text-ink-muted">No photos yet for this stay</p>
+          </div>
         )}
         {gallery.length > 0 ? (
           <div className="grid grid-cols-3 gap-2 mb-5">

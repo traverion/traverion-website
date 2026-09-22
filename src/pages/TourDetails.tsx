@@ -1086,7 +1086,9 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
               ) : null}
             </div>
           ) : (
-            <div className="aspect-[21/9] rounded-2xl bg-ink/10" />
+            <div className="flex aspect-[21/9] items-center justify-center rounded-2xl bg-ink/[0.06] ring-1 ring-black/[0.04]">
+              <p className="px-4 text-center text-sm text-ink-muted">No photos yet for this experience</p>
+            </div>
           )}
           {hasGallery ? (
             <div className="mt-2 flex items-center justify-between gap-3">
