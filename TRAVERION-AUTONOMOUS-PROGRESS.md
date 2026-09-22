@@ -3,10 +3,10 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** _(pending 531)_  
-**Current phase:** 531  
+**Current SHA:** _(pending 532)_  
+**Current phase:** 532  
 **Branch:** `reconstruction/phase-0-audit`  
-**Commits this mission:** 114+  
+**Commits this mission:** 115+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
 **Preserve:** `scripts/cert-transactional-emails.cjs` (intentionally untracked)
 
@@ -75,7 +75,8 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 528 | Re-cert sticky CTA + browse filter honesty 15/15 | `c42b7e1` |
 | 529 | Land checkout special-requests overflow-wrap | `55f111e` |
 | 530 | Progress note for listing readiness wrap | `3801884` |
-| 531 | Apply listing readiness overflow-wrap | _(this commit)_ |
+| 531 | Apply listing readiness overflow-wrap | `103cb18` |
+| 532 | Honesty suite 30/30 + app tsc clean (supplier/traveler wrap band) | _(this commit)_ |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -150,6 +151,9 @@ Draft readiness lines on partner Listings wrap long strings under line-clamp.
 
 ### Phase 531 — listing readiness wrap (code)
 Land the readiness-line overflow-wrap on partner Listings cards.
+
+### Phase 532 — checkpoint
+Focused honesty suites 30/30; `tsc -p tsconfig.app.json` clean after Phases 526–531 wraps.
 
 ## Known remaining risks (ranked)
 
