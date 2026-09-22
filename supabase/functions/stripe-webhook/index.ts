@@ -7,6 +7,7 @@ import { isStripeChargeFullyRefunded, refundBeforePaidShouldMarkFailed } from '.
 import { staleCheckoutFailureShouldApply } from '../_shared/checkout-resume.ts';
 import { paymentIntentSucceededShouldPromote } from '../_shared/checkout-pi-succeeded.ts';
 import { promotePaidFromCheckoutSession } from '../_shared/promote-paid-from-checkout.ts';
+import { isStripeTestSecretKey, stripeLiveSecretBlockedMessage } from '../_shared/stripe-test-only.ts';
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -41,6 +42,9 @@ serve(async (req) => {
     const stripeWebhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET');
     if (!supabaseUrl || !serviceRoleKey) return json({ success: false, error: 'Supabase env missing' }, 500);
     if (!stripeSecret) return json({ success: false, error: 'STRIPE_SECRET_KEY not configured' }, 500);
+    if (!isStripeTestSecretKey(stripeSecret)) {
+      return json({ success: false, error: stripeLiveSecretBlockedMessage() }, 503);
+    }
     if (!stripeWebhookSecret) return json({ success: false, error: 'STRIPE_WEBHOOK_SECRET not configured' }, 500);
 
     const signature = req.headers.get('stripe-signature');

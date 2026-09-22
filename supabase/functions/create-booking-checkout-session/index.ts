@@ -7,6 +7,7 @@ import { tourCheckoutOccupiedGuests, type TourCheckoutOccupancyRow } from '../_s
 import { checkoutPaymentStatusCanResume, resumeStayCheckoutDate, checkoutResumeLostRaceToPaid } from '../_shared/checkout-resume.ts';
 import { resumeStayLeadGuestName, stayCheckoutLeadGuestNameReady } from '../_shared/stay-checkout-guest.ts';
 import { buildPurchaseSnapshot, resolveMeetingPointForSnapshot } from '../_shared/purchase-snapshot.ts';
+import { isStripeTestSecretKey, stripeLiveSecretBlockedMessage } from '../_shared/stripe-test-only.ts';
 
 type RequestBody = {
   bookingId?: string;
@@ -80,6 +81,9 @@ serve(async (req) => {
       return json({ success: false, error: 'Supabase env missing' }, 500);
     }
     if (!stripeSecret) return json({ success: false, error: 'STRIPE_SECRET_KEY not configured' }, 500);
+    if (!isStripeTestSecretKey(stripeSecret)) {
+      return json({ success: false, error: stripeLiveSecretBlockedMessage() }, 503);
+    }
 
     const authHeader = req.headers.get('Authorization') ?? '';
     if (!authHeader) return json({ success: false, error: 'Missing Authorization header' }, 401);

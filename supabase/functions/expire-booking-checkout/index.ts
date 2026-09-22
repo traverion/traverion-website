@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 import Stripe from 'https://esm.sh/stripe@16.12.0?target=deno';
 import { unpaidCancelShouldExpireCheckout } from '../_shared/cancelled-booking-checkout.ts';
+import { isStripeTestSecretKey, stripeLiveSecretBlockedMessage } from '../_shared/stripe-test-only.ts';
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -34,6 +35,9 @@ serve(async (req) => {
       return json({ success: false, error: 'Supabase env missing' }, 500);
     }
     if (!stripeSecret) return json({ success: false, error: 'STRIPE_SECRET_KEY not configured' }, 500);
+    if (!isStripeTestSecretKey(stripeSecret)) {
+      return json({ success: false, error: stripeLiveSecretBlockedMessage() }, 503);
+    }
 
     const authHeader = req.headers.get('Authorization') ?? '';
     if (!authHeader) return json({ success: false, error: 'Missing Authorization header' }, 401);
