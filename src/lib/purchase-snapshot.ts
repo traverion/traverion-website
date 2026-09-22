@@ -83,3 +83,17 @@ export function displayPickupInstructionsFromPurchase(
   }
   return (livePickup ?? '').trim();
 }
+
+/**
+ * Traveler-facing departure time: prefer what was purchased.
+ * Partners may still edit bookings.start_time for ops; Trips should not silently rewrite.
+ */
+export function displayStartTimeFromPurchase(
+  snapshot: unknown,
+  liveStartTimeHm: string | null | undefined
+): string {
+  if (isPurchaseSnapshot(snapshot) && snapshot.startTimeHm?.trim()) {
+    return snapshot.startTimeHm.trim();
+  }
+  return (liveStartTimeHm ?? '').trim();
+}

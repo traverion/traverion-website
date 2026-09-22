@@ -4,6 +4,7 @@ import {
   displayListingTitleFromPurchase,
   displayMeetingPointFromPurchase,
   displayOptionLabelFromPurchase,
+  displayStartTimeFromPurchase,
   isPurchaseSnapshot,
 } from './purchase-snapshot';
 
@@ -56,5 +57,15 @@ describe('purchase-snapshot', () => {
     expect(displayListingTitleFromPurchase(snap, 'ASCII')).toContain('オーロラ');
     expect(displayOptionLabelFromPurchase(snap, '')).toContain('夕暮れ');
     expect(displayMeetingPointFromPurchase(snap, '')).toContain('Café');
+  });
+
+  it('prefers purchased start time over a later ops edit', () => {
+    const snap = buildPurchaseSnapshot({
+      listingTitle: 'Tour',
+      startTimeHm: '08:00',
+      capturedAt: '2026-09-22T00:00:00.000Z',
+    });
+    expect(displayStartTimeFromPurchase(snap, '09:30')).toBe('08:00');
+    expect(displayStartTimeFromPurchase(null, '09:30')).toBe('09:30');
   });
 });

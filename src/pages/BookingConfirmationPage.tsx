@@ -26,6 +26,7 @@ import {
   displayMeetingPointFromPurchase,
   displayOptionLabelFromPurchase,
   displayPickupInstructionsFromPurchase,
+  displayStartTimeFromPurchase,
 } from '../lib/purchase-snapshot';
 import { clearBookingsUnread } from '../lib/customerBookingNotifications';
 import {
@@ -267,7 +268,10 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
     if (paidActive && user?.id) clearBookingsUnread(user.id);
   }, [paidActive, user?.id]);
 
-  const startHm = booking?.start_time ? pgTimeToHm(booking.start_time) : '';
+  const startHm = displayStartTimeFromPurchase(
+    booking?.purchase_snapshot,
+    booking?.start_time ? pgTimeToHm(booking.start_time) : ''
+  );
 
   const goToBookings = () => {
     window.history.replaceState({}, '', '/bookings');

@@ -43,6 +43,7 @@ import {
   displayMeetingPointFromPurchase,
   displayOptionLabelFromPurchase,
   displayPickupInstructionsFromPurchase,
+  displayStartTimeFromPurchase,
 } from '../lib/purchase-snapshot';
 import { decrementAvailabilityBooked } from '../data/supabase-availability';
 import { clearBookingsUnread } from '../lib/customerBookingNotifications';
@@ -651,7 +652,12 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                     })
                   : 'Date TBC';
               })();
-              const timeBit = b.start_time && !b.check_out ? pgTimeToHm(b.start_time) : null;
+              const timeBit = (() => {
+                if (b.check_out) return null;
+                const live = b.start_time ? pgTimeToHm(b.start_time) : null;
+                const shown = displayStartTimeFromPurchase(b.purchase_snapshot, live);
+                return shown || null;
+              })();
               const ref = travelerTripReferenceLabel(b.booking_number);
               const needsPay = travelerBookingNeedsPayNow(b);
               const statusTone = openCancel ? 'warn' : toneForPaymentLabel(lifecycle);
