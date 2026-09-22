@@ -232,15 +232,36 @@ export default function StayDetails({ stayId, onBack }: Props) {
     });
   }, [stay?.supplierId]);
 
-  useEffect(() => {
+  const reloadStayOccupancy = useCallback(() => {
     if (!stay?.id) {
       setOccupiedRanges([]);
       setBlockedNights([]);
-      return;
+      return () => {};
     }
-    void fetchPublishedStayOccupiedRanges(stay.id).then(setOccupiedRanges);
-    void fetchPublishedStayBlockedNights(stay.id).then(setBlockedNights);
+    let cancelled = false;
+    void fetchPublishedStayOccupiedRanges(stay.id).then((ranges) => {
+      if (!cancelled) setOccupiedRanges(ranges);
+    });
+    void fetchPublishedStayBlockedNights(stay.id).then((nights) => {
+      if (!cancelled) setBlockedNights(nights);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [stay?.id]);
+
+  useEffect(() => {
+    return reloadStayOccupancy();
+  }, [reloadStayOccupancy]);
+
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState === 'visible') reloadStayOccupancy();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, [reloadStayOccupancy]);
+
   const extras = stay ? parseListingExtras(stay.listingExtras) : {};
   const s = extras.stay;
   const gallery = (extras.galleryImageUrls ?? []).map((u) => String(u).trim()).filter(Boolean);
