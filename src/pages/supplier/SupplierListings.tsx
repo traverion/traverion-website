@@ -23,6 +23,12 @@ import {
   updateListingStatus,
   deleteListing,
 } from '../../data/supabase-listings';
+import { fetchBookingsForSupplier } from '../../data/supabase-bookings';
+import { localYmd } from '../../lib/local-ymd';
+import {
+  countUpcomingPaidTripsForListing,
+  unpublishUpcomingBookingsNotice,
+} from '../../lib/listing-unpublish-impact';
 import { fetchSupplierProfile } from '../../data/supabase-supplier-profile';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import SupplierListingForm, { type ListingEditorSaveResult } from './SupplierListingForm';
@@ -107,6 +113,7 @@ export default function SupplierListings() {
   } | null>(null);
   const [listingPendingDelete, setListingPendingDelete] = useState<TourPackage | null>(null);
   const [listingPendingDeactivate, setListingPendingDeactivate] = useState<TourPackage | null>(null);
+  const [deactivateUpcomingPaid, setDeactivateUpcomingPaid] = useState<number | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [deactivateBusy, setDeactivateBusy] = useState(false);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
@@ -1389,6 +1396,17 @@ export default function SupplierListings() {
                     onClick={() => {
                       closeListingActionsMenu();
                       setListingPendingDeactivate(menuListing);
+                      setDeactivateUpcomingPaid(null);
+                      if (isSupabase && user?.id) {
+                        const listingId = menuListing.id;
+                        void fetchBookingsForSupplier(user.id)
+                          .then((rows) => {
+                            setDeactivateUpcomingPaid(
+                              countUpcomingPaidTripsForListing(rows, listingId, localYmd())
+                            );
+                          })
+                          .catch(() => setDeactivateUpcomingPaid(null));
+                      }
                     }}
                   >
                     Deactivate
@@ -1476,7 +1494,11 @@ export default function SupplierListings() {
                 className="absolute inset-0"
                 aria-label="Close"
                 disabled={deactivateBusy}
-                onClick={() => !deactivateBusy && setListingPendingDeactivate(null)}
+                onClick={() => {
+                  if (deactivateBusy) return;
+                  setListingPendingDeactivate(null);
+                  setDeactivateUpcomingPaid(null);
+                }}
               />
               <aside
                 role="dialog"
@@ -1487,7 +1509,14 @@ export default function SupplierListings() {
                 <SupplierModalHeader
                   icon={EyeOff}
                   title="Take this listing offline?"
-                  onClose={deactivateBusy ? undefined : () => setListingPendingDeactivate(null)}
+                  onClose={
+                    deactivateBusy
+                      ? undefined
+                      : () => {
+                          setListingPendingDeactivate(null);
+                          setDeactivateUpcomingPaid(null);
+                        }
+                  }
                 />
                 <div className="p-4 sm:p-6 overflow-y-auto pb-[max(1rem,env(safe-area-inset-bottom))]">
                 <p className="text-sm text-ink-muted leading-relaxed">
@@ -1497,12 +1526,21 @@ export default function SupplierListings() {
                     ? ' New stay checkouts stop until you publish it again.'
                     : ' New checkouts stop until you publish it again.'}
                 </p>
+                {(() => {
+                  const notice = unpublishUpcomingBookingsNotice(deactivateUpcomingPaid ?? 0);
+                  return notice ? (
+                    <p className="mt-3 text-sm font-medium text-ink leading-relaxed">{notice}</p>
+                  ) : null;
+                })()}
                 <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                   <button
                     type="button"
                     className="tv-btn-ghost"
                     disabled={deactivateBusy}
-                    onClick={() => setListingPendingDeactivate(null)}
+                    onClick={() => {
+                      setListingPendingDeactivate(null);
+                      setDeactivateUpcomingPaid(null);
+                    }}
                   >
                     Keep published
                   </button>
