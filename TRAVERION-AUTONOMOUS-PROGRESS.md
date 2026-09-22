@@ -3,9 +3,9 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `deb319e`  
-**Current phase:** 427  
-**Commits this mission:** 24+  
+**Current SHA:** `908d2c8`  
+**Current phase:** 428  
+**Commits this mission:** 25+  
 **Stripe:** TEST  
 **Preserve:** `scripts/cert-transactional-emails.cjs`
 
@@ -13,9 +13,9 @@
 
 | Phase | Outcome |
 |------|---------|
-| 425 | `f3225cd` Schedule delete/reduce spots occupancy warn |
 | 426 | `deb319e` Booking-option delete occupying-guest notice |
-| 427 | Inventory integrity cert (no code): concurrency + DST + holds + slot capacity **17/17** pass. Remaining risk: advisory lock is listing-scoped (safe, coarse). |
+| 427 | `908d2c8` Inventory concurrency/DST cert (doc) |
+| 428 | Dashboard Today + Next 7 days show purchase_snapshot title/option + departure time |
 
 ## Do not
 - Live Stripe, force-push, commit cert-email script

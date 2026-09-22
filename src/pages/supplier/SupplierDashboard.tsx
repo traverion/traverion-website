@@ -32,6 +32,10 @@ import { formatStayNightHuman } from '../../lib/stay-calendar';
 import { localYmd } from '../../lib/local-ymd';
 import { PARTNER_INBOX_MESSAGE_FETCH_CAP } from '../../lib/partner-inbox-cap';
 import { parseListingExtras, materializedBookingOptions } from '../../types/listingExtras';
+import {
+  displayListingTitleFromPurchase,
+  displayOptionLabelFromPurchase,
+} from '../../lib/purchase-snapshot';
 
 type AttentionTone = 'danger' | 'warn' | 'info';
 
@@ -717,6 +721,18 @@ export default function SupplierDashboard() {
                     : 'Stay'
                 : (startHm ?? '—');
               const fallbackTitle = isStay ? 'Stay' : 'Tour';
+              const liveOption =
+                !isStay && b.booking_option_id
+                  ? materializedBookingOptions(
+                      parseListingExtras(listingsById[b.listing_id]?.listingExtras as unknown).bookingOptions
+                    ).find((o) => o.id === b.booking_option_id)?.name?.trim() || ''
+                  : '';
+              const title = displayListingTitleFromPurchase(
+                b.purchase_snapshot,
+                listingTitlesById[b.listing_id],
+                fallbackTitle
+              );
+              const optionLabel = displayOptionLabelFromPurchase(b.purchase_snapshot, liveOption);
               const isLast = idx === todayDepartures.length - 1;
               return (
                 <li key={b.id} className="relative">
@@ -743,11 +759,12 @@ export default function SupplierDashboard() {
                     </span>
                     <span className="min-w-0 py-3.5 pl-3 pr-2">
                       <span className="block text-[15px] font-semibold text-slate-900 truncate">
-                        {listingTitlesById[b.listing_id] ?? fallbackTitle}
+                        {title}
                       </span>
                       <span className="mt-0.5 block text-[13px] text-slate-500">
                         {b.guest_name?.trim() ? `${b.guest_name.trim()} · ` : ''}
                         {formatBookingParticipantsLabel(b)}
+                        {optionLabel ? ` · ${optionLabel}` : ''}
                       </span>
                       <span className="mt-0.5 block text-[12px] text-slate-400">
                         {typeof b.booking_number === 'number' && b.booking_number > 0 ? (
@@ -862,7 +879,24 @@ export default function SupplierDashboard() {
                       <p className="text-[11px] font-semibold tracking-[0.06em] text-finland">{dayLabel}</p>
                     </div>
                     <ul className="min-w-0 flex-1 space-y-1.5">
-                      {rows.map((b) => (
+                      {rows.map((b) => {
+                        const liveOption = b.booking_option_id
+                          ? materializedBookingOptions(
+                              parseListingExtras(listingsById[b.listing_id]?.listingExtras as unknown)
+                                .bookingOptions
+                            ).find((o) => o.id === b.booking_option_id)?.name?.trim() || ''
+                          : '';
+                        const title = displayListingTitleFromPurchase(
+                          b.purchase_snapshot,
+                          listingTitlesById[b.listing_id],
+                          'Tour'
+                        );
+                        const optionLabel = displayOptionLabelFromPurchase(
+                          b.purchase_snapshot,
+                          liveOption
+                        );
+                        const startHm = pgTimeToHm(b.start_time) || pgTimeToHm(b.pickup_time) || null;
+                        return (
                         <li key={b.id}>
                           <button
                             type="button"
@@ -872,15 +906,18 @@ export default function SupplierDashboard() {
                             className="partner-row-interact lux-flat group w-full rounded-md px-2.5 py-2 text-left"
                           >
                             <span className="block text-[14px] font-semibold text-slate-900 truncate">
-                              {listingTitlesById[b.listing_id] ?? 'Tour'}
+                              {title}
                             </span>
                             <span className="mt-0.5 block text-[12.5px] text-slate-500 truncate">
+                              {startHm ? `${startHm} · ` : ''}
                               {b.guest_name?.trim() ? `${b.guest_name.trim()} · ` : ''}
                               {formatBookingParticipantsLabel(b)}
+                              {optionLabel ? ` · ${optionLabel}` : ''}
                             </span>
                           </button>
                         </li>
-                      ))}
+                        );
+                      })}
                     </ul>
                   </div>
                 );
