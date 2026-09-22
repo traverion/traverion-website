@@ -45,4 +45,16 @@ describe('purchase-snapshot', () => {
     expect(displayOptionLabelFromPurchase(undefined, 'Live option')).toBe('Live option');
     expect(displayMeetingPointFromPurchase({}, 'Live meet')).toBe('Live meet');
   });
+
+  it('preserves Unicode titles and option labels', () => {
+    const snap = buildPurchaseSnapshot({
+      listingTitle: 'オーロラ · Rovaniemi — 北極光',
+      optionLabel: '夕暮れ 20:00',
+      meetingPoint: '駅前 · Café',
+      capturedAt: '2026-09-22T00:00:00.000Z',
+    });
+    expect(displayListingTitleFromPurchase(snap, 'ASCII')).toContain('オーロラ');
+    expect(displayOptionLabelFromPurchase(snap, '')).toContain('夕暮れ');
+    expect(displayMeetingPointFromPurchase(snap, '')).toContain('Café');
+  });
 });
