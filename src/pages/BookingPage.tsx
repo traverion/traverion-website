@@ -728,6 +728,14 @@ export default function BookingPage({
 
   const handleConfirmBooking = async () => {
     if (submitting) return;
+    if (capacityBlocksPay) {
+      setError(
+        departureTime
+          ? `The ${departureTime} departure no longer has enough spots for your party.`
+          : 'This date no longer has enough spots for your party.'
+      );
+      return;
+    }
     if (isSupabaseConfigured() && !userRef.current) {
       requestAuth({
         onSuccess: () => {
