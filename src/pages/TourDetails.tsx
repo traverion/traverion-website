@@ -731,8 +731,11 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       scrollElementIntoView('tour-departure-times', { behavior: 'smooth', block: 'center' });
       setBookingCardError('Choose a departure time to continue.');
       window.requestAnimationFrame(() => {
-        const first = document.querySelector('#tour-departure-times button') as HTMLButtonElement | null;
-        first?.focus();
+        const firstOpen = document.querySelector(
+          '#tour-departure-times button:not([disabled])'
+        ) as HTMLButtonElement | null;
+        const fallback = document.querySelector('#tour-departure-times button') as HTMLButtonElement | null;
+        (firstOpen ?? fallback)?.focus();
       });
       return;
     }
