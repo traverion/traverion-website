@@ -3,10 +3,10 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** _(pending 504–505)_  
-**Current phase:** 505  
+**Current SHA:** _(pending 506)_  
+**Current phase:** 506  
 **Branch:** `reconstruction/phase-0-audit`  
-**Commits this mission:** 93+  
+**Commits this mission:** 94+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
 **Preserve:** `scripts/cert-transactional-emails.cjs` (intentionally untracked)
 
@@ -44,8 +44,9 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 501 | Wrap long listing titles on partner Listings cards | `bc2b8d3` |
 | 502 | Certify marketplace browse filters 10/10 (duration/language honesty) | `bb055db` |
 | 503 | Certify checkout resume semantics 8/8 | `bb055db` |
-| 504 | Certify confirmation reconcile timing 2/2 | _(this commit)_ |
-| 505 | Wrap long review titles/comments on partner Reviews | _(this commit)_ |
+| 504 | Certify confirmation reconcile timing 2/2 | `92a6304` |
+| 505 | Wrap long review titles/comments on partner Reviews | `92a6304` |
+| 506 | Wrap traveler review titles/comments/replies on tour + stay | _(this commit)_ |
 
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
@@ -61,6 +62,9 @@ Marketplace browse filter suite 10/10; checkout-resume suite 8/8 (paid race / ex
 
 ### Phase 504–505 — confirmation reconcile + Reviews wrap
 Reconcile suite 2/2. Partner Reviews wrap long titles/comments.
+
+### Phase 506 — traveler review wrap
+Tour and stay public reviews wrap long titles, comments, and operator replies.
 
 ## Known remaining risks (ranked)
 

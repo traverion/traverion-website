@@ -1485,14 +1485,16 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                     />
                   ))}
                 </div>
-                {r.title && <p className="font-medium text-ink mb-1">{r.title}</p>}
-                <p className="text-ink">{r.comment}</p>
+                {r.title && (
+                  <p className="font-medium text-ink mb-1 break-words [overflow-wrap:anywhere]">{r.title}</p>
+                )}
+                <p className="text-ink break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{r.comment}</p>
                 {reviewReplies[r.id]?.reply_text ? (
                   <div className="mt-3 rounded-xl bg-finland/[0.04] px-3.5 py-3 ring-1 ring-finland/10">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-finland mb-1">
                       Response from the operator
                     </p>
-                    <p className="text-sm text-ink leading-relaxed">{reviewReplies[r.id]!.reply_text}</p>
+                    <p className="text-sm text-ink leading-relaxed break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{reviewReplies[r.id]!.reply_text}</p>
                   </div>
                 ) : null}
               </div>
