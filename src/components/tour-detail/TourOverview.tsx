@@ -18,7 +18,9 @@ export default function TourOverview({ description, extras = [] }: Props) {
       <h2 className="font-display text-xl text-ink mb-2">What you’ll do</h2>
       {text ? (
         <>
-          <p className="text-[15px] leading-relaxed text-ink">{shown}</p>
+          <p className="text-[15px] leading-relaxed text-ink break-words [overflow-wrap:anywhere] whitespace-pre-wrap">
+            {shown}
+          </p>
           {long ? (
             <button
               type="button"
@@ -34,7 +36,9 @@ export default function TourOverview({ description, extras = [] }: Props) {
       {extras.length > 0 ? (
         <ul className="mt-4 space-y-1.5 text-sm text-ink-muted">
           {extras.map((line) => (
-            <li key={line}>{line}</li>
+            <li key={line} className="break-words [overflow-wrap:anywhere]">
+              {line}
+            </li>
           ))}
         </ul>
       ) : null}

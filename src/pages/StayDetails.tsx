@@ -487,7 +487,9 @@ export default function StayDetails({ stayId, onBack }: Props) {
             {stay.description ? (
               <div className="tv-card p-4 sm:p-5">
                 <h2 className="font-display text-xl mb-2">The place</h2>
-                <p className="text-ink-muted">{stay.description}</p>
+                <p className="text-ink-muted break-words [overflow-wrap:anywhere] whitespace-pre-wrap">
+                  {stay.description}
+                </p>
               </div>
             ) : null}
             <div className="tv-card p-4 sm:p-5">
