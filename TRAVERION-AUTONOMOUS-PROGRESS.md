@@ -3,10 +3,10 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** _(pending 501)_  
-**Current phase:** 501  
+**Current SHA:** _(pending 502–503)_  
+**Current phase:** 503  
 **Branch:** `reconstruction/phase-0-audit`  
-**Commits this mission:** 91+  
+**Commits this mission:** 92+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
 **Preserve:** `scripts/cert-transactional-emails.cjs` (intentionally untracked)
 
@@ -41,7 +41,9 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 497 | Certify schedule overlap suite 15/15 (same date+time blocked; different times OK) | `f74352e` |
 | 498–499 | Extract stay sticky CTA helper with unit proof (matches tour sticky honesty) | `c6a54db` |
 | 500 | Listings menu: Schedules deep-link (tours) without full wizard restart | `3060c7c` |
-| 501 | Wrap long listing titles on partner Listings cards | _(this commit)_ |
+| 501 | Wrap long listing titles on partner Listings cards | `bc2b8d3` |
+| 502 | Certify marketplace browse filters 10/10 (duration/language honesty) | _(this commit)_ |
+| 503 | Certify checkout resume semantics 8/8 | _(this commit)_ |
 
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
@@ -51,6 +53,9 @@ Tour listing overflow menu adds Schedules → editor `focus=schedule` so partner
 
 ### Phase 501 — partner listing title wrap
 Listings cards use overflow-wrap so Unicode / unbroken titles stay readable under line-clamp.
+
+### Phase 502–503 — filter + resume certs
+Marketplace browse filter suite 10/10; checkout-resume suite 8/8 (paid race / expired session semantics).
 
 ## Known remaining risks (ranked)
 
