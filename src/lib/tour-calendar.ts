@@ -62,35 +62,59 @@ export function publicTourPaidGuestsByDeparture(
   return out;
 }
 
-export function tourSoldOutDates(params: {
-  paidByDay: Record<string, number>;
-  capByDay: Map<string, number>;
-  fallbackCapacity: number;
-}): Set<string> {
-  const next = new Set<string>();
-  for (const [day, cap] of params.capByDay) {
-    if (remainingCapacity(cap, params.paidByDay[day] ?? 0) < 1) next.add(day);
-  }
-  for (const [day, paid] of Object.entries(params.paidByDay)) {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) continue;
-    const cap = params.capByDay.get(day) ?? params.fallbackCapacity;
-    if (remainingCapacity(cap, paid) < 1) next.add(day);
-  }
-  return next;
-}
-
-/** Catalog date filter: hide tours with no remaining paid capacity for the party. */
+/** Catalog date filter: hide tours only when a day-level capacity override is exhausted.
+ * Without a day override, do not treat aggregated paid guests as exhausting every departure
+ * (morning fill must not hide an evening departure from browse).
+ */
 export function tourDateLacksCapacityForParty(params: {
   paidGuestsThatDay: number;
   dayCapacity: number | undefined;
   fallbackCapacity: number;
   partySize?: number;
 }): boolean {
-  const cap =
-    typeof params.dayCapacity === 'number' && Number.isFinite(params.dayCapacity)
-      ? params.dayCapacity
-      : params.fallbackCapacity;
-  const remaining = remainingCapacity(cap, params.paidGuestsThatDay);
+  if (typeof params.dayCapacity !== 'number' || !Number.isFinite(params.dayCapacity)) {
+    return false;
+  }
+  const remaining = remainingCapacity(params.dayCapacity, params.paidGuestsThatDay);
   const need = Math.max(1, Math.floor(params.partySize ?? 1));
   return remaining < need;
+}
+
+/**
+ * Public calendar sold-out markers.
+ * Explicit listing_availability day caps remain day-wide.
+ * Without a day cap, optional paidBySlot + departures mark a day full only when every departure is full;
+ * otherwise fall back to paid-by-day vs fallbackCapacity (single-slot / legacy).
+ */
+export function tourSoldOutDates(params: {
+  paidByDay: Record<string, number>;
+  capByDay: Map<string, number>;
+  fallbackCapacity: number;
+  paidBySlot?: Record<string, number>;
+  departuresForDay?: (day: string) => Array<{ startTimeHm: string; maxSpots: number }>;
+  slotKey?: (day: string, startTimeHm: string) => string;
+}): Set<string> {
+  const next = new Set<string>();
+  for (const [day, cap] of params.capByDay) {
+    if (remainingCapacity(cap, params.paidByDay[day] ?? 0) < 1) next.add(day);
+  }
+  const days = new Set<string>([
+    ...params.capByDay.keys(),
+    ...Object.keys(params.paidByDay),
+  ]);
+  for (const day of days) {
+    if (params.capByDay.has(day)) continue;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) continue;
+    const departures = params.departuresForDay?.(day) ?? [];
+    if (departures.length >= 2 && params.paidBySlot && params.slotKey) {
+      const allFull = departures.every((d) => {
+        const paid = params.paidBySlot![params.slotKey!(day, d.startTimeHm)] ?? 0;
+        return remainingCapacity(d.maxSpots, paid) < 1;
+      });
+      if (allFull) next.add(day);
+      continue;
+    }
+    if (remainingCapacity(params.fallbackCapacity, params.paidByDay[day] ?? 0) < 1) next.add(day);
+  }
+  return next;
 }

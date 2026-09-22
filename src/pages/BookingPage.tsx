@@ -29,6 +29,7 @@ import {
   listingOptionReadySchedules,
   resolveScheduleForDate,
   applyScheduleToOption,
+  tourSellingDeparturesOnDate,
 } from '../lib/listing-option-schedules';
 import { localYmd } from '../lib/local-ymd';
 import { formatMoney, normalizeCurrency } from '../lib/money';
@@ -319,7 +320,20 @@ export default function BookingPage({
         capByDay.set(day, row.capacity);
       }
       setDayCapacitySnap({ paidByDay, paidBySlot, capByDay, fallback: fallbackCap });
-      setSoldOutDates(tourSoldOutDates({ paidByDay, capByDay, fallbackCapacity: fallbackCap }));
+      setSoldOutDates(
+        tourSoldOutDates({
+          paidByDay,
+          paidBySlot,
+          capByDay,
+          fallbackCapacity: fallbackCap,
+          slotKey: tourPaidSlotKey,
+          departuresForDay: (day) =>
+            tourSellingDeparturesOnDate(calendarOptions, day).map((d) => ({
+              startTimeHm: d.startTime,
+              maxSpots: d.maxSpotsPerSlot,
+            })),
+        })
+      );
     });
     return () => {
       cancelled = true;

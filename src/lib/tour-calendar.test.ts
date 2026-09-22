@@ -144,7 +144,7 @@ describe('tour calendar states', () => {
     ).toBe(true);
   });
 
-  it('catalog date filter hides tours without remaining capacity for the party', () => {
+  it('catalog date filter hides tours only when a day-level capacity override is exhausted', () => {
     expect(
       tourDateLacksCapacityForParty({
         paidGuestsThatDay: 11,
@@ -153,11 +153,12 @@ describe('tour calendar states', () => {
         partySize: 2,
       })
     ).toBe(true);
+    // No day override: morning fill must not hide the listing from browse.
     expect(
       tourDateLacksCapacityForParty({
-        paidGuestsThatDay: 11,
+        paidGuestsThatDay: 12,
         dayCapacity: undefined,
-        fallbackCapacity: 12,
+        fallbackCapacity: 8,
         partySize: 1,
       })
     ).toBe(false);
@@ -169,5 +170,38 @@ describe('tour calendar states', () => {
         partySize: 1,
       })
     ).toBe(true);
+  });
+
+  it('multi-departure day is sold out only when every departure is full', () => {
+    const sold = tourSoldOutDates({
+      paidByDay: { '2026-10-01': 8 },
+      capByDay: new Map(),
+      fallbackCapacity: 8,
+      paidBySlot: {
+        '2026-10-01|08:00': 8,
+        '2026-10-01|20:00': 0,
+      },
+      slotKey: (day, hm) => `${day}|${hm}`,
+      departuresForDay: () => [
+        { startTimeHm: '08:00', maxSpots: 8 },
+        { startTimeHm: '20:00', maxSpots: 6 },
+      ],
+    });
+    expect(sold.has('2026-10-01')).toBe(false);
+    const bothFull = tourSoldOutDates({
+      paidByDay: { '2026-10-01': 14 },
+      capByDay: new Map(),
+      fallbackCapacity: 8,
+      paidBySlot: {
+        '2026-10-01|08:00': 8,
+        '2026-10-01|20:00': 6,
+      },
+      slotKey: (day, hm) => `${day}|${hm}`,
+      departuresForDay: () => [
+        { startTimeHm: '08:00', maxSpots: 8 },
+        { startTimeHm: '20:00', maxSpots: 6 },
+      ],
+    });
+    expect(bothFull.has('2026-10-01')).toBe(true);
   });
 });

@@ -83,6 +83,7 @@ import {
   departureTimesOnDate,
   resolveScheduleForDate,
   applyScheduleToOption,
+  tourSellingDeparturesOnDate,
 } from '../lib/listing-option-schedules';
 import { formatTourAvailabilityHeading, optionsOnDate } from '../lib/tour-available-options';
 import { fetchWishlistListingIds, toggleWishlist } from '../data/supabase-wishlist';
@@ -341,7 +342,20 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
           capByDay.set(day, row.capacity);
         }
         setDayCapacitySnap({ paidByDay, paidBySlot, capByDay, fallback: fallbackCap });
-        setSoldOutDates(tourSoldOutDates({ paidByDay, capByDay, fallbackCapacity: fallbackCap }));
+        setSoldOutDates(
+          tourSoldOutDates({
+            paidByDay,
+            paidBySlot,
+            capByDay,
+            fallbackCapacity: fallbackCap,
+            slotKey: tourPaidSlotKey,
+            departuresForDay: (day) =>
+              tourSellingDeparturesOnDate(calendarOptions, day).map((d) => ({
+                startTimeHm: d.startTime,
+                maxSpots: d.maxSpotsPerSlot,
+              })),
+          })
+        );
       });
     return () => {
       cancelled = true;
