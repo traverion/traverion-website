@@ -69,6 +69,7 @@ import { formatStayNightHuman } from '../../lib/stay-calendar';
 import { partnerBookingHasPickupAttention } from '../../lib/pickup-completeness';
 import { openSupplierPickup } from '../../lib/supplierPortalNavigation';
 import { parseListingExtras, materializedBookingOptions } from '../../types/listingExtras';
+import { comparePartnerBookingsOperational } from '../../lib/partner-bookings-order';
 
 const BOOKINGS_PAGE_SIZE = 10;
 
@@ -457,6 +458,24 @@ export default function SupplierBookings({
         if (aLive !== bLive) return aLive - bLive;
         return b.created_at.localeCompare(a.created_at);
       });
+    } else {
+      // Operational desk: same-day bookings cluster by departure time (multi-schedule).
+      const pastFirst = view === 'past';
+      rows.sort((a, b) =>
+        comparePartnerBookingsOperational(
+          {
+            booking_date: a.booking_date,
+            start_time_hm: a.start_time ? pgTimeToHm(a.start_time) ?? '' : '',
+            created_at: a.created_at,
+          },
+          {
+            booking_date: b.booking_date,
+            start_time_hm: b.start_time ? pgTimeToHm(b.start_time) ?? '' : '',
+            created_at: b.created_at,
+          },
+          { pastFirst }
+        )
+      );
     }
     return rows;
   }, [bookings, filterDateFrom, filterDateTo, filterListingId, filterQuery, listingMeta, todayIso, tomorrowIso, view, opsFilter, openCancels, inventoryFamily, highlightBookingId]);
