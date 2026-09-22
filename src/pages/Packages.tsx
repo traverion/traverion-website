@@ -382,6 +382,17 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
   const languageOptions = useMemo(() => collectTourLanguages(allListings), [allListings]);
   const showDurationFilter = useMemo(() => catalogHasParseableDurations(allListings), [allListings]);
 
+  // Hidden filters must not keep filtering — that would be a UI-only illusion.
+  useEffect(() => {
+    if (!showDurationFilter && durationFilter !== 'all') setDurationFilter('all');
+  }, [showDurationFilter, durationFilter]);
+
+  useEffect(() => {
+    if (languageOptions.length === 0 && languageFilter && languageFilter !== 'all') {
+      setLanguageFilter('');
+    }
+  }, [languageOptions.length, languageFilter]);
+
   const ratingScoreForFilter = useCallback(
     (tour: TourPackage) => {
       if (!isSupabaseListingId(tour.id)) return null;
