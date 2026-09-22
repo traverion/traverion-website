@@ -3,10 +3,10 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** _(pending 538)_  
-**Current phase:** 538  
+**Current SHA:** _(pending 539–540)_  
+**Current phase:** 540  
 **Branch:** `reconstruction/phase-0-audit`  
-**Commits this mission:** 121+  
+**Commits this mission:** 122+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
 **Preserve:** `scripts/cert-transactional-emails.cjs` (intentionally untracked)
 
@@ -82,7 +82,9 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 535 | Apply homepage featured listing title wrap | `03042da` |
 | 536 | Normalize invalid stay browse date ranges from shared URLs | `fc31b7a` |
 | 537 | Build + tsc + honesty 16/16 after stay date + wrap band | `3a6ed7e` |
-| 538 | Wrap destination page hero title | _(this commit)_ |
+| 538 | Wrap destination page hero title | `994eb7e` |
+| 539 | Certify partner Money CSV export honesty 2/2 | _(this commit)_ |
+| 540 | Certify partner Today empty-schedule copy 2/2 | _(this commit)_ |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -178,6 +180,9 @@ Production build clean; app tsc clean; focused honesty 16/16 after stay date-ran
 
 ### Phase 538 — destination hero wrap
 Destination page hero titles wrap long place names.
+
+### Phase 539–540 — partner Money/Today certs
+Money CSV export honesty 2/2; Today empty-schedule copy never claims “nothing needs you” when attention exists (2/2).
 
 ## Known remaining risks (ranked)
 
