@@ -242,6 +242,19 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
   const propertyTypes = useMemo(() => collectStayPropertyTypes(stays), [stays]);
   const amenityOptions = useMemo(() => collectStayAmenities(stays), [stays]);
 
+  // Hidden filters must not keep filtering — that would be a UI-only illusion.
+  useEffect(() => {
+    if (propertyTypes.length === 0 && propertyType && propertyType !== 'all') {
+      setPropertyType('all');
+    }
+  }, [propertyTypes.length, propertyType]);
+
+  useEffect(() => {
+    if (amenityOptions.length === 0 && selectedAmenities.length > 0) {
+      setSelectedAmenities([]);
+    }
+  }, [amenityOptions.length, selectedAmenities.length]);
+
   const filtered = useMemo(() => {
     let list = stays.filter((s) => {
       const agg = reviewAggregates.get(s.id);

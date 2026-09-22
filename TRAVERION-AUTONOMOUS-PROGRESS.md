@@ -3,10 +3,10 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** _(pending 516)_  
-**Current phase:** 516  
+**Current SHA:** _(pending 517)_  
+**Current phase:** 517  
 **Branch:** `reconstruction/phase-0-audit`  
-**Commits this mission:** 100+  
+**Commits this mission:** 101+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
 **Preserve:** `scripts/cert-transactional-emails.cjs` (intentionally untracked)
 
@@ -61,6 +61,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 514 | Today schedule: wrap long meeting points (no silent truncate) | `6b1d88a` |
 | 515 | Wrap long guest emails on partner Bookings detail | `8e4621b` |
 | 516 | Clear hidden duration/language filters so they cannot silently filter | _(this commit)_ |
+| 517 | Clear hidden stay property/amenity filters when chips are hidden | _(this commit)_
 
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
@@ -97,6 +98,9 @@ Guest mailto links break long emails instead of overflowing the modal.
 
 ### Phase 516 — hidden filter honesty
 When duration or language filter UI is unavailable, active values reset so results are not filtered by invisible controls.
+
+### Phase 517 — stay hidden-filter honesty
+When property-type or amenity chips are not shown, reset those filters so stays are not narrowed by invisible controls.
 
 ## Known remaining risks (ranked)
 
