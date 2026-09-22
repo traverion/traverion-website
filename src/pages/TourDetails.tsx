@@ -1377,10 +1377,13 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                                   block: 'center',
                                 });
                                 window.requestAnimationFrame(() => {
-                                  const first = document.querySelector(
+                                  const firstOpen = document.querySelector(
+                                    '#tour-departure-times button:not([disabled])'
+                                  ) as HTMLButtonElement | null;
+                                  const fallback = document.querySelector(
                                     '#tour-departure-times button'
                                   ) as HTMLButtonElement | null;
-                                  first?.focus();
+                                  (firstOpen ?? fallback)?.focus();
                                 });
                                 return;
                               }
