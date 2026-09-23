@@ -880,6 +880,83 @@ policy, a full close is strictly safer than a partial one and equally
 client-writable `total_amount`/`currency`/`guests` surface for future
 phases to re-discover.
 
+### Phase 564 -- Concurrency audit (checkout claim path) + listing publish-completeness gap (documented, not fixed)
+
+Two independent investigations this phase, both concluded with evidence
+rather than a code change -- an audit phase, per the mission's own
+allowance for a clean audit that materially reduces a known launch risk.
+
+**1. Concurrency: is the listing-scoped advisory lock actually safe for
+"two travelers buy the last slot" races?** The tracker's existing "P1 --
+Advisory lock listing-scoped -- safe but coarse" note was correct but
+unverified by direct reading this session. Traced the real call graph in
+`create-booking-checkout-session/index.ts`: the PRIMARY path for a new
+booking calls a single RPC, `claim_pending_checkout_booking` (migration
+076). Read that function's full body -- it is one PL/pgSQL function
+(`PERFORM public.assert_checkout_inventory(...)` -- which takes
+`pg_advisory_xact_lock` scoped to the listing -- immediately followed by
+`INSERT INTO public.bookings` in the SAME function, i.e. the SAME
+transaction). Because the lock is transaction-scoped and both the
+capacity check and the row insert happen inside that one transaction, a
+second concurrent claim for the same listing genuinely blocks until the
+first commits, then correctly sees the first booking's row when it
+re-checks capacity. No time-of-check-to-time-of-use gap exists in this
+path. There IS a separate, older fallback path in the same edge function
+(a bare `assert_checkout_inventory` RPC call followed by a *separate*
+`.from('bookings').insert()` round-trip) which genuinely would NOT be
+race-safe on its own -- the advisory lock releases when the first RPC's
+transaction ends, before the second, separate INSERT call even begins.
+But this fallback is explicitly gated behind `claimed.error` matching
+"could not find the function" / "schema cache" -- i.e. it only runs when
+`claim_pending_checkout_booking` itself is missing from the target
+database (an unmigrated/rollback scenario), not in normal operation
+against a fully-migrated project. Confirmed `claim_pending_checkout_booking`
+is defined and current as of migration 076, already committed. No fix
+needed for the primary path; flagging the fallback path's race-unsafety
+as a documented, low-likelihood residual (would only matter if the repo's
+migrations and the live Supabase project's applied-migration state ever
+diverge) rather than fixing it, since correctly re-deriving that path
+would mean either deleting the 60+ year-old-pattern fallback (removing a
+safety net for exactly the situation it exists to catch) or wrapping it
+in its own transaction-spanning RPC, and neither is warranted without
+evidence this path is ever actually reached in production.
+
+**2. Listing publish-completeness is enforced client-side only, not
+server-side (beyond supplier verification).** Migration 082's trigger
+(`enforce_listing_publish_verification`) blocks a listing from
+transitioning to `status='published'` unless the owning supplier is
+business- and payout-verified -- but does not check whether the LISTING
+ITSELF has real bookable content. `src/lib/listingPublishGate.ts`'s
+`getListingPublishBlockers()` is the actual, much richer completeness
+gate (title/subtitle/description length, at least one valid priced
+booking option with schedule/pricing/meeting-point details for tours, or
+nightly price/maxGuests/check-in/check-out for stays, a non-placeholder
+hero image, city/country, includes/excludes, gallery photo count) -- and
+none of it is server-enforced. A verified supplier (a real, vetted
+business, not an anonymous attacker) could bypass all of it via a direct
+REST update to `status:'published'` and put a title-only, price-less,
+photo-less listing live. Checked how severe the actual consequence is: read
+`_shared/booking-quote.ts`'s `quoteListingBooking()` -- when a tour has no
+usable booking options AND no fallback `price_starting_from`, it returns a
+clean `{ ok: false, error: 'This tour does not have a bookable price yet.'
+}` rather than crashing or silently computing a wrong/zero charge. So the
+actual failure mode of this gap is a poor-quality live listing that gives
+a customer a clear, honest error on checkout attempt -- not a money-unsafe
+or corrupted-booking outcome. Assessed as real but P1/P2 (requires an
+already-vetted supplier's own mistake or deliberate bypass, not an
+attacker acting against someone else's account or money), not P0.
+Deliberately NOT building a server-side replica of
+`getListingPublishBlockers()`'s full logic this phase -- it is
+substantial, nuanced, tour/stay-specific business logic, and a hurried
+partial replica risks silently drifting out of sync with the real
+client-side rule set (the same category of bug this mission keeps
+finding, just introduced fresh). Recording as a flagged, well-understood
+gap for a future phase to close properly (most likely: a single
+consolidated "listing has at least one bookable, priced path" check,
+mirroring only the load-bearing subset of `getListingPublishBlockers()`
+that null-charge risk actually depends on, rather than the full
+cosmetic-completeness rule set).
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Traveler browser golden journeys**: verified live (Phase 547) —
