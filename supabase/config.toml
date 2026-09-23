@@ -36,3 +36,9 @@ verify_jwt = false
 [functions.send-booking-reminders]
 # Cron / ops secret auth inside the function.
 verify_jwt = false
+
+# Phase 561: locked to service_role callers only (checked inside the
+# function against SUPABASE_SERVICE_ROLE_KEY) -- no live product flow
+# calls this from a client today.
+[functions.send-supplier-message]
+verify_jwt = false

@@ -636,6 +636,74 @@ accurately reflects that this territory was swept, not skipped. `git
 status --short` clean before and after (only the intentionally-untracked
 `scripts/cert-transactional-emails.cjs`).
 
+### Phase 561 -- Close open unauthenticated email relay (send-supplier-message)
+
+Broadened the audit to the remaining, not-yet-checked edge functions
+(`expire-booking-checkout`, `notify-contact-inquiry`, `notify-customer-booking`,
+`notify-supplier-event`, `notify-staff-verification-queue`,
+`send-booking-reminders`, `send-supplier-message`) after Phase 559-560
+found the checkout/webhook/ledger/admin-table trust boundaries clean.
+`expire-booking-checkout`, `notify-contact-inquiry`, and
+`notify-staff-verification-queue` are correctly gated (ownership check,
+fixed non-attacker-controlled recipient, and a bearer-secret check,
+respectively). `send-booking-reminders` is a clean cron-secret-gated
+caller.
+
+`send-supplier-message` (`supabase/functions/send-supplier-message/index.ts`)
+had **no caller-identity check of any kind**. It is not listed in
+`supabase/config.toml`, so it ran under the CLI's default `verify_jwt =
+true`, which only requires *a* valid signed JWT at the gateway -- the
+project's own public anon key satisfies that, since anon and service-role
+keys are both ordinary signed JWTs differing only in their `role` claim,
+which the gateway does not check. The function body itself then did zero
+role/identity verification and relayed `{to, subject, body}` verbatim to
+Resend as `no-reply@traverion.com`, to any recipient, with no rate limit
+-- a fully open phishing/spam relay on the platform's trusted sending
+domain, reachable by anyone holding the public anon key (i.e. anyone,
+since it ships in every client bundle). The one client-side helper that
+calls it (`src/data/supabase-supplier-messaging.ts`'s
+`sendSupplierEmailViaEdge`) is not invoked from anywhere else in `src/`
+today, confirming no live product flow needs this reachable from a
+client's anon/session key.
+
+**Fix.** The function now requires the caller's `Authorization: Bearer`
+token to exactly match `SUPABASE_SERVICE_ROLE_KEY` (the same secret
+server-side functions like `stripe-webhook` already present when calling
+`notify-customer-booking`/`notify-supplier-event`), returning 401
+otherwise. `supabase/config.toml` gained a `verify_jwt = false` entry for
+it (matching the convention already used for every other internally-
+secret-gated function in this repo) so the gateway's JWT check doesn't
+shadow the more precise in-function check. `deno check` clean; `tsc
+--noEmit` clean (no TypeScript logic changed, only the untouched dead
+client helper remains, which will now correctly get a 401 if it's ever
+wired up without also passing the service-role key).
+
+**Not yet fixed this phase (deferred, flagged as the next P0 target):**
+the same investigation found `notify-customer-booking` and
+`notify-supplier-event` have the identical `verify_jwt = false` +
+zero-in-function-auth gap, but unlike `send-supplier-message` they have
+REAL, actively-used client-side call sites (`src/data/supabase-booking-ops.ts`,
+`supabase-bookings.ts`, `supabase-consumer-profile.ts`,
+`supabase-supplier-messaging.ts`, several call sites each) alongside
+their legitimate server-to-server callers (`stripe-webhook`,
+`promote-paid-from-checkout.ts`, `send-booking-reminders`). An
+unauthenticated caller can today send a Traverion-branded email
+(`notify-customer-booking`) to any address with an attacker-chosen
+"Manage booking" link domain and, for the paid-confirmation template, an
+attacker-chosen displayed amount against a real booking id; or send a
+similarly-doctored email to a real supplier's real inbox
+(`notify-supplier-event`, recipient resolved server-side so at least
+restricted to genuine accounts, but every link/logo domain is still
+attacker-controlled via `portalBaseUrl`). Because both functions are
+large (550 and 518 lines) with many distinct `emailKind`/`eventType`
+branches and several live client call sites each, a correct fix needs
+dual-mode auth (service-role bypass for the trusted server callers, plus
+JWT-based ownership verification -- ignoring/overriding client-submitted
+recipient, amount, and link-domain fields in favor of DB-derived values
+-- for client callers) designed and tested carefully rather than rushed
+in the same phase as the send-supplier-message fix. This is the leading
+candidate for Phase 562.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Traveler browser golden journeys**: verified live (Phase 547) —
