@@ -580,6 +580,62 @@ function's document-review flow (fully admin-gated before any action
 dispatch, signed URLs generated server-side) were also swept this phase
 and found clean, no changes needed.
 
+### Phase 558 -- Audit: supplier ledger writes, payout surface, admin table access (no fix needed)
+
+Continuing the founder's steer to prioritize RLS/SECURITY DEFINER/storage/
+admin-transition territory, this phase targeted the highest-value
+remaining candidate given the established "client-trusted value, no
+server-side re-check" bug class found 6 times in Phases 551-557: whether
+`public.supplier_ledger_entries` -- the real financial ledger backing
+supplier balances -- can be written directly by a client, which would let
+a supplier fabricate earnings or erase a penalty/reversal entry. It
+cannot. All 9 migrations touching this table were read in order; its RLS
+(enabled in migration 055) is `select using (auth.uid() = supplier_id)`,
+`insert with check (false)`, `update using (false)`, no delete policy
+(default-deny), and no `grant` to `authenticated` exists anywhere in the
+migration history (repo-wide grep confirmed). Every real write goes
+through `SECURITY DEFINER` RPCs that compute amount/currency server-side
+(`record_paid_booking_earnings`, `service_role`-only, reads
+`bookings.amount_paid` directly; `respond_cancellation_request` /
+`cancel_booking_as_traveler`, already hardened in Phases 555-556-557)
+rather than trusting client input. Clean.
+
+Three secondary areas were also checked and found clean or not-applicable:
+no supplier-payout table or payout-computation endpoint exists anywhere in
+the schema yet (payouts are evidently still handled manually off-platform,
+with the ledger as the only balance record, already covered above); no
+admin edge function beyond the already-audited `admin-supplier-verification`
+performs admin-gated state transitions (`reconcile-checkout-session` is
+traveler-scoped and derives amounts from Stripe's own session data, not
+client input); and `public.listings`' other client-writable columns beyond
+the already-fixed `status` (Phase 553) carry no exploitable business rule
+-- there is no commission/platform-fee column on `listings` at all, and
+`rating`/`reviews` are legacy seed-data columns the frontend never renders
+for real Supabase-backed listings (`src/lib/listingTruth.ts`: "Guest-facing
+score: real aggregates only. Never a default 4.5.").
+
+As a direct follow-on, this phase also read `public.admin` (migration
+038) -- the allowlist table gating the Traverion staff panel -- end to
+end: RLS enabled with **no policies at all** (default-deny for every
+role), plus an explicit `REVOKE ALL ON TABLE public.admin FROM anon,
+authenticated`, so no client can read or write it directly under any
+circumstance. The one function that checks it,
+`is_traverion_panel_admin()`, is `SECURITY DEFINER` and read-only (an
+`EXISTS` check against the caller's JWT email), and is itself used in
+exactly one place across the schema -- gating the admin `FOR ALL` RLS
+policy on `supplier_portal_notifications` (dashboard banners, migration
+053), where the corresponding `select_own` policy correctly limits
+non-admin suppliers to SELECT only. No path found for a client to
+self-grant admin status or to write to a table an admin's RLS bypass was
+meant to gate exclusively.
+
+No migration or test file was needed this phase -- nothing exploitable
+was found. Recorded here (per the tracker's role of reflecting honest
+project truth, not just fixes) so the eventual Phase 800 handoff
+accurately reflects that this territory was swept, not skipped. `git
+status --short` clean before and after (only the intentionally-untracked
+`scripts/cert-transactional-emails.cjs`).
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Traveler browser golden journeys**: verified live (Phase 547) —
