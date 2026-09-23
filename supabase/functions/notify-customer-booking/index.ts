@@ -80,8 +80,16 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
-function siteBase(raw?: string): string {
-  return (raw ?? 'https://www.traverion.com').replace(/\/$/, '');
+// Phase 562: `raw` (body.publicSiteUrl) used to be trusted verbatim, so any
+// caller (this endpoint has no auth check of its own) could send a
+// legitimate-looking Traverion email to any address with every link/logo
+// pointing at an attacker's domain. The site's own base URL is never
+// something a caller should be choosing, so it is now always derived from
+// this function's own environment, matching the PUBLIC_SITE_URL convention
+// already used the same way by create-booking-checkout-session, stripe-webhook,
+// send-booking-reminders, and _shared/promote-paid-from-checkout.ts.
+function siteBase(_raw?: string): string {
+  return (Deno.env.get('PUBLIC_SITE_URL') ?? 'https://www.traverion.com').replace(/\/$/, '');
 }
 
 function wrapCustomerDocument(params: {
@@ -229,7 +237,7 @@ serve(async (req) => {
     if (!apiKey) return json({ success: false, error: 'RESEND_API_KEY not configured' }, 500);
 
     const body = (await req.json()) as Payload;
-    const to = String(body.customerEmail ?? '').trim().toLowerCase();
+    let to = String(body.customerEmail ?? '').trim().toLowerCase();
     if (!to || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
       return json({ success: false, error: 'Invalid customer email' }, 400);
     }
@@ -242,22 +250,64 @@ serve(async (req) => {
     const name = String(body.customerName ?? '').trim();
     const greeting = name ? `Hi ${name},` : 'Hi,';
     const publicSiteUrl = siteBase(body.publicSiteUrl);
-    const currency = String(body.currency ?? 'EUR').trim().toUpperCase() || 'EUR';
+    let currency = String(body.currency ?? 'EUR').trim().toUpperCase() || 'EUR';
     const refDigits = orderTag(body.bookingNumber);
-    const amount =
+    let amount =
       typeof body.totalAmount === 'number' && Number.isFinite(body.totalAmount) && body.totalAmount >= 0
         ? body.totalAmount
         : undefined;
 
     const admin = adminClientFromEnv();
-    if (kind === 'booking_confirmed_paid' && admin) {
-      const { data: paidRow } = await admin
+    // Phase 562: this endpoint has no caller-identity check of its own, so a
+    // client-submitted customerEmail/totalAmount/currency used to be trusted
+    // verbatim -- anyone could send a real-looking "your booking is
+    // confirmed" or "refund completed" email, citing a real bookingId, to any
+    // address they chose, with any amount they chose. For booking_confirmed_paid
+    // there is exactly one correct amount/currency per booking (what was
+    // actually charged), so both the recipient and the amount/currency are now
+    // re-derived from the bookings row rather than trusted from the request.
+    // refund_completed is only ever triggered server-side today (stripe-webhook,
+    // after a verified Stripe refund event), and its totalAmount is the actual
+    // Stripe refund amount -- which can be a *partial* refund with no single
+    // corresponding column on bookings -- so only its recipient is re-derived
+    // here; the amount/currency still come from the (currently trusted-only)
+    // caller. A full amount re-derivation for refund_completed, once a
+    // per-refund ledger value is available to check it against, is a
+    // reasonable target for a future phase.
+    if ((kind === 'booking_confirmed_paid' || kind === 'refund_completed') && admin) {
+      const bookingId = String(body.bookingId ?? '').trim();
+      if (!bookingId) {
+        return json({ success: false, error: 'bookingId required for this emailKind' }, 400);
+      }
+      const { data: bookingRow } = await admin
         .from('bookings')
-        .select('payment_status')
-        .eq('id', String(body.bookingId).trim())
+        .select('payment_status, guest_email, amount_paid, total_amount, currency')
+        .eq('id', bookingId)
         .maybeSingle();
-      if (!paidConfirmationMaySend(paidRow?.payment_status as string | undefined)) {
-        return json({ success: false, error: 'Booking is not paid' }, 409);
+
+      if (kind === 'booking_confirmed_paid') {
+        if (!paidConfirmationMaySend(bookingRow?.payment_status as string | undefined)) {
+          return json({ success: false, error: 'Booking is not paid' }, 409);
+        }
+        const dbAmount =
+          typeof bookingRow?.amount_paid === 'number'
+            ? bookingRow.amount_paid
+            : typeof bookingRow?.total_amount === 'number'
+              ? bookingRow.total_amount
+              : undefined;
+        if (typeof dbAmount === 'number' && Number.isFinite(dbAmount) && dbAmount >= 0) {
+          amount = dbAmount;
+        }
+        if (typeof bookingRow?.currency === 'string' && bookingRow.currency.trim()) {
+          currency = bookingRow.currency.trim().toUpperCase();
+        }
+      }
+
+      const dbGuestEmail = String(bookingRow?.guest_email ?? '').trim().toLowerCase();
+      if (dbGuestEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(dbGuestEmail)) {
+        to = dbGuestEmail;
+      } else if (!bookingRow) {
+        return json({ success: false, error: 'Booking not found' }, 404);
       }
     }
     const idempotencyKey =

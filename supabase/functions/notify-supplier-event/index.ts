@@ -62,8 +62,17 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
-function siteBase(payload: Payload): string {
-  return (payload.portalBaseUrl ?? 'https://partner.traverion.com').replace(/\/$/, '');
+// Phase 562: payload.portalBaseUrl used to be trusted verbatim, so any
+// caller (this endpoint has no auth check on its own -- see index.ts's
+// serve() handler) could send a legitimate-looking Traverion email to a
+// real supplier's real inbox with every link/logo pointing at an
+// attacker's domain. No legitimate caller needs to override the portal's
+// own base URL, so it is now fixed, matching the same constant
+// admin-supplier-verification/index.ts already hardcodes for supplier
+// emails (no PARTNER_PORTAL_URL-style secret exists in this project, so
+// an env override here would just be a dangling, never-set reference).
+function siteBase(_payload: Payload): string {
+  return 'https://partner.traverion.com';
 }
 
 function logoUrl(base: string): string {

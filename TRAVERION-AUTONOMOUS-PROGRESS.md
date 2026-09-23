@@ -704,6 +704,100 @@ recipient, amount, and link-domain fields in favor of DB-derived values
 in the same phase as the send-supplier-message fix. This is the leading
 candidate for Phase 562.
 
+### Phase 562 -- Harden notify-customer-booking / notify-supplier-event against the deferred Phase 561 findings
+
+Closed the two findings deferred from Phase 561: `notify-customer-booking`
+and `notify-supplier-event` have no caller-identity check of their own
+(`verify_jwt = false`, with the in-function check intended for
+server-to-server callers only, per the file's own comment -- but both have
+real, actively-used client call sites too, so a blanket auth requirement
+risked breaking legitimate traveler/supplier flows without first confirming
+the guest-checkout auth model). Rather than the larger dual-mode
+ownership-verification redesign (still deferred -- see below), this phase
+closes the two concretely-exploitable trust gaps in each function with a
+conservative, targeted fix.
+
+**notify-supplier-event.** `siteBase()` used to build every logo/link URL
+from the request's `portalBaseUrl` verbatim. Read the function in full
+(518 lines) to confirm the recipient side was already safe: recipients are
+resolved server-side from `supplier_team_members` + `auth.admin.getUserById`
+keyed only off `supplierId`, never from anything else in the payload, so a
+caller cannot redirect the email to an address of their choosing -- it only
+ever reaches that supplier's real registered account(s). The one real gap
+was the link/logo domain. Fixed by hardcoding `siteBase()` to
+`'https://partner.traverion.com'`, matching the identical constant
+`admin-supplier-verification/index.ts` already hardcodes for supplier
+email -- no `PARTNER_PORTAL_URL`-style secret exists anywhere in this
+project, so an env-var override would have been a dangling reference to a
+secret nothing sets.
+
+**notify-customer-booking.** Two gaps, fixed separately:
+- `siteBase()` had the same request-trusted-domain issue; fixed the same
+  way but as an env-backed override (`PUBLIC_SITE_URL`), matching the
+  existing convention already used identically by
+  `create-booking-checkout-session`, `stripe-webhook`,
+  `send-booking-reminders`, and `_shared/promote-paid-from-checkout.ts`.
+- Unlike notify-supplier-event, this function's recipient (`customerEmail`)
+  *was* fully caller-controlled, and for `booking_confirmed_paid` so was
+  `totalAmount`/`currency` -- a caller holding a real `bookingId` could
+  already only pass the DB's own `payment_status='paid'` gate (pre-existing
+  from an earlier phase), but nothing stopped them from citing any
+  `bookingId` while sending the "confirmed" receipt to an address of their
+  choosing with a made-up amount. Extended the existing DB-fetch (now also
+  covering `refund_completed`) to pull `guest_email, amount_paid,
+  total_amount, currency` from the real booking row: for
+  `booking_confirmed_paid`, recipient AND amount/currency are now always
+  DB-derived (there is exactly one correct paid amount per booking, so
+  overriding is safe and lossless); for `refund_completed`, only the
+  recipient is DB-derived -- its `totalAmount` is the actual Stripe refund
+  amount, which can be a *partial* refund with no corresponding single
+  column on `bookings`, so overriding it from the booking row would have
+  silently shown the wrong number on a partial refund. Confirmed via
+  `stripe-webhook`'s own call site that `refund_completed` is only ever
+  triggered server-side today (no client call site found anywhere in
+  `src/`), so the residual amount-trust gap on that one kind has no live
+  exploitable path right now; closing it for real needs a per-refund ledger
+  value to check against, which does not exist yet -- flagged as a future
+  candidate rather than guessed at here.
+
+**Verified.** `deno check` clean on both files (after staging their
+`_shared/*.ts` imports into the sandbox so the check could resolve them).
+Traced every remaining reference to the old `to`/`amount`/`currency`
+`const`s through the rest of `notify-customer-booking` (idempotency key,
+PDF receipt, email body, `sendResendEmail` call) to confirm the DB-derived
+values are what actually gets sent, not just computed and discarded.
+Confirmed against `stripe-webhook`'s actual refund call site that its
+`totalAmount` there is the Stripe refund amount, not `booking.amount_paid`
+-- the detail that ruled out overriding `refund_completed`'s amount.
+
+**Technique change this phase:** used `device_commit_files` (direct
+backend file write) instead of the base64-heredoc-reconstruction technique
+used through Phase 561, after confirming it's available in this session.
+It writes bytes straight through without passing file content back through
+the model's own context, which is exactly the class of transfer that
+produced the real dropped-semicolon transcription bug caught in Phase 557.
+Still verified byte-identical via `md5sum` on both sides afterward as a
+belt-and-suspenders check, but the manual-reconstruction failure mode is
+now structurally avoided rather than just caught after the fact. Recommend
+this as the default transfer method for the rest of the mission.
+
+**Not yet fixed this phase (deferred, still an open P1/P2):** the full
+dual-mode auth redesign (service-role bypass + JWT-verified-caller-owns-
+the-resource, matching `expire-booking-checkout`'s pattern) across every
+`emailKind`/`eventType` and every live client call site in both functions.
+Both endpoints remain callable by anyone with the public anon key for
+kinds/events this phase did not touch (e.g. an unauthenticated caller can
+still trigger a `new_booking_message` or `cancellation_accepted`-kind email
+to a real booking's real guest, or a `guest_message`/`new_review`-kind
+email to a real supplier -- content believable-looking but not containing
+attacker-controlled links/amounts/recipients any more after this phase's
+fix, so the remaining exposure is closer to a notification-spam nuisance
+than a phishing or fraud vector). This still needs the guest-checkout auth
+model confirmed (whether `booking_request`, triggered at booking creation
+in `supabase-bookings.ts:360`, can legitimately come from an unauthenticated
+session) before a blanket ownership check could be added without risking a
+real booking-creation regression -- unchanged from the Phase 561 note.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Traveler browser golden journeys**: verified live (Phase 547) —
