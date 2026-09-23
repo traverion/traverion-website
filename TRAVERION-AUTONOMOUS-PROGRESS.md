@@ -271,6 +271,27 @@ one side of a mirrored pair, nothing catches the drift automatically — no
 CI check diffs these directories. Worth a lint/CI rule later; not fixed
 here since it's process tooling, not a product bug.
 
+### Phase 549 — Payout verification email notification (real gap found & fixed)
+Following up on the Phase 548 audit: found that approve_payout/reject_payout
+in admin-supplier-verification never emailed the supplier, unlike
+approve_business/reject_business which have done so since migration 074.
+A rejected payout submission directly blocks listing publish
+(isSupplierReadyToPublishTours requires payout_verification_status
+'verified'), so this was a real, evidence-backed gap, not speculative
+polish. Fixed by mirroring the business-verification email pattern exactly
+(migration 080: payout_verified_email_sent_at / payout_rejected_email_sent_at
+idempotency columns; Resend email with reviewer feedback note on rejection;
+mutual clearing of the opposite marker on reversal).
+
+No Deno tooling exists in this repo to typecheck edge functions (noted in
+Phase 548) — installed Deno in the cloud sandbox and ran `deno check`
+directly against the edited file to verify. It reports the same
+pre-existing SupabaseClient-generic-inference errors that already exist
+throughout the file (starting at line 188, well before this change) and
+that the already-deployed approve_business/reject_business code this
+mirrors also has — not a new error class introduced by this change.
+tsc/build/491 vitest tests all clean.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Traveler browser golden journeys**: verified live (Phase 547) —
