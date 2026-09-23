@@ -483,6 +483,103 @@ locked down) rather than a full authorization bypass. The remaining
 `update_guest_booking_special_requests`, `cancel_booking_as_traveler`) have
 now all been read this run and are believed clean of this specific pattern.
 
+### Phase 557 -- Server-side guard on booking cancellation truth (P0 trust boundary)
+
+Following the founder's explicit steer after Phase 556 to prioritize RLS
+policies, direct table mutations, SECURITY DEFINER functions, storage
+policies, and server/edge endpoints around bookings/refunds/cancellations
+over further visual hardening, this phase audited `public.bookings`' UPDATE
+RLS policies directly (migrations 003 and 037) rather than only the RPC
+layer (already swept through Phase 556). Both the supplier-side and
+traveler-side UPDATE policies validate ONLY row ownership in their `using`/
+`with check` clauses -- neither restricts which columns a client may change.
+
+Migration 078's `bookings_protect_payment_fields()` trigger already freezes
+the payment/commercial-truth columns (`payment_status`, `amount_paid`,
+`total_amount`, etc.) against exactly this kind of raw client write, but it
+never covered the cancellation-truth columns: `status`, `cancelled_at`,
+`cancellation_reason`, `refund_choice`. Those four are legitimately written
+by two blessed RPCs -- `cancel_booking_as_traveler` (081) and
+`respond_cancellation_request` (068) -- which is presumably why they were
+left out of 078's freeze list; a blanket role-based freeze would have
+broken those RPCs.
+
+The gap this leaves is not theoretical. `src/data/supabase-bookings.ts`'s
+`updateBookingStatus()` -- called directly by the single-booking cancel
+button AND by `batchCancelBookings()` on the supplier dashboard's bulk
+date-range release flow -- performs a raw `supabase.from('bookings')
+.update({status, cancelled_at, cancellation_reason, refund_choice})` with
+no server-side re-check that the booking is unpaid. The UI only routes
+here for unpaid holds today (`src/pages/supplier/SupplierBookings.tsx`'s
+"Release hold" flow; a paid booking's cancel button correctly calls
+`requestSupplierCancellation` -> `request_supplier_cancellation` instead,
+which requires traveler consent) -- but that restriction lives entirely in
+React, not the database. `src/lib/cancellation-policy.ts`'s
+`partnerBookingStatusRewriteBlock()`, the one client-side guard on this
+path, only blocks an already-refunded or already-cancelled booking; it
+never checks `payment_status`. A supplier or traveler with a valid JWT
+could call this same endpoint directly on a PAID, confirmed booking to
+cancel it with no cancellation_requests row and no traveler consent at
+all, post an arbitrary `refund_choice` with no corresponding
+`supplier_ledger_entries` fee/reversal entry (the Phase 556-fixed
+accounting simply never runs), or, on an already-cancelled paid booking,
+later flip `refund_choice` after the fact.
+
+**Fix (migration 085).** Extended `bookings_protect_payment_fields()`
+(078's latest body, unchanged otherwise) with an additional freeze: for a
+booking whose `payment_status` is paid/complete/succeeded, and which
+either already is or is being newly set to `status = 'cancelled'`,
+non-service-role callers may not change `status`/`cancelled_at`/
+`cancellation_reason`/`refund_choice` at all -- unless the update is
+happening inside the two blessed RPCs. Since `auth.role()`/`auth.jwt()`
+reflect the ORIGINAL caller's JWT regardless of whether the executing
+function is `SECURITY DEFINER`, a role-based bypass alone can't
+distinguish "inside a blessed RPC" from "a raw client call" -- both look
+identical to the trigger. Instead, both RPCs now call `perform
+set_config('app.bypass_booking_cancellation_guard', 'true', true)`
+(transaction-scoped, so it auto-resets) immediately before their own
+`update bookings` statement, exactly mirroring the existing service_role
+bypass but scoped to one call rather than a whole Postgres role. Unpaid
+bookings are completely unaffected, so `updateBookingStatus`'s legitimate
+"release an unpaid hold" path keeps working with no RPC required, since
+nothing about that path bypasses any accounting. `cancel_booking_as_traveler`
+(081) and `respond_cancellation_request` (068) are otherwise reproduced
+byte-for-byte from their latest prior versions.
+
+**Verification.** Scratch Postgres 16, stubbed `auth.uid()`/`auth.role()`/
+`auth.jwt()`, non-superuser `test_actor` role (avoiding the same
+`current_user in ('postgres','supabase_admin')` bypass gotcha discovered
+in Phase 555), applied the real 078 baseline then the real 085 migration.
+Seven assertions, all passing: a raw client update trying to cancel a
+paid, confirmed booking directly (exactly what `updateBookingStatus`
+sends) is rejected, with `status`/`cancelled_at` unchanged; a raw attempt
+to rewrite `refund_choice` on an already-(properly)-cancelled paid booking
+is also rejected; the same raw cancel on an UNPAID booking still succeeds
+unchanged (release-hold path preserved); `cancel_booking_as_traveler`
+still cancels a paid booking end-to-end, including posting its earnings-
+reversal ledger entry (bypass flag works); `respond_cancellation_request`
+still cancels a paid booking end-to-end, including both its
+cancellation-fee and earnings-reversal ledger entries; `service_role`
+writes remain unaffected; and 078's pre-existing payment-field protection
+(`amount_paid` rewrite attempt) is unaffected by the new guard. Confirmed
+the test is meaningful by re-running the same script against 078 alone
+(085 not applied) -- the raw paid-booking cancel succeeds exactly as the
+vulnerability predicts, cancelling the booking with no consent and no
+ledger entries. Checked in as
+`supabase/tests/bookings_cancellation_truth_guard.test.sql`. `tsc --noEmit`
+clean (no TypeScript touched).
+
+Sixth instance this run of the recurring "client-trusted business rule,
+no independent server-side re-check" bug class -- and the first found by
+auditing table-level RLS/triggers directly rather than the RPC surface,
+confirming the founder's steer toward this territory was well-placed. The
+storage-policy audit (all 4 buckets: `supplier-verification`,
+`listing-images`, `supplier-logos`, plus confirming these are the only 4
+buckets in the schema) and the `admin-supplier-verification` edge
+function's document-review flow (fully admin-gated before any action
+dispatch, signed URLs generated server-side) were also swept this phase
+and found clean, no changes needed.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Traveler browser golden journeys**: verified live (Phase 547) —
