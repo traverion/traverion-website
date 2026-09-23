@@ -27,11 +27,13 @@ export function refundBeforePaidShouldMarkFailed(params: {
 }
 
 export function paidPromotionShouldRefuseFullyRefundedCharge(
-  charge: {
-    amount?: number | null;
-    amount_refunded?: number | null;
-    refunded?: boolean | null;
-  } | null
+  charge:
+    | {
+        amount?: number | null;
+        amount_refunded?: number | null;
+        refunded?: boolean | null;
+      }
+    | null
     | undefined
 ): boolean {
   if (!charge) return false;

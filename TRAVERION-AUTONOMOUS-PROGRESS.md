@@ -1150,6 +1150,69 @@ cancellation/refund subsystem, inventory/capacity chain) is sound;
 Phase 568 moves to a different vertical rather than continuing to probe
 this now well-verified core.
 
+### Phase 568 -- Closed a real, currently-live drift between Deno payment-truth mirrors and their Vitest-tested twins; added a permanent regression test
+
+Read stripe-webhook/index.ts and its two most consequential dependencies
+(promote-paid-from-checkout.ts, checkout-paid-amount.ts) in full -- the
+functions that decide whether a Stripe payment actually confirms a
+booking, and whether to auto-refund a mismatched charge. Confirmed the
+core amount/currency checks are already sound: checkoutPaidAmountAcceptable
+compares against session.metadata.quoted_total, which
+create-booking-checkout-session sets from its own server-side
+quoteListingBooking() result (the same value used for the real Stripe
+unit_amount) -- not from any client-controlled input.
+
+While tracing these files, noticed their header comments ("Mirror of
+src/lib/X.ts for Deno edge runtime. Keep behavior in sync with the
+Vitest-covered module.") describe a convention with no enforcement:
+`supabase/functions/_shared/*.ts` cannot import from `src/`, so nine
+payment-truth predicate modules (checkout-paid-amount, stripe-charge-refund,
+stripe-webhook-replay, checkout-resume, checkout-pi-succeeded,
+checkout-inventory-conflict, cancelled-booking-checkout,
+orphan-checkout-refund, stay-checkout-guest) exist as hand-maintained
+duplicate files -- a Vitest-tested copy under src/lib/, and an untested
+Deno copy that is what actually runs against real Stripe webhooks in
+production. Confirmed via `find supabase/functions -iname "*.test.ts"`
+that zero Deno-side tests exist anywhere in the repo; the only thing
+that has ever verified these files stay identical is a human or an
+earlier phase remembering to update both.
+
+That gap was not theoretical. Diffing all nine pairs found
+supabase/functions/_shared/stay-checkout-guest.ts had already drifted
+from src/lib/stay-checkout-guest.ts in currently-committed code: the
+src/lib copy had gained two exported aliases
+(bookingLeadGuestNameReady, resumeBookingLeadGuestName) that the Deno
+mirror never received. Currently harmless (no edge function imports the
+missing aliases yet, confirmed by grep), but exactly the failure mode
+described above -- a future edge function reaching for the alias name
+would hit a missing export with nothing to catch it before deploy.
+
+Fix, in two parts. (1) Added the two missing aliases to the Deno mirror
+so it is a genuine, complete copy again -- pure addition, no existing
+export changed. (2) Reformatted one cosmetic type-union spacing
+difference in stripe-charge-refund.ts's Deno copy to exactly match its
+src/lib twin (logic was already identical; only a leading `|` token
+differed). (3) Added src/lib/edge-function-deno-mirror-sync.test.ts: a
+Vitest test that self-discovers every "Mirror of src/lib/<name>" file
+under supabase/functions/_shared (rather than hardcoding today's list of
+nine, so a future mirror pair is covered automatically), and asserts
+each pair's code -- comments and formatting stripped -- is textually
+identical. It does not execute the Deno files (Vitest runs under Node
+and the Deno copies use bare https:// specifiers Node cannot resolve);
+textual normalized-equality is sufficient since these are small,
+dependency-free, pure predicate functions with no side effects.
+
+Verified: ran this new test before applying the two fixes above and
+confirmed it correctly failed on both the real stay-checkout-guest.ts
+drift and the stripe-charge-refund.ts formatting mismatch, with a clear
+message naming the drifted file; ran it again after fixing both and
+confirmed all nine pairs pass. Ran the full existing Vitest suite
+(`vitest run`, no path filter) -- 96 files, 501 tests, all passing,
+confirming the two additive alias exports and the reformatting did not
+break anything else. Type-checked both edited Deno files individually
+with the real `deno check` (they have zero imports, so this needed no
+staging of dependent modules) -- both pass cleanly.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Traveler browser golden journeys**: verified live (Phase 547) —
