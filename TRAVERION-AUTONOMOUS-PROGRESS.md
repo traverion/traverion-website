@@ -798,6 +798,88 @@ in `supabase-bookings.ts:360`, can legitimately come from an unauthenticated
 session) before a blanket ownership check could be added without risking a
 real booking-creation regression -- unchanged from the Phase 561 note.
 
+### Phase 563 -- Close fabricated-booking / calendar-poisoning gap (public.bookings client INSERT)
+
+First phase under the broadened mission brief (Phase 563-800): continue
+Transaction Truth / Server Trust Boundary work but stop treating the whole
+mission as a security-only audit. Investigated a concrete question left
+open at the end of Phase 562 -- whether guest (unauthenticated) booking
+creation is a real, intentional product flow -- since that fact governs
+how aggressively any client-submitted booking field can be locked down.
+Traced every `.from('bookings').insert(` call site in the whole repo (3
+total): `src/data/supabase-bookings.ts`'s `submitBooking()` (client-side,
+anon/authenticated key, **zero call sites anywhere else in `src/`** --
+confirmed dead/orphaned code, not reachable from the live UI) and two
+inside `create-booking-checkout-session/index.ts` (server-side, using the
+service-role client, reached only after `authedClient.auth.getUser()`
+confirms a real signed-in session). Confirmed via `BookingPage.tsx` /
+`StayDetails.tsx` / `tour-booking-auth-gate.ts` that the live product
+always calls `createBookingCheckoutSession()` -> the edge function, never
+`submitBooking()`. This resolves the Phase 562 open question: genuinely
+anonymous booking creation is NOT live in the product today (the one code
+path that would allow it is unreachable), though `submitBooking()`'s
+existence shows it was clearly intended architecture at some point -- left
+untouched for a future phase to either wire up properly or delete.
+
+That investigation surfaced a real, separate, more serious finding: the
+"Authenticated travelers can create own bookings" RLS INSERT policy on
+`public.bookings` (migration 051 -- the policy `submitBooking()` and any
+direct PostgREST caller depend on) only constrains `guest_user_id =
+auth.uid()`, `payment_status IN ('pending','failed')`, and `amount_paid =
+0`. It does **not** constrain `status`, `total_amount`, `currency`,
+`guests`, `booking_date`, or `hold_expires_at`. Proved against a real
+Postgres 16 instance running the actual committed 051 policy (not a
+paraphrase) that any ordinary signed-up traveler -- a free account, no
+special access -- can insert a booking row directly via PostgREST (the
+public anon key + their own session; no product UI involved) claiming
+`status = 'confirmed'`, any `total_amount`/`currency` with no relation to
+a real price quote, any `guests` count with no capacity check at all, and
+`hold_expires_at` up to any future timestamp. `booking_occupies_inventory`
+(migrations 054/059/076) treats a non-cancelled, `payment_status='pending'`
+row as occupying inventory whenever `hold_expires_at` is in the future --
+so this is a free, repeatable, **permanent** denial-of-service against any
+listing's public availability calendar (block every date, forever, for
+$0), and the real "Consumers can view own bookings by user id" SELECT
+policy (037, confirmed still live) makes the fabricated row render back to
+its creator's own Trips view as if it were a genuine confirmed
+reservation.
+
+**Fix (`086_close_client_bookings_insert.sql`).** Drops the migration-051
+INSERT policy outright rather than trying to patch it field-by-field --
+the real product never uses this policy at all (the only live path is the
+service-role edge function, which bypasses RLS entirely), so there is no
+real capability being removed, only a database-level exposure that was
+never exercised safely even by the code that would need it
+(`submitBooking()` also skips `create-booking-checkout-session`'s
+price-quoting and capacity checks, so it was already unsafe to use even
+absent malice). With RLS enabled and no INSERT policy, every non-owner,
+non-service_role caller is denied by default.
+
+**Verified.** `supabase/tests/bookings_client_insert_guard.test.sql`:
+built a minimal schema, stubbed `auth.uid()`/`auth.role()`, included the
+REAL `051_checkout_concurrency_and_payment_guard.sql` and
+`086_close_client_bookings_insert.sql` files via `\ir` (not retyped) against
+a real Postgres 16. Four cases, all passing: (1) proves the exploit
+succeeds against 051 alone -- a fabricated `status='confirmed'` booking
+with a 365-day hold and a EUR 999,999 amount is inserted successfully,
+confirming this is a real bug in today's committed code, not a
+hypothetical; (2) the identical insert is rejected after 086; (3) even a
+minimal, entirely benign-shaped authenticated insert (matching
+`submitBooking()`'s actual shape) is rejected too, confirming the fix is
+complete rather than a partial patch; (4) the real, live booking-creation
+path -- a service-role insert, exactly what
+`create-booking-checkout-session` does -- is completely unaffected.
+
+**Not attempted this phase:** no attempt to preserve a narrower,
+still-functional authenticated INSERT policy (e.g. forcing
+`status='pending'` and `hold_expires_at IS NULL` while still allowing
+`total_amount`/`currency`/`guests` through). Rejected as unnecessary
+half-measure: since the real product has zero live reliance on this
+policy, a full close is strictly safer than a partial one and equally
+"smallest complete fix" in effect, without leaving a residual
+client-writable `total_amount`/`currency`/`guests` surface for future
+phases to re-discover.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Traveler browser golden journeys**: verified live (Phase 547) —

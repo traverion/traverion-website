@@ -1,0 +1,49 @@
+-- Phase 563: close the client-authenticated direct INSERT path into
+-- public.bookings.
+--
+-- The "Authenticated travelers can create own bookings" policy (migration
+-- 051) requires guest_user_id = auth.uid(), payment_status IN
+-- ('pending','failed'), and amount_paid = 0 -- but does not constrain
+-- `status`, `total_amount`, `currency`, `guests`, `booking_date`, or
+-- `hold_expires_at`. Any ordinary signed-up traveler (a free account) can
+-- therefore insert a booking row directly via PostgREST (the public anon
+-- key + their own session, no product UI involved) claiming:
+--   - status = 'confirmed' (or anything else) instead of 'pending'
+--   - any total_amount/currency, with no relation to any real price quote
+--   - any guests count, with no capacity check at all
+--   - hold_expires_at up to any future timestamp, e.g. +365 days
+-- booking_occupies_inventory() (054/059/076) treats a non-cancelled,
+-- payment_status='pending' row as occupying inventory whenever
+-- hold_expires_at is in the future (or, with no hold_expires_at, for 30
+-- minutes after created_at). A hold_expires_at set far in the future turns
+-- this into a permanent, free, repeatable denial-of-service against any
+-- listing's public availability calendar -- and the fabricated row is
+-- visible back to its creator via the existing "Consumers can view own
+-- bookings by user id" SELECT policy (037), so it also renders correctly
+-- in their own Trips view as if it were a real confirmed reservation.
+--
+-- The live product never uses this policy: create-booking-checkout-session
+-- (the only real booking-creation path -- confirmed via
+-- TRAVERION-AUTONOMOUS-PROGRESS.md Phase 559's price-integrity audit, and
+-- re-confirmed this phase by tracing every `.from('bookings').insert(`
+-- call site in src/ and supabase/functions/) always requires a verified
+-- Supabase session (authedClient.auth.getUser()) and always inserts the
+-- row itself using the service-role client, which bypasses RLS entirely.
+-- Removing this policy therefore cannot affect the real booking flow.
+-- src/data/supabase-bookings.ts's submitBooking() is the only client code
+-- that would rely on this policy, and it has zero call sites anywhere in
+-- src/ (grepped for "submitBooking" across the whole tree) -- it is
+-- already unreachable from the live UI, and was already unsafe to use as
+-- written even absent malice, since it also skips
+-- create-booking-checkout-session's price-quoting and capacity checks.
+-- Left in place (untouched) so a future phase can decide whether to wire
+-- it up properly (through the edge function) or delete it outright --
+-- this migration only closes the database-level exposure, per the
+-- mission's standing rule to server-enforce money/inventory/ownership
+-- rather than trust a client-submitted value.
+DROP POLICY IF EXISTS "Authenticated travelers can create own bookings" ON public.bookings;
+
+-- No replacement INSERT policy: with RLS enabled and no INSERT policy,
+-- every role except the table owner / service_role (which bypasses RLS)
+-- is denied. This matches reality -- every legitimate insert already goes
+-- through the service-role edge function.
