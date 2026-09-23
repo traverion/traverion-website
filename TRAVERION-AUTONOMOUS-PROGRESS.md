@@ -1092,6 +1092,64 @@ double-submission. No P0/P1 finding here. Moving to a new vertical next
 phase rather than continuing to search this already-hardened area for
 diminishing returns.
 
+### Phase 567 -- Inventory/capacity chain audit end-to-end (no code change; verified safe)
+
+Followed the Phase 565/566 trust-boundary work one layer further into
+Priority 2 (inventory/capacity correctness): now that fabricating or
+tampering with a booking row's `guests`/`hold_expires_at`/date/option is
+closed on both INSERT (563) and UPDATE (565), is the rest of the capacity
+chain -- where "capacity" itself comes from, and how occupancy is
+computed against it -- equally sound? Traced it fully rather than
+assuming.
+
+**`booking_option_id` is not a foreign key to a relational table.**
+Confirmed via migration 048: it is a plain `text` column pointing at an
+id inside `listings.listing_extras->'bookingOptions'` (JSONB), not a
+separate `booking_options` table. There is no separate RLS surface to
+audit here -- booking-option pricing/capacity edits are governed by
+whatever RLS already applies to a supplier editing their own `listings`
+row, which is legitimate supplier-owned content, not a client-tamper
+vector.
+
+**`listing_availability` RLS is correctly ownership-scoped and has never
+needed revisiting.** Its INSERT/UPDATE/DELETE policies (migration 009,
+the only migration that has ever touched this table's RLS) all require
+`exists (select 1 from listings where listings.id =
+listing_availability.listing_id and listings.supplier_id = auth.uid())`
+in `with check` -- so a client cannot insert a fabricated day-level
+capacity override for a listing they don't own (would have been a real
+cross-tenant DoS/overbooking vector: either zeroing a competitor's
+calendar or inflating capacity on someone else's listing). No gap found.
+
+**`listing_availability.booked` is fully vestigial and cannot be used to
+manipulate real occupancy.** `assert_checkout_inventory` (migration 076,
+the current authoritative capacity check inside the atomic
+`claim_pending_checkout_booking` path) never reads this column at all --
+it reads `listing_availability.capacity` (legitimately supplier-set) for
+the day-override case, and always computes actual occupancy live via
+`coalesce(sum(b.guests), 0) from bookings where
+booking_occupies_inventory(...)`, i.e. directly and freshly from the
+bookings table, whose own fabrication paths are already closed. Grepped
+the app for any code that still trusts `.booked` for real occupancy math
+and found the opposite: an explicit, already-enforced convention across
+`src/lib/availability-ops.ts`, `src/lib/stayOccupancy.ts`,
+`src/data/supabase-availability.ts`, and a dedicated regression test
+(`src/lib/availability-booked-noop.test.ts`) all stating "Occupancy is
+paid + live holds, not listing_availability.booked" / "stale footgun."
+Whatever writes to `.booked` still exist are display-adjacent leftovers
+with no bearing on real capacity enforcement.
+
+Conclusion: the full inventory/capacity chain -- RLS ownership boundary,
+capacity source, live occupancy computation, and the atomic
+check-then-insert transaction -- is coherent end-to-end, and specifically
+now benefits from Phases 563/565 having closed the booking-fabrication
+paths this chain depends on for its "live occupancy" number to mean
+anything. No P0/P1 finding. Three consecutive audit-only phases now
+confirm the transaction-truth core (bookings mutation surface,
+cancellation/refund subsystem, inventory/capacity chain) is sound;
+Phase 568 moves to a different vertical rather than continuing to probe
+this now well-verified core.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Traveler browser golden journeys**: verified live (Phase 547) —
