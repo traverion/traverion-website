@@ -200,6 +200,12 @@ Partner Inbox guest names and listing lines wrap under line-clamp instead of mid
 ### Phase 544 — Bookings/Pickup wrap
 Partner Bookings list/detail and Pickup Planner wrap guest names, listing titles, options, and meeting points under line-clamp instead of mid-string truncate.
 
+### Phase 545 — Dashboard wrap (final truncate surface)
+SupplierDashboard today/upcoming booking rows and attention list wrap long
+titles/guest names under line-clamp instead of bare `truncate`. No remaining
+bare `truncate` in that file. Quality gate: eslint/tsc/build clean, 95 files /
+491 tests pass.
+
 ## Known remaining risks (ranked)
 
 1. **P0/P1 — Browser golden journeys** not run (no partner session).
