@@ -348,6 +348,77 @@ self-cancel refund policy). Worth a deliberate audit pass over every other
 client-side eligibility/gate function in src/lib for the same pattern as a
 future phase.
 
+### Phase 555 -- Close supplier self-verification bypass (P0 trust & safety, 4th instance)
+
+Fourth confirmed instance this run of the "client-trusted business rule, no
+independent server-side re-check" bug class (see Phase 551 traveler
+self-cancel refund policy, Phase 553 unverified-supplier listing publish).
+
+**The gap.** `public.supplier_profiles_enforce_verification_lock()`
+(migrations 031 -> 032 -> 034 -> 035 -> 036) blocks edits to
+`verification_status` / `payout_verification_status` (and other sensitive
+columns) only once the row is already "locked" -- `business_locked`
+requires `old.verification_status = 'verified'`, or `'pending'` with a
+non-null `verification_submitted_at`; `payout_locked` mirrors this for the
+payout axis. A brand-new, never-submitted supplier profile
+(`verification_status`/`payout_verification_status` still null,
+`*_submitted_at` still null) is NOT locked. RLS on `supplier_profiles`
+("Users can update own profile", `auth.uid() = id`) has no column-level
+`with check`, so nothing else stopped the row owner from issuing a raw
+client update setting `verification_status`/`payout_verification_status`
+straight to `'verified'` before ever going through legitimate submission --
+completely bypassing admin review. Combined with the Phase 553 fix (which
+trusts these exact two columns to gate publishing), a supplier could have
+self-verified and then immediately published live listings with zero admin
+involvement.
+
+**Legitimate write shape confirmed by reading the client code.**
+`src/components/supplier/SupplierSettingsPages.tsx` is the only place in
+the client codebase that ever writes these two columns (grep-confirmed
+across `src/**/*.ts(x)`): the business-profile save sets
+`verification_status: 'pending'` (~line 1079) and the payout-details save
+sets `payout_verification_status: 'pending'` (~line 1251) -- never
+`'verified'` or `'rejected'`. The only legitimate writer of `'verified'`/
+`'rejected'` is `supabase/functions/admin-supplier-verification/index.ts`,
+which always runs as `service_role` and already bypasses this trigger.
+
+**Fix (migration 083).** Extended
+`supplier_profiles_enforce_verification_lock()` in place (same function,
+same service_role/postgres/supabase_admin bypass, no new trigger) with an
+additional, independent guard applied before the existing
+`business_locked`/`payout_locked` checks: for non-staff callers, any change
+to `verification_status` or `payout_verification_status` is rejected
+unless the new value is `'pending'`. This protects the previously-unlocked
+window the existing lock logic missed, while leaving every existing
+locked-state protection (and the 036 staff-only-feedback guard) completely
+unchanged, and without touching any other column.
+
+**Verification.** Installed Postgres 16 in a scratch sandbox, stubbed
+`auth.uid()`/`auth.jwt()`, applied the actual migration file, and ran 9
+assertion-based cases (both positive and adversarial) against it: fresh
+supplier cannot self-write `verification_status`/`payout_verification_status`
+to `'verified'`; fresh supplier cannot self-write either to `'rejected'`;
+legitimate submission/resubmission to `'pending'` (matching
+`SupplierSettingsPages.tsx` exactly, including the accompanying
+`*_submitted_at`/other fields) still succeeds; a now-locked pending row
+still blocks a further self-verification attempt (new guard layers on top
+of, not instead of, the existing lock); `service_role` (the real admin
+Edge Function identity) can still approve business and payout verification;
+the pre-existing locked-field protections for already-verified suppliers
+are unaffected; unrelated field edits on an unlocked profile remain
+unaffected. Also confirmed the test is meaningful by reconstructing the
+pre-fix (036) trigger body and re-running the same script against it --
+the self-verification case fails exactly as expected, proving both the
+vulnerability and the regression test are real. Checked-in as
+`supabase/tests/supplier_profiles_verification_status_guard.test.sql`.
+`tsc --noEmit` clean (no TypeScript touched this phase).
+
+This is the fourth instance this run of the same bug class. The
+`src/lib` eligibility/gate audit flagged after Phase 553 is now more
+clearly warranted as a deliberate, dedicated pass -- but is otherwise
+believed contained to `supplier_profiles`/`listings`/`bookings`, which have
+now each been checked.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Traveler browser golden journeys**: verified live (Phase 547) —
