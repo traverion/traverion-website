@@ -776,30 +776,173 @@ serve(async (req) => {
   }
 
   if (body.action === 'approve_payout') {
+    const { data: before, error: beforeErr } = await admin
+      .from('supplier_profiles')
+      .select(
+        'id, display_name, company_legal_name, payout_verification_status, payout_verified_email_sent_at'
+      )
+      .eq('id', supplierId)
+      .maybeSingle();
+    if (beforeErr) return json({ error: beforeErr.message }, 500);
+    if (!before) return json({ error: 'Supplier not found' }, 404);
+
+    const now = new Date().toISOString();
     const { error } = await admin
       .from('supplier_profiles')
       .update({
         payout_verification_status: 'verified',
         payout_verification_feedback: null,
-        updated_at: new Date().toISOString(),
+        payout_rejected_email_sent_at: null,
+        updated_at: now,
       })
       .eq('id', supplierId);
     if (error) return json({ error: error.message }, 500);
-    return json({ ok: true });
+
+    const alreadyEmailed =
+      before.payout_verification_status === 'verified' && Boolean(before.payout_verified_email_sent_at);
+    if (alreadyEmailed) {
+      return json({ ok: true, email: { sent: false, skipped: true, reason: 'already_sent' } });
+    }
+
+    const to = await resolveSupplierRecipientEmail(admin, supplierId);
+    if (!to) {
+      console.error('[approve_payout] no supplier email', supplierId);
+      return json({
+        ok: true,
+        email: { sent: false, skipped: false, error: 'No supplier email on auth user' },
+      });
+    }
+
+    const businessName =
+      (typeof before.company_legal_name === 'string' && before.company_legal_name.trim()) ||
+      (typeof before.display_name === 'string' && before.display_name.trim()) ||
+      'your business';
+    const subject = 'Your Traverion payout details are verified';
+    const text = [
+      `Good news — the bank details on file for ${businessName} are verified on Traverion.`,
+      '',
+      'If your business profile is also verified, you can publish listings and receive payouts for paid bookings.',
+      '',
+      `Open your partner portal: ${PARTNER_PORTAL}/partner`,
+      '',
+      '— Traverion',
+    ].join('\n');
+    const html = verificationDecisionHtml({
+      headline: 'Your payout details are verified',
+      sub: 'Traverion has approved the bank details (IBAN/BIC) on file for your account.',
+      businessName,
+      ctaLabel: 'Open partner portal',
+      ctaHref: `${PARTNER_PORTAL}/partner`,
+    });
+
+    const sent = await sendResendEmail({ to, subject, text, html });
+    if (!sent.ok) {
+      console.error('[approve_payout] email failed', supplierId, sent.error);
+      return json({
+        ok: true,
+        email: { sent: false, skipped: false, error: sent.error },
+      });
+    }
+
+    const { error: markErr } = await admin
+      .from('supplier_profiles')
+      .update({ payout_verified_email_sent_at: now, updated_at: now })
+      .eq('id', supplierId);
+    if (markErr) {
+      console.error('[approve_payout] could not mark email sent', supplierId, markErr.message);
+    }
+
+    return json({
+      ok: true,
+      email: { sent: true, skipped: false, providerMessageId: sent.id, to },
+    });
   }
 
   if (body.action === 'reject_payout') {
     const fb = typeof body.feedback === 'string' ? body.feedback.trim() || null : null;
+    const { data: before, error: beforeErr } = await admin
+      .from('supplier_profiles')
+      .select(
+        'id, display_name, company_legal_name, payout_verification_status, payout_rejected_email_sent_at'
+      )
+      .eq('id', supplierId)
+      .maybeSingle();
+    if (beforeErr) return json({ error: beforeErr.message }, 500);
+    if (!before) return json({ error: 'Supplier not found' }, 404);
+
+    const now = new Date().toISOString();
     const { error } = await admin
       .from('supplier_profiles')
       .update({
         payout_verification_status: 'rejected',
         payout_verification_feedback: fb,
-        updated_at: new Date().toISOString(),
+        payout_verified_email_sent_at: null,
+        updated_at: now,
       })
       .eq('id', supplierId);
     if (error) return json({ error: error.message }, 500);
-    return json({ ok: true });
+
+    const alreadyEmailed =
+      before.payout_verification_status === 'rejected' && Boolean(before.payout_rejected_email_sent_at);
+    if (alreadyEmailed) {
+      return json({ ok: true, email: { sent: false, skipped: true, reason: 'already_sent' } });
+    }
+
+    const to = await resolveSupplierRecipientEmail(admin, supplierId);
+    if (!to) {
+      console.error('[reject_payout] no supplier email', supplierId);
+      return json({
+        ok: true,
+        email: { sent: false, skipped: false, error: 'No supplier email on auth user' },
+      });
+    }
+
+    const businessName =
+      (typeof before.company_legal_name === 'string' && before.company_legal_name.trim()) ||
+      (typeof before.display_name === 'string' && before.display_name.trim()) ||
+      'your business';
+    const feedbackLine = fb
+      ? `Traverion note: ${fb}`
+      : 'Please review your bank details (IBAN/BIC) in Settings, then submit again.';
+    const subject = 'Update needed for your Traverion payout details';
+    const text = [
+      `Traverion could not verify the payout (bank) details on file for ${businessName} yet.`,
+      '',
+      feedbackLine,
+      '',
+      `Update your bank details: ${PARTNER_PORTAL}/partner/settings`,
+      '',
+      '— Traverion',
+    ].join('\n');
+    const html = verificationDecisionHtml({
+      headline: 'Payout details need an update',
+      sub: feedbackLine,
+      businessName,
+      ctaLabel: 'Review payout settings',
+      ctaHref: `${PARTNER_PORTAL}/partner/settings`,
+    });
+
+    const sent = await sendResendEmail({ to, subject, text, html });
+    if (!sent.ok) {
+      console.error('[reject_payout] email failed', supplierId, sent.error);
+      return json({
+        ok: true,
+        email: { sent: false, skipped: false, error: sent.error },
+      });
+    }
+
+    const { error: markErr } = await admin
+      .from('supplier_profiles')
+      .update({ payout_rejected_email_sent_at: now, updated_at: now })
+      .eq('id', supplierId);
+    if (markErr) {
+      console.error('[reject_payout] could not mark email sent', supplierId, markErr.message);
+    }
+
+    return json({
+      ok: true,
+      email: { sent: true, skipped: false, providerMessageId: sent.id, to },
+    });
   }
 
   return json({ error: 'Unknown action' }, 400);
