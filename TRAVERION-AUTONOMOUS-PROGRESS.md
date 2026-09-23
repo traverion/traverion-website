@@ -292,6 +292,27 @@ that the already-deployed approve_business/reject_business code this
 mirrors also has — not a new error class introduced by this change.
 tsc/build/491 vitest tests all clean.
 
+### Phase 551 — Traveler self-cancel: server trusted client refund_choice (P0, fixed)
+cancel_booking_as_traveler let a paid booking's cancellation claim
+full_refund with NO server-side check against the 24h-before-start policy
+shown in the UI - only client code (cancellation-policy.ts) enforced it.
+Calling the RPC directly near/after a tour's start would still be honored,
+reversing the supplier's earnings ledger and posting a false "Refund due"
+message. Second bug found alongside it: the earnings reversal fired for
+ANY paid cancellation regardless of refund_choice, so even a legitimate
+no_refund cancel silently zeroed the supplier's recorded earnings with
+nothing crediting them back (compared against reverse_paid_booking_earnings,
+migration 070, which correctly only reverses on an actual Stripe refund).
+
+Fixed in migration 081: server recomputes the 24h cutoff (Europe/Helsinki)
+authoritatively and only reverses earnings when refund_choice is actually
+full_refund. Verified against a real Postgres 16 instance provisioned in
+the cloud sandbox (no Deno/pgTAP infra exists here - see Phase 548/549) -
+4 scenarios incl. a simulated malicious direct-RPC-call bypass, all
+correct. Added supabase/tests/cancel_booking_as_traveler.test.sql, a
+checked-in, assertion-based regression script; confirmed it fails against
+the pre-fix function and passes against the fix.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Traveler browser golden journeys**: verified live (Phase 547) —
