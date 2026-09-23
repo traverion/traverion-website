@@ -419,6 +419,70 @@ clearly warranted as a deliberate, dedicated pass -- but is otherwise
 believed contained to `supplier_profiles`/`listings`/`bookings`, which have
 now each been checked.
 
+### Phase 556 -- Server-side supplier cancellation fee currency (P0 transaction truth)
+
+Found while auditing every `authenticated`-granted RPC for the
+client-trusted-value pattern (the systematic pass flagged after Phase 555).
+`request_supplier_cancellation()` (migrations 055 -> 061) already does the
+right thing for the cancellation FEE AMOUNT -- its own comment says "Server
+classifies fee. Client snapshot is stored for audit but fee is not
+client-authoritative", and `v_fee` is always hardcoded to 0 or 20, never
+taken from the client-supplied `p_applied_fee`. But the FEE CURRENCY never
+got the same treatment: the function stored
+`upper(trim(coalesce(p_fee_currency, 'EUR')))` -- a raw client-supplied
+string -- directly into `cancellation_requests.fee_currency`, with no
+validation against the booking's real currency.
+
+`respond_cancellation_request()` then uses that same
+`cancellation_requests.fee_currency` value, unmodified, as the `currency`
+column when writing the real financial ledger row
+(`supplier_ledger_entries`, kind = `cancellation_penalty`). So while a
+supplier could not inflate the fee amount, they could mislabel its
+currency -- e.g. requesting their own cancellation with
+`p_fee_currency = 'JPY'` while the booking was actually paid in GBP/EUR/
+whatever -- writing a permanent, incorrect-currency entry into the
+supplier's financial ledger. This does not move real Stripe money on its
+own (the ledger is an internal accounting table), but it directly corrupts
+"transaction and booking truth" -- the mission's top P0 priority -- and
+would misrepresent real payout-relevant financial records.
+
+**Fix (migration 084).** `request_supplier_cancellation()` now derives the
+fee currency the exact same way the fee amount already is: server-side,
+from `bookings.currency` (migration 011), which is itself set
+authoritatively from the real Stripe Checkout Session at payment time (see
+`promote-paid-from-checkout.ts`, which already auto-refunds on any
+session/booking currency mismatch -- confirming `bookings.currency` is the
+trustworthy source of truth). The client-supplied `p_fee_currency` is kept
+in `policy_snapshot` as non-authoritative audit metadata, exactly
+mirroring how `p_applied_fee` was already handled. Every other check in
+the function (reason/evidence validation, force-majeure fee
+classification, refunded/cancelled/paid-status guards, one-open-request-
+at-a-time) is unchanged from migration 061, the latest prior version.
+`respond_cancellation_request()` itself needed no change -- it already
+correctly just reads whatever `cancellation_requests.fee_currency` holds.
+
+**Verification.** Scratch Postgres 16, stubbed `auth.uid()`/`auth.jwt()`,
+applied the real migration file plus the current `respond_cancellation_request()`
+body, and asserted end-to-end: a supplier claiming `p_fee_currency = 'JPY'`
+on a booking actually paid in GBP has the real GBP currency stored on the
+cancellation request (not JPY); the fee amount stays server-computed at 20
+regardless; and, critically, the resulting `supplier_ledger_entries` row
+written when the traveler accepts carries the correct GBP currency, not
+the attacker-supplied JPY. Confirmed the test is meaningful by
+reconstructing the pre-fix (061) function body and re-running the same
+script -- it fails exactly as predicted, storing JPY. Checked in as
+`supabase/tests/request_supplier_cancellation_currency.test.sql`.
+`tsc --noEmit` clean (no TypeScript touched).
+
+Fifth instance this run where a server-side RPC trusted a client-supplied
+value it shouldn't have -- though this one is a narrower variant (a
+metadata/label field riding along a value that was already correctly
+locked down) rather than a full authorization bypass. The remaining
+`authenticated`-granted RPCs (`is_booking_party`, `booking_is_paid_for_ops`,
+`post_booking_message`, `mark_booking_messages_read`,
+`update_guest_booking_special_requests`, `cancel_booking_as_traveler`) have
+now all been read this run and are believed clean of this specific pattern.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Traveler browser golden journeys**: verified live (Phase 547) —
