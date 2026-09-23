@@ -1031,6 +1031,67 @@ is completely unaffected; (6) proves migration 085's paid-booking
 cancellation-truth guard still works unchanged after this phase's edit to
 the same function.
 
+### Phase 566 -- End-to-end audit of the cancellation/refund subsystem (no code change; verified safe)
+
+Continued the trust-boundary vertical from Phase 565 one layer further:
+having just closed the UPDATE-side identity-field gap on `bookings`
+itself, checked whether the adjacent cancellation-request workflow
+(`cancellation_requests`, `request_supplier_cancellation`,
+`respond_cancellation_request`, `cancel_booking_as_traveler`) has any
+sibling gap -- e.g. a client-fabricated or inflated cancellation fee, a
+direct-write path around the RPCs, or a double-refund race. Read all four
+relevant migrations (055, 061, 084, 085) in full rather than trusting
+their own header comments' claims. Found no exploitable gap; this phase
+made no code change.
+
+**Fee amount and currency are both genuinely server-authoritative.**
+`request_supplier_cancellation`'s `v_fee` is only ever assigned `0` or
+`20` based on the server's own force-majeure reason-code classification;
+the client's `p_applied_fee` argument is accepted but never actually used
+to set the stored fee. Fee currency was the one real gap in this area --
+closed in migration 084 (already committed before this session started)
+by deriving it from `bookings.currency` (itself set authoritatively from
+the real Stripe Checkout Session, per migration 011) instead of the
+client-supplied `p_fee_currency`, which is now kept only as non-
+authoritative audit metadata in `policy_snapshot`.
+
+**`cancellation_requests` cannot be written to directly at all.** Its RLS
+is `for insert with check (false)` and `for update using (false)` --
+unconditional deny for every role that isn't the RPCs' own SECURITY
+DEFINER context. Every write must go through
+`request_supplier_cancellation`, `respond_cancellation_request`, or
+`cancel_booking_as_traveler`. SELECT is gated by `is_booking_party()`.
+
+**"One open request per booking" is race-safe, not just app-level.** Past
+the RPC's own `exists(...)` pre-check sits a genuine unique partial index
+(`cancellation_requests_one_open_per_booking on (booking_id) where
+status = 'requested'`) -- so even two concurrent
+`request_supplier_cancellation` calls for the same booking cannot both
+succeed; the loser gets a real constraint violation, not a silent
+duplicate.
+
+**Both cancellation-acceptance RPCs are race-safe against double-refund.**
+`cancel_booking_as_traveler` and `respond_cancellation_request` each
+update `bookings` with `where ... status <> 'cancelled'` -- the first
+concurrent caller to commit wins the row lock; the second's UPDATE then
+sees the already-committed 'cancelled' status, affects zero rows, and the
+function returns `already: true` rather than re-running the ledger logic.
+Belt-and-suspenders: every `supplier_ledger_entries` insert in both RPCs
+also carries `on conflict (kind, source_id) do nothing`, so even if the
+conditional-update guard were ever bypassed, the unique `(kind,
+source_id)` constraint alone would still prevent a duplicate ledger
+entry. `cancel_booking_as_traveler` also re-derives its 24-hour
+free-cancellation cutoff server-side from the booking's own
+`booking_date`/`start_time` rather than trusting any client-supplied
+timestamp or flag.
+
+Conclusion: the cancellation/refund subsystem is coherent end-to-end --
+request creation, traveler response, fee/currency truth, and the ledger
+accounting all resist both malicious tampering and benign concurrent
+double-submission. No P0/P1 finding here. Moving to a new vertical next
+phase rather than continuing to search this already-hardened area for
+diminishing returns.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Traveler browser golden journeys**: verified live (Phase 547) —
