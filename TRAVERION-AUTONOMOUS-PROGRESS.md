@@ -206,9 +206,51 @@ titles/guest names under line-clamp instead of bare `truncate`. No remaining
 bare `truncate` in that file. Quality gate: eslint/tsc/build clean, 95 files /
 491 tests pass.
 
+### Phase 547 — Live browser golden-journey verification
+Read-only verification against the deployed production site
+(https://www.traverion.com), using a real browser (no localhost — a
+locally-started dev server is not reachable from the browser surface used
+here). Covered, no code changes needed (all passed):
+
+- Homepage renders live destinations/tours/stays (no sample data).
+- Tour detail (Guaranteed Northern Lights Tour): date picker enforces
+  open/faded/struck day states from real availability; selecting a date
+  loads real per-option capacity/pricing (Shared group €119, Private
+  tour €449); participant stepper recomputes total correctly at the
+  discounted unit price (2 x €101.15 = €202.30, exact).
+- Tour checkout (Trip -> Contact): selection carries through unchanged;
+  copy consistently states no charge yet and no confirmation email is
+  sent from checkout (matches BookingConfirmationPage/Trips-as-proof
+  pattern audited in earlier phases). Stopped before entering personal
+  data into the production form (no real booking submitted).
+- Stays browse: 2 live stays list correctly; Packages/Tours price
+  filter renders currency-labeled chips (`Under EUR100` etc.) confirming
+  the Phase ~ catalogCurrency fix is live and correct.
+- Stay detail (Riverside Apartment): shows real occupied-night data
+  ("Currently booked: Tue 22 Sept - Thu 24 Sept"); checkout is
+  login-gated. Audited (not live-tested, no test account) the
+  login-return mechanism: StayDetails.tsx calls
+  rememberTravelerReturnStay() before sending the user to
+  /log-in?next=stays, AuthPage.tsx calls onNavigate(nextPage) on
+  success, and App.tsx's handleNavigate('stays') calls
+  takeTravelerReturnStay() and reopens the exact stay with
+  checkIn/checkOut/guests restored via URL params. Wiring is complete
+  and correct end to end; not a gap.
+- Tours have no login gate (guest checkout only) — confirmed
+  intentional, not a missing feature: TourDetails.tsx has no
+  travelerAuthLinks usage at all.
+
+No regressions, no new defects found. This closes out "Known remaining
+risks #1" below as verified for the traveler-facing surfaces reachable
+without a test account; partner-portal golden journeys still need a
+partner login this session doesn't have.
+
 ## Known remaining risks (ranked)
 
-1. **P0/P1 — Browser golden journeys** not run (no partner session).
+1. **P1 — Traveler browser golden journeys**: verified live (Phase 547) —
+   tour search/detail/pricing/checkout-handoff and stay detail/login-return
+   all correct on production. Partner-portal golden journeys still not run
+   (no partner session available to this agent either).
 2. **P1 — Advisory lock listing-scoped** — safe but coarse.
 3. **P2 — LIVE Stripe** intentionally blocked.
 
