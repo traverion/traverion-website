@@ -1213,6 +1213,39 @@ break anything else. Type-checked both edited Deno files individually
 with the real `deno check` (they have zero imports, so this needed no
 staging of dependent modules) -- both pass cleanly.
 
+### Phase 569 -- reconcile-checkout-session audited (no code change; verified safe)
+
+Read the remaining unaudited edge function in the checkout/payment path.
+reconcile-checkout-session is the client-invokable recovery path for a
+stuck checkout (e.g. the browser never got redirected back after Stripe
+processed payment). Confirmed it is properly hardened:
+
+- Requires a real authenticated session (authed.auth.getUser()) -- no
+  anonymous access.
+- Looks up the booking by checkout_session_id first, then requires the
+  caller's email or user id to match that booking's guest_email/
+  guest_user_id before doing anything else -- an attacker who somehow
+  obtained someone else's session id (Stripe session ids are
+  cryptographically random, not guessable) still could not reconcile a
+  booking they don't own.
+- Never trusts client input for payment truth: it retrieves the session
+  from Stripe directly and only proceeds if `session.payment_status ===
+  'paid'` -- Stripe's own authoritative state, not anything the caller
+  claims.
+- Delegates the actual promotion to the same promotePaidFromCheckoutSession
+  already audited in Phase 568, which is race-safe on its own merits: its
+  conditional `update bookings ... where payment_status in ('pending',
+  'failed')` means a concurrent second caller (whether the real webhook or
+  a second reconcile request) affects zero rows and falls into the
+  already-settled branch, independent of the webhook's own
+  stripe_webhook_events dedup layer (which this path deliberately does not
+  use, since it is not itself a webhook delivery).
+
+No exploitable gap found. This closes out the payment-truth vertical
+opened in Phase 568 (stripe-webhook, promote-paid-from-checkout,
+checkout-paid-amount, reconcile-checkout-session all now read and
+verified this segment).
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Traveler browser golden journeys**: verified live (Phase 547) —
