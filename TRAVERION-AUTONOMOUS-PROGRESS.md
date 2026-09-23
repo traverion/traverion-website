@@ -313,6 +313,41 @@ correct. Added supabase/tests/cancel_booking_as_traveler.test.sql, a
 checked-in, assertion-based regression script; confirmed it fails against
 the pre-fix function and passes against the fix.
 
+### Phase 553 - Unverified suppliers could publish live listings (P0 trust & safety, fixed)
+Most severe finding of this run. isSupplierReadyToPublishTours (business +
+payout verification required to publish) was a CLIENT-SIDE-ONLY gate - it
+only controlled whether the Publish button rendered. Nothing in the
+database checked verification status before allowing listings.status =
+'published': the RLS update/insert policies on public.listings have no
+with-check on status at all. Any freshly-signed-up, zero-verification
+supplier account could call the Supabase REST API directly (update or
+insert) and publish a real listing to traverion.com, completely bypassing
+the admin verification queue (Phase 549's panel). Stripe is TEST-only
+today so this wasn't yet exploitable for real money, but it's a trust &
+safety hole that would matter the moment Stripe goes live, and it defeats
+the entire point of the admin verification workflow regardless.
+
+Fixed in migration 082: a before-insert-or-update trigger
+(enforce_listing_publish_verification) blocks the transition into
+status='published' unless the owning supplier_profiles row shows both
+verification_status='verified' and payout_verification_status='verified'.
+Deliberately a trigger, not a blanket RLS with-check, so it only gates the
+actual publish transition - a supplier whose verification later lapses can
+still edit an already-live listing, they just can't newly publish another
+draft until re-verified. Verified against a scratch Postgres 16 instance,
+5 cases (see supabase/tests/listing_publish_verification_guard.test.sql,
+new checked-in regression script): direct unverified INSERT-as-published
+blocked, unverified draft->published blocked, verified publish allowed,
+ordinary edit to an already-published listing NOT blocked after
+verification lapses, and a lapsed-verification supplier still blocked from
+publishing a different draft.
+
+This is the third instance this run of the same bug class (client-trusted
+business rule, no server-side re-check) - see Phase 551 (traveler
+self-cancel refund policy). Worth a deliberate audit pass over every other
+client-side eligibility/gate function in src/lib for the same pattern as a
+future phase.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Traveler browser golden journeys**: verified live (Phase 547) —
