@@ -957,6 +957,80 @@ mirroring only the load-bearing subset of `getListingPublishBlockers()`
 that null-charge risk actually depends on, rather than the full
 cosmetic-completeness rule set).
 
+### Phase 565 -- Closed the UPDATE-side sibling of Phase 563's booking-fabrication gap
+
+Phase 563 closed a fabricated-booking gap on INSERT. This phase asked the
+obvious next question the mission's own Phase 565 brief posed directly:
+once a real, legitimately-owned booking exists, can the traveler who owns
+it tamper with fields that should only ever be server-derived, via the
+same ownership-only UPDATE policies (migration 037) that let them
+legitimately cancel their own booking?
+
+Traced every column `bookings_protect_payment_fields()` (051 -> 078 ->
+085) did and did not freeze for non-service-role callers. Payment/purchase
+truth (payment_status, amount_paid, total_amount, currency,
+purchase_snapshot, guest_breakdown, booking_number, etc.) was already
+unconditionally frozen. But `booking_date`, `check_out`, `nights`,
+`nightly_amount`, `cleaning_fee`, `booking_option_id`, and `guests` were
+only frozen once `payment_status = 'paid'` -- and `hold_expires_at` was
+never frozen at all, at any payment status. That left all eight fields
+directly writable by any traveler on their OWN pending booking via a raw
+PostgREST PATCH.
+
+Proved this against a real Postgres 16 instance running the actual
+committed 037 RLS policies and 085 trigger body (not a paraphrase): an
+authenticated traveler's direct UPDATE of their own pending booking's
+`hold_expires_at` (+365 days), `booking_date`, and `guests` succeeds in
+full against today's committed code. `booking_occupies_inventory()`
+(migration 076) treats a non-cancelled, `payment_status='pending'` row as
+occupying real calendar inventory for as long as `hold_expires_at` says --
+so this is the exact same calendar-poisoning DoS Phase 563 closed on
+INSERT, reachable here via UPDATE on a booking the traveler legitimately
+owns, for the price of one real (or cheap) checkout attempt instead of a
+bare insert.
+
+Checked whether this is also a money-loss vector before treating it as
+P0-severity: it is not. `create-booking-checkout-session/index.ts`'s
+resume path (`targetBookingId` present) always recomputes the actual
+Stripe charge fresh via `quoteListingBooking()` against the booking's
+*current* `booking_date`/`guests`/`booking_option_id` -- never from the
+stored `total_amount` column -- so tampering with these fields cannot
+make a traveler pay less than the real, re-quoted price for whatever
+configuration ends up on the row by the time Stripe is charged. The real,
+reachable harm is availability integrity, not payment integrity.
+
+Confirmed via exhaustive grep of every `.from('bookings').update(` call
+site in `src/` (two total, both in `src/data/supabase-bookings.ts`) that
+no legitimate client code anywhere needs direct write access to any of
+these eight fields. `updateBookingSchedule()` only ever sends
+`start_time`/`pickup_time` -- the two fields 078's own comment already
+calls out as intentionally left mutable for ops, untouched by this fix.
+`updateBookingStatus()` / `batchCancelBookings()` only ever send
+`status`/`cancelled_at`/`cancellation_reason`/`refund_choice` -- exactly
+the four columns 085 already governs with its own conditional guard,
+also untouched by this fix.
+
+Fix: `087_freeze_booking_identity_fields.sql` moves those seven fields
+out of the `payment_status='paid'` conditional into the same
+unconditional-freeze block as the payment-truth columns, and adds
+`hold_expires_at` to that block for the first time. The paid-booking
+cancellation-truth guard from 085 (status/cancelled_at/
+cancellation_reason/refund_choice, bypassable only via the transaction-
+local GUC the two cancellation RPCs set) is byte-identical, untouched.
+
+Verified with a new regression test
+(`supabase/tests/bookings_identity_field_guard.test.sql`), built on the
+real 037, 078, 085, and 087 migration files via `\ir`, not paraphrased:
+(1) proves the exploit succeeds against 085 alone (today's committed
+baseline); (2) proves it's rejected after 087; (3) proves the legitimate
+"release an unpaid hold" status update still works; (4) proves the
+legitimate start_time/pickup_time schedule update still works; (5) proves
+the real service-role resume-checkout sync path (guests/booking_date/
+hold_expires_at, simulating create-booking-checkout-session's own writes)
+is completely unaffected; (6) proves migration 085's paid-booking
+cancellation-truth guard still works unchanged after this phase's edit to
+the same function.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Traveler browser golden journeys**: verified live (Phase 547) —
