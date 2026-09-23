@@ -245,6 +245,32 @@ risks #1" below as verified for the traveler-facing surfaces reachable
 without a test account; partner-portal golden journeys still need a
 partner login this session doesn't have.
 
+### Phase 548 — Payment-path drift audit (stripe-webhook + promote-paid)
+Read stripe-webhook/index.ts (598 lines) and _shared/promote-paid-from-checkout.ts
+(758 lines) end to end: signature verification, event-id idempotency with a
+claim/replay state machine (received/processed/ignored/failed), and careful
+handling of every edge case Stripe can throw at a rotated/superseded checkout
+session (orphan refunds, cancelled-booking captures, underpayment, currency
+mismatch, inventory conflicts at promotion time, partial vs full refunds).
+No bug found; this is solid, defensive, production-grade code.
+
+Found and checked something more concerning that also turned out fine: the
+pure decision logic (stripe-webhook-replay, checkout-resume,
+checkout-pi-succeeded, checkout-paid-amount, cancelled-booking-checkout,
+orphan-checkout-refund, stripe-charge-refund, stripe-test-only) exists as
+TWO copies — a Vitest-covered one under src/lib/ and a hand-mirrored one
+under supabase/functions/_shared/ for the Deno edge runtime, which itself
+has zero direct test coverage. Diffed all 8 pairs: only comments/JSDoc and
+one legitimate client-only helper (stripeLivePublishableBlockedMessage, a
+publishable-key check with no edge-function equivalent) differ. Function
+bodies are byte-identical. The 491 Vitest tests are therefore testing the
+same logic that actually runs in production, not a stale mirror.
+
+Residual risk (not a defect, a coverage gap): if a future edit touches only
+one side of a mirrored pair, nothing catches the drift automatically — no
+CI check diffs these directories. Worth a lint/CI rule later; not fixed
+here since it's process tooling, not a product bug.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Traveler browser golden journeys**: verified live (Phase 547) —
