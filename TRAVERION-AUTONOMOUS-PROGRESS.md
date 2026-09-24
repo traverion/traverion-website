@@ -1316,6 +1316,49 @@ write still succeeds; (4) proves clearing a path to null still succeeds;
 self-write, blocked self-write to 'verified', staff-only feedback) is
 unaffected; (6) proves the service-role write path is unaffected.
 
+### Phase 571 -- Admin action handlers, expire-booking-checkout, and two notification functions audited (no code change; verified safe)
+
+Continued auditing admin-supplier-verification/index.ts past its access
+gate (Phase 570) into the actual approve_business/reject_business/
+approve_payout/reject_payout handlers: all run under the service-role
+client (correctly bypassing 083/088's client-write guards, since this IS
+the one legitimate path meant to set 'verified'/'rejected'), fetch the
+row first and validate it exists, and send decision emails idempotently
+(checking an `*_email_sent_at` marker before sending, matching it after).
+No issue found.
+
+Audited three more edge functions with verify_jwt=false (self-authenticate
+internally, no gateway backstop):
+
+- expire-booking-checkout: requires a real session, checks the caller
+  owns the booking (traveler by email/user id) or is the listing's
+  supplier, and only acts when
+  unpaidCancelShouldExpireCheckout() is true -- which requires
+  bookingStatus === 'cancelled' AND an unpaid payment_status. This means
+  the function is a no-op against any still-ACTIVE hold; it can only ever
+  clean up an orphaned Stripe Checkout Session on a booking that is
+  already cancelled and unpaid through some other, already-audited path.
+  No griefing/premature-hold-release vector exists here.
+- notify-staff-verification-queue: gated by a static
+  VERIFICATION_WEBHOOK_SECRET bearer check (meant to be called only by a
+  Supabase Database Webhook), fires only for supplier_profiles UPDATE
+  events where a submission timestamp actually changed, and every field
+  in the resulting email comes from the row itself, not client input.
+- notify-contact-inquiry: intentionally open to anonymous callers (a
+  public contact form) with no auth by design. Checked for the injection
+  classes that would matter here: the email field's validation regex
+  (`^[^\s@]+@[^\s@]+\.[^\s@]+$`) rejects any whitespace/control
+  character, closing off header injection via the reply_to field; every
+  other field is run through escapeHtml() before landing in the email's
+  HTML body; all fields are length-capped. The lack of rate-limiting on
+  this endpoint (and on the underlying contact_inquiries insert policy)
+  is a known, accepted trade-off for a public contact form, not a
+  transaction/booking-truth or authorization-boundary issue this mission
+  prioritizes -- noted, not treated as a phase-worthy finding.
+
+No exploitable gap found in any of the above. Continuing to the next
+hypothesis.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Traveler browser golden journeys**: verified live (Phase 547) —
