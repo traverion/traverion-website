@@ -1359,6 +1359,93 @@ internally, no gateway backstop):
 No exploitable gap found in any of the above. Continuing to the next
 hypothesis.
 
+### Phase 572 -- Closed a real test-coverage gap on the function that computes actual Stripe charge amounts (new test file, no production code change)
+
+Investigated the stays/rentals nights-overlap logic in assert_checkout_inventory
+(migration 076/071): confirmed the overlap predicate itself
+(`b.booking_date < p_check_out AND stay_booking_check_out(b) > p_check_in`) is
+a correct half-open-interval check, and confirmed the SQL fallback branch
+that would treat a `p_check_out <= p_check_in` stay as day-level tour
+capacity math is NOT reachable in practice, because
+quoteListingBooking() in supabase/functions/_shared/booking-quote.ts --
+the function create-booking-checkout-session and promote-paid-from-checkout
+actually call before ever reaching assert_checkout_inventory -- already
+rejects any stay checkout date that is not strictly after check-in
+("Check-out must be after check-in."). So this specific hypothesis (client
+sends checkoutDate <= bookingDate to dodge the nights-overlap check) is
+closed: not exploitable today.
+
+While tracing that guard, found the real issue: quoteListingBooking is the
+single function in the whole codebase that determines the real dollar
+amount charged via Stripe ("Stripe checkout MUST use this; never trust
+client totalAmount" per its own header), and it had ZERO automated test
+coverage anywhere.
+
+- It isn't src/lib/booking-quote.ts's quoteBooking/quoteStayNights -- those
+  are a differently-shaped sibling (separate functions, not one dispatcher)
+  used only by frontend pages for price display (BookingPage.tsx,
+  StayDetails.tsx, TourDetails.tsx, Stays.tsx, Packages.tsx, and others) and
+  were already fully Vitest-covered -- but that coverage protects a
+  function that never runs on the server-authoritative payment path.
+- Deno has no test runner wired up in this repo at all (still true, per the
+  earlier Phase 568 finding: no *.test.ts anywhere under
+  supabase/functions).
+- The Phase 568 fix (edge-function-deno-mirror-sync.test.ts) only
+  discovers files whose header literally reads "Mirror of src/lib/X.ts for
+  Deno edge runtime" and asserts byte-for-byte (comment/whitespace-
+  normalized) equality with their src/lib twin. booking-quote.ts and its
+  dependency booking-hold.ts instead use a different, older header
+  convention -- "Deno copy of src/lib/X.ts -- keep algorithms in sync" --
+  which the Phase 568 regex does not match, so both files were silently
+  excluded from that safety net. This exclusion is actually correct in one
+  sense (quoteListingBooking has a different shape/name than its src/lib
+  sibling, so a strict textual-equality test would be the wrong tool here
+  and would fail for reasons that have nothing to do with real drift), but
+  it left these two files -- arguably the highest-stakes files in the repo
+  -- with no regression protection of any kind.
+
+Verified quoteListingBooking can in fact be imported and executed directly
+by Vitest: it has zero `Deno.` references and only one pure relative
+import (booking-hold.ts, itself Deno-global-free), and a spike import
+confirmed Vite's bundler-mode module resolution (already configured via
+`allowImportingTsExtensions` in tsconfig) loads it without any shimming.
+
+Added src/lib/booking-quote-deno-authoritative.test.ts: 22 tests exercising
+quoteListingBooking directly (imported straight from
+supabase/functions/_shared/booking-quote.ts, not re-implemented or
+mocked), covering: stay nights total = nights * nightly + cleaning; the
+checkout-after-checkin date-ordering guard (equal dates, checkout-before-
+checkin, and a past check-in date all rejected); minNights and maxGuests
+enforcement; missing nightly price rejected; a stay listing that is not
+published rejected before dates are even checked; tour pricing with no
+configured booking options (fallback price * guests, default 1-12 group-
+size bounds, no-bookable-price rejected); a standard tour option
+(best-of-multiple-discounts selection, option-scoped discounts correctly
+excluded when scoped elsewhere, expired discounts correctly ignored,
+unknown bookingOptionId rejected rather than silently falling back to a
+default, per-option min/maxPersons enforced); private flat-group pricing
+(flat total charged regardless of guest count, not price * guests -- this
+is exactly the kind of thing a silent drift could get backwards and
+overcharge or undercharge on); and age-dependent participant-mix pricing
+(per-category totals, the requires-an-accompanying-adult rule, and an
+empty mix rejected).
+
+Proved this is a genuine regression detector and not a vacuous pass: in a
+throwaway scratch copy (never touching the real repository or its git
+history), weakened nightsBetween()'s date-ordering guard to accept zero
+nights, reran the new suite against that scratch copy, and confirmed it
+failed -- the equal-checkin/checkout case surfaced the wrong error message
+("Minimum stay is 2 nights." instead of "Check-out must be after
+check-in."), proving the suite is sensitive to exactly this class of
+regression. Deleted the scratch copy immediately after.
+
+Ran the full existing Vitest suite against the real, unmodified repository
+on the device: 97 files, 523 tests, all green (up from 96/501 before this
+phase's addition, consistent with the one new file and 22 new tests).
+
+This phase adds test coverage only; no production code, migration, or
+business-rule behavior changed.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Traveler browser golden journeys**: verified live (Phase 547) —
