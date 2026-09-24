@@ -1570,6 +1570,57 @@ identity/schedule fields and Phase 570's supplier document paths) where
 the recurring bug class held: a client-trusted value with no independent
 server-side re-check. Continuing to the next hypothesis.
 
+### Phase 575 -- Closed a review-reply reassignment gap (migration 090)
+
+Direct continuation of Phase 574: having just fixed reviews' own RLS,
+checked review_replies (migration 012, supplier replies to reviews) for
+the same class of gap.
+
+Found it: the INSERT policy on review_replies correctly re-verifies
+listing ownership through review_id (`exists (select 1 from reviews r
+join listings l on l.id = r.listing_id where r.id = review_id and
+l.supplier_id = auth.uid())`), but its own sibling UPDATE policy never
+did -- it only ever re-checked `auth.uid() = supplier_id`. Since
+supplier_id itself never has to change for an UPDATE to review_id to
+succeed, a supplier could take a reply they legitimately own (attached to
+a review on one of their own listings) and UPDATE its review_id column to
+point at ANY other not-yet-replied review anywhere on the platform --
+including one on a competitor's listing -- with nothing checking that the
+new review_id still belonged to a listing they actually own. The unique
+index on review_id alone incidentally blocks reassigning onto a review
+that already has a reply, but any unreplied review was fair game: a
+supplier could plant their own reply text underneath a stranger's review
+on a competitor's listing.
+
+Fix (migration 090): the UPDATE policy's WITH CHECK now re-runs the exact
+same listing-ownership check the INSERT policy already performs, applied
+to whatever review_id the row ends up with after the update. Every
+outer-row column reference is explicitly qualified as
+review_replies.<column>, applying the lesson from migration 089's own
+regression-test-caught bug earlier this phase (an unqualified column that
+also exists on a joined table can silently bind to the wrong scope).
+
+Verified against a real Postgres 16 scratch database (stub tables for
+everything migration 012's own `alter table` statements touch, so the
+real 012 file applies verbatim via \ir, then the real 090 file) with 5
+cases: (1) proved the exploit is real against 012 alone -- a supplier
+reassigns their own reply onto an unreplied review on a DIFFERENT
+supplier's listing; (2) the identical reassignment is rejected after 090;
+(3) a legitimate reply insert for the supplier's own listing still works
+(INSERT policy untouched, end-to-end sanity check); (4) editing only
+reply_text (review_id unchanged) on an already-owned, correctly-scoped
+reply still works; (5) reassigning onto a DIFFERENT review that IS on one
+of the supplier's own OTHER listings still works -- this remains
+legitimate, since 090 checks listing ownership, not "the original
+review_id".
+
+This is the fourth subsystem this segment (after Phase 565's booking
+identity fields, Phase 570's supplier document paths, and Phase 574's
+review-verification badge) where the same recurring bug class held: an
+UPDATE path that re-checks the row's simple owner column but forgets to
+re-apply the same authoritative check its own INSERT sibling already
+enforces. Continuing to the next hypothesis.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Traveler browser golden journeys**: verified live (Phase 547) —
