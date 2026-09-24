@@ -14,6 +14,7 @@ import {
   recordTransactionalSend,
   sendResendEmail,
 } from '../_shared/transactional-email.ts';
+import { isBookingTiedEmailKind, resolveBookingTiedRecipient } from '../_shared/notify-customer-recipient.ts';
 
 type EmailKind =
   | 'booking_request'
@@ -153,10 +154,6 @@ function paidReceiptLine(kind: string | undefined): string {
     : 'Charged for this tour. Trips is the durable receipt — keep this email if it arrives.';
 }
 
-function paidConfirmationMaySend(paymentStatus: string | null | undefined): boolean {
-  return String(paymentStatus ?? '').trim().toLowerCase() === 'paid';
-}
-
 function buildDetailRows(p: Payload): string {
   const title = String(p.listingTitle ?? 'Your booking').trim() || 'Your booking';
   const rows: string[] = [];
@@ -243,8 +240,16 @@ serve(async (req) => {
     }
 
     const kind: EmailKind = body.emailKind ?? 'booking_request';
-    if (kind === 'booking_confirmed_paid' && !String(body.bookingId ?? '').trim()) {
-      return json({ success: false, error: 'bookingId required for paid confirmation' }, 400);
+    // Phase 578: every emailKind here is about a specific booking except
+    // traveler_welcome (fired on signup, before any booking exists). Requiring
+    // bookingId for every other kind matches what every real caller already
+    // sends (checked against the actual call sites: promote-paid-from-checkout,
+    // stripe-webhook, send-booking-reminders, and every notifyXxx helper in
+    // src/data/supabase-bookings.ts / supabase-booking-ops.ts) and is what lets
+    // the recipient re-derivation below apply uniformly instead of only to the
+    // two kinds Phase 562 covered. See ../_shared/notify-customer-recipient.ts.
+    if (isBookingTiedEmailKind(kind) && !String(body.bookingId ?? '').trim()) {
+      return json({ success: false, error: 'bookingId required for this emailKind' }, 400);
     }
     const title = String(body.listingTitle ?? 'Your booking').trim() || 'Your booking';
     const name = String(body.customerName ?? '').trim();
@@ -264,7 +269,7 @@ serve(async (req) => {
     // confirmed" or "refund completed" email, citing a real bookingId, to any
     // address they chose, with any amount they chose. For booking_confirmed_paid
     // there is exactly one correct amount/currency per booking (what was
-    // actually charged), so both the recipient and the amount/currency are now
+    // actually charged), so both the recipient and the amount/currency were
     // re-derived from the bookings row rather than trusted from the request.
     // refund_completed is only ever triggered server-side today (stripe-webhook,
     // after a verified Stripe refund event), and its totalAmount is the actual
@@ -274,41 +279,44 @@ serve(async (req) => {
     // caller. A full amount re-derivation for refund_completed, once a
     // per-refund ledger value is available to check it against, is a
     // reasonable target for a future phase.
-    if ((kind === 'booking_confirmed_paid' || kind === 'refund_completed') && admin) {
+    //
+    // Phase 578: Phase 562 only closed this for booking_confirmed_paid and
+    // refund_completed. Every other booking-tied emailKind (booking_request,
+    // your_details_updated, host_updated_schedule, pickup_confirmed,
+    // pickup_changed, booking_cancelled, cancellation_requested_by_supplier,
+    // cancellation_accepted, cancellation_declined, new_booking_message,
+    // pickup_action_required, experience_reminder, review_request) still
+    // trusted body.customerEmail verbatim, with zero caller-identity check --
+    // so an unauthenticated caller could send any of those (several
+    // safety/trust-relevant: pickup changes, cancellations, "new message on
+    // your booking") to any address of their choosing, just by citing any
+    // real bookingId. Recipient re-derivation now applies to every
+    // booking-tied kind, not just the original two. traveler_welcome has no
+    // booking to check against (fired on signup) and is intentionally left
+    // out of this guard -- a separate, lower-severity gap tracked for a
+    // future phase.
+    if (isBookingTiedEmailKind(kind) && admin) {
       const bookingId = String(body.bookingId ?? '').trim();
-      if (!bookingId) {
-        return json({ success: false, error: 'bookingId required for this emailKind' }, 400);
-      }
       const { data: bookingRow } = await admin
         .from('bookings')
         .select('payment_status, guest_email, amount_paid, total_amount, currency')
         .eq('id', bookingId)
         .maybeSingle();
 
-      if (kind === 'booking_confirmed_paid') {
-        if (!paidConfirmationMaySend(bookingRow?.payment_status as string | undefined)) {
-          return json({ success: false, error: 'Booking is not paid' }, 409);
-        }
-        const dbAmount =
-          typeof bookingRow?.amount_paid === 'number'
-            ? bookingRow.amount_paid
-            : typeof bookingRow?.total_amount === 'number'
-              ? bookingRow.total_amount
-              : undefined;
-        if (typeof dbAmount === 'number' && Number.isFinite(dbAmount) && dbAmount >= 0) {
-          amount = dbAmount;
-        }
-        if (typeof bookingRow?.currency === 'string' && bookingRow.currency.trim()) {
-          currency = bookingRow.currency.trim().toUpperCase();
-        }
+      const resolved = resolveBookingTiedRecipient({
+        kind,
+        bookingId,
+        bookingRow,
+        callerEmail: to,
+        callerAmount: amount,
+        callerCurrency: currency,
+      });
+      if (!resolved.ok) {
+        return json({ success: false, error: resolved.error }, resolved.status);
       }
-
-      const dbGuestEmail = String(bookingRow?.guest_email ?? '').trim().toLowerCase();
-      if (dbGuestEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(dbGuestEmail)) {
-        to = dbGuestEmail;
-      } else if (!bookingRow) {
-        return json({ success: false, error: 'Booking not found' }, 404);
-      }
+      to = resolved.to;
+      amount = resolved.amount;
+      currency = resolved.currency;
     }
     const idempotencyKey =
       (typeof body.idempotencyKey === 'string' && body.idempotencyKey.trim()) ||
