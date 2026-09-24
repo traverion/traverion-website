@@ -2250,6 +2250,76 @@ any actual $0/negative charge; the harm here was a broken supplier
 promotion and a wasted inventory hold, not a payment-integrity or
 data-exposure breach. Continuing to the next hypothesis.
 
+### Phase 585 -- Closed the refund_completed amount-spoofing gap Phase 562 flagged and deferred
+
+Hypothesis: Phase 562 fixed notify-customer-booking's recipient- and
+amount-spoofing problem for booking_confirmed_paid and refund_completed's
+recipient, but its own comment explicitly deferred refund_completed's
+amount/currency re-derivation: "refund_completed is only ever triggered
+server-side today... its totalAmount is the actual Stripe refund amount
+-- which can be a *partial* refund with no single corresponding column
+on bookings -- so only its recipient is re-derived here... A full amount
+re-derivation for refund_completed, once a per-refund ledger value is
+available to check it against, is a reasonable target for a future
+phase." Revisited whether that per-refund ledger value now exists, or
+whether the original premise (partial refunds complicate this) actually
+applies to this specific emailKind.
+
+It doesn't need a ledger. Traced every caller of notify-customer-booking
+across src/ and supabase/functions/ for emailKind: 'refund_completed':
+there is exactly one, stripe-webhook/index.ts's charge.refunded handler,
+and it only sends this email inside the branch gated on
+isStripeChargeFullyRefunded(charge) being true -- a partial refund takes
+a different branch entirely (records a booking_payment_events row and
+returns, never flipping payment_status, never emailing). So for this
+specific emailKind, "the refunded amount" and "the booking's original
+amount_paid" are always the same number by construction; Phase 562's
+partial-refund concern doesn't apply here (it only affects a
+hypothetical future partial-refund notification, which doesn't exist
+yet).
+
+notify-customer-booking has no caller-identity check of its own
+(verify_jwt = false, no bearer-token check for any kind other than
+traveler_welcome, which Phase 580 already gated separately). Net
+effect of the gap: an unauthenticated caller citing any real bookingId
+could trigger a genuine, Traverion-branded "Your refund is complete"
+email quoting a fabricated amount/currency -- including for a booking
+that was never refunded at all. The recipient was already safely
+re-derived (can't redirect it to an attacker's inbox against a
+victim's real booking), so this was a narrower integrity/impersonation
+gap than a full arbitrary-send, but real: using Traverion's own domain
+and a real booking's details to send a false transactional email.
+
+Proved it first: added two Vitest cases to
+src/lib/notify-customer-recipient.test.ts -- refund_completed against a
+booking still in payment_status: 'paid' (never refunded), citing a
+caller-supplied amount of 99999 -- both failed against the unmodified
+resolveBookingTiedRecipient (ok: true, with the fabricated figure, for
+a never-refunded booking). Also found and fixed a pre-existing test
+fixture that incidentally used payment_status: 'paid' for an unrelated
+refund_completed case (testing the guest_email fail-closed path) --
+updated it to 'refunded' so it still tests what it always meant to
+rather than tripping the new gate first.
+
+Fixed in src/lib/notify-customer-recipient.ts and its Deno mirror
+supabase/functions/_shared/notify-customer-recipient.ts (kept in sync
+per edge-function-deno-mirror-sync.test.ts): extended
+resolveBookingTiedRecipient's existing amount/currency re-derivation to
+also cover refund_completed, gated on a new
+refundConfirmationMaySend(paymentStatus) check requiring
+payment_status === 'refunded' (409 "Booking is not refunded"
+otherwise, mirroring paidConfirmationMaySend's existing pattern for
+booking_confirmed_paid), then reading amount/currency from the same
+amount_paid/total_amount/currency fields already used for
+booking_confirmed_paid.
+
+Verified: full Vitest suite on the device -- 99 files, 581 tests (579
++ 2 new), all passing, including edge-function-deno-mirror-sync.test.ts
+confirming the two mirrored files stayed identical. tsc --noEmit -p
+tsconfig.app.json: zero errors.
+
+Continuing to the next hypothesis.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Traveler browser golden journeys**: verified live (Phase 547) —
