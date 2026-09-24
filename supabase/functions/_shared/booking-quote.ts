@@ -702,6 +702,17 @@ export function quoteListingBooking(input: {
       const flat = option.privateGroupPriceUsd ?? option.priceUsd;
       if (!(flat > 0)) return { ok: false, error: 'This tour does not have a bookable price yet.' };
       const unit = bestPrice(flat, applicable(input.discounts, option.id, date));
+      // Phase 584: every sibling pricing branch (age-dependent categories,
+      // the standard per-guest option, and the no-option fallback)
+      // re-checks the price for positivity AFTER discounts are applied --
+      // this branch only checked the pre-discount `flat` price above and
+      // returned ok:true unconditionally afterward, so a discount that
+      // brings the flat group price to zero (e.g. a 100%-off promo) or
+      // below (e.g. a misconfigured >100%-off value -- listing_discounts.value
+      // has no upper bound at the schema level) silently produced ok:true
+      // with a zero/negative totalAmount instead of the same clear
+      // rejection every other branch gives.
+      if (!(unit > 0)) return { ok: false, error: 'This tour does not have a bookable price yet.' };
       return {
         ok: true,
         currency,

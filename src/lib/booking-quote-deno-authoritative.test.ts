@@ -398,6 +398,41 @@ describe('quoteListingBooking (authoritative Deno pricing -- direct execution)',
       expect(res.ok).toBe(false);
       if (!res.ok) expect(res.error).toMatch(/no more than 8 guests/i);
     });
+
+    // Phase 584: every other pricing branch (age-dependent categories, the
+    // standard per-guest option, and the no-option fallback) re-checks the
+    // price for positivity AFTER discounts are applied, rejecting with
+    // "This tour does not have a bookable price yet." when a discount
+    // brings it to zero or below. The flat-group branch only checked the
+    // PRE-discount price (`if (!(flat > 0))`) and never re-checked after
+    // calling bestPrice() -- so a discount that zeroes or overshoots the
+    // price silently succeeds here while every sibling branch would
+    // correctly reject it.
+    it('rejects a flat-group option reduced to zero by a 100%-off discount, like every other pricing branch does', () => {
+      const res = quoteListingBooking({
+        listing: tourListingWithOption(privateOption),
+        discounts: [{ type: 'percent', value: 100, valid_from: null, valid_until: null, booking_option_id: 'opt-priv' }],
+        bookingDate: '2026-06-10',
+        guests: 5,
+        bookingOptionId: 'opt-priv',
+        todayIso: TODAY,
+      });
+      expect(res.ok).toBe(false);
+      if (!res.ok) expect(res.error).toMatch(/does not have a bookable price/i);
+    });
+
+    it('rejects a flat-group option driven negative by a >100%-off discount, not just returns ok:true with a negative totalAmount', () => {
+      const res = quoteListingBooking({
+        listing: tourListingWithOption(privateOption),
+        discounts: [{ type: 'percent', value: 150, valid_from: null, valid_until: null, booking_option_id: 'opt-priv' }],
+        bookingDate: '2026-06-10',
+        guests: 5,
+        bookingOptionId: 'opt-priv',
+        todayIso: TODAY,
+      });
+      expect(res.ok).toBe(false);
+      if (!res.ok) expect(res.error).toMatch(/does not have a bookable price/i);
+    });
   });
 
   describe('tour, age-dependent participant pricing', () => {
