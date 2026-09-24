@@ -1965,6 +1965,68 @@ segment's audit of notify-customer-booking and notify-supplier-event
 
 Continuing to the next hypothesis.
 
+### Phase 581 -- Audit: swept every verify_jwt=false edge function for the Phase 578-580 bug class; all others verified safe (no code change)
+
+Hypothesis: Phases 578-580 found and closed three real, unauthenticated
+content/recipient-trust gaps in notify-customer-booking and
+notify-supplier-event -- both `verify_jwt = false` at the gateway, self
+-authenticating only partially or not at all. Worth checking every other
+function that opts out of gateway JWT verification (supabase/config.toml)
+for the same bug class before assuming the two `notify-*` functions were
+the only instances.
+
+Read every remaining `verify_jwt = false` function in full or to its
+auth-gate/action-dispatch structure:
+
+- admin-supplier-verification (949 lines): every action funnels through
+  assertAdmin() first -- a real JWT check via auth.getUser(jwt), then
+  app_metadata.role === 'admin', then a second independent check that the
+  JWT's email matches the single row in public.admin (migration 037). No
+  action bypasses this gate. Spot-checked approve_business/reject_business:
+  correct before/after state reads, idempotent email-sent tracking, ownership
+  of the email content is inherently admin-authorized (the whole point of
+  the endpoint). No bug found.
+- notify-staff-verification-queue (Database Webhook target): requires a
+  bearer secret (VERIFICATION_WEBHOOK_SECRET) checked with a real
+  comparison before any other logic runs; recipient is a fixed
+  STAFF_VERIFICATION_EMAIL env var, never client-controlled. No bug found.
+- notify-contact-inquiry: recipient is always the fixed CONTACT_INQUIRY_TO
+  ops inbox, never client-controlled -- this is a public "Contact us" form
+  by design (unauthenticated submission is the intended behavior, same as
+  any site's contact form), not a notify-customer-booking-style
+  arbitrary-recipient or content-forgery vector against a third party. No
+  rate limiting, but that is a standard, accepted contact-form tradeoff
+  (Resend's own account-level abuse controls apply), not the class of bug
+  this segment has been closing. Not treated as a fix-worthy finding.
+- create-booking-checkout-session / expire-booking-checkout /
+  reconcile-checkout-session: all three self-authenticate the same way --
+  require a real Authorization bearer, build a Supabase client scoped to
+  it, call auth.getUser(), and verify ownership of the specific booking
+  (guest_email match, guest_user_id match, or supplier ownership of the
+  booking's listing) before acting. expire-booking-checkout and
+  reconcile-checkout-session read in full this phase; both solid.
+- stripe-webhook: Stripe signature verified via
+  stripe.webhooks.constructEventAsync() against STRIPE_WEBHOOK_SECRET
+  before any event is trusted -- standard, correct pattern.
+- send-booking-reminders: requires a bearer secret
+  (BOOKING_REMINDER_CRON_SECRET) checked before any logic runs; its own
+  calls into notify-customer-booking use the service-role key as
+  Authorization, which only matters for traveler_welcome (Phase 580's
+  guard) -- send-booking-reminders never sends that kind, so no
+  interaction with that fix.
+- send-supplier-message: re-confirmed still safe (Phase 561's
+  isServiceRoleCaller() bearer check intact, zero client-side callers),
+  as already checked at the start of this segment before Phase 578.
+
+Conclusion: no further instances of the Phase 578-580 bug class exist among
+the `verify_jwt = false` functions. This closes out that specific line of
+investigation for this segment -- an honest negative result, not a padded
+phase; recorded per this mission's own rule against claiming vulnerabilities
+without real evidence (see Phase 576's precedent for the same standard
+applied to a wrong hypothesis).
+
+Continuing to the next hypothesis, outside the notify-*/verify_jwt family.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Traveler browser golden journeys**: verified live (Phase 547) —
