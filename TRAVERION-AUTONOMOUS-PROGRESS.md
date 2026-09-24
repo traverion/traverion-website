@@ -1246,6 +1246,76 @@ opened in Phase 568 (stripe-webhook, promote-paid-from-checkout,
 checkout-paid-amount, reconcile-checkout-session all now read and
 verified this segment).
 
+### Phase 570 -- Closed an identity/KYC-bypass gap in supplier document verification
+
+Audited admin-supplier-verification/index.ts (the staff-only supplier
+review API, unaudited this mission). Its own access gate is genuinely
+well-hardened: a real verified JWT, a server-only app_metadata.role ===
+'admin' check, AND a cross-check of the JWT email against a single-row
+public.admin allowlist table -- three independent layers, no gap found
+there.
+
+Followed the trail into what the admin actually reviews. The
+supplier-verification storage bucket restricts every client read/write to
+the caller's own prefix (migration 029: starts_with(name,
+auth.uid()::text || '/')) -- sound on its own. But
+public.supplier_profiles.identity_document_path and
+company_registration_document_path are plain text columns with no
+equivalent constraint;
+supplier_profiles_enforce_verification_lock() (031 through 083, already
+extensively hardened against self-write of verification_status across six
+prior migrations) only starts protecting these two path columns once the
+row is already business_locked -- before that, and even during the
+initial pending submission itself, a supplier can set either column to
+ANY string via a raw client update.
+
+Confirmed this is concretely exploitable, not theoretical.
+public.listings.supplier_id is selected in the standard published-listing
+query (src/data/supabase-listings.ts) and returned to anonymous visitors
+browsing the public site -- so any real supplier's id is effectively
+public information. Storage paths follow the documented, predictable
+convention "userId/identity-document.pdf" (migration 029's own column
+comment). admin-supplier-verification's signedUrlForPath() generates the
+signed URL a reviewer sees using the SERVICE-ROLE client, which bypasses
+the storage bucket's own ownership RLS by design (staff must be able to
+review documents suppliers can only write to their own prefix of) -- so
+that RLS is not a backstop for this column. Put together: a malicious
+actor can register a supplier account, find any real verified supplier's
+id from a public listing, PATCH their own identity_document_path /
+company_registration_document_path to
+"{thatOtherSupplierId}/identity-document.pdf" instead of uploading
+anything themselves, then submit for verification (a legitimate action --
+083 already allows any supplier to set verification_status to
+'pending'). An admin reviewing the fraudulent submission would be shown
+the OTHER supplier's real, genuine identity document as if it belonged to
+the attacker -- an identity/KYC-bypass integrity issue that could talk a
+reviewer into approving a business that never proved its own identity,
+undermining the entire point of the admin-review gate five prior
+migrations (031, 032, 034, 035, 083) already fought hard to protect
+access to.
+
+Fix: 088_supplier_verification_document_path_ownership_guard.sql extends
+supplier_profiles_enforce_verification_lock() (same function, same
+service_role/postgres bypass, no new trigger) with one more guard applied
+regardless of lock state: a non-staff caller's non-null
+identity_document_path / company_registration_document_path must start
+with their own id followed by '/' -- exactly mirroring the storage
+bucket's own RLS rule, so a supplier can only ever reference a path under
+their own storage prefix, which is the only kind of path a real upload
+through that bucket could ever produce for them. Clearing a path to null
+(removing an uploaded document) remains allowed, matching existing client
+behavior.
+
+Verified against a real Postgres 16 instance (see supabase/tests/
+supplier_profiles_document_path_ownership_guard.test.sql, built on the
+real 083 and 088 migration files via \ir): (1) proves the exploit
+succeeds against 083 alone for both document-path columns; (2) proves
+both are rejected after 088; (3) proves a legitimate own-prefix path
+write still succeeds; (4) proves clearing a path to null still succeeds;
+(5) proves every pre-existing 083 protection (pending-only status
+self-write, blocked self-write to 'verified', staff-only feedback) is
+unaffected; (6) proves the service-role write path is unaffected.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Traveler browser golden journeys**: verified live (Phase 547) —
