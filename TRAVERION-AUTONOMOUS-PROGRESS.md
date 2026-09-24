@@ -2374,6 +2374,70 @@ passing (pure RLS-level fix, no application code touched). tsc
 
 Continuing to the next hypothesis.
 
+### Phase 587 -- Closed a payout-readiness honesty gap: "Paid out to suppliers" could never become non-zero
+
+Mission scope broadened this phase from security-only auditing to full
+marketplace completion (golden journeys, transaction truth, stays/rentals,
+supplier operating system, admin operations, and more -- see the updated
+traverion-autonomous-audit skill). Took the first hypothesis from the new
+Priority Zero list: payout readiness.
+
+AdminFinancePanel.tsx and SupplierEarnings.tsx already display, per
+currency, "Paid out to suppliers" ("Recorded payout periods, status Paid")
+and "Pending payout" ("Payout periods not yet marked Paid"), sourced from
+admin-supplier-verification's finance_summary action reading
+public.supplier_earnings.status -- a per-period payout-batch table
+(migration 002) whose RLS already denies all client insert/update
+("system only"), by design. Grepped every migration, every Edge Function,
+and all of src for a write path into that table: there is none, anywhere.
+It has never been inserted into since creation. So those UI figures were
+structurally guaranteed to read 0 / 0 forever, regardless of how many real
+manual payouts the founder actually sends to suppliers -- while presented
+as real, computed figures. Placeholder functionality presented as real,
+in the platform's own money-truth panel.
+
+Deliberately did NOT build automatic payout computation (period cadence,
+auto-generated pending batches) -- that stays a genuinely unbuilt feature
+(the repo's own prior handoff explicitly lists "Automatic payouts" under
+WHAT IS NOT BUILT) and picking a cadence/policy would be a product
+decision outside this mission's authority. Closed only the narrower,
+provable gap: there was no way, anywhere, to record that a payout
+happened at all -- even though the UI already promises "Payouts are
+manual, so this page never invents a transfer."
+
+Fixed via new migration 094_admin_record_supplier_payout.sql: a SECURITY
+DEFINER RPC admin_record_supplier_payout, granted only to service_role
+(same trust pattern as record_paid_booking_earnings / reverse_paid_
+booking_earnings), reachable only through admin-supplier-verification's
+existing assertAdmin() gate. Validates supplier existence, positive
+amount, real currency, valid period, and status before inserting. Adds
+two additive nullable columns to supplier_earnings: note (optional human
+reference) and recorded_by (which admin recorded it -- there is no
+separate admin-audit-log table in this codebase).
+
+6-case scratch-Postgres proof (supabase/tests/admin_record_supplier_payout.test.sql,
+migrations 002 + 094 included verbatim via \ir): real paid payout records
+correctly; pending payout records correctly; six invalid-input variants
+all rejected with ok:false; an ordinary authenticated caller cannot
+execute the RPC directly; an ordinary authenticated caller still cannot
+bypass it via direct insert (pre-existing RLS, unregressed); a supplier
+can read their own payout row but not another supplier's (pre-existing
+RLS, unregressed). Mutation-tested: stripped the revoke/grant guards from
+a copy of the migration, confirmed the direct-execute case then correctly
+fails, confirming the test has real teeth.
+
+Server-truth (SQL) only -- no TypeScript touched this phase. Baseline gate
+re-confirmed before starting: tsc clean, vitest 99 files / 581 tests
+passing.
+
+Deliberate follow-up, not done in this phase: wire a
+record_supplier_payout action into admin-supplier-verification and a
+minimal "Record a payout" control into AdminFinancePanel.tsx, so a founder
+can actually reach this RPC from the admin UI. Queued as the very next
+hypothesis.
+
+Continuing to the next hypothesis.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Traveler browser golden journeys**: verified live (Phase 547) —
