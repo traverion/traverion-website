@@ -1741,6 +1741,102 @@ zero errors. Ran the full Vitest suite on the device: 97 files, 527 tests
 
 Continuing to the next hypothesis.
 
+### Phase 578 -- Closed the arbitrary-recipient gap in notify-customer-booking for every booking-tied email kind
+
+Hypothesis: notify-customer-booking and notify-supplier-event were both
+flagged during this segment's audit sweep as "hardened in Phase 562, not
+re-audited since." send-supplier-message was re-checked first and confirmed
+still safe (Phase-561 service-role bearer check intact, zero other callers).
+Both notify-customer-booking and notify-supplier-event were read in full
+(600 and 527 lines respectively).
+
+notify-customer-booking has no caller-identity check of its own -- no
+gateway JWT check (verify_jwt off) and no bearer-token check in the function
+itself, documented as such in its own Phase-562 comment. Phase 562 closed
+the arbitrary-recipient/arbitrary-amount vector, but only for
+booking_confirmed_paid and refund_completed: both re-derived the recipient
+(and, for booking_confirmed_paid, the amount/currency) from the real
+bookings row instead of trusting the request body. Every other emailKind --
+booking_request, your_details_updated, host_updated_schedule,
+pickup_confirmed, pickup_changed, booking_cancelled,
+cancellation_requested_by_supplier, cancellation_accepted,
+cancellation_declined, new_booking_message, pickup_action_required,
+experience_reminder, review_request -- still sent to whatever customerEmail
+the caller supplied, verbatim, with only a real (guessable/enumerable)
+bookingId required. Concretely: an unauthenticated caller could send a
+fully Traverion-branded "your booking is cancelled", "pickup details
+changed", or "new message about your booking" email -- several genuinely
+safety- or trust-relevant -- to any address of their choosing, for any real
+booking on the platform, simply by citing its id.
+
+(notify-supplier-event has an analogous but structurally different and
+lower-severity gap: its recipient resolution is always DB-driven from a
+client-supplied supplierId via admin.auth.admin.getUserById(), so an
+attacker cannot choose an arbitrary recipient -- only trigger
+fabricated-content notifications to a real, existing supplier's real
+inbox. Deliberately scoped OUT of this phase to keep one phase = one
+coherent commit; tracked as a candidate for a future phase, same as
+notify-customer-booking's own remaining content-forgery gap noted below.)
+
+Proof before fix: copied the exact pre-fix recipient-resolution block
+verbatim off the still-untouched, currently-committed device file into a
+scratch Deno harness (mocked admin client) and confirmed a
+booking_cancelled request with a real bookingId and an attacker-chosen
+customerEmail sailed through with `to` unchanged -- the exploit, reproduced
+against the actual current implementation, not merely hypothesized.
+Repeated across all 13 other affected kinds; all reproduced identically.
+
+Before writing the fix, traced every legitimate current call site of
+notify-customer-booking to confirm requiring bookingId for every kind
+except traveler_welcome would not break a real flow:
+_shared/promote-paid-from-checkout.ts (booking_confirmed_paid),
+stripe-webhook (refund_completed), send-booking-reminders.ts
+(experience_reminder, review_request), and every notifyXxx helper in
+src/data/supabase-bookings.ts / supabase-booking-ops.ts
+(notifyTravelerCancellationRequest, notifyCancellationResolved,
+notifyNewBookingMessage, and the inline invoke calls for booking_request,
+your_details_updated, host_updated_schedule/pickup_confirmed/pickup_changed,
+booking_cancelled). Every one already sends a real bookingId.
+traveler_welcome is the one exception -- fired on signup, no booking
+concept -- and is intentionally left out of this guard; still exploitable
+for an arbitrary-recipient "Welcome to Traverion" email, but far lower
+severity (no sensitive content) and tracked as a separate future-phase
+candidate.
+
+Fix: extracted the recipient/amount re-derivation into a pure function,
+resolveBookingTiedRecipient(), in a new
+supabase/functions/_shared/notify-customer-recipient.ts, applied uniformly
+to every booking-tied kind instead of gating on
+booking_confirmed_paid/refund_completed only. Mirrored byte-for-byte
+(comments/formatting aside) at src/lib/notify-customer-recipient.ts, which
+edge-function-deno-mirror-sync.test.ts (from the Phase 568 era) picks up
+automatically -- this pair now gets real, enforced drift protection,
+stronger than the manual "keep in sync" convention booking-hold.ts /
+booking-quote.ts rely on. index.ts now imports and calls the shared
+function; removed the now-dead local paidConfirmationMaySend.
+
+Also fixed a second, smaller bug uncovered in the same block: when a cited
+booking existed but had no usable guest_email on file, the old code
+silently fell through and kept the caller-supplied customerEmail --
+fail-open, the same underlying spoofing vector, just for a narrower trigger
+condition. Now fails closed (422 Booking has no valid guest email on file).
+
+Verified: `deno check` (Deno installed in the sandbox for this purpose --
+this repo has no Deno test runner of its own, confirmed again this phase)
+against both the shared module and the edited edge function -- zero errors.
+Added src/lib/notify-customer-recipient.test.ts: 21 real Vitest cases
+against the mirrored logic, covering the exploit-shape reproduction for all
+13 other-than-traveler_welcome kinds, the missing-bookingId /
+nonexistent-booking / no-guest-email failure paths, the
+booking_confirmed_paid happy path (recipient, amount, currency all
+unchanged from pre-fix behavior for legitimate callers), and
+traveler_welcome's intentional exemption. Ran the full suite on the
+device: 98 files, 549 tests (527 + 21 new + 1 new auto-discovered
+mirror-sync case), all passing. `tsc --noEmit -p tsconfig.app.json`: zero
+errors.
+
+Continuing to the next hypothesis.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Traveler browser golden journeys**: verified live (Phase 547) —
