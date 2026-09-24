@@ -121,6 +121,7 @@ type Body = {
     | 'delete_portal_notification'
     | 'bookings_list'
     | 'finance_summary'
+    | 'record_supplier_payout'
     | 'list_contact_inquiries'
     | 'update_contact_inquiry_status';
   supplierId?: string;
@@ -136,6 +137,13 @@ type Body = {
   bookingSupplierId?: string;
   inquiryId?: string;
   inquiryStatus?: string;
+  payoutSupplierId?: string;
+  payoutAmount?: number;
+  payoutCurrency?: string;
+  payoutPeriodStart?: string;
+  payoutPeriodEnd?: string;
+  payoutStatus?: string;
+  payoutNote?: string | null;
 };
 
 function isAdminUser(user: { app_metadata?: Record<string, unknown> } | null): boolean {
@@ -213,7 +221,7 @@ serve(async (req) => {
 
   const gate = await assertAdmin(req, serviceKey, url);
   if (gate instanceof Response) return gate;
-  const { admin } = gate;
+  const { admin, userId: adminUserId } = gate;
 
   let body: Body;
   try {
@@ -452,6 +460,47 @@ serve(async (req) => {
       truncated:
         bookingRows.length >= FETCH_CAP || ledgerRows.length >= FETCH_CAP || earningsRows.length >= FETCH_CAP,
     });
+  }
+
+  if (body.action === 'record_supplier_payout') {
+    const payoutSupplierId = typeof body.payoutSupplierId === 'string' ? body.payoutSupplierId.trim() : '';
+    const payoutAmount = typeof body.payoutAmount === 'number' ? body.payoutAmount : NaN;
+    const payoutCurrency = typeof body.payoutCurrency === 'string' ? body.payoutCurrency.trim() : '';
+    const payoutPeriodStart = typeof body.payoutPeriodStart === 'string' ? body.payoutPeriodStart.trim() : '';
+    const payoutPeriodEnd = typeof body.payoutPeriodEnd === 'string' ? body.payoutPeriodEnd.trim() : '';
+    const payoutStatus = typeof body.payoutStatus === 'string' ? body.payoutStatus.trim().toLowerCase() : 'paid';
+    const payoutNote = typeof body.payoutNote === 'string' && body.payoutNote.trim() ? body.payoutNote.trim() : null;
+
+    if (!payoutSupplierId) return json({ error: 'payoutSupplierId required' }, 400);
+    if (!Number.isFinite(payoutAmount) || payoutAmount <= 0) {
+      return json({ error: 'payoutAmount must be a positive number' }, 400);
+    }
+    if (!payoutCurrency) return json({ error: 'payoutCurrency required' }, 400);
+    if (!payoutPeriodStart || !payoutPeriodEnd) {
+      return json({ error: 'payoutPeriodStart and payoutPeriodEnd required (YYYY-MM-DD)' }, 400);
+    }
+    if (payoutStatus !== 'pending' && payoutStatus !== 'paid') {
+      return json({ error: "payoutStatus must be 'pending' or 'paid'" }, 400);
+    }
+
+    // Reuses record_paid_booking_earnings / reverse_paid_booking_earnings's exact
+    // trust model: this RPC is granted only to service_role (see migration 094),
+    // so it is reachable only through the assertAdmin() gate already enforced
+    // above for this whole edge function -- never directly by a client.
+    const { data: rpcData, error: rpcError } = await admin.rpc('admin_record_supplier_payout', {
+      p_supplier_id: payoutSupplierId,
+      p_amount: payoutAmount,
+      p_currency: payoutCurrency,
+      p_period_start: payoutPeriodStart,
+      p_period_end: payoutPeriodEnd,
+      p_status: payoutStatus,
+      p_note: payoutNote,
+      p_recorded_by: adminUserId,
+    });
+    if (rpcError) return json({ error: rpcError.message }, 500);
+    const result = rpcData as { ok: boolean; error?: string; id?: string } | null;
+    if (!result?.ok) return json({ error: result?.error ?? 'Could not record payout' }, 400);
+    return json({ ok: true, id: result.id });
   }
 
   if (body.action === 'list_contact_inquiries') {
