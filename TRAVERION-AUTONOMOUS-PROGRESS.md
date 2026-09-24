@@ -2320,6 +2320,60 @@ tsconfig.app.json: zero errors.
 
 Continuing to the next hypothesis.
 
+### Phase 586 -- Closed a supplier self-review / rating-manipulation gap migration 089 did not cover
+
+Hypothesis: migration 089 already closed a real fake-review /
+false-verified-badge gap by requiring booking_id, when set, to
+reference a real, owned, confirmed booking for the SAME listing being
+reviewed -- with a thorough 10-case regression suite. Asked whether
+089's ownership check (owns the BOOKING) also implies ownership
+integrity of the REVIEW relative to the LISTING, or whether a
+different actor -- the listing's own supplier -- could satisfy every
+one of 089's conditions legitimately while still producing a
+misleading review.
+
+It could. Traced create-booking-checkout-session/index.ts end to end:
+nothing stops a signed-in supplier from completing a real checkout on
+their own listing. A supplier can therefore legitimately reach
+status='confirmed' on a booking of their own tour or stay (Stripe TEST
+mode only, per the mission's standing constraint), then use that
+entirely real, entirely 089-compliant booking as proof to leave
+themselves a five-star "Verified" review. 089 checked ownership of the
+booking; it never checked ownership of the listing relative to the
+reviewer.
+
+Proved it first: supabase/tests/reviews_supplier_self_review_guard.test.sql,
+a scratch-Postgres 16 proof mirroring 089's own test scaffolding
+exactly, with the real migrations 006 and 089 included verbatim.
+Case 1: a supplier books their own listing for real, then reviews it
+as Verified using that booking -- succeeds against 089 alone,
+confirming the gap.
+
+Fixed via new migration 093_reviews_block_supplier_self_review.sql:
+extends both of 089's own INSERT/UPDATE policies with an independent
+guard -- the review's listing must not belong to a listing whose
+supplier_id is the reviewing user -- applied unconditionally (verified
+or not, since the underlying fraud is impersonating an independent
+customer voice on your own listing at all). Does not touch whether
+suppliers may book their own listings (a separate product question) or
+block a supplier from reviewing a genuinely different listing they
+booked as an ordinary traveler.
+
+6-case regression suite, all passing: the pre-fix exploit proven; the
+identical attempt rejected after 093 even with a completely real
+owned+confirmed booking; an unverified supplier self-review also
+rejected; a genuine unrelated traveler's verified review unaffected; a
+supplier reviewing a DIFFERENT listing they genuinely booked as a
+traveler unaffected; the same exploit via UPDATE rejected.
+Mutation-tested (stripped the new guard back out, confirmed Case 2
+correctly fails) to validate the suite has real teeth.
+
+Verified: full Vitest suite on the device -- 99 files, 581 tests, all
+passing (pure RLS-level fix, no application code touched). tsc
+--noEmit -p tsconfig.app.json: zero errors.
+
+Continuing to the next hypothesis.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Traveler browser golden journeys**: verified live (Phase 547) —
