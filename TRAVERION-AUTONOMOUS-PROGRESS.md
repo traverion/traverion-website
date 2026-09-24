@@ -2157,6 +2157,99 @@ This is the most severe finding of this session's Domain D/E work so far
 -- a genuine, provable verification-bypass vulnerability, not an audit
 -only negative result. Continuing to the next hypothesis.
 
+### Phase 584 -- Fixed an inconsistent post-discount price floor on the private flat-group tour pricing branch (quoteListingBooking)
+
+Hypothesis: after Phase 583 (listings.status NULL bypass, closed),
+continued the negative-result streak with two more genuine checks --
+admin-privilege escalation (public.admin / is_traverion_panel_admin(),
+migration 038) and traveler booking-list authorization (bookings SELECT/
+UPDATE RLS, migrations 001/005/037/086/087) -- both confirmed already
+safe with no code change needed:
+
+  - isAdminUser() requires user.app_metadata.role === 'admin'. Grepped
+    every migration and edge function for any write to
+    raw_app_meta_data/app_metadata: none exists anywhere in this
+    codebase. app_metadata is only settable via the Supabase
+    Dashboard/Admin API, entirely outside any client-writable path.
+    assertAdmin() ALSO independently cross-checks the caller's JWT
+    email against the single row in public.admin (itself RLS-enabled
+    with zero policies plus an explicit REVOKE ALL FROM anon,
+    authenticated -- migration 038), and both checks run once at the
+    very top of admin-supplier-verification's serve() handler, before
+    body parsing or any action dispatch -- no admin action can skip
+    either gate. No forgery path found.
+  - fetchMyBookings()/fetchMyBookingByCheckoutSessionId() rely entirely
+    on RLS with no explicit ownership filter in the client query --
+    verified this is safe because the active SELECT policies
+    (migration 037) scope strictly to `guest_user_id = auth.uid()` or a
+    case-insensitive match between `guest_email` and the caller's own
+    JWT email, and migrations 086 (dropped the client-writable INSERT
+    policy entirely -- every booking row must now come from the
+    service-role edge function) and 087 (freezes guest_email/
+    guest_user_id, among other identity/schedule fields, against ANY
+    client UPDATE at any payment status) already closed the two gaps
+    that would have made this exploitable. Guessing another traveler's
+    checkout_session_id does not bypass RLS -- it is just an additional
+    WHERE filter on top of it.
+
+Then audited supabase/functions/_shared/booking-quote.ts's four
+independent tour-pricing branches for internal consistency with each
+other -- the same technique that found Phase 583 (three call sites
+sharing one bug, one branch missing it). It found one: three of the
+four branches (age-dependent participant categories, the standard
+per-guest option, and the no-option fallback) all re-check
+`bestPrice()`'s output for positivity and reject with "This tour does
+not have a bookable price yet." if a discount brings the price to zero
+or below. The private flat-group branch (isPrivate && privatePricing
+=== 'flat_group') only checked the PRE-discount price and returned
+ok: true unconditionally afterward, regardless of what the discount
+computed.
+
+listing_discounts.value has no upper bound at the schema level
+(migration 002), discounts are public-SELECT-able, and
+`applicable()`/`bestPrice()` auto-apply every currently-valid discount
+scoped to an option regardless of whether a "code" was entered (the
+code column is never read by the pricing logic). So a supplier's own,
+entirely legitimate 100%-off promotional discount on a private/
+flat-group tour option computed unit = 0 and this branch said ok: true
+with totalAmount: 0; a >100% value (typo or test) computed a negative
+unit price and still said ok: true.
+
+Not a payable exploit -- create-booking-checkout-session already has a
+defense-in-depth guard rejecting any amountMinor < 1 immediately before
+creating the Stripe session, so Stripe itself was never asked to charge
+$0 or negative. But claim_pending_checkout_booking (which reserves a
+30-minute inventory hold) runs before that late guard, so the real
+effect was: a supplier's legitimate 100%-off promo on a private-group
+tour was silently broken for every customer (wasted hold + a confusing
+generic error instead of the correct upfront message every other
+option type gives), and a malformed >100% discount could similarly
+claim-then-fail with a momentarily negative total_amount on a
+never-paid pending booking. Both self-heal via the already-audited
+30-minute expire_stale_checkout_holds TTL.
+
+Proved it first: added two Vitest cases (100%-off and 150%-off
+discounts on the existing private flat-group fixture) to
+src/lib/booking-quote-deno-authoritative.test.ts asserting ok: false
+with the same message the sibling branches give; both failed against
+the unmodified code (ok: true instead), confirming the bug. Fixed by
+adding the identical post-discount `if (!(unit > 0)) return {ok:false,
+error:'This tour does not have a bookable price yet.'}` check the
+other three branches already use. src/lib/booking-quote.ts (the
+frontend display-estimate mirror) has no flat-group/private-pricing
+branch at all, so this is a single-file fix.
+
+Verified: full Vitest suite on the device -- 99 files, 579 tests (577
++ 2 new), all passing. tsc --noEmit -p tsconfig.app.json: zero errors.
+
+A real, provable inconsistency bug (same class as Phase 583: one
+pricing/authorization branch missing a check its siblings already
+have), not an audit-only negative result -- but lower severity than
+583, since the defense-in-depth Stripe-amount guard already prevented
+any actual $0/negative charge; the harm here was a broken supplier
+promotion and a wasted inventory hold, not a payment-integrity or
+data-exposure breach. Continuing to the next hypothesis.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Traveler browser golden journeys**: verified live (Phase 547) —
