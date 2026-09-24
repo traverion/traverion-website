@@ -1621,6 +1621,63 @@ UPDATE path that re-checks the row's simple owner column but forgets to
 re-apply the same authoritative check its own INSERT sibling already
 enforces. Continuing to the next hypothesis.
 
+### Phase 576 -- Investigated listings.supplier_id reassignment; NOT exploitable, shipped explicit hardening anyway (migration 091, honesty note)
+
+Hypothesis, following the same "client-trusted value, no independent
+re-check" pattern that held in three other subsystems this segment
+(bookings identity fields, supplier document paths, review verification):
+migration 082's own comment states that "Suppliers can update own
+listings" (migration 001) "let[s] a supplier ... update ANY column on
+their own row with no restriction" and has no WITH CHECK clause. Since
+every other RLS policy that scopes a supplier to "their" data (bookings,
+supplier_earnings, supplier_ledger_entries, booking_messages) does so via
+a LIVE join back to listings.supplier_id, a supplier reassigning their own
+listing's supplier_id to a different user looked like it would
+retroactively hand that listing's booking history to whoever the new
+supplier_id belonged to, and redirect future earnings.
+
+This turned out to be WRONG, and it's worth recording precisely why, in
+the interest of the honest-assessment standard this mission runs on. A
+first draft of the fix (091) and its regression test were written
+assuming the reassignment would succeed against the real migration 001
+baseline. Running that test against a real Postgres 16 instance
+immediately contradicted the assumption: the reassignment attempt was
+REJECTED even with no WITH CHECK clause on the policy at all. The reason:
+PostgreSQL's own documented RLS semantics state that when an UPDATE
+policy omits WITH CHECK, the USING expression is reused as the check
+against the resulting new row too -- so `using (auth.uid() = supplier_id)`
+alone already means the caller's uid must equal the NEW row's supplier_id,
+not just the old row's. Confirmed this with a second, minimal, fully
+isolated repro outside the larger test harness to rule out any test-setup
+artifact, with the same result both times. Migration 082's own comment
+about "no restriction" reads more narrowly than it first appears -- it
+is correct that verification status is not enforced (082's actual fix),
+but it does not mean supplier_id itself was ever reassignable.
+
+Given the hypothesis did not hold, the honest outcome is: no vulnerability
+existed here, and this phase does not get to claim one. What is shipped
+instead is a small, clearly-labeled defense-in-depth hardening: an
+explicit WITH CHECK mirroring the existing USING clause, so this
+invariant no longer depends on an implicit (and, as this investigation's
+own first draft shows, easy to misjudge) Postgres default. The practical
+risk the explicit check guards against: if anyone ever adds an unrelated
+WITH CHECK clause to this same policy in the future, doing so REPLACES
+the implicit reused-USING behavior outright rather than adding to it,
+which would silently reopen this exact gap unless the new WITH CHECK also
+happened to preserve the supplier_id invariant. Migration 091's own
+header comment states plainly that this is not a live-bug fix.
+
+Verified against a real Postgres 16 scratch database with 5 cases: (1)
+against 001 alone, the reassignment attempt is already rejected, and the
+third party gains no visibility into the listing's bookings -- proving
+non-exploitability before any change; (2) the identical attempt behaves
+identically after 091, now via the explicit check; (3) an ordinary field
+edit (title) on an owned listing still works, unchanged; (4) a non-owner
+still cannot touch a listing they don't own; (5) a service-role write of
+supplier_id is unaffected.
+
+Continuing to the next hypothesis.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Traveler browser golden journeys**: verified live (Phase 547) —
