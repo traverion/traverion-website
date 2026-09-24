@@ -63,6 +63,15 @@ function paidConfirmationMaySend(paymentStatus: string | null | undefined): bool
   return String(paymentStatus ?? '').trim().toLowerCase() === 'paid';
 }
 
+// Phase 585: refund_completed is only ever sent after Stripe confirms a FULL
+// refund (stripe-webhook's charge.refunded handler only fires it once
+// payment_status has already been flipped to 'refunded' -- a partial refund
+// never flips payment_status and never sends this email), so the booking's
+// original amount_paid is always the correct refunded figure for this kind.
+function refundConfirmationMaySend(paymentStatus: string | null | undefined): boolean {
+  return String(paymentStatus ?? '').trim().toLowerCase() === 'refunded';
+}
+
 /**
  * Call after fetching the bookings row for a booking-tied emailKind (or
  * confirming bookingId was missing / the row was not found -- pass
@@ -93,9 +102,21 @@ export function resolveBookingTiedRecipient(params: {
 
   let amount = params.callerAmount;
   let currency = params.callerCurrency;
-  if (kind === 'booking_confirmed_paid') {
-    if (!paidConfirmationMaySend(bookingRow.payment_status)) {
+  // Phase 585: refund_completed used to fall through this block untouched,
+  // trusting the caller-supplied amount/currency verbatim -- since
+  // notify-customer-booking has no caller-identity check of its own
+  // (verify_jwt off, no bearer-token check), an unauthenticated caller could
+  // cite any real bookingId and send a genuine, Traverion-branded "your
+  // refund is complete" email quoting a fabricated amount, even for a
+  // booking that was never refunded at all. Re-derive it the same way
+  // booking_confirmed_paid's amount already is, gated on the kind-specific
+  // payment_status that actually proves the claim being emailed.
+  if (kind === 'booking_confirmed_paid' || kind === 'refund_completed') {
+    if (kind === 'booking_confirmed_paid' && !paidConfirmationMaySend(bookingRow.payment_status)) {
       return { ok: false, error: 'Booking is not paid', status: 409 };
+    }
+    if (kind === 'refund_completed' && !refundConfirmationMaySend(bookingRow.payment_status)) {
+      return { ok: false, error: 'Booking is not refunded', status: 409 };
     }
     const dbAmount =
       typeof bookingRow.amount_paid === 'number'

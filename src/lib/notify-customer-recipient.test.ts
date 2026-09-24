@@ -105,7 +105,10 @@ describe('resolveBookingTiedRecipient (Phase 578 arbitrary-recipient fix)', () =
     const result = resolveBookingTiedRecipient({
       kind: 'refund_completed',
       bookingId: REAL_BOOKING_ID,
-      bookingRow: { guest_email: null, payment_status: 'paid' },
+      // payment_status: 'refunded' so this exercises the guest_email
+      // fail-closed check specifically, past the Phase 585 refunded-status
+      // gate (covered on its own above).
+      bookingRow: { guest_email: null, payment_status: 'refunded' },
       callerEmail: ATTACKER_EMAIL,
       callerAmount: 50,
       callerCurrency: 'EUR',
@@ -137,7 +140,50 @@ describe('resolveBookingTiedRecipient (Phase 578 arbitrary-recipient fix)', () =
     expect(result).toEqual({ ok: true, to: REAL_GUEST_EMAIL, amount: 199.5, currency: 'USD' });
   });
 
-  it('non-booking_confirmed_paid kinds never re-derive amount/currency, only the recipient', () => {
+  // Phase 585: refund_completed is the one other kind notify-customer-booking
+  // trusts a caller-supplied amount for. It is only ever triggered
+  // server-side (stripe-webhook, after Stripe confirms a FULL refund), and
+  // its amount is always equal to the booking's original amount_paid --
+  // there is no partial-refund case for this emailKind (a partial refund
+  // does not flip payment_status to 'refunded' and never sends this email).
+  // Since notify-customer-booking has no caller-identity check at all
+  // (verify_jwt off, no bearer-token check), an unauthenticated caller could
+  // previously cite any real bookingId and any amount/currency of their
+  // choosing to send a real, Traverion-branded "your refund is complete"
+  // email quoting a fabricated figure -- and could do so even for a booking
+  // that was never refunded at all.
+  it('refund_completed: rejects a booking that was never refunded, even with a valid guest_email', () => {
+    const result = resolveBookingTiedRecipient({
+      kind: 'refund_completed',
+      bookingId: REAL_BOOKING_ID,
+      bookingRow: paidRow, // payment_status: 'paid', never refunded
+      callerEmail: ATTACKER_EMAIL,
+      callerAmount: 99999,
+      callerCurrency: 'USD',
+    });
+    expect(result).toEqual({ ok: false, error: 'Booking is not refunded', status: 409 });
+  });
+
+  it('refund_completed happy path: re-derives recipient, amount, and currency from the real booking, not the caller-supplied figure', () => {
+    const refundedRow: BookingRowForRecipient = {
+      payment_status: 'refunded',
+      guest_email: REAL_GUEST_EMAIL,
+      amount_paid: 199.5,
+      total_amount: 199.5,
+      currency: 'usd',
+    };
+    const result = resolveBookingTiedRecipient({
+      kind: 'refund_completed',
+      bookingId: REAL_BOOKING_ID,
+      bookingRow: refundedRow,
+      callerEmail: ATTACKER_EMAIL,
+      callerAmount: 99999,
+      callerCurrency: 'GBP',
+    });
+    expect(result).toEqual({ ok: true, to: REAL_GUEST_EMAIL, amount: 199.5, currency: 'USD' });
+  });
+
+  it('non-booking_confirmed_paid/refund_completed kinds never re-derive amount/currency, only the recipient', () => {
     const result = resolveBookingTiedRecipient({
       kind: 'booking_cancelled',
       bookingId: REAL_BOOKING_ID,
