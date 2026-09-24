@@ -44,6 +44,8 @@ export async function notifySupplierEvent(params: {
   guestName?: string;
   reviewRating?: number;
   reviewTitle?: string;
+  /** new_review: the real reviews row this notification is about (Phase 579 ownership/content check). */
+  reviewId?: string;
   /** Base URL for links in supplier_welcome email (e.g. https://www.traverion.com) */
   portalBaseUrl?: string;
   /** guest_message — short preview of the guest note */

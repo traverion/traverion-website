@@ -98,30 +98,38 @@ export async function submitReview(params: {
   bookingId?: string;
 }): Promise<{ success: boolean; error?: string }> {
   if (!supabase) return { success: false, error: 'Supabase not configured' };
-  const { error } = await supabase.from('reviews').upsert(
-    {
-      listing_id: params.listingId,
-      user_id: params.userId,
-      guest_name: params.guestName,
-      rating: params.rating,
-      title: params.title ?? null,
-      comment: params.comment,
-      booking_id: params.bookingId ?? null,
-    },
-    { onConflict: 'listing_id,user_id' }
-  );
+  // Phase 579: capture the real row id so notify-supplier-event can re-derive
+  // rating/title/guest name from the actual reviews row instead of trusting
+  // this call's params verbatim (see supabase/functions/_shared/notify-supplier-event-guard.ts).
+  const { data: savedReview, error } = await supabase
+    .from('reviews')
+    .upsert(
+      {
+        listing_id: params.listingId,
+        user_id: params.userId,
+        guest_name: params.guestName,
+        rating: params.rating,
+        title: params.title ?? null,
+        comment: params.comment,
+        booking_id: params.bookingId ?? null,
+      },
+      { onConflict: 'listing_id,user_id' }
+    )
+    .select('id')
+    .maybeSingle();
   if (error) return { success: false, error: error.message };
   const { data: listingData } = await supabase
     .from('listings')
     .select('supplier_id, title')
     .eq('id', params.listingId)
     .maybeSingle();
-  if (listingData?.supplier_id) {
+  if (listingData?.supplier_id && savedReview?.id) {
     void notifySupplierEvent({
       supplierId: listingData.supplier_id,
       eventType: 'new_review',
       listingId: params.listingId,
       listingTitle: listingData.title ?? undefined,
+      reviewId: savedReview.id,
       reviewRating: params.rating,
       reviewTitle: params.title,
       guestName: params.guestName,

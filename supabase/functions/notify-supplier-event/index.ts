@@ -12,6 +12,7 @@ import {
   recordTransactionalSend,
   sendResendEmail,
 } from '../_shared/transactional-email.ts';
+import { isBookingTiedSupplierEvent, isReviewTiedSupplierEvent, resolveSupplierEventContext } from '../_shared/notify-supplier-event-guard.ts';
 
 type EventType =
   | 'new_booking'
@@ -37,6 +38,8 @@ type Payload = {
   guestName?: string;
   reviewRating?: number;
   reviewTitle?: string;
+  /** new_review: the real reviews row this notification is about (Phase 579 ownership/content check). */
+  reviewId?: string;
   /** Base site URL (no trailing slash), e.g. https://www.traverion.com — used in supplier_welcome body */
   portalBaseUrl?: string;
   /** Short preview of a guest message (guest_message) */
@@ -422,6 +425,83 @@ serve(async (req) => {
       }
     }
 
+    // Phase 579: this endpoint's recipient resolution was already safe --
+    // always DB-derived from supplierId, never a caller-supplied address --
+    // but every content field (listingTitle, guestName, bookingDate, guests,
+    // bookingNumber, bookingPaymentStatus, reviewRating, reviewTitle) was
+    // trusted verbatim from the request, for every eventType. An attacker
+    // who knew or guessed a real supplierId could trigger a fully fabricated
+    // "new booking", "booking cancelled", "cancellation accepted/declined",
+    // or "new review" notification to that supplier's real inbox. Every
+    // booking-tied eventType now requires bookingId+listingId and re-derives
+    // its fields from the real bookings/listings rows; new_review now
+    // requires reviewId+listingId and re-derives from the real reviews row.
+    // messagePreview/changeSummary/fieldDiffs/unpaidCheckout have no single
+    // authoritative DB source and remain caller-supplied (same scoping
+    // decision Phase 578 made for notify-customer-booking's fieldDiffs), but
+    // forging them now requires citing a real booking/review that actually
+    // belongs to the targeted supplier, not merely a real supplierId. See
+    // ../_shared/notify-supplier-event-guard.ts.
+    let listingRow: { id?: string | null; supplier_id?: string | null; title?: string | null } | null = null;
+    let bookingRow:
+      | {
+          id?: string | null;
+          listing_id?: string | null;
+          guest_name?: string | null;
+          booking_date?: string | null;
+          guests?: number | null;
+          booking_number?: number | null;
+          payment_status?: string | null;
+        }
+      | null = null;
+    let reviewRow:
+      | { id?: string | null; listing_id?: string | null; rating?: number | null; title?: string | null; guest_name?: string | null }
+      | null = null;
+
+    if (isBookingTiedSupplierEvent(payload.eventType) || isReviewTiedSupplierEvent(payload.eventType)) {
+      const listingId = String(payload.listingId ?? '').trim();
+      if (listingId) {
+        const { data } = await admin.from('listings').select('id, supplier_id, title').eq('id', listingId).maybeSingle();
+        listingRow = data;
+      }
+      if (isBookingTiedSupplierEvent(payload.eventType)) {
+        const bookingId = String(payload.bookingId ?? '').trim();
+        if (bookingId) {
+          const { data } = await admin
+            .from('bookings')
+            .select('id, listing_id, guest_name, booking_date, guests, booking_number, payment_status')
+            .eq('id', bookingId)
+            .maybeSingle();
+          bookingRow = data;
+        }
+      } else {
+        const reviewId = String(payload.reviewId ?? '').trim();
+        if (reviewId) {
+          const { data } = await admin
+            .from('reviews')
+            .select('id, listing_id, rating, title, guest_name')
+            .eq('id', reviewId)
+            .maybeSingle();
+          reviewRow = data;
+        }
+      }
+    }
+
+    const resolved = resolveSupplierEventContext({
+      eventType: payload.eventType,
+      supplierId: payload.supplierId,
+      bookingId: payload.bookingId,
+      listingId: payload.listingId,
+      reviewId: payload.reviewId,
+      listingRow,
+      bookingRow,
+      reviewRow,
+    });
+    if (!resolved.ok) {
+      return json({ success: false, error: resolved.error }, resolved.status);
+    }
+    const effectivePayload: Payload = { ...payload, ...resolved.overrides };
+
     const idempotencyKey =
       (typeof payload.idempotencyKey === 'string' && payload.idempotencyKey.trim()) ||
       (payload.bookingId
@@ -464,14 +544,14 @@ serve(async (req) => {
       return json({ success: false, error: 'No recipient emails found for supplier' }, 400);
     }
 
-    const textBody = eventBody(payload);
-    const htmlBody = eventHtml(payload);
+    const textBody = eventBody(effectivePayload);
+    const htmlBody = eventHtml(effectivePayload);
 
     const sent = await sendResendEmail({
       apiKey,
       from: fromEmail,
       to: [...recipients],
-      subject: eventSubject(payload),
+      subject: eventSubject(effectivePayload),
       text: textBody,
       html: htmlBody,
     });
