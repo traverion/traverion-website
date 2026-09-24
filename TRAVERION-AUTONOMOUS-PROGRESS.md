@@ -1498,6 +1498,78 @@ arguments the client-side fetchers are called with or how a request is
 hand-crafted against the public Supabase client. Continuing to the next
 hypothesis.
 
+### Phase 574 -- Closed a fake-review / false-"verified"-badge gap in the reviews table (migration 089)
+
+Hypothesis, moving into an unaudited "Content Edge Cases" / marketplace-
+trust area this segment hadn't touched yet: does anything stop a user from
+posting a fabricated review, or from falsely claiming the "Verified"
+purchase badge using a booking that isn't theirs?
+
+Read the reviews table's RLS from the ground up (migration 006, never
+revisited since -- 012 only adds supplier reply-to-review, untouched
+here). Found the original insert/update policies only ever checked
+`auth.uid() = user_id`. Nothing checked that a supplied booking_id
+actually belongs to the reviewing user, is for the same listing being
+reviewed, or reflects a real, accepted booking at all. The app's own
+eligibility gate (userHasCompletedBookingForListing in
+src/data/supabase-reviews.ts) is a client-side UI convenience that decides
+whether to show the "write a review" button and which real booking id to
+suggest -- but submitReview() itself just upserts whatever booking_id it
+is handed, with zero further validation, and nothing stops a direct call
+against the public Supabase client that skips the UI gate entirely.
+
+Concretely, before this fix, any authenticated user could post a review
+on a listing they had never booked -- a competitor's listing, or their own
+listing under a second account -- with an arbitrary rating, comment, and
+guest_name, and set booking_id to ANY existing booking id anywhere in the
+system, not even their own, to have it rendered with a "Verified" badge
+(fetchReviewsByListingId / fetchReviewsForSupplierListings both compute
+`verified: !!r.booking_id` -- purely "is it non-null", no ownership check
+at read time either).
+
+Fix (migration 089): a non-null booking_id at insert or update time must
+now reference a real booking that (a) belongs to the reviewing user, by
+guest_user_id or guest_email -- the same dual-identity ownership pattern
+used for consumer booking RLS since migration 037, (b) is for the SAME
+listing_id as the review, and (c) has reached status = 'confirmed' -- the
+same bar the app's own client-side eligibility check already uses. An
+unverified review (booking_id null) remains allowed, unchanged; review
+read/select remains public, unchanged.
+
+Caught a real bug in the fix's own first draft via the regression test,
+before it ever reached the committed migration: the EXISTS subquery's
+`b.listing_id = listing_id` left the outer reference unqualified, and
+since public.bookings also has a listing_id column, Postgres silently
+bound it to the subquery's own b.listing_id -- a self-referential,
+always-true comparison -- rather than the row being inserted. The test's
+Case 5 (a booking for a different listing than the one being reviewed)
+caught this immediately: it was wrongly accepted. Fixed by explicitly
+qualifying every outer (new-row) reference as reviews.<column> throughout
+both policies, confirmed valid Postgres RLS syntax by the corrected
+policy compiling and behaving correctly, and reran the full suite clean.
+
+Verified end-to-end against a real Postgres 16 scratch database (the
+`\ir`'d real migration 006 as the pre-fix baseline, then the real 089
+file) with 8 cases: (1) proved the exploit is real against 006 alone --
+an attacker posts a review on an unrelated listing claiming a stranger's
+real booking as verified proof; (2) the identical attempt is rejected
+after 089; (3) a legitimate review using the caller's own confirmed
+booking for the SAME listing still succeeds; (4) an unverified review
+(booking_id null) still succeeds; (5) a booking that is the caller's own
+but for a DIFFERENT listing is rejected (this is the case that caught the
+qualification bug above); (6) a booking that is the caller's own and for
+the right listing, but not yet status = 'confirmed', is rejected; (7)
+email-matched ownership (guest_user_id null, guest_email matches the JWT
+email -- the legacy/dual-identity path) is correctly accepted; (8) the
+same exploit attempted via UPDATE -- reassigning booking_id on an already-
+owned review to a stranger's booking, trying to retroactively acquire a
+false verified badge -- is rejected.
+
+This is now the third subsystem this segment (after Phase 565's booking
+identity/schedule fields and Phase 570's supplier document paths) where
+the recurring bug class held: a client-trusted value with no independent
+server-side re-check. Continuing to the next hypothesis.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Traveler browser golden journeys**: verified live (Phase 547) —
