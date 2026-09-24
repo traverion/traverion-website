@@ -1919,6 +1919,52 @@ tsconfig.app.json`: zero errors.
 
 Continuing to the next hypothesis.
 
+### Phase 580 -- Closed the last content-authenticity gap: notify-customer-booking's traveler_welcome
+
+Hypothesis: Phase 578 deliberately left traveler_welcome exempt from its
+booking-tied recipient guard (no booking exists yet at signup) and
+explicitly tracked it, in its own commit message and tracker entry, as a
+separate, lower-severity gap worth closing later. Rather than leave a
+self-flagged loose end unresolved, closed it now as a small, well-scoped
+phase before moving to unrelated ground.
+
+Confirmed the gap was real: with no caller-identity check of any kind (same
+missing-auth pattern as every other notify-* endpoint audited this
+segment), anyone could POST directly to notify-customer-booking with
+emailKind: 'traveler_welcome' and any customerEmail and trigger a real
+"Welcome to Traverion" email to that address. No sensitive content, but
+still unauthenticated arbitrary-recipient sending on Traverion's own
+sending reputation -- a spam/relay-abuse vector, and a plausible
+phishing-adjacent pretext even though the embedded link is the real portal
+URL.
+
+Fix: traveler_welcome's one legitimate caller (maybeSendTravelerWelcome in
+src/data/supabase-consumer-profile.ts) already calls
+supabase.functions.invoke(), which forwards the signed-in user's own
+session access token as the Authorization header by default -- so
+authenticating the recipient needed zero caller-side change. Reused the
+exact pattern create-booking-checkout-session already uses for its own
+caller: build a Supabase client scoped to the request's Authorization
+header, call auth.getUser() on it, and require the resulting email to match
+the requested recipient. Added the comparison itself,
+isAuthorizedTravelerWelcomeRecipient(), as a small pure function to the
+existing notify-customer-recipient.ts mirror pair from Phase 578 (both
+copies stay covered by edge-function-deno-mirror-sync.test.ts) -- the
+actual auth.getUser() I/O can't be unit-tested here, only the authorization
+decision.
+
+Verified: `deno check` on the edited edge function -- clean. Added 3
+Vitest cases (case-insensitive/trimmed match, mismatched-email exploit
+shape, no-session-email) to src/lib/notify-customer-recipient.test.ts. Ran
+the full suite on the device: 99 files, 573 tests (570 + 3 new), all
+passing. `tsc --noEmit -p tsconfig.app.json`: zero errors.
+
+This closes the last of the content-authenticity gaps flagged during this
+segment's audit of notify-customer-booking and notify-supplier-event
+(Phases 578-580 as one connected thread).
+
+Continuing to the next hypothesis.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Traveler browser golden journeys**: verified live (Phase 547) —
