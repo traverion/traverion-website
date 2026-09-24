@@ -120,3 +120,19 @@ export function resolveBookingTiedRecipient(params: {
   // used to be exactly how this endpoint's recipient could be spoofed.
   return { ok: false, error: 'Booking has no valid guest email on file', status: 422 };
 }
+
+/**
+ * Phase 580: traveler_welcome has no booking to check against, so its
+ * recipient can only be authenticated by comparing it to the actual
+ * signed-in caller's own email (see notify-customer-booking/index.ts's
+ * authedClient.auth.getUser() call -- the I/O side of that can't be unit
+ * tested here, only this comparison).
+ */
+export function isAuthorizedTravelerWelcomeRecipient(
+  authedEmail: string | null | undefined,
+  requestedEmail: string
+): boolean {
+  const authed = String(authedEmail ?? '').trim().toLowerCase();
+  const requested = String(requestedEmail ?? '').trim().toLowerCase();
+  return authed.length > 0 && authed === requested;
+}

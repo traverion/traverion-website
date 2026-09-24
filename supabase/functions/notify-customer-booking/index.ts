@@ -1,5 +1,6 @@
 // deno-lint-ignore-file no-explicit-any
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 import {
   escapeHtml,
   fieldDiffPlainText,
@@ -14,7 +15,11 @@ import {
   recordTransactionalSend,
   sendResendEmail,
 } from '../_shared/transactional-email.ts';
-import { isBookingTiedEmailKind, resolveBookingTiedRecipient } from '../_shared/notify-customer-recipient.ts';
+import {
+  isAuthorizedTravelerWelcomeRecipient,
+  isBookingTiedEmailKind,
+  resolveBookingTiedRecipient,
+} from '../_shared/notify-customer-recipient.ts';
 
 type EmailKind =
   | 'booking_request'
@@ -250,6 +255,36 @@ serve(async (req) => {
     // two kinds Phase 562 covered. See ../_shared/notify-customer-recipient.ts.
     if (isBookingTiedEmailKind(kind) && !String(body.bookingId ?? '').trim()) {
       return json({ success: false, error: 'bookingId required for this emailKind' }, 400);
+    }
+    // Phase 580: traveler_welcome has no booking to check against -- Phase 578
+    // deliberately left it out of the recipient guard above and tracked it as
+    // a separate, lower-severity gap: with no caller-identity check at all,
+    // anyone could trigger a "Welcome to Traverion" email to any address of
+    // their choosing (no sensitive content, but still unauthenticated
+    // arbitrary-recipient sending -- a spam/relay-abuse vector using
+    // Traverion's own sending reputation). The one legitimate caller
+    // (maybeSendTravelerWelcome in src/data/supabase-consumer-profile.ts)
+    // already calls supabase.functions.invoke(), which forwards the signed-in
+    // user's own session access token as the Authorization header by
+    // default -- so verifying that header identifies a real user whose email
+    // matches the requested recipient needs no caller-side change, same
+    // pattern create-booking-checkout-session already uses to authenticate
+    // its own caller.
+    if (kind === 'traveler_welcome') {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL');
+      const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
+      const authHeader = req.headers.get('Authorization') ?? '';
+      if (!supabaseUrl || !anonKey) {
+        return json({ success: false, error: 'Supabase env missing' }, 500);
+      }
+      if (!authHeader) {
+        return json({ success: false, error: 'Missing Authorization header' }, 401);
+      }
+      const authedClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: authHeader } } });
+      const { data: authData, error: authError } = await authedClient.auth.getUser();
+      if (authError || !isAuthorizedTravelerWelcomeRecipient(authData?.user?.email, to)) {
+        return json({ success: false, error: 'Unauthorized' }, 401);
+      }
     }
     const title = String(body.listingTitle ?? 'Your booking').trim() || 'Your booking';
     const name = String(body.customerName ?? '').trim();

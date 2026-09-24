@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  isAuthorizedTravelerWelcomeRecipient,
   isBookingTiedEmailKind,
   resolveBookingTiedRecipient,
   type BookingRowForRecipient,
@@ -158,5 +159,27 @@ describe('resolveBookingTiedRecipient (Phase 578 arbitrary-recipient fix)', () =
       callerCurrency: 'EUR',
     });
     expect(result).toEqual({ ok: true, to: ATTACKER_EMAIL, amount: undefined, currency: 'EUR' });
+  });
+});
+
+describe('isAuthorizedTravelerWelcomeRecipient (Phase 580 fix)', () => {
+  // traveler_welcome has no booking to check against (fired on signup), so
+  // Phase 578 left it exempt from the booking-tied recipient guard. Before
+  // this phase, that meant anyone could trigger a "Welcome to Traverion"
+  // email to any address, unauthenticated -- this closes it by requiring the
+  // caller's own signed-in email to match the requested recipient.
+  it('authorizes when the signed-in email matches the requested recipient (case-insensitive, trimmed)', () => {
+    expect(isAuthorizedTravelerWelcomeRecipient('Real.Guest@Example.com', 'real.guest@example.com')).toBe(true);
+    expect(isAuthorizedTravelerWelcomeRecipient('  real.guest@example.com  ', 'real.guest@example.com')).toBe(true);
+  });
+
+  it('rejects when the signed-in email does not match the requested recipient (the exploit this closes)', () => {
+    expect(isAuthorizedTravelerWelcomeRecipient('real-guest@example.com', ATTACKER_EMAIL)).toBe(false);
+  });
+
+  it('rejects when there is no signed-in email at all', () => {
+    expect(isAuthorizedTravelerWelcomeRecipient(undefined, ATTACKER_EMAIL)).toBe(false);
+    expect(isAuthorizedTravelerWelcomeRecipient(null, ATTACKER_EMAIL)).toBe(false);
+    expect(isAuthorizedTravelerWelcomeRecipient('', ATTACKER_EMAIL)).toBe(false);
   });
 });
