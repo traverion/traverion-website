@@ -1837,6 +1837,88 @@ errors.
 
 Continuing to the next hypothesis.
 
+### Phase 579 -- Closed the content-forgery gap in notify-supplier-event for booking- and review-tied events
+
+Hypothesis: this was the second half of the pair flagged at the top of this
+segment's audit sweep -- notify-supplier-event, "hardened in Phase 562, not
+re-audited since," read in full (527 lines) alongside notify-customer-booking
+(Phase 578) in the same investigation.
+
+Unlike notify-customer-booking, this endpoint's recipient resolution was
+already safe: it is always DB-derived from the client-supplied supplierId
+(supplier_team_members lookup, then auth.admin.getUserById() for each team
+member plus the supplier themselves), never a caller-supplied email
+address. But every content field -- listingTitle, guestName, bookingDate,
+guests, bookingNumber, bookingPaymentStatus, reviewRating, reviewTitle --
+was trusted verbatim from the request, for every eventType, with zero
+existence or ownership check against a real booking/listing/review.
+Confirmed by a full read of the serve() handler: the recipients-resolution
+loop follows directly after the idempotency claim, with nothing in between
+that touches bookingId, listingId, or any content field. Since supplierId
+is already effectively public/enumerable (per earlier-phase findings), an
+attacker could trigger a fully fabricated "new booking", "booking
+cancelled", "cancellation accepted/declined", or "new review" notification
+-- entirely invented guest names, dates, guest counts, review ratings and
+text -- to any real, existing supplier's real inbox. Lower severity than
+notify-customer-booking's arbitrary-recipient gap (the recipient is
+DB-constrained to a real account, not chosen by the attacker), but still a
+real, live content-forgery vector against a genuine recipient: a supplier
+could act on a fabricated "guest cancelled this booking" email, or see a
+fabricated one-star review notification before any such review existed.
+
+Fix: added resolveSupplierEventContext() to a new
+supabase/functions/_shared/notify-supplier-event-guard.ts, mirrored
+byte-for-byte (comments/formatting aside) at
+src/lib/notify-supplier-event-guard.ts and picked up automatically by
+edge-function-deno-mirror-sync.test.ts -- the same real-drift-protection
+pattern established in Phase 578, used here for a second pair. Every
+booking-tied eventType (new_booking, booking_cancelled, guest_message,
+booking_detail_changed, host_schedule_updated, cancellation_accepted,
+cancellation_declined) now requires bookingId+listingId, verifies the
+ownership chain (booking.listing_id === listingId, listing.supplier_id ===
+the claimed supplierId), and re-derives listingTitle/guestName/
+bookingDate/guests/bookingNumber (and, for new_booking, bookingPaymentStatus)
+from the real rows instead of the caller-supplied values. new_review now
+requires reviewId+listingId (a new field -- see below), verifies
+review.listing_id === listingId and listing.supplier_id === supplierId, and
+re-derives listingTitle/guestName/reviewRating/reviewTitle from the real
+reviews row. booking_detail_changed has no live caller anywhere in the
+codebase today (confirmed by grep) -- requiring bookingId for it breaks
+nothing currently in use, and closes the gap in advance of it ever being
+wired up. messagePreview, changeSummary, fieldDiffs, and unpaidCheckout
+have no single authoritative DB column (they summarize a diff or a
+free-text guest message, not stored data) and are deliberately left
+caller-supplied -- the identical scoping decision Phase 578 made for
+notify-customer-booking's own fieldDiffs -- but forging them now requires
+citing a real booking or review that genuinely belongs to the targeted
+supplier, not merely a real supplierId, a materially higher bar.
+
+Traced every legitimate call site before writing the fix:
+_shared/promote-paid-from-checkout.ts and every notifySupplierEvent call in
+src/data/supabase-bookings.ts, supabase-booking-ops.ts, and
+supabase-reviews.ts already pass real bookingId+listingId for every
+booking-tied kind in current use. new_review's one caller (submitReview in
+supabase-reviews.ts) did not previously capture the saved review row's own
+id -- added `.select('id')` to its upsert and threaded the real id through
+to notifySupplierEvent as the new reviewId field. reviews' SELECT RLS is
+already public ("Reviews are viewable by everyone", migration 006), so this
+select-back required no RLS change and works for the submitting user same
+as anyone else.
+
+Verified: `deno check` (from the Deno install added in Phase 578) against
+both the new shared module and the edited edge function -- clean. Added
+src/lib/notify-supplier-event-guard.test.ts: 20 real Vitest cases --
+content-forgery closure for all 7 booking-tied kinds and new_review, the
+missing-id and nonexistent-row failure paths (400/404), cross-listing and
+wrong-supplier forgery attempts rejected in both directions (403),
+new_booking's bookingPaymentStatus re-derivation (paid/pending/none), and
+supplier_welcome/verification_submitted passing through with no DB rows
+needed. Ran the full suite on the device: 99 files, 570 tests (549 + 20 new
++ 1 new auto-discovered mirror-sync case), all passing. `tsc --noEmit -p
+tsconfig.app.json`: zero errors.
+
+Continuing to the next hypothesis.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Traveler browser golden journeys**: verified live (Phase 547) —
