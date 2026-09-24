@@ -2438,6 +2438,37 @@ hypothesis.
 
 Continuing to the next hypothesis.
 
+### Phase 588 -- Wired admin_record_supplier_payout into the admin API and Finance panel
+
+Direct follow-up to Phase 587's server-truth RPC, which was deliberately
+left unreachable except via direct service-role/SQL access. Closed that
+reachability gap so the fix is actually usable, not just provable.
+
+admin-supplier-verification/index.ts: new admin-gated action
+record_supplier_payout (next to finance_summary), with client-side
+validation before calling the RPC, p_recorded_by set to the calling
+admin's own verified id from the existing assertAdmin() JWT gate, and the
+RPC's own validation errors surfaced as clean 400s.
+
+AdminFinancePanel.tsx: new "Record a payout" control (collapsed by
+default) -- supplier user ID, amount, currency (from the app's existing
+SUPPORTED_CURRENCIES list), status paid/pending, period, optional note --
+with matching client-side validation, a clear "this records rather than
+moves money" explanation, and a reload of the finance summary on success
+so "Paid out to suppliers" immediately reflects what was just recorded.
+
+No new automated test: this repo has zero .test.tsx files anywhere
+(confirmed by find) -- component testing is not this codebase's
+convention, and the underlying RPC logic was already proven in Phase
+587's scratch-Postgres suite. Verified via the existing gates: tsc clean,
+vitest 99 files / 581 tests passing, no regressions.
+
+Payout readiness (Priority Zero) is now closed end to end: the honesty
+gap is fixed (094), and the fix is reachable from the admin UI a founder
+actually uses (this phase).
+
+Continuing to the next hypothesis.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Traveler browser golden journeys**: verified live (Phase 547) —
