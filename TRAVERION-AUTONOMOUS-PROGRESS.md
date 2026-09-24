@@ -1446,6 +1446,58 @@ phase's addition, consistent with the one new file and 22 new tests).
 This phase adds test coverage only; no production code, migration, or
 business-rule behavior changed.
 
+### Phase 573 -- Supplier dashboard cross-tenant data access audited (no code change; verified safe)
+
+Hypothesis: the supplier dashboard's client-side data fetchers
+(fetchSupplierEarnings, fetchBookingsForSupplier, fetchSupplierLedger,
+fetchMyListings, all called from SupplierEarnings.tsx / SupplierBookings.tsx
+/ SupplierDashboard.tsx) take a supplierId argument and pre-filter queries
+by it client-side -- if that argument, or a forged query built by hand
+against the anon/authenticated Supabase client, could be pointed at another
+supplier's id, would RLS actually stop a malicious supplier from reading
+another supplier's earnings, ledger, bookings, or private booking
+messages?
+
+Traced each table's real RLS policy (the only genuine boundary here, since
+the app's own .eq('supplier_id', ...) client-side filters are not a
+security control by themselves):
+
+- supplier_earnings (migration 002): select using (auth.uid() =
+  supplier_id); insert/update both with check/using (false). A forged
+  query for another supplier's id returns zero rows regardless of what
+  the client asks for.
+- supplier_ledger_entries (migration 055): identical shape -- select using
+  (auth.uid() = supplier_id), insert/update denied to clients, and no
+  delete policy exists at all (RLS default-denies an operation with no
+  matching policy). Also independently confirmed safe in Phase 566 for the
+  write side (server-only via RPC); this phase confirms the read side too.
+- bookings, supplier-side select (migration 001): using (exists (select 1
+  from listings where listings.id = bookings.listing_id and
+  listings.supplier_id = auth.uid())) -- a genuine per-row re-check against
+  auth.uid() joined through the listing's real owner column, not the
+  client-supplied id used to build the id list in
+  fetchBookingsForSupplier(). Even if that id list were built from a
+  forged/manipulated supplierId argument, this policy independently blocks
+  any booking whose listing isn't actually owned by the caller.
+- booking_messages (migration 055) via is_booking_party(booking_id): a
+  SECURITY DEFINER function that internally re-derives auth.uid() /
+  auth.jwt() itself (never trusts a passed-in identity) and checks
+  l.supplier_id = auth.uid() OR b.guest_user_id = auth.uid() OR a
+  guest_email/JWT-email match -- correctly scoped to the two actual parties
+  of that specific booking, no broader leak.
+- No edge function reads supplier_earnings/supplier_ledger_entries under
+  service-role on a client-supplied supplier id without an ownership
+  check -- admin-supplier-verification is the only edge function touching
+  either table, and it's already fully admin-gated (Phase 570/571).
+
+No exploitable gap found: every one of these tables independently
+re-verifies auth.uid() ownership at the RLS (or SECURITY DEFINER function)
+layer, so a malicious supplier cannot see another supplier's earnings,
+ledger entries, bookings, or booking-thread messages no matter what
+arguments the client-side fetchers are called with or how a request is
+hand-crafted against the public Supabase client. Continuing to the next
+hypothesis.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Traveler browser golden journeys**: verified live (Phase 547) —
