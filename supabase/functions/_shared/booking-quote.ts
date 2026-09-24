@@ -639,7 +639,10 @@ export function quoteListingBooking(input: {
   const date = (input.bookingDate ?? '').trim();
   let guests = Number(input.guests);
   const status = (input.listing.status ?? '').trim();
-  if (status && status !== 'published') {
+  // Phase 583: a falsy status (null/undefined/'') must never be treated
+  // as bookable -- see src/lib/booking-quote.ts's isListingBookable for
+  // the full explanation (migration-082 verification bypass).
+  if (status !== 'published') {
     return { ok: false, error: 'This listing is not available to book.' };
   }
   const extrasObj =

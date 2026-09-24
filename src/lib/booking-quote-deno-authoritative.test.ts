@@ -185,6 +185,41 @@ describe('quoteListingBooking (authoritative Deno pricing -- direct execution)',
       expect(res.ok).toBe(false);
       if (!res.ok) expect(res.error).toMatch(/not available to book/i);
     });
+
+    // Phase 583: migration 003 gave listings.status no NOT NULL
+    // constraint (its CHECK does not restrict NULL either), so any
+    // authenticated supplier could set status: null directly via the
+    // REST API -- bypassing the migration-082 publish-verification
+    // trigger (which only fires on new.status = 'published') -- and this
+    // exact function, the one Stripe checkout actually uses to compute
+    // the charge, used to treat a falsy status as bookable. Proved this
+    // against the unmodified function before fixing it: both cases
+    // returned ok: true. Must be rejected exactly like an explicit draft.
+    it('rejects a stay listing with status: null exactly like draft (migration-082 verification bypass)', () => {
+      const res = quoteListingBooking({
+        listing: stayListing({ status: null as unknown as string }),
+        discounts: [],
+        bookingDate: '2026-06-10',
+        guests: 2,
+        checkoutDate: '2026-06-13',
+        todayIso: TODAY,
+      });
+      expect(res.ok).toBe(false);
+      if (!res.ok) expect(res.error).toMatch(/not available to book/i);
+    });
+
+    it('rejects a stay listing with status: "" (empty string) exactly like draft', () => {
+      const res = quoteListingBooking({
+        listing: stayListing({ status: '' }),
+        discounts: [],
+        bookingDate: '2026-06-10',
+        guests: 2,
+        checkoutDate: '2026-06-13',
+        todayIso: TODAY,
+      });
+      expect(res.ok).toBe(false);
+      if (!res.ok) expect(res.error).toMatch(/not available to book/i);
+    });
   });
 
   describe('tour, no booking options configured', () => {

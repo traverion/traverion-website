@@ -164,7 +164,14 @@ function bestUnitPrice(
 }
 
 function isListingBookable(status: TourPackage['status'] | string | null | undefined): boolean {
-  if (status == null || status === '') return true;
+  // Phase 583: a falsy status (null, undefined, '') must NEVER be treated
+  // as bookable. It used to be, as a defensive fallback for pre-migration
+  // -003 rows -- but migration 003's ADD COLUMN ... DEFAULT 'published'
+  // already backfilled every existing row to the literal string
+  // 'published', so a falsy status today can only mean an explicit
+  // status: null set directly against the REST API, which also bypassed
+  // the migration-082 publish-verification trigger. Only the literal
+  // string 'published' is ever bookable.
   return status === 'published';
 }
 

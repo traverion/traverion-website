@@ -150,6 +150,40 @@ describe('quoteBooking', () => {
     if (!q.ok) expect(q.code).toBe('unpublished');
   });
 
+  // Phase 583: migration 003 gave listings.status no NOT NULL constraint, and
+  // its CHECK (status in ('draft','published')) does not restrict NULL either
+  // -- so any authenticated supplier can set status: null directly via a
+  // PostgREST call (bypassing the migration-082 publish-verification
+  // trigger, which only fires when new.status = 'published'). A listing
+  // with status: null must be treated exactly like 'draft' here -- NOT
+  // bookable -- or an unverified supplier's listing becomes bookable by
+  // skipping verification entirely through this one-character omission.
+  it('rejects a listing with status: null exactly like draft (migration-082 verification bypass)', () => {
+    const q = quoteBooking({
+      tour: tour({ status: null as unknown as TourPackage['status'] }),
+      discounts: [],
+      bookingDate: '2026-09-10',
+      guests: 2,
+      bookingOptionId: 'opt-small',
+      todayIso: today,
+    });
+    expect(q.ok).toBe(false);
+    if (!q.ok) expect(q.code).toBe('unpublished');
+  });
+
+  it('rejects a listing with status: "" (empty string) exactly like draft', () => {
+    const q = quoteBooking({
+      tour: tour({ status: '' as unknown as TourPackage['status'] }),
+      discounts: [],
+      bookingDate: '2026-09-10',
+      guests: 2,
+      bookingOptionId: 'opt-small',
+      todayIso: today,
+    });
+    expect(q.ok).toBe(false);
+    if (!q.ok) expect(q.code).toBe('unpublished');
+  });
+
   it('does not quote stay or experience inventory as a tour departure', () => {
     const q = quoteBooking({
       tour: tour({ listingExtras: { inventoryFamily: 'stay', bookingOptions: [] } }),

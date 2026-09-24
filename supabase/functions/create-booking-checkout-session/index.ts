@@ -229,7 +229,11 @@ serve(async (req) => {
     if (listingError) return json({ success: false, error: listingError.message }, 500);
     if (!listingRow) return json({ success: false, error: 'Listing not found' }, 404);
     const listingStatus = String(listingRow.status ?? '').trim();
-    if (listingStatus && listingStatus !== 'published') {
+    // Phase 583: a falsy status (null/undefined/'') must never be
+    // treated as bookable -- see src/lib/booking-quote.ts's
+    // isListingBookable for the full explanation (migration-082
+    // verification bypass).
+    if (listingStatus !== 'published') {
       return json({ success: false, error: 'This listing is not available to book.' }, 400);
     }
     if (listingRow.title?.trim()) listingTitle = listingRow.title.trim();

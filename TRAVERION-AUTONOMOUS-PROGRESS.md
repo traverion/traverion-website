@@ -2087,6 +2087,76 @@ through adversarial testing" plus "genuine regression coverage added."
 Continuing to the next hypothesis outside the booking_messages/
 cancellation_requests family.
 
+### Phase 583 -- Closed a real publish-verification bypass: listings.status could be set to NULL, skipping the 082 trigger and public-exposure guard
+
+Hypothesis: after Phase 582 (booking_messages proved safe), rotated to
+Domain D -- public data exposure, "assume attackers can directly query
+Supabase." Started from the listings table's own publish-verification
+history: migration 082 already fixed a real P0 gap where any unverified
+supplier could set status: 'published' directly via the REST API. Asked
+whether the same class of gap could exist through a different value the
+082 fix didn't anticipate.
+
+It did. Migration 003 added listings.status without a NOT NULL
+constraint (its CHECK constraint does not restrict NULL either), so
+status could always be explicitly set to NULL via a direct client
+UPDATE/INSERT even though the app's own UI never does this. That NULL
+value (1) skipped the 082 trigger entirely -- `if new.status =
+'published'` never fires when new.status is NULL, since NULL = anything
+is NULL, not TRUE -- and (2) was explicitly granted public SELECT access
+by the listings policy (migration 052's `status is null or status =
+'published' or owner`), and (3) was treated as bookable by all three
+places that check listing bookability: src/lib/booking-quote.ts's
+isListingBookable(), its Deno mirror in
+supabase/functions/_shared/booking-quote.ts's quoteListingBooking() (the
+function that actually computes the real Stripe charge), and a redundant
+inline check in create-booking-checkout-session/index.ts -- all three
+shared the identical `if (status && status !== 'published')` bug, where
+a falsy empty/null status short-circuited the rejection.
+
+Net effect: any authenticated supplier account, including a brand-new
+one with zero business/payout verification, could set status: null
+directly against the REST API and get a listing that was both publicly
+visible and bookable -- the same trust bypass migration 082 closed for
+'published', reopened through the untested NULL case.
+
+Proved the application-layer half against the current, unmodified code
+first: added Vitest cases asserting status: null/'' should be rejected
+like 'draft' to both src/lib/booking-quote.test.ts and
+src/lib/booking-quote-deno-authoritative.test.ts (the latter directly
+imports and executes the real Deno _shared file); both new cases failed
+against the pre-fix code (booking accepted when it should have been
+rejected), confirming the exploit before touching anything.
+
+Fixed at all four independent layers: the two application-layer
+isListingBookable-equivalent checks (frontend and Deno-mirrored
+checkout path) plus the redundant inline check in
+create-booking-checkout-session/index.ts no longer special-case a falsy
+status as bookable; and a new migration 092 backfills any existing
+null-status rows to 'draft' (never 'published'), makes the column NOT
+NULL (closing the whole bug class structurally, not just at each
+application call site), and tightens the SELECT policy to only treat an
+explicit 'published' status (or ownership) as publicly readable.
+
+Added supabase/tests/listings_status_null_bypass.test.sql: a live
+scratch-Postgres proof including the real migrations 052, 082, 091, 092
+verbatim. 6 cases: confirms the 082 trigger correctly blocks an explicit
+status='published' attempt (isolating control), proves the status=null
+exploit against the pre-fix schema (bypasses the trigger AND is publicly
+visible), applies migration 092, then proves the same attempt is now
+rejected outright by the NOT NULL constraint, the previously-exploited
+row was safely backfilled to draft and is no longer visible, and a
+legitimately verified supplier's normal publish flow plus ordinary
+draft/ownership visibility are unaffected.
+
+Verified: full Vitest suite on the device -- 99 files, 577 tests (573 +
+4 new), all passing. tsc --noEmit -p tsconfig.app.json: zero errors.
+Scratch-Postgres regression suite: exit 0, all 6 cases pass.
+
+This is the most severe finding of this session's Domain D/E work so far
+-- a genuine, provable verification-bypass vulnerability, not an audit
+-only negative result. Continuing to the next hypothesis.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Traveler browser golden journeys**: verified live (Phase 547) —
