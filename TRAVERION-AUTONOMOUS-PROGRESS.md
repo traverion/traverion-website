@@ -2027,6 +2027,66 @@ applied to a wrong hypothesis).
 
 Continuing to the next hypothesis, outside the notify-*/verify_jwt family.
 
+### Phase 582 -- Adversarial regression coverage for booking_messages / cancellation_requests party authorization (migration 055), no code change
+
+Hypothesis: the booking-messages / cancellation-request / supplier-ledger
+subsystem is among the most security- and financial-critical code in the
+app -- it gates a private traveler<->supplier conversation thread and is
+the only path by which a supplier can force-cancel a paid booking (only
+with the traveler's explicit accept) -- and had zero SQL-level regression
+coverage. Treated it adversarially per the standard checklist: who may
+create/read a conversation, post/read messages, mark them read, request a
+supplier cancellation, and accept/decline one; tested both directions
+(traveler and supplier); attempted cross-booking access, cross-supplier
+access, forged foreign keys, and reassignment through direct writes, not
+just the frontend gate in src/lib/messaging-authorization.ts (which
+already self-documents as UX-only, not the security boundary).
+
+Read migration 055 (the authoritative implementation) in full. Found the
+architecture already sound: booking_messages, cancellation_requests and
+supplier_ledger_entries all have RLS SELECT gated by
+is_booking_party()/auth.uid()=supplier_id, and INSERT/UPDATE fully blocked
+at the RLS layer for everyone (with check (false) / using (false)) --
+every write is funneled through four SECURITY DEFINER RPCs
+(post_booking_message, mark_booking_messages_read,
+request_supplier_cancellation, respond_cancellation_request), each of
+which independently re-verifies party membership rather than trusting the
+caller. Critically, respond_cancellation_request restricts accept/decline
+to the traveler only (guest_user_id or guest_email match) -- a supplier
+cannot self-approve their own cancellation request.
+
+Rather than leave this adversarial reasoning as an unverified read-through
+(this codebase's own stated standard -- see the mission's proof-before-fix
+requirement, applied here as proof-before-trust), proved it with a live
+scratch Postgres 16 database including the real, committed migration 055
+verbatim (same methodology as reviews_booking_ownership_guard.test.sql):
+built a minimal listings/bookings fixture, ran 10 adversarial cases (RLS
+SELECT cross-party denial on both booking_messages and
+cancellation_requests, direct INSERT/UPDATE rejection even for real
+parties, post_booking_message party- and payment/cancellation-state
+gating, mark_booking_messages_read scoping, request_supplier_cancellation
+restricted to the real listing owner, and -- the crown jewel --
+respond_cancellation_request restricted to the real traveler, proving a
+supplier cannot self-approve their own cancellation request). All 10 cases
+passed against the real, unmodified file.
+
+To confirm this was a real, sensitive test rather than a vacuous pass, ran
+the same suite a second time against a deliberately mutated copy of
+migration 055 with the traveler-only guard in
+respond_cancellation_request removed -- the crown-jewel case correctly
+failed, proving a supplier was able to self-approve their own
+cancellation under that mutation. This confirms the new suite is a real
+regression guard, not false coverage.
+
+No application code changed. Added
+supabase/tests/booking_messages_party_authorization.test.sql as
+permanent regression coverage for a previously-untested,
+financial-critical subsystem -- "important architecture proven safe
+through adversarial testing" plus "genuine regression coverage added."
+
+Continuing to the next hypothesis outside the booking_messages/
+cancellation_requests family.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Traveler browser golden journeys**: verified live (Phase 547) —
