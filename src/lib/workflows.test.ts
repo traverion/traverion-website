@@ -6,6 +6,7 @@ import {
   isSupplierBookingStatus,
   LISTING_WIZARD_PHOTO_STEP,
   LISTING_WIZARD_STEP_COUNT,
+  listingDetailVisibleToTraveler,
   pickupAssignmentComplete,
 } from './product-workflows';
 import type { TourPackage } from '../types/tour';
@@ -61,6 +62,37 @@ describe('catalog visibility', () => {
     expect(isListingVisibleToTravelers('published')).toBe(true);
     expect(isListingVisibleToTravelers(null)).toBe(true);
     expect(isListingVisibleToTravelers('draft')).toBe(false);
+  });
+});
+
+describe('listing detail page visibility (Phase 576 fix)', () => {
+  // TourDetails and StayDetails fetch a single listing by id with no
+  // server-side status filter (fetchListingById has none -- listings
+  // SELECT RLS is intentionally public read-all by id, and the same
+  // fetch is reused by supplier-side pages that must load the supplier's
+  // own draft). Before this fix, both pages only gated full-page
+  // rendering on inventory family (is this a tour/stay at all), never on
+  // publish status -- so a draft, pending, or rejected listing's full
+  // content was publicly viewable to anyone with or guessing its id,
+  // even though the booking action itself was already correctly gated by
+  // isListingVisibleToTravelers both client- and server-side.
+  it('requires BOTH family match and traveler-visible status', () => {
+    expect(listingDetailVisibleToTraveler({ familyMatches: true, status: 'published' })).toBe(true);
+    expect(listingDetailVisibleToTraveler({ familyMatches: true, status: null })).toBe(true);
+  });
+
+  it('hides a listing that matches the family but is not published (the gap this closes)', () => {
+    expect(listingDetailVisibleToTraveler({ familyMatches: true, status: 'draft' })).toBe(false);
+    expect(listingDetailVisibleToTraveler({ familyMatches: true, status: 'pending_review' })).toBe(false);
+    expect(listingDetailVisibleToTraveler({ familyMatches: true, status: 'rejected' })).toBe(false);
+  });
+
+  it('hides a published listing that is the wrong family (e.g. a stay id opened on the tour route)', () => {
+    expect(listingDetailVisibleToTraveler({ familyMatches: false, status: 'published' })).toBe(false);
+  });
+
+  it('hides a listing that is neither the right family nor published', () => {
+    expect(listingDetailVisibleToTraveler({ familyMatches: false, status: 'draft' })).toBe(false);
   });
 });
 

@@ -34,7 +34,7 @@ import { Skeleton } from '../components/ui/Skeleton';
 import { dateNotInPast } from '../lib/validation';
 import { checkAvailability, fetchAvailabilityByListingId, fetchPublishedTourPaidGuests, fetchPublishedTourPaidGuestsBySlot, tourPaidSlotKey } from '../data/supabase-availability';
 import { optionRunsOnDate, formatOptionWeekdays } from '../lib/booking-quote';
-import { isListingVisibleToTravelers } from '../lib/product-workflows';
+import { isListingVisibleToTravelers, listingDetailVisibleToTraveler } from '../lib/product-workflows';
 import { listingIsOnTravelerCatalog } from '../lib/inventory';
 import { listingShowsFreeCancellation, publicReviewLabel } from '../lib/listingTruth';
 import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
@@ -881,7 +881,10 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     }
   };
 
-  if (!tour || !listingIsOnTravelerCatalog(tour)) {
+  if (
+    !tour ||
+    !listingDetailVisibleToTraveler({ familyMatches: listingIsOnTravelerCatalog(tour), status: tour.status })
+  ) {
     const isLoading = isSupabaseConfigured() && !tourLoadError && !tour;
     if (isLoading) {
       return (

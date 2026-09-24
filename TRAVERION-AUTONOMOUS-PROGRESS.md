@@ -1678,6 +1678,69 @@ supplier_id is unaffected.
 
 Continuing to the next hypothesis.
 
+### Phase 577 -- Closed a draft/rejected-listing content-exposure gap on the public tour and stay detail pages
+
+Hypothesis: since public.listings' own SELECT RLS is `using (true)` --
+fully public, no status restriction whatsoever (confirmed again this
+phase; this is intentional, so anonymous visitors can browse published
+listings without signing in) -- the ONLY thing that can prevent a
+draft/pending/rejected listing's full content from being publicly visible
+is consistent application-level status filtering on every public-facing
+read path. fetchAllListings() (the main search/browse page) correctly
+does this (`.or('status.eq.published,status.is.null')`), which shows the
+filtering was a deliberate, known requirement -- so it was worth checking
+whether every other public read path does the same.
+
+fetchListingById(id) -- used by getListingByIdAsync(), which is what both
+TourDetails.tsx and StayDetails.tsx (the actual public listing detail
+pages) call to load the single listing a visitor is looking at -- does
+NOT filter by status at all (`.select('*').eq('id', id).single()`), and
+its own doc comment ("With RLS: travelers only see published listings")
+is simply incorrect -- there is no such RLS restriction, on this table,
+today.
+
+Traced whether either page's own rendering logic compensated for this at
+the UI layer. Both do gate the BOOKING action correctly
+(isListingVisibleToTravelers(tour.status), checked client-side in several
+places in TourDetails.tsx, and independently re-verified server-side by
+create-booking-checkout-session's own listingStatus check -- so a draft
+listing could never actually be booked). But the gate that decides
+whether to render the page's full CONTENT at all
+(listingIsOnTravelerCatalog(tour) in TourDetails.tsx,
+listingIsFamily(found, 'stay') in StayDetails.tsx) checks only the
+listing's inventory FAMILY (is this a tour/stay product type that is
+live at all) -- an entirely different dimension from publish status.
+Neither page's content-rendering gate ever checked status. The practical
+result: a draft, pending-review, or rejected listing's full title,
+description, photos, itinerary, pricing, meeting point, and pickup
+instructions were all publicly viewable to anyone who had or guessed its
+id, on both the tour and stay detail pages, even though booking it was
+correctly blocked. UUIDs aren't trivially guessable, but they can leak --
+a supplier sharing a preview link before actually publishing, a search
+engine indexing a URL before a listing was unpublished, browser history,
+referrer leakage.
+
+Fix: added listingDetailVisibleToTraveler() to src/lib/product-workflows.ts
+(family match AND isListingVisibleToTravelers(status), both required --
+neither dimension alone is sufficient) and used it in both pages'
+content-rendering gates, replacing the family-only checks. Deliberately
+did NOT add a status filter to the shared fetchListingById() query itself,
+since that function is also used by supplier-side pages
+(SupplierListings.tsx, SupplierPickupPlanner.tsx) that must be able to
+load the supplier's own draft listing -- the fix is scoped to the two
+actual public-facing pages, the smallest correct layer for a
+traveler-visibility rule.
+
+Verified: added 4 new Vitest cases to src/lib/workflows.test.ts covering
+all four combinations of family-match x status-visible, specifically
+including the case this phase closes (family matches, status is
+draft/pending_review/rejected -> now hidden). Ran node_modules/.bin/tsc
+--noEmit -p tsconfig.app.json against the two edited page components --
+zero errors. Ran the full Vitest suite on the device: 97 files, 527 tests
+(523 + 4 new), all passing.
+
+Continuing to the next hypothesis.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Traveler browser golden journeys**: verified live (Phase 547) —

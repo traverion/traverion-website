@@ -5,6 +5,7 @@ import { getListingById, getListingByIdAsync } from '../data/listings';
 import { parseListingExtras, TRAVERION_STANDARD_CANCELLATION_POLICY } from '../types/listingExtras';
 import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
 import { listingIsFamily } from '../lib/inventory';
+import { listingDetailVisibleToTraveler } from '../lib/product-workflows';
 import { useAuth } from '../contexts/AuthContext';
 import { rememberTravelerReturnStay, travelerLoginHref } from '../lib/travelerAuthLinks';
 import { quoteStayNights, stayQuotePriceLines } from '../lib/booking-quote';
@@ -107,7 +108,10 @@ export default function StayDetails({ stayId, onBack }: Props) {
     void getListingByIdAsync(stayId).then((row) => {
       if (cancelled) return;
       const found = row ?? getListingById(stayId) ?? null;
-      if (!found || !listingIsFamily(found, 'stay')) {
+      if (
+        !found ||
+        !listingDetailVisibleToTraveler({ familyMatches: listingIsFamily(found, 'stay'), status: found.status })
+      ) {
         setStay(null);
         setError('This stay is not available.');
         return;
