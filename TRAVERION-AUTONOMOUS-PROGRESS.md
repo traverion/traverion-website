@@ -2606,6 +2606,62 @@ regressions.
 
 Continuing to the next hypothesis.
 
+### Phase 592 -- CORRECTION to Phase 590: migration 096 was a harmless duplicate, not a fix -- migration 051 had already closed the supplier_profiles leak weeks earlier
+
+Self-correction, found by the hourly scheduled run while starting its
+next phase and re-reading recent history per protocol step A ("search
+prior migrations/tracker entries first"). Phase 590 claimed
+public.supplier_profiles had been publicly readable "since migration
+001, never revisited," and that migration 096 closed a live,
+unauthenticated leak of supplier bank details, tax IDs, ID-document
+paths, address, phone, and internal verification notes. That claim was
+false: migration 051 (051_checkout_concurrency_and_payment_guard.sql,
+committed 2026-09-08 -- about two weeks before this mission started) had
+already dropped the leaky migration-001 policy and replaced it with an
+owner-only one, closing this exact gap 45 migrations before 096 ran.
+051's own commit message says so directly: "Public SELECT on
+supplier_profiles leaked IBAN, tax IDs, and document paths."
+
+Root cause: Phase 590's investigation searched for `alter table
+public.supplier_profiles` (to find added columns) and separately noted
+which migrations mention `create policy`, but never checked whether a
+later migration had DROPPED and REPLACED the original SELECT policy --
+that doesn't show up in an ALTER TABLE search. The scratch-Postgres proof
+test for 096 compounded this: it replayed only migration 001's original
+policy as "pre-fix," never checking it against the real, current
+production schema, so its "GAP CONFIRMED" notice proved a gap that had
+not existed for weeks.
+
+No regression came from 096 (two permissive policies with an identical
+qual just OR together to the same access as either alone), but the
+founder was told this was a critical, currently-exploitable production
+leak and advised to consider whether data had already been scraped --
+which was not accurate, and has been corrected directly with them.
+
+097_supplier_profiles_dedupe_redundant_select_policy.sql: removes 096's
+redundant policy; migration 051's "Owners can read own supplier profile"
+remains as the sole SELECT policy. Access is unchanged -- this is a
+maintenance-hazard cleanup (two differently-named policies doing the
+same job), not a security fix. The regression test was corrected to
+replay migrations 001, 051, and 096 in real commit order (rather than
+jumping straight from 001 to 096) and now proves: anonymous/cross-
+supplier reads were already blocked immediately after 051, before 096
+existed; 096 changed nothing observable; exactly one SELECT policy
+remains after 097 and behavior is identical throughout.
+
+Standing process reminder for future phases: a `grep` for `create
+policy` on a table is not enough to establish there's no existing fix --
+check for `DROP POLICY` + replacement too, and when a scratch-Postgres
+proof needs a "pre-fix" state, replay the real migration files in actual
+commit order rather than reconstructing an assumed original state from
+just the table's CREATE TABLE migration.
+
+No application code changed -- SQL-only. Verified against a scratch
+Postgres 16 instance (all cases pass, including the new post-097
+policy-count and access-unchanged assertions); no tsc/vitest run needed.
+
+Continuing to the next hypothesis.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Traveler browser golden journeys**: verified live (Phase 547) —
