@@ -2469,6 +2469,55 @@ actually uses (this phase).
 
 Continuing to the next hypothesis.
 
+### Phase 589 -- Server-side backstop for listing publish content minimums (city, country, real hero image)
+
+Sibling gap to Phase 549/082: 082 fixed the business/payout publish check
+being client-only, but never touched the listing's OWN content -- and
+listingPublishGate.ts's getListingPublishBlockers() (title, description,
+price, hero image, city/country, includes/excludes, gallery, per-option
+schedules) has always been pure TypeScript, imported only by the two
+supplier listing pages, never enforced on the server.
+
+Proved the gap against a scratch Postgres 16 instance: with only 082
+applied, a verified supplier can INSERT a listing with city=null,
+country=null, and image set to the app's own placeholder photo
+(LISTING_PLACEHOLDER_IMAGE) directly as status='published' -- succeeds
+outright. Two real production-value problems: no city/country breaks
+location search and destination pages (they filter/display by these
+columns), and a placeholder hero image shows travelers fake-looking
+"real" inventory -- against this repo's own "REAL EMPTY > FAKE BUSY"
+principle.
+
+Deliberately did NOT re-implement the whole client gate in SQL. Left out
+price and all JSONB-nested option/schedule validation -- that's owned by
+quoteListingBooking (kept lockstep with its Deno mirror via a dedicated
+sync test), which already rejects an unbookable price at checkout
+(Phase 584), so duplicating it a third time in a raw trigger would risk
+the falsy-guard/sibling-drift bug class this mission keeps finding, for
+a case that isn't actually exploitable for money. Fixed only city,
+country, and hero-image-not-placeholder -- simple plain columns, no JSON
+parsing, and the two checks with real discovery/trust consequences on
+their own.
+
+095_listing_publish_content_minimums.sql: same gating pattern as 082
+(before insert or update, only fires on the transition into
+status='published', never on an edit to an already-published row).
+Rejects empty/whitespace city or country, and rejects an
+empty/null/placeholder image (exact URL or the pexels.com/photos/346885
+substring, matching the client gate's own check).
+
+13-case proof test, including composition with 082 (an unverified
+supplier with perfect content is still blocked by 082 -- 095 doesn't
+bypass it) and the already-published-listing-later-goes-stale case
+(not newly blocked, matching 082's own behavior). Mutation-tested by
+stripping the placeholder-image check and confirming the relevant case
+then correctly fails.
+
+No application code changed this phase (SQL-only) -- no tsc/vitest
+regression run needed.
+
+Continuing to the next hypothesis.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Traveler browser golden journeys**: verified live (Phase 547) —
