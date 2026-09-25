@@ -2735,6 +2735,53 @@ tsc/vitest run needed (SQL-only).
 
 Continuing to the next hypothesis.
 
+### Phase 594 -- Domain rotation: Stays (date arithmetic, calendar, lifecycle) audited, no fix needed
+
+Rotated away from traveler-identity (Phase 593 was unusually fruitful --
+two real fixes there) to the Stays domain, not yet touched this
+session. First did a short follow-up sweep for the exact NULL-comparison
+bug class Phase 593 found (an `IF NOT (nullable-column-comparison OR
+...) THEN reject END IF;` shape in a SECURITY DEFINER PL/pgSQL
+function): checked every other client- or admin-reachable function of
+that shape --
+public.is_consumer_phone_available/is_phone_available_for_signup (023/
+024, availability checks, not authorization-critical, already
+null-safe), public.enforce_listing_publish_verification (082, uses
+coalesce(...) <> 'verified', null-safe), public.request_supplier_cancellation
+(084's version supersedes 055's -- confirmed 084, not 055, is the
+current one; both already guard with `v_supplier IS NULL OR v_supplier
+<> v_uid`, null-safe). public.reverse_paid_booking_earnings (070) and
+public.admin_record_supplier_payout (094) are service_role-only, not
+client-reachable. No further instances found.
+
+Then examined the Stays inventory/calendar/cancellation-window logic
+end to end: stay_booking_check_out (071, exclusive check-out: check_out
+column, else booking_date + nights, else +1 day -- sound), the stay
+half-open-range overlap check in assert_checkout_inventory (071,
+`booking_date < check_out AND stay_booking_check_out(b) > check_in` --
+correctly allows same-day turnover, matches standard hotel-industry
+semantics, re-confirmed sound, consistent with the checkout-concurrency
+review from an earlier phase), booking_occupies_inventory (054, the
+current version -- null-safe via coalesce/IS DISTINCT FROM throughout;
+its dead-code fallback for a null created_at is unreachable since
+bookings.created_at is NOT NULL with a default), expire_stale_checkout_holds
+(054, the only version, correctly expires only holds that no longer
+occupy inventory), published_stay_occupied_ranges (079, the current
+version -- public calendar read, correctly scoped to check_in/check_out
+dates only, no guest PII, matches assert_checkout_inventory's occupancy
+definition), and the 24-hour free-cancellation-window computation in
+cancel_booking_as_traveler (`(booking_date + coalesce(start_time,
+'00:00')) at time zone 'Europe/Helsinki'` -- applies uniformly to stays
+via booking_date/start_time the same as tours; not incorrect, just
+worth noting as a product nuance rather than a bug: a stay's
+cancellation window is anchored to midnight of the check-in date in
+Helsinki time, not a specific check-in time, which is the only
+reasonable choice given stays don't store one).
+
+No code change this phase -- a clean, verified audit is a legitimate
+phase outcome, not a gap. Stays domain (F) marked provisionally healthy;
+rotating to a different domain next phase per the skill's own guidance.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Traveler browser golden journeys**: verified live (Phase 547) —
