@@ -2518,6 +2518,55 @@ regression run needed.
 
 Continuing to the next hypothesis.
 
+### Phase 590 -- CRITICAL: closed a public data leak on public.supplier_profiles (bank IBAN/BIC, tax/VAT ID, ID-document paths, home/business address, phone, internal verification feedback)
+
+Public Data Exposure sweep (domain rotation, first pass on this table).
+public.supplier_profiles has had `for select using (true)` -- readable by
+literally anyone, anon key included -- since migration 001, when the
+table had exactly two columns (id, display_name). Ten later migrations
+(010, 012, 021, 029, 030/033, 036) added payout_iban/payout_bic/
+payout_paypal_email, company_registration_number, tax_id, vat_id,
+managing_directors, business_address, insurance details, contact_phone,
+identity_document_path, company_registration_document_path,
+address_street/city/postal_code/country, and the admin team's internal
+business_verification_feedback/payout_verification_feedback -- without
+anyone revisiting that original policy. This was a real, live production
+PII/credential leak, not a subtle logic bug: any unauthenticated request
+with the public anon key could read every supplier's bank details, tax
+ID, ID document storage paths, home address, phone number, and internal
+verification notes.
+
+Confirmed via grep that this was never intentional: every direct app
+read (src/data/supabase-supplier-profile.ts) is commented "RLS: own row"
+and scoped by the CALLING user's own id, trusting RLS to enforce
+ownership when the policy enforced nothing; the one genuine public use
+case (name/logo/address/legal text on listing pages) already goes
+through a narrow SECURITY DEFINER RPC, supplier_public_legal()
+(migration 051), built specifically to avoid exposing the raw table;
+every server-side cross-supplier read uses the service_role key
+(bypasses RLS, unaffected); no embedded/joined select exists anywhere.
+
+096_supplier_profiles_restrict_select_to_owner.sql: drops the
+never-tightened policy, replaces it with `using (auth.uid() = id)`.
+Proved the gap first (a different authenticated supplier reading
+another's IBAN/tax_id/document path/internal feedback succeeded against
+the unmodified policy), then proved the fix (non-owner and anonymous
+reads both return zero rows -- RLS is row-level, not column-level, so a
+non-owner sees no row at all, not a redacted one; owner's own full read
+still works; supplier_public_legal RPC still works for any caller).
+Mutation-tested by removing the new policy and confirming the owner's-
+own-read case then correctly fails. Ran the full existing gates given
+the severity: tsc clean, vitest 99 files / 581 tests passing, no
+regressions.
+
+This is the highest-severity finding of the mission so far -- a live,
+unauthenticated, complete leak of supplier financial and identity data.
+Worth continuing the Public Data Exposure sweep on other tables next
+(the same "RLS enabled with using(true), then columns added later
+without revisiting the policy" pattern could exist elsewhere).
+
+Continuing to the next hypothesis.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Traveler browser golden journeys**: verified live (Phase 547) —
