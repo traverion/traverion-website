@@ -1,0 +1,75 @@
+-- Critical data-exposure fix: public.supplier_profiles has been readable
+-- by literally anyone (anon key included) since migration 001 --
+--   create policy "Profiles are viewable by everyone"
+--     on public.supplier_profiles for select using (true);
+-- -- and that policy has NEVER been dropped or tightened since. At the
+-- time it was written this was harmless: the table had exactly two
+-- columns, id and display_name. But 10 later migrations bolted on
+-- columns onto this SAME table without anyone revisiting that policy:
+--   010_supplier_payout_method:        payout_iban, payout_bic, payout_paypal_email
+--   012_supplier_features:             company_registration_number, managing_directors,
+--                                       business_address, tax_id, vat_id,
+--                                       insurance_policy_number, insurance_coverage
+--   021_supplier_signup_phone:         contact_phone
+--   029_supplier_verification_documents: identity_document_path,
+--                                       company_registration_document_path
+--   030/033_supplier_address_parts:    address_street, address_city,
+--                                       address_postal_code, address_country
+--   036_supplier_verification_staff_feedback: business_verification_feedback,
+--                                       payout_verification_feedback
+-- Today, `supabase.from('supplier_profiles').select('*')` with nothing
+-- but the public anon key returns every supplier's bank IBAN/BIC or
+-- PayPal email, tax/VAT ID, home and business address, phone number, the
+-- storage paths of their uploaded ID and company registration documents,
+-- and the admin team's internal verification feedback notes -- for every
+-- supplier on the marketplace, verified or not, no authentication
+-- required. This is exactly the kind of gap this mission exists to find:
+-- not a subtle logic bug, but a real production credential/PII leak.
+--
+-- The app's own code already shows the developers knew this table's
+-- sensitive columns should never be public: fetchSupplierProfile()
+-- (src/data/supabase-supplier-profile.ts) is commented "RLS: own row"
+-- and always calls .eq('id', userId) with the CALLING user's own id --
+-- trusting RLS to enforce that, when the actual policy enforced nothing
+-- of the sort. And the one genuinely public use case -- showing a
+-- supplier's display name/legal name/address/logo/policy text on a
+-- listing or legal page -- was deliberately NOT built against this
+-- table directly. It goes through supplier_public_legal(), a narrow
+-- SECURITY DEFINER RPC added in migration 051 that returns only
+-- display_name, company_legal_name, business_address, business_logo_url,
+-- privacy_policy_text, and terms_conditions_text, and nothing else.
+-- SECURITY DEFINER functions bypass RLS by design, so that RPC keeps
+-- working unchanged after this fix.
+--
+-- Confirmed via grep across src/ and supabase/functions/ before writing
+-- this fix: every direct `.from('supplier_profiles')` read in the
+-- application source is scoped to the calling user's own id (verified
+-- by tracing every call site of fetchSupplierProfile back to
+-- data.user.id / user.id / uid from the current auth session -- never a
+-- different supplier's id), and every server-side read of another
+-- supplier's full row (admin-supplier-verification, notify-supplier-event,
+-- notify-staff-verification-queue) uses the Postgres service_role key,
+-- which bypasses RLS entirely and is unaffected by this change. No
+-- embedded/joined `supplier_profiles(...)` select exists anywhere in the
+-- public-facing app. So restricting SELECT to the owning row closes the
+-- leak with no legitimate access path broken.
+--
+-- Verified against a scratch Postgres 16 instance (see supabase/tests/
+-- supplier_profiles_restrict_select.test.sql): before this migration, an
+-- anonymous (auth.uid() is null) or a DIFFERENT authenticated supplier
+-- can read another supplier's payout_iban/tax_id/identity_document_path/
+-- business_verification_feedback in full -- the exploit this migration
+-- closes. After: the same query returns zero rows for a non-owner
+-- (Postgres RLS is row-level, so a non-owner does not get a
+-- column-redacted row -- they get no row at all, which is correct: they
+-- have no legitimate reason to see ANY of this supplier's profile
+-- through this table). The owning supplier can still read every column
+-- of their own row unchanged, and the supplier_public_legal() RPC still
+-- returns its safe public fields for any supplier id regardless of who
+-- calls it, since it runs as SECURITY DEFINER.
+
+drop policy if exists "Profiles are viewable by everyone" on public.supplier_profiles;
+
+create policy "Suppliers can view own profile"
+  on public.supplier_profiles for select
+  using (auth.uid() = id);
