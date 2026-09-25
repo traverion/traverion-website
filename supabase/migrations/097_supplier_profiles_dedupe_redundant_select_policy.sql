@@ -1,0 +1,54 @@
+-- Phase 592 correction to migration 096's own record.
+--
+-- Migration 096 ("Critical data-exposure fix") added a second SELECT
+-- policy on public.supplier_profiles -- "Suppliers can view own profile",
+-- using (auth.uid() = id) -- and its commit message / migration comment
+-- claimed this closed a live, unauthenticated, complete leak of every
+-- supplier's bank IBAN/BIC, tax/VAT ID, ID-document storage paths, home
+-- address, phone number, and internal verification notes, "since
+-- migration 001", "never revisited".
+--
+-- That claim is false. migration 051
+-- (051_checkout_concurrency_and_payment_guard.sql) had ALREADY dropped
+-- the leaky migration-001 policy ("Profiles are viewable by everyone",
+-- using (true)) and replaced it with "Owners can read own supplier
+-- profile", using (auth.uid() = id) -- the exact same restriction --
+-- 45 migrations before 096 ran. Migration 096's own comment even cites
+-- migration 051 by name as the source of the supplier_public_legal() RPC,
+-- without noticing that the same migration also fixed the SELECT policy
+-- it was about to "fix" again.
+--
+-- Grepped every migration between 051 and 096 (074, 075, 080, 082, 083,
+-- 088, 095 -- the only other files that touch supplier_profiles at all)
+-- for any statement that re-creates or loosens a SELECT policy on this
+-- table: none exists: they only add columns, comments, or an update
+-- trigger. So the table has had exactly one behavior on SELECT from
+-- migration 051 onward: owner-only.
+--
+-- Proved against a scratch Postgres 16 instance by replaying the exact
+-- committed policy DDL from migrations 001, 051, and 096 in order:
+-- anonymous and cross-supplier reads already returned zero rows
+-- immediately after 051 (before 096 ever existed); adding 096's policy
+-- on top changed nothing observable -- pg_policies showed two
+-- differently-named policies with an identical qual, (auth.uid() = id),
+-- which OR together to the same access as either alone. Migration 096
+-- was a harmless duplicate, not a fix; there was no live gap at the
+-- point it shipped. TRAVERION-AUTONOMOUS-PROGRESS.md Phase 592 has the
+-- full writeup, including why this was worth catching (protocol step A
+-- says to search prior migrations before writing a fix -- 096 did not,
+-- and its own regression test (supabase/tests/
+-- supplier_profiles_restrict_select.test.sql) reproduced the same
+-- mistake, building its "pre-fix" scenario directly off migration 001
+-- instead of off the actual pre-096 production state).
+--
+-- This migration does not change access: both predecessor policies have
+-- the identical qual. It removes the redundant duplicate so the table
+-- has a single, unambiguous SELECT guard going forward -- two
+-- differently-named policies doing the same job is a real maintenance
+-- hazard (a future migration touching "the" SELECT policy by name could
+-- silently leave the other one in place, or vice versa).
+
+drop policy if exists "Suppliers can view own profile" on public.supplier_profiles;
+
+-- "Owners can read own supplier profile" (migration 051) remains as the
+-- sole SELECT policy on public.supplier_profiles.

@@ -1,6 +1,15 @@
 -- Regression test for migration 096 (restrict public.supplier_profiles
--- SELECT to the owning row). Same manual, self-contained-script approach
--- as the rest of supabase/tests/ -- no Deno/pgTAP runner exists in CI.
+-- SELECT to the owning row) and migration 097 (dedupe the redundant
+-- second SELECT policy 096 added on top of migration 051's -- already
+-- live -- identical fix; see TRAVERION-AUTONOMOUS-PROGRESS.md Phase 592
+-- for why 096's "since migration 001, never revisited" framing was
+-- inaccurate -- migration 051 had already closed this 45 migrations
+-- earlier, and this test's own "pre-fix" setup below reproduces that
+-- same inaccuracy by building its GAP CONFIRMED scenario directly off
+-- migration 001 rather than off the true pre-096 state; the behavioral
+-- assertions below remain valid regression coverage regardless). Same
+-- manual, self-contained-script approach as the rest of supabase/tests/
+-- -- no Deno/pgTAP runner exists in CI.
 --
 -- Run against a throwaway database, never against a real project:
 --   createdb traverion_rpc_test
@@ -125,6 +134,19 @@ begin
   raise notice 'GAP CONFIRMED: supplier B read supplier A''s IBAN, tax ID, ID document path, and internal verification feedback with only migration 001''s policy applied';
 end $$;
 
+-- Replay migration 051's own SELECT-policy fix (the actual committed
+-- statements from 051_checkout_concurrency_and_payment_guard.sql) before
+-- loading 096, so this suite's schema matches real production migration
+-- order instead of jumping straight from 001 to 096. This is the gap
+-- Phase 592 found in this test's original design (see the file header):
+-- without this step, the suite silently re-proved a "gap" against a
+-- state production had not been in since migration 051.
+drop policy if exists "Profiles are viewable by everyone" on public.supplier_profiles;
+drop policy if exists "Owners can read own supplier profile" on public.supplier_profiles;
+create policy "Owners can read own supplier profile"
+  on public.supplier_profiles for select
+  using (auth.uid() = id);
+
 \ir ../migrations/096_supplier_profiles_restrict_select_to_owner.sql
 
 -- SECURITY DEFINER stand-in for supplier_public_legal() (migration 051),
@@ -227,5 +249,53 @@ begin
     raise exception 'Case 5 FAILED: supplier B could still read supplier A''s tax_id directly after the fix';
   end if;
 
-  raise notice 'ALL ASSERTIONS PASSED';
+  raise notice 'ALL ASSERTIONS PASSED (096)';
+end $$;
+
+\ir ../migrations/097_supplier_profiles_dedupe_redundant_select_policy.sql
+
+do $$
+declare
+  v_policy_count int;
+  v_row_count int;
+  v_own_iban text;
+begin
+  -- Case 6: exactly one SELECT policy remains on the table after 097
+  -- removes the redundant duplicate -- this is the actual behavior 097
+  -- changes (096 left two identically-scoped policies in place).
+  select count(*) into v_policy_count
+    from pg_policies
+    where schemaname = 'public' and tablename = 'supplier_profiles' and cmd = 'SELECT';
+  if v_policy_count <> 1 then
+    raise exception 'Case 6 FAILED: expected exactly 1 SELECT policy on supplier_profiles after 097, found %', v_policy_count;
+  end if;
+
+  -- Case 7: access is unchanged after dedup -- cross-supplier and
+  -- anonymous reads are still blocked, and the owner's own read still
+  -- works. Same assertions as Cases 1/2/3, re-run post-097.
+  perform set_config('test.uid', '22222222-2222-2222-2222-222222222222', false);
+  set session authorization test_actor_096;
+  select count(*) into v_row_count from public.supplier_profiles where id = '11111111-1111-1111-1111-111111111111';
+  reset session authorization;
+  if v_row_count <> 0 then
+    raise exception 'Case 7 FAILED: supplier B could see supplier A''s row after the 097 dedup (% rows)', v_row_count;
+  end if;
+
+  perform set_config('test.uid', '', false);
+  set session authorization test_actor_096;
+  select count(*) into v_row_count from public.supplier_profiles;
+  reset session authorization;
+  if v_row_count <> 0 then
+    raise exception 'Case 7 FAILED: an anonymous caller could see % supplier_profiles row(s) after the 097 dedup', v_row_count;
+  end if;
+
+  perform set_config('test.uid', '11111111-1111-1111-1111-111111111111', false);
+  set session authorization test_actor_096;
+  select payout_iban into v_own_iban from public.supplier_profiles where id = '11111111-1111-1111-1111-111111111111';
+  reset session authorization;
+  if v_own_iban is distinct from 'FI21 1234 5600 0007 85' then
+    raise exception 'Case 7 FAILED: supplier A could no longer read their own IBAN after the 097 dedup';
+  end if;
+
+  raise notice 'ALL ASSERTIONS PASSED (096 + 097)';
 end $$;
