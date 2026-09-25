@@ -17,6 +17,7 @@ import { listingHeroImageSrc, orderedPhotoUrls, photoSlotsFromTourPackage } from
 import { formatMoney } from '../../lib/money';
 import { isPaidPaymentStatus, partnerPaymentLabel, partnerCollectedAmountCaption, bookingPaymentWasCollected, isRefundDueBooking, REFUND_DUE_MANUAL_COPY } from '../../lib/payment-states';
 import { PARTNER_BOOKINGS_CSV_HEADER, partnerBookingCsvValues } from '../../lib/partner-bookings-csv';
+import { csvSafeCell } from '../../lib/csv-export';
 import { localYmd, localYmdPlusDays } from '../../lib/local-ymd';
 import { guestFacingBookingNotes } from '../../lib/booking-notes';
 import { formatBookingParticipantsLabel } from '../../lib/participant-mix';
@@ -162,14 +163,6 @@ function formatActivityDateLong(bookingDate: string | null, startHm: string | nu
   return startHm ? `${datePart} · ${startHm}` : datePart;
 }
 
-function csvEscape(value: unknown): string {
-  const s = String(value ?? '');
-  if (s.includes('"') || s.includes(',') || s.includes('\n')) {
-    return `"${s.replace(/"/g, '""')}"`;
-  }
-  return s;
-}
-
 function downloadBookingsCsv(
   rows: BookingRow[],
   listingMeta: Record<string, ListingBookingMeta>
@@ -186,7 +179,7 @@ function downloadBookingsCsv(
       b.pickup_time ? pgTimeToHm(b.pickup_time) ?? '' : '',
       { inventory: isStay ? 'stay' : 'tour', nights: nights > 0 ? nights : null }
     )
-      .map(csvEscape)
+      .map(csvSafeCell)
       .join(',');
   });
   const csv = [PARTNER_BOOKINGS_CSV_HEADER.join(','), ...lines].join('\n');

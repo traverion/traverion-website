@@ -31,6 +31,7 @@ import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import { partnerBookingIsLiveTrip, partnerBookingIsOperatingTrip, partnerBookingNeedsLook } from '../../lib/trip-views';
 import { PARTNER_PICKUP_CSV_HEADER, partnerPickupCsvValues } from '../../lib/partner-pickup-csv';
+import { csvSafeCell } from '../../lib/csv-export';
 import { bookingIsStayNight, bookingNeedsPickupCopy, resolveBookingPickupCopy } from '../../lib/pickup-completeness';
 import { guestFacingBookingNotes } from '../../lib/booking-notes';
 import { parseListingExtras, materializedBookingOptions } from '../../types/listingExtras';
@@ -611,7 +612,6 @@ export default function SupplierPickupPlanner() {
   };
 
   const exportCsv = () => {
-    const escape = (s: string) => `"${String(s).replace(/"/g, '""')}"`;
     const rows = listBookings.map((b) => {
       const copy = pickupCopyFor(b);
       return partnerPickupCsvValues(
@@ -622,7 +622,7 @@ export default function SupplierPickupPlanner() {
         copy.meetingPoint,
         copy.pickupInstructions
       )
-        .map((c) => escape(c))
+        .map(csvSafeCell)
         .join(',');
     });
     const csv = [PARTNER_PICKUP_CSV_HEADER.join(','), ...rows].join('\n');

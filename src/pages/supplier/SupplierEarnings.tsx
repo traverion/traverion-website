@@ -23,6 +23,7 @@ import {
   buildPartnerMoneyCsvRows,
   partnerMoneyCsvHasExportableRows,
 } from '../../lib/partner-money-csv';
+import { csvSafeCell } from '../../lib/csv-export';
 
 function ledgerKindLabel(kind: string): string {
   const k = kind.trim().toLowerCase();
@@ -245,11 +246,6 @@ export default function SupplierEarnings() {
     ) {
       return;
     }
-    const escape = (v: string | number | null | undefined) => {
-      const s = String(v ?? '');
-      if (s.includes(',') || s.includes('"') || s.includes('\n')) return `"${s.replace(/"/g, '""')}"`;
-      return s;
-    };
     const body = buildPartnerMoneyCsvRows({
       payouts: filteredEarningsInWindow,
       refundDue: refundDueBookings,
@@ -257,7 +253,7 @@ export default function SupplierEarnings() {
       ledger: ledgerInWindow,
       ledgerKindLabel,
     });
-    const csv = [PARTNER_MONEY_CSV_HEADER.join(','), ...body.map((cols) => cols.map(escape).join(','))].join(
+    const csv = [PARTNER_MONEY_CSV_HEADER.join(','), ...body.map((cols) => cols.map(csvSafeCell).join(','))].join(
       '\n'
     );
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
