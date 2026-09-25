@@ -2662,6 +2662,79 @@ policy-count and access-unchanged assertions); no tsc/vitest run needed.
 
 Continuing to the next hypothesis.
 
+### Phase 593 -- Two traveler-identity bugs fixed: unverified JWT email claim trusted as proof of identity, and a NULL-comparison authorization bypass in booking cancellation (the second found while proving the first, unconditional, higher severity)
+
+Domain B/C sweep (traveler-side authorization), rotating away from the
+supplier RLS area Phase 590/592 had just covered. Every place in this
+schema that proves "this signed-in user IS the traveler on booking X"
+accepts either guest_user_id = auth.uid() (the booking was created by
+this exact account) OR a raw string match of the JWT's email claim
+against guest_email. Nothing anywhere checked auth.users.email_confirmed_at
+before trusting that claim -- and most guest_email values belong to
+nobody's account at all (most travelers check out without ever creating
+one), so that address is free for anyone to claim at signup as long as
+nobody has registered it yet.
+
+This repository cannot see or change the hosted Supabase project's
+Authentication -> Email -> "Confirm email" setting, so this entry does
+NOT claim the unconfirmed-email path is currently exploitable in
+production -- only that the database layer should not depend on an
+external toggle it cannot verify. src/contexts/AuthContext.tsx's own
+signIn/signUp already carries a client-side `!email_confirmed_at` guard
+for this exact scenario, which is suggestive but not a substitute for
+enforcing it server-side (anyone can call the REST/RPC API directly with
+a captured access token). Fixed with a single shared helper,
+jwt_verified_email(), that returns the JWT email claim only when the
+account's email_confirmed_at is actually set -- every affected site
+(is_booking_party -> booking_messages/cancellation_requests visibility +
+post_booking_message/mark_booking_messages_read, is_traverion_panel_admin
+as defense in depth, the bookings SELECT/UPDATE email-match policies,
+update_guest_booking_special_requests, cancel_booking_as_traveler,
+respond_cancellation_request, and the reviews INSERT/UPDATE "verified"
+badge check) now goes through it instead of reading the raw claim.
+
+Separately -- found while writing the proof test for the fix above, not
+something this phase set out to look for -- cancel_booking_as_traveler
+and respond_cancellation_request both gate access with `if not
+(guest_user_id = v_uid or (email match)) then reject end if;`. When a
+booking has guest_user_id IS NULL (any guest checkout with no account)
+and the caller's email claim doesn't match at all -- no spoofing
+attempted, nothing to do with confirmation -- `NULL = v_uid` evaluates
+to SQL NULL rather than false, `NULL OR false` stays NULL, and
+PL/pgSQL's `IF NOT (...)` treats a NULL condition the same as false: it
+skips the reject branch entirely. In plain terms: ANY authenticated
+user, with no email claim needed at all, could cancel or
+accept/decline the cancellation of ANY booking with no linked account,
+just by knowing its booking_id -- unconditional, and unlike the finding
+above, this does NOT depend on any Supabase Auth setting; it is
+provably live in the currently-committed production code as written.
+Proven directly with a caller whose email claim is completely blank,
+isolated from the first finding. Fixed by wrapping the ownership check
+in coalesce(..., false) before negating it in both functions, so a NULL
+outcome means reject rather than allow; a real authorized caller is
+unaffected (`x OR true` stays true regardless of x). Grepped every `if
+not (` across every migration, current and superseded: only these two
+functions' current bodies have this shape.
+
+supabase/tests/jwt_email_requires_confirmation.test.sql: installs the
+CURRENT, real pre-fix bodies of every affected object (transcribed
+verbatim from the live migration files, not a reconstructed "original"
+state, per the Phase 592 process note), proves GAP CONFIRMED for all 7
+unconfirmed-email sites plus the independently-isolated NULL-bypass
+case, proves all 8 are rejected after the real fix migration is
+applied, proves a genuine confirmed-email traveler and the untouched
+guest_user_id path are both unaffected, and runs two separate mutation
+checks (reverting each fix independently) that each correctly reopen
+their own gap.
+
+Verified against a scratch Postgres 16 instance: full run, zero errors,
+"ALL ASSERTIONS PASSED (098)". No application code changes needed --
+every client call site only invokes these RPCs and doesn't depend on
+their internal authorization logic (grepped and confirmed). No
+tsc/vitest run needed (SQL-only).
+
+Continuing to the next hypothesis.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Traveler browser golden journeys**: verified live (Phase 547) —
