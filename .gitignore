@@ -88,3 +88,9 @@ temp/
 
 # Supabase CLI local cache
 supabase/.temp/
+
+# Local-only certification harness (may hold service-role secrets)
+scripts/cert-transactional-emails.cjs
+
+# Vite/Vitest ephemeral config transforms
+vite.config.ts.timestamp-*.mjs

@@ -3,12 +3,13 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** _(pending 544)_  
-**Current phase:** 544  
+**Current SHA:**   
+**Current phase:** 595  
 **Branch:** `reconstruction/phase-0-audit`  
-**Commits this mission:** 126+  
+**Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
-**Preserve:** `scripts/cert-transactional-emails.cjs` (intentionally untracked)
+**Local-only (gitignored):** `scripts/cert-transactional-emails.cjs` — must stay untracked; contains service-role secrets when present locally  
+**Remote migration truth (2026-09-26):** `supabase migration list --linked` shows **Local applied through 079**; **080–099 exist in git only (Remote column empty)** — security/trust migrations from Phases ~551–595 are **NOT deployed** to project `xcopqllkulxfkpunetbc` until explicitly pushed  
 
 ## Milestone Phase 513 (inventory band)
 
@@ -88,7 +89,8 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 541 | Wrap Account display name and email (no silent truncate) | `c55cb07` |
 | 542 | Certify schedule-edit / capacity-reduction / unpublish partner warnings 9/9 | `ddc7ec8` |
 | 543 | Wrap Inbox guest names and listing lines under line-clamp | `6a848e3` |
-| 544 | Wrap Bookings + Pickup guest/listing/meeting identity lines | _(this commit)_ |
+| 544 | Wrap Bookings + Pickup guest/listing/meeting identity lines | `530030f` |
+| 595 | Reconcile voucher 099 + untrack secrets + prove 080–099 not remote-applied |  |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -2782,14 +2784,39 @@ No code change this phase -- a clean, verified audit is a legitimate
 phase outcome, not a gap. Stays domain (F) marked provisionally healthy;
 rotating to a different domain next phase per the skill's own guidance.
 
+### Phase 595 — Reconcile voucher ownership + journal/deploy truth
+
+**Repository truth at start of continuation:**
+- Documented phase in journal was 594 (`4e1618a`); progress header was stale at 544.
+- HEAD `4166442` ("Update Traverion") already contained Phase 595-class work: migration `099_supplier_booking_vouchers_ownership_guard.sql` + adversarial SQL test, plus accidental tracking of `scripts/cert-transactional-emails.cjs` and seven `vite.config.ts.timestamp-*.mjs` junk files.
+
+**Voucher ownership (099) — code/test evidence:**
+- Gap: INSERT/UPDATE RLS on `supplier_booking_vouchers` only checked `supplier_id = auth.uid()`, allowing any auth user to attach another supplier's `booking_id`/`listing_id`.
+- Fix: WITH CHECK requires listing ownership + booking/listing agreement.
+- Verified by `supabase/tests/supplier_booking_vouchers_ownership_guard.test.sql` (in git).
+- **Distinction:** migration **exists in git** + **has SQL regression test**; **Remote NOT applied** (see migration matrix below). Production behavior therefore **not certified**.
+
+**cert-transactional-emails.cjs decision:**
+- Earlier mission note said "intentionally untracked." HEAD had tracked it.
+- Inspected: file hardcodes Supabase **service_role** and anon JWTs. Tracking it is a secret leak.
+- Action: removed from git index, added to `.gitignore`, kept local copy on disk for founder use. **Do not re-commit.** Keys that appeared in git history should be treated as exposed and rotated when practical.
+- Also removed tracked Vite timestamp junk files and gitignored `vite.config.ts.timestamp-*.mjs`.
+
+**Migration apply matrix (linked project `xcopqllkulxfkpunetbc`, `supabase migration list --linked`):**
+| Band | In git | Remote applied | Notes |
+|------|--------|----------------|-------|
+| 001–079 | yes | yes | Remote column populated |
+| 080–099 | yes | **NO** | Includes publish/authz/email/review/payout/identity/voucher guards from Phases ~551–595 |
+
+Never equate repository presence with deployment. Phase 596+ must push/verify remote apply before claiming production trust for those guards.
+
 ## Known remaining risks (ranked)
 
-1. **P1 — Traveler browser golden journeys**: verified live (Phase 547) —
-   tour search/detail/pricing/checkout-handoff and stay detail/login-return
-   all correct on production. Partner-portal golden journeys still not run
-   (no partner session available to this agent either).
-2. **P1 — Advisory lock listing-scoped** — safe but coarse.
-3. **P2 — LIVE Stripe** intentionally blocked.
+1. **P0 — Migrations 080–099 not applied remotely** — trust/security fixes exist in git + many have SQL tests, but `supabase migration list --linked` shows Remote empty for 080–099. Live project still lacks those guards until push + verify.
+2. **P1 — Partner browser golden journeys** still not certified (demo credentials available; live partner session certification pending).
+3. **P1 — Advisory lock listing-scoped** — safe but coarse.
+4. **P2 — LIVE Stripe** intentionally blocked.
+5. **P2 — Service-role JWT briefly tracked** in `scripts/cert-transactional-emails.cjs` (now untracked); rotate when practical.
 
 ## Do not
 
