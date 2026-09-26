@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800 complete · **801→850 traveler premium**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `540adb8`  
-**Current phase:** 848  
+**Current SHA:** `aa25ef9`  
+**Current phase:** 849  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -4249,6 +4249,17 @@ No further supporting-surface inventiveness. Ready for global coherence (848) an
 ### Phase 848 — Global visual/naming coherence
 
 Sitemap + Saved empty copy: “Wishlist” → **Saved**; drop “Stories (later)” prototype wording. Traveler nav/header already Saved. Consumer marketing free of Stripe TEST (payment CTAs use human test-mode phrase). Cream/blue/serif identity preserved throughout.
+
+### Phase 849 — Responsive + a11y + performance certification
+
+**Evidence this mission band:**
+- Desktop browser: home, catalog, terms, contact, tour/stay (prior), Saved
+- Mobile 390×844: home, tours, tour detail, stays, stay detail, account
+- `tsc` clean; `npm run build` clean (843); guest picker + traveler-interest + display-name + booking-confirmation-copy tests green
+- Overscroll CSS contain; reduced-motion respected on card/hover/heart
+- Empty vs error honesty not regressing for aesthetics
+
+**Not claimed:** WCAG AAA, device-farm, Lighthouse CI gate.
 
 ## Known remaining risks (ranked)
 
