@@ -806,7 +806,7 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
                 className="py-8 sm:py-10 max-w-lg"
                 icon={Compass}
                 title="No stays published yet"
-                body="Traverion does not fill this page with sample apartments. When an operator publishes a stay, it appears here."
+                body="When an operator publishes a stay, it appears here. Traverion does not invent sample apartments."
                 action={
                   <a href={supplierPortalLandingHref()} className="tv-btn-primary inline-flex">
                     List a stay

@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800 complete · **801→850 traveler premium**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `7a783d1`  
-**Current phase:** 838  
+**Current SHA:** `3066cd6`  
+**Current phase:** 839  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -4189,6 +4189,14 @@ Cleared device metrics after pass.
 **Browser (390×844):** Opened Guaranteed Northern Lights Tour from catalog. Gallery, identity (Rovaniemi, 5.0 · 2 reviews), quick facts card, sticky “Pick a date” + From price. **mobile-browser-tested**. Real review count shown.
 
 **Copy:** Tours catalog footnote no longer reads as publish-pipeline QA (“Live tours…when they publish”) → “Showing published tours from independent operators.”
+
+### Phase 839 — Mobile stay catalog + detail cert
+
+**Browser (390×844):**
+- Stays catalog: 2 stays, search summary, Filters/Sort, compact photographic cards. **mobile-browser-tested**.
+- Riverside Apartment detail: gallery, STAY badge, facts, sticky booking with human “test-mode payment (no real charge)” + Select dates. **mobile-browser-tested**.
+
+Softened stays empty-state honesty copy (still no invented inventory).
 
 ## Known remaining risks (ranked)
 
