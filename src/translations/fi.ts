@@ -1,3 +1,8 @@
+/**
+ * Finnish UI copy. Prefer shared honesty constants from booking-confirmation-copy when the phrase is product-critical.
+ */
+import { STRIPE_TEST_UNTIL_LIVE } from '../lib/booking-confirmation-copy';
+
 export const fi = {
   // Navigation
   navigation: {
@@ -36,12 +41,12 @@ export const fi = {
       description: 'Premium-majoitus ja eksklusiiviset kokemukset',
     },
     support: {
-      title: '24/7 Tuki',
-      description: 'Dedikoidtu apu koko matkan ajan',
+      title: 'Ihmisten tuki',
+      description: 'Ota yhteyttä Contact-lomakkeella — emme lupaa vuorokauden ympäri kattavaa tukea jota emme tarjoa',
     },
     guarantee: {
-      title: 'Paras Hinta -takuu',
-      description: 'Kilpailukykyiset hinnat vertaansa vailla olevalla arvolla',
+      title: 'Selkeä peruutus',
+      description: 'Peruutus noudattaa kunkin ilmoituksen ehtoja — ei yleistä takuuta',
     },
   },
 
@@ -98,7 +103,7 @@ export const fi = {
     bookNow: 'VARAA LOMA',
     learnMore: 'Lue Lisää',
     contact: 'Ota Yhteyttä',
-    loading: 'Ladataan...',
+    loading: 'Ladataan…',
     error: 'Jotain meni pieleen',
     success: 'Onnistui!',
   },
@@ -199,7 +204,7 @@ export const fi = {
 
   // Top bar (above main nav)
   topBanner: {
-    trustLine: 'Peruutus noudattaa kunkin ilmoituksen ehtoja · Stripe TEST kunnes live',
+    trustLine: `Peruutus noudattaa kunkin ilmoituksen ehtoja · ${STRIPE_TEST_UNTIL_LIVE}`,
   },
 
   // Promotional Banner

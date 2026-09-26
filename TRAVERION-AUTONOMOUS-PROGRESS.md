@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `0e49ad5`  
-**Current phase:** 761  
+**Current SHA:** `4b0d0e1`  
+**Current phase:** 762  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -159,6 +159,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 661 | Offers empty only when load succeeded | `7cb49d1` |
 | 662 | StayDetails reviews reset + eligibility stale guard | `a0bc0c2` |
 | 663 | Checkout contact fields label htmlFor + ids | `fa7cfef` |
+| 762 | Finnish trust copy honesty and shared TEST phrase | `4b0d0e1` |
 | 761 | Partner More tab aria-current on secondary sections | `0e49ad5` |
 | 760 | Legal Back label partner main focus cookies SEO | `3e0bf02` |
 | 759 | Account optional phone and partnership tel inputMode | `cd31232` |
@@ -3683,6 +3684,10 @@ Legal Back icon-only risk; partner landing main lacked tabIndex for skip; cookie
 ### Phase 761 — Partner More tab aria-current on secondary sections
 
 Primary nav More never announced as current when Inbox/Reviews/etc were open.
+
+### Phase 762 — Finnish trust copy honesty and shared TEST phrase
+
+Finnish home trust cards claimed 24/7 support and best-price guarantee. Replace with honest support/cancellation copy; share STRIPE_TEST_UNTIL_LIVE in trustLine.
 
 ## Known remaining risks (ranked)
 
