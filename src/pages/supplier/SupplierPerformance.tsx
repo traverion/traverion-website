@@ -338,9 +338,8 @@ export default function SupplierPerformance() {
                               <span className="text-ink-muted font-normal"> · {row.currency}</span>
                             ) : null}
                           </p>
-                          <p className="text-xs text-ink-muted mt-0.5">
-                            {isStay ? 'Stay' : 'Tour'} · {row.bookingsCount} paid · {row.guestsCount} guest
-                            {row.guestsCount === 1 ? '' : 's'} · {share}% of {row.currency}
+                          <p className="mt-0.5 text-xs text-ink-muted">
+                            {`${isStay ? 'Stay' : 'Tour'} · ${row.bookingsCount} paid · ${row.guestsCount} guest${row.guestsCount === 1 ? '' : 's'} · ${share}% of ${row.currency}`}
                           </p>
                         </div>
                         <p className="tabular-nums text-sm font-semibold text-ink shrink-0">
