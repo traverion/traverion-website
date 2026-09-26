@@ -46,7 +46,7 @@
 | Quote | TEST-ONLY / STRONG | Edge checkout session quoting | Keep server-authoritative |
 | Checkout | TEST-ONLY / STRONG | Stripe TEST + holds | Concurrency + edge deploy parity |
 | Booking snapshots | PARTIAL | `purchase_snapshot` + freezes | Snapshot policy edits impact UX |
-| Booking state machine | PARTIAL | pending/confirmed/cancelled + payment_status | Document legal transitions; close NULL status |
+| Booking state machine | PARTIAL→STRONG | pending/confirmed/cancelled + payment_status; mig 100 NOT NULL | Remote-apply 100 + re-run SQL guard |
 | Inventory / concurrency | PARTIAL | `assert_checkout_inventory` + advisory lock | Slot-scoped lock; public remaining spots |
 | Payments | TEST-ONLY | Stripe webhook → payment_status | Never invent paid from redirect |
 | Cancellation | PARTIAL | RPCs + ledger | Traveler/supplier paths exist |
@@ -82,7 +82,7 @@
 
 | Rank | Pri | Gap | Phase intent |
 |------|-----|-----|--------------|
-| 1 | P0 | `bookings.status` nullable bypass (migration 100 ready, untracked) | Apply + commit + SQL test |
+| 1 | P0 | `bookings.status` nullable bypass | Migration 100 tracked (852); remote apply pending |
 | 2 | P0 | Partner create→publish not mutating-browser-certified | Cert + fix blockers |
 | 3 | P0 | Traveler book UI→Stripe TEST→Trips→partner Bookings E2E | Full tour then stay |
 | 4 | P1 | Per-slot public remaining / sell-out honesty | Align public with slot inventory |

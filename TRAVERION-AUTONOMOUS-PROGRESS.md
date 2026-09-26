@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `448828b`  
-**Current phase:** 851  
+**Current SHA:** `eea69ae`  
+**Current phase:** 852  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -262,6 +262,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 849 | Responsive + a11y + performance certification | `7747874` |
 | 850 | Founder visual handoff TRAVERION-PHASE-850.md | see `git log -1` |
 | 851 | Marketplace completeness matrix + scroll re-verify | `448828b` |
+| 852 | bookings.status NOT NULL migration 100 | `eea69ae` |
 
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
@@ -4296,6 +4297,16 @@ Created `TRAVERION-PHASE-850.md` with executive verdict, architecture summaries,
 **Deliverable:** `TRAVERION-MARKETPLACE-COMPLETENESS-MATRIX.md` — domain classifications, top P0/P1 gaps, Stripe TEST / no-fake inventory rules.
 
 **Next (852):** Adopt untracked migration `100` bookings.status NOT NULL + SQL test (structural P0), then partner create→publish certification band.
+
+### Phase 852 — bookings.status NOT NULL (migration 100)
+
+**P0 structural gap:** `bookings.status` CHECK allowed NULL; ownership-only UPDATE policies + unpaid path in payment-fields trigger did not block `status = null` on unpaid bookings (same class as listings.status / migration 092).
+
+**Action:** Track migration `100_bookings_status_not_null_close_null_bypass.sql` + `bookings_status_not_null_guard.test.sql` (previously untracked concurrent artifact). Backfill NULLs → confirmed if paid-like else pending; `ALTER … SET NOT NULL`.
+
+**Certification:** code-inspected + test artifact in repo. Local `psql`/docker unavailable this environment — scratch Postgres proof documented in test header; **not** re-executed here. Remote apply still required (`supabase db push` when founder/CI ready).
+
+**Matrix:** Booking state machine cell upgraded toward COMPLETE+NOT CERTIFIED pending remote apply + SQL re-run.
 
 ## Known remaining risks (ranked)
 
