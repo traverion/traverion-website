@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `6426194`  
-**Current phase:** 625  
+**Current SHA:** `26b1783`  
+**Current phase:** 626  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -121,6 +121,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 623 | Schedules bulk range date plural spacing | `7d6cb24` |
 | 624 | Review author names skip email local-part | `274e6a3` |
 | 625 | Sign-up awaits getSession before navigate | `6426194` |
+| 626 | Browse card pickup meta matches experienceStartStyle | `26b1783` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3046,6 +3047,12 @@ Same split-text-node class: Availability bulk capacity copy rendered `date` / `s
 **Problem:** Sign-in awaited `getSession()` before `onNavigate` (Phase 598); sign-up with immediate `hasSession` still navigated immediately — Trips/confirmation could race AuthContext.
 
 **Fix:** Await `supabase.auth.getSession()` on the sign-up `hasSession` branch before navigate.
+
+### Phase 626 — Browse cards: pickup meta matches listing truth
+
+**Problem:** `PublicListingBrowseCard` showed “Pickup included” when any option **name** matched `/pickup/i`, even with no `pickupPlace` and no `experienceStartStyle` — dishonest vs tour quick facts.
+
+**Fix:** Align with `tour-quick-facts`: operator_pickup / non-empty option pickupPlace → “Pickup included”; either_available → “Pickup or meet”; fixed_meeting_place → “Meeting point”. Drop name-regex heuristic.
 
 ## Known remaining risks (ranked)
 

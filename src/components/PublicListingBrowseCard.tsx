@@ -65,7 +65,14 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
   const bookingOpts = isStay ? [] : materializedBookingOptions(extras.bookingOptions);
   const pickupIncluded =
     !isStay &&
-    bookingOpts.some((o) => (o.pickupPlace ?? '').trim().length > 0 || /pickup/i.test(o.name));
+    (tour.experienceStartStyle === 'operator_pickup' ||
+      bookingOpts.some((o) => (o.pickupPlace ?? '').trim().length > 0));
+  const pickupOrMeet = !isStay && !pickupIncluded && tour.experienceStartStyle === 'either_available';
+  const meetingOnly =
+    !isStay &&
+    !pickupIncluded &&
+    !pickupOrMeet &&
+    tour.experienceStartStyle === 'fixed_meeting_place';
   const privateOnly =
     !isStay && bookingOpts.length > 0 && bookingOpts.every((o) => Boolean(o.isPrivate));
   const stayBits = isStay
@@ -79,7 +86,7 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
     ? []
     : [
         formatTourDurationDisplay(tour.duration || '') || null,
-        pickupIncluded ? 'Pickup included' : null,
+        pickupIncluded ? 'Pickup included' : pickupOrMeet ? 'Pickup or meet' : meetingOnly ? 'Meeting point' : null,
         privateOnly ? 'Private' : null,
       ].filter(Boolean);
   const metaLine = (isStay ? stayBits : tourBits).join(' · ');
