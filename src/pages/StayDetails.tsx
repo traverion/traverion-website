@@ -133,6 +133,30 @@ export default function StayDetails({ stayId, onBack }: Props) {
     };
   }, [stayId]);
 
+  useEffect(() => {
+    setShowReviewForm(false);
+    setReviewTitle('');
+    setReviewComment('');
+    setReviews([]);
+    setReviewReplies({});
+    setReviewAggregate(null);
+    if (!stayId || !isSupabaseConfigured()) return;
+    let cancelled = false;
+    void fetchReviewsByListingId(stayId).then(async (rows) => {
+      if (cancelled) return;
+      setReviews(rows);
+      const replies = await getReviewRepliesByReviewIds(rows.map((r) => r.id));
+      if (cancelled) return;
+      setReviewReplies(replies);
+    });
+    void getReviewAggregateForListing(stayId).then((agg) => {
+      if (!cancelled) setReviewAggregate(agg);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [stayId]);
+
   const loadReviews = useCallback(() => {
     if (!stayId || !isSupabaseConfigured()) return;
     void fetchReviewsByListingId(stayId).then(async (rows) => {
@@ -144,21 +168,24 @@ export default function StayDetails({ stayId, onBack }: Props) {
   }, [stayId]);
 
   useEffect(() => {
-    loadReviews();
-  }, [loadReviews]);
-
-  useEffect(() => {
+    setCanLeaveReview(false);
+    setBookingIdForReview(undefined);
+    setHasReviewed(false);
     if (!user?.id || !user?.email || !stayId || !isSupabaseConfigured()) {
-      setCanLeaveReview(false);
-      setBookingIdForReview(undefined);
-      setHasReviewed(false);
       return;
     }
+    let cancelled = false;
     void userHasCompletedBookingForListing(user.email, stayId).then(({ canReview, bookingId }) => {
+      if (cancelled) return;
       setCanLeaveReview(canReview);
       setBookingIdForReview(bookingId);
     });
-    void userHasReviewedListing(user.id, stayId).then(setHasReviewed);
+    void userHasReviewedListing(user.id, stayId).then((done) => {
+      if (!cancelled) setHasReviewed(done);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [user?.id, user?.email, stayId]);
 
   useEffect(() => {

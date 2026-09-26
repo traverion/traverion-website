@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `7cb49d1`  
-**Current phase:** 661  
+**Current SHA:** `a0bc0c2`  
+**Current phase:** 662  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -157,6 +157,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 659 | Calendar empty only when listings load succeeded | `8b66b64` |
 | 660 | Pickup empty only when load succeeded | `93b43e2` |
 | 661 | Offers empty only when load succeeded | `7cb49d1` |
+| 662 | StayDetails reviews reset + eligibility stale guard | `a0bc0c2` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3270,6 +3271,12 @@ Failed Pickup loads still showed “No bookings yet”. Gate empty states on `!e
 ### Phase 661 — Offers empty only when load succeeded
 
 Failed Offers loads showed “No listings yet” beside the error. Gate empty on `!error`.
+
+### Phase 662 — StayDetails reviews reset + eligibility stale guard
+
+**Problem:** Switching stays left prior reviews/form open; review eligibility fetches lacked cancel flags.
+
+**Fix:** Clear review UI on stayId change; cancel stale reviews/eligibility responses.
 
 ## Known remaining risks (ranked)
 
