@@ -1,11 +1,14 @@
 import { useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { ListingBookingOption } from '../types/listingExtras';
 import { monthGrid } from '../lib/stay-calendar';
 import { formatBookingDateDisplay } from '../lib/booking-flow';
-import { calendarMonthTitle } from '../lib/calendar-month-title';
 import { formatTourDayAria, tourDayState, tourMonthAvailabilityNote } from '../lib/tour-calendar';
 import { localYmd } from '../lib/local-ymd';
+import {
+  TraverionCalendarDayButton,
+  TraverionCalendarMonth,
+  type TraverionCalendarDayVisual,
+} from './calendar/TraverionCalendarMonth';
 
 type Props = {
   id: string;
@@ -17,6 +20,20 @@ type Props = {
   hint?: string;
   soldOutDates?: ReadonlySet<string>;
 };
+
+function visualForTourState(state: ReturnType<typeof tourDayState>): TraverionCalendarDayVisual {
+  switch (state) {
+    case 'selected':
+      return 'selected';
+    case 'full':
+      return 'occupied';
+    case 'past':
+    case 'closed':
+      return 'disabled';
+    default:
+      return 'default';
+  }
+}
 
 export default function TourDatePicker({
   id,
@@ -65,40 +82,26 @@ export default function TourDatePicker({
       <p id={`${id}-label`} className="mb-1.5 block text-sm font-medium tracking-tight text-ink">
         {label}
       </p>
-      <div
-        id={id}
-        role="group"
-        aria-labelledby={`${id}-label`}
-        tabIndex={-1}
-        className="rounded-xl bg-paper-raised p-3 ring-1 ring-black/[0.06] outline-none focus-visible:ring-2 focus-visible:ring-finland/40"
-      >
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-sm font-semibold text-ink">{calendarMonthTitle(cursor.y, cursor.m)}</p>
-          <div className="flex gap-1">
-            <button
-              type="button"
-              className="lux-tap-target min-h-11 min-w-11 inline-flex items-center justify-center p-1.5 rounded-lg"
-              aria-label="Previous month"
-              onClick={() => shift(-1)}
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              className="lux-tap-target min-h-11 min-w-11 inline-flex items-center justify-center p-1.5 rounded-lg"
-              aria-label="Next month"
-              onClick={() => shift(1)}
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-        <div className="grid grid-cols-7 gap-0.5 text-center text-[10px] uppercase tracking-wide text-ink-faint mb-1">
-          {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => (
-            <span key={d}>{d}</span>
-          ))}
-        </div>
-        <div className="grid grid-cols-7 gap-0.5">
+      <div id={id} tabIndex={-1} className="outline-none focus-visible:ring-2 focus-visible:ring-finland/40 rounded-2xl">
+        <TraverionCalendarMonth
+          year={cursor.y}
+          month0={cursor.m}
+          onPrevMonth={() => shift(-1)}
+          onNextMonth={() => shift(1)}
+          labelledBy={`${id}-label`}
+          footer={
+            <>
+              <p className="flex flex-wrap gap-x-3 gap-y-1">
+                <span>
+                  <span className="mr-1 inline-block h-2 w-2 rounded-sm bg-finland align-middle" />
+                  Selected
+                </span>
+                <span>Open days are clickable. Faded days are not offered. Struck days are fully booked.</span>
+              </p>
+              {monthNote ? <p className="mt-1.5 text-xs text-ink-muted">{monthNote}</p> : null}
+            </>
+          }
+        >
           {cells.map((iso, i) => {
             if (!iso) return <span key={`e-${i}`} />;
             const state = tourDayState({
@@ -108,43 +111,20 @@ export default function TourDatePicker({
               options,
               soldOut: soldOutDates?.has(iso),
             });
-            const day = Number(iso.slice(8, 10));
             const disabled = state === 'past' || state === 'closed' || state === 'full';
-            const cls =
-              state === 'selected'
-                ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
-                : state === 'closed'
-                  ? 'text-ink-faint/45'
-                  : state === 'full'
-                    ? 'text-ink-faint/50 line-through'
-                    : state === 'past'
-                      ? 'text-ink-faint/40'
-                      : 'text-ink hover:bg-finland/10';
             return (
-              <button
+              <TraverionCalendarDayButton
                 key={iso}
-                type="button"
+                iso={iso}
+                visual={visualForTourState(state)}
                 disabled={disabled}
-                onClick={() => onChange(iso)}
-                aria-label={formatTourDayAria(iso, state)}
-                aria-pressed={state === 'selected'}
-                className={`min-h-11 h-11 rounded-lg text-sm tabular-nums motion-safe:transition-colors ${cls} ${
-                  disabled ? 'cursor-not-allowed' : ''
-                }`}
-              >
-                {day}
-              </button>
+                ariaLabel={formatTourDayAria(iso, state)}
+                ariaPressed={state === 'selected'}
+                onSelect={onChange}
+              />
             );
           })}
-        </div>
-        <p className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-ink-faint">
-          <span>
-            <span className="inline-block w-2 h-2 rounded-sm bg-finland align-middle mr-1" />
-            Selected
-          </span>
-          <span>Open days are clickable. Faded days are not offered. Struck days are fully booked.</span>
-        </p>
-        {!monthNote ? null : <p className="mt-1.5 text-xs text-ink-muted">{monthNote}</p>}
+        </TraverionCalendarMonth>
       </div>
       {value.trim() ? (
         <p className="mt-1.5 text-xs font-medium text-finland/90">{formatBookingDateDisplay(value)}</p>

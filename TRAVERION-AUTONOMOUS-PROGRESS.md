@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800 complete · **801→850 traveler premium**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `ddb321c`  
-**Current phase:** 820  
+**Current SHA:** `3edc212`  
+**Current phase:** 821  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -231,6 +231,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 818 | Search + catalog band checkpoint 813-817 | `a74242c` |
 | 819 | Shared calendar chrome + marketplace search date popover | `707e44d` |
 | 820 | Shared traveler/guest picker in marketplace search | `ddb321c` |
+| 821 | Tour booking calendar uses shared Traverion chrome | `3edc212` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -4068,6 +4069,10 @@ Browse cards: compact `aspect-[5/4]`, display-serif titles, group hover lift/sca
 ### Phase 820 — Shared traveler/guest picker in marketplace search
 
 `TravelerGuestPicker`: adults/children steppers, accessible ± controls, summary (“2 travelers” / “2 adults · 1 child”), persists single guests total for URL/filter truth (no invented pricing categories). Wired into marketplace search fields. Vitest helpers 3/3. Browser: Travelers popover opens on `/packages`.
+
+### Phase 821 — Tour booking calendar uses shared Traverion chrome
+
+`TourDatePicker` now renders through `TraverionCalendarMonth` / day buttons while keeping `tourDayState` / sold-out / closed-day truth unchanged. Display serif month title + shared selected/disabled/occupied visuals. Unit tests for tour-calendar helpers still green.
 
 ## Known remaining risks (ranked)
 
