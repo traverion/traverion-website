@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-26  
 **Branch:** `reconstruction/phase-0-audit`  
-**HEAD at handoff:** `e5889a6`
+**HEAD at handoff:** tip of `reconstruction/phase-0-audit` after Phase 800 (`git log -1 --oneline`)
 **Stripe:** TEST only (unchanged)  
 **Not committed:** `scripts/cert-transactional-emails.cjs` (preserved untracked)
 
