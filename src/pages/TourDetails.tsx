@@ -182,6 +182,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     capByDay: Map<string, number>;
     fallback: number;
   } | null>(null);
+  const [dayCapacityError, setDayCapacityError] = useState<string | null>(null);
   const optionsSectionRef = useRef<HTMLDivElement>(null);
   const userRef = useRef(user);
   userRef.current = user;
@@ -340,38 +341,49 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     if (!tour?.id) {
       setSoldOutDates(new Set());
       setDayCapacitySnap(null);
+      setDayCapacityError(null);
       return () => {};
     }
     let cancelled = false;
+    setDayCapacityError(null);
     void Promise.all([
       fetchAvailabilityByListingId(tour.id),
       fetchPublishedTourPaidGuests(tour.id),
       fetchPublishedTourPaidGuestsBySlot(tour.id),
-    ]).then(([caps, paidByDay, paidBySlot]) => {
-      if (cancelled) return;
-      const fallbackCap = listingTourCapacityFromOptions(capacitySpotsFromBookingOptions(calendarOptions));
-      const capByDay = new Map<string, number>();
-      for (const row of caps) {
-        const day = String(row.available_date ?? '').slice(0, 10);
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) continue;
-        capByDay.set(day, row.capacity);
-      }
-      setDayCapacitySnap({ paidByDay, paidBySlot, capByDay, fallback: fallbackCap });
-      setSoldOutDates(
-        tourSoldOutDates({
-          paidByDay,
-          paidBySlot,
-          capByDay,
-          fallbackCapacity: fallbackCap,
-          slotKey: tourPaidSlotKey,
-          departuresForDay: (day) =>
-            tourSellingDeparturesOnDate(calendarOptions, day).map((d) => ({
-              startTimeHm: d.startTime,
-              maxSpots: d.maxSpotsPerSlot,
-            })),
-        })
-      );
-    });
+    ])
+      .then(([caps, paidByDay, paidBySlot]) => {
+        if (cancelled) return;
+        const fallbackCap = listingTourCapacityFromOptions(capacitySpotsFromBookingOptions(calendarOptions));
+        const capByDay = new Map<string, number>();
+        for (const row of caps) {
+          const day = String(row.available_date ?? '').slice(0, 10);
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) continue;
+          capByDay.set(day, row.capacity);
+        }
+        setDayCapacitySnap({ paidByDay, paidBySlot, capByDay, fallback: fallbackCap });
+        setSoldOutDates(
+          tourSoldOutDates({
+            paidByDay,
+            paidBySlot,
+            capByDay,
+            fallbackCapacity: fallbackCap,
+            slotKey: tourPaidSlotKey,
+            departuresForDay: (day) =>
+              tourSellingDeparturesOnDate(calendarOptions, day).map((d) => ({
+                startTimeHm: d.startTime,
+                maxSpots: d.maxSpotsPerSlot,
+              })),
+          })
+        );
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setDayCapacitySnap(null);
+        setSoldOutDates(new Set());
+        setDayCapacityError(
+          userFacingError(e, 'We could not check departure capacity. Check your connection and try again.')
+        );
+      });
     return () => {
       cancelled = true;
     };
@@ -1464,8 +1476,14 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                               }
                               void handleContinueToCheckout();
                             }}
-                            disabled={variantChecking || (panelQuote != null && !panelQuote.ok)}
-                            aria-describedby={bookingCardError ? 'tour-booking-card-error' : undefined}
+                            disabled={
+                              variantChecking ||
+                              Boolean(dayCapacityError) ||
+                              (panelQuote != null && !panelQuote.ok)
+                            }
+                            aria-describedby={
+                              bookingCardError || dayCapacityError ? 'tour-booking-card-error' : undefined
+                            }
                             className="tv-btn-primary w-full disabled:opacity-60"
                           >
                             {variantChecking
@@ -1483,7 +1501,18 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                         </p>
                       )}
                       <div id="tour-booking-card-error" className="min-h-[1.25rem]">
-                        {bookingCardError ? (
+                        {dayCapacityError ? (
+                          <NoticeCallout title="Capacity unavailable" tone="danger">
+                            {dayCapacityError}{' '}
+                            <button
+                              type="button"
+                              className="font-semibold text-finland hover:underline"
+                              onClick={() => reloadTourDayCapacity()}
+                            >
+                              Try again
+                            </button>
+                          </NoticeCallout>
+                        ) : bookingCardError ? (
                           <NoticeCallout title="Check your selection" tone="danger">
                             {bookingCardError}
                           </NoticeCallout>

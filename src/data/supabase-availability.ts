@@ -27,7 +27,7 @@ export async function fetchAvailabilityByListingId(
     .gte('available_date', from);
   if (opts?.toDate) query = query.lte('available_date', opts.toDate);
   const { data, error } = await query.order('available_date', { ascending: true });
-  if (error) return [];
+  if (error) throw new Error(error.message);
   return (data ?? []) as AvailabilityRow[];
 }
 
@@ -39,7 +39,8 @@ export async function fetchPublishedTourPaidGuests(
   const { data, error } = await supabase.rpc('published_tour_paid_guests', {
     p_listing_id: listingId,
   });
-  if (error || !Array.isArray(data)) return {};
+  if (error) throw new Error(error.message);
+  if (!Array.isArray(data)) return {};
   const out: Record<string, number> = {};
   for (const row of data as { departure?: unknown; paid_guests?: unknown }[]) {
     const day = String(row.departure ?? '').slice(0, 10);
@@ -67,7 +68,12 @@ export async function fetchPublishedTourPaidGuestsBySlot(
   const { data, error } = await supabase.rpc('published_tour_paid_guests_by_slot', {
     p_listing_id: listingId,
   });
-  if (error || !Array.isArray(data)) return {};
+  if (error) {
+    // Older projects may lack the slot RPC — treat as no per-slot paid counts, not unlimited capacity.
+    if (/could not find the function|PGRST202/i.test(error.message ?? '')) return {};
+    throw new Error(error.message);
+  }
+  if (!Array.isArray(data)) return {};
   const out: Record<string, number> = {};
   for (const row of data as { departure?: unknown; start_time_hm?: unknown; paid_guests?: unknown }[]) {
     const day = String(row.departure ?? '').slice(0, 10);

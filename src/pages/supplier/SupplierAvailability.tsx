@@ -246,11 +246,15 @@ export default function SupplierAvailability() {
       setRows([]);
       return;
     }
-    const data = await fetchAvailabilityByListingId(
-      id,
-      fromIso && toIso ? { fromDate: fromIso, toDate: toIso } : undefined
-    );
-    setRows(data);
+    try {
+      const data = await fetchAvailabilityByListingId(
+        id,
+        fromIso && toIso ? { fromDate: fromIso, toDate: toIso } : undefined
+      );
+      setRows(data);
+    } catch {
+      setRows([]);
+    }
   }, []);
 
   useEffect(() => {

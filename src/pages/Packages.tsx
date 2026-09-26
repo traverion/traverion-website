@@ -182,6 +182,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
     }
   > | null>(null);
   const [dateCapacityLoading, setDateCapacityLoading] = useState(false);
+  const [dateCapacityError, setDateCapacityError] = useState<string | null>(null);
 
   const deferredSearch = useDeferredValue(searchTerm);
 
@@ -267,6 +268,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
     /^\d{4}-\d{2}-\d{2}$/.test(filterDate) &&
     isSupabaseConfigured() &&
     allListings.length > 0 &&
+    !dateCapacityError &&
     (dateCapacityLoading || dateCapacityByListing === null);
   const showCatalogLoading = catalogLoading || waitingOnDateCapacity;
 
@@ -300,10 +302,12 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
     if (!filterDate || !/^\d{4}-\d{2}-\d{2}$/.test(filterDate) || !isSupabaseConfigured() || allListings.length === 0) {
       setDateCapacityByListing(null);
       setDateCapacityLoading(false);
+      setDateCapacityError(null);
       return () => {};
     }
     let cancelled = false;
     setDateCapacityLoading(true);
+    setDateCapacityError(null);
     void Promise.all(
       allListings.map(async (tour) => {
         const extras = parseListingExtras(tour.listingExtras);
@@ -335,11 +339,20 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
           },
         ] as const;
       })
-    ).then((entries) => {
-      if (cancelled) return;
-      setDateCapacityByListing(Object.fromEntries(entries));
-      setDateCapacityLoading(false);
-    });
+    )
+      .then((entries) => {
+        if (cancelled) return;
+        setDateCapacityByListing(Object.fromEntries(entries));
+        setDateCapacityLoading(false);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setDateCapacityByListing(null);
+        setDateCapacityError(
+          userFacingError(e, 'We could not check tour capacity for that date. Check your connection and try again.')
+        );
+        setDateCapacityLoading(false);
+      });
     return () => {
       cancelled = true;
     };
@@ -806,9 +819,17 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
             }
           />
         ) : null}
+        {dateCapacityError && filterDate ? (
+          <ErrorState
+            className="mb-6 py-6"
+            title="Capacity unavailable"
+            body={dateCapacityError}
+            retry={{ onClick: () => reloadDateCapacity() }}
+          />
+        ) : null}
         {showCatalogLoading ? (
           <SkeletonCardGrid count={6} />
-        ) : listingsLoadError ? null : allListings.length > 0 && filteredPackages.length > 0 ? (
+        ) : listingsLoadError || dateCapacityError ? null : allListings.length > 0 && filteredPackages.length > 0 ? (
           <>
             <div className={MARKETPLACE_BROWSE_GRID_CLASS}>
               {filteredPackages.map((tour, index) => (
