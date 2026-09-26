@@ -234,7 +234,7 @@ function PartnerPrivacyContent() {
         <p>
           See our{' '}
           <a href={PARTNER_COOKIES_POLICY_PATH} className={navLink}>
-            Partner Cookie Policy
+            Partner cookies and marketing preferences
           </a>{' '}
           for the partner site.
         </p>
@@ -328,7 +328,7 @@ function PartnerLegalNoticeContent() {
           </li>
           <li>
             <a href={PARTNER_COOKIES_POLICY_PATH} className={navLink}>
-              Partner Cookie Policy
+              Partner cookies and marketing preferences
             </a>
           </li>
           <li>
@@ -391,9 +391,9 @@ const PAGE_META: Record<
     intro: 'How we handle personal data when you operate as a Traverion partner.',
   },
   cookiespolicy: {
-    title: 'Partner Cookie Policy',
+    title: 'Partner cookies and marketing preferences',
     description: 'Cookies and similar technologies on the Traverion partner site.',
-    docTitle: 'Partner Cookie Policy · Traverion',
+    docTitle: 'Partner cookies and marketing preferences · Traverion',
     intro: 'Cookie and storage practices on partner.traverion.com.',
   },
   legalnotice: {
