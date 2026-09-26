@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800 complete · **801→850 traveler premium**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `aa25ef9`  
-**Current phase:** 849  
+**Current SHA:** tip after Phase 850 (`git rev-parse --short HEAD`)  
+**Current phase:** 850  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -243,6 +243,25 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 830 | Traveler account dashboard wider desktop | `1a173ce` |
 | 831 | Footer brand polish | `0699255` |
 | 832 | Legal/info page shell + Terms/Privacy TOC | `50e0fde` |
+| 833 | Signup/display-name lifecycle coherence | `651a2db` |
+| 834 | Saved + Trips shell coherence | `21ad726` |
+| 835 | Human test-mode payment copy | `824f636` |
+| 836 | Legal Notice + Cookies TOC | `53f3fe5` |
+| 837 | Mobile 390 catalog/home cert + Cookies ids | `60793ef` |
+| 838 | Mobile tour detail cert + catalog footnote | `9418e65` |
+| 839 | Mobile stay catalog + detail cert | `939c344` |
+| 840 | Account mobile + Saved tile + heart feedback | `d50633f` |
+| 841 | Personalization foundation re-cert | `0345de3` |
+| 842 | Contact page shell browser cert | `96ec1cb` |
+| 843 | Production build + guest picker tests | `781c3d9` |
+| 844 | Shared calendar wiring inventory | `d6f9b8d` |
+| 845 | Overscroll behavior confirm | `b838b1a` |
+| 846 | Reviews modal a11y confirm | `7184463` |
+| 847 | Supporting surfaces band closed | `af8bde7` |
+| 848 | Global visual/naming coherence | `7ca6bed` |
+| 849 | Responsive + a11y + performance certification | `7747874` |
+| 850 | Founder visual handoff TRAVERION-PHASE-850.md | see `git log -1` |
+
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -4260,6 +4279,12 @@ Sitemap + Saved empty copy: “Wishlist” → **Saved**; drop “Stories (later
 - Empty vs error honesty not regressing for aesthetics
 
 **Not claimed:** WCAG AAA, device-farm, Lighthouse CI gate.
+
+### Phase 850 — Founder visual handoff
+
+Created `TRAVERION-PHASE-850.md` with executive verdict, architecture summaries, certification levels (implemented / automated-tested / browser-tested / mobile-browser-tested / code-inspected / blocked), known limitations, intentionally unchanged transaction truth, and exact founder visual test plan.
+
+**Mission 801→850 complete.** Stripe remains TEST. No fake inventory.
 
 ## Known remaining risks (ranked)
 
