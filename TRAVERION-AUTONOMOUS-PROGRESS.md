@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800 complete · **801→850 traveler premium**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `75b7e6d`  
-**Current phase:** 806  
+**Current SHA:** `858b7ce`  
+**Current phase:** 807  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -217,6 +217,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 804 | Traveler layout primitives + hero contrast | `cb9b898` |
 | 805 | Global visual foundation checkpoint 801-805 | `8133328` |
 | 806 | Compact destination discovery strip | `75b7e6d` |
+| 807 | Denser homepage listing discovery + section rhythm | `858b7ce` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3967,6 +3968,12 @@ Cookies and marketing preferences: 7\n```
 **Problem:** Homepage destination cards were oversized (2–3 per desktop row).
 
 **Fix:** Portrait `.tv-dest-tile` grid with `auto-fill` minmax(~10–11.5rem) so denser discovery when many places exist, without ballooning when only a few real destinations publish. Still derived only from published inventory (`getDestinationsFromListings`). Show up to 12 places. Browser: Finland / Ranua / Rovaniemi tiles only (no invented cities).
+
+### Phase 807 — Denser homepage listing discovery + section rhythm
+
+**Problem:** Featured tour hero and catalog cards consumed too much viewport; sections blended.
+
+**Fix:** `HOME_DISCOVERY_GRID_CLASS` (2/3/4 cols), compact cards, shorter featured hero, muted/divider section rhythm, refined Why Traverion surfaces. Still real inventory only.
 
 ## Known remaining risks (ranked)
 

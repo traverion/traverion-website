@@ -14,7 +14,7 @@ import { PublicListingBrowseCard } from '../components/PublicListingBrowseCard';
 import {
   MarketplaceSearchFields,
 } from '../components/marketplace/MarketplaceSearchBar';
-import { MARKETPLACE_GRID_CLASS } from '../lib/marketplaceBrowse';
+import { HOME_DISCOVERY_GRID_CLASS } from '../lib/marketplaceBrowse';
 import { useTravelerWishlist } from '../hooks/useTravelerWishlist';
 import { supplierPortalLandingHref } from '../lib/partnerHost';
 import EmptyState from '../components/EmptyState';
@@ -461,10 +461,11 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
         </div>
       </section>
 
-      <section className="pb-8 sm:pb-10">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="tv-section tv-section-muted tv-section-divider">
+        <div className="tv-content">
           <div className="flex items-end justify-between gap-3 mb-5">
             <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Experiences</p>
               <h2 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">What can I book?</h2>
               <p className="mt-2 text-sm text-ink-muted">Tours published by operators on Traverion.</p>
             </div>
@@ -513,7 +514,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                 <button
                   type="button"
                   onClick={() => onTourSelect(featuredListing)}
-                  className="lux-flat relative w-full h-[16rem] sm:h-[22rem] rounded-2xl overflow-hidden mb-4 text-left group bg-ink/20"
+                  className="lux-flat relative w-full h-[12rem] sm:h-[15rem] rounded-2xl overflow-hidden mb-3.5 text-left group bg-ink"
                 >
                   {featuredSrc ? (
                     <img
@@ -523,10 +524,12 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                     />
                   ) : null}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
-                  <div className="absolute bottom-6 left-6 right-6 text-white">
-                    <p className="text-xs uppercase tracking-[0.16em] text-white/70 mb-2">Tour · Live now</p>
+                  <div className="absolute bottom-5 left-5 right-5 text-white">
+                    <p className="text-[11px] uppercase tracking-[0.16em] text-white/70 mb-1.5">Featured tour</p>
                     <p className="text-sm text-white/80">{featuredListing.city || featuredListing.destination}</p>
-                    <p className="font-display text-3xl sm:text-4xl mt-1 break-words [overflow-wrap:anywhere]">{featuredListing.title}</p>
+                    <p className="font-display text-2xl sm:text-3xl mt-0.5 break-words [overflow-wrap:anywhere]">
+                      {featuredListing.title}
+                    </p>
                     {(() => {
                       const { price, qualifier, summary } = getDisplayPriceForTour(
                         featuredListing,
@@ -546,7 +549,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                   </div>
                 </button>
               ) : null}
-              <div className={MARKETPLACE_GRID_CLASS}>
+              <div className={HOME_DISCOVERY_GRID_CLASS}>
                 {displayedListings.slice(1).map((item, index) => (
                   <PublicListingBrowseCard
                     key={item.id}
@@ -556,7 +559,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                     discountsByListing={discountsByListing}
                     reviewAggregate={reviewAggregates.get(item.id)}
                     tagLabels={TAG_LABELS}
-                    size="default"
+                    size="compact"
                     showTagPills={false}
                     wishlist={
                       wishlist.enabled
@@ -575,11 +578,12 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
         </div>
       </section>
 
-      <section className="pb-10 sm:pb-14">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="tv-section">
+        <div className="tv-content">
           <div className="flex items-end justify-between gap-3 mb-5">
             <div>
-              <h2 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Stays</h2>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Stays</p>
+              <h2 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Where to stay</h2>
               <p className="mt-2 text-sm text-ink-muted">Nights from operators — separate from tour departures.</p>
             </div>
             {!catalogLoading && !listingsError && stayListings.length > 0 ? (
@@ -614,8 +618,8 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
               }
             />
           ) : (
-            <div className={MARKETPLACE_GRID_CLASS}>
-              {stayListings.slice(0, 6).map((item, index) => (
+            <div className={HOME_DISCOVERY_GRID_CLASS}>
+              {stayListings.slice(0, 8).map((item, index) => (
                 <PublicListingBrowseCard
                   key={item.id}
                   tour={item}
@@ -624,7 +628,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                   discountsByListing={new Map()}
                   reviewAggregate={reviewAggregates.get(item.id)}
                   tagLabels={{}}
-                  size="default"
+                  size="compact"
                   showTagPills={false}
                   wishlist={
                     wishlist.enabled
@@ -642,29 +646,29 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
         </div>
       </section>
 
-      <section className="pb-12 sm:pb-16">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 border-t border-black/[0.06] pt-10 sm:pt-12">
+      <section className="tv-section tv-section-muted tv-section-divider">
+        <div className="tv-content">
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Trust</p>
           <h2 className="font-display text-3xl sm:text-4xl text-ink tracking-tight mb-2">Why book on Traverion</h2>
           <p className="text-sm text-ink-muted mb-6 max-w-xl leading-relaxed">
             Book local operators with clear trip details — tours and stays in one place you can manage.
           </p>
           <div className="grid sm:grid-cols-3 gap-4 sm:gap-5">
-            <div className="tv-card p-4 sm:p-5">
+            <div className="rounded-2xl bg-paper-raised p-5 sm:p-6 ring-1 ring-black/[0.06]">
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">01</p>
               <p className="font-semibold text-ink mb-1.5">Independent operators</p>
               <p className="text-sm leading-relaxed text-ink-muted">
                 You book the people who run the day — local guides and hosts, not anonymous packages.
               </p>
             </div>
-            <div className="tv-card p-4 sm:p-5">
+            <div className="rounded-2xl bg-paper-raised p-5 sm:p-6 ring-1 ring-black/[0.06]">
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">02</p>
               <p className="font-semibold text-ink mb-1.5">Clear booking</p>
               <p className="text-sm leading-relaxed text-ink-muted">
                 Pay to confirm your dates. Trips keeps your booking record and upcoming travel in one place.
               </p>
             </div>
-            <div className="tv-card p-4 sm:p-5">
+            <div className="rounded-2xl bg-paper-raised p-5 sm:p-6 ring-1 ring-black/[0.06]">
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">03</p>
               <p className="font-semibold text-ink mb-1.5">Experiences and stays</p>
               <p className="text-sm leading-relaxed text-ink-muted">
