@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { stayStickyBookCtaLabel } from './stay-sticky-cta';
+import { TRAVELER_OPENING_CHECKOUT_CTA } from './booking-confirmation-copy';
 
 describe('stayStickyBookCtaLabel', () => {
   it('names unavailable dates instead of Continue', () => {
@@ -76,6 +77,6 @@ describe('stayStickyBookCtaLabel', () => {
         checkOut: '2026-10-04',
         minNights: 1,
       })
-    ).toBe('Opening checkout…');
+    ).toBe(TRAVELER_OPENING_CHECKOUT_CTA);
   });
 });

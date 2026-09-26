@@ -48,6 +48,7 @@ import {
   STAY_LISTING_CONFIRMATION_NOTE,
   LISTING_REVIEWS_EMPTY_COPY,
   STRIPE_TEST_UNTIL_LIVE,
+  TRAVELER_OPENING_CHECKOUT_CTA,
 } from '../lib/booking-confirmation-copy';
 import { listingShowsFreeCancellation, publicReviewLabel } from '../lib/listingTruth';
 import { isSupabaseConfigured } from '../lib/supabase';
@@ -1044,7 +1045,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
                   {selectionOccupied
                     ? 'Dates unavailable'
                     : paying
-                      ? 'Opening checkout…'
+                      ? TRAVELER_OPENING_CHECKOUT_CTA
                       : stickyStayCtaLabel === 'Continue · TEST'
                         ? 'Continue · TEST'
                         : stickyStayCtaLabel}

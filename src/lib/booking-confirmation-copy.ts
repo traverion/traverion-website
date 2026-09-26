@@ -170,6 +170,12 @@ export const SUPPLIER_WELCOME_LISTING_STEP_NOTE =
 export const PARTNER_PAYOUT_THRESHOLD_HINT =
   'Preference only: minimum balance Traverion will consider once payouts are enabled (e.g. 50). Not an active payout queue.';
 
+/** Traveler Trips / confirmation — unpaid checkout CTA while Stripe session opens. */
+export const TRAVELER_OPENING_CHECKOUT_CTA = 'Opening checkout…';
+
+/** Traveler Trips / confirmation — pay CTA while Stripe is still in TEST mode. */
+export const TRAVELER_PAY_NOW_TEST_CTA = 'Pay now · TEST';
+
 /** Traveler Trips — self-cancel is immediate, not a host-approval “request”. */
 export const TRAVELER_SELF_CANCEL_CTA = 'Cancel booking';
 

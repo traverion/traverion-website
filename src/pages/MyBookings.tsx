@@ -68,6 +68,8 @@ import {
   TRAVELER_CANCEL_UNPAID_CHECKOUT_POLICY,
   TRAVELER_ACCEPT_CANCEL_SUCCESS,
   TRAVELER_DECLINE_CANCEL_SUCCESS,
+  TRAVELER_OPENING_CHECKOUT_CTA,
+  TRAVELER_PAY_NOW_TEST_CTA,
   readStripeCheckoutReturnBanner,
 } from '../lib/booking-confirmation-copy';
 
@@ -536,7 +538,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                   disabled={payingId === pendingPayBookings[0].id}
                   className="tv-btn-primary"
                 >
-                  {payingId === pendingPayBookings[0].id ? 'Opening checkout…' : 'Pay now · TEST'}
+                  {payingId === pendingPayBookings[0].id ? TRAVELER_OPENING_CHECKOUT_CTA : TRAVELER_PAY_NOW_TEST_CTA}
                 </button>
               ) : (
                 <>
@@ -819,7 +821,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         disabled={payingId === b.id}
                         className="tv-btn-primary"
                       >
-                        {payingId === b.id ? 'Opening checkout…' : 'Pay now · TEST'}
+                        {payingId === b.id ? TRAVELER_OPENING_CHECKOUT_CTA : TRAVELER_PAY_NOW_TEST_CTA}
                       </button>
                     ) : null}
                     {openCancel && !open ? (
@@ -1014,7 +1016,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         disabled={payingId === b.id}
                         className="tv-btn-primary"
                       >
-                        {payingId === b.id ? 'Opening checkout…' : 'Pay now · TEST'}
+                        {payingId === b.id ? TRAVELER_OPENING_CHECKOUT_CTA : TRAVELER_PAY_NOW_TEST_CTA}
                       </button>
                     )}
                     {liveTrip &&
@@ -1080,8 +1082,8 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                   <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland">Cancellation</p>
                   <h3 id="cancel-trip-title" className="mt-2 font-display text-2xl sm:text-3xl text-ink tracking-tight">
                     {travelerSelfCancelIsUnpaidCheckout(cancelConfirm)
-                      ? 'Cancel this checkout?'
-                      : 'Cancel this booking?'}
+                      ? 'Cancel checkout?'
+                      : 'Cancel booking?'}
                   </h3>
                 </div>
                 <button
@@ -1102,11 +1104,22 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                   )}
                 </p>
                 <p className="mt-1 text-sm text-ink-muted">
-                  {cancelConfirm.booking_date
-                    ? formatBookingDateDisplay(cancelConfirm.booking_date)
-                    : 'Date TBC'}
                   {(() => {
-                    if (cancelConfirm.check_out) return null;
+                    const out =
+                      cancelConfirm.check_out && /^\d{4}-\d{2}-\d{2}$/.test(cancelConfirm.check_out)
+                        ? cancelConfirm.check_out
+                        : parseStayCheckOutFromNotes(cancelConfirm.special_requests);
+                    if (out && cancelConfirm.booking_date) {
+                      return `${formatBookingDateDisplay(cancelConfirm.booking_date)} → ${formatBookingDateDisplay(out)}`;
+                    }
+                    return cancelConfirm.booking_date
+                      ? formatBookingDateDisplay(cancelConfirm.booking_date)
+                      : 'Date TBC';
+                  })()}
+                  {(() => {
+                    if (cancelConfirm.check_out || parseStayCheckOutFromNotes(cancelConfirm.special_requests)) {
+                      return null;
+                    }
                     const shown = displayStartTimeFromPurchase(
                       cancelConfirm.purchase_snapshot,
                       cancelConfirm.start_time ? pgTimeToHm(cancelConfirm.start_time) : null
@@ -1168,7 +1181,11 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                   disabled={cancellingId !== null}
                   className="tv-btn-primary w-full sm:w-auto bg-red-700 hover:bg-red-800"
                 >
-                  {cancellingId === cancelConfirm.id ? 'Cancelling…' : 'Yes, cancel'}
+                  {cancellingId === cancelConfirm.id
+                    ? 'Cancelling…'
+                    : travelerSelfCancelIsUnpaidCheckout(cancelConfirm)
+                      ? TRAVELER_CANCEL_UNPAID_CHECKOUT_CTA
+                      : TRAVELER_SELF_CANCEL_CTA}
                 </button>
               </div>
             </div>

@@ -37,6 +37,8 @@ import {
   bookingConfirmationCancelledBody,
   BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE,
   STRIPE_TEST_UNTIL_LIVE,
+  TRAVELER_OPENING_CHECKOUT_CTA,
+  TRAVELER_PAY_NOW_TEST_CTA,
 } from '../lib/booking-confirmation-copy';
 import { formatBookingParticipantsLabel } from '../lib/participant-mix';
 import { formatBookingDateDisplay } from '../lib/booking-flow';
@@ -632,7 +634,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                     disabled={payingNow}
                     className="tv-btn-primary w-full"
                   >
-                    {payingNow ? 'Opening checkout…' : 'Pay now · TEST'}
+                    {payingNow ? TRAVELER_OPENING_CHECKOUT_CTA : TRAVELER_PAY_NOW_TEST_CTA}
                   </button>
                 ) : null}
                 <button

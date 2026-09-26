@@ -1,6 +1,8 @@
 /**
  * Mobile sticky CTA labels for stay listing — name the missing step, don't imply checkout is ready.
  */
+import { TRAVELER_OPENING_CHECKOUT_CTA } from './booking-confirmation-copy';
+
 export function stayStickyBookCtaLabel(params: {
   selectionOccupied: boolean;
   paying?: boolean;
@@ -12,7 +14,7 @@ export function stayStickyBookCtaLabel(params: {
   minNights: number;
 }): string {
   if (params.selectionOccupied) return 'Dates unavailable';
-  if (params.paying) return 'Opening checkout…';
+  if (params.paying) return TRAVELER_OPENING_CHECKOUT_CTA;
   if (params.quoteOk && params.leadGuestReady === false) return 'Add guest name';
   if (params.quoteOk) return 'Continue · TEST';
   if (params.checkIn && params.checkOut && params.quoteError) {
