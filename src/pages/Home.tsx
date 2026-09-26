@@ -576,13 +576,25 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
               <h2 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Stays</h2>
               <p className="mt-2 text-sm text-ink-muted">Nights from operators — separate from tour departures.</p>
             </div>
-            {!catalogLoading && stayListings.length > 0 ? (
+            {!catalogLoading && !listingsError && stayListings.length > 0 ? (
               <button type="button" onClick={() => goToStays()} className="lux-flat text-sm font-semibold text-finland">
                 All stays <ArrowRight className="w-4 h-4 inline" />
               </button>
             ) : null}
           </div>
-          {catalogLoading ? (
+          {listingsError ? (
+            <ErrorState
+              className="py-8"
+              title="Stays unavailable"
+              body={userFacingError(listingsError, USER_ERROR.tours)}
+              retry={{ onClick: () => reloadCatalog() }}
+              extra={
+                <a href="/contact" className="tv-btn-ghost inline-flex">
+                  Contact support
+                </a>
+              }
+            />
+          ) : catalogLoading ? (
             <SkeletonCardGrid count={3} />
           ) : stayListings.length === 0 ? (
             <EmptyState
