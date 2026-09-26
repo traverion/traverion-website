@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-26  
 **Branch:** `reconstruction/phase-0-audit`  
-**HEAD at handoff prep:** `7a95ec9` (~242 ahead of origin)  
+**HEAD at handoff:** `e5889a6`
 **Stripe:** TEST only (unchanged)  
 **Not committed:** `scripts/cert-transactional-emails.cjs` (preserved untracked)
 
