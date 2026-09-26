@@ -12,9 +12,10 @@ export function bookingLifecycleLabel(status: string | null | undefined, payment
   if (pay === 'refunded') return 'Cancelled';
   if (st === 'confirmed' && (pay === 'paid' || pay === 'complete' || pay === 'succeeded')) return 'Confirmed';
   if (pay === 'failed') return 'Payment failed';
-  if (st === 'pending' || pay === 'pending') return 'Pending payment';
+  // Match travelerPaymentLabel so Trips does not show two near-duplicate chips.
+  if (st === 'pending' || pay === 'pending') return 'Payment pending';
   if (st === 'confirmed') return 'Confirmed';
-  return 'Pending payment';
+  return 'Payment pending';
 }
 
 export function cancellationRequestLabel(status: string | null | undefined): string {
