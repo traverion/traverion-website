@@ -1,6 +1,7 @@
 import { optionRunsOnDate } from './booking-quote';
 import type { TourBookingVariant } from './booking-flow';
 import { listingOptionHasSchedules, listingOptionReadySchedules } from './listing-option-schedules';
+import { optionFulfillmentPlaceMeta } from './tour-pickup-meeting';
 
 export type TourOptionAvailabilityKind = 'none' | 'one' | 'many';
 
@@ -65,6 +66,6 @@ export function optionMetaParts(variant: TourBookingVariant): string[] {
     opt.duration.trim() || null,
     opt.isPrivate ? 'Private · your group only' : null,
     groupLine,
-    opt.pickupPlace.trim() || null,
+    optionFulfillmentPlaceMeta(opt.fulfillment, opt.pickupPlace),
   ].filter((part): part is string => Boolean(part));
 }

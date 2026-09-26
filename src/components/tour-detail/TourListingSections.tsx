@@ -1,6 +1,10 @@
 import { Check, X } from 'lucide-react';
 import type { TourPackage } from '../../types/tour';
-import { TRAVERION_STANDARD_CANCELLATION_POLICY } from '../../types/listingExtras';
+import {
+  TRAVERION_STANDARD_CANCELLATION_POLICY,
+  type ListingBookingOption,
+} from '../../types/listingExtras';
+import { resolveTourPickupMeetingDisplay } from '../../lib/tour-pickup-meeting';
 
 type Legal = {
   operatorName: string;
@@ -11,6 +15,8 @@ type Legal = {
 
 type Props = {
   tour: TourPackage;
+  /** When set, Pickup and meeting follows this option — not first-option listing denormalization. */
+  selectedOption?: ListingBookingOption | null;
   supplierLegal: Legal | null;
   onOpenLegal: (kind: 'privacy' | 'terms') => void;
 };
@@ -40,7 +46,12 @@ function itinerarySteps(tour: TourPackage) {
 const sectionClass = 'border-t border-black/[0.06] pt-8';
 const headingClass = 'font-display text-xl text-ink mb-3';
 
-export default function TourListingSections({ tour, supplierLegal, onOpenLegal }: Props) {
+export default function TourListingSections({
+  tour,
+  selectedOption = null,
+  supplierLegal,
+  onOpenLegal,
+}: Props) {
   const highlights = tour.highlights.map((h) => String(h).trim()).filter(Boolean);
   const steps = itinerarySteps(tour);
   const includes = tour.includes.map((s) => String(s).trim()).filter(Boolean);
@@ -48,9 +59,7 @@ export default function TourListingSections({ tour, supplierLegal, onOpenLegal }
   const notes = (tour.price?.importantNotes ?? []).map((n) => String(n).trim()).filter(Boolean);
   const showImportant =
     tour.difficulty === 'Challenging' || notes.length > 0 || Boolean(tour.listingExtras?.minGuestAge?.trim());
-  const showPickup = Boolean(
-    tour.meetingPoint?.trim() || tour.pickupInstructions?.trim() || tour.experienceStartStyle
-  );
+  const pickup = resolveTourPickupMeetingDisplay(tour, selectedOption);
 
   return (
     <div className="space-y-8">
@@ -146,22 +155,31 @@ export default function TourListingSections({ tour, supplierLegal, onOpenLegal }
         </section>
       ) : null}
 
-      {showPickup ? (
+      {pickup.visible ? (
         <section className={sectionClass}>
           <h2 className={headingClass}>Pickup and meeting</h2>
           <div className="max-w-2xl space-y-2 text-[15px] leading-relaxed text-ink">
-            {tour.experienceStartStyle === 'operator_pickup' ? (
-              <p>The operator picks you up. Pickup details appear on your booking in Trips after you pay.</p>
-            ) : tour.experienceStartStyle === 'fixed_meeting_place' ? (
-              <p>Meet at the place given below. Arrive a few minutes early.</p>
-            ) : tour.experienceStartStyle === 'either_available' ? (
-              <p>Pickup or meeting point — the operator confirms which applies to your booking.</p>
+            {pickup.optionScoped && pickup.optionName ? (
+              <p className="text-sm font-semibold text-ink">For option · {pickup.optionName}</p>
             ) : null}
-            {tour.meetingPoint?.trim() ? (
-              <p className="break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{tour.meetingPoint.trim()}</p>
+            {pickup.multiOptionHint ? (
+              <p className="text-ink-muted">{pickup.multiOptionHint}</p>
             ) : null}
-            {tour.pickupInstructions?.trim() ? (
-              <p className="break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{tour.pickupInstructions.trim()}</p>
+            {pickup.modeIntro ? <p>{pickup.modeIntro}</p> : null}
+            {pickup.place ? (
+              <div>
+                {pickup.placeLabel ? (
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
+                    {pickup.placeLabel}
+                  </p>
+                ) : null}
+                <p className="mt-0.5 break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{pickup.place}</p>
+              </div>
+            ) : null}
+            {pickup.instructions ? (
+              <p className="break-words [overflow-wrap:anywhere] whitespace-pre-wrap text-ink-muted">
+                {pickup.instructions}
+              </p>
             ) : null}
           </div>
         </section>

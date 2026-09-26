@@ -87,6 +87,7 @@ describe('optionsOnDate', () => {
         startTime: '10:30',
         duration: '45 min',
         pickupPlace: 'Hotel',
+        fulfillment: 'pickup',
         isPrivate: true,
         minPersons: 1,
         maxPersons: 4,
@@ -98,7 +99,7 @@ describe('optionsOnDate', () => {
       '45 min',
       'Private · your group only',
       '1–4 guests',
-      'Hotel',
+      'Pickup · Hotel',
     ]);
   });
 });

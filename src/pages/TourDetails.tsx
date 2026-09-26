@@ -1292,6 +1292,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
 
               <TourListingSections
                 tour={tour}
+                selectedOption={selectedOption}
                 supplierLegal={supplierLegal}
                 onOpenLegal={setLegalModal}
               />

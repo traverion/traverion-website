@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `03a5603`  
-**Current phase:** 854  
+**Current SHA:** `5c5ae05`  
+**Current phase:** 855  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -265,6 +265,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 852 | bookings.status NOT NULL migration 100 | `eea69ae` |
 | 853 | Tour creation completeness audit | `d4ba2b3` |
 | 854 | Server publish bookability migration 101 | `03a5603` |
+| 855 | Option-scoped pickup/meeting on tour PDP | `5c5ae05` |
 
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
@@ -4327,6 +4328,14 @@ Deep audit of listing → option → schedule ownership vs publish/traveler/snap
 **Fix:** `101_listing_publish_bookability_minimums.sql` — on transition into `published`, require tour bookable surface (ready schedule with priceUsd>0, legacy option price, or starting_from when no options) or stay nightly+maxGuests. Helpers `listing_has_bookable_*`. Scratch SQL test artifact included (psql unavailable locally).
 
 **Cert:** code-inspected + SQL test artifact. Remote apply pending.
+
+### Phase 855 — Option-scoped pickup/meeting on tour PDP
+
+**Gap (853):** “Pickup and meeting” used listing-denormalized first-option copy; option cards showed bare place without Meet vs Pickup.
+
+**Fix:** `resolveTourPickupMeetingDisplay` — selected option fulfillment/place/note wins; multi-option hint when places differ and none selected. `TourListingSections` + `TourDetails` wired. `optionMetaParts` uses `Pickup ·` / `Meet ·` when fulfillment set.
+
+**Cert:** vitest `tour-pickup-meeting` + `tour-available-options` 7/7.
 
 ## Known remaining risks (ranked)
 
