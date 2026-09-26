@@ -238,7 +238,7 @@ export default function SupplierDiscountsOffers() {
 
       {loading ? (
         <SupplierListSkeleton rows={3} />
-      ) : listings.length === 0 ? (
+      ) : error ? null : listings.length === 0 ? (
         <SupplierEmptyState
           icon={MapPin}
           title="No listings yet"
