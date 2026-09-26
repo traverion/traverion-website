@@ -1058,8 +1058,7 @@ export default function SupplierPickupPlanner() {
         ) : null}
         {!loading && listBookings.length > 0 ? (
           <p className="mt-2 text-xs text-ink-muted">
-            {plannerStats.bookings} booking{plannerStats.bookings === 1 ? '' : 's'} · {plannerStats.guests} guest
-            {plannerStats.guests === 1 ? '' : 's'}
+            {`${plannerStats.bookings} booking${plannerStats.bookings === 1 ? '' : 's'} · ${plannerStats.guests} guest${plannerStats.guests === 1 ? '' : 's'}`}
             {plannerStats.needsPickup > 0 ? ` · ${plannerStats.needsPickup} need pickup copy` : ''}
           </p>
         ) : null}
@@ -1270,8 +1269,7 @@ export default function SupplierPickupPlanner() {
                       {formatPickupSectionDate(ymd)}
                     </p>
                     <p className="mt-0.5 text-sm text-ink-muted">
-                      {dayRows.length} booking{dayRows.length === 1 ? '' : 's'} · {dayGuestTotal} guest
-                      {dayGuestTotal === 1 ? '' : 's'}
+                      {`${dayRows.length} booking${dayRows.length === 1 ? '' : 's'} · ${dayGuestTotal} guest${dayGuestTotal === 1 ? '' : 's'}`}
                       {dayNeedsPickup > 0 ? ` · ${dayNeedsPickup} need pickup copy` : ''}
                     </p>
                   </div>

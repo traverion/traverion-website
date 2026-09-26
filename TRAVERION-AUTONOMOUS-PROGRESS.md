@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `62d3bc9`  
-**Current phase:** 598  
+**Current SHA:** `87a6270`  
+**Current phase:** 599  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -93,7 +93,8 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 595 | Reconcile voucher 099 + untrack secrets + prove 080–099 not remote-applied | `59057da` |
 | 596 | Push trust migrations 080–099 to linked remote + verify | `bbe6d91` |
 | 597 | Partner ops golden journey localhost browser cert | `644608c` |
-| 598 | Trips: require session before empty-state; await session after login | `62d3bc9` |
+| 598 | Trips: require session before empty-state; await session after login | `aedd6c5` |
+| 599 | Pickup Planner browser cert + fix guest/booking plural spacing | `87a6270` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -2855,6 +2856,12 @@ Also fixed progress header SHA for Phase 595 (`59057da`) after a quoting glitch.
 - `AuthPage` sign-in: await `supabase.auth.getSession()` before `onNavigate(next)`.
 
 **Evidence:** Node anon client with demo password → COUNT 3. Migrations 080–099 already applied (Phase 596). Stripe remains TEST.
+
+### Phase 599 — Pickup Planner cert + pluralization honesty
+
+**Browser (localhost, aurora-ops demo):** `/partner/pickup` loads after partner login. Shows 10 bookings / 26 guests, day sections with start + pickup times, multi-departure 19 Sept (09:00 ice / 20:00 NL / 20:30 NL private). Filters: All dates / Today / Tomorrow / Needs details / Export.
+
+**Bug fixed:** Day headers and hero stats rendered “guest s” / “booking s” because plural `s` was a separate React text node (and/or newline), so accessibility/layout inserted a space. Collapsed to a single template-string text node.
 
 ## Known remaining risks (ranked)
 
