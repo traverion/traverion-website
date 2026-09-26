@@ -1,7 +1,8 @@
-import { useEffect, type ReactNode } from 'react';
+import { useRef, type ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { X } from 'lucide-react';
 import EmptyState from '../EmptyState';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
 
 /** Full-width supplier portal pages — fills the main column on desktop, fluid on mobile. */
 export const SUPPLIER_PAGE_CLASS = 'w-full min-w-0 max-w-full motion-safe:animate-fade-in';
@@ -155,22 +156,22 @@ type SupplierModalShellProps = {
 export function SupplierModalShell({ children, onClose, maxWidth = 'md', scrollable = true }: SupplierModalShellProps) {
   const widthClass = maxWidth === 'xl' ? 'max-w-xl' : maxWidth === 'lg' ? 'max-w-lg' : 'max-w-md';
   const panelClass = scrollable ? SUPPLIER_MODAL_PANEL_SCROLL_CLASS : SUPPLIER_MODAL_PANEL_CLASS;
-
-  useEffect(() => {
-    if (!onClose) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  const panelRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(true, panelRef, onClose);
 
   return (
     <div className={SUPPLIER_MODAL_OVERLAY_CLASS}>
       {onClose ? (
         <button type="button" className="absolute inset-0 cursor-default" aria-label="Close" onClick={onClose} />
       ) : null}
-      <div className={`${panelClass} ${widthClass}`}>{children}</div>
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        className={`${panelClass} ${widthClass}`}
+      >
+        {children}
+      </div>
     </div>
   );
 }

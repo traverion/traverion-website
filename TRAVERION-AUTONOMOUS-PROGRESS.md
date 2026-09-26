@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `52f25be`  
-**Current phase:** 652  
+**Current SHA:** `6f4fad5`  
+**Current phase:** 653  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -148,6 +148,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 650 | Partner Bookings empty only when load succeeded | `2538628` |
 | 651 | Partner Reviews empty only when load succeeded | `2c5bad1` |
 | 652 | TourDetails ignore stale listing fetch | `52f25be` |
+| 653 | Partner modal shell dialog focus trap | `6f4fad5` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3215,6 +3216,12 @@ Same dishonest empty as Bookings: load error + zero rows claimed “No reviews y
 ### Phase 652 — TourDetails ignore stale listing fetch
 
 Fast tour→tour navigation could apply a late `getListingByIdAsync` for the previous id (StayDetails already cancelled). Add cancelled cleanup.
+
+### Phase 653 — Partner modal shell: dialog focus trap
+
+**Problem:** `SupplierModalShell` only listened for Escape — no `role="dialog"`, `aria-modal`, or focus trap (Trips cancel sheet already used `useDialogFocus`).
+
+**Fix:** Wire `useDialogFocus` + dialog semantics on the panel for Inbox/Bookings/etc. sheets.
 
 ## Known remaining risks (ranked)
 
