@@ -327,12 +327,16 @@ export default function StayDetails({ stayId, onBack }: Props) {
       document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       return;
     }
-    // Re-fetch inventory so a concurrent hold is visible before Stripe opens.
-    const freshRanges = await fetchPublishedStayOccupiedRanges(stay.id);
+    // Re-fetch inventory so a concurrent hold or fresh host block is visible before Stripe opens.
+    const [freshRanges, freshBlocked] = await Promise.all([
+      fetchPublishedStayOccupiedRanges(stay.id),
+      fetchPublishedStayBlockedNights(stay.id),
+    ]);
     setOccupiedRanges(freshRanges);
+    setBlockedNights(freshBlocked);
     const stillTaken =
       freshRanges.some((r) => stayDateRangesOverlap(stayQuote.checkIn, stayQuote.checkOut, r.checkIn, r.checkOut)) ||
-      nightsOccupiedByStay(stayQuote.checkIn, stayQuote.checkOut).some((n) => blockedNights.includes(n));
+      nightsOccupiedByStay(stayQuote.checkIn, stayQuote.checkOut).some((n) => freshBlocked.includes(n));
     if (stillTaken) {
       setPayError('Those dates were just taken. Choose different dates to continue.');
       document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
