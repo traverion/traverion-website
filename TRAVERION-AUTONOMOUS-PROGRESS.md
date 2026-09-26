@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800 complete · **801→850 traveler premium**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `635aac3`  
-**Current phase:** 802  
+**Current SHA:** `4f0e111`  
+**Current phase:** 803  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -213,6 +213,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 800 | Founder handoff TRAVERION-PHASE-800 | Phase 800 tip |
 | 801 | Consumer vs payment test-mode presentation | `f7a50ca` |
 | 802 | Stable traveler header chrome | `635aac3` |
+| 803 | Profile menu mature account surface | `4f0e111` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3933,6 +3934,12 @@ Cookies and marketing preferences: 7\n```
 - Move Test mode to compact header chip (stable height)
 
 **Browser:** Home and Wishlist share identical primary nav slots; Wishlist no longer gains a primary CTA. `tsc` clean.
+
+### Phase 803 — Profile menu mature account surface
+
+**Problem:** Profile dropdown was a narrow 12rem list with email only.
+
+**Fix:** Wider menu with identity header (initial + display name/email), 44px items for Account / Trips / Saved / Contact, Partner portal link, Log out — without inventing a Messages destination (messages live on Trips).
 
 ## Known remaining risks (ranked)
 

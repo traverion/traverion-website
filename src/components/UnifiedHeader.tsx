@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
 import { useDialogFocus } from '../hooks/useDialogFocus';
-import { Menu, X, User, LogOut, LayoutDashboard, Calendar, Heart } from 'lucide-react';
+import { Menu, X, User, LogOut, LayoutDashboard, Calendar, Heart, LifeBuoy, ExternalLink } from 'lucide-react';
 import { prefetchAuthPage, prefetchMyBookingsPage, prefetchPackagesPage } from '../lib/routePrefetch';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { BRAND_LOGO_SRC } from '../lib/brandAssets';
+import { supplierPortalLandingHref } from '../lib/partnerHost';
 import TravelerTestModeBanner from './TravelerTestModeBanner';
 import {
   clearBookingsUnread,
@@ -52,6 +53,22 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
     setIsMobileMenuOpen(false);
     onNavigate('bookings');
   };
+
+  const travelerDisplayName = (() => {
+    if (!user) return '';
+    const meta = user.user_metadata as { full_name?: string; display_name?: string } | undefined;
+    return (meta?.full_name || meta?.display_name || '').trim();
+  })();
+  const travelerInitial = (
+    travelerDisplayName ||
+    user?.email ||
+    user?.id ||
+    'T'
+  )
+    .toString()
+    .trim()
+    .slice(0, 1)
+    .toUpperCase() || 'T';
 
   useEffect(() => {
     if (!isUserMenuOpen) return;
@@ -224,10 +241,10 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                   ref={userMenuPanelRef}
                   role="dialog"
                   aria-label="Profile"
-                  className="absolute right-0 top-full mt-1 py-1 w-48 origin-top-right bg-paper-raised rounded-xl shadow-soft-lg ring-1 ring-black/[0.08] motion-safe:animate-slide-down"
+                  className="absolute right-0 top-full mt-1.5 w-[17.5rem] origin-top-right overflow-hidden rounded-2xl bg-paper-raised py-1.5 shadow-soft-lg ring-1 ring-black/[0.08] motion-safe:animate-slide-down"
                 >
                   {!isSupabaseConfigured() ? (
-                    <div className="px-3 py-2 space-y-2">
+                    <div className="px-3.5 py-3 space-y-2">
                       <p className="text-xs text-ink-muted leading-snug">
                         Online accounts are not available in this environment yet. You can still browse tours and contact us for help.
                       </p>
@@ -237,7 +254,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                           setIsUserMenuOpen(false);
                           onNavigate('contact');
                         }}
-                        className="lux-flat w-full text-left px-2 py-1.5 text-sm font-medium text-finland hover:bg-finland/5 rounded-lg"
+                        className="lux-flat lux-tap-target min-h-11 w-full text-left px-2.5 py-2 text-sm font-medium text-finland hover:bg-finland/5 rounded-xl"
                       >
                         Contact support
                       </button>
@@ -247,74 +264,133 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                           setIsUserMenuOpen(false);
                           onNavigate('packages');
                         }}
-                        className="lux-flat w-full text-left px-2 py-1.5 text-sm text-ink hover:bg-black/[0.04] rounded-lg"
+                        className="lux-flat lux-tap-target min-h-11 w-full text-left px-2.5 py-2 text-sm text-ink hover:bg-black/[0.04] rounded-xl"
                       >
                         Browse tours
                       </button>
                     </div>
                   ) : authLoading ? (
-                    <p className="px-3 py-2 text-sm text-ink-muted" aria-busy="true">
+                    <p className="px-3.5 py-3 text-sm text-ink-muted" aria-busy="true">
                       Checking session…
                     </p>
                   ) : user ? (
                     <>
-                      <div className="px-3 py-2 border-b border-black/[0.06] min-w-0">
-                        <p className="text-sm font-medium text-ink truncate" title={user.email ?? undefined}>
-                          {user.email}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => { setIsUserMenuOpen(false); onNavigate('account'); }}
-                        className="lux-flat w-full flex items-center gap-2 px-3 py-2 text-sm text-ink hover:bg-black/[0.04] text-left rounded-lg"
-                      >
-                        <LayoutDashboard className="w-4 h-4" />
-                        My account
-                      </button>
-                      <button
-                        type="button"
-                        onClick={openBookings}
-                        aria-label={hasUnreadBookings ? 'Trips, unread updates' : 'Trips'}
-                        className="lux-flat w-full flex items-center justify-between gap-2 px-3 py-2 text-sm text-ink hover:bg-black/[0.04] text-left rounded-lg"
-                      >
-                        <span className="inline-flex items-center gap-2">
-                          <Calendar className="w-4 h-4" />
-                          Trips
+                      <div className="flex items-center gap-3 px-3.5 py-3 border-b border-black/[0.06] min-w-0">
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-finland/15 text-sm font-semibold text-finland ring-1 ring-finland/20">
+                          {travelerInitial}
                         </span>
-                        {hasUnreadBookings ? (
-                          <span className="h-2.5 w-2.5 rounded-full bg-red-500" aria-hidden />
-                        ) : null}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => { setIsUserMenuOpen(false); onNavigate('wishlist'); }}
-                        className="lux-flat w-full flex items-center gap-2 px-3 py-2 text-sm text-ink hover:bg-black/[0.04] text-left rounded-lg"
-                      >
-                        <Heart className="w-4 h-4" />
-                        Saved
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => { setIsUserMenuOpen(false); signOut(); }}
-                        className="lux-flat w-full flex items-center gap-2 px-3 py-2 text-sm text-ink hover:bg-black/[0.04] text-left rounded-lg"
-                      >
-                        <LogOut className="w-4 h-4" />
-                        Log out
-                      </button>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold text-ink">{travelerDisplayName || 'Traveler'}</p>
+                          <p className="truncate text-xs text-ink-muted" title={user.email ?? undefined}>
+                            {user.email}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="py-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsUserMenuOpen(false);
+                            onNavigate('account');
+                          }}
+                          className="lux-flat lux-tap-target min-h-11 w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-ink hover:bg-black/[0.04] text-left"
+                        >
+                          <LayoutDashboard className="h-4 w-4 shrink-0 text-ink-muted" aria-hidden />
+                          My account
+                        </button>
+                        <button
+                          type="button"
+                          onClick={openBookings}
+                          aria-label={hasUnreadBookings ? 'Trips, unread updates' : 'Trips'}
+                          className="lux-flat lux-tap-target min-h-11 w-full flex items-center justify-between gap-2 px-3.5 py-2 text-sm text-ink hover:bg-black/[0.04] text-left"
+                        >
+                          <span className="inline-flex items-center gap-2.5">
+                            <Calendar className="h-4 w-4 shrink-0 text-ink-muted" aria-hidden />
+                            Trips
+                          </span>
+                          {hasUnreadBookings ? (
+                            <span className="h-2.5 w-2.5 rounded-full bg-red-500" aria-hidden />
+                          ) : null}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsUserMenuOpen(false);
+                            onNavigate('wishlist');
+                          }}
+                          className="lux-flat lux-tap-target min-h-11 w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-ink hover:bg-black/[0.04] text-left"
+                        >
+                          <Heart className="h-4 w-4 shrink-0 text-ink-muted" aria-hidden />
+                          Saved
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsUserMenuOpen(false);
+                            onNavigate('contact');
+                          }}
+                          className="lux-flat lux-tap-target min-h-11 w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-ink hover:bg-black/[0.04] text-left"
+                        >
+                          <LifeBuoy className="h-4 w-4 shrink-0 text-ink-muted" aria-hidden />
+                          Contact support
+                        </button>
+                      </div>
+                      <div className="border-t border-black/[0.06] py-1">
+                        <a
+                          href={supplierPortalLandingHref()}
+                          className="lux-flat lux-tap-target min-h-11 flex items-center gap-2.5 px-3.5 py-2 text-sm text-ink hover:bg-black/[0.04]"
+                          onClick={() => setIsUserMenuOpen(false)}
+                        >
+                          <ExternalLink className="h-4 w-4 shrink-0 text-ink-muted" aria-hidden />
+                          Partner portal
+                        </a>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsUserMenuOpen(false);
+                            void signOut();
+                          }}
+                          className="lux-flat lux-tap-target min-h-11 w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-ink hover:bg-black/[0.04] text-left"
+                        >
+                          <LogOut className="h-4 w-4 shrink-0 text-ink-muted" aria-hidden />
+                          Log out
+                        </button>
+                      </div>
                     </>
                   ) : (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsUserMenuOpen(false);
-                        window.history.pushState({}, '', '/log-in?next=home');
-                        onNavigate('auth');
-                      }}
-                      className="lux-flat w-full flex items-center gap-2 px-3 py-2 text-sm text-ink hover:bg-black/[0.04] text-left rounded-lg"
-                    >
-                      <User className="w-4 h-4" />
-                      Log in / Sign up
-                    </button>
+                    <div className="py-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsUserMenuOpen(false);
+                          window.history.pushState({}, '', '/log-in?next=home');
+                          onNavigate('auth');
+                        }}
+                        className="lux-flat lux-tap-target min-h-11 w-full flex items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-ink hover:bg-black/[0.04] text-left"
+                      >
+                        <User className="h-4 w-4 shrink-0 text-ink-muted" aria-hidden />
+                        Log in / Sign up
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsUserMenuOpen(false);
+                          onNavigate('contact');
+                        }}
+                        className="lux-flat lux-tap-target min-h-11 w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-ink hover:bg-black/[0.04] text-left"
+                      >
+                        <LifeBuoy className="h-4 w-4 shrink-0 text-ink-muted" aria-hidden />
+                        Contact support
+                      </button>
+                      <a
+                        href={supplierPortalLandingHref()}
+                        className="lux-flat lux-tap-target min-h-11 flex items-center gap-2.5 px-3.5 py-2 text-sm text-ink hover:bg-black/[0.04]"
+                        onClick={() => setIsUserMenuOpen(false)}
+                      >
+                        <ExternalLink className="h-4 w-4 shrink-0 text-ink-muted" aria-hidden />
+                        Partner portal
+                      </a>
+                    </div>
                   )}
                 </div>
               )}
