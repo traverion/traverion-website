@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { fetchWishlistListingIds, toggleWishlist } from '../data/supabase-wishlist';
 import { isSupabaseListingId } from '../lib/discount-display';
 import { isSupabaseConfigured } from '../lib/supabase';
+import { recordTravelerInterest } from '../lib/traveler-interest';
 
 /**
  * Persisted traveler wishlist for browse cards. Hearts are omitted when Supabase
@@ -66,6 +67,9 @@ export function useTravelerWishlist() {
               else next.delete(listingId);
               return next;
             });
+            if (res.inWishlist) {
+              recordTravelerInterest({ kind: 'wishlist_save', key: listingId });
+            }
           }
         } catch {
           setIds((current) => {

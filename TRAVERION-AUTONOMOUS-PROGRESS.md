@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800 complete · **801→850 traveler premium**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `c68f1b8`  
-**Current phase:** 808  
+**Current SHA:** `263e809`  
+**Current phase:** 809  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -219,6 +219,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 806 | Compact destination discovery strip | `75b7e6d` |
 | 807 | Denser homepage listing discovery + section rhythm | `858b7ce` |
 | 808 | First-party interest signals + homepage ranking | `c68f1b8` |
+| 809 | Stay ranking + wishlist interest signal | `263e809` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3979,6 +3980,10 @@ Cookies and marketing preferences: 7\n```
 ### Phase 808 — First-party interest signals + honest homepage ranking
 
 **Foundation:** `traveler-interest.ts` records listing_view / destination_view / search / wishlist_save in localStorage (memory fallback). Deterministic scoring ranks homepage tours; when destination affinity exists, section becomes “Because you explored …”. Unknown users keep catalog discovery. Vitest 3/3. No invented personalization.
+
+### Phase 809 — Stay ranking + wishlist interest signal
+
+Rank homepage stays with the same first-party scorer; title becomes “More stays near …” when destination affinity exists. Wishlist saves record `wishlist_save` signals.
 
 ## Known remaining risks (ranked)
 

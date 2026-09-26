@@ -120,14 +120,28 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
   const interestPlace = useMemo(() => topDestinationInterestLabel(interestSignals), [interestSignals]);
   const toursSectionTitle = interestPlace ? `Because you explored ${interestPlace}` : 'What can I book?';
   const toursSectionEyebrow = interestPlace ? 'For you' : 'Experiences';
+  const displayedStayListings = useMemo(() => {
+    const ranked = sortListingsByInterest(stayListings, (item) =>
+      scoreListingFromInterest({
+        listingId: item.id,
+        city: item.city,
+        country: item.country,
+        destination: item.destination,
+        family: 'stay',
+        signals: interestSignals,
+      })
+    );
+    return ranked.slice(0, 8);
+  }, [stayListings, interestSignals]);
+  const staysSectionTitle = interestPlace ? `More stays near ${interestPlace}` : 'Where to stay';
   const featuredListing = displayedListings[0];
   const featuredSrc = featuredListing ? listingHeroImageSrc(featuredListing.image) : undefined;
 
   const displayedIds = useMemo(() => {
     const tourIds = displayedListings.map((t) => t.id).filter(isSupabaseListingId);
-    const stayIds = stayListings.slice(0, 6).map((t) => t.id).filter(isSupabaseListingId);
+    const stayIds = displayedStayListings.map((t) => t.id).filter(isSupabaseListingId);
     return [...new Set([...tourIds, ...stayIds])];
-  }, [displayedListings, stayListings]);
+  }, [displayedListings, displayedStayListings]);
   const displayedIdsKey = useMemo(() => displayedIds.join(','), [displayedIds]);
 
   useEffect(() => {
@@ -643,7 +657,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
           <div className="flex items-end justify-between gap-3 mb-5">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Stays</p>
-              <h2 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Where to stay</h2>
+              <h2 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">{staysSectionTitle}</h2>
               <p className="mt-2 text-sm text-ink-muted">Nights from operators — separate from tour departures.</p>
             </div>
             {!catalogLoading && !listingsError && stayListings.length > 0 ? (
@@ -679,7 +693,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
             />
           ) : (
             <div className={HOME_DISCOVERY_GRID_CLASS}>
-              {stayListings.slice(0, 8).map((item, index) => (
+              {displayedStayListings.map((item, index) => (
                 <PublicListingBrowseCard
                   key={item.id}
                   tour={item}
