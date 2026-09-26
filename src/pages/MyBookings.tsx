@@ -22,9 +22,10 @@ import {
 } from '../data/supabase-bookings';
 import { fetchListingOpsByIds, pgTimeToHm, type ListingOpsMeta } from '../data/supabase-listings';
 import { parseStayCheckOutFromNotes } from '../lib/stayOccupancy';
-import { formatMoney, isStripeTestCheckoutSession } from '../lib/money';
+import { formatMoney, isStripeTestCheckoutSession, appStripeIsTestMode } from '../lib/money';
 import { travelerPaymentLabel, REFUND_DUE_MANUAL_COPY, bookingPaymentWasCollected, isRefundDueBooking } from '../lib/payment-states';
 import { formatBookingParticipantsLabel } from '../lib/participant-mix';
+import { formatBookingDateDisplay } from '../lib/booking-flow';
 import { bookingLifecycleLabel } from '../lib/status-language';
 import { travelerSelfCancelRefundChoice, supplierCancellationReasonLabel, travelerSelfCancelBlock, travelerSelfCancelError, travelerSelfCancelIsUnpaidCheckout } from '../lib/cancellation-policy';
 import {
@@ -686,15 +687,9 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                     ? b.check_out
                     : parseStayCheckOutFromNotes(b.special_requests);
                 if (out && b.booking_date) {
-                  return `${new Date(`${b.booking_date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })} → ${new Date(`${out}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}`;
+                  return `${formatBookingDateDisplay(b.booking_date)} → ${formatBookingDateDisplay(out)}`;
                 }
-                return b.booking_date
-                  ? new Date(`${b.booking_date}T12:00:00`).toLocaleDateString(undefined, {
-                      weekday: 'short',
-                      day: 'numeric',
-                      month: 'short',
-                    })
-                  : 'Date TBC';
+                return b.booking_date ? formatBookingDateDisplay(b.booking_date) : 'Date TBC';
               })();
               const timeBit = (() => {
                 if (b.check_out) return null;
@@ -810,7 +805,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                       {b.amount_paid != null &&
                       Number(b.amount_paid) > 0 &&
                       bookingPaymentWasCollected(b.payment_status)
-                        ? `${formatMoney(Number(b.amount_paid), b.currency)}${isStripeTestCheckoutSession(b.checkout_session_id) ? ' TEST' : ''}`
+                        ? `${formatMoney(Number(b.amount_paid), b.currency)}${isStripeTestCheckoutSession(b.checkout_session_id) || appStripeIsTestMode() ? ' TEST' : ''}`
                         : null}
                     </p>
                   </div>
@@ -1096,12 +1091,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                 </p>
                 <p className="mt-1 text-sm text-ink-muted">
                   {cancelConfirm.booking_date
-                    ? new Date(`${cancelConfirm.booking_date}T12:00:00`).toLocaleDateString(undefined, {
-                        weekday: 'short',
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric',
-                      })
+                    ? formatBookingDateDisplay(cancelConfirm.booking_date)
                     : 'Date TBC'}
                   {(() => {
                     if (cancelConfirm.check_out) return null;
