@@ -1,7 +1,7 @@
 /**
  * Consumer hub: profile, trips, and saved tours and stays.
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Calendar,
   Heart,
@@ -39,6 +39,8 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileMessage, setProfileMessage] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
+  const statsGenRef = useRef(0);
+  const profileGenRef = useRef(0);
 
   const loadStats = useCallback(async () => {
     if (!isSupabaseConfigured() || !user?.id) {
@@ -47,6 +49,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
       setStatsLoading(false);
       return;
     }
+    const gen = ++statsGenRef.current;
     setStatsLoading(true);
     setStatsError(null);
     try {
@@ -54,21 +57,24 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
         fetchMyBookings(),
         fetchWishlistListingIds(user.id),
       ]);
+      if (gen !== statsGenRef.current) return;
       setStats({
         bookings: bookings.length,
         wishlist: wishlistIds.length,
       });
     } catch (e) {
+      if (gen !== statsGenRef.current) return;
       setStats(null);
       setStatsError(userFacingError(e, USER_ERROR.trips));
     } finally {
-      setStatsLoading(false);
+      if (gen === statsGenRef.current) setStatsLoading(false);
     }
   }, [user?.id]);
 
   useEffect(() => {
     if (user) loadStats();
     else {
+      statsGenRef.current += 1;
       setStats(null);
       setStatsError(null);
     }
@@ -76,10 +82,12 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
 
   const loadProfile = useCallback(async () => {
     if (!isSupabaseConfigured() || !user?.id) return;
+    const gen = ++profileGenRef.current;
     setProfileLoading(true);
     setProfileMessage(null);
     try {
       const row = await fetchConsumerProfileRow(user.id);
+      if (gen !== profileGenRef.current) return;
       const meta = user.user_metadata as {
         customer_phone?: string;
         phone?: string;
@@ -97,13 +105,14 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
       setDisplayName((row?.display_name ?? fromMeta ?? '').trim());
       setPhone(row?.contact_phone?.trim() || fallbackPhone || '');
     } finally {
-      setProfileLoading(false);
+      if (gen === profileGenRef.current) setProfileLoading(false);
     }
   }, [user?.id, user?.email, user?.user_metadata]);
 
   useEffect(() => {
     if (user) void loadProfile();
     else {
+      profileGenRef.current += 1;
       setDisplayName('');
       setPhone('');
       setProfileMessage(null);
@@ -287,6 +296,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
                   id="account-phone"
                   type="tel"
                   name="tel"
+                  inputMode="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   autoComplete="tel"

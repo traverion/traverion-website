@@ -3331,6 +3331,38 @@ Same dishonest empty as TourDetails for stay reviews. Surface `reviewsLoadError`
 
 Availability / paid-guest fetchers returned empty on error → calendars understated sold-out. Throw on real errors; Packages / TourDetails / BookingPage surface capacity errors and stop treating failure as open inventory.
 
+### Phase 676 — Account: ignore stale stats/profile after account switch
+
+`loadStats` / `loadProfile` applied results without a generation guard — switching accounts could show prior counts/name. Add `statsGenRef` / `profileGenRef`.
+
+### Phase 677 — TourDetails: cancel stale review eligibility
+
+`canLeaveReview` / `hasReviewed` could flip from a prior tour/user after navigation. Mirror StayDetails cancel cleanup.
+
+### Phase 678 — Review forms: label association + 44px star targets
+
+Tour/Stay review Title/Comment lacked `htmlFor`/`id`; star buttons were ~28px. Wire labels and enlarge tap targets.
+
+### Phase 679 — Header mobile: aria-current + type=button
+
+Mobile nav lacked `aria-current="page"` and several buttons omitted `type="button"`.
+
+### Phase 680 — Header: unread trip signals for screen readers
+
+Unread dots on Trips/Profile were visual-only. Add `aria-label` variants and `aria-hidden` on decorative dots.
+
+### Phase 681 — Header profile panel: dialog focus trap
+
+Profile dropdown used `role="menu"` without menuitems. Switch to `role="dialog"` + `useDialogFocus`.
+
+### Phase 682 — Confirmation: ignore stale booking load on account switch
+
+Payment confirmation `load()` could apply a prior account’s booking after switch. Guard with `loadGenRef`.
+
+### Phase 683 — Account phone: inputMode=tel
+
+Phone field had autocomplete but not `inputMode="tel"` for mobile keyboards.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Partner create→publish wizard** not browser-certified this pass (ops Home/Bookings/Calendar/Listings **are** localhost-browser certified in Phase 597). Full create→publish still pending.
