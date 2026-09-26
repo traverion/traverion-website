@@ -1145,10 +1145,13 @@ export default function BookingPage({
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-ink mb-1">First name</label>
+                  <label htmlFor="booking-first-name" className="block text-sm font-medium text-ink mb-1">
+                    First name
+                  </label>
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-faint pointer-events-none" />
                     <input
+                      id="booking-first-name"
                       type="text"
                       value={firstName}
                       onChange={(e) => setFirstName(e.target.value)}
@@ -1161,10 +1164,13 @@ export default function BookingPage({
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-ink mb-1">Last name</label>
+                  <label htmlFor="booking-last-name" className="block text-sm font-medium text-ink mb-1">
+                    Last name
+                  </label>
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-faint pointer-events-none" />
                     <input
+                      id="booking-last-name"
                       type="text"
                       value={lastName}
                       onChange={(e) => setLastName(e.target.value)}
@@ -1178,10 +1184,13 @@ export default function BookingPage({
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-ink mb-1">Phone (optional)</label>
+                <label htmlFor="booking-phone" className="block text-sm font-medium text-ink mb-1">
+                  Phone (optional)
+                </label>
                 <div className="relative">
                   <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-faint pointer-events-none" />
                   <input
+                    id="booking-phone"
                     type="tel"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
@@ -1194,10 +1203,13 @@ export default function BookingPage({
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-ink mb-1">Place of stay (optional)</label>
+                <label htmlFor="booking-place-of-stay" className="block text-sm font-medium text-ink mb-1">
+                  Place of stay (optional)
+                </label>
                 <div className="relative">
                   <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-faint pointer-events-none" />
                   <input
+                    id="booking-place-of-stay"
                     type="text"
                     value={placeOfStay}
                     onChange={(e) => setPlaceOfStay(e.target.value)}
@@ -1213,10 +1225,13 @@ export default function BookingPage({
                 ) : null}
               </div>
               <div>
-                <label className="block text-sm font-medium text-ink mb-1">Email</label>
+                <label htmlFor="booking-email" className="block text-sm font-medium text-ink mb-1">
+                  Email
+                </label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-faint pointer-events-none" />
                   <input
+                    id="booking-email"
                     type="email"
                     value={email}
                     readOnly={Boolean(user?.email)}
@@ -1228,13 +1243,18 @@ export default function BookingPage({
                     inputMode="email"
                     enterKeyHint="next"
                     aria-readonly={Boolean(user?.email)}
+                    aria-describedby="booking-email-hint"
                     className={`tv-input pl-10 ${user?.email ? 'bg-black/[0.04] text-ink-muted cursor-not-allowed' : ''}`}
                   />
                 </div>
                 {user?.email ? (
-                  <p className="mt-1 text-xs text-ink-muted">This must match your signed-in account.</p>
+                  <p id="booking-email-hint" className="mt-1 text-xs text-ink-muted">
+                    This must match your signed-in account.
+                  </p>
                 ) : (
-                  <p className="mt-1 text-xs text-ink-muted">{BOOKING_CONTACT_EMAIL_FIELD_NOTE}</p>
+                  <p id="booking-email-hint" className="mt-1 text-xs text-ink-muted">
+                    {BOOKING_CONTACT_EMAIL_FIELD_NOTE}
+                  </p>
                 )}
               </div>
               <div>
