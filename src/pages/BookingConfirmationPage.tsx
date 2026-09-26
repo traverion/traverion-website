@@ -17,7 +17,7 @@ import { fetchMyBookingByCheckoutSessionId,
 import { fetchListingById, fetchListingOpsByIds, pgTimeToHm } from '../data/supabase-listings';
 import { BRAND_LOGO_SRC } from '../lib/brandAssets';
 import { parseStayCheckOutFromNotes, nightsOccupiedByStay, stayRangeFromBooking } from '../lib/stayOccupancy';
-import { formatMoney, isStripeTestCheckoutSession } from '../lib/money';
+import { formatMoney, isStripeTestCheckoutSession, appStripeIsTestMode } from '../lib/money';
 import NoticeCallout from '../components/NoticeCallout';
 import StatusChip, { toneForPaymentLabel } from '../components/StatusChip';
 import { listingPickupCopyIncomplete } from '../lib/pickup-completeness';
@@ -38,6 +38,7 @@ import {
   BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE,
 } from '../lib/booking-confirmation-copy';
 import { formatBookingParticipantsLabel } from '../lib/participant-mix';
+import { formatBookingDateDisplay } from '../lib/booking-flow';
 import { travelerFacingBookingOptions } from '../lib/legacy-participant-options';
 import { travelerPaymentLabel, bookingPaymentWasCollected } from '../lib/payment-states';
 import {
@@ -218,26 +219,13 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
 
   const dateLabel = useMemo(() => {
     if (!booking?.booking_date) return '—';
-    try {
-      const start = new Date(`${booking.booking_date}T12:00:00`).toLocaleDateString(undefined, {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-      });
-      if (stayCheckOut) {
-        const end = new Date(`${stayCheckOut}T12:00:00`).toLocaleDateString(undefined, {
-          weekday: 'long',
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric',
-        });
-        return `${start} → ${end}`;
-      }
-      return start;
-    } catch {
-      return booking.booking_date;
+    const start = formatBookingDateDisplay(booking.booking_date);
+    if (!start) return booking.booking_date;
+    if (stayCheckOut) {
+      const end = formatBookingDateDisplay(stayCheckOut);
+      return end ? `${start} → ${end}` : start;
     }
+    return start;
   }, [booking?.booking_date, stayCheckOut]);
 
   const phase = booking ? bookingConfirmationPhase(booking) : null;
@@ -599,7 +587,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                   </p>
                   <p className="mt-0.5 text-xl font-semibold tabular-nums text-ink">
                     {formatMoney(Number(booking.amount_paid), booking.currency)}
-                    {isStripeTestCheckoutSession(booking.checkout_session_id) ? (
+                    {isStripeTestCheckoutSession(booking.checkout_session_id) || appStripeIsTestMode() ? (
                       <span className="ml-2 text-sm font-medium text-amber-800">TEST</span>
                     ) : null}
                   </p>
