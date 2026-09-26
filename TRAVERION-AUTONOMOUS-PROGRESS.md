@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `912b13e`  
-**Current phase:** 600  
+**Current SHA:** `5bcf6e2`  
+**Current phase:** 601  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -96,6 +96,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 598 | Trips: require session before empty-state; await session after login | `aedd6c5` |
 | 599 | Pickup Planner browser cert + fix guest/booking plural spacing | `87a6270` |
 | 600 | Backend/trust/supplier band checkpoint | `912b13e` |
+| 601 | Age-priced mix drives capacity + sticky sold-out | `5bcf6e2` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -2886,6 +2887,12 @@ Closing the 526–600 / trust band deliberately. Distinctions (do not collapse):
 **Stripe:** remains TEST. Do not enable LIVE.
 
 **Next band (601+):** Traveler experience friction — discovery → detail → quote → checkout → Trips — without extending security deep-dive unless a launch-critical vuln appears.
+
+### Phase 601 — Age-priced party size for capacity / sticky CTA
+
+**Problem:** Age-priced tours quote from `participantMix` but TourDetails sticky sold-out and BookingPage capacity/availability checks used `guests` (often still 1 until sync). Traveler could see wrong sold-out CTA or capacity gates.
+
+**Fix:** Derive `partySizeForCapacity` / sticky party from mix when age pricing; use it for `capacityBlocksPay`, availability checks, and sticky disable/sold-out label. `tsc -p tsconfig.app.json` clean.
 
 ## Known remaining risks (ranked)
 

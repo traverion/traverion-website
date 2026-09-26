@@ -385,8 +385,18 @@ export default function BookingPage({
     [partyBounds.max, selectedDaySpotsLeft]
   );
 
+  const partySizeForCapacity = useMemo(() => {
+    if (optionUsesAgePricing(appliedOption) && appliedOption) {
+      return Math.max(
+        1,
+        totalGuestsFromMix(buildParticipantMixLines(appliedOption, participantMix))
+      );
+    }
+    return Math.max(1, guests);
+  }, [appliedOption, participantMix, guests]);
+
   const capacityBlocksPay =
-    selectedDaySpotsLeft != null && selectedDaySpotsLeft < Math.max(1, guests);
+    selectedDaySpotsLeft != null && selectedDaySpotsLeft < partySizeForCapacity;
 
   const quoteBlockReason =
     date.trim() && priceInfo.quote && !priceInfo.quote.ok ? priceInfo.quote.error : null;
@@ -625,7 +635,7 @@ export default function BookingPage({
       setError(dateCheck.message ?? 'Please select a date');
       return;
     }
-    const guestErr = guestCountValidationError(guests, partyBounds);
+    const guestErr = guestCountValidationError(partySizeForCapacity, partyBounds);
     if (guestErr) {
       setError(guestErr);
       return;
@@ -639,7 +649,7 @@ export default function BookingPage({
     setAvailabilityModalNote(null);
     setAvailabilityOptions([]);
     try {
-      const avail = await checkAvailability(tour.id, date.trim(), guests, {
+      const avail = await checkAvailability(tour.id, date.trim(), partySizeForCapacity, {
         startTimeHm: departureTime ?? null,
         slotMaxSpots: tourSlotMaxSpotsFromOption(appliedOption),
       });
@@ -754,7 +764,7 @@ export default function BookingPage({
     setError(null);
     try {
       if (isSupabaseConfigured()) {
-        const avail = await checkAvailability(tour.id, date, guests, {
+        const avail = await checkAvailability(tour.id, date, partySizeForCapacity, {
           startTimeHm: departureTime ?? null,
           slotMaxSpots: tourSlotMaxSpotsFromOption(appliedOption),
         });

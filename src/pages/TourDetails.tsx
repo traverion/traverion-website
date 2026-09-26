@@ -1650,13 +1650,24 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                 <button
                   type="button"
                   onClick={handleStickyBookCta}
-                  disabled={
-                    variantChecking ||
-                    allDeparturesSoldOut ||
-                    (Boolean(selectedBookingVariant) &&
-                      selectedDaySpotsLeft != null &&
-                      selectedDaySpotsLeft < Math.max(1, guests))
-                  }
+                  disabled={(() => {
+                    const partyForCap =
+                      usesAgePricing && selectedOptionApplied
+                        ? Math.max(
+                            1,
+                            totalGuestsFromMix(
+                              buildParticipantMixLines(selectedOptionApplied, participantMix)
+                            )
+                          )
+                        : Math.max(1, guests);
+                    return (
+                      variantChecking ||
+                      allDeparturesSoldOut ||
+                      (Boolean(selectedBookingVariant) &&
+                        selectedDaySpotsLeft != null &&
+                        selectedDaySpotsLeft < partyForCap)
+                    );
+                  })()}
                   className="tv-btn-primary shrink-0 disabled:opacity-60"
                 >
                   {tourStickyBookCtaLabel({
@@ -1669,11 +1680,23 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                       !allDeparturesSoldOut,
                     checking: variantChecking,
                     variantsOpen: bookingVariantsOpen,
-                    soldOut:
-                      allDeparturesSoldOut ||
-                      (Boolean(selectedBookingVariant) &&
-                        selectedDaySpotsLeft != null &&
-                        selectedDaySpotsLeft < Math.max(1, guests)),
+                    soldOut: (() => {
+                      const partyForCap =
+                        usesAgePricing && selectedOptionApplied
+                          ? Math.max(
+                              1,
+                              totalGuestsFromMix(
+                                buildParticipantMixLines(selectedOptionApplied, participantMix)
+                              )
+                            )
+                          : Math.max(1, guests);
+                      return (
+                        allDeparturesSoldOut ||
+                        (Boolean(selectedBookingVariant) &&
+                          selectedDaySpotsLeft != null &&
+                          selectedDaySpotsLeft < partyForCap)
+                      );
+                    })(),
                   })}
                 </button>
               </div>
