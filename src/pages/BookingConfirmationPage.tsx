@@ -90,7 +90,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
 
   const load = useCallback(async () => {
     if (!sessionId) {
-      setError('Missing payment session. Open the link from your payment receipt or go to My bookings.');
+      setError('Missing payment session. Open the link from your payment receipt or go to Trips.');
       return;
     }
     if (!isSupabaseConfigured()) {
@@ -105,7 +105,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
         setBooking(null);
         setListingTitle('');
         setError(
-          'We could not find this booking for your account yet. If you just paid, wait a few seconds and refresh — or open My bookings.'
+          'We could not find this booking for your account yet. If you just paid, wait a few seconds and refresh — or open Trips.'
         );
         return;
       }
@@ -593,9 +593,9 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                   </NoticeCallout>
                 ) : (
                   <NoticeCallout title="What happens next" tone="info">
-                    {BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE} Manage this {stayCheckOut ? 'stay' : 'booking'} from Trips. Free
-                    cancellation up to 24 hours before {stayCheckOut ? 'check-in' : 'start'}, unless the listing says
-                    otherwise.
+                    {BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE} Manage this {stayCheckOut ? 'stay' : 'booking'} from Trips.
+                    Cancellation terms follow what you agreed at checkout — open Trips or the listing for the exact
+                    policy.
                   </NoticeCallout>
                 )}
                 {paidActive && pickupPending ? (

@@ -406,7 +406,7 @@ function App() {
       'email-confirmed': { title: 'Email confirmed', description: 'Your Traverion traveler email was verified.' },
       account: { title: 'My account', description: 'Your profile, trips, and saved tours and stays.' },
       wishlist: { title: 'Wishlist', description: 'Tours and stays you have saved.' },
-      bookings: { title: 'My bookings', description: 'View your tour and stay reservations and their status.' },
+      bookings: { title: 'Trips', description: 'View your tour and stay reservations and their status.' },
       'booking-confirmed': { title: 'Booking confirmed', description: 'Your tour or stay payment was successful. Stripe TEST until live.' },
       blog: { title: 'Stories coming later', description: 'Traverion is not publishing editorial articles yet.' },
       contact: { title: 'Contact', description: 'Get in touch with Traverion.' },

@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `0df7eb3`  
-**Current phase:** 604  
+**Current SHA:** `034a632`  
+**Current phase:** 605  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -100,6 +100,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 602 | Trips View stay routes to stay-details | `0a27d88` |
 | 603 | Stay checkout refreshes blocked nights before Stripe | `30ae77b` |
 | 604 | Honest pickup + free-cancel browse tags | `0df7eb3` |
+| 605 | Confirmation policy honesty + Trips naming | `034a632` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -2914,6 +2915,10 @@ Closing the 526–600 / trust band deliberately. Distinctions (do not collapse):
 **Pickup-available:** no longer matches on meeting point alone — requires pickupPlace / pickupInstructions / tag.
 **Free cancellation:** empty `cancellationPolicy` no longer advertises free cancel; requires standard Traverion policy text or tag.
 Vitest `listingTruth.test.ts` updated and passing.
+
+### Phase 605 — Confirmation cancel copy + Trips terminology
+
+Confirmation no longer promises universal “free cancellation up to 24 hours”. Points to checkout/listing policy instead. Error strings and App page meta use **Trips** (not “My bookings”).
 
 ## Known remaining risks (ranked)
 
