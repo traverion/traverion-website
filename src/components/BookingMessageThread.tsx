@@ -113,7 +113,7 @@ export default function BookingMessageThread({
 
   return (
     <div className="space-y-3">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint">Messages</p>
+      <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint m-0">Messages</h2>
       {loading ? (
         <p className="text-sm text-ink-muted" aria-busy="true">
           Loading messages…
