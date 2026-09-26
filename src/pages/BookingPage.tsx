@@ -81,6 +81,7 @@ import {
 import {
   buildParticipantMixLines,
   formatMixSummaryCompact,
+  formatParticipantQuantityLabel,
   optionUsesAgePricing,
   totalGuestsFromMix,
   validateParticipantMix,
@@ -801,7 +802,7 @@ export default function BookingPage({
         }
         const mixNote =
           quoted.guestBreakdown && quoted.guestBreakdown.length > 0
-            ? `Participants: ${quoted.guestBreakdown.map((r) => `${r.quantity} ${r.label}`).join(' · ')}`
+            ? `Participants: ${quoted.guestBreakdown.map((r) => formatParticipantQuantityLabel(r.quantity, r.label)).join(' · ')}`
             : '';
         const baseSpecial = mergedSpecialRequests();
         const specialWithMix = [baseSpecial, mixNote].filter(Boolean).join('\n');
@@ -858,7 +859,7 @@ export default function BookingPage({
   const dateDisplay = formatBookingDateDisplay(date.trim());
   const usesAgePricingOnVariant = optionUsesAgePricing(appliedOption);
   const participantsSummary = quoted?.guestBreakdown?.length
-    ? quoted.guestBreakdown.map((r) => `${r.quantity} ${r.label}`).join(' · ')
+    ? quoted.guestBreakdown.map((r) => formatParticipantQuantityLabel(r.quantity, r.label)).join(' · ')
     : appliedOption && usesAgePricingOnVariant
       ? formatMixSummaryCompact(buildParticipantMixLines(appliedOption, participantMix)) ||
         `${guests} ${guests === 1 ? 'guest' : 'guests'}`
