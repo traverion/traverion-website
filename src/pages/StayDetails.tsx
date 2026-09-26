@@ -1067,7 +1067,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
             {user ? (
               <button
                 type="button"
-                className="tv-btn-primary shrink-0 disabled:opacity-50"
+                className="tv-btn-primary min-h-11 shrink-0 disabled:opacity-50"
                 disabled={paying || selectionOccupied || Boolean(occupancyError)}
                 onClick={() => {
                   if (selectionOccupied || occupancyError) return;
@@ -1088,7 +1088,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
             ) : !quoteOk ? (
               <button
                 type="button"
-                className="tv-btn-primary shrink-0"
+                className="tv-btn-primary min-h-11 shrink-0"
                 onClick={() => {
                   document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                   window.requestAnimationFrame(() => {
@@ -1103,7 +1103,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
             ) : (
               <a
                 href={travelerLoginHref('stays')}
-                className="tv-btn-primary shrink-0"
+                className="tv-btn-primary min-h-11 shrink-0"
                 onClick={() =>
                   rememberTravelerReturnStay({
                     id: stay.id,

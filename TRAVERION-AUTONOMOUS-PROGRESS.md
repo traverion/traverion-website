@@ -3499,6 +3499,10 @@ Mobile sticky Continue control could sit under 44px. Force `min-h-11`.
 
 Pickup detail back link was text-sized. Add `lux-tap-target min-h-11`.
 
+### Phase 718 — Stay sticky CTA: min-h-11
+
+Mobile sticky stay Continue / login controls lacked explicit 44px height. Match tour sticky.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Partner create→publish wizard** not browser-certified this pass (ops Home/Bookings/Calendar/Listings **are** localhost-browser certified in Phase 597). Full create→publish still pending.
