@@ -29,6 +29,7 @@ export default function LegalPageShell({
           type="button"
           onClick={() => goProductReturn(onNavigate)}
           className="tv-btn-ghost mb-5 -ml-2"
+          aria-label="Back"
         >
           <ArrowLeft className="w-4 h-4" aria-hidden />
           Back

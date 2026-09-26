@@ -103,7 +103,7 @@ export default function PartnerLandingPage() {
         </div>
       </section>
 
-      <main id="main-content" className="flex-1">
+      <main id="main-content" tabIndex={-1} className="flex-1 outline-none">
         <section className="max-w-5xl mx-auto px-5 sm:px-8 py-16 sm:py-20">
           <h2 className="font-display text-3xl sm:text-4xl tracking-tight mb-3">What Traverion does</h2>
           <p className="text-ink-muted max-w-xl mb-10 leading-relaxed">

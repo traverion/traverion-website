@@ -250,7 +250,7 @@ export const en = {
     quickLinks: {
       privacy: 'Privacy Policy',
       terms: 'Terms of Service',
-      cookies: 'Cookie Policy',
+      cookies: 'Cookies and marketing preferences',
     },
     secure: 'Secure',
   },
