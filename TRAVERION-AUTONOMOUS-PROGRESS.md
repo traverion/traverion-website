@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `158d937`  
-**Current phase:** 646  
+**Current SHA:** `c2826a0`  
+**Current phase:** 647  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -142,6 +142,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 644 | Trips place wrap + aria-controls panel | `fc14d35` |
 | 645 | Partner chrome full email + min-w-0 truncate | `f658d82` |
 | 646 | Home recent bookings use collected payment helper | `158d937` |
+| 647 | Traveler mid-band build + honesty 15/15 checkpoint | `c2826a0` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3181,6 +3182,10 @@ Topbar account chip used email local-part; menu truncate lacked `min-w-0`. Show 
 ### Phase 646 — Home recent bookings use collected payment helper
 
 Recent bookings money column required exact `payment_status === 'paid'`, missing other collected statuses used elsewhere. Switch to `bookingPaymentWasCollected`.
+
+### Phase 647 — Traveler mid-band build + honesty checkpoint
+
+**Evidence:** `npm run build` clean. Focused vitest honesty batch **15/15** (listingTruth, tour-quick-facts, participant-mix labels, traveler-display-name, tour-sticky-cta). App `tsc` clean earlier in band. Stripe TEST. Ahead of origin ~52 commits. Traveler UX band continuing toward 675.
 
 ## Known remaining risks (ranked)
 
