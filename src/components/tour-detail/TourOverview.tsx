@@ -18,7 +18,10 @@ export default function TourOverview({ description, extras = [] }: Props) {
       <h2 className="font-display text-xl text-ink mb-2">What you’ll do</h2>
       {text ? (
         <>
-          <p className="text-[15px] leading-relaxed text-ink break-words [overflow-wrap:anywhere] whitespace-pre-wrap">
+          <p
+            id="tour-overview-description"
+            className="text-[15px] leading-relaxed text-ink break-words [overflow-wrap:anywhere] whitespace-pre-wrap"
+          >
             {shown}
           </p>
           {long ? (
@@ -26,6 +29,7 @@ export default function TourOverview({ description, extras = [] }: Props) {
               type="button"
               className="mt-2 text-sm font-semibold text-finland hover:underline"
               aria-expanded={open}
+              aria-controls="tour-overview-description"
               onClick={() => setOpen((v) => !v)}
             >
               {open ? 'Show less' : 'Show more'}
