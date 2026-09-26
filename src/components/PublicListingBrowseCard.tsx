@@ -137,21 +137,25 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
           }
         }}
         onPointerEnter={prefetchTourDetailsPage}
-        className="lux-flat block w-full overflow-hidden rounded-xl bg-paper-raised text-left shadow-soft ring-1 ring-black/[0.06] transition-[box-shadow,ring-color] duration-200 hover:shadow-soft-lg hover:ring-finland/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2"
+        className="group lux-flat block w-full overflow-hidden rounded-xl bg-paper-raised text-left shadow-soft ring-1 ring-black/[0.06] transition-[box-shadow,ring-color,transform] duration-200 hover:-translate-y-0.5 hover:shadow-soft-lg hover:ring-finland/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2 motion-reduce:hover:translate-y-0"
         style={{ animationDelay: `${Math.min(index * 35, 240)}ms` }}
         aria-label={`View ${tour.title}. ${priceAria}`}
       >
-        <div className={`relative overflow-hidden bg-black/[0.04] ${size === 'compact' ? 'aspect-[4/3]' : 'aspect-[4/3]'}`}>
+        <div
+          className={`relative overflow-hidden bg-black/[0.04] ${
+            size === 'compact' ? 'aspect-[5/4]' : 'aspect-[4/3]'
+          }`}
+        >
           {heroSrc ? (
             <img
               src={heroSrc}
               alt=""
-              loading={index < 2 ? 'eager' : 'lazy'}
+              loading={index < (size === 'compact' ? 4 : 2) ? 'eager' : 'lazy'}
               fetchPriority={index === 0 ? 'high' : 'low'}
               decoding="async"
-              width={800}
-              height={600}
-              className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]"
+              width={size === 'compact' ? 640 : 800}
+              height={size === 'compact' ? 512 : 600}
+              className="h-full w-full object-cover transition-transform duration-500 ease-out motion-safe:group-hover:scale-[1.03]"
             />
           ) : null}
           <div className="absolute top-2.5 left-2.5 flex flex-wrap gap-1.5 pr-12">
@@ -178,8 +182,14 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
           ) : null}
         </div>
         <div className={size === 'compact' ? 'p-3' : 'px-3.5 py-3'}>
-          <p className="truncate text-[13px] text-ink-muted">{locationLine}</p>
-          <h3 className="mt-0.5 line-clamp-2 break-words text-[15px] sm:text-base font-semibold leading-snug tracking-tight text-ink [overflow-wrap:anywhere]">
+          <p className="truncate text-[12px] sm:text-[13px] text-ink-muted">{locationLine}</p>
+          <h3
+            className={`mt-0.5 line-clamp-2 break-words leading-snug tracking-tight text-ink [overflow-wrap:anywhere] ${
+              size === 'compact'
+                ? 'font-display text-[15px] sm:text-[16px] font-semibold'
+                : 'text-[15px] sm:text-base font-semibold'
+            }`}
+          >
             {tour.title}
           </h3>
           <div className="mt-1.5">

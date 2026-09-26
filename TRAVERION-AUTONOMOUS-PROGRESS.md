@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800 complete · **801→850 traveler premium**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `59a59d1`  
-**Current phase:** 815  
+**Current SHA:** `5075fe9`  
+**Current phase:** 816  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -226,6 +226,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 813 | Tours primary search applies only on Search submit | `a17fc5e` |
 | 814 | Stays primary search applies only on Search submit | `3bd281d` |
 | 815 | Close bookings.status NULL bypass (NOT NULL constraint) | `88418b2` |
+| 816 | Compact catalog card polish + skeleton density | `5075fe9` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -4034,6 +4035,10 @@ Mirror Phase 813 on `/stays`: draft Where / check-in / check-out / guests drive 
 **Verify:** re-ran the same harness after the fix -- Case 2 (identical supplier NULL-status tampering) now rejected outright with `not_null_violation`, not silently reverted; Case 3 confirmed the legitimate "release an unpaid hold" status update (-> `cancelled`) still works for both supplier and traveler; Case 4 confirmed migration 085's paid-booking cancellation-truth guard is unaffected; Case 5 confirmed a legitimate service-role status write is unaffected. **Mutation test:** re-ran the identical suite against a hand-mutated copy of migration 100 with the `ALTER COLUMN ... SET NOT NULL` statement removed -- Case 2 correctly failed (`Case 2 FAILED: supplier status=NULL tampering still succeeds`), confirming the test suite actually exercises the guard rather than passing vacuously. Full project `tsc --noEmit -p tsconfig.app.json` clean; full `vitest run` 603/603 green (unrelated to this SQL-only change, run to confirm no drift from concurrent work on the same branch this session observed in-flight).
 
 **Not this phase:** no application-code changes -- this is a schema-only, additive constraint tightening with a backfill that is a no-op against today's real data (the app has never written NULL here).
+
+### Phase 816 — Compact catalog card polish + skeleton density
+
+Browse cards: compact `aspect-[5/4]`, display-serif titles, group hover lift/scale (respects reduced motion), earlier lazy-load budget for denser grids. Skeleton grid matches 1/2/3/4 marketplace columns. Browser: `/packages` shows denser photographic cards with editorial titles. Freed disk caches mid-phase (disk was full). Concurrent migration 100 / patch_progress.py left untracked.
 
 ## Known remaining risks (ranked)
 
