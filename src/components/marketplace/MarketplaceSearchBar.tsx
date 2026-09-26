@@ -7,6 +7,7 @@ import {
   type MarketplaceSearchValues,
 } from '../../lib/marketplaceBrowse';
 import { TraverionSingleDateField } from '../calendar/TraverionSingleDateField';
+import { TravelerGuestPicker } from '../calendar/TravelerGuestPicker';
 
 type Props = {
   family: MarketplaceSearchFamily;
@@ -84,19 +85,12 @@ export function MarketplaceSearchFields({
         </FieldShell>
       ) : null}
       <FieldShell stacked={stacked}>
-        <label htmlFor={`${idPrefix}-guests`} className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
-          {isStay ? 'Guests' : 'Travelers'}
-        </label>
-        <input
+        <TravelerGuestPicker
           id={`${idPrefix}-guests`}
-          type="number"
-          min={1}
-          max={99}
-          inputMode="numeric"
+          label={isStay ? 'Guests' : 'Travelers'}
+          mode={isStay ? 'guests' : 'travelers'}
           value={values.guests}
-          onChange={(e) => onChange({ guests: e.target.value })}
-          placeholder={isStay ? 'Guests' : 'Travelers'}
-          className="w-full h-9 border-0 text-ink placeholder:text-ink-muted focus:ring-0 text-[15px] bg-transparent"
+          onChange={(next) => onChange({ guests: next })}
         />
       </FieldShell>
     </>
