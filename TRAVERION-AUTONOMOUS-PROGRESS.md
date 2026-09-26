@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `26b1783`  
-**Current phase:** 626  
+**Current SHA:** `7f2c69f`  
+**Current phase:** 627  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -122,6 +122,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 624 | Review author names skip email local-part | `274e6a3` |
 | 625 | Sign-up awaits getSession before navigate | `6426194` |
 | 626 | Browse card pickup meta matches experienceStartStyle | `26b1783` |
+| 627 | Confirmation missing-title fallback stay-aware | `7f2c69f` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3053,6 +3054,12 @@ Same split-text-node class: Availability bulk capacity copy rendered `date` / `s
 **Problem:** `PublicListingBrowseCard` showed “Pickup included” when any option **name** matched `/pickup/i`, even with no `pickupPlace` and no `experienceStartStyle` — dishonest vs tour quick facts.
 
 **Fix:** Align with `tour-quick-facts`: operator_pickup / non-empty option pickupPlace → “Pickup included”; either_available → “Pickup or meet”; fixed_meeting_place → “Meeting point”. Drop name-regex heuristic.
+
+### Phase 627 — Confirmation title fallback stay-aware
+
+**Problem:** Missing listing titles on confirmation always fell back to “Your tour”, including stay bookings with `check_out`.
+
+**Fix:** Pass `row.check_out ? 'Your stay' : 'Your tour'` into `displayListingTitleFromPurchase`.
 
 ## Known remaining risks (ranked)
 

@@ -114,7 +114,11 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
         const ops = await fetchListingOpsByIds([row.listing_id]);
         const meta = ops[row.listing_id];
         setListingTitle(
-          displayListingTitleFromPurchase(row.purchase_snapshot, meta?.title, 'Your tour')
+          displayListingTitleFromPurchase(
+            row.purchase_snapshot,
+            meta?.title,
+            row.check_out ? 'Your stay' : 'Your tour'
+          )
         );
         const stay = Boolean(row.check_out);
         const snapMeeting = displayMeetingPointFromPurchase(
