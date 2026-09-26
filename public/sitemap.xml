@@ -14,5 +14,6 @@
   <url><loc>https://traverion.com/legal-notice</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
   <url><loc>https://traverion.com/affiliate</loc><changefreq>monthly</changefreq><priority>0.4</priority></url>
   <url><loc>https://traverion.com/content-creator</loc><changefreq>monthly</changefreq><priority>0.4</priority></url>
+  <url><loc>https://partner.traverion.com/</loc><changefreq>monthly</changefreq><priority>0.5</priority></url>
   <url><loc>https://traverion.com/sitemap</loc><changefreq>monthly</changefreq><priority>0.4</priority></url>
 </urlset>

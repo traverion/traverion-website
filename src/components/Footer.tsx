@@ -52,7 +52,7 @@ export default function Footer({ onNavigate }: { onNavigate?: (page: string) => 
               <li><button type="button" onClick={() => nav('contact')} className={`${linkClass} text-left bg-transparent border-0 cursor-pointer`}>Contact</button></li>
               <li><button type="button" onClick={() => nav('legal-notice')} className={`${linkClass} text-left bg-transparent border-0 cursor-pointer`}>Legal Notice</button></li>
               <li><button type="button" onClick={() => nav('privacy')} className={`${linkClass} text-left bg-transparent border-0 cursor-pointer`}>Privacy Policy</button></li>
-              <li><button type="button" onClick={() => nav('cookies')} className={`${linkClass} text-left bg-transparent border-0 cursor-pointer`}>Cookies and Marketing Preferences</button></li>
+              <li><button type="button" onClick={() => nav('cookies')} className={`${linkClass} text-left bg-transparent border-0 cursor-pointer`}>Cookies and marketing preferences</button></li>
               <li><button type="button" onClick={() => nav('terms')} className={`${linkClass} text-left bg-transparent border-0 cursor-pointer`}>General Terms and Conditions</button></li>
               <li><button type="button" onClick={() => nav('sitemap')} className={`${linkClass} text-left bg-transparent border-0 cursor-pointer`}>Sitemap</button></li>
             </ul>
