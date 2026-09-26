@@ -177,7 +177,11 @@ function BookingProgress({
                 >
                   {done ? '✓' : i + 1}
                 </span>
-                {label}
+                <span aria-hidden>{label}</span>
+                <span className="sr-only">
+                  {label}
+                  {current ? ', current step' : done ? ', completed' : ', upcoming'}
+                </span>
               </span>
             </li>
           );

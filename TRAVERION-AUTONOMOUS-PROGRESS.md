@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `c096920`  
-**Current phase:** 757  
+**Current SHA:** `bbccb5b`  
+**Current phase:** 758  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -159,6 +159,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 661 | Offers empty only when load succeeded | `7cb49d1` |
 | 662 | StayDetails reviews reset + eligibility stale guard | `a0bc0c2` |
 | 663 | Checkout contact fields label htmlFor + ids | `fa7cfef` |
+| 758 | Booking progress current completed upcoming SR | `bbccb5b` |
 | 757 | Partner Money and Pickup shared date display | `c096920` |
 | 756 | Contact support on Packages Stays browse errors | `17a4133` |
 | 755 | Trips cancel dialog stay dates and CTAs | `1b222ab` |
@@ -3663,6 +3664,10 @@ Browse/capacity ErrorStates lacked a support path. Add Contact support on Packag
 ### Phase 757 — Partner Money and Pickup shared date display
 
 Income and Pickup still showed raw YMD / ad-hoc locale dates. Use shared formatBookingDateDisplay for traveler-consistent dates.
+
+### Phase 758 — Booking progress current completed upcoming SR
+
+BookingProgress visible labels alone did not announce step state. Add sr-only current/completed/upcoming suffixes.
 
 ## Known remaining risks (ranked)
 
