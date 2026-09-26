@@ -3467,6 +3467,22 @@ Tour/Stay empty review lines diverged. Share `LISTING_REVIEWS_EMPTY_COPY`.
 
 Inbox tour dates used ad-hoc `toLocaleDateString`. Route through `formatBookingDateDisplay`.
 
+### Phase 710 — Account Trips badge: count live trips only
+
+Account hub Trips count used raw `bookings.length` (includes cancelled/failed). Filter with `travelerTripIsLive`.
+
+### Phase 711 — Stays: Fully booked empty title when nights occupied
+
+Date-filtered empty stay browse always said “No stays match”. Parallel tours: “Fully booked for those nights” when occupancy filters out matches.
+
+### Phase 712 — Partner Bookings: shared activity date formatter
+
+Activity date long label reinvented locale formatting. Use `formatBookingDateDisplay`.
+
+### Phase 713 — Partner Reviews: consistent created_at display
+
+Review/reply dates used bare `toLocaleDateString()`. Share a small locale formatter.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Partner create→publish wizard** not browser-certified this pass (ops Home/Bookings/Calendar/Listings **are** localhost-browser certified in Phase 597). Full create→publish still pending.
