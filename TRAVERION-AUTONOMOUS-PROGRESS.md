@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800 complete · **801→850 traveler premium**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `21610af`  
-**Current phase:** 826  
+**Current SHA:** `e45c4e3`  
+**Current phase:** 827  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -237,6 +237,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 824 | Calendar + guest picker band checkpoint 819-823 | `8e0591b` |
 | 825 | Tour detail gallery-first + wider desktop canvas | `df42b28` |
 | 826 | Tour booking panel + quick facts premium | `21610af` |
+| 827 | Stay detail wider canvas + gallery + booking panel | `e45c4e3` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -4106,6 +4107,10 @@ Reorder tour detail to gallery → identity → quick facts (marketplace rhythm)
 ### Phase 826 — Tour booking panel + quick facts premium
 
 Booking sticky panel: elevated Traverion surface, “Book this experience” label. Quick facts on soft raised grid. Consolidate Stripe TEST honesty to one checkout line (CTA still Continue · TEST). No transaction changes.
+
+### Phase 827 — Stay detail: wider canvas + gallery mosaic + booking panel
+
+Stay detail matches tour marketplace shell: `max-w-[90rem]`, mosaic gallery, soft facts row, elevated “Book this stay” sticky panel. Occupancy/calendar truth unchanged.
 
 ## Known remaining risks (ranked)
 

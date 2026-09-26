@@ -538,11 +538,15 @@ export default function StayDetails({ stayId, onBack }: Props) {
 
   return (
     <div className="min-h-screen bg-paper tv-page pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-0">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
-        <div className="mb-6 flex items-center justify-between gap-3">
-          <button type="button" onClick={onBack} className="tv-btn-ghost -ml-2">
+      <div className="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        <div className="mb-5 flex items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={onBack}
+            className="lux-flat inline-flex h-11 min-w-[2.75rem] items-center justify-center gap-2 rounded-full bg-paper-raised px-3.5 text-sm font-medium text-ink ring-1 ring-black/[0.06] hover:bg-black/[0.03]"
+          >
             <ArrowLeft className="w-4 h-4" aria-hidden />
-            Back to stays
+            Stays
           </button>
           {isSupabaseListingId(stay.id) && isSupabaseConfigured() ? (
             <button
@@ -560,32 +564,56 @@ export default function StayDetails({ stayId, onBack }: Props) {
             </button>
           ) : null}
         </div>
-        {hero ? (
-          <img
-            src={hero}
-            alt=""
-            className="w-full h-[18rem] sm:h-[22rem] object-cover rounded-3xl mb-3 shadow-soft ring-1 ring-black/[0.06]"
-          />
-        ) : (
-          <div className="mb-3 flex h-56 w-full items-center justify-center rounded-3xl bg-ink/[0.06] ring-1 ring-black/[0.06]">
-            <p className="px-4 text-center text-sm text-ink-muted">No photos yet for this stay</p>
-          </div>
-        )}
-        {gallery.length > 0 ? (
-          <div className="grid grid-cols-3 gap-2 mb-5">
-            {gallery.slice(0, 3).map((url) => (
-              <img
-                key={url}
-                src={listingHeroImageSrc(url) ?? url}
-                alt=""
-                className="h-20 sm:h-28 w-full object-cover rounded-2xl ring-1 ring-black/[0.06]"
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="mb-5" />
-        )}
-        <header className="mb-5">
+
+        <div className="mb-6 sm:mb-8">
+          {hero || gallery.length > 0 ? (
+            <div className="grid grid-cols-1 gap-2 sm:gap-3 lg:grid-cols-4 lg:grid-rows-2 lg:min-h-[26rem]">
+              {hero ? (
+                <div className="relative overflow-hidden rounded-2xl bg-ink/10 lg:col-span-2 lg:row-span-2 aspect-[4/3] lg:aspect-auto">
+                  <img
+                    src={hero}
+                    alt=""
+                    className="absolute inset-0 h-full w-full object-cover"
+                  />
+                </div>
+              ) : null}
+              {(hero ? gallery : gallery.slice(1)).slice(0, hero ? 4 : 5).map((url) => (
+                <div
+                  key={url}
+                  className="relative hidden overflow-hidden rounded-xl bg-ink/10 aspect-[4/3] lg:block"
+                >
+                  <img
+                    src={listingHeroImageSrc(url) ?? url}
+                    alt=""
+                    className="absolute inset-0 h-full w-full object-cover"
+                  />
+                </div>
+              ))}
+              {gallery.length > 0 ? (
+                <div className="flex gap-2 overflow-x-auto pb-1 lg:hidden -mx-1 px-1 snap-x snap-mandatory">
+                  {gallery.slice(0, 6).map((url) => (
+                    <div
+                      key={`m-${url}`}
+                      className="relative w-[42%] shrink-0 snap-start overflow-hidden rounded-xl aspect-[4/3]"
+                    >
+                      <img
+                        src={listingHeroImageSrc(url) ?? url}
+                        alt=""
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <div className="mb-3 flex h-56 w-full items-center justify-center rounded-3xl bg-ink/[0.06] ring-1 ring-black/[0.06]">
+              <p className="px-4 text-center text-sm text-ink-muted">No photos yet for this stay</p>
+            </div>
+          )}
+        </div>
+
+        <header className="mb-6 max-w-3xl">
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <span className="inline-flex items-center rounded-md bg-finland/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-finland ring-1 ring-finland/15">
               Stay
@@ -600,32 +628,32 @@ export default function StayDetails({ stayId, onBack }: Props) {
               {[stay.city, stay.country].filter(Boolean).join(', ') || stay.destination}
             </p>
           </div>
-          <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight mb-4 break-words [overflow-wrap:anywhere]">
+          <h1 className="font-display text-3xl sm:text-4xl lg:text-[2.75rem] text-ink tracking-tight mb-4 break-words [overflow-wrap:anywhere] leading-[1.15]">
             {stay.title}
           </h1>
-          <dl className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <dl className="grid grid-cols-2 gap-x-6 gap-y-4 rounded-2xl bg-paper-raised/80 px-4 py-4 sm:grid-cols-4 sm:px-5 ring-1 ring-black/[0.04]">
             {typeof s?.maxGuests === 'number' ? (
-              <div className="rounded-xl bg-paper-raised px-3.5 py-3 ring-1 ring-black/[0.05]">
+              <div className="min-w-0">
                 <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">Guests</dt>
-                <dd className="mt-1 text-sm font-medium text-ink">Up to {s.maxGuests}</dd>
+                <dd className="mt-1 text-sm font-semibold text-ink">Up to {s.maxGuests}</dd>
               </div>
             ) : null}
             {typeof s?.bedrooms === 'number' ? (
-              <div className="rounded-xl bg-paper-raised px-3.5 py-3 ring-1 ring-black/[0.05]">
+              <div className="min-w-0">
                 <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">Bedrooms</dt>
-                <dd className="mt-1 text-sm font-medium text-ink">{s.bedrooms}</dd>
+                <dd className="mt-1 text-sm font-semibold text-ink">{s.bedrooms}</dd>
               </div>
             ) : null}
             {typeof s?.beds === 'number' ? (
-              <div className="rounded-xl bg-paper-raised px-3.5 py-3 ring-1 ring-black/[0.05]">
+              <div className="min-w-0">
                 <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">Beds</dt>
-                <dd className="mt-1 text-sm font-medium text-ink">{s.beds}</dd>
+                <dd className="mt-1 text-sm font-semibold text-ink">{s.beds}</dd>
               </div>
             ) : null}
             {typeof s?.bathrooms === 'number' ? (
-              <div className="rounded-xl bg-paper-raised px-3.5 py-3 ring-1 ring-black/[0.05]">
+              <div className="min-w-0">
                 <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">Baths</dt>
-                <dd className="mt-1 text-sm font-medium text-ink">{s.bathrooms}</dd>
+                <dd className="mt-1 text-sm font-semibold text-ink">{s.bathrooms}</dd>
               </div>
             ) : null}
           </dl>
@@ -637,7 +665,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
           ) : null}
         </header>
 
-        <div className="grid lg:grid-cols-[1fr_20rem] gap-6 pb-24 lg:pb-0">
+        <div className="grid lg:grid-cols-[minmax(0,1fr)_22rem] gap-8 lg:gap-10 pb-24 lg:pb-0">
           <div className="space-y-4 text-[15px] leading-relaxed text-ink">
             {stay.description ? (
               <div className="tv-card p-4 sm:p-5">
@@ -913,7 +941,11 @@ export default function StayDetails({ stayId, onBack }: Props) {
             </div>
           </div>
 
-          <aside id="stay-booking-panel" className="lg:sticky lg:top-24 h-fit tv-card p-3.5 sm:p-4 scroll-mt-24">
+          <aside
+            id="stay-booking-panel"
+            className="lg:sticky lg:top-24 h-fit scroll-mt-24 rounded-2xl bg-paper-raised p-4 sm:p-5 shadow-soft-lg ring-1 ring-black/[0.06]"
+          >
+            <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland">Book this stay</p>
             {nightly > 0 ? (
               <PriceHero
                 amount={nightly}
