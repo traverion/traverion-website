@@ -800,7 +800,7 @@ function App() {
           <div className="min-h-screen bg-paper relative flex flex-col">
             <SkipLink />
             <UnifiedHeader currentPage={currentPage} onNavigate={handleNavigate} />
-            <main id="main-content" tabIndex={-1} className="flex-grow overflow-x-hidden outline-none">
+            <main id="main-content" tabIndex={-1} className="flex-grow overflow-x-clip outline-none">
               <div className="lux-page-enter min-h-[min(50vh,480px)]">
                 <Suspense fallback={<RouteFallback />}>{renderPage()}</Suspense>
               </div>

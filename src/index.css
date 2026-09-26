@@ -729,7 +729,9 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
     font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
     font-weight: 400;
     background-color: #f6f3ee;
-    overflow-x: hidden;
+    /* Prefer clip: overflow-x hidden forces overflow-y to auto and traps
+       wheel/trackpad over <main> so the page only scrolls when hovering the fixed header. */
+    overflow-x: clip;
     -webkit-tap-highlight-color: transparent;
   }
 
@@ -738,7 +740,7 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
     font-weight: 400;
     color: #1c1917;
     background-color: #f6f3ee;
-    overflow-x: hidden;
+    overflow-x: clip;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
