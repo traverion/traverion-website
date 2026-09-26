@@ -118,7 +118,7 @@ export function MarketplaceSearchPill({
   return (
     <form
       onSubmit={onSubmit ?? ((e) => e.preventDefault())}
-      className={`hidden sm:grid gap-1 bg-paper-raised rounded-full p-1.5 shadow-soft-lg ring-1 ring-black/[0.06] ${grid} ${className}`}
+      className={`hidden sm:grid gap-1 bg-paper-raised rounded-full p-1.5 shadow-soft-lg ring-1 ring-black/[0.06] overflow-visible ${grid} ${className}`}
       aria-label={ariaLabel ?? (isStay ? 'Search stays' : 'Search tours')}
     >
       <MarketplaceSearchFields family={family} values={values} onChange={onChange} idPrefix={idPrefix} />
