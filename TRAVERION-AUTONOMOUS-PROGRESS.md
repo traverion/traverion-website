@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `39f1a73`  
-**Current phase:** 781  
+**Current SHA:** `3ef9844`  
+**Current phase:** 795  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -205,6 +205,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 792 | Launch-break no secret-bearing paths dirty | `95402a3` |
 | 793 | Launch-break branch ahead count journal | `9db7cb0` |
 | 794 | Launch-break second TypeScript clean | `6e5dcea` |
+| 795 | Launch-break second production build clean | `3ef9844` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3871,6 +3872,10 @@ LOCAL_PRESENT\n```
 ### Phase 794 — Launch-break second TypeScript clean
 
 **Launch-break:** second `tsc -p tsconfig.app.json` clean.
+
+### Phase 795 — Launch-break second production build clean
+
+**Launch-break:** second `npm run build` clean.
 
 ## Known remaining risks (ranked)
 
