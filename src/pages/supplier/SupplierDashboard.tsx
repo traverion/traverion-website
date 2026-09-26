@@ -973,7 +973,7 @@ export default function SupplierDashboard() {
                 const paid =
                   b.amount_paid != null &&
                   Number.isFinite(Number(b.amount_paid)) &&
-                  (b.payment_status ?? '').trim().toLowerCase() === 'paid'
+                  bookingPaymentWasCollected(b.payment_status)
                     ? Number(b.amount_paid)
                     : null;
                 const money = paid == null ? null : formatMoney(paid, b.currency);

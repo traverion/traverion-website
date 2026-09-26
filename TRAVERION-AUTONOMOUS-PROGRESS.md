@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `f658d82`  
-**Current phase:** 645  
+**Current SHA:** `158d937`  
+**Current phase:** 646  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -141,6 +141,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 643 | Mobile header email truncate with min-w-0 | `00fcd92` |
 | 644 | Trips place wrap + aria-controls panel | `fc14d35` |
 | 645 | Partner chrome full email + min-w-0 truncate | `f658d82` |
+| 646 | Home recent bookings use collected payment helper | `158d937` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3176,6 +3177,10 @@ Collapsed trip rows truncated location without wrapping; accordion lacked `aria-
 ### Phase 645 — Partner chrome shows full email (not local-part)
 
 Topbar account chip used email local-part; menu truncate lacked `min-w-0`. Show full email with title + min-w-0 truncate for honest partner identity on narrow widths.
+
+### Phase 646 — Home recent bookings use collected payment helper
+
+Recent bookings money column required exact `payment_status === 'paid'`, missing other collected statuses used elsewhere. Switch to `bookingPaymentWasCollected`.
 
 ## Known remaining risks (ranked)
 
