@@ -615,12 +615,22 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   }, [loadReviews]);
 
   useEffect(() => {
+    setCanLeaveReview(false);
+    setBookingIdForReview(undefined);
+    setHasReviewed(false);
     if (!user?.id || !user?.email || !tourId || !isSupabaseConfigured()) return;
+    let cancelled = false;
     userHasCompletedBookingForListing(user.email, tourId).then(({ canReview, bookingId }) => {
+      if (cancelled) return;
       setCanLeaveReview(canReview);
       setBookingIdForReview(bookingId);
     });
-    userHasReviewedListing(user.id, tourId).then(setHasReviewed);
+    userHasReviewedListing(user.id, tourId).then((reviewed) => {
+      if (!cancelled) setHasReviewed(reviewed);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [user?.id, user?.email, tourId]);
 
   // SEO: tour-specific title, description, OG image, and JSON-LD
@@ -1605,14 +1615,16 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
               <h3 className="font-display text-lg text-ink mb-3">Write a review</h3>
               <div className="space-y-3">
                 <div>
-                  <label className="block text-sm font-medium text-ink mb-1">Rating</label>
-                  <div className="flex gap-1">
+                  <label id="tour-review-rating-label" className="block text-sm font-medium text-ink mb-1">
+                    Rating
+                  </label>
+                  <div className="flex gap-1" role="group" aria-labelledby="tour-review-rating-label">
                     {[1, 2, 3, 4, 5].map((i) => (
                       <button
                         key={i}
                         type="button"
                         onClick={() => setReviewRating(i)}
-                        className="p-0.5"
+                        className="lux-tap-target min-h-11 min-w-11 inline-flex items-center justify-center p-0.5"
                         aria-label={`Rate ${i} out of 5 stars`}
                         aria-pressed={i <= reviewRating}
                       >
@@ -1626,8 +1638,11 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-ink mb-1">Title (optional)</label>
+                  <label htmlFor="tour-review-title" className="block text-sm font-medium text-ink mb-1">
+                    Title (optional)
+                  </label>
                   <input
+                    id="tour-review-title"
                     type="text"
                     value={reviewTitle}
                     onChange={(e) => setReviewTitle(e.target.value)}
@@ -1636,8 +1651,11 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-ink mb-1">Your review *</label>
+                  <label htmlFor="tour-review-comment" className="block text-sm font-medium text-ink mb-1">
+                    Your review *
+                  </label>
                   <textarea
+                    id="tour-review-comment"
                     value={reviewComment}
                     onChange={(e) => setReviewComment(e.target.value)}
                     rows={3}
