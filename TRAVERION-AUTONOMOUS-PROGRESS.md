@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `eea69ae`  
-**Current phase:** 852  
+**Current SHA:** `d4ba2b3`  
+**Current phase:** 853  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -263,6 +263,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 850 | Founder visual handoff TRAVERION-PHASE-850.md | see `git log -1` |
 | 851 | Marketplace completeness matrix + scroll re-verify | `448828b` |
 | 852 | bookings.status NOT NULL migration 100 | `eea69ae` |
+| 853 | Tour creation completeness audit | `d4ba2b3` |
 
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
@@ -4307,6 +4308,16 @@ Created `TRAVERION-PHASE-850.md` with executive verdict, architecture summaries,
 **Certification:** code-inspected + test artifact in repo. Local `psql`/docker unavailable this environment — scratch Postgres proof documented in test header; **not** re-executed here. Remote apply still required (`supabase db push` when founder/CI ready).
 
 **Matrix:** Booking state machine cell upgraded toward COMPLETE+NOT CERTIFIED pending remote apply + SQL re-run.
+
+### Phase 853 — Tour creation completeness audit
+
+Deep audit of listing → option → schedule ownership vs publish/traveler/snapshot surfaces. Deliverable: `TRAVERION-PHASE-853.md`.
+
+**Strengths:** hierarchy, guided scenes, client publish gate, quote schedule resolution, thin purchase freeze.
+
+**P0/P1 gaps ranked for 854+:** server bookability beyond city/hero (095); option-scoped meeting on PDP; booking cut-off; thicker snapshot; itinerary write-only honesty.
+
+**Cert:** code-inspected.
 
 ## Known remaining risks (ranked)
 

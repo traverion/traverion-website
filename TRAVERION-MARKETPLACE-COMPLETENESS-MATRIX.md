@@ -35,7 +35,7 @@
 | Auth | PARTIAL | Supabase Auth | Mitigate same-origin partner/traveler bleed |
 | Traveler profile | PARTIAL | `consumer_profiles` | Country only with real migration; optional phone later |
 | Supplier identity / onboarding | PARTIAL | `supplier_profiles` + verification | Browser-cert create→publish |
-| Tour creation | PARTIAL | listings + `listing_extras` options/schedules | Deep field audit + UI create E2E |
+| Tour creation | PARTIAL | listings + `listing_extras` options/schedules | Audit 853 done; server bookability + E2E next |
 | Tour options | PARTIAL | `bookingOptions[]` JSON | Cert multi-option publish/book |
 | Schedules / seasons | PARTIAL | schedule JSON + availability | Overlap/DST/timezone model |
 | Stay creation | PARTIAL | listings stay branch + nights | Shallower than tours; deepen + E2E |
