@@ -3,7 +3,7 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `905ebf4`  
+**Current SHA:** `4930b4a`  
 **Current phase:** 749  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
