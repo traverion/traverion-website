@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800 complete · **801→850 traveler premium**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `c02c58f`  
-**Current phase:** 843  
+**Current SHA:** `e5ee314`  
+**Current phase:** 844  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -4219,6 +4219,14 @@ Re-ran `traveler-interest.test.ts` **3/3**. Signals: listing_view, destination_v
 `tsc -p tsconfig.app.json` clean. `npm run build` clean (~4.2s). `TravelerGuestPicker.test.ts` **3/3**. Shared calendar/guest picker remain the booking UX chrome over truthful availability.
 
 **Certification:** automated-tested + build.
+
+### Phase 844 — Shared calendar wiring inventory
+
+Shared Traverion calendar stack present and consumed:
+- `TraverionCalendarMonth` / `TraverionSingleDateField` / `TravelerGuestPicker` under `src/components/calendar/`
+- Wired into tour/stay search fields and booking date pickers (TourDatePicker / StayNightPicker / BookingDateField / MarketplaceSearchBar)
+
+Visual layer only — availability truth unchanged. **code-inspected** this phase (prior browser use in 821–827 / listing detail).
 
 ## Known remaining risks (ranked)
 
