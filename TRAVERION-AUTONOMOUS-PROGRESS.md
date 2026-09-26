@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `688dafc`  
-**Current phase:** 609  
+**Current SHA:** `73990df`  
+**Current phase:** 610  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -105,6 +105,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 607 | Traveler honesty Vitest re-cert 18/18 | `adb2866` |
 | 608 | Mobile homepage 390×844 browser cert | `24b1bf8` |
 | 609 | Mobile Packages + tour detail sticky CTA 390×844 | `688dafc` |
+| 610 | Mobile date→options multi-departure handoff | `73990df` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -2941,6 +2942,10 @@ Emulated `390×844` on localhost. Hero shows TRAVERION brand, Tours/Stays toggle
 ### Phase 609 — Mobile Packages + tour detail (390×844)
 
 Emulated 390×844: Packages lists 5 live tours with Filters/Sort. Opened Guaranteed Northern Lights Tour — sticky **Pick a date** CTA, calendar (past faded / available open), price From €101.15, Stripe TEST honesty, Trips-as-confirmation copy. Multi-departure note “Set start times: 20:00, 20:30.” Demo hero image is mismatched tropical stock (fixture debt, not marketplace invent).
+
+### Phase 610 — Mobile date → multi-option handoff (390×844)
+
+On Northern Lights detail: sticky **Pick a date** focuses calendar; selecting Sun 27 Sept loads **Shared group Starts 20:00** and **Private tour Starts 20:30** with distinct prices (€119 / €449). Sticky becomes **Choose option**; panel shows “12 spots left this day”. URL gains `date=` + `guests=`. Commercial multi-departure truth visible on mobile.
 
 ## Known remaining risks (ranked)
 
