@@ -3399,6 +3399,46 @@ Delete/deactivate confirm dialogs lacked `useDialogFocus` (create chooser alread
 
 Age from/to and related fields lacked `htmlFor`/`id`; remove-category under 44px. Associate labels and enlarge.
 
+### Phase 693 — USER_ERROR: stays / stayMissing / wishlist copy
+
+Stays surfaces used `USER_ERROR.tours`; stay missing was a one-off string; wishlist said “saved tours” only. Add `stays` / `stay` / `stayMissing` and retarget wishlist.
+
+### Phase 694 — Home: align empty titles + stays error body
+
+Home tours empty said “No tours yet” while stays said “published yet”; stays ErrorState used tours fallback. Align titles and `USER_ERROR.stays`.
+
+### Phase 695 — Stays browse: shared capacity error title + stays fallback
+
+Occupancy failure title was “Availability unavailable” while tours used “Capacity unavailable”. Align title; catalog errors use `USER_ERROR.stays`.
+
+### Phase 696 — BookingPage: shared Stripe cancel copy
+
+Tour checkout cancel banner invented local copy. Use `STRIPE_CHECKOUT_CANCELLED_TOUR_COPY` like Stays.
+
+### Phase 697 — Stay sticky CTA: guest name + Opening checkout…
+
+Sticky said Continue · TEST without lead-guest name, and “Opening…” while the panel said “Opening checkout…”. Gate on name readiness; unify paying label.
+
+### Phase 698 — Trips: TEST badge when app is in Stripe TEST mode
+
+Paid amounts only appended TEST for `cs_test_` session ids. Also show when `appStripeIsTestMode()`.
+
+### Phase 699 — Confirmation: TEST badge fallback to app mode
+
+Same session-only TEST badge gap as Trips; fall back to `appStripeIsTestMode()`.
+
+### Phase 700 — Partner Income: Stripe TEST row fallback
+
+Income rows only marked TEST for test session ids. Fall back to app TEST mode so LIVE is never implied.
+
+### Phase 701 — TourDetails: null unpublished before SEO
+
+Draft/unpublished tours were set into state so JSON-LD/meta could publish before the not-found gate. Only set tour when traveler-visible (mirror StayDetails).
+
+### Phase 702 — Partner Bookings: Open in Inbox deep-link
+
+Expanded booking thread had no Inbox shortcut. Add Open in Inbox → `openSupplierInbox(booking.id)`.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Partner create→publish wizard** not browser-certified this pass (ops Home/Bookings/Calendar/Listings **are** localhost-browser certified in Phase 597). Full create→publish still pending.
