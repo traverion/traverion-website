@@ -46,6 +46,7 @@ import BookingPage from './BookingPage';
 import {
   BOOKING_CONFIRMATION_EMAIL_DISCLAIMER,
   TOUR_LISTING_CONFIRMATION_NOTE,
+  LISTING_REVIEWS_EMPTY_COPY,
 } from '../lib/booking-confirmation-copy';
 import {
   getPartySizeBounds,
@@ -547,12 +548,24 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
 
   useEffect(() => {
     setTourLoadError(null);
+    setTour(null);
     if (isSupabaseConfigured()) {
       let cancelled = false;
       getListingByIdAsync(tourId)
         .then((found) => {
           if (cancelled) return;
-          setTour(found ?? null);
+          if (
+            !found ||
+            !listingDetailVisibleToTraveler({
+              familyMatches: listingIsOnTravelerCatalog(found),
+              status: found.status,
+            })
+          ) {
+            setTour(null);
+            if (found) setTourLoadError(USER_ERROR.tourMissing);
+            return;
+          }
+          setTour(found);
         })
         .catch((e) => {
           if (cancelled) return;
@@ -563,7 +576,19 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
         cancelled = true;
       };
     }
-    setTour(getListingById(tourId) ?? null);
+    const local = getListingById(tourId) ?? null;
+    if (
+      local &&
+      listingDetailVisibleToTraveler({
+        familyMatches: listingIsOnTravelerCatalog(local),
+        status: local.status,
+      })
+    ) {
+      setTour(local);
+    } else {
+      setTour(null);
+      if (local) setTourLoadError(USER_ERROR.tourMissing);
+    }
     return undefined;
   }, [tourId]);
 
@@ -1534,7 +1559,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                           Pay via Stripe TEST until live
                         </p>
                         <p className="leading-relaxed">
-                          {TOUR_LISTING_CONFIRMATION_NOTE} {BOOKING_CONFIRMATION_EMAIL_DISCLAIMER}
+                          {TOUR_LISTING_CONFIRMATION_NOTE} {BOOKING_CONFIRMATION_EMAIL_DISCLAIMER} Stripe TEST until live.
                         </p>
                       </div>
                     </div>
@@ -1562,7 +1587,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
             </div>
           ) : reviews.length === 0 && !showReviewForm ? (
             <p className="text-ink-muted mb-6 max-w-xl leading-relaxed">
-              No reviews yet. Guests can write one after a completed booking.
+              {LISTING_REVIEWS_EMPTY_COPY}
             </p>
           ) : null}
           <div className="space-y-4 mb-5">
