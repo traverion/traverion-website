@@ -6,6 +6,8 @@ type Props = {
   /** Short applied-value hint shown on the trigger. */
   summary?: string | null;
   active?: boolean;
+  /** Close after a chip/control inside the panel is activated (single-select menus). */
+  closeOnSelect?: boolean;
   children: ReactNode;
 };
 
@@ -13,7 +15,13 @@ type Props = {
  * Desktop secondary-filter popover — Traverion chrome over chip groups.
  * Mobile browse still uses the full filter sheet in MarketplaceBrowseShell.
  */
-export function MarketplaceFilterMenu({ label, summary, active = false, children }: Props) {
+export function MarketplaceFilterMenu({
+  label,
+  summary,
+  active = false,
+  closeOnSelect = false,
+  children,
+}: Props) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const panelId = useId();
@@ -66,6 +74,14 @@ export function MarketplaceFilterMenu({ label, summary, active = false, children
           role="dialog"
           aria-label={label}
           className="absolute left-0 z-40 mt-2 w-[min(20rem,calc(100vw-2rem))] rounded-2xl bg-paper-raised p-4 shadow-soft-lg ring-1 ring-black/[0.08] motion-safe:animate-fade-in"
+          onClick={
+            closeOnSelect
+              ? (e) => {
+                  const t = e.target as HTMLElement | null;
+                  if (t?.closest('button')) close();
+                }
+              : undefined
+          }
         >
           <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">{label}</p>
           {children}

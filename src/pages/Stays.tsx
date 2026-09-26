@@ -554,7 +554,7 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
   const desktopFilters = (
     <MarketplaceSecondaryFilterRow sortControl={sortControl}>
       {propertyTypes.length > 0 ? (
-        <MarketplaceFilterMenu label="Type" summary={typeSummary} active={Boolean(typeSummary)}>
+        <MarketplaceFilterMenu label="Type" closeOnSelect summary={typeSummary} active={Boolean(typeSummary)}>
           <MarketplaceFilterChipRow>
             <MarketplaceFilterChip pressed={propertyType === 'all'} onClick={() => setPropertyType('all')}>
               All
@@ -571,7 +571,7 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
           </MarketplaceFilterChipRow>
         </MarketplaceFilterMenu>
       ) : null}
-      <MarketplaceFilterMenu label="Price" summary={priceSummary} active={priceRange !== 'all'}>
+      <MarketplaceFilterMenu label="Price" closeOnSelect summary={priceSummary} active={priceRange !== 'all'}>
         <MarketplaceFilterChipRow>
           {priceChips.map((chip) => (
             <MarketplaceFilterChip
@@ -584,7 +584,7 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
           ))}
         </MarketplaceFilterChipRow>
       </MarketplaceFilterMenu>
-      <MarketplaceFilterMenu label="Rating" summary={ratingSummary} active={ratingFilter !== 'all'}>
+      <MarketplaceFilterMenu label="Rating" closeOnSelect summary={ratingSummary} active={ratingFilter !== 'all'}>
         <MarketplaceFilterChipRow>
           {RATING_FILTER_CHIPS.map((chip) => (
             <MarketplaceFilterChip

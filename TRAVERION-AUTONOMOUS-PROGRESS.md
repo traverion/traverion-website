@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800 complete · **801→850 traveler premium**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `5075fe9`  
-**Current phase:** 816  
+**Current SHA:** `bd9b1e8`  
+**Current phase:** 817  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -227,6 +227,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 814 | Stays primary search applies only on Search submit | `3bd281d` |
 | 815 | Close bookings.status NULL bypass (NOT NULL constraint) | `88418b2` |
 | 816 | Compact catalog card polish + skeleton density | `5075fe9` |
+| 817 | Catalog mobile cert + filter popover close-on-select | `bd9b1e8` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -4039,6 +4040,10 @@ Mirror Phase 813 on `/stays`: draft Where / check-in / check-out / guests drive 
 ### Phase 816 — Compact catalog card polish + skeleton density
 
 Browse cards: compact `aspect-[5/4]`, display-serif titles, group hover lift/scale (respects reduced motion), earlier lazy-load budget for denser grids. Skeleton grid matches 1/2/3/4 marketplace columns. Browser: `/packages` shows denser photographic cards with editorial titles. Freed disk caches mid-phase (disk was full). Concurrent migration 100 / patch_progress.py left untracked.
+
+### Phase 817 — Catalog mobile cert + filter popover close-on-select
+
+**Browser (390×844):** `/packages` — hamburger header, mobile search trigger, Filters + Sort, single-column compact cards, no horizontal overflow. Desktop filter menus for Destination/Price/Rating/Duration/Languages/Type close after a chip is chosen (Amenities/More stay open for multi-select).
 
 ## Known remaining risks (ranked)
 

@@ -726,7 +726,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
 
   const desktopFilters = (
     <MarketplaceSecondaryFilterRow sortControl={sortControl}>
-      <MarketplaceFilterMenu label="Destination" summary={destSummary} active={selectedDestination !== 'all'}>
+      <MarketplaceFilterMenu label="Destination" closeOnSelect summary={destSummary} active={selectedDestination !== 'all'}>
         <MarketplaceFilterChipRow>
           {destinationOptions.map((chip) => (
             <MarketplaceFilterChip
@@ -739,7 +739,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
           ))}
         </MarketplaceFilterChipRow>
       </MarketplaceFilterMenu>
-      <MarketplaceFilterMenu label="Price" summary={priceSummary} active={priceRange !== 'all'}>
+      <MarketplaceFilterMenu label="Price" closeOnSelect summary={priceSummary} active={priceRange !== 'all'}>
         <MarketplaceFilterChipRow>
           {priceChips.map((chip) => (
             <MarketplaceFilterChip
@@ -752,7 +752,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
           ))}
         </MarketplaceFilterChipRow>
       </MarketplaceFilterMenu>
-      <MarketplaceFilterMenu label="Rating" summary={ratingSummary} active={ratingFilter !== 'all'}>
+      <MarketplaceFilterMenu label="Rating" closeOnSelect summary={ratingSummary} active={ratingFilter !== 'all'}>
         <MarketplaceFilterChipRow>
           {RATING_FILTER_CHIPS.map((chip) => (
             <MarketplaceFilterChip
@@ -766,7 +766,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
         </MarketplaceFilterChipRow>
       </MarketplaceFilterMenu>
       {showDurationFilter ? (
-        <MarketplaceFilterMenu label="Duration" summary={durationSummary} active={durationFilter !== 'all'}>
+        <MarketplaceFilterMenu label="Duration" closeOnSelect summary={durationSummary} active={durationFilter !== 'all'}>
           <MarketplaceFilterChipRow>
             {DURATION_FILTER_CHIPS.map((chip) => (
               <MarketplaceFilterChip
