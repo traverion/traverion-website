@@ -1,10 +1,10 @@
 # TRAVERION-AUTONOMOUS-PROGRESS
 
-**Mission:** Phases 401→800 complete · **801→850 traveler premium**  
+**Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** tip after Phase 850 (`git rev-parse --short HEAD`)  
-**Current phase:** 850  
+**Current SHA:** `448828b`  
+**Current phase:** 851  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -261,6 +261,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 848 | Global visual/naming coherence | `7ca6bed` |
 | 849 | Responsive + a11y + performance certification | `7747874` |
 | 850 | Founder visual handoff TRAVERION-PHASE-850.md | see `git log -1` |
+| 851 | Marketplace completeness matrix + scroll re-verify | `448828b` |
 
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
@@ -4285,6 +4286,16 @@ Sitemap + Saved empty copy: “Wishlist” → **Saved**; drop “Stories (later
 Created `TRAVERION-PHASE-850.md` with executive verdict, architecture summaries, certification levels (implemented / automated-tested / browser-tested / mobile-browser-tested / code-inspected / blocked), known limitations, intentionally unchanged transaction truth, and exact founder visual test plan.
 
 **Mission 801→850 complete.** Stripe remains TEST. No fake inventory.
+
+### Phase 851 — Marketplace completeness recon + matrix
+
+**Mission shift:** 801–850 traveler premium → 851–1000+ full marketplace completeness.
+
+**Scroll (§61):** Re-verified Home vertical scroll over main content after `32abd10` (`overflow-x: clip`). **browser-tested**.
+
+**Deliverable:** `TRAVERION-MARKETPLACE-COMPLETENESS-MATRIX.md` — domain classifications, top P0/P1 gaps, Stripe TEST / no-fake inventory rules.
+
+**Next (852):** Adopt untracked migration `100` bookings.status NOT NULL + SQL test (structural P0), then partner create→publish certification band.
 
 ## Known remaining risks (ranked)
 
