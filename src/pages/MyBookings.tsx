@@ -358,9 +358,9 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   if (!isSupabaseConfigured()) {
     return (
       <div className="min-h-screen bg-paper tv-page">
-        <div className="max-w-2xl mx-auto px-4 py-8 pb-12">
-          <header className="mb-5 tv-card p-4 sm:p-5">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Your bookings</p>
+        <div className="mx-auto max-w-[90rem] px-4 sm:px-6 lg:px-8 py-8 pb-12">
+          <header className="mb-6 border-b border-black/[0.06] pb-5">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Your travel</p>
             <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Trips</h1>
             <p className="mt-2 text-sm text-ink-muted">Upcoming and past tours and stays you booked.</p>
           </header>
@@ -404,11 +404,11 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
     }
     return (
       <div className="min-h-screen bg-paper tv-page">
-        <div className="max-w-xl mx-auto px-4 py-8 pb-12">
-          <header className="mb-5 tv-card p-4 sm:p-5">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Your bookings</p>
+        <div className="mx-auto max-w-[90rem] px-4 sm:px-6 lg:px-8 py-8 pb-12">
+          <header className="mb-6 border-b border-black/[0.06] pb-5">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Your travel</p>
             <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Trips</h1>
-            <p className="mt-2 text-sm text-ink-muted leading-relaxed max-w-md">
+            <p className="mt-2 text-sm text-ink-muted leading-relaxed max-w-xl">
               Manage upcoming, past, and cancelled tours and stays after you sign in.
             </p>
           </header>
@@ -437,13 +437,13 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
 
   return (
     <div className="min-h-screen bg-paper tv-page">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 pb-12">
-        <header className="mb-5 tv-card p-4 sm:p-5">
+      <div className="mx-auto max-w-[90rem] px-4 sm:px-6 lg:px-8 py-8 pb-12">
+        <header className="mb-6 border-b border-black/[0.06] pb-5">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Your bookings</p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Your travel</p>
               <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Trips</h1>
-              <p className="mt-2 text-sm text-ink-muted max-w-md leading-relaxed">
+              <p className="mt-2 text-sm text-ink-muted max-w-xl leading-relaxed">
                 Manage upcoming, past, and cancelled tours and stays — payment, pickup, and references in one place.
               </p>
             </div>

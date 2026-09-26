@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800 complete · **801→850 traveler premium**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `459e6ea`  
-**Current phase:** 833  
+**Current SHA:** `39a2192`  
+**Current phase:** 834  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -4157,6 +4157,12 @@ Wider footer (`max-w-[90rem]`), display-serif brand + section titles, calmer cre
 **Tests:** `traveler-display-name.test.ts` pass; `tsc` clean. Phone remains required at signup (fraud/uniqueness). No country column yet — not invented.
 
 **Certification:** automated-tested + code-inspected. Browser account session not re-signed this phase.
+
+### Phase 834 — Saved + Trips shell coherence
+
+**Change:** Wishlist/Trips match traveler dashboard chrome: `max-w-[90rem]`, open hairline header (no card box), “Your travel” eyebrow. Wishlist H1 → **Saved** (nav alignment); compact marketplace grid for saved cards. Document title “Saved”. Logic/empty honesty unchanged.
+
+**Browser:** `/wishlist` — Saved header + stable Saved nav current verified.
 
 ## Known remaining risks (ranked)
 

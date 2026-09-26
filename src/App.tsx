@@ -422,7 +422,7 @@ function App() {
       'reset-password': { title: 'Set a new password', description: 'Choose a new password for your Traverion traveler account.' },
       'email-confirmed': { title: 'Email confirmed', description: 'Your Traverion traveler email was verified.' },
       account: { title: 'My account', description: 'Your profile, trips, and saved tours and stays.' },
-      wishlist: { title: 'Wishlist', description: 'Tours and stays you have saved.' },
+      wishlist: { title: 'Saved', description: 'Tours and stays you have saved.' },
       bookings: { title: 'Trips', description: 'View your tour and stay reservations and their status.' },
       'booking-confirmed': {
         title: 'Booking confirmed',

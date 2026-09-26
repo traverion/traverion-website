@@ -15,6 +15,7 @@ import { fetchListingById } from '../data/supabase-listings';
 import { TourPackage } from '../types/tour';
 import { PublicListingBrowseCard } from '../components/PublicListingBrowseCard';
 import { isListingVisibleToTravelers } from '../lib/product-workflows';
+import { MARKETPLACE_BROWSE_GRID_CLASS } from '../lib/marketplaceBrowse';
 
 interface WishlistPageProps {
   onNavigate: (page: string) => void;
@@ -88,10 +89,10 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
   if (!isSupabaseConfigured()) {
     return (
       <div className="min-h-screen bg-paper tv-page">
-        <div className="max-w-xl mx-auto px-4 py-8">
-          <header className="mb-5 tv-card p-4 sm:p-5">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Saved for later</p>
-            <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Wishlist</h1>
+        <div className="mx-auto max-w-[90rem] px-4 sm:px-6 lg:px-8 py-8">
+          <header className="mb-6 border-b border-black/[0.06] pb-5">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Your travel</p>
+            <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Saved</h1>
           </header>
           <EmptyState
             icon={Heart}
@@ -120,16 +121,16 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
     }
     return (
       <div className="min-h-screen bg-paper tv-page">
-        <div className="max-w-xl mx-auto px-4 py-8">
-          <header className="mb-5 tv-card p-4 sm:p-5">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Saved for later</p>
-            <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Wishlist</h1>
+        <div className="mx-auto max-w-[90rem] px-4 sm:px-6 lg:px-8 py-8">
+          <header className="mb-6 border-b border-black/[0.06] pb-5">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Your travel</p>
+            <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Saved</h1>
           </header>
           <EmptyState
             icon={LogIn}
             className="pt-2 pb-0"
             title="Log in to see saved tours and stays"
-            body="Wishlist is tied to your traveler account. Sign in to save tours and stays while you browse."
+            body="Saved listings are tied to your traveler account. Sign in to keep tours and stays while you browse."
             action={
               <div className="flex flex-wrap gap-2">
                 <button
@@ -158,13 +159,13 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
 
   return (
     <div className="min-h-screen bg-paper tv-page">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 pb-12">
-        <header className="mb-5 tv-card p-4 sm:p-5">
+      <div className="mx-auto max-w-[90rem] px-4 sm:px-6 lg:px-8 py-8 pb-12">
+        <header className="mb-6 border-b border-black/[0.06] pb-5">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Saved for later</p>
-              <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Wishlist</h1>
-              <p className="mt-2 text-sm text-ink-muted max-w-md leading-relaxed">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Your travel</p>
+              <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Saved</h1>
+              <p className="mt-2 text-sm text-ink-muted max-w-xl leading-relaxed">
                 Tours and stays you want to come back to — open one to check dates and book.
               </p>
             </div>
@@ -192,8 +193,8 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
           />
         )}
         {loading ? (
-          <div aria-busy="true" aria-label="Loading wishlist">
-            <SkeletonCardGrid count={4} />
+          <div aria-busy="true" aria-label="Loading saved listings">
+            <SkeletonCardGrid count={8} />
           </div>
         ) : error ? null : listings.length === 0 ? (
           <EmptyState
@@ -202,7 +203,7 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
             body={
               unavailableCount > 0
                 ? `${unavailableCount} saved listing${unavailableCount === 1 ? '' : 's'} are unpublished or gone, so they are not shown as bookable. Browse for something new or remove saves from listing pages when you reopen them.`
-                : 'Your wishlist is empty because you have not saved a tour or stay. Save one while browsing and it will show up here.'
+                : 'You have not saved a tour or stay yet. Save one while browsing and it will show up here.'
             }
             action={
               <div className="flex flex-wrap gap-2">
@@ -223,7 +224,7 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
                 this grid.
               </p>
             ) : null}
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 sm:gap-5">
+          <div className={MARKETPLACE_BROWSE_GRID_CLASS}>
             {listings.map((tour, index) => (
               <PublicListingBrowseCard
                 key={tour.id}
