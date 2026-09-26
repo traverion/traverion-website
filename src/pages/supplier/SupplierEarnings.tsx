@@ -293,6 +293,11 @@ export default function SupplierEarnings() {
           title={PARTNER_MONEY_LOAD_ERROR_TITLE}
           body={userFacingError(error, USER_ERROR.money)}
           retry={{ onClick: () => void load() }}
+          extra={
+            <a href="/contact" className="tv-btn-ghost inline-flex">
+              Contact support
+            </a>
+          }
         />
       )}
 
