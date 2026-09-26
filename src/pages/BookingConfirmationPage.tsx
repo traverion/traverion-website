@@ -63,7 +63,7 @@ interface BookingConfirmationPageProps {
 }
 
 export default function BookingConfirmationPage({ onNavigate }: BookingConfirmationPageProps) {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [sessionId] = useState(() => readStoredSessionId());
 
   useEffect(() => {
@@ -338,6 +338,19 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
               Browse stays
             </button>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center px-6 py-16 bg-paper">
+        <div className="w-full max-w-md tv-card p-4 sm:p-5 text-center">
+          <img src={BRAND_LOGO_SRC} alt="Traverion" className="h-9 w-auto mx-auto mb-6 opacity-90" />
+          <p className="text-ink-muted text-sm" aria-busy="true">
+            Checking your session…
+          </p>
         </div>
       </div>
     );
