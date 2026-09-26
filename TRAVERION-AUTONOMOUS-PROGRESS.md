@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `73e4f2c`  
-**Current phase:** 619  
+**Current SHA:** `5bcf823`  
+**Current phase:** 620  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -115,6 +115,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 617 | Pickup Planner no-date booking plural spacing | `197ae6d` |
 | 618 | Pluralize Adult/Child participant labels + mobile Inbox cert | `d617dc5` |
 | 619 | Checkout Participants strings use plural helper | `73e4f2c` |
+| 620 | Stop capitalizing partner payment labels on Bookings | `5bcf823` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3001,6 +3002,12 @@ Same split-text-node class as Phases 599/616: “No activity date” subsection 
 **Problem:** After Phase 618, partner Inbox/CSV pluralized Adult/Child, but BookingPage still wrote raw `` `${quantity} ${label}` `` into `Participants:` special_requests and the checkout summary (e.g. “2 Adult”).
 
 **Fix:** Use `formatParticipantQuantityLabel` in both paths so traveler checkout matches partner surfaces.
+
+### Phase 620 — Partner Bookings payment chips keep canonical casing
+
+**Problem:** List + detail payment chips applied Tailwind `capitalize` on `partnerPaymentLabel`, turning “Refund due” / “Checkout hold” into “Refund Due” / “Checkout Hold” — diverging from Inbox, Money, and CSV honesty.
+
+**Fix:** Remove `capitalize` from both chips so labels match `partnerPaymentLabel` exactly.
 
 ## Known remaining risks (ranked)
 

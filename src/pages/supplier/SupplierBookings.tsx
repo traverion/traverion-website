@@ -964,7 +964,7 @@ export default function SupplierBookings({
                         <p className="min-w-0 break-words text-sm font-semibold text-ink [overflow-wrap:anywhere] line-clamp-2">
                           {booking.guest_name || 'Guest'}
                         </p>
-                        <span className="text-[11px] font-medium capitalize text-ink-muted shrink-0">{partnerPaymentLabel(booking)}</span>
+                        <span className="text-[11px] font-medium text-ink-muted shrink-0">{partnerPaymentLabel(booking)}</span>
                       </div>
                       <p className="mt-0.5 break-words text-xs text-ink-muted [overflow-wrap:anywhere] line-clamp-2">
                         {listingTitle}
@@ -1174,7 +1174,7 @@ export default function SupplierBookings({
                       />
                     )}
                     <div className="min-w-0 flex-1">
-                      <span className={`inline-flex rounded-md px-2 py-0.5 text-[11px] font-semibold capitalize ring-1 ${bookingStatusClass(booking.status, booking.payment_status)}`}>
+                      <span className={`inline-flex rounded-md px-2 py-0.5 text-[11px] font-semibold ring-1 ${bookingStatusClass(booking.status, booking.payment_status)}`}>
                         {partnerPaymentLabel(booking)}
                       </span>
                       <p className="mt-1.5 break-words text-sm font-semibold text-ink [overflow-wrap:anywhere] line-clamp-2">
