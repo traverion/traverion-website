@@ -303,7 +303,11 @@ export default function Contact({ onNavigate }: ContactProps) {
                 </p>
               )}
             </div>
-            <button type="submit" disabled={isSubmitting} className="tv-btn-primary disabled:opacity-50">
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="tv-btn-primary lux-tap-target min-h-11 disabled:opacity-50"
+            >
               {isSubmitting ? 'Submitting…' : 'Submit message'}
             </button>
           </form>
