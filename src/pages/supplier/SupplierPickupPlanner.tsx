@@ -743,7 +743,7 @@ export default function SupplierPickupPlanner() {
         <button
           type="button"
           onClick={() => setSelectedBookingAndUrl(null)}
-          className="lux-flat inline-flex items-center gap-1.5 text-sm text-ink-muted hover:text-ink"
+          className="lux-flat lux-tap-target inline-flex min-h-11 items-center gap-1.5 px-1 text-sm text-ink-muted hover:text-ink"
         >
           <ArrowLeft className="w-4 h-4" aria-hidden />
           Pickup
