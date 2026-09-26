@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `d3773ca`  
-**Current phase:** 782  
+**Current SHA:** `bb10928`  
+**Current phase:** 783  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -193,6 +193,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 780 | Launch-break payment-states unit suite | `2a701b2` |
 | 781 | Launch-break Stripe TEST-only source proof | `b2c360b` |
 | 782 | Launch-break cert-email script stays untracked | `d3773ca` |
+| 783 | Launch-break remote migrations 080-099 still applied | `bb10928` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3791,6 +3792,29 @@ TRAVELER_PAY_NOW_TEST_CTA: 9\n```
 
 **Launch-break:** cert-email status:\n```\n.gitignore:93:scripts/cert-transactional-emails.cjs	scripts/cert-transactional-emails.cjs
 LOCAL_PRESENT\n```
+
+### Phase 783 — Launch-break remote migrations 080-099 still applied
+
+**Launch-break migrations:**\n```\n   080   | 080    | 080        
+   081   | 081    | 081        
+   082   | 082    | 082        
+   083   | 083    | 083        
+   084   | 084    | 084        
+   085   | 085    | 085        
+   086   | 086    | 086        
+   087   | 087    | 087        
+   088   | 088    | 088        
+   089   | 089    | 089        
+   090   | 090    | 090        
+   091   | 091    | 091        
+   092   | 092    | 092        
+   093   | 093    | 093        
+   094   | 094    | 094        
+   095   | 095    | 095        
+   096   | 096    | 096        
+   097   | 097    | 097        
+   098   | 098    | 098        
+   099   | 099    | 099        \n```
 
 ## Known remaining risks (ranked)
 
