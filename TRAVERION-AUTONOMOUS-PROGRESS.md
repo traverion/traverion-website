@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `d12b36a`  
-**Current phase:** 611  
+**Current SHA:** `4a72f9c`  
+**Current phase:** 612  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -107,6 +107,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 609 | Mobile Packages + tour detail sticky CTA 390×844 | `688dafc` |
 | 610 | Mobile date→options multi-departure handoff | `73990df` |
 | 611 | App tsc + production build clean | `d12b36a` |
+| 612 | Mobile Stays browse 390×844 | `4a72f9c` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -2951,6 +2952,10 @@ On Northern Lights detail: sticky **Pick a date** focuses calendar; selecting Su
 ### Phase 611 — Traveler-band build/tsc checkpoint
 
 After Phases 601–610: `tsc -p tsconfig.app.json` clean; `npm run build` succeeded (~4.5s). Stripe still TEST.
+
+### Phase 612 — Mobile Stays browse (390×844)
+
+Stays catalog under mobile viewport: Tours/Stays toggle, search rail (“Any dates · Add guests”), Filters/Sort, **2 stays** with per-night prices. One card still shows Free cancellation badge (likely tag/standard policy on that listing — Phase 604 made empty policy non-matching). Demo imagery still mismatched vs Rovaniemi (fixture debt).
 
 ## Known remaining risks (ranked)
 
