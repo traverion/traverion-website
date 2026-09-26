@@ -29,6 +29,13 @@ function familyLabel(family: InventoryFamily | undefined): 'Stay' | 'Tour' {
   return family === 'stay' ? 'Stay' : 'Tour';
 }
 
+/** Same locale shape as admin booking created_at chips. */
+function formatCreatedAtDisplay(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
 type SupplierReviewRow = ReviewDisplay & {
   listing_title?: string;
   listing_family?: InventoryFamily;
@@ -411,7 +418,7 @@ export default function SupplierReviews() {
                         <p className="text-sm text-ink-muted mb-1">
                           <span className="font-medium text-ink-muted">{kind}</span>
                           {' · '}
-                          {r.listing_title ?? 'Listing'} · {new Date(r.created_at).toLocaleDateString()}
+                          {r.listing_title ?? 'Listing'} · {formatCreatedAtDisplay(r.created_at)}
                         </p>
                         <div className="flex flex-wrap items-center gap-2 mb-2">
                           <span className="font-semibold text-ink">{r.guest_name}</span>
@@ -464,7 +471,7 @@ export default function SupplierReviews() {
                         </div>
                         <p className="mt-0.5 text-sm text-ink-muted leading-snug break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{replies[r.id].reply_text}</p>
                         <p className="text-[11px] text-ink-faint mt-1">
-                          {new Date(replies[r.id].created_at).toLocaleDateString()}
+                          {formatCreatedAtDisplay(replies[r.id].created_at)}
                         </p>
                       </div>
                     ) : !reviewHasWrittenFeedback(r) ? (
