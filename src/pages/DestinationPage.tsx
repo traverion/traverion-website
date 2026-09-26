@@ -145,10 +145,43 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
         </div>
         <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-black/20" aria-hidden />
         <div className="relative z-10 w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-6 sm:pb-8 pt-14">
-          <button type="button" onClick={onBack} className="lux-flat mb-4 inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1.5 text-sm text-white/90 ring-1 ring-white/20 backdrop-blur-sm hover:bg-white/25">
-            <ArrowLeft className="w-4 h-4" />
-            Back to browse
-          </button>
+          <nav
+            aria-label="Breadcrumb"
+            className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-sm text-white/90"
+          >
+            <button
+              type="button"
+              onClick={onBack}
+              className="lux-flat lux-tap-target inline-flex min-h-11 items-center gap-1.5 rounded-full bg-white/15 px-3 py-1.5 ring-1 ring-white/20 backdrop-blur-sm hover:bg-white/25"
+            >
+              <ArrowLeft className="w-4 h-4" aria-hidden />
+              Home
+            </button>
+            {onNavigate ? (
+              <>
+                <span className="text-white/50" aria-hidden>
+                  /
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onNavigate('packages')}
+                  className="lux-flat lux-tap-target inline-flex min-h-11 items-center rounded-full bg-white/15 px-3 py-1.5 ring-1 ring-white/20 backdrop-blur-sm hover:bg-white/25"
+                >
+                  Tours
+                </button>
+                <span className="text-white/50" aria-hidden>
+                  /
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onNavigate('stays')}
+                  className="lux-flat lux-tap-target inline-flex min-h-11 items-center rounded-full bg-white/15 px-3 py-1.5 ring-1 ring-white/20 backdrop-blur-sm hover:bg-white/25"
+                >
+                  Stays
+                </button>
+              </>
+            ) : null}
+          </nav>
           <p className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/80 mb-2">
             <MapPin className="h-3.5 w-3.5" aria-hidden />
             Destination
@@ -169,7 +202,7 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
           <ErrorState
             className="py-8"
             title="Destination unavailable"
-            body={userFacingError(listingsError, USER_ERROR.tours)}
+            body={userFacingError(listingsError, USER_ERROR.listings)}
             retry={{ onClick: () => reloadCatalog() }}
             back={{ onClick: onBack, label: 'Back to home' }}
           />
