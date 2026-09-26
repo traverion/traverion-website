@@ -563,7 +563,7 @@ export default function SupplierLayout() {
 
   const refreshSupplierOnboardingSignals = useCallback(async () => {
     if (!user?.id || !isSupabase) {
-      setOnboardingListingCount(0);
+      setOnboardingListingCount(null);
       setOnboardingHasPayout(false);
       setOnboardingHasCompany(false);
       setVerificationStatus('');
@@ -574,25 +574,29 @@ export default function SupplierLayout() {
       setPayoutVerificationFeedback('');
       return;
     }
-    const [profile, listings] = await Promise.all([
-      fetchSupplierProfile(user.id),
-      fetchMyListings(user.id),
-    ]);
-    setOnboardingListingCount(listings.length);
-    setOnboardingHasPayout(isSupplierPayoutConfigured(profile));
-    setOnboardingHasCompany(isSupplierBusinessProfileComplete(profile));
-    setProfileDisplayName((profile?.display_name ?? '').trim());
-    setCompanyLegalName((profile?.company_legal_name ?? '').trim());
-    setVerificationStatus((profile?.verification_status ?? '').trim());
-    setVerificationSubmittedAt(
-      profile?.verification_submitted_at ? String(profile.verification_submitted_at) : ''
-    );
-    setPayoutVerificationStatus((profile?.payout_verification_status ?? '').trim());
-    setPayoutVerificationSubmittedAt(
-      profile?.payout_verification_submitted_at ? String(profile.payout_verification_submitted_at) : ''
-    );
-    setBusinessVerificationFeedback((profile?.business_verification_feedback ?? '').trim());
-    setPayoutVerificationFeedback((profile?.payout_verification_feedback ?? '').trim());
+    try {
+      const [profile, listings] = await Promise.all([
+        fetchSupplierProfile(user.id),
+        fetchMyListings(user.id),
+      ]);
+      setOnboardingListingCount(listings.length);
+      setOnboardingHasPayout(isSupplierPayoutConfigured(profile));
+      setOnboardingHasCompany(isSupplierBusinessProfileComplete(profile));
+      setProfileDisplayName((profile?.display_name ?? '').trim());
+      setCompanyLegalName((profile?.company_legal_name ?? '').trim());
+      setVerificationStatus((profile?.verification_status ?? '').trim());
+      setVerificationSubmittedAt(
+        profile?.verification_submitted_at ? String(profile.verification_submitted_at) : ''
+      );
+      setPayoutVerificationStatus((profile?.payout_verification_status ?? '').trim());
+      setPayoutVerificationSubmittedAt(
+        profile?.payout_verification_submitted_at ? String(profile.payout_verification_submitted_at) : ''
+      );
+      setBusinessVerificationFeedback((profile?.business_verification_feedback ?? '').trim());
+      setPayoutVerificationFeedback((profile?.payout_verification_feedback ?? '').trim());
+    } catch {
+      setOnboardingListingCount(null);
+    }
   }, [user?.id, isSupabase]);
 
   useEffect(() => {
@@ -1049,7 +1053,7 @@ export default function SupplierLayout() {
                         onBusiness={() => openSettingsFocus('company')}
                         onPayout={() => openSettingsFocus('payout')}
                         onTours={() => {
-                          if ((onboardingListingCount ?? 0) > 0) {
+                          if (onboardingHasListing) {
                             handleNavigate('listings');
                           } else {
                             navigateSupplierUrl(PARTNER_CREATE_PATH);
@@ -1057,7 +1061,7 @@ export default function SupplierLayout() {
                         }}
                         businessDone={onboardingHasCompany}
                         payoutDone={onboardingHasPayout}
-                        hasListing={(onboardingListingCount ?? 0) > 0}
+                        hasListing={onboardingHasListing}
                         publishReady={onboardingBusinessVerified && onboardingPayoutVerified}
                       />
                     )}

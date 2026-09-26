@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `a31424e`  
-**Current phase:** 657  
+**Current SHA:** `ba76eb2`  
+**Current phase:** 658  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -153,6 +153,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 655 | StayDetails clear stay + catch listing fetch | `b4a9b25` |
 | 656 | Trips payment-success banner honest during webhook lag | `36fc213` |
 | 657 | Inbox stale-load guard + empty only after success | `a31424e` |
+| 658 | Onboarding listing count null until known | `ba76eb2` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3248,6 +3249,12 @@ Fast tour→tour navigation could apply a late `getListingByIdAsync` for the pre
 ### Phase 657 — Inbox: stale-load guard + empty only after success
 
 Same class as Trips/Bookings/Reviews: overlapping Inbox loads could apply stale threads; failed loads showed “No booking conversations yet”.
+
+### Phase 658 — Onboarding listing count null until known
+
+**Problem:** Failed/unsigned onboarding refresh coerced listing count to `0` and `hasListing={(count ?? 0) > 0}` treated unknown as no listing.
+
+**Fix:** Keep `null` when unknown/failed; pass `onboardingHasListing` (known && > 0) into PartnerOnboarding.
 
 ## Known remaining risks (ranked)
 
