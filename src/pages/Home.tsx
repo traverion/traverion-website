@@ -21,6 +21,7 @@ import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
 import { SkeletonCardGrid, SkeletonFeaturedHero, SkeletonPlaceGrid } from '../components/ui/Skeleton';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
+import { STRIPE_TEST_UNTIL_LIVE } from '../lib/booking-confirmation-copy';
 import { HERO_IMG } from '../lib/heroImages';
 import { prefetchPackagesPage } from '../lib/routePrefetch';
 import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
@@ -362,7 +363,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
             </span>
             <span className="inline-flex items-center gap-2">
               <span className="h-1.5 w-1.5 rounded-full bg-finland" aria-hidden />
-              Pay to confirm · Stripe TEST until live
+              Pay to confirm · {STRIPE_TEST_UNTIL_LIVE}
             </span>
           </p>
         </div>
@@ -662,7 +663,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">02</p>
               <p className="font-semibold text-ink mb-1.5">Clear money</p>
               <p className="text-sm leading-relaxed text-ink-muted">
-                Pay with Stripe TEST until live. Trips is your confirmation of record — we do not invent email receipts.
+                Pay with {STRIPE_TEST_UNTIL_LIVE}. Trips is your confirmation of record — we do not invent email receipts.
               </p>
             </div>
             <div className="tv-card p-4 sm:p-5">

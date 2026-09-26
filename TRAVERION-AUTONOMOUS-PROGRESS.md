@@ -3551,6 +3551,34 @@ Match Home search sheet close sizing on browse mobile search dialogs.
 
 Dashboard upcoming-by-date labels used ad-hoc `en-GB` formatting. Use `formatBookingDateDisplay`.
 
+### Phase 731 — Propagate STRIPE_TEST_UNTIL_LIVE to Home/Footer/App/Booking/About
+
+Wire the shared TEST phrase into Home trust lines, Footer, booking-confirmed meta, BookingPage step copy (and align file-header vocabulary Trip → Contact → Pay), and About.
+
+### Phase 733 — Messages heading semantics
+
+BookingMessageThread used a `<p>` for “Messages”. Promote to `<h2>` for landmark structure.
+
+### Phase 734 — Partner More sheet: aria-current on items
+
+Mobile More menu items lacked `aria-current="page"` for the active section.
+
+### Phase 735 — StayDetails missing vs unavailable ErrorState
+
+Stay load failures always titled “Stay unavailable”. Mirror tours: not-found vs unavailable + retry/contact.
+
+### Phase 736 — Sitemap partner portal honesty
+
+“Become a supplier” could read as traveler signup. Relabel Partner portal and clarify partner.traverion.com in the intro.
+
+### Phase 737 — Income description uses shared TEST constant
+
+Partner Earnings hero still hard-coded Stripe TEST until live. Use `STRIPE_TEST_UNTIL_LIVE`.
+
+### Phase 738 — Destination listings: published-only filter
+
+Destination catalog could include unpublished statuses from cache. Gate with `isListingVisibleToTravelers`.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Partner create→publish wizard** not browser-certified this pass (ops Home/Bookings/Calendar/Listings **are** localhost-browser certified in Phase 597). Full create→publish still pending.

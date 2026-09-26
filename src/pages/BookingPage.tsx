@@ -1,7 +1,6 @@
 /**
- * Single clean booking flow (GetYourGuide/TripAdvisor style):
- * Page: Date & guests → Contact → Confirm → Done.
- * Modal (from tour page): Trip summary → Checkout → Confirm → Done.
+ * Traveler booking flow vocabulary (Trip → Contact → Pay):
+ * Full page and tour-page modal share the same steps: trip details, contact, then pay.
  */
 import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
@@ -93,6 +92,7 @@ import {
   bookingContactIntroCopy,
   bookingPayConfirmAfterPayCopy,
   STRIPE_CHECKOUT_CANCELLED_TOUR_COPY,
+  STRIPE_TEST_UNTIL_LIVE,
 } from '../lib/booking-confirmation-copy';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 import NoticeCallout from '../components/NoticeCallout';
@@ -909,7 +909,8 @@ export default function BookingPage({
             <BookingProgress step={step} flow={progressFlow} />
             <h2 className="font-display text-xl text-ink mb-1.5">Your trip</h2>
             <p className="text-sm text-ink-muted mb-6">
-              Confirm date, option, and participants. Next you will enter contact details, then pay on Stripe TEST until live.
+              Confirm date, option, and participants. Next you will enter contact details, then pay on{' '}
+              {STRIPE_TEST_UNTIL_LIVE}.
             </p>
             <div className="space-y-3 text-sm text-ink-muted mb-6 rounded-xl bg-paper px-4 py-3.5 ring-1 ring-black/[0.05]">
               <p>
@@ -1338,7 +1339,7 @@ export default function BookingPage({
               <ClipboardList className="w-4 h-4 text-finland shrink-0 mt-0.5" aria-hidden />
               <span>
                 {isSupabaseConfigured()
-                  ? `Confirm the details below, then pay ${formatMoney(total, currency)} on Stripe TEST. Your spots are held for ${CHECKOUT_HOLD_MINUTES} minutes while you check out.`
+                  ? `Confirm the details below, then pay ${formatMoney(total, currency)} on ${STRIPE_TEST_UNTIL_LIVE}. Your spots are held for ${CHECKOUT_HOLD_MINUTES} minutes while you check out.`
                   : 'Live card checkout is not configured in this environment. We will not pretend a payment succeeded.'}
               </span>
             </p>
@@ -1441,7 +1442,7 @@ export default function BookingPage({
                   originalTotal={quoted.originalUnitPrice * quoted.guests}
                   discountLabel={quoted.discountLabel}
                   holdNote={`Spots are held for ${CHECKOUT_HOLD_MINUTES} minutes after you continue to Stripe. If checkout expires, the hold is released.`}
-                  footnote="This is the amount Stripe TEST will charge until live payments. Currency matches the listing."
+                  footnote={`This is the amount ${STRIPE_TEST_UNTIL_LIVE} will charge. Currency matches the listing.`}
                 />
               ) : (
                 <>
@@ -1517,7 +1518,7 @@ export default function BookingPage({
                         ? `Sold out · ${departureTime}`
                         : 'Sold out'
                     : isSupabaseConfigured()
-                      ? `Pay with Stripe TEST · ${formatMoney(total, currency)}`
+                      ? `Pay with ${STRIPE_TEST_UNTIL_LIVE} · ${formatMoney(total, currency)}`
                       : 'Continue to payment'}
                 </button>
               </div>
@@ -1586,7 +1587,7 @@ export default function BookingPage({
                   ? `Sold out · ${departureTime}`
                   : 'Sold out'
               : isSupabaseConfigured()
-                ? `Pay with Stripe TEST · ${formatMoney(total, currency)}`
+                ? `Pay with ${STRIPE_TEST_UNTIL_LIVE} · ${formatMoney(total, currency)}`
                 : 'Continue to payment'}
           </button>
         </div>

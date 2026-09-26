@@ -25,6 +25,7 @@ import {
   mapStripeReturnRoute,
   navigateBackOrFallback,
 } from './lib/appRouting';
+import { STRIPE_TEST_UNTIL_LIVE } from './lib/booking-confirmation-copy';
 import {
   isTraverionAdminHost,
   isPublicTraverionMarketingHost,
@@ -423,7 +424,10 @@ function App() {
       account: { title: 'My account', description: 'Your profile, trips, and saved tours and stays.' },
       wishlist: { title: 'Wishlist', description: 'Tours and stays you have saved.' },
       bookings: { title: 'Trips', description: 'View your tour and stay reservations and their status.' },
-      'booking-confirmed': { title: 'Booking confirmed', description: 'Your tour or stay payment was successful. Stripe TEST until live.' },
+      'booking-confirmed': {
+        title: 'Booking confirmed',
+        description: `Your tour or stay payment was successful. ${STRIPE_TEST_UNTIL_LIVE}.`,
+      },
       blog: { title: 'Stories coming later', description: 'Traverion is not publishing editorial articles yet.' },
       contact: { title: 'Contact', description: 'Get in touch with Traverion.' },
       privacy: { title: 'Privacy Policy', description: 'Traverion privacy policy.' },

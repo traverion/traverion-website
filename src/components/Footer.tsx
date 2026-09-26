@@ -2,6 +2,7 @@ import { Instagram } from 'lucide-react';
 import { BRAND_LOGO_SRC } from '../lib/brandAssets';
 import { supplierPortalLandingHref } from '../lib/partnerHost';
 import { publicSiteBaseUrl } from '../lib/publicSiteUrl';
+import { STRIPE_TEST_UNTIL_LIVE } from '../lib/booking-confirmation-copy';
 
 /** TikTok logo (Lucide has no brand icon). */
 function TikTokIcon({ className }: { className?: string }) {
@@ -40,7 +41,7 @@ export default function Footer({ onNavigate }: { onNavigate?: (page: string) => 
               <span className="font-sans text-sm font-semibold tracking-[0.18em] text-ink">TRAVERION</span>
             </a>
             <p className="text-sm text-ink-muted leading-relaxed m-0">
-              Discover and book tours and stays from independent operators. Stripe TEST until live.
+              Discover and book tours and stays from independent operators. {STRIPE_TEST_UNTIL_LIVE}.
             </p>
           </div>
 
