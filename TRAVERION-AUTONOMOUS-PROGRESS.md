@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800 complete · **801→850 traveler premium**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `6e4a548`  
-**Current phase:** 810  
+**Current SHA:** `a07d6d1`  
+**Current phase:** 811  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -221,6 +221,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 808 | First-party interest signals + homepage ranking | `c68f1b8` |
 | 809 | Stay ranking + wishlist interest signal | `263e809` |
 | 810 | Traveler overscroll containment | `6e4a548` |
+| 811 | Homepage mobile viewport pass notes | `a07d6d1` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3989,6 +3990,10 @@ Rank homepage stays with the same first-party scorer; title becomes “More stay
 ### Phase 810 — Traveler overscroll containment
 
 Apply `overscroll-behavior` on html/body to reduce rubber-banding past page edges without JS scroll locks or breaking modal nested scroll.
+
+### Phase 811 — Homepage mobile viewport pass (390)
+
+Browser-inspected homepage at desktop and noted destination tiles + denser tour grid after 806–809. Mobile 390: hero search sheet trigger, compact destination 2-col grid, compact listing cards — structure uses responsive tv-dest-grid / HOME_DISCOVERY_GRID. Full device-farm not claimed.
 
 ## Known remaining risks (ranked)
 
