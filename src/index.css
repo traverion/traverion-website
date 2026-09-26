@@ -2,6 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Reduce rubber-band overscroll on traveler chrome without locking nested scrollers */
+html {
+  overscroll-behavior-y: none;
+}
+body {
+  overscroll-behavior-y: contain;
+}
+
 @layer utilities {
   .partner-app-shell {
     -webkit-tap-highlight-color: transparent;

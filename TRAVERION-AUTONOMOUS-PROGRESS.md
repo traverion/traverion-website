@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800 complete · **801→850 traveler premium**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `263e809`  
-**Current phase:** 809  
+**Current SHA:** `6e4a548`  
+**Current phase:** 810  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -220,6 +220,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 807 | Denser homepage listing discovery + section rhythm | `858b7ce` |
 | 808 | First-party interest signals + homepage ranking | `c68f1b8` |
 | 809 | Stay ranking + wishlist interest signal | `263e809` |
+| 810 | Traveler overscroll containment | `6e4a548` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3984,6 +3985,10 @@ Cookies and marketing preferences: 7\n```
 ### Phase 809 — Stay ranking + wishlist interest signal
 
 Rank homepage stays with the same first-party scorer; title becomes “More stays near …” when destination affinity exists. Wishlist saves record `wishlist_save` signals.
+
+### Phase 810 — Traveler overscroll containment
+
+Apply `overscroll-behavior` on html/body to reduce rubber-banding past page edges without JS scroll locks or breaking modal nested scroll.
 
 ## Known remaining risks (ranked)
 
