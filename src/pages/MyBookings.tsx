@@ -701,6 +701,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
               >
                 <button
                   type="button"
+                  aria-expanded={open}
                   onClick={() => {
                     const next = open ? null : b.id;
                     setOpenTripId(next);

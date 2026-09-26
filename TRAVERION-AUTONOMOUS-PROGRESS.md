@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `ba432c3`  
-**Current phase:** 630  
+**Current SHA:** `02c570a`  
+**Current phase:** 631  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -126,6 +126,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 628 | Trips Participants label + snapshot pickup time line | `3c599d8` |
 | 629 | Stop seeding traveler display_name from email local-part | `a68ac76` |
 | 630 | Review star a11y + profile display_name on submit | `ba432c3` |
+| 631 | Trips accordion aria-expanded | `02c570a` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3081,6 +3082,10 @@ Same split-text-node class: Availability bulk capacity copy rendered `date` / `s
 **Problem:** Star rating buttons lacked accessible names/pressed state. Review submit still omitted `consumer_profiles.display_name` (Tour) and Stay only used form+metadata.
 
 **Fix:** `aria-label` / `aria-pressed` on rating buttons; cache `profileDisplayName` from `fetchConsumerProfileRow` into `travelerDisplayNameFromSources` on both tour and stay review submit.
+
+### Phase 631 — Trips accordion exposes aria-expanded
+
+Trip row toggles lacked `aria-expanded`, so screen readers could not tell whether booking detail was open.
 
 ## Known remaining risks (ranked)
 
