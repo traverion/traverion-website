@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `dd1afcc`  
-**Current phase:** 614  
+**Current SHA:** `e73b53b`  
+**Current phase:** 615  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -110,6 +110,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 612 | Mobile Stays browse 390×844 | `4a72f9c` |
 | 613 | Mobile stay detail + occupancy calendar 390×844 | `f84f225` |
 | 614 | Stay lead-guest autofill from traveler profile only | `dd1afcc` |
+| 615 | Checkout concurrency/hold/resume Vitest re-cert | `e73b53b` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -2970,6 +2971,10 @@ Riverside Apartment detail: sticky **Select dates** + Stripe TEST, night calenda
 **Problem:** StayDetails filled lead guest from `email.split('@')[0]`, so a partner session on shared localhost produced `aurora-ops` as the traveler name.
 
 **Fix:** Autofill only from consumer profile display name / traveler metadata — never from email local-part.
+
+### Phase 615 — Checkout concurrency / hold / resume re-cert
+
+Vitest: checkout-inventory-concurrency (3), checkout-inventory-conflict, booking-hold, checkout-resume, checkout-confirmation-reconcile — all green (focused batch).
 
 ## Known remaining risks (ranked)
 
