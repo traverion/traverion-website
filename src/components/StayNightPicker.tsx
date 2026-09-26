@@ -81,10 +81,10 @@ export default function StayNightPicker({
       <div className="flex items-center justify-between mb-2">
         <p className="text-sm font-semibold text-ink">{monthTitle(cursor.y, cursor.m)}</p>
         <div className="flex gap-1">
-          <button type="button" className="lux-tap-target p-1.5 rounded-lg" aria-label="Previous month" onClick={() => shift(-1)}>
+          <button type="button" className="lux-tap-target min-h-11 min-w-11 inline-flex items-center justify-center p-1.5 rounded-lg" aria-label="Previous month" onClick={() => shift(-1)}>
             <ChevronLeft className="w-4 h-4" />
           </button>
-          <button type="button" className="lux-tap-target p-1.5 rounded-lg" aria-label="Next month" onClick={() => shift(1)}>
+          <button type="button" className="lux-tap-target min-h-11 min-w-11 inline-flex items-center justify-center p-1.5 rounded-lg" aria-label="Next month" onClick={() => shift(1)}>
             <ChevronRight className="w-4 h-4" />
           </button>
         </div>

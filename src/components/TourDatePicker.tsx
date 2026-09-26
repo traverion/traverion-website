@@ -83,7 +83,7 @@ export default function TourDatePicker({
           <div className="flex gap-1">
             <button
               type="button"
-              className="lux-tap-target p-1.5 rounded-lg"
+              className="lux-tap-target min-h-11 min-w-11 inline-flex items-center justify-center p-1.5 rounded-lg"
               aria-label="Previous month"
               onClick={() => shift(-1)}
             >
@@ -91,7 +91,7 @@ export default function TourDatePicker({
             </button>
             <button
               type="button"
-              className="lux-tap-target p-1.5 rounded-lg"
+              className="lux-tap-target min-h-11 min-w-11 inline-flex items-center justify-center p-1.5 rounded-lg"
               aria-label="Next month"
               onClick={() => shift(1)}
             >
