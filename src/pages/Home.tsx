@@ -190,7 +190,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
         role="tab"
         aria-selected={searchFamily === 'tours'}
         onClick={() => setSearchFamily('tours')}
-        className={`lux-flat rounded-full px-4 py-1.5 text-sm font-medium transition-colors flex-1 sm:flex-none ${
+        className={`lux-flat rounded-full px-4 min-h-11 py-2 text-sm font-medium transition-colors flex-1 sm:flex-none ${
           searchFamily === 'tours'
             ? variant === 'hero'
               ? 'bg-white text-ink shadow-sm ring-2 ring-white'
@@ -207,7 +207,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
         role="tab"
         aria-selected={searchFamily === 'stays'}
         onClick={() => setSearchFamily('stays')}
-        className={`lux-flat rounded-full px-4 py-1.5 text-sm font-medium transition-colors flex-1 sm:flex-none ${
+        className={`lux-flat rounded-full px-4 min-h-11 py-2 text-sm font-medium transition-colors flex-1 sm:flex-none ${
           searchFamily === 'stays'
             ? variant === 'hero'
               ? 'bg-white text-ink shadow-sm ring-2 ring-white'
@@ -268,6 +268,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
               className="w-full flex items-center gap-3 rounded-2xl bg-paper-raised text-ink px-4 py-3.5 shadow-soft-xl ring-1 ring-black/[0.06] text-left active:scale-[0.99] transition-transform"
               aria-haspopup="dialog"
               aria-expanded={mobileSearchOpen}
+              aria-controls="home-mobile-search-dialog"
             >
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-finland text-white" aria-hidden>
                 <Search className="w-4 h-4" />
@@ -316,6 +317,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
           <aside
             role="dialog"
             aria-modal="true"
+            id="home-mobile-search-dialog"
             aria-labelledby="home-mobile-search-title"
             className="tv-sheet-panel relative flex max-h-[min(92dvh,40rem)] flex-col overflow-hidden motion-safe:animate-slide-up"
           >

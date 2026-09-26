@@ -3351,6 +3351,34 @@ Mobile nav lacked `aria-current` / `type="button"`; unread trip dots were visual
 
 Payment confirmation `load()` could apply a prior account’s booking after switch. Guard with `loadGenRef`.
 
+### Phase 681 — Home: 44px family tabs + mobile search aria-controls
+
+Hero Tours/Stays tabs were ~32px tall; mobile search trigger lacked `aria-controls`. Raise tap targets and link the dialog id.
+
+### Phase 682 — AuthModal: larger tabs/password toggles + phone inputMode
+
+Log in/Sign up tabs and show-password controls undersized for touch; signup phone missing `inputMode="tel"`.
+
+### Phase 683 — AuthPage: match AuthModal mobile a11y
+
+Same tab height, password toggle targets, and phone `inputMode` on the full-page auth flow.
+
+### Phase 684 — Date pickers: 44px month chevrons
+
+TourDatePicker and StayNightPicker month controls used `p-1.5` despite `lux-tap-target`. Force `min-h-11 min-w-11`.
+
+### Phase 685 — Contact phone: inputMode=tel
+
+Contact form phone field lacked mobile numeric keyboard hint.
+
+### Phase 686 — TourOverview: aria-controls on Show more
+
+Show more/less had `aria-expanded` without pointing at the description region.
+
+### Phase 687 — Browse mobile search: aria-controls on Packages/Stays
+
+Marketplace mobile search triggers lacked `aria-controls`; wire dialog ids on Tours/Stays sheets.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Partner create→publish wizard** not browser-certified this pass (ops Home/Bookings/Calendar/Listings **are** localhost-browser certified in Phase 597). Full create→publish still pending.
