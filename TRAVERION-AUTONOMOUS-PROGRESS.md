@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800 complete · **801→850 traveler premium**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `da155ac`  
-**Current phase:** 837  
+**Current SHA:** `7a783d1`  
+**Current phase:** 838  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -4183,6 +4183,12 @@ Extend Phase 832 shell: Legal Notice and Cookies pages get on-this-page TOCs wit
 Also finished remaining Cookies `h2` ids for TOC anchors (partial apply from 836).
 
 Cleared device metrics after pass.
+
+### Phase 838 — Mobile tour detail cert + catalog footnote soft
+
+**Browser (390×844):** Opened Guaranteed Northern Lights Tour from catalog. Gallery, identity (Rovaniemi, 5.0 · 2 reviews), quick facts card, sticky “Pick a date” + From price. **mobile-browser-tested**. Real review count shown.
+
+**Copy:** Tours catalog footnote no longer reads as publish-pipeline QA (“Live tours…when they publish”) → “Showing published tours from independent operators.”
 
 ## Known remaining risks (ranked)
 

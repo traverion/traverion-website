@@ -1041,7 +1041,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
               ))}
             </div>
             <p className="mt-8 text-sm text-ink-faint max-w-lg">
-              Live tours from operators appear here when they publish.
+              Showing published tours from independent operators.
             </p>
           </>
         ) : (
