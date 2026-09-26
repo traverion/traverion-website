@@ -30,6 +30,7 @@ import { pgTimeToHm } from '../../data/supabase-listings';
 import { stayRangeFromBooking } from '../../lib/stayOccupancy';
 import { formatStayNightHuman } from '../../lib/stay-calendar';
 import { localYmd } from '../../lib/local-ymd';
+import { formatBookingDateDisplay } from '../../lib/booking-flow';
 import { PARTNER_INBOX_MESSAGE_FETCH_CAP } from '../../lib/partner-inbox-cap';
 import { parseListingExtras, materializedBookingOptions } from '../../types/listingExtras';
 import {
@@ -896,14 +897,13 @@ export default function SupplierDashboard() {
           ) : (
             <div className="partner-surface-panel space-y-1 px-3 py-2.5">
               {upcomingByDate.map(([ymd, rows]) => {
-                const dateObj = new Date(`${ymd}T12:00:00`);
-                const dayLabel = dateObj
-                  .toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric' })
-                  .toUpperCase();
+                const dayLabel = formatBookingDateDisplay(ymd);
                 return (
                   <div key={ymd} className="flex gap-3 py-1">
-                    <div className="w-14 shrink-0 pt-0.5">
-                      <p className="text-[11px] font-semibold tracking-[0.06em] text-finland">{dayLabel}</p>
+                    <div className="w-[7.5rem] shrink-0 pt-0.5 sm:w-36">
+                      <p className="text-[11px] font-semibold leading-snug tracking-[0.04em] text-finland">
+                        {dayLabel}
+                      </p>
                     </div>
                     <ul className="min-w-0 flex-1 space-y-1.5">
                       {rows.map((b) => {
