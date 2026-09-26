@@ -244,11 +244,11 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
 
   return (
     <div className="min-h-screen bg-paper">
-      <section className="relative text-white min-h-[min(92dvh,52rem)] flex flex-col justify-end overflow-hidden tv-page">
+      <section className="relative text-white min-h-[min(92dvh,52rem)] flex flex-col justify-end overflow-hidden tv-page bg-ink">
         <div className="page-hero-media" aria-hidden>
           <img src={HERO_IMG.vacation} alt="" fetchPriority="high" decoding="async" width={1600} height={1067} />
         </div>
-        <div className="absolute inset-0 bg-gradient-to-t from-black/88 via-black/45 to-black/25" aria-hidden />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/88 via-black/50 to-black/35" aria-hidden />
         <div className="relative z-10 w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-10 sm:pb-14 page-hero-content">
           <p className="font-display text-3xl sm:text-4xl tracking-[0.04em] text-white mb-3 sm:mb-4">TRAVERION</p>
           <h1 className="page-hero-title font-display text-3xl sm:text-5xl lg:text-6xl tracking-tight max-w-2xl leading-[1.08] mb-4">

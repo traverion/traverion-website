@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800 complete · **801→850 traveler premium**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `4f0e111`  
-**Current phase:** 803  
+**Current SHA:** `cb9b898`  
+**Current phase:** 804  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -214,6 +214,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 801 | Consumer vs payment test-mode presentation | `f7a50ca` |
 | 802 | Stable traveler header chrome | `635aac3` |
 | 803 | Profile menu mature account surface | `4f0e111` |
+| 804 | Traveler layout primitives + hero contrast | `cb9b898` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3940,6 +3941,12 @@ Cookies and marketing preferences: 7\n```
 **Problem:** Profile dropdown was a narrow 12rem list with email only.
 
 **Fix:** Wider menu with identity header (initial + display name/email), 44px items for Account / Trips / Saved / Contact, Partner portal link, Log out — without inventing a Messages destination (messages live on Trips).
+
+### Phase 804 — Traveler layout primitives + hero contrast
+
+**Problem:** Homepage sections used ad-hoc max-widths; hero white type could wash out if media lagged; destination densification needed shared tile primitives.
+
+**Fix:** CSS tokens `--tv-content-*`, `.tv-content`, `.tv-section*`, `.tv-dest-grid` / `.tv-dest-tile`. Hero base `bg-ink` + slightly stronger overlay so white display type stays readable.
 
 ## Known remaining risks (ranked)
 
