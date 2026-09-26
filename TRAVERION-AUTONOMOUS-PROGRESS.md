@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `39aea74`  
-**Current phase:** 639  
+**Current SHA:** `32c44c6`  
+**Current phase:** 640  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -135,6 +135,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 637 | Wishlist hides unpublished + stale load guard | `a0790d9` |
 | 638 | Trips stay-draft preserve + tab a11y | `3690179` |
 | 639 | Trips load gates on user id | `39aea74` |
+| 640 | Confirmation loads on user id not email | `32c44c6` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3140,6 +3141,12 @@ Same class as BookingPage Phase 633: StayDetails lead-guest name/phone could lin
 **Problem:** `MyBookings.load` required `user.email`, so signed-in sessions without an email field never fetched trips.
 
 **Fix:** Gate on `user?.id` only (same as `fetchMyBookings` / Account stats).
+
+### Phase 640 — Confirmation loads without requiring user.email
+
+**Problem:** Confirmation `canQuery` / `load` / sign-in gate required `user.email` though booking fetch is session/RLS by user id — phone-only or email-less sessions stalled.
+
+**Fix:** Gate on `user?.id`; update sign-in copy to “same account”.
 
 ## Known remaining risks (ranked)
 

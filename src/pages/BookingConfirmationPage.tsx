@@ -86,7 +86,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
   const [payNowError, setPayNowError] = useState<string | null>(null);
   const [copiedRef, setCopiedRef] = useState(false);
 
-  const canQuery = Boolean(user?.email && sessionId && isSupabaseConfigured());
+  const canQuery = Boolean(user?.id && sessionId && isSupabaseConfigured());
 
   const load = useCallback(async () => {
     if (!sessionId) {
@@ -97,7 +97,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
       setError('Bookings are unavailable in this environment.');
       return;
     }
-    if (!user?.email) return;
+    if (!user?.id) return;
     setError(null);
     try {
       const row = await fetchMyBookingByCheckoutSessionId(sessionId);
@@ -153,7 +153,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
     } catch (e) {
       setError(userFacingError(e, USER_ERROR.booking));
     }
-  }, [sessionId, user?.email]);
+  }, [sessionId, user?.id]);
 
   useEffect(() => {
     if (!canQuery) return;
@@ -343,14 +343,14 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
     );
   }
 
-  if (!user?.email) {
+  if (!user?.id) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-6 py-16 bg-paper">
         <div className="w-full max-w-md tv-card p-4 sm:p-5 text-center">
           <img src={BRAND_LOGO_SRC} alt="Traverion" className="h-9 w-auto mx-auto mb-6 opacity-90" />
           <p className="text-ink font-medium">Sign in to see your confirmation</p>
           <p className="text-ink-muted text-sm mt-2 mb-6 leading-relaxed">
-            Your payment was tied to your account. Sign in with the same email to view this booking.
+            Your payment was tied to your account. Sign in with the same account to view this booking.
           </p>
           <button type="button" onClick={goSignIn} className="tv-btn-primary w-full">
             <LogIn className="w-4 h-4" />
