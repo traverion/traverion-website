@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `3690179`  
-**Current phase:** 638  
+**Current SHA:** `39aea74`  
+**Current phase:** 639  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -134,6 +134,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 636 | Account hub stats gate on user id | `a63c48c` |
 | 637 | Wishlist hides unpublished + stale load guard | `a0790d9` |
 | 638 | Trips stay-draft preserve + tab a11y | `3690179` |
+| 639 | Trips load gates on user id | `39aea74` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3133,6 +3134,12 @@ Same class as BookingPage Phase 633: StayDetails lead-guest name/phone could lin
 **Problem:** Refreshing bookings wiped in-progress “Place of stay” drafts. Upcoming/Past/Cancelled controls lacked tab semantics and had short tap targets on ~390px.
 
 **Fix:** Seed stay drafts only for new booking ids; keep dirty edits. `role="tablist"` / `aria-selected` + `min-h-11`.
+
+### Phase 639 — Trips load gates on user id
+
+**Problem:** `MyBookings.load` required `user.email`, so signed-in sessions without an email field never fetched trips.
+
+**Fix:** Gate on `user?.id` only (same as `fetchMyBookings` / Account stats).
 
 ## Known remaining risks (ranked)
 

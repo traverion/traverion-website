@@ -131,7 +131,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   }, []);
 
   const load = useCallback(async () => {
-    if (!isSupabaseConfigured() || !user?.email) {
+    if (!isSupabaseConfigured() || !user?.id) {
       setLoading(false);
       return;
     }
@@ -155,7 +155,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
     } finally {
       setLoading(false);
     }
-  }, [user?.email]);
+  }, [user?.id]);
 
   useEffect(() => {
     setStayDrafts((prev) => {
