@@ -1035,8 +1035,9 @@ export default function SupplierAvailability() {
             {bulkError ? <p className="text-sm text-red-700">{bulkError}</p> : null}
             {bulkFrom && bulkTo && bulkFrom <= bulkTo ? (
               <p className="text-xs text-ink-faint">
-                Applies to {enumerateIsoDates(bulkFrom, bulkTo).length} date
-                {enumerateIsoDates(bulkFrom, bulkTo).length === 1 ? '' : 's'}.
+                {`Applies to ${enumerateIsoDates(bulkFrom, bulkTo).length} date${
+                  enumerateIsoDates(bulkFrom, bulkTo).length === 1 ? '' : 's'
+                }.`}
               </p>
             ) : null}
             <div className="flex flex-wrap gap-2 pt-1">

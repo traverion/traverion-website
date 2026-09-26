@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `550c67c`  
-**Current phase:** 622  
+**Current SHA:** `7d6cb24`  
+**Current phase:** 623  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -118,6 +118,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 620 | Stop capitalizing partner payment labels on Bookings | `5bcf823` |
 | 621 | Tour detail option label + sticky quote gate + tour-switch reset | `beca448` |
 | 622 | Trips empty/cancel CTAs include Browse stays | `550c67c` |
+| 623 | Schedules bulk range date plural spacing | `7d6cb24` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3027,6 +3028,10 @@ Same split-text-node class as Phases 599/616: “No activity date” subsection 
 **Problem:** Primary “No trips yet” empty state and Stripe-cancel recovery (when no pending pay booking) only offered “Browse tours”, while per-tab empties already offered stays — commercial path incomplete for stay-first travelers.
 
 **Fix:** Add “Browse stays” ghost CTAs beside Browse tours on those surfaces (and bookings-unavailable fallback).
+
+### Phase 623 — Schedules bulk range “date s” plural spacing
+
+Same split-text-node class: Availability bulk capacity copy rendered `date` / `s` separately. Collapsed to one template string.
 
 ## Known remaining risks (ranked)
 
