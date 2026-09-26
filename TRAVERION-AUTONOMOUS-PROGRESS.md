@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800 complete · **801→850 traveler premium**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `bd9b1e8`  
-**Current phase:** 817  
+**Current SHA:** `a74242c`  
+**Current phase:** 818  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -228,6 +228,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 815 | Close bookings.status NULL bypass (NOT NULL constraint) | `88418b2` |
 | 816 | Compact catalog card polish + skeleton density | `5075fe9` |
 | 817 | Catalog mobile cert + filter popover close-on-select | `bd9b1e8` |
+| 818 | Search + catalog band checkpoint 813-817 | `a74242c` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -4044,6 +4045,17 @@ Browse cards: compact `aspect-[5/4]`, display-serif titles, group hover lift/sca
 ### Phase 817 — Catalog mobile cert + filter popover close-on-select
 
 **Browser (390×844):** `/packages` — hamburger header, mobile search trigger, Filters + Sort, single-column compact cards, no horizontal overflow. Desktop filter menus for Destination/Price/Rating/Duration/Languages/Type close after a chip is chosen (Amenities/More stay open for multi-select).
+
+### Phase 818 — Search + catalog band checkpoint (813–817)
+
+**Closed this band:**
+- Tours/Stays primary search: draft fields + explicit Search (URL/filters only on submit)
+- Horizontal desktop filter popovers (no left sidebar); mobile sheet retained
+- Denser catalog grid (≤4 cols) + compact cards + matching skeletons
+- Mobile 390×844 Tours catalog browser-certified
+- Single-select filter menus close on chip (Languages included this phase)
+
+**Next band:** shared Traverion calendar + guest picker (821+), starting with search date fields replacing native `type=date`. Stripe TEST unchanged. Concurrent migration 100 left untracked.
 
 ## Known remaining risks (ranked)
 

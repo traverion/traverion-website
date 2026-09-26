@@ -783,6 +783,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
       {languageOptions.length > 0 ? (
         <MarketplaceFilterMenu
           label="Languages"
+          closeOnSelect
           summary={languageSummary}
           active={Boolean(languageFilter && languageFilter !== 'all')}
         >
