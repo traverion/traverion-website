@@ -328,8 +328,13 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                   {searchFamily === 'stays' ? 'Find a stay' : 'Find a tour'}
                 </h2>
               </div>
-              <button type="button" onClick={closeMobileSearch} className="lux-tap-target p-2 -mr-1" aria-label="Close">
-                <X className="w-5 h-5" />
+              <button
+                type="button"
+                onClick={closeMobileSearch}
+                className="lux-tap-target inline-flex min-h-11 min-w-11 items-center justify-center p-2 -mr-1"
+                aria-label="Close"
+              >
+                <X className="w-5 h-5" aria-hidden />
               </button>
             </div>
             <div className="mb-4">{familyTabs('sheet')}</div>
