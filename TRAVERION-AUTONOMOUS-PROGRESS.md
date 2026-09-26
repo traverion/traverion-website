@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `751f168`  
-**Current phase:** 782  
+**Current SHA:** `612f115`  
+**Current phase:** 796  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -206,6 +206,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 793 | Launch-break branch ahead count journal | `9db7cb0` |
 | 794 | Launch-break second TypeScript clean | `6e5dcea` |
 | 795 | Launch-break second production build clean | `3ef9844` |
+| 796 | Launch-break known risks refresh | `612f115` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3876,6 +3877,10 @@ LOCAL_PRESENT\n```
 ### Phase 795 — Launch-break second production build clean
 
 **Launch-break:** second `npm run build` clean.
+
+### Phase 796 — Launch-break known risks refresh
+
+**Launch-break risks:** partner create→publish uncertified; same-origin session bleed; advisory lock coarse; LIVE Stripe blocked; cert-email untracked.
 
 ## Known remaining risks (ranked)
 
