@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800 complete · **801→850 traveler premium**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `3edc212`  
-**Current phase:** 821  
+**Current SHA:** `26f47da`  
+**Current phase:** 822  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -232,6 +232,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 819 | Shared calendar chrome + marketplace search date popover | `707e44d` |
 | 820 | Shared traveler/guest picker in marketplace search | `ddb321c` |
 | 821 | Tour booking calendar uses shared Traverion chrome | `3edc212` |
+| 822 | Stay night picker uses shared Traverion chrome | `26f47da` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -4073,6 +4074,10 @@ Browse cards: compact `aspect-[5/4]`, display-serif titles, group hover lift/sca
 ### Phase 821 — Tour booking calendar uses shared Traverion chrome
 
 `TourDatePicker` now renders through `TraverionCalendarMonth` / day buttons while keeping `tourDayState` / sold-out / closed-day truth unchanged. Display serif month title + shared selected/disabled/occupied visuals. Unit tests for tour-calendar helpers still green.
+
+### Phase 822 — Stay night picker uses shared Traverion chrome
+
+`StayNightPicker` renders through `TraverionCalendarMonth` with range-start/middle/end visuals. Occupancy / min-nights / checkout-night truth unchanged (`stayNightState`). stay-calendar unit tests green.
 
 ## Known remaining risks (ranked)
 

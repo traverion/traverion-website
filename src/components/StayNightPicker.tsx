@@ -1,8 +1,11 @@
 import { useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { monthGrid, stayNightState } from '../lib/stay-calendar';
-import { calendarMonthTitle } from '../lib/calendar-month-title';
 import { addCalendarDays } from '../lib/stayOccupancy';
+import {
+  TraverionCalendarDayButton,
+  TraverionCalendarMonth,
+  type TraverionCalendarDayVisual,
+} from './calendar/TraverionCalendarMonth';
 
 type Props = {
   checkIn: string;
@@ -13,6 +16,24 @@ type Props = {
   onChange: (checkIn: string, checkOut: string) => void;
   id?: string;
 };
+
+function stayVisual(
+  iso: string,
+  state: ReturnType<typeof stayNightState>,
+  checkIn: string,
+  checkOut: string
+): TraverionCalendarDayVisual {
+  if (state === 'past') return 'disabled';
+  if (state === 'occupied') return 'occupied';
+  if (checkIn && checkOut) {
+    if (iso === checkIn) return 'rangeStart';
+    if (iso === checkOut) return 'rangeEnd';
+    if (iso > checkIn && iso < checkOut) return 'rangeMiddle';
+  }
+  if (state === 'selected') return 'selected';
+  if (state === 'checkout') return 'rangeEnd';
+  return 'default';
+}
 
 export default function StayNightPicker({
   checkIn,
@@ -67,66 +88,39 @@ export default function StayNightPicker({
   return (
     <div
       id={id}
-      role="group"
-      aria-label="Stay dates"
       tabIndex={-1}
-      className="outline-none focus-visible:ring-2 focus-visible:ring-finland/40 rounded-xl"
+      className="outline-none focus-visible:ring-2 focus-visible:ring-finland/40 rounded-2xl"
     >
-      <div className="flex items-center justify-between mb-2">
-        <p className="text-sm font-semibold text-ink">{calendarMonthTitle(cursor.y, cursor.m)}</p>
-        <div className="flex gap-1">
-          <button type="button" className="lux-tap-target min-h-11 min-w-11 inline-flex items-center justify-center p-1.5 rounded-lg" aria-label="Previous month" onClick={() => shift(-1)}>
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-          <button type="button" className="lux-tap-target min-h-11 min-w-11 inline-flex items-center justify-center p-1.5 rounded-lg" aria-label="Next month" onClick={() => shift(1)}>
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-      <div className="grid grid-cols-7 gap-0.5 text-center text-[10px] uppercase tracking-wide text-ink-faint mb-1">
-        {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => (
-          <span key={d}>{d}</span>
-        ))}
-      </div>
-      <div className="grid grid-cols-7 gap-0.5">
+      <TraverionCalendarMonth
+        year={cursor.y}
+        month0={cursor.m}
+        onPrevMonth={() => shift(-1)}
+        onNextMonth={() => shift(1)}
+        footer="Select check-in, then check-out. Booked and host-blocked nights are crossed out. Checkout night is free."
+      >
         {cells.map((iso, i) => {
           if (!iso) return <span key={`e-${i}`} />;
           const state = stayNightState({ iso, todayIso, occupied, checkIn, checkOut });
-          const day = Number(iso.slice(8, 10));
           const disabled = state === 'past' || state === 'occupied';
-          const cls =
-            state === 'selected'
-              ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
-              : state === 'checkout'
-                ? 'ring-1 ring-finland/40 text-finland'
-                : state === 'occupied'
-                  ? 'text-ink-faint line-through'
-                  : state === 'past'
-                    ? 'text-ink-faint/50'
-                    : 'text-ink hover:bg-finland/10';
           return (
-            <button
+            <TraverionCalendarDayButton
               key={iso}
-              type="button"
+              iso={iso}
+              visual={stayVisual(iso, state, checkIn, checkOut)}
               disabled={disabled}
-              onClick={() => pick(iso)}
-              aria-label={
+              ariaLabel={
                 state === 'occupied'
                   ? `${iso} occupied`
                   : state === 'past'
                     ? `${iso} past`
                     : `${iso} ${state}`
               }
-              className={`min-h-11 h-11 rounded-lg text-sm tabular-nums motion-safe:transition-colors ${cls}`}
-            >
-              {day}
-            </button>
+              ariaPressed={state === 'selected' || state === 'checkout'}
+              onSelect={pick}
+            />
           );
         })}
-      </div>
-      <p className="mt-2 text-[11px] text-ink-faint">
-        Select check-in, then check-out. Booked and host-blocked nights are crossed out. Checkout night is free.
-      </p>
+      </TraverionCalendarMonth>
     </div>
   );
 }
