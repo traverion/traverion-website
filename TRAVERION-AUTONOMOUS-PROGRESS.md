@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `f84f225`  
-**Current phase:** 613  
+**Current SHA:** `dd1afcc`  
+**Current phase:** 614  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -109,6 +109,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 611 | App tsc + production build clean | `d12b36a` |
 | 612 | Mobile Stays browse 390×844 | `4a72f9c` |
 | 613 | Mobile stay detail + occupancy calendar 390×844 | `f84f225` |
+| 614 | Stay lead-guest autofill from traveler profile only | `dd1afcc` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -2963,6 +2964,12 @@ Stays catalog under mobile viewport: Tours/Stays toggle, search rail (“Any dat
 Riverside Apartment detail: sticky **Select dates** + Stripe TEST, night calendar with **occupied** (booked + host-blocked 26–27 Sept) vs available, min 2 nights, guest stepper, lead guest field. Trips-as-confirmation copy present.
 
 **Note:** Lead guest autofilled `aurora-ops` because a partner session was still on the shared localhost origin — expected dual-product friction on one origin; production hosts are separate.
+
+### Phase 614 — Stay lead-guest autofill ignores email local-part
+
+**Problem:** StayDetails filled lead guest from `email.split('@')[0]`, so a partner session on shared localhost produced `aurora-ops` as the traveler name.
+
+**Fix:** Autofill only from consumer profile display name / traveler metadata — never from email local-part.
 
 ## Known remaining risks (ranked)
 

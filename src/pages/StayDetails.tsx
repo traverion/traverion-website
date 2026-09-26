@@ -49,6 +49,7 @@ import {
 import { listingShowsFreeCancellation, publicReviewLabel } from '../lib/listingTruth';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { isSupabaseListingId } from '../lib/discount-display';
+import { fetchConsumerProfileRow } from '../data/supabase-consumer-profile';
 import { fetchWishlistListingIds, toggleWishlist } from '../data/supabase-wishlist';
 
 type Props = {
@@ -303,14 +304,30 @@ export default function StayDetails({ stayId, onBack }: Props) {
   }, [maxGuests]);
 
   useEffect(() => {
-    if (!user) return;
-    const meta = user.user_metadata as { full_name?: string; name?: string; phone?: string } | undefined;
-    const fromMeta = (meta?.full_name || meta?.name || '').trim();
-    const fromEmail = (user.email ?? '').split('@')[0]?.trim() ?? '';
-    setGuestName((prev) => prev.trim() || fromMeta || fromEmail);
-    const ph = typeof meta?.phone === 'string' ? meta.phone.trim() : '';
-    if (ph) setGuestPhone((prev) => prev.trim() || ph);
-  }, [user]);
+    if (!user?.id || !isSupabaseConfigured()) return;
+    const meta = user.user_metadata as {
+      full_name?: string;
+      name?: string;
+      phone?: string;
+      customer_first_name?: string;
+      customer_last_name?: string;
+      customer_phone?: string;
+    } | undefined;
+    const fromMeta = (
+      meta?.full_name ||
+      meta?.name ||
+      [meta?.customer_first_name, meta?.customer_last_name].filter(Boolean).join(' ')
+    ).trim();
+    void fetchConsumerProfileRow(user.id).then((row) => {
+      // Prefer traveler profile / traveler metadata — never invent a name from email
+      // local-part (partner sessions on localhost share the same auth storage).
+      const fromProfile = (row?.display_name ?? '').trim();
+      const nextName = fromProfile || fromMeta;
+      if (nextName) setGuestName((prev) => prev.trim() || nextName);
+      const ph = (row?.contact_phone ?? meta?.customer_phone ?? meta?.phone ?? '').trim();
+      if (ph) setGuestPhone((prev) => prev.trim() || ph);
+    });
+  }, [user?.id]);
 
   const stickyStayCtaLabel = stayStickyBookCtaLabel({
     selectionOccupied,
