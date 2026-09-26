@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `d2f05d7`  
-**Current phase:** 641  
+**Current SHA:** `e8c1bf5`  
+**Current phase:** 642  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -137,6 +137,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 639 | Trips load gates on user id | `39aea74` |
 | 640 | Confirmation loads on user id not email | `32c44c6` |
 | 641 | Partner Home listing failure keeps counts unknown | `d2f05d7` |
+| 642 | Checkout progress aria-current + real list items | `e8c1bf5` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3154,6 +3155,12 @@ Same class as BookingPage Phase 633: StayDetails lead-guest name/phone could lin
 **Problem:** When `fetchMyListings` rejected, dashboard set published/draft counts to `0`, so unknown looked like “no listings” and hid draft attention.
 
 **Fix:** Leave counts `null` on listings failure; treat drafts as optional in attention math.
+
+### Phase 642 — Checkout progress: aria-current + real list items
+
+**Problem:** BookingProgress used `li.contents` (weak list semantics), never set `aria-current="step"`, and `Math.max(0, indexOf)` highlighted Trip for unknown steps.
+
+**Fix:** Real flex `li`s, `aria-current` on the active step, no current step when step not in order.
 
 ## Known remaining risks (ranked)
 

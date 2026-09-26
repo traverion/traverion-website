@@ -138,22 +138,24 @@ function BookingProgress({
   const labels = (['Trip', 'Contact', 'Pay'] as const);
   const order: Step[] =
     flow === 'page' ? ['date-guests', 'contact', 'confirm'] : ['review', 'contact', 'confirm'];
-  const currentIndex = Math.max(0, order.indexOf(step));
+  const idx = order.indexOf(step);
+  const currentIndex = idx >= 0 ? idx : -1;
 
   return (
     <nav className="mb-6" aria-label="Booking steps">
       <ol className="flex flex-wrap items-center gap-y-2 gap-x-1 sm:gap-x-3">
         {labels.map((label, i) => {
-          const done = i < currentIndex;
-          const current = i === currentIndex;
+          const done = currentIndex >= 0 && i < currentIndex;
+          const current = currentIndex >= 0 && i === currentIndex;
           return (
-            <li key={label} className="contents">
+            <li key={label} className="flex items-center gap-x-1 sm:gap-x-3">
               {i > 0 && (
                 <span className="mx-0.5 sm:mx-1 text-ink-faint select-none" aria-hidden>
                   →
                 </span>
               )}
               <span
+                aria-current={current ? 'step' : undefined}
                 className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors duration-200 ${
                   done
                     ? 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200/80'
