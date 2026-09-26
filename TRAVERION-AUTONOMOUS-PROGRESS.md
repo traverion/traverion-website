@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `99a9c4e`  
-**Current phase:** 767  
+**Current SHA:** `b93c106`  
+**Current phase:** 772  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -182,6 +182,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 769 | Partner Today error Contact support | `21e171d` |
 | 770 | Partnership forms Sending and aria-busy | `283866b` |
 | 771 | Review submit aria-busy on tour and stay | `89aad0d` |
+| 772 | Partner Inbox error Contact support | `b93c106` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3733,6 +3734,10 @@ Partnership application buttons still said Submitting without aria-busy.
 ### Phase 771 — Review submit aria-busy on tour and stay
 
 Review submit lacked busy announcement while the network request ran.
+
+### Phase 772 — Partner Inbox error Contact support
+
+Inbox unavailable ErrorState had retry only.
 
 ## Known remaining risks (ranked)
 

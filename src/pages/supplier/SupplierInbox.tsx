@@ -358,7 +358,11 @@ export default function SupplierInbox() {
         </NoticeCallout>
       ) : null}
       {error ? (
-        <ErrorState className="py-6" title="Inbox unavailable" body={error} retry={{ onClick: () => void load() }} />
+        <ErrorState className="py-6" title="Inbox unavailable" body={error} retry={{ onClick: () => void load() }} extra={
+          <a href="/contact" className="tv-btn-ghost inline-flex">
+            Contact support
+          </a>
+        }} />
       ) : null}
       {!loading && deepLinkMissing && openId ? (
         <NoticeCallout title="Booking not in Inbox" tone="warn">
