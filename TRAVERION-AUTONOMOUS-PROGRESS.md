@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `8218462`  
-**Current phase:** 786  
+**Current SHA:** `7fa5c90`  
+**Current phase:** 799  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -209,6 +209,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 796 | Launch-break known risks refresh | `612f115` |
 | 797 | Launch-break vocabulary constant usage proof | `c3b711a` |
 | 798 | Launch-break refresh Phase 800 handoff draft | `e02ca3f` |
+| 799 | Launch-break final tsc vitest build gate | `7fa5c90` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3895,6 +3896,10 @@ Cookies and marketing preferences: 7\n```
 ### Phase 798 — Launch-break refresh Phase 800 handoff draft
 
 **Launch-break:** refreshed `TRAVERION-PHASE-800.md` draft on disk; committed in Phase 800.
+
+### Phase 799 — Launch-break final tsc vitest build gate
+
+**Launch-break final gate:** tsc clean; core honesty vitest green; `npm run build` clean. Ready for Phase 800.
 
 ## Known remaining risks (ranked)
 
