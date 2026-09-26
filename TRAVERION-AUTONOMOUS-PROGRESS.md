@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `d4ba2b3`  
-**Current phase:** 853  
+**Current SHA:** `03a5603`  
+**Current phase:** 854  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -264,6 +264,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 851 | Marketplace completeness matrix + scroll re-verify | `448828b` |
 | 852 | bookings.status NOT NULL migration 100 | `eea69ae` |
 | 853 | Tour creation completeness audit | `d4ba2b3` |
+| 854 | Server publish bookability migration 101 | `03a5603` |
 
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
@@ -4318,6 +4319,14 @@ Deep audit of listing → option → schedule ownership vs publish/traveler/snap
 **P0/P1 gaps ranked for 854+:** server bookability beyond city/hero (095); option-scoped meeting on PDP; booking cut-off; thicker snapshot; itinerary write-only honesty.
 
 **Cert:** code-inspected.
+
+### Phase 854 — Server publish bookability minimums (migration 101)
+
+**Gap (853):** Migration 095 only gates city/country/hero; REST publish could go live with no bookable option/schedule while client gate blocked UI-only.
+
+**Fix:** `101_listing_publish_bookability_minimums.sql` — on transition into `published`, require tour bookable surface (ready schedule with priceUsd>0, legacy option price, or starting_from when no options) or stay nightly+maxGuests. Helpers `listing_has_bookable_*`. Scratch SQL test artifact included (psql unavailable locally).
+
+**Cert:** code-inspected + SQL test artifact. Remote apply pending.
 
 ## Known remaining risks (ranked)
 
