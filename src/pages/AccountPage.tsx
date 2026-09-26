@@ -365,6 +365,13 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
               );
             })}
           </ul>
+          <p className="mt-3 text-xs text-ink-muted leading-relaxed">
+            Messages with hosts live on each trip — open{' '}
+            <button type="button" onClick={() => onNavigate('bookings')} className="font-semibold text-finland hover:underline">
+              Trips
+            </button>{' '}
+            to read and reply.
+          </p>
         </section>
 
         <section className="tv-card p-4 sm:p-5">
