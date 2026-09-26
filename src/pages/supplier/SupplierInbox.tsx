@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { MessageSquare } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { fetchBookingsForSupplier, type BookingRow } from '../../data/supabase-bookings';
@@ -66,6 +66,7 @@ export default function SupplierInbox() {
   const [openId, setOpenId] = useState<string | null>(() => readBookingIdFromUrl());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const loadGenRef = useRef(0);
   const [olderConversationsHidden, setOlderConversationsHidden] = useState(false);
   const [deepLinkMissing, setDeepLinkMissing] = useState(false);
   const [unreadOnly, setUnreadOnly] = useState(() => {
@@ -90,15 +91,18 @@ export default function SupplierInbox() {
       setLoading(false);
       return;
     }
+    const gen = ++loadGenRef.current;
     setLoading(true);
     setError(null);
     try {
       const deepLinkId = readBookingIdFromUrl();
       const [rows, listings] = await Promise.all([fetchBookingsForSupplier(uid), fetchMyListings(uid)]);
+      if (gen !== loadGenRef.current) return;
       const collected = rows.filter((b) => bookingPaymentWasCollected(b.payment_status));
       setTitles(Object.fromEntries(listings.map((l) => [l.id, l.title])));
       setListingsById(Object.fromEntries(listings.map((l) => [l.id, l])));
       const cancels = await fetchCancellationRequestsForBookings(collected.map((b) => b.id));
+      if (gen !== loadGenRef.current) return;
       const openIds = new Set(cancels.filter((c) => c.status === 'requested').map((c) => c.booking_id));
       setOpenCancelIds(openIds);
       const lasts: Record<string, BookingMessageRow> = {};
@@ -115,6 +119,7 @@ export default function SupplierInbox() {
           if (msgs.length) lasts[b.id] = msgs[msgs.length - 1]!;
         })
       );
+      if (gen !== loadGenRef.current) return;
       setLastByBooking(lasts);
       const listed = collected.filter((b) =>
         partnerInboxListsBooking(
@@ -140,9 +145,11 @@ export default function SupplierInbox() {
         setDeepLinkMissing(false);
       }
     } catch (e) {
+      if (gen !== loadGenRef.current) return;
+      setBookings([]);
       setError(userFacingError(e, USER_ERROR.bookings));
     } finally {
-      setLoading(false);
+      if (gen === loadGenRef.current) setLoading(false);
     }
   }, [isSupabase, user?.id]);
 
@@ -365,7 +372,7 @@ export default function SupplierInbox() {
       ) : null}
       {loading ? (
         <SupplierListSkeleton rows={4} />
-      ) : threads.length === 0 ? (
+      ) : error ? null : threads.length === 0 ? (
         <SupplierEmptyState
           icon={MessageSquare}
           title="No booking conversations yet"
