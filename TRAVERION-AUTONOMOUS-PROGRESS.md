@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `644608c`  
-**Current phase:** 597  
+**Current SHA:** `62d3bc9`  
+**Current phase:** 598  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -93,6 +93,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 595 | Reconcile voucher 099 + untrack secrets + prove 080–099 not remote-applied | `59057da` |
 | 596 | Push trust migrations 080–099 to linked remote + verify | `bbe6d91` |
 | 597 | Partner ops golden journey localhost browser cert | `644608c` |
+| 598 | Trips: require session before empty-state; await session after login | `62d3bc9` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -2842,6 +2843,18 @@ Also fixed progress header SHA for Phase 595 (`59057da`) after a quoting glitch.
 **Not certified this phase:** partner create→publish wizard end-to-end (would mutate); traveler booking against partner inventory.
 
 **Credentials used (documented partner demo):** see `docs/PARTNER_DEMO_COVERAGE.md`.
+
+### Phase 598 — Traveler Trips authenticity (session before empty)
+
+**Problem investigated:** Demo traveler `anna@partner-demo.traverion.invalid` has **3 paid bookings** in remote DB (guest_user_id matches auth.users). Anon-key API after `signInWithPassword` returns those 3 rows and `jwt_verified_email()` resolves. Localhost browser first showed **“No trips yet” while Profile showed signed-in**, then later a login with `next=bookings` landed on Trips still asking to log in.
+
+**Root cause (honest):** `fetchMyBookings()` queried without waiting for a session. An anonymous RLS-filtered select returns `[]`, which the UI treats as a truthful empty mailbox (“No trips yet”) — dishonest when the traveler is mid-auth or session not yet attached. AuthPage also navigated immediately after `signIn` without awaiting `getSession()`.
+
+**Fix:**
+- `fetchMyBookings`: await `getSession()`; if no user, throw “Sign in to load your trips.” (ErrorState) instead of returning [].
+- `AuthPage` sign-in: await `supabase.auth.getSession()` before `onNavigate(next)`.
+
+**Evidence:** Node anon client with demo password → COUNT 3. Migrations 080–099 already applied (Phase 596). Stripe remains TEST.
 
 ## Known remaining risks (ranked)
 

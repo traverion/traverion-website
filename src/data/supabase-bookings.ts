@@ -881,9 +881,17 @@ export async function cancelBookingAsCustomer(
   return { success: true };
 }
 
-/** Fetch current consumer's bookings (RLS: select where guest_email = auth user email). Must be logged in. Throws on Supabase error. */
+/** Fetch current consumer's bookings (RLS: guest_user_id or verified guest_email). Must be logged in. Throws on Supabase error. */
 export async function fetchMyBookings(): Promise<BookingRow[]> {
   if (!supabase) return [];
+  // Wait for the auth session before querying. An anon/RLS-empty select would
+  // otherwise look identical to a traveler with no trips ("No trips yet").
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session?.user) {
+    throw new Error('Sign in to load your trips.');
+  }
   const columnTiers = [
     BOOKING_PAYMENT_COLUMNS,
     BOOKING_PAYMENT_COLUMNS_NO_SNAPSHOT,

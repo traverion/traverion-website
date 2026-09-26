@@ -194,6 +194,11 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
           setFieldErrors(serverMessageToFields(err));
           return;
         }
+        // Ensure AuthContext has observed the session before leaving the auth page.
+        // Navigating immediately can render Trips as logged-out / empty.
+        if (supabase) {
+          await supabase.auth.getSession();
+        }
         onNavigate(nextPage);
       } else {
         const { error: err, hasSession } = await signUp(normalizedEmail, password, {
