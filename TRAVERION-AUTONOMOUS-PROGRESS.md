@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800 complete · **801→850 traveler premium**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `1dac730`  
-**Current phase:** 835  
+**Current SHA:** `9800ec0`  
+**Current phase:** 836  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -4169,6 +4169,10 @@ Wider footer (`max-w-[90rem]`), display-serif brand + section titles, calmer cre
 **Change:** Soften payment-critical honesty strings without hiding TEST: `STRIPE_TEST_UNTIL_LIVE` → “test-mode payment (no real charge)”; CTAs → “Pay now · test mode” / “Continue · test mode”. Homepage meta description no longer mentions Stripe TEST. Global Test mode chip unchanged. Admin/partner money surfaces still use the shared constant (now human wording).
 
 **Tests:** booking-confirmation-copy + stay-sticky-cta 28/28.
+
+### Phase 836 — Legal Notice + Cookies TOC
+
+Extend Phase 832 shell: Legal Notice and Cookies pages get on-this-page TOCs with heading ids. Legal meaning unchanged.
 
 ## Known remaining risks (ranked)
 

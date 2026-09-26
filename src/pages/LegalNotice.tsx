@@ -22,9 +22,15 @@ export default function LegalNotice({ onNavigate }: LegalNoticeProps) {
       subtitle="Operator identification, contact details for official correspondence, and links to our policies."
       lastUpdated={LAST_UPDATED}
       onNavigate={onNavigate}
+      toc={[
+        { id: 'operator', label: 'Website operator' },
+        { id: 'contact', label: 'Contact' },
+        { id: 'consumer', label: 'Consumer information' },
+        { id: 'related', label: 'Related documents' },
+      ]}
     >
       <section>
-        <h2>Website operator</h2>
+        <h2 id="operator">Website operator</h2>
         <p>
           This website and the Traverion travel platform are operated by <strong>TRAVERION</strong> (Traverion Travel
           Agency), based in Finland. We arrange and facilitate bookings for tours, activities, stays, and related travel
@@ -42,7 +48,7 @@ export default function LegalNotice({ onNavigate }: LegalNoticeProps) {
       </section>
 
       <section>
-        <h2>Contact for legal &amp; official matters</h2>
+        <h2 id="contact">Contact for legal &amp; official matters</h2>
         <p>
           Email: <a href="mailto:info@traverion.com">info@traverion.com</a>
           <br />
@@ -51,7 +57,7 @@ export default function LegalNotice({ onNavigate }: LegalNoticeProps) {
       </section>
 
       <section>
-        <h2>Consumer information</h2>
+        <h2 id="consumer">Consumer information</h2>
         <p>
           The European Commission provides a platform for online dispute resolution (ODR):{' '}
           <a href="https://ec.europa.eu/consumers/odr" target="_blank" rel="noopener noreferrer">
@@ -63,7 +69,7 @@ export default function LegalNotice({ onNavigate }: LegalNoticeProps) {
       </section>
 
       <section>
-        <h2>Related documents</h2>
+        <h2 id="related">Related documents</h2>
         <ul>
           <li>
             <a href="/terms" onClick={go('terms')}>

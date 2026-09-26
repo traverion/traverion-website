@@ -15,9 +15,17 @@ export default function Cookies({ onNavigate }: CookiesProps) {
       subtitle="What cookies we use, why they matter, and how you can control analytics and marketing signals when you browse Traverion."
       lastUpdated={LAST_UPDATED}
       onNavigate={onNavigate}
+      toc={[
+        { id: 'what', label: 'What are cookies?' },
+        { id: 'how', label: 'How we use them' },
+        { id: 'preferences', label: 'Preference center' },
+        { id: 'managing', label: 'Managing cookies' },
+        { id: 'third-party', label: 'Third parties' },
+        { id: 'contact', label: 'Contact' },
+      ]}
     >
       <section>
-        <h2>What are cookies?</h2>
+        <h2 id="what">What are cookies?</h2>
         <p>
           Cookies are small text files that are placed on your computer or mobile device when you visit our website.
           They help us provide you with a better experience by remembering your preferences and enabling certain
@@ -26,7 +34,8 @@ export default function Cookies({ onNavigate }: CookiesProps) {
       </section>
 
       <section>
-        <h2>How we use cookies</h2>
+        <h2 id="how">How we use cookies</h2>
+
         <p>We use cookies for the following purposes:</p>
         <ul>
           <li>
