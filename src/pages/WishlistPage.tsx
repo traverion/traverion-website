@@ -1,7 +1,7 @@
 /**
  * Consumer: saved listings (wishlist). Requires login when Supabase is configured.
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { LogIn, ArrowLeft, Heart } from 'lucide-react';
 import { SkeletonCardGrid, SkeletonConsumerPage } from '../components/ui/Skeleton';
 import EmptyState from '../components/EmptyState';
@@ -14,6 +14,7 @@ import { fetchWishlistListingIds, removeFromWishlist } from '../data/supabase-wi
 import { fetchListingById } from '../data/supabase-listings';
 import { TourPackage } from '../types/tour';
 import { PublicListingBrowseCard } from '../components/PublicListingBrowseCard';
+import { isListingVisibleToTravelers } from '../lib/product-workflows';
 
 interface WishlistPageProps {
   onNavigate: (page: string) => void;
@@ -23,34 +24,57 @@ interface WishlistPageProps {
 export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageProps) {
   const { user, loading: authLoading } = useAuth();
   const [listings, setListings] = useState<TourPackage[]>([]);
+  const [unavailableCount, setUnavailableCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const loadGenRef = useRef(0);
 
   const load = useCallback(async () => {
     if (!isSupabaseConfigured() || !user?.id) {
       setLoading(false);
+      setListings([]);
+      setUnavailableCount(0);
       return;
     }
+    const gen = ++loadGenRef.current;
     setLoading(true);
     setError(null);
     try {
       const ids = await fetchWishlistListingIds(user.id);
-      const tours: TourPackage[] = [];
+      const visible: TourPackage[] = [];
+      let hidden = 0;
       for (const id of ids) {
         const t = await fetchListingById(id);
-        if (t) tours.push(t);
+        if (!t) {
+          hidden += 1;
+          continue;
+        }
+        if (isListingVisibleToTravelers(t.status)) {
+          visible.push(t);
+        } else {
+          hidden += 1;
+        }
       }
-      setListings(tours);
+      if (gen !== loadGenRef.current) return;
+      setListings(visible);
+      setUnavailableCount(hidden);
     } catch (e) {
+      if (gen !== loadGenRef.current) return;
+      setListings([]);
+      setUnavailableCount(0);
       setError(userFacingError(e, USER_ERROR.wishlist));
     } finally {
-      setLoading(false);
+      if (gen === loadGenRef.current) setLoading(false);
     }
   }, [user?.id]);
 
   useEffect(() => {
-    if (user) load();
-    else setLoading(false);
+    if (user) void load();
+    else {
+      setLoading(false);
+      setListings([]);
+      setUnavailableCount(0);
+    }
   }, [user, load]);
 
   const handleRemove = async (listingId: string) => {
@@ -169,8 +193,12 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
         ) : listings.length === 0 ? (
           <EmptyState
             icon={Heart}
-            title="Nothing saved yet"
-            body="Your wishlist is empty because you have not saved a tour or stay. Save one while browsing and it will show up here."
+            title={unavailableCount > 0 ? 'No bookable saved listings' : 'Nothing saved yet'}
+            body={
+              unavailableCount > 0
+                ? `${unavailableCount} saved listing${unavailableCount === 1 ? '' : 's'} are unpublished or gone, so they are not shown as bookable. Browse for something new or remove saves from listing pages when you reopen them.`
+                : 'Your wishlist is empty because you have not saved a tour or stay. Save one while browsing and it will show up here.'
+            }
             action={
               <div className="flex flex-wrap gap-2">
                 <button type="button" onClick={() => onNavigate('packages')} className="tv-btn-primary">
@@ -183,6 +211,13 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
             }
           />
         ) : (
+          <>
+            {unavailableCount > 0 ? (
+              <p className="mb-4 text-sm text-ink-muted">
+                {unavailableCount} saved listing{unavailableCount === 1 ? '' : 's'} no longer available — hidden from
+                this grid.
+              </p>
+            ) : null}
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 sm:gap-5">
             {listings.map((tour, index) => (
               <PublicListingBrowseCard
@@ -200,6 +235,7 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
               />
             ))}
           </div>
+          </>
         )}
       </div>
     </div>
