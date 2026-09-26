@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `4582362`  
-**Current phase:** 649  
+**Current SHA:** `2538628`  
+**Current phase:** 650  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -145,6 +145,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 647 | Traveler mid-band build + honesty 15/15 checkpoint | `c2826a0` |
 | 648 | Trips stale-load guard + empty only after success | `3cfcde5` |
 | 649 | Message thread loading + clear on booking switch | `4582362` |
+| 650 | Partner Bookings empty only when load succeeded | `2538628` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3200,6 +3201,10 @@ Recent bookings money column required exact `payment_status === 'paid'`, missing
 **Problem:** BookingMessageThread started with `rows=[]` so threads flashed “No messages yet”; switching bookings kept prior messages until fetch finished.
 
 **Fix:** Reset rows/draft on booking change; loading indicator; generation guard.
+
+### Phase 650 — Partner Bookings empty only when load succeeded
+
+Failed Bookings fetches still showed “No bookings yet”. Gate empty state on `!error`.
 
 ## Known remaining risks (ranked)
 

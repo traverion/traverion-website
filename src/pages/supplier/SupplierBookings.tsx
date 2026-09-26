@@ -820,7 +820,7 @@ export default function SupplierBookings({
           <SkeletonListItem />
           <SkeletonListItem />
         </div>
-      ) : bookings.length === 0 ? (
+      ) : error ? null : bookings.length === 0 ? (
         <SupplierEmptyState
           icon={CalendarDays}
           title={inventoryFamily === 'stay' ? 'No reservations yet' : 'No bookings yet'}
