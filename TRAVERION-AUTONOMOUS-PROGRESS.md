@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `5a74864`  
-**Current phase:** 633  
+**Current SHA:** `660bef3`  
+**Current phase:** 634  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -129,6 +129,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 631 | Trips accordion aria-expanded | `02c570a` |
 | 632 | Quick-facts test matches free-cancellation honesty | `96dd612` |
 | 633 | Checkout Pay lock + clear contact on account switch | `5a74864` |
+| 634 | Stay checkout clears guest PII on account switch | `660bef3` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3100,6 +3101,10 @@ Trip row toggles lacked `aria-expanded`, so screen readers could not tell whethe
 **Problem:** `handleConfirmBooking` always ran `finally { setSubmitting(false) }`, re-enabling Pay after `window.location.assign` to Stripe TEST — double-submit risk.
 
 **Fix:** Clear submitting only on error paths; leave locked after successful redirect.
+
+### Phase 634 — Stay checkout clears guest PII on account switch
+
+Same class as BookingPage Phase 633: StayDetails lead-guest name/phone could linger across traveler accounts via `prev.trim() || next`. Clear fields when `user.id` changes; ignore stale profile responses.
 
 ## Known remaining risks (ranked)
 

@@ -305,8 +305,16 @@ export default function StayDetails({ stayId, onBack }: Props) {
     setGuests((g) => Math.min(maxGuests, Math.max(1, g)));
   }, [maxGuests]);
 
+  const lastStayProfileUserIdRef = useRef<string | null>(null);
   useEffect(() => {
+    if (lastStayProfileUserIdRef.current !== null && lastStayProfileUserIdRef.current !== (user?.id ?? null)) {
+      setGuestName('');
+      setGuestPhone('');
+      setProfileDisplayName('');
+    }
+    lastStayProfileUserIdRef.current = user?.id ?? null;
     if (!user?.id || !isSupabaseConfigured()) return;
+    const uid = user.id;
     const meta = user.user_metadata as {
       full_name?: string;
       name?: string;
@@ -320,7 +328,8 @@ export default function StayDetails({ stayId, onBack }: Props) {
       meta?.name ||
       [meta?.customer_first_name, meta?.customer_last_name].filter(Boolean).join(' ')
     ).trim();
-    void fetchConsumerProfileRow(user.id).then((row) => {
+    void fetchConsumerProfileRow(uid).then((row) => {
+      if (lastStayProfileUserIdRef.current !== uid) return;
       // Prefer traveler profile / traveler metadata — never invent a name from email
       // local-part (partner sessions on localhost share the same auth storage).
       const fromProfile = (row?.display_name ?? '').trim();
