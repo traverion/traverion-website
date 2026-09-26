@@ -14,9 +14,11 @@ const SECTIONS: SitemapSection[] = [
       { label: 'Home', page: 'home' },
       { label: 'Tours', page: 'packages' },
       { label: 'Stays', page: 'stays' },
+      { label: 'Destinations', page: 'home' },
       { label: 'Trips', page: 'bookings' },
       { label: 'Wishlist', page: 'wishlist' },
       { label: 'Contact', page: 'contact' },
+      { label: 'Stories (later)', page: 'blog' },
     ],
   },
   {
@@ -70,7 +72,8 @@ export default function Sitemap({ onNavigate }: SitemapProps) {
     >
       <div className="not-prose mb-5 rounded-xl bg-finland/8 px-3.5 py-2.5 ring-1 ring-finland/15">
         <p className="text-sm text-ink leading-relaxed m-0">
-          Jump to any section below. Become a supplier opens the Traverion Partner overview.
+          Jump to any section below. Destinations open Home, where live places from operators are listed. Become a
+          supplier opens the Traverion Partner overview.
         </p>
       </div>
 
