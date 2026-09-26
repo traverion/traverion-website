@@ -592,12 +592,12 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
         {error ? (
           <ErrorState
             title="Stays unavailable"
-            body={userFacingError(error, USER_ERROR.tours)}
+            body={userFacingError(error, USER_ERROR.stays)}
             retry={{ onClick: () => reload() }}
           />
         ) : occupancyError && dateFilterActive ? (
           <ErrorState
-            title="Availability unavailable"
+            title="Capacity unavailable"
             body={occupancyError}
             retry={{ onClick: () => reloadStayBrowseOccupancy() }}
           />
