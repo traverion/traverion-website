@@ -207,6 +207,17 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
             body={userFacingError(listingsError, USER_ERROR.listings)}
             retry={{ onClick: () => reloadCatalog() }}
             back={{ onClick: onBack, label: 'Back to home' }}
+            extra={
+              onNavigate ? (
+                <button type="button" onClick={() => onNavigate('contact')} className="tv-btn-ghost">
+                  Contact support
+                </button>
+              ) : (
+                <a href="/contact" className="tv-btn-ghost inline-flex">
+                  Contact support
+                </a>
+              )
+            }
           />
         ) : catalogLoading ? (
           <div aria-busy="true" aria-label="Loading destination">

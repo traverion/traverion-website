@@ -480,14 +480,15 @@ export default function SupplierReviews() {
                       </p>
                     ) : (
                       <div className="mt-3">
-                        <label className="block text-xs font-medium text-ink mb-1">
-                          <MessageSquare className="w-3.5 h-3.5 inline mr-1" />
+                        <label htmlFor={`review-reply-${r.id}`} className="block text-xs font-medium text-ink mb-1">
+                          <MessageSquare className="w-3.5 h-3.5 inline mr-1" aria-hidden />
                           Reply
                         </label>
                         <textarea
+                          id={`review-reply-${r.id}`}
                           value={replyText[r.id] ?? ''}
                           onChange={(e) => setReplyText((prev) => ({ ...prev, [r.id]: e.target.value }))}
-                          placeholder="Thank the customer or answer a question..."
+                          placeholder="Thank the customer or answer a question…"
                           rows={2}
                           className="tv-input text-sm"
                         />

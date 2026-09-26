@@ -844,7 +844,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
                         onChange={(e) => setReviewComment(e.target.value)}
                         rows={3}
                         className="tv-input"
-                        placeholder="Tell others what you liked..."
+                        placeholder="Tell others what you liked…"
                         required
                       />
                     </div>
