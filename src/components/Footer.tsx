@@ -30,24 +30,24 @@ export default function Footer({ onNavigate }: { onNavigate?: (page: string) => 
   };
 
   return (
-    <footer className="bg-gradient-to-b from-finland/[0.05] to-paper border-t border-black/[0.06] text-ink">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 lg:gap-8">
+    <footer className="bg-paper border-t border-black/[0.06] text-ink">
+      <div className="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-12 lg:py-14">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 lg:gap-10">
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
-            <a href="/" className="inline-flex items-center gap-2 mb-2" aria-label="Traverion home">
+            <a href="/" className="inline-flex items-center gap-2.5 mb-3" aria-label="Traverion home">
               <img src={BRAND_LOGO_SRC} alt="" className="h-10 w-auto object-contain" />
-              <span className="font-sans text-sm font-semibold tracking-[0.18em] text-ink">TRAVERION</span>
+              <span className="font-display text-lg tracking-tight text-ink">TRAVERION</span>
             </a>
-            <p className="text-sm text-ink-muted leading-relaxed m-0">
+            <p className="text-sm text-ink-muted leading-relaxed m-0 max-w-xs">
               Discover and book tours and stays from independent operators worldwide.
             </p>
           </div>
 
           {/* Support */}
           <div>
-            <h3 className="font-sans text-[11px] font-semibold uppercase tracking-[0.16em] text-finland mb-2.5">Support</h3>
-            <ul className="space-y-1.5">
+            <h3 className="font-display text-sm text-ink tracking-tight mb-3">Support</h3>
+            <ul className="space-y-2">
               <li><button type="button" onClick={() => nav('contact')} className={`${linkClass} text-left bg-transparent border-0 cursor-pointer`}>Contact</button></li>
               <li><button type="button" onClick={() => nav('legal-notice')} className={`${linkClass} text-left bg-transparent border-0 cursor-pointer`}>Legal Notice</button></li>
               <li><button type="button" onClick={() => nav('privacy')} className={`${linkClass} text-left bg-transparent border-0 cursor-pointer`}>Privacy Policy</button></li>
@@ -59,8 +59,8 @@ export default function Footer({ onNavigate }: { onNavigate?: (page: string) => 
 
           {/* Company */}
           <div>
-            <h3 className="font-sans text-[11px] font-semibold uppercase tracking-[0.16em] text-finland mb-2.5">Company</h3>
-            <ul className="space-y-1.5">
+            <h3 className="font-display text-sm text-ink tracking-tight mb-3">Company</h3>
+            <ul className="space-y-2">
               <li><button type="button" onClick={() => nav('about')} className={`${linkClass} text-left bg-transparent border-0 cursor-pointer`}>About Us</button></li>
               <li><button type="button" onClick={() => nav('packages')} className={`${linkClass} text-left bg-transparent border-0 cursor-pointer`}>Tours</button></li>
               <li><button type="button" onClick={() => nav('stays')} className={`${linkClass} text-left bg-transparent border-0 cursor-pointer`}>Stays</button></li>
@@ -69,8 +69,8 @@ export default function Footer({ onNavigate }: { onNavigate?: (page: string) => 
 
           {/* Want to work with us? */}
           <div>
-            <h3 className="font-sans text-[11px] font-semibold uppercase tracking-[0.16em] text-finland mb-2.5">Work with us</h3>
-            <ul className="space-y-1.5">
+            <h3 className="font-display text-sm text-ink tracking-tight mb-3">Work with us</h3>
+            <ul className="space-y-2">
               <li>
                 <a href={affiliateUrl} className={linkClass}>
                   Become an affiliate
@@ -88,8 +88,8 @@ export default function Footer({ onNavigate }: { onNavigate?: (page: string) => 
       </div>
 
       {/* Bottom bar – copyright + social */}
-      <div className="border-t border-black/[0.06] bg-paper-raised/60">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row justify-between items-center gap-3">
+      <div className="border-t border-black/[0.06] bg-paper-raised/70">
+        <div className="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row justify-between items-center gap-3">
           <p className="text-sm text-ink-faint text-center sm:text-left">
             © 2026 Traverion – Original from Finland
           </p>
