@@ -106,7 +106,8 @@ export default function AffiliatePage({ onNavigate }: AffiliatePageProps) {
         <>
           <div className="max-w-lg mb-5 rounded-2xl bg-finland/8 px-3.5 py-2.5 ring-1 ring-finland/15">
             <p className="text-sm text-ink leading-relaxed">
-              This form is only for partnership requests. It is kept separate from general customer enquiries.
+              This is an application form only — there is no affiliate dashboard or self-serve tracking yet. It stays
+              separate from general customer enquiries.
             </p>
           </div>
           <div className="not-prose max-w-lg mb-5 grid gap-2 sm:grid-cols-3">
@@ -146,9 +147,10 @@ export default function AffiliatePage({ onNavigate }: AffiliatePageProps) {
                 className="tv-input"
                 autoComplete="name"
                 aria-invalid={fieldErrors.name ? true : undefined}
+                aria-describedby={fieldErrors.name ? 'aff-name-err' : undefined}
               />
               {fieldErrors.name && (
-                <p className="mt-1.5 text-sm text-red-800" role="alert">
+                <p id="aff-name-err" className="mt-1.5 text-sm text-red-800" role="alert">
                   {fieldErrors.name}
                 </p>
               )}
@@ -168,9 +170,10 @@ export default function AffiliatePage({ onNavigate }: AffiliatePageProps) {
                 className="tv-input"
                 autoComplete="email"
                 aria-invalid={fieldErrors.email ? true : undefined}
+                aria-describedby={fieldErrors.email ? 'aff-email-err' : undefined}
               />
               {fieldErrors.email && (
-                <p className="mt-1.5 text-sm text-red-800" role="alert">
+                <p id="aff-email-err" className="mt-1.5 text-sm text-red-800" role="alert">
                   {fieldErrors.email}
                 </p>
               )}
@@ -202,9 +205,10 @@ export default function AffiliatePage({ onNavigate }: AffiliatePageProps) {
                 }}
                 className="tv-input"
                 aria-invalid={fieldErrors.subject ? true : undefined}
+                aria-describedby={fieldErrors.subject ? 'aff-subject-err' : undefined}
               />
               {fieldErrors.subject && (
-                <p className="mt-1.5 text-sm text-red-800" role="alert">
+                <p id="aff-subject-err" className="mt-1.5 text-sm text-red-800" role="alert">
                   {fieldErrors.subject}
                 </p>
               )}
@@ -224,9 +228,10 @@ export default function AffiliatePage({ onNavigate }: AffiliatePageProps) {
                 rows={8}
                 className="tv-input min-h-[10rem] resize-y py-3"
                 aria-invalid={fieldErrors.message ? true : undefined}
+                aria-describedby={fieldErrors.message ? 'aff-message-err' : undefined}
               />
               {fieldErrors.message && (
-                <p className="mt-1.5 text-sm text-red-800" role="alert">
+                <p id="aff-message-err" className="mt-1.5 text-sm text-red-800" role="alert">
                   {fieldErrors.message}
                 </p>
               )}
