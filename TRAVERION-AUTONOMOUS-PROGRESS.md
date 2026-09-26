@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800 complete · **801→850 traveler premium**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `fecf491`  
-**Current phase:** 841  
+**Current SHA:** `bfceaed`  
+**Current phase:** 842  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -4209,6 +4209,10 @@ Softened stays empty-state honesty copy (still no invented inventory).
 Re-ran `traveler-interest.test.ts` **3/3**. Signals: listing_view, destination_view, search, wishlist_save (localStorage, deterministic ranking). Homepage uses “Because you explored {place}” only when real destination_view signals exist; otherwise catalog discovery titles. No fabricated “Recommended for you”. No fingerprinting.
 
 **Certification:** automated-tested.
+
+### Phase 842 — Contact page shell browser cert
+
+**Browser (desktop):** `/contact` uses LegalPageShell hero (SUPPORT / Contact us), topic cards, form fields (phone optional). **browser-tested**. No fake newsletter.
 
 ## Known remaining risks (ranked)
 
