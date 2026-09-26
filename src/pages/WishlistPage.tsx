@@ -98,7 +98,7 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
             icon={Heart}
             className="pt-2 pb-0"
             title="Saved tours and stays need the live app"
-            body="Wishlist is only available when Traverion is connected. You can still browse tours and stays."
+            body="Saved listings are only available when Traverion is connected. You can still browse tours and stays."
             action={
               <div className="flex flex-wrap gap-2">
                 <button type="button" onClick={() => onNavigate('packages')} className="tv-btn-primary">

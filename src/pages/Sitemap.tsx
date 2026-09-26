@@ -16,9 +16,9 @@ const SECTIONS: SitemapSection[] = [
       { label: 'Stays', page: 'stays' },
       { label: 'Destinations', page: 'home' },
       { label: 'Trips', page: 'bookings' },
-      { label: 'Wishlist', page: 'wishlist' },
+      { label: 'Saved', page: 'wishlist' },
       { label: 'Contact', page: 'contact' },
-      { label: 'Stories (later)', page: 'blog' },
+      { label: 'Stories', page: 'blog' },
     ],
   },
   {
@@ -26,7 +26,7 @@ const SECTIONS: SitemapSection[] = [
     items: [
       { label: 'Sign in / Sign up', href: '/log-in?next=account' },
       { label: 'My account', page: 'account' },
-      { label: 'Wishlist', page: 'wishlist' },
+      { label: 'Saved', page: 'wishlist' },
       { label: 'Trips', page: 'bookings' },
     ],
   },

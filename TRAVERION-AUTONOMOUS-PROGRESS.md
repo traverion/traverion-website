@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800 complete · **801→850 traveler premium**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `ef6205c`  
-**Current phase:** 847  
+**Current SHA:** `540adb8`  
+**Current phase:** 848  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -4245,6 +4245,10 @@ Visual layer only — availability truth unchanged. **code-inspected** this phas
 - Contact cert (842)
 
 No further supporting-surface inventiveness. Ready for global coherence (848) and founder handoff (850).
+
+### Phase 848 — Global visual/naming coherence
+
+Sitemap + Saved empty copy: “Wishlist” → **Saved**; drop “Stories (later)” prototype wording. Traveler nav/header already Saved. Consumer marketing free of Stripe TEST (payment CTAs use human test-mode phrase). Cream/blue/serif identity preserved throughout.
 
 ## Known remaining risks (ranked)
 
