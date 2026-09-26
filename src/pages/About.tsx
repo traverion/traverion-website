@@ -2,7 +2,6 @@ import { Shield, MapPin, HeartHandshake, Compass, Building2 } from 'lucide-react
 import LegalPageShell from '../components/LegalPageShell';
 import NoticeCallout from '../components/NoticeCallout';
 import { supplierPortalLandingHref } from '../lib/partnerHost';
-import { STRIPE_TEST_UNTIL_LIVE } from '../lib/booking-confirmation-copy';
 
 type AboutProps = {
   onNavigate?: (page: string) => void;
@@ -78,8 +77,8 @@ export default function About({ onNavigate }: AboutProps) {
             </div>
             <h3 className="font-sans text-sm font-semibold text-ink mb-1">Travelers</h3>
             <p className="text-sm text-ink-muted leading-relaxed m-0 mb-3">
-              Find a destination, understand the experience, choose an option and participants, pay on{' '}
-              {STRIPE_TEST_UNTIL_LIVE}, and manage everything in Trips.
+              Find a destination, understand the experience, choose an option and participants, pay to confirm, and
+              manage everything in Trips.
             </p>
             <div className="flex flex-wrap gap-2">
               <a href="/packages" onClick={goTours} className="tv-btn-secondary text-sm">

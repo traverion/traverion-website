@@ -1,7 +1,6 @@
 /**
  * Finnish UI copy. Prefer shared honesty constants from booking-confirmation-copy when the phrase is product-critical.
  */
-import { STRIPE_TEST_UNTIL_LIVE } from '../lib/booking-confirmation-copy';
 
 export const fi = {
   // Navigation
@@ -204,7 +203,7 @@ export const fi = {
 
   // Top bar (above main nav)
   topBanner: {
-    trustLine: `Peruutus noudattaa kunkin ilmoituksen ehtoja · ${STRIPE_TEST_UNTIL_LIVE}`,
+    trustLine: 'Peruutus noudattaa kunkin ilmoituksen ehtoja · hallitse varauksia Tripsissä',
   },
 
   // Promotional Banner

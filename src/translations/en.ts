@@ -1,7 +1,6 @@
 /**
  * English UI copy. Prefer shared honesty constants from booking-confirmation-copy when the phrase is product-critical.
  */
-import { STRIPE_TEST_UNTIL_LIVE } from '../lib/booking-confirmation-copy';
 
 export const en = {
   // Navigation
@@ -204,7 +203,7 @@ export const en = {
 
   // Top bar (above main nav) - one line, minimal
   topBanner: {
-    trustLine: `Cancellation follows each listing · ${STRIPE_TEST_UNTIL_LIVE}`,
+    trustLine: 'Cancellation follows each listing · manage bookings in Trips',
   },
 
   // Promotional Banner

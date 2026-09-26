@@ -1,5 +1,6 @@
 import { useState, useEffect, useLayoutEffect, useCallback, lazy, Suspense } from 'react';
 import UnifiedHeader from './components/UnifiedHeader';
+import TravelerTestModeBanner from './components/TravelerTestModeBanner';
 import Footer from './components/Footer';
 import SkipLink from './components/SkipLink';
 import Home from './pages/Home';
@@ -799,6 +800,7 @@ function App() {
         ) : (
           <div className="min-h-screen bg-paper relative flex flex-col">
             <SkipLink />
+            <TravelerTestModeBanner />
             <UnifiedHeader currentPage={currentPage} onNavigate={handleNavigate} />
             <main id="main-content" tabIndex={-1} className="flex-grow overflow-x-hidden outline-none">
               <div className="lux-page-enter min-h-[min(50vh,480px)]">

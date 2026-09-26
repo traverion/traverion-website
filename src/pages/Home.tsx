@@ -21,7 +21,6 @@ import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
 import { SkeletonCardGrid, SkeletonFeaturedHero, SkeletonPlaceGrid } from '../components/ui/Skeleton';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
-import { STRIPE_TEST_UNTIL_LIVE } from '../lib/booking-confirmation-copy';
 import { HERO_IMG } from '../lib/heroImages';
 import { prefetchPackagesPage } from '../lib/routePrefetch';
 import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
@@ -256,7 +255,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
             Tours and stays from people who run the day.
           </h1>
           <p className="page-hero-subtitle text-base sm:text-lg mb-7 max-w-lg font-normal text-white/90">
-            Independent operators. Live availability. Pay to confirm — {STRIPE_TEST_UNTIL_LIVE}.
+            Discover memorable places and book directly with independent operators — experiences and nights, planned in one trip.
           </p>
 
           {/* Mobile: compact trigger → dedicated search sheet */}
@@ -363,7 +362,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
             </span>
             <span className="inline-flex items-center gap-2">
               <span className="h-1.5 w-1.5 rounded-full bg-finland" aria-hidden />
-              Pay to confirm · {STRIPE_TEST_UNTIL_LIVE}
+              Secure checkout · manage everything in Trips
             </span>
           </p>
         </div>
@@ -374,7 +373,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
           <div className="mb-5">
             <h2 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Where can I go?</h2>
             <p className="mt-2 text-sm text-ink-muted max-w-lg">
-              Destinations with live inventory on Traverion — only places operators have published.
+              Places with published tours and stays on Traverion.
             </p>
           </div>
           {catalogLoading ? (
@@ -468,7 +467,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
           <div className="flex items-end justify-between gap-3 mb-5">
             <div>
               <h2 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">What can I book?</h2>
-              <p className="mt-2 text-sm text-ink-muted">Live tours from operators — not sample inventory.</p>
+              <p className="mt-2 text-sm text-ink-muted">Tours published by operators on Traverion.</p>
             </div>
             {!catalogLoading && !listingsError && allListings.length > 0 ? (
               <button
@@ -502,7 +501,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
             <EmptyState
               icon={Compass}
               title="No tours published yet"
-              body="Nothing is live on Traverion right now. That is normal — we do not fill this page with sample listings. When an operator publishes, tours appear here."
+              body="Nothing is published yet. When an operator goes live, tours appear here."
               action={
                 <a href={supplierPortalLandingHref()} className="tv-btn-primary inline-flex">
                   List your tours and stays
@@ -608,7 +607,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
             <EmptyState
               icon={Compass}
               title="No stays published yet"
-              body="Traverion does not fill this page with sample apartments. When an operator publishes a stay, it appears here — separate from Tours."
+              body="When an operator publishes a stay, it appears here — separate from Tours."
               action={
                 <a href={supplierPortalLandingHref()} className="tv-btn-primary inline-flex">
                   List a stay
@@ -649,28 +648,28 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Trust</p>
           <h2 className="font-display text-3xl sm:text-4xl text-ink tracking-tight mb-2">Why book on Traverion</h2>
           <p className="text-sm text-ink-muted mb-6 max-w-xl leading-relaxed">
-            A marketplace for independent operators — clear booking truth, honest money, separate product types.
+            Book local operators with clear trip details — tours and stays in one place you can manage.
           </p>
           <div className="grid sm:grid-cols-3 gap-4 sm:gap-5">
             <div className="tv-card p-4 sm:p-5">
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">01</p>
-              <p className="font-semibold text-ink mb-1.5">Real operators</p>
+              <p className="font-semibold text-ink mb-1.5">Independent operators</p>
               <p className="text-sm leading-relaxed text-ink-muted">
-                You book the people who run the day. Price is confirmed at checkout — not guessed on the card.
+                You book the people who run the day — local guides and hosts, not anonymous packages.
               </p>
             </div>
             <div className="tv-card p-4 sm:p-5">
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">02</p>
-              <p className="font-semibold text-ink mb-1.5">Clear money</p>
+              <p className="font-semibold text-ink mb-1.5">Clear booking</p>
               <p className="text-sm leading-relaxed text-ink-muted">
-                Pay with {STRIPE_TEST_UNTIL_LIVE}. Trips is your confirmation of record — we do not invent email receipts.
+                Pay to confirm your dates. Trips keeps your booking record and upcoming travel in one place.
               </p>
             </div>
             <div className="tv-card p-4 sm:p-5">
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">03</p>
-              <p className="font-semibold text-ink mb-1.5">Tours ≠ stays</p>
+              <p className="font-semibold text-ink mb-1.5">Experiences and stays</p>
               <p className="text-sm leading-relaxed text-ink-muted">
-                Departures are not nights. Each product keeps its own calendar, options, and rules.
+                Departures and nights stay separate — each product keeps its own calendar, options, and rules.
               </p>
             </div>
           </div>

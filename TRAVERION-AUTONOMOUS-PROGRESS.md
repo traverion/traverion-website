@@ -1,10 +1,10 @@
 # TRAVERION-AUTONOMOUS-PROGRESS
 
-**Mission:** Phases 401→800  
+**Mission:** Phases 401→800 complete · **801→850 traveler premium**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** see `git rev-parse --short HEAD` (Phase 800 tip)  
-**Current phase:** 800  
+**Current SHA:** `f7a50ca`  
+**Current phase:** 801  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -211,6 +211,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 798 | Launch-break refresh Phase 800 handoff draft | `e02ca3f` |
 | 799 | Launch-break final tsc vitest build gate | `7fa5c90` |
 | 800 | Founder handoff TRAVERION-PHASE-800 | Phase 800 tip |
+| 801 | Consumer vs payment test-mode presentation | `f7a50ca` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3905,6 +3906,21 @@ Cookies and marketing preferences: 7\n```
 ### Phase 800 — Founder handoff TRAVERION-PHASE-800
 
 **Phase 800:** Founder handoff document committed. Stripe remains TEST. Cert-email script remains untracked. See `TRAVERION-PHASE-800.md`.
+
+### Phase 801 — Consumer vs payment test-mode presentation
+
+**Mission start:** Traveler premium (801–850) after Phase 800 integrity handoff.
+
+**Strategy:** Marketing/browse sells travel; payment-critical surfaces keep `STRIPE_TEST_UNTIL_LIVE` / Pay now · TEST; one calm global Test mode banner when publishable key is TEST.
+
+**Changes:**
+- `traveler-env-presentation.ts` + `TravelerTestModeBanner` wired in App traveler chrome
+- Home hero / trust strip / Why Traverion / empty copy: no Stripe/QA language
+- Footer + About traveler copy cleaned; en/fi trustLine without Stripe TEST
+- Packages empty line softened
+- Payment/checkout/listing sticky TEST honesty **unchanged**
+
+**Browser (desktop localhost):** Home shows Test mode banner; hero sells travel; no “Stripe TEST until live” in hero/Why/footer. Vitest env-presentation + booking-confirmation-copy green. `tsc` clean.
 
 ## Known remaining risks (ranked)
 

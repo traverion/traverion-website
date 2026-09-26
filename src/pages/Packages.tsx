@@ -862,7 +862,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
               ))}
             </div>
             <p className="mt-8 text-sm text-ink-faint max-w-lg">
-              Live tours from operators appear here when they publish. Traverion does not fill this page with sample trips.
+              Live tours from operators appear here when they publish.
             </p>
           </>
         ) : (

@@ -15,7 +15,10 @@ import {
 export const BOOKING_CONFIRMATION_EMAIL_DISCLAIMER =
   'Trips is your confirmation. If an email arrives, keep it for your records — Traverion does not treat email delivery as booking proof.';
 
-/** Shared Stripe TEST honesty phrase for traveler/partner surfaces until live money. */
+/**
+ * Shared Stripe TEST honesty phrase for **payment-critical** surfaces until live money.
+ * Do not use on homepage/marketing browse — see `traveler-env-presentation.ts` + Test mode banner.
+ */
 export const STRIPE_TEST_UNTIL_LIVE = 'Stripe TEST until live';
 
 /** Empty reviews on tour/stay listing pages — guests review after a completed booking. */
