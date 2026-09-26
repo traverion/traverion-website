@@ -509,12 +509,24 @@ function App() {
 
   const handleTourSelect = (tour: TourPackageType) => {
     if (listingIsFamily(tour, 'stay')) {
+      if (
+        tour.title &&
+        !listingDetailVisibleToTraveler({ familyMatches: true, status: tour.status })
+      ) {
+        return;
+      }
       setSelectedTour(tour);
       setCurrentPage('stay-details');
       // Hydrate full stay row when Trips only passed an id + family hint.
       if (!tour.title) {
         void getListingByIdAsync(tour.id).then((full) => {
-          if (full) setSelectedTour(full);
+          if (
+            !full ||
+            !listingDetailVisibleToTraveler({ familyMatches: listingIsFamily(full, 'stay'), status: full.status })
+          ) {
+            return;
+          }
+          setSelectedTour(full);
         });
       }
       return;
@@ -523,17 +535,36 @@ function App() {
       void getListingByIdAsync(tour.id).then((full) => {
         if (!full) return;
         if (listingIsFamily(full, 'stay')) {
+          if (
+            !listingDetailVisibleToTraveler({ familyMatches: true, status: full.status })
+          ) {
+            return;
+          }
           setSelectedTour(full);
           setCurrentPage('stay-details');
           return;
         }
-        if (!listingIsOnTravelerCatalog(full)) return;
+        if (
+          !listingDetailVisibleToTraveler({
+            familyMatches: listingIsOnTravelerCatalog(full),
+            status: full.status,
+          })
+        ) {
+          return;
+        }
         setSelectedTour(full);
         setCurrentPage('tour-details');
       });
       return;
     }
-    if (!listingIsOnTravelerCatalog(tour)) return;
+    if (
+      !listingDetailVisibleToTraveler({
+        familyMatches: listingIsOnTravelerCatalog(tour),
+        status: tour.status,
+      })
+    ) {
+      return;
+    }
     setSelectedTour(tour);
     setCurrentPage('tour-details');
   };
