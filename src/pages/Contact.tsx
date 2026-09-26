@@ -187,10 +187,14 @@ export default function Contact({ onNavigate }: ContactProps) {
             ) : null}
 
             <fieldset>
-              <legend className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-2">
+              <legend id="contact-topic-legend" className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-2">
                 What do you need help with?
               </legend>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5" role="radiogroup" aria-label="Contact topic">
+              <div
+                className="grid grid-cols-1 sm:grid-cols-2 gap-1.5"
+                role="radiogroup"
+                aria-labelledby="contact-topic-legend"
+              >
                 {TOPICS.map((t) => {
                   const selected = topic === t.id;
                   return (
@@ -230,10 +234,13 @@ export default function Contact({ onNavigate }: ContactProps) {
                 }}
                 className="tv-input"
                 autoComplete="name"
+                required
+                aria-required="true"
                 aria-invalid={fieldErrors.name ? true : undefined}
+                aria-describedby={fieldErrors.name ? 'contact-name-err' : undefined}
               />
               {fieldErrors.name && (
-                <p className="mt-1.5 text-sm text-red-800" role="alert">
+                <p id="contact-name-err" className="mt-1.5 text-sm text-red-800" role="alert">
                   {fieldErrors.name}
                 </p>
               )}
@@ -252,10 +259,13 @@ export default function Contact({ onNavigate }: ContactProps) {
                 }}
                 className="tv-input"
                 autoComplete="email"
+                required
+                aria-required="true"
                 aria-invalid={fieldErrors.email ? true : undefined}
+                aria-describedby={fieldErrors.email ? 'contact-email-err' : undefined}
               />
               {fieldErrors.email && (
-                <p className="mt-1.5 text-sm text-red-800" role="alert">
+                <p id="contact-email-err" className="mt-1.5 text-sm text-red-800" role="alert">
                   {fieldErrors.email}
                 </p>
               )}
@@ -288,7 +298,10 @@ export default function Contact({ onNavigate }: ContactProps) {
                 }}
                 rows={8}
                 className="tv-input min-h-[10rem] resize-y py-3"
+                required
+                aria-required="true"
                 aria-invalid={fieldErrors.message ? true : undefined}
+                aria-describedby={fieldErrors.message ? 'contact-message-err' : undefined}
                 placeholder={
                   topic === 'trip'
                     ? 'Include your booking reference if you have one.'
@@ -298,7 +311,7 @@ export default function Contact({ onNavigate }: ContactProps) {
                 }
               />
               {fieldErrors.message && (
-                <p className="mt-1.5 text-sm text-red-800" role="alert">
+                <p id="contact-message-err" className="mt-1.5 text-sm text-red-800" role="alert">
                   {fieldErrors.message}
                 </p>
               )}
@@ -306,9 +319,10 @@ export default function Contact({ onNavigate }: ContactProps) {
             <button
               type="submit"
               disabled={isSubmitting}
+              aria-busy={isSubmitting || undefined}
               className="tv-btn-primary lux-tap-target min-h-11 disabled:opacity-50"
             >
-              {isSubmitting ? 'Submitting…' : 'Submit message'}
+              {isSubmitting ? 'Sending…' : 'Send message'}
             </button>
           </form>
         </>

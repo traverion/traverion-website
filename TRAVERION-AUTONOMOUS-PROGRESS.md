@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `fe0c92e`  
-**Current phase:** 752  
+**Current SHA:** `b37913a`  
+**Current phase:** 753  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -159,6 +159,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 661 | Offers empty only when load succeeded | `7cb49d1` |
 | 662 | StayDetails reviews reset + eligibility stale guard | `a0bc0c2` |
 | 663 | Checkout contact fields label htmlFor + ids | `fa7cfef` |
+| 753 | Contact form required and field error wiring | `b37913a` |
 | 752 | Partner Create listing label coherence | `fe0c92e` |
 | 751 | Shared traveler checkout CTA constants | `d74d9a3` |
 | 750 | Listing card rating accessible name | `f29d12d` |
@@ -3638,6 +3639,10 @@ Hard-coded Opening checkout / Pay now · TEST strings drifted across surfaces. E
 ### Phase 752 — Partner Create listing label coherence
 
 Partner nav Create was ambiguous vs create-account. Align primary sidebar + More sheet CTA to Create listing with aria-label.
+
+### Phase 753 — Contact form required and field error wiring
+
+Contact topic radiogroup now labelledby legend; name/email/message get required + aria-describedby; submit uses Send message with aria-busy.
 
 ## Known remaining risks (ranked)
 
