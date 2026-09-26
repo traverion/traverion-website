@@ -17,7 +17,7 @@ interface UnifiedHeaderProps {
 }
 
 export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeaderProps) {
-  const { user, signOut } = useAuth();
+  const { user, signOut, loading: authLoading } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [hasUnreadBookings, setHasUnreadBookings] = useState(false);
@@ -247,6 +247,10 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                         Browse tours
                       </button>
                     </div>
+                  ) : authLoading ? (
+                    <p className="px-3 py-2 text-sm text-ink-muted" aria-busy="true">
+                      Checking session…
+                    </p>
                   ) : user ? (
                     <>
                       <div className="px-3 py-2 border-b border-black/[0.06] min-w-0">
@@ -417,7 +421,12 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
               )}
               {/* Mobile Action Buttons */}
               <div className="border-t border-black/[0.06] pt-4 space-y-2">
-                {isSupabaseConfigured() && user ? (
+                {isSupabaseConfigured() && authLoading ? (
+                  <p className="px-4 py-3 text-sm text-ink-muted" aria-busy="true">
+                    Checking session…
+                  </p>
+                ) : null}
+                {isSupabaseConfigured() && !authLoading && user ? (
                   <div className="px-2 py-2 flex items-center gap-2 text-sm text-ink-muted min-w-0">
                     <span className="w-8 h-8 rounded-full bg-finland/20 text-finland flex items-center justify-center text-sm font-medium flex-shrink-0">
                       {(user.email ?? user.id).slice(0, 1).toUpperCase()}
@@ -427,7 +436,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                     </span>
                   </div>
                 ) : null}
-                {isSupabaseConfigured() && !user && (
+                {isSupabaseConfigured() && !authLoading && !user && (
                   <button
                     onClick={() => {
                       window.history.pushState({}, '', '/log-in?next=home');
@@ -440,7 +449,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                     Log in / Sign up
                   </button>
                 )}
-                {isSupabaseConfigured() && user && (
+                {isSupabaseConfigured() && !authLoading && user && (
                   <>
                     <button
                       onClick={() => {
