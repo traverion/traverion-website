@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `cc36fec`   
-**Current phase:** 596  
+**Current SHA:** `644608c`  
+**Current phase:** 597  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -91,7 +91,8 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 543 | Wrap Inbox guest names and listing lines under line-clamp | `6a848e3` |
 | 544 | Wrap Bookings + Pickup guest/listing/meeting identity lines | `530030f` |
 | 595 | Reconcile voucher 099 + untrack secrets + prove 080–099 not remote-applied | `59057da` |
-| 596 | Push trust migrations 080–099 to linked remote + verify | `cc36fec` |
+| 596 | Push trust migrations 080–099 to linked remote + verify | `bbe6d91` |
+| 597 | Partner ops golden journey localhost browser cert | `644608c` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -2827,9 +2828,24 @@ Never equate repository presence with deployment. Phase 596+ must push/verify re
 
 Also fixed progress header SHA for Phase 595 (`59057da`) after a quoting glitch.
 
+### Phase 597 — Partner ops golden journey (localhost browser)
+
+**Session:** Demo partner already authenticated as Aurora Lapland Experiences Oy on `http://127.0.0.1:5173/partner`.
+
+**Certified (browser, read-only):**
+- Home: attention items, today’s schedule (Ranua 10:00 / Anna / 5 guests / meet point / booking #), TEST mode banner.
+- Bookings list: 13 bookings; rows show guest, listing, option, date, **start time**, guests, €, Paid/Refunded.
+- Booking detail `#27` Markus Niemi / Guaranteed Northern Lights / **Private tour** / Meet · Hotel pickup / Paid / Pickup 19:45 — commercial fields visible without inventing data.
+- Calendar (`/partner/availability`): September days with guest counts; **19 Sept day panel** shows distinct departures **09:00** (Ice Fishing), **20:00** NL, **20:30** NL Private — multi-departure operational truth.
+- Listings: Live 5 / Draft 41 / Stays 1 tabs; published + draft inventory present.
+
+**Not certified this phase:** partner create→publish wizard end-to-end (would mutate); traveler booking against partner inventory.
+
+**Credentials used (documented partner demo):** see `docs/PARTNER_DEMO_COVERAGE.md`.
+
 ## Known remaining risks (ranked)
 
-1. **P1 — Partner browser golden journeys** — demo partner session available on localhost; full create→publish→book cert still pending systematic pass.
+1. **P1 — Partner create→publish wizard** not browser-certified this pass (ops Home/Bookings/Calendar/Listings **are** localhost-browser certified in Phase 597). Full create→publish still pending.
 2. **P1 — Migrations 080–099 now remote-applied** — schema present; adversarial SQL suites not re-run against remote in CI this phase (local SQL tests remain the proof artifacts).
 3. **P1 — Advisory lock listing-scoped** — safe but coarse.
 4. **P2 — LIVE Stripe** intentionally blocked.
