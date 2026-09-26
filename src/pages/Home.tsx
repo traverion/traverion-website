@@ -256,7 +256,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
             Tours and stays from people who run the day.
           </h1>
           <p className="page-hero-subtitle text-base sm:text-lg mb-7 max-w-lg font-normal text-white/90">
-            Independent operators. Live availability. Pay to confirm — Stripe remains TEST until live payments are switched on.
+            Independent operators. Live availability. Pay to confirm — {STRIPE_TEST_UNTIL_LIVE}.
           </p>
 
           {/* Mobile: compact trigger → dedicated search sheet */}

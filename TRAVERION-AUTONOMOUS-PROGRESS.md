@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `ec7029d`  
-**Current phase:** 764  
+**Current SHA:** `be52809`  
+**Current phase:** 765  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -175,6 +175,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 749 | Partner sidebar nav group aria wiring | `905ebf4` |
 | 763 | Shared Continue TEST CTA constant | `61fb4df` |
 | 764 | Tour and stay detail Continue TEST wiring | `ec7029d` |
+| 765 | Home hero uses shared Stripe TEST phrase | `be52809` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3698,6 +3699,10 @@ Continue · TEST was hard-coded in sticky helpers. Export TRAVELER_CONTINUE_TEST
 ### Phase 764 — Tour and stay detail Continue TEST wiring
 
 Listing detail Continue · TEST still hard-coded after sticky helper centralization. Wire TourDetails + StayDetails to the shared constant.
+
+### Phase 765 — Home hero uses shared Stripe TEST phrase
+
+Home hero still said Stripe remains TEST until live payments are switched on. Use shared STRIPE_TEST_UNTIL_LIVE.
 
 ## Known remaining risks (ranked)
 
