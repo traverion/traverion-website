@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800 complete · **801→850 traveler premium**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `3066cd6`  
-**Current phase:** 839  
+**Current SHA:** `d7f7c70`  
+**Current phase:** 840  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -4197,6 +4197,12 @@ Cleared device metrics after pass.
 - Riverside Apartment detail: gallery, STAY badge, facts, sticky booking with human “test-mode payment (no real charge)” + Select dates. **mobile-browser-tested**.
 
 Softened stays empty-state honesty copy (still no invented inventory).
+
+### Phase 840 — Account mobile + Saved naming + save heart feedback
+
+**Browser (390×844):** Account dashboard loads traveler chrome — Your travel tiles, Security, Profile. Note: localhost session may show partner demo identity (known same-origin risk). **mobile-browser-tested**.
+
+**Change:** Account travel tile “Wishlist” → **Saved**. Catalog heart: press scale + brief fill pulse (respects reduced motion via motion-safe).
 
 ## Known remaining risks (ranked)
 

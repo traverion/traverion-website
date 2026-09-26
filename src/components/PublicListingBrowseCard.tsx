@@ -111,7 +111,7 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
       {showWishlist && wishlist ? (
         <button
           type="button"
-          className="lux-flat absolute top-2.5 right-2.5 z-10 inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/92 text-ink shadow-sm ring-1 ring-black/[0.08] hover:bg-white disabled:opacity-60"
+          className="lux-flat absolute top-2.5 right-2.5 z-10 inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/92 text-ink shadow-sm ring-1 ring-black/[0.08] hover:bg-white disabled:opacity-60 motion-safe:active:scale-90 transition-transform"
           aria-label={wishlist.saved ? `Remove ${tour.title} from saved` : `Save ${tour.title}`}
           aria-pressed={wishlist.saved}
           disabled={wishlist.busy}
@@ -122,7 +122,9 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
           }}
         >
           <Heart
-            className={`h-4 w-4 ${wishlist.saved ? 'fill-finland text-finland' : 'text-ink'}`}
+            className={`h-4 w-4 transition-colors duration-150 ${
+              wishlist.saved ? 'fill-finland text-finland motion-safe:animate-[pulse_0.45s_ease-out]' : 'text-ink'
+            }`}
             strokeWidth={2}
           />
         </button>

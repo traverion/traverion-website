@@ -210,8 +210,8 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
     },
     {
       id: 'wishlist',
-      title: 'Wishlist',
-      description: 'Tours and stays you saved',
+      title: 'Saved',
+      description: 'Tours and stays you want to revisit',
       icon: Heart,
       count: stats != null ? badge(stats.wishlist) : undefined,
       onClick: () => onNavigate('wishlist'),
