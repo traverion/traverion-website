@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { MessageSquare } from 'lucide-react';
 import {
   fetchBookingMessages,
@@ -51,17 +51,29 @@ export default function BookingMessageThread({
   bookingDate,
 }: Props) {
   const [rows, setRows] = useState<BookingMessageRow[]>([]);
+  const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const loadGenRef = useRef(0);
 
   const load = useCallback(async () => {
-    const list = await fetchBookingMessages(bookingId);
-    setRows(list);
-    await markBookingMessagesRead(bookingId);
+    const gen = ++loadGenRef.current;
+    setLoading(true);
+    try {
+      const list = await fetchBookingMessages(bookingId);
+      if (gen !== loadGenRef.current) return;
+      setRows(list);
+      await markBookingMessagesRead(bookingId);
+    } finally {
+      if (gen === loadGenRef.current) setLoading(false);
+    }
   }, [bookingId]);
 
   useEffect(() => {
+    setRows([]);
+    setDraft('');
+    setError(null);
     void load();
   }, [load]);
 
@@ -95,7 +107,11 @@ export default function BookingMessageThread({
   return (
     <div className="space-y-3">
       <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint">Messages</p>
-      {rows.length === 0 ? (
+      {loading ? (
+        <p className="text-sm text-ink-muted" aria-busy="true">
+          Loading messages…
+        </p>
+      ) : rows.length === 0 ? (
         canCompose ? (
           <div className="rounded-xl bg-paper-raised px-4 py-3.5 ring-1 ring-black/[0.06]">
             <div className="flex items-start gap-3">
