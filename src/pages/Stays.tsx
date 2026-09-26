@@ -332,6 +332,49 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
     reviewAggregates,
   ]);
 
+  const matchingExceptOccupancyCount = useMemo(() => {
+    if (!dateFilterActive) return 0;
+    return stays.filter((s) => {
+      const agg = reviewAggregates.get(s.id);
+      if (
+        !stayMatchesCatalogFilters(s, {
+          q,
+          guests,
+          propertyType,
+          price: priceRange,
+          amenities: selectedAmenities,
+          rating: ratingFilter,
+          ratingScore: agg && agg.count > 0 ? agg.rating : null,
+        })
+      ) {
+        return false;
+      }
+      const extras = parseListingExtras(s.listingExtras);
+      const requestedNights = nightsOccupiedByStay(checkIn, checkOut).length;
+      const minN = extras.stay?.minNights ?? 1;
+      if (requestedNights < minN) return false;
+      return true;
+    }).length;
+  }, [
+    stays,
+    q,
+    guests,
+    propertyType,
+    priceRange,
+    selectedAmenities,
+    ratingFilter,
+    dateFilterActive,
+    checkIn,
+    checkOut,
+    reviewAggregates,
+  ]);
+
+  const emptyDueToOccupiedNights =
+    filtered.length === 0 &&
+    dateFilterActive &&
+    occupiedByListing != null &&
+    matchingExceptOccupancyCount > 0;
+
   const waitingOnOccupancy =
     dateFilterActive && isSupabaseConfigured() && !occupancyError && (occupancyLoading || occupiedByListing === null);
 
@@ -621,11 +664,13 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
               <EmptyState
                 className="py-8 sm:py-10 max-w-lg"
                 icon={Search}
-                title="No stays match"
+                title={emptyDueToOccupiedNights ? 'Fully booked for those nights' : 'No stays match'}
                 body={
-                  dateFilterActive
-                    ? 'No stays are free for those nights — or the stay has a longer minimum. Try other dates or clear filters.'
-                    : 'Try another place, dates, or guest count — or clear filters to see live stays again.'
+                  emptyDueToOccupiedNights
+                    ? 'Stays that match your other filters are occupied or blocked for those nights. Try other dates or clear filters.'
+                    : dateFilterActive
+                      ? 'No stays are free for those nights — or the stay has a longer minimum. Try other dates or clear filters.'
+                      : 'Try another place, dates, or guest count — or clear filters to see live stays again.'
                 }
                 action={
                   hasActiveFilters ? (
