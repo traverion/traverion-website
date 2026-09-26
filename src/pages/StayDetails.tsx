@@ -42,6 +42,7 @@ import { formatOccupiedNightRanges, formatStayNightHuman } from '../lib/stay-cal
 import { stayAmenityDisplayList } from '../lib/stay-amenities';
 import { stayStickyBookCtaLabel } from '../lib/stay-sticky-cta';
 import { stayCheckoutLeadGuestNameReady } from '../lib/stay-checkout-guest';
+import { travelerDisplayNameFromSources } from '../lib/traveler-display-name';
 import {
   BOOKING_CONFIRMATION_EMAIL_DISCLAIMER,
   STAY_LISTING_CONFIRMATION_NOTE,
@@ -712,7 +713,15 @@ export default function StayDetails({ stayId, onBack }: Props) {
                           const res = await submitReview({
                             listingId: stay.id,
                             userId: user.id,
-                            guestName: user.email?.split('@')[0] ?? 'Guest',
+                            guestName: travelerDisplayNameFromSources({
+                              formValue: guestName,
+                              metadata: user.user_metadata as {
+                                full_name?: string;
+                                name?: string;
+                                customer_first_name?: string;
+                                customer_last_name?: string;
+                              },
+                            }),
                             rating: reviewRating,
                             title: reviewTitle.trim() || undefined,
                             comment: reviewComment.trim(),

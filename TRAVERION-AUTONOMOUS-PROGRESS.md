@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `7d6cb24`  
-**Current phase:** 623  
+**Current SHA:** `274e6a3`  
+**Current phase:** 624  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -119,6 +119,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 621 | Tour detail option label + sticky quote gate + tour-switch reset | `beca448` |
 | 622 | Trips empty/cancel CTAs include Browse stays | `550c67c` |
 | 623 | Schedules bulk range date plural spacing | `7d6cb24` |
+| 624 | Review author names skip email local-part | `274e6a3` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3032,6 +3033,12 @@ Same split-text-node class as Phases 599/616: “No activity date” subsection 
 ### Phase 623 — Schedules bulk range “date s” plural spacing
 
 Same split-text-node class: Availability bulk capacity copy rendered `date` / `s` separately. Collapsed to one template string.
+
+### Phase 624 — Review author names never use email local-part
+
+**Problem:** Tour and stay review submit used `user.email?.split('@')[0]` as the public `guestName`, conflicting with Phase 614’s lead-guest honesty (and leaking partner-demo local-parts on shared localhost auth).
+
+**Fix:** Shared `travelerDisplayNameFromSources` (form → profile → metadata → “Guest”). Wired into StayDetails + TourDetails review submit. Vitest 1/1.
 
 ## Known remaining risks (ranked)
 

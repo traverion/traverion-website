@@ -89,6 +89,7 @@ import {
 import { formatTourAvailabilityHeading, optionsOnDate } from '../lib/tour-available-options';
 import { tourSlotMaxSpotsFromOption } from '../lib/tour-slot-capacity';
 import { tourStickyBookCtaLabel } from '../lib/tour-sticky-cta';
+import { travelerDisplayNameFromSources } from '../lib/traveler-display-name';
 import { fetchWishlistListingIds, toggleWishlist } from '../data/supabase-wishlist';
 import { formatMoney, normalizeCurrency } from '../lib/money';
 import { PriceHero } from '../components/PriceBreakdown';
@@ -1585,7 +1586,14 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                       const res = await submitReview({
                         listingId: tour.id,
                         userId: user.id,
-                        guestName: user.email?.split('@')[0] ?? 'Guest',
+                        guestName: travelerDisplayNameFromSources({
+                          metadata: user.user_metadata as {
+                            full_name?: string;
+                            name?: string;
+                            customer_first_name?: string;
+                            customer_last_name?: string;
+                          },
+                        }),
                         rating: reviewRating,
                         title: reviewTitle.trim() || undefined,
                         comment: reviewComment.trim(),
