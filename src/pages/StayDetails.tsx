@@ -478,10 +478,49 @@ export default function StayDetails({ stayId, onBack }: Props) {
   };
 
   if (error && !stay) {
+    const stayMissing = error === USER_ERROR.stayMissing;
     return (
       <div className="min-h-screen bg-paper tv-page">
         <div className="max-w-lg mx-auto px-4 py-16">
-          <ErrorState title="Stay unavailable" body={error} back={{ onClick: onBack, label: 'Back to stays' }} />
+          <ErrorState
+            title={stayMissing ? 'Stay not found' : 'Stay unavailable'}
+            body={error}
+            retry={
+              stayMissing
+                ? undefined
+                : {
+                    onClick: () => {
+                      setError(null);
+                      void getListingByIdAsync(stayId)
+                        .then((row) => {
+                          const found = row ?? getListingById(stayId) ?? null;
+                          if (
+                            !found ||
+                            !listingDetailVisibleToTraveler({
+                              familyMatches: listingIsFamily(found, 'stay'),
+                              status: found.status,
+                            })
+                          ) {
+                            setStay(null);
+                            setError(USER_ERROR.stayMissing);
+                            return;
+                          }
+                          setStay(found);
+                        })
+                        .catch((e) => {
+                          setStay(null);
+                          setError(userFacingError(e, USER_ERROR.stay));
+                        });
+                    },
+                  }
+            }
+            back={{ onClick: onBack, label: 'Back to stays' }}
+            extra={
+              <a href="/contact" className="tv-btn-ghost inline-flex">
+                Contact support
+              </a>
+            }
+          />
         </div>
       </div>
     );
