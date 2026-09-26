@@ -9,7 +9,8 @@ export function listingShowsFreeCancellation(input: {
 }): boolean {
   if (input.tags?.includes('free-cancellation')) return true;
   const policy = (input.cancellationPolicy ?? '').trim();
-  return policy.length === 0 || policy === TRAVERION_STANDARD_CANCELLATION_POLICY;
+  // Empty policy is unknown — do not advertise free cancellation by default.
+  return policy === TRAVERION_STANDARD_CANCELLATION_POLICY;
 }
 
 /** Browse tag chips must match real listing fields, not stale tags[] alone. */
@@ -19,9 +20,9 @@ export function listingTourMatchesBrowseTag(tour: TourPackage, tagId: string): b
   }
   if (tagId === 'pickup-available') {
     const opts = materializedBookingOptions(parseListingExtras(tour.listingExtras).bookingOptions);
+    // Meeting point alone is not pickup — require real pickup place/instructions.
     if (opts.some((o) => (o.pickupPlace ?? '').trim().length >= 8)) return true;
     if ((tour.pickupInstructions ?? '').trim().length >= 8) return true;
-    if ((tour.meetingPoint ?? '').trim().length >= 8) return true;
     return Boolean(tour.tags?.includes('pickup-available'));
   }
   return Boolean(tour.tags?.includes(tagId));

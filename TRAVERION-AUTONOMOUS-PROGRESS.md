@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `30ae77b`  
-**Current phase:** 603  
+**Current SHA:** `0df7eb3`  
+**Current phase:** 604  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -99,6 +99,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 601 | Age-priced mix drives capacity + sticky sold-out | `5bcf6e2` |
 | 602 | Trips View stay routes to stay-details | `0a27d88` |
 | 603 | Stay checkout refreshes blocked nights before Stripe | `30ae77b` |
+| 604 | Honest pickup + free-cancel browse tags | `0df7eb3` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -2907,6 +2908,12 @@ Closing the 526–600 / trust band deliberately. Distinctions (do not collapse):
 **Problem:** Pre-Stripe stay checkout refreshed occupied ranges but still tested against stale `blockedNights`, so a host block set after the traveler opened the page could still reach Stripe.
 
 **Fix:** Parallel re-fetch of occupied ranges + blocked nights; use fresh blocked set for the overlap refusal.
+
+### Phase 604 — Browse tag honesty (pickup + free cancel)
+
+**Pickup-available:** no longer matches on meeting point alone — requires pickupPlace / pickupInstructions / tag.
+**Free cancellation:** empty `cancellationPolicy` no longer advertises free cancel; requires standard Traverion policy text or tag.
+Vitest `listingTruth.test.ts` updated and passing.
 
 ## Known remaining risks (ranked)
 

@@ -6,11 +6,26 @@ import type { TourPackage } from '../types/tour';
 describe('listingTourMatchesBrowseTag', () => {
   const base = { id: '1', title: 'T', destination: 'X', tags: [] } as TourPackage;
 
-  it('matches free cancellation from standard policy without the tag', () => {
-    expect(listingTourMatchesBrowseTag({ ...base, cancellationPolicy: '' }, 'free-cancellation')).toBe(true);
+  it('matches free cancellation from standard policy or tag, not empty policy', () => {
+    expect(listingTourMatchesBrowseTag({ ...base, cancellationPolicy: '' }, 'free-cancellation')).toBe(false);
+    expect(
+      listingTourMatchesBrowseTag(
+        { ...base, cancellationPolicy: TRAVERION_STANDARD_CANCELLATION_POLICY },
+        'free-cancellation'
+      )
+    ).toBe(true);
     expect(listingTourMatchesBrowseTag({ ...base, cancellationPolicy: 'Non-refundable.' }, 'free-cancellation')).toBe(
       false
     );
+  });
+
+  it('does not treat meeting point alone as pickup-available', () => {
+    expect(
+      listingTourMatchesBrowseTag(
+        { ...base, meetingPoint: 'Hotel lobby downtown Rovaniemi' },
+        'pickup-available'
+      )
+    ).toBe(false);
   });
 
   it('matches pickup from option meeting copy, not only tags', () => {
@@ -42,12 +57,12 @@ describe('listingTourMatchesBrowseTag', () => {
 });
 
 describe('listingShowsFreeCancellation', () => {
-  it('follows the tag or the standard Traverion policy, not empty tags', () => {
+  it('follows the tag or the standard Traverion policy, not empty policy', () => {
     expect(listingShowsFreeCancellation({ tags: ['free-cancellation'] })).toBe(true);
     expect(listingShowsFreeCancellation({ tags: [], cancellationPolicy: TRAVERION_STANDARD_CANCELLATION_POLICY })).toBe(
       true,
     );
-    expect(listingShowsFreeCancellation({ tags: [], cancellationPolicy: '' })).toBe(true);
+    expect(listingShowsFreeCancellation({ tags: [], cancellationPolicy: '' })).toBe(false);
     expect(listingShowsFreeCancellation({ tags: [], cancellationPolicy: 'Non-refundable.' })).toBe(false);
   });
 });
