@@ -3,13 +3,13 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:**   
-**Current phase:** 595  
+**Current SHA:** `cc36fec`   
+**Current phase:** 596  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
 **Local-only (gitignored):** `scripts/cert-transactional-emails.cjs` — must stay untracked; contains service-role secrets when present locally  
-**Remote migration truth (2026-09-26):** `supabase migration list --linked` shows **Local applied through 079**; **080–099 exist in git only (Remote column empty)** — security/trust migrations from Phases ~551–595 are **NOT deployed** to project `xcopqllkulxfkpunetbc` until explicitly pushed  
+**Remote migration truth (2026-09-26):** After Phase 596 `supabase db push --linked`, Local **and** Remote show **080–099 applied** on project `xcopqllkulxfkpunetbc`. Spot-checked: `jwt_verified_email`, `cancel_booking_as_traveler`, `admin_record_supplier_payout`, voucher RLS policies present; `listings.status` NOT NULL  
 
 ## Milestone Phase 513 (inventory band)
 
@@ -90,7 +90,8 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 542 | Certify schedule-edit / capacity-reduction / unpublish partner warnings 9/9 | `ddc7ec8` |
 | 543 | Wrap Inbox guest names and listing lines under line-clamp | `6a848e3` |
 | 544 | Wrap Bookings + Pickup guest/listing/meeting identity lines | `530030f` |
-| 595 | Reconcile voucher 099 + untrack secrets + prove 080–099 not remote-applied |  |
+| 595 | Reconcile voucher 099 + untrack secrets + prove 080–099 not remote-applied | `59057da` |
+| 596 | Push trust migrations 080–099 to linked remote + verify | `cc36fec` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -2810,10 +2811,26 @@ rotating to a different domain next phase per the skill's own guidance.
 
 Never equate repository presence with deployment. Phase 596+ must push/verify remote apply before claiming production trust for those guards.
 
+### Phase 596 — Apply trust migrations 080–099 to linked remote
+
+**Problem:** Phase 595 proved migrations 080–099 existed in git but Remote column was empty — production TEST project lacked the security/trust guards from Phases ~551–595.
+
+**Action:** `supabase db push --linked` applied all 20 migrations successfully (notices only for IF NOT EXISTS drops).
+
+**Evidence after push:**
+- `supabase migration list --linked`: Local=Remote for 080–099
+- Remote functions present: `jwt_verified_email`, `cancel_booking_as_traveler`, `admin_record_supplier_payout`, `enforce_listing_publish_verification`
+- `supplier_booking_vouchers` policies present (read/update/insert)
+- `listings.status` attnotnull = true
+
+**Certification level:** **remotely applied** + prior local SQL tests in repo. Not a substitute for full remote adversarial re-run of every `.test.sql` file.
+
+Also fixed progress header SHA for Phase 595 (`59057da`) after a quoting glitch.
+
 ## Known remaining risks (ranked)
 
-1. **P0 — Migrations 080–099 not applied remotely** — trust/security fixes exist in git + many have SQL tests, but `supabase migration list --linked` shows Remote empty for 080–099. Live project still lacks those guards until push + verify.
-2. **P1 — Partner browser golden journeys** still not certified (demo credentials available; live partner session certification pending).
+1. **P1 — Partner browser golden journeys** — demo partner session available on localhost; full create→publish→book cert still pending systematic pass.
+2. **P1 — Migrations 080–099 now remote-applied** — schema present; adversarial SQL suites not re-run against remote in CI this phase (local SQL tests remain the proof artifacts).
 3. **P1 — Advisory lock listing-scoped** — safe but coarse.
 4. **P2 — LIVE Stripe** intentionally blocked.
 5. **P2 — Service-role JWT briefly tracked** in `scripts/cert-transactional-emails.cjs` (now untracked); rotate when practical.
