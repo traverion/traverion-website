@@ -55,7 +55,8 @@ export default function Cookies({ onNavigate }: CookiesProps) {
       </section>
 
       <section>
-        <h2>Preference center</h2>
+        <h2 id="preferences">Preference center</h2>
+
         <p>
           Traverion does not yet ship an in-app cookie preference center. Use your browser settings to block or delete
           non-essential cookies. Essential cookies required for sign-in and checkout cannot be turned off without
@@ -64,7 +65,8 @@ export default function Cookies({ onNavigate }: CookiesProps) {
       </section>
 
       <section>
-        <h2>Managing cookies</h2>
+        <h2 id="managing">Managing cookies</h2>
+
         <p>You can control and manage cookies in several ways:</p>
         <ul>
           <li>Use your browser settings to block or delete cookies</li>
@@ -74,7 +76,8 @@ export default function Cookies({ onNavigate }: CookiesProps) {
       </section>
 
       <section>
-        <h2>Third-party tools &amp; retention</h2>
+        <h2 id="third-party">Third-party tools &amp; retention</h2>
+
         <p>
           Some cookies are set by trusted partners (for example analytics or embedded maps). Those providers have their
           own privacy notices. We aim to use only services that meet reasonable security and compliance standards.
@@ -87,7 +90,8 @@ export default function Cookies({ onNavigate }: CookiesProps) {
       </section>
 
       <section>
-        <h2>Contact us</h2>
+        <h2 id="contact">Contact us</h2>
+
         <p>If you have any questions about our use of cookies, please contact us:</p>
         <p>
           Email: <a href="mailto:info@traverion.com">info@traverion.com</a>

@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800 complete · **801→850 traveler premium**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `9800ec0`  
-**Current phase:** 836  
+**Current SHA:** `da155ac`  
+**Current phase:** 837  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -4173,6 +4173,16 @@ Wider footer (`max-w-[90rem]`), display-serif brand + section titles, calmer cre
 ### Phase 836 — Legal Notice + Cookies TOC
 
 Extend Phase 832 shell: Legal Notice and Cookies pages get on-this-page TOCs with heading ids. Legal meaning unchanged.
+
+### Phase 837 — Mobile 390×844 browser pass + Cookies heading ids
+
+**Browser (mobile-emulated 390×844):**
+- Home: hamburger chrome, hero brand + search sheet trigger, trust lines, no Stripe marketing in hero. **mobile-browser-tested**.
+- Tours catalog: Tours/Stays toggle, Search summary field, Filters + Sort, compact card (“5 tours”, photography intact). **mobile-browser-tested**.
+
+Also finished remaining Cookies `h2` ids for TOC anchors (partial apply from 836).
+
+Cleared device metrics after pass.
 
 ## Known remaining risks (ranked)
 
