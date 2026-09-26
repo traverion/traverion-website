@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `2c5bad1`  
-**Current phase:** 651  
+**Current SHA:** `52f25be`  
+**Current phase:** 652  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -147,6 +147,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 649 | Message thread loading + clear on booking switch | `4582362` |
 | 650 | Partner Bookings empty only when load succeeded | `2538628` |
 | 651 | Partner Reviews empty only when load succeeded | `2c5bad1` |
+| 652 | TourDetails ignore stale listing fetch | `52f25be` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3210,6 +3211,10 @@ Failed Bookings fetches still showed “No bookings yet”. Gate empty state on 
 ### Phase 651 — Partner Reviews empty only when load succeeded
 
 Same dishonest empty as Bookings: load error + zero rows claimed “No reviews yet”. Gate on `!error`.
+
+### Phase 652 — TourDetails ignore stale listing fetch
+
+Fast tour→tour navigation could apply a late `getListingByIdAsync` for the previous id (StayDetails already cancelled). Add cancelled cleanup.
 
 ## Known remaining risks (ranked)
 

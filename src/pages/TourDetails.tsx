@@ -535,15 +535,23 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   useEffect(() => {
     setTourLoadError(null);
     if (isSupabaseConfigured()) {
+      let cancelled = false;
       getListingByIdAsync(tourId)
-        .then((found) => { setTour(found ?? null); })
+        .then((found) => {
+          if (cancelled) return;
+          setTour(found ?? null);
+        })
         .catch((e) => {
+          if (cancelled) return;
           setTour(null);
           setTourLoadError(userFacingError(e, USER_ERROR.tour));
         });
-    } else {
-      setTour(getListingById(tourId) ?? null);
+      return () => {
+        cancelled = true;
+      };
     }
+    setTour(getListingById(tourId) ?? null);
+    return undefined;
   }, [tourId]);
 
   useEffect(() => {
