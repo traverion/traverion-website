@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800 complete · **801→850 traveler premium**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `e5ee314`  
-**Current phase:** 844  
+**Current SHA:** `6153c33`  
+**Current phase:** 845  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -4227,6 +4227,10 @@ Shared Traverion calendar stack present and consumed:
 - Wired into tour/stay search fields and booking date pickers (TourDatePicker / StayNightPicker / BookingDateField / MarketplaceSearchBar)
 
 Visual layer only — availability truth unchanged. **code-inspected** this phase (prior browser use in 821–827 / listing detail).
+
+### Phase 845 — Overscroll behavior confirm
+
+`index.css` already sets `html { overscroll-behavior-y: none }` and `body { overscroll-behavior-y: contain }` plus nested `overscroll-contain` on modals/sheets. No global JS scroll lock. **code-inspected**. Rubber-band beyond page edges mitigated without breaking nested scrollers.
 
 ## Known remaining risks (ranked)
 
