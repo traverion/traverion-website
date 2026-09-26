@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `693ed52`  
-**Current phase:** 766  
+**Current SHA:** `e305dae`  
+**Current phase:** 767  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -177,6 +177,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 764 | Tour and stay detail Continue TEST wiring | `ec7029d` |
 | 765 | Home hero uses shared Stripe TEST phrase | `be52809` |
 | 766 | English cookies label and honest reply SLA | `693ed52` |
+| 767 | Finnish cookies label and honest reply SLA | `e305dae` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3708,6 +3709,10 @@ Home hero still said Stripe remains TEST until live payments are switched on. Us
 ### Phase 766 — English cookies label and honest reply SLA
 
 en.ts footer links still said Cookie Policy and claimed 24h response. Align cookies label; reply copy says no guaranteed SLA.
+
+### Phase 767 — Finnish cookies label and honest reply SLA
+
+fi.ts still Evästekäytäntö + 24h vastausaika. Align cookies naming; honest Contact reply copy.
 
 ## Known remaining risks (ranked)
 
