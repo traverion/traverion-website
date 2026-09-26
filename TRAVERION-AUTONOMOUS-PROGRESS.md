@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `2a701b2`  
-**Current phase:** 780  
+**Current SHA:** `b2c360b`  
+**Current phase:** 781  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -191,6 +191,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 778 | Launch-break honesty and money unit suites | `639009e` |
 | 779 | Launch-break checkout resume and trip-view suites | `532123e` |
 | 780 | Launch-break payment-states unit suite | `2a701b2` |
+| 781 | Launch-break Stripe TEST-only source proof | `b2c360b` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3778,6 +3779,12 @@ Money load ErrorState had retry only.
 ### Phase 780 — Launch-break payment-states unit suite
 
 **Launch-break:** payment-states unit suite green.
+
+### Phase 781 — Launch-break Stripe TEST-only source proof
+
+**Launch-break Stripe proof:**\n```\nSTRIPE_TEST_UNTIL_LIVE occurrences: 32
+TRAVELER_CONTINUE_TEST_CTA: 16
+TRAVELER_PAY_NOW_TEST_CTA: 9\n```
 
 ## Known remaining risks (ranked)
 
