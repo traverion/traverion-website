@@ -49,6 +49,7 @@ import {
   LISTING_REVIEWS_EMPTY_COPY,
   STRIPE_TEST_UNTIL_LIVE,
   TRAVELER_OPENING_CHECKOUT_CTA,
+  TRAVELER_CONTINUE_TEST_CTA,
 } from '../lib/booking-confirmation-copy';
 import { listingShowsFreeCancellation, publicReviewLabel } from '../lib/listingTruth';
 import { isSupabaseConfigured } from '../lib/supabase';
@@ -858,6 +859,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
                       <button
                         type="button"
                         disabled={reviewSubmitting || !reviewComment.trim()}
+                        aria-busy={reviewSubmitting || undefined}
                         onClick={async () => {
                           setReviewSubmitting(true);
                           setReviewError(null);
@@ -1046,8 +1048,8 @@ export default function StayDetails({ stayId, onBack }: Props) {
                     ? 'Dates unavailable'
                     : paying
                       ? TRAVELER_OPENING_CHECKOUT_CTA
-                      : stickyStayCtaLabel === 'Continue · TEST'
-                        ? 'Continue · TEST'
+                      : stickyStayCtaLabel === TRAVELER_CONTINUE_TEST_CTA
+                        ? TRAVELER_CONTINUE_TEST_CTA
                         : stickyStayCtaLabel}
                 </button>
                 <p className="mt-3 text-xs text-ink-muted leading-relaxed">

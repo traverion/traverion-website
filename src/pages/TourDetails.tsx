@@ -48,6 +48,7 @@ import {
   TOUR_LISTING_CONFIRMATION_NOTE,
   LISTING_REVIEWS_EMPTY_COPY,
   STRIPE_TEST_UNTIL_LIVE,
+  TRAVELER_CONTINUE_TEST_CTA,
 } from '../lib/booking-confirmation-copy';
 import {
   getPartySizeBounds,
@@ -1526,7 +1527,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                               ? 'Checking…'
                               : departureTimes.length > 1 && !selectedDepartureTime.trim()
                                 ? 'Pick time'
-                                : 'Continue · TEST'}
+                                : TRAVELER_CONTINUE_TEST_CTA}
                           </button>
                         </div>
                       ) : (
@@ -1700,6 +1701,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                   <button
                     type="button"
                     disabled={reviewSubmitting || !reviewComment.trim()}
+                    aria-busy={reviewSubmitting || undefined}
                     onClick={async () => {
                       setReviewSubmitting(true);
                       setReviewError(null);

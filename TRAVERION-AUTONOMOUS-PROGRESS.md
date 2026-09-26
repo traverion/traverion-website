@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `61fb4df`  
-**Current phase:** 763  
+**Current SHA:** `ec7029d`  
+**Current phase:** 764  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -174,6 +174,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 750 | Listing card rating accessible name | `f29d12d` |
 | 749 | Partner sidebar nav group aria wiring | `905ebf4` |
 | 763 | Shared Continue TEST CTA constant | `61fb4df` |
+| 764 | Tour and stay detail Continue TEST wiring | `ec7029d` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3693,6 +3694,10 @@ Finnish home trust cards claimed 24/7 support and best-price guarantee. Replace 
 ### Phase 763 — Shared Continue TEST CTA constant
 
 Continue · TEST was hard-coded in sticky helpers. Export TRAVELER_CONTINUE_TEST_CTA; wire tour + stay sticky; update unit tests.
+
+### Phase 764 — Tour and stay detail Continue TEST wiring
+
+Listing detail Continue · TEST still hard-coded after sticky helper centralization. Wire TourDetails + StayDetails to the shared constant.
 
 ## Known remaining risks (ranked)
 
