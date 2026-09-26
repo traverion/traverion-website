@@ -84,7 +84,7 @@ export function SupplierModalHeader({ icon: Icon, title, subtitle, onClose }: Su
         <button
           type="button"
           onClick={onClose}
-          className="p-2 rounded-lg text-ink-muted hover:bg-black/[0.04] shrink-0"
+          className="lux-tap-target inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 text-ink-muted hover:bg-black/[0.04] shrink-0"
           aria-label="Close"
         >
           <X className="w-5 h-5" aria-hidden />

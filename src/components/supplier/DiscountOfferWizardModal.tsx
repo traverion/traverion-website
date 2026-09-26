@@ -210,8 +210,13 @@ export default function DiscountOfferWizardModal({ open, onClose, listings, edit
               </p>
             </div>
           </div>
-          <button type="button" onClick={closeSafe} className="lux-tap-target p-2 -mr-1 text-ink-muted hover:text-ink" aria-label="Close">
-            <X className="w-5 h-5" />
+          <button
+            type="button"
+            onClick={closeSafe}
+            className="lux-tap-target inline-flex min-h-11 min-w-11 items-center justify-center p-2 -mr-1 text-ink-muted hover:text-ink"
+            aria-label="Close"
+          >
+            <X className="w-5 h-5" aria-hidden />
           </button>
         </div>
 
