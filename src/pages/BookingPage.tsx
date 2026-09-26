@@ -530,8 +530,18 @@ export default function BookingPage({
     if (next > 0) setGuests(next);
   }, [participantMix, appliedOption]);
 
+  const lastHydratedUserIdRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!user?.id || !isSupabaseConfigured() || profileHydratedRef.current) return;
+    if (lastHydratedUserIdRef.current !== null && lastHydratedUserIdRef.current !== (user?.id ?? null)) {
+      profileHydratedRef.current = false;
+      setFirstName('');
+      setLastName('');
+      setPhone('');
+    }
+    lastHydratedUserIdRef.current = user?.id ?? null;
+    if (!user?.id || !isSupabaseConfigured()) return;
+    if (profileHydratedRef.current) return;
+    const uid = user.id;
     const meta = user.user_metadata as {
       customer_first_name?: string;
       customer_last_name?: string;
@@ -540,7 +550,8 @@ export default function BookingPage({
     };
     let fn = (meta?.customer_first_name ?? '').trim();
     let ln = (meta?.customer_last_name ?? '').trim();
-    void fetchConsumerProfileRow(user.id).then((row) => {
+    void fetchConsumerProfileRow(uid).then((row) => {
+      if (lastHydratedUserIdRef.current !== uid) return;
       if (profileHydratedRef.current) return;
       if (row?.display_name?.trim() && !fn && !ln) {
         const parts = row.display_name.trim().split(/\s+/).filter(Boolean);
@@ -841,6 +852,7 @@ export default function BookingPage({
         if (user?.id) markBookingsUnread(user.id);
         clearBookingDraft(tour.id);
         window.location.assign(checkout.checkoutUrl);
+        // Keep submitting true until unload so Pay cannot double-fire.
         return;
       }
 
@@ -851,7 +863,6 @@ export default function BookingPage({
       return;
     } catch (err) {
       setError(humanizeBookingSubmitError(err instanceof Error ? err.message : undefined));
-    } finally {
       setSubmitting(false);
     }
   };
