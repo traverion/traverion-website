@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800 complete · **801→850 traveler premium**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `a17fc5e`  
-**Current phase:** 813  
+**Current SHA:** `8b130d4`  
+**Current phase:** 814  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -224,6 +224,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 811 | Homepage mobile viewport pass notes | `a07d6d1` |
 | 812 | Homepage premium band checkpoint 806-812 | `7d7ed82` |
 | 813 | Tours primary search applies only on Search submit | `a17fc5e` |
+| 814 | Stays primary search applies only on Search submit | `3bd281d` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -4012,6 +4013,12 @@ Browser-inspected homepage at desktop and noted destination tiles + denser tour 
 **Browser (localhost desktop):** `/packages` — typed `zzzznonexistent` kept “5 tours” + clean URL; Search → `?q=zzzznonexistent`, “0 tours…”, active chip, honest empty state. tsc clean.
 
 **Not this phase:** Stays mirror; horizontal filter row; denser cards.
+
+### Phase 814 — Stays primary search: draft then Search
+
+Mirror Phase 813 on `/stays`: draft Where / check-in / check-out / guests drive the pill + mobile sheet; applied filters + URL update only on Search. Invalid draft ranges normalized on apply. Chip/clear sync drafts. Applied where-query records `search` interest (family stay).
+
+**Browser:** typed `zzzznonexistent` kept “2 stays”; Search → `?q=zzzznonexistent`, “0 stays…”, honest empty. tsc clean.
 
 ## Known remaining risks (ranked)
 

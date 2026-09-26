@@ -23,6 +23,7 @@ import { formatStayNightHuman } from '../lib/stay-calendar';
 import { isSupabaseListingId } from '../lib/discount-display';
 import { getReviewAggregatesForListingIds } from '../data/supabase-reviews';
 import { formatMoney, normalizeCurrency } from '../lib/money';
+import { recordTravelerInterest } from '../lib/traveler-interest';
 import { MarketplaceBrowseShell, MarketplaceFamilySwitch, MarketplaceSortSelect } from '../components/marketplace/MarketplaceBrowseShell';
 import {
   MarketplaceActiveChip,
@@ -105,6 +106,11 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
   const [checkIn, setCheckIn] = useState(initial.checkIn);
   const [checkOut, setCheckOut] = useState(initial.checkOut);
   const [guests, setGuests] = useState(initial.guests);
+  /** Draft primary search — applied only on Search submit. */
+  const [draftWhere, setDraftWhere] = useState(initial.q);
+  const [draftCheckIn, setDraftCheckIn] = useState(initial.checkIn);
+  const [draftCheckOut, setDraftCheckOut] = useState(initial.checkOut);
+  const [draftGuests, setDraftGuests] = useState(initial.guests);
   const [propertyType, setPropertyType] = useState(initial.propertyType);
   const [priceRange, setPriceRange] = useState<PriceChipId>(initial.price);
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>(initial.amenities);
@@ -133,9 +139,13 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
   const syncStateFromUrl = useCallback(() => {
     const parsed = parseStaysSearch(window.location.search);
     setQ(parsed.q);
+    setDraftWhere(parsed.q);
     setCheckIn(parsed.checkIn);
+    setDraftCheckIn(parsed.checkIn);
     setCheckOut(parsed.checkOut);
+    setDraftCheckOut(parsed.checkOut);
     setGuests(parsed.guests);
+    setDraftGuests(parsed.guests);
     setPropertyType(parsed.propertyType);
     setPriceRange(parsed.price);
     setSelectedAmenities(parsed.amenities);
@@ -183,14 +193,32 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
     }
   }, [checkIn, checkOut]);
 
-  const handleCheckInChange = (next: string) => {
-    setCheckIn(next);
-    if (!next) return;
-    // Always keep a valid exclusive check-out so the date range actually filters.
-    if (!checkOut || checkOut <= next) {
-      setCheckOut(addCalendarDays(next, 1));
+  const patchDraftSearch = useCallback((patch: Partial<MarketplaceSearchValues>) => {
+    if (patch.where !== undefined) setDraftWhere(patch.where);
+    if (patch.date !== undefined) setDraftCheckIn(patch.date);
+    if (patch.checkout !== undefined) setDraftCheckOut(patch.checkout);
+    if (patch.guests !== undefined) setDraftGuests(patch.guests);
+  }, []);
+
+  const applyPrimarySearch = useCallback(() => {
+    let nextIn = draftCheckIn;
+    let nextOut = draftCheckOut;
+    if (nextIn && nextOut && nextOut <= nextIn) {
+      nextOut = addCalendarDays(nextIn, 1);
+    } else if (nextIn && !nextOut) {
+      nextOut = addCalendarDays(nextIn, 1);
     }
-  };
+    setQ(draftWhere);
+    setCheckIn(nextIn);
+    setCheckOut(nextOut);
+    setDraftCheckOut(nextOut);
+    setGuests(draftGuests);
+    setMobileSearchOpen(false);
+    const query = draftWhere.trim();
+    if (query) {
+      recordTravelerInterest({ kind: 'search', key: query, family: 'stay' });
+    }
+  }, [draftWhere, draftCheckIn, draftCheckOut, draftGuests]);
 
   const reloadStayBrowseOccupancy = useCallback(() => {
     if (!dateFilterActive || stays.length === 0 || !isSupabaseConfigured()) {
@@ -379,19 +407,19 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
     dateFilterActive && isSupabaseConfigured() && !occupancyError && (occupancyLoading || occupiedByListing === null);
 
   const searchValues: MarketplaceSearchValues = useMemo(
-    () => ({ where: q, date: checkIn, checkout: checkOut, guests }),
-    [q, checkIn, checkOut, guests]
+    () => ({ where: draftWhere, date: draftCheckIn, checkout: draftCheckOut, guests: draftGuests }),
+    [draftWhere, draftCheckIn, draftCheckOut, draftGuests]
   );
 
   const mobileSearchSummary = useMemo(() => {
-    const where = q.trim() || 'Anywhere';
+    const where = draftWhere.trim() || 'Anywhere';
     let whenLabel = 'Any dates';
-    if (checkIn && checkOut) whenLabel = `${formatStayNightHuman(checkIn)} → ${formatStayNightHuman(checkOut)}`;
-    else if (checkIn) whenLabel = formatStayNightHuman(checkIn);
-    const guestN = Number.parseInt(guests, 10);
-    const whoLabel = guests.trim() ? `${guests} ${guestN === 1 ? 'guest' : 'guests'}` : 'Add guests';
+    if (draftCheckIn && draftCheckOut) whenLabel = `${formatStayNightHuman(draftCheckIn)} → ${formatStayNightHuman(draftCheckOut)}`;
+    else if (draftCheckIn) whenLabel = formatStayNightHuman(draftCheckIn);
+    const guestN = Number.parseInt(draftGuests, 10);
+    const whoLabel = draftGuests.trim() ? `${draftGuests} ${guestN === 1 ? 'guest' : 'guests'}` : 'Add guests';
     return { where, whenLabel, whoLabel };
-  }, [q, checkIn, checkOut, guests]);
+  }, [draftWhere, draftCheckIn, draftCheckOut, draftGuests]);
 
   const extraFilterCount =
     (propertyType !== 'all' && propertyType ? 1 : 0) +
@@ -404,9 +432,13 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
 
   const clearAllFilters = () => {
     setQ('');
+    setDraftWhere('');
     setCheckIn('');
+    setDraftCheckIn('');
     setCheckOut('');
+    setDraftCheckOut('');
     setGuests('');
+    setDraftGuests('');
     setPropertyType('all');
     setPriceRange('all');
     setSelectedAmenities([]);
@@ -521,13 +553,20 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
           <MarketplaceSearchPill
             family="stays"
             values={searchValues}
-            onChange={(patch) => {
-              if (patch.where !== undefined) setQ(patch.where);
-              if (patch.date !== undefined) handleCheckInChange(patch.date);
-              if (patch.checkout !== undefined) setCheckOut(patch.checkout);
-              if (patch.guests !== undefined) setGuests(patch.guests);
+            onChange={patchDraftSearch}
+            onSubmit={(e) => {
+              e.preventDefault();
+              applyPrimarySearch();
             }}
             idPrefix="stays"
+            trailing={
+              <button
+                type="submit"
+                className="h-12 self-center px-6 rounded-full bg-finland text-white text-sm font-semibold hover:bg-finland-dark shadow-sm"
+              >
+                Search
+              </button>
+            }
           />
         }
         mobileSearch={
@@ -581,19 +620,37 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
               {q.trim() ? (
                 <MarketplaceActiveChip
                   label={`“${q.trim().slice(0, 36)}${q.trim().length > 36 ? '…' : ''}”`}
-                  onRemove={() => setQ('')}
+                  onRemove={() => {
+                    setQ('');
+                    setDraftWhere('');
+                  }}
                 />
               ) : null}
               {checkIn ? (
-                <MarketplaceActiveChip label={`In ${formatStayNightHuman(checkIn)}`} onRemove={() => setCheckIn('')} />
+                <MarketplaceActiveChip
+                  label={`In ${formatStayNightHuman(checkIn)}`}
+                  onRemove={() => {
+                    setCheckIn('');
+                    setDraftCheckIn('');
+                  }}
+                />
               ) : null}
               {checkOut ? (
-                <MarketplaceActiveChip label={`Out ${formatStayNightHuman(checkOut)}`} onRemove={() => setCheckOut('')} />
+                <MarketplaceActiveChip
+                  label={`Out ${formatStayNightHuman(checkOut)}`}
+                  onRemove={() => {
+                    setCheckOut('');
+                    setDraftCheckOut('');
+                  }}
+                />
               ) : null}
               {guests ? (
                 <MarketplaceActiveChip
                   label={`${guests} ${guests === '1' ? 'guest' : 'guests'}`}
-                  onRemove={() => setGuests('')}
+                  onRemove={() => {
+                    setGuests('');
+                    setDraftGuests('');
+                  }}
                 />
               ) : null}
               {propertyType !== 'all' && propertyType ? (
@@ -762,21 +819,20 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
               <MarketplaceSearchFields
                 family="stays"
                 values={searchValues}
-                onChange={(patch) => {
-                  if (patch.where !== undefined) setQ(patch.where);
-                  if (patch.date !== undefined) handleCheckInChange(patch.date);
-                  if (patch.checkout !== undefined) setCheckOut(patch.checkout);
-                  if (patch.guests !== undefined) setGuests(patch.guests);
-                }}
+                onChange={patchDraftSearch}
                 idPrefix="stays-sheet"
                 stacked
               />
             </div>
             <div className="mt-5 flex gap-2 shrink-0">
-              {q.trim() || checkIn || checkOut || guests ? (
+              {draftWhere.trim() || draftCheckIn || draftCheckOut || draftGuests || q.trim() || checkIn || checkOut || guests ? (
                 <button
                   type="button"
                   onClick={() => {
+                    setDraftWhere('');
+                    setDraftCheckIn('');
+                    setDraftCheckOut('');
+                    setDraftGuests('');
                     setQ('');
                     setCheckIn('');
                     setCheckOut('');
@@ -787,8 +843,15 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
                   Clear
                 </button>
               ) : null}
-              <button type="button" onClick={closeMobileSearch} className="tv-btn-primary flex-1">
-                Show {filtered.length}
+              <button
+                type="button"
+                onClick={() => {
+                  applyPrimarySearch();
+                  closeMobileSearch();
+                }}
+                className="tv-btn-primary flex-1"
+              >
+                Search
               </button>
             </div>
           </aside>
