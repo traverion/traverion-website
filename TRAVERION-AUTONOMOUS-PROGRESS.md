@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `47c6762`  
-**Current phase:** 775  
+**Current SHA:** `b96a444`  
+**Current phase:** 776  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -186,6 +186,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 773 | Partner Bookings error Contact support | `beaaf3e` |
 | 774 | Partner Money error Contact support | `affcaff` |
 | 775 | Product coherence band checkpoint 726-775 | `4343e28` |
+| 776 | Fix partner Inbox ErrorState JSX parse | `b96a444` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3753,6 +3754,10 @@ Money load ErrorState had retry only.
 ### Phase 775 — Product coherence band checkpoint 726-775
 
 **Band 726–775 closed.** Shared STRIPE_TEST_UNTIL_LIVE + traveler TEST CTAs; cookies/marketing preferences naming; Contact support on traveler browse + partner Today/Inbox/Bookings/Money errors; FI/EN honesty. Evidence: `tsc -p tsconfig.app.json` clean; vitest sticky/copy/listingTruth/stripe-test suites green.
+
+### Phase 776 — Fix partner Inbox ErrorState JSX parse
+
+**Launch-break start:** Phase 772 Inbox Contact support used `}}` closing braces and broke `tsc`. Correct JSX; `tsc -p tsconfig.app.json` clean.
 
 ## Known remaining risks (ranked)
 
