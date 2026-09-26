@@ -577,7 +577,7 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
             </NoticeCallout>
           </div>
         ) : null}
-        {error && supplierListings === null ? (
+        {error ? (
           <ErrorState
             title="Stays unavailable"
             body={userFacingError(error, USER_ERROR.tours)}
