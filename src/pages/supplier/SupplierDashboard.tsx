@@ -128,7 +128,7 @@ export default function SupplierDashboard() {
   const { user, isSupabase } = useSupplierAuth();
   /** Published / live on Traverion only — drafts excluded (see My listings for all rows). */
   const [publishedListingsCount, setPublishedListingsCount] = useState<number | null>(null);
-  const [draftListingsCount, setDraftListingsCount] = useState(0);
+  const [draftListingsCount, setDraftListingsCount] = useState<number | null>(null);
   const [listingTitlesById, setListingTitlesById] = useState<Record<string, string>>({});
   const [listingsById, setListingsById] = useState<Record<string, TourPackage>>({});
   const [openCancels, setOpenCancels] = useState<
@@ -185,8 +185,8 @@ export default function SupplierDashboard() {
       listingIds = listings.map((t) => t.id);
     } else {
       noteFailure('listings');
-      setPublishedListingsCount(0);
-      setDraftListingsCount(0);
+      setPublishedListingsCount(null);
+      setDraftListingsCount(null);
       setListingTitlesById({});
       setListingsById({});
     }
@@ -359,7 +359,7 @@ export default function SupplierDashboard() {
 
   const attentionCount =
     pendingBookings.length +
-    draftListingsCount +
+    (draftListingsCount ?? 0) +
     (verificationNeedsAction ? 1 : 0) +
     pickupGaps.length +
     openCancelCount +
@@ -656,7 +656,7 @@ export default function SupplierDashboard() {
                 onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings?ops=unpaid`)}
               />
             )}
-            {draftListingsCount > 0 && (
+            {draftListingsCount != null && draftListingsCount > 0 && (
               <AttentionItem
                 tone="info"
                 title={

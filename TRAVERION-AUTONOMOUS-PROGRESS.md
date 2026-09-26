@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `32c44c6`  
-**Current phase:** 640  
+**Current SHA:** `d2f05d7`  
+**Current phase:** 641  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -136,6 +136,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 638 | Trips stay-draft preserve + tab a11y | `3690179` |
 | 639 | Trips load gates on user id | `39aea74` |
 | 640 | Confirmation loads on user id not email | `32c44c6` |
+| 641 | Partner Home listing failure keeps counts unknown | `d2f05d7` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3147,6 +3148,12 @@ Same class as BookingPage Phase 633: StayDetails lead-guest name/phone could lin
 **Problem:** Confirmation `canQuery` / `load` / sign-in gate required `user.email` though booking fetch is session/RLS by user id — phone-only or email-less sessions stalled.
 
 **Fix:** Gate on `user?.id`; update sign-in copy to “same account”.
+
+### Phase 641 — Partner Home: listing fetch failure ≠ zero listings
+
+**Problem:** When `fetchMyListings` rejected, dashboard set published/draft counts to `0`, so unknown looked like “no listings” and hid draft attention.
+
+**Fix:** Leave counts `null` on listings failure; treat drafts as optional in attention math.
 
 ## Known remaining risks (ranked)
 
