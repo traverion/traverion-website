@@ -102,6 +102,7 @@ import { experienceLanguageLabel, tourKindLabel } from '../lib/tour-quick-facts'
 import TourOverview from '../components/tour-detail/TourOverview';
 import TourAvailableOptions from '../components/tour-detail/TourAvailableOptions';
 import TourListingSections from '../components/tour-detail/TourListingSections';
+import { ListingReviewsModal } from '../components/ListingReviewsModal';
 
 function readSearchPrefill(): { date: string; guests: number } {
   if (typeof window === 'undefined') return { date: '', guests: 1 };
@@ -140,6 +141,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   const [hasReviewed, setHasReviewed] = useState(false);
   const [bookingIdForReview, setBookingIdForReview] = useState<string | undefined>();
   const [showReviewForm, setShowReviewForm] = useState(false);
+  const [reviewsModalOpen, setReviewsModalOpen] = useState(false);
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [reviewRating, setReviewRating] = useState(5);
@@ -1576,7 +1578,18 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
 
       <section className="py-8 bg-paper border-t border-black/[0.06]">
         <div className="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="font-display text-xl sm:text-2xl text-ink mb-4">Reviews</h2>
+          <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+            <h2 className="font-display text-xl sm:text-2xl text-ink">Reviews</h2>
+            {reviews.length > 0 ? (
+              <button
+                type="button"
+                onClick={() => setReviewsModalOpen(true)}
+                className="text-sm font-semibold text-finland hover:underline"
+              >
+                See all reviews
+              </button>
+            ) : null}
+          </div>
           {reviewsLoadError ? (
             <div className="mb-6 max-w-xl">
               <p className="text-ink-muted leading-relaxed">{reviewsLoadError}</p>
@@ -1594,7 +1607,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
             </p>
           ) : null}
           <div className="space-y-4 mb-5">
-            {reviews.map((r) => (
+            {reviews.slice(0, 3).map((r) => (
               <div key={r.id} className="border-b border-black/[0.06] pb-6 last:border-0">
                 <div className="flex items-center gap-3 mb-2">
                   <span className="font-medium text-ink">{r.guest_name}</span>
@@ -1899,6 +1912,14 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
           ) : null}
         </div>
       ) : null}
+
+      <ListingReviewsModal
+        open={reviewsModalOpen}
+        onClose={() => setReviewsModalOpen(false)}
+        reviews={reviews}
+        replies={reviewReplies}
+        listingTitle={tour.title}
+      />
 
       {legalModal && supplierLegal && (
         <div

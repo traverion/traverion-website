@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800 complete · **801→850 traveler premium**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `e45c4e3`  
-**Current phase:** 827  
+**Current SHA:** `4b8b910`  
+**Current phase:** 828  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -238,6 +238,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 825 | Tour detail gallery-first + wider desktop canvas | `df42b28` |
 | 826 | Tour booking panel + quick facts premium | `21610af` |
 | 827 | Stay detail wider canvas + gallery + booking panel | `e45c4e3` |
+| 828 | Tour reviews See all modal with star filters | `4b8b910` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -4111,6 +4112,10 @@ Booking sticky panel: elevated Traverion surface, “Book this experience” lab
 ### Phase 827 — Stay detail: wider canvas + gallery mosaic + booking panel
 
 Stay detail matches tour marketplace shell: `max-w-[90rem]`, mosaic gallery, soft facts row, elevated “Book this stay” sticky panel. Occupancy/calendar truth unchanged.
+
+### Phase 828 — Tour reviews: See all modal with filters
+
+`ListingReviewsModal`: focus-trapped sheet, star filters (5→1 + counts), sort newest/oldest/highest/lowest, operator replies. Tour detail previews 3 reviews + “See all reviews”. Real review data only.
 
 ## Known remaining risks (ranked)
 
