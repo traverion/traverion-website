@@ -19,7 +19,7 @@ import { PARTNER_APP_BASE, PARTNER_CREATE_PATH } from '../../lib/partnerPortalPa
 import { inventoryFamilyFromListing } from '../../lib/inventory';
 
 const PERFORMANCE_LOAD_ERROR =
-  'We could not load performance. Check your connection and try again.';
+  'We could not load analytics. Check your connection and try again.';
 
 type WindowKey = '30d' | '90d' | 'all';
 
@@ -224,7 +224,7 @@ export default function SupplierPerformance() {
       />
 
       {error && (
-        <ErrorState className="py-6" title="Performance unavailable" body={error} retry={{ onClick: () => void load() }} />
+        <ErrorState className="py-6" title="Analytics unavailable" body={error} retry={{ onClick: () => void load() }} />
       )}
 
       {!error && loading && (
@@ -237,11 +237,19 @@ export default function SupplierPerformance() {
       {!error && !loading && collectedInWindow.length === 0 && (
         <SupplierEmptyState
           icon={TrendingUp}
-          title={listings.length === 0 ? 'No listings yet' : 'No paid bookings in this window'}
+          title={
+            listings.length === 0
+              ? 'No listings yet'
+              : bookings.length > 0
+                ? 'No paid bookings in this window'
+                : 'No paid bookings yet'
+          }
           body={
             listings.length === 0
-              ? 'Performance uses the same paid bookings as Money. Draft a listing to start collecting bookings.'
-              : 'Try a longer time range, or check back once a traveler completes checkout — cancelled and refunded bookings are never counted.'
+              ? 'Analytics uses the same paid bookings as Money. Draft a listing to start collecting bookings.'
+              : bookings.length > 0
+                ? 'Unpaid checkouts, cancelled trips, and refunds are never counted. Try a longer time range, or wait until a traveler completes checkout.'
+                : 'Try a longer time range, or check back once a traveler completes checkout — cancelled and refunded bookings are never counted.'
           }
           action={
             listings.length === 0 ? (
