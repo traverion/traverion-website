@@ -291,7 +291,9 @@ export default function SupplierLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileAccountOpen, setMobileAccountOpen] = useState(false);
   const mobileAccountRef = useRef<HTMLDivElement>(null);
+  const accountMenuRef = useRef<HTMLDivElement>(null);
   useDialogFocus(mobileAccountOpen, mobileAccountRef, () => setMobileAccountOpen(false));
+  useDialogFocus(accountMenuOpen, accountMenuRef, () => setAccountMenuOpen(false));
   const [settingsFocus, setSettingsFocus] = useState<AccountShortcutTarget | null>(null);
   const [profileDisplayName, setProfileDisplayName] = useState('');
   const [businessProfileTab, setBusinessProfileTab] = useState<BusinessProfileTab>('company');
@@ -315,15 +317,6 @@ export default function SupplierLayout() {
   /** Supabase may emit new `user` object references (e.g. auth refresh); gate only on stable id + retry. */
   const partnerGateUserRef = useRef(user);
   partnerGateUserRef.current = user;
-
-  useEffect(() => {
-    if (!accountMenuOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setAccountMenuOpen(false);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [accountMenuOpen]);
 
   useEffect(() => {
     const client = supabase;
@@ -907,10 +900,10 @@ export default function SupplierLayout() {
                 <button
                   type="button"
                   onClick={() => setAccountMenuOpen((v) => !v)}
-                  className="partner-nav-item lux-flat hidden md:inline-flex h-8 items-center gap-2 rounded-lg border border-slate-200/80 bg-white pl-1 pr-2.5 hover:bg-slate-50"
+                  className="partner-nav-item lux-flat hidden md:inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-200/80 bg-white pl-1 pr-2.5 hover:bg-slate-50"
                   aria-label="Account"
                   aria-expanded={accountMenuOpen}
-                  aria-haspopup="menu"
+                  aria-haspopup="dialog"
                   aria-controls="partner-account-menu"
                 >
                   <span className="flex h-6 w-6 items-center justify-center rounded-md bg-finland text-[10px] font-semibold text-white">
@@ -923,9 +916,10 @@ export default function SupplierLayout() {
                 {accountMenuOpen && (
                   <div
                     id="partner-account-menu"
-                    role="menu"
+                    ref={accountMenuRef}
+                    role="dialog"
                     aria-label="Account"
-                    className="absolute right-0 top-10 w-64 rounded-lg bg-white shadow-[0_8px_30px_rgba(15,23,42,0.08)] ring-1 ring-slate-200/80 p-1.5 z-50 origin-top-right motion-safe:animate-slide-down"
+                    className="absolute right-0 top-12 w-64 rounded-lg bg-white shadow-[0_8px_30px_rgba(15,23,42,0.08)] ring-1 ring-slate-200/80 p-1.5 z-50 origin-top-right motion-safe:animate-slide-down"
                   >
                     {supplierEmail ? (
                       <p className="px-2.5 py-2 text-xs text-slate-500 truncate border-b border-slate-100 mb-1 min-w-0" title={supplierEmail}>
