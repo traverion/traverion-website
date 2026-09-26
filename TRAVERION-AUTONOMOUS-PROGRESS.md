@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `274e6a3`  
-**Current phase:** 624  
+**Current SHA:** `6426194`  
+**Current phase:** 625  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -120,6 +120,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 622 | Trips empty/cancel CTAs include Browse stays | `550c67c` |
 | 623 | Schedules bulk range date plural spacing | `7d6cb24` |
 | 624 | Review author names skip email local-part | `274e6a3` |
+| 625 | Sign-up awaits getSession before navigate | `6426194` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3039,6 +3040,12 @@ Same split-text-node class: Availability bulk capacity copy rendered `date` / `s
 **Problem:** Tour and stay review submit used `user.email?.split('@')[0]` as the public `guestName`, conflicting with Phase 614’s lead-guest honesty (and leaking partner-demo local-parts on shared localhost auth).
 
 **Fix:** Shared `travelerDisplayNameFromSources` (form → profile → metadata → “Guest”). Wired into StayDetails + TourDetails review submit. Vitest 1/1.
+
+### Phase 625 — Sign-up awaits session before navigate
+
+**Problem:** Sign-in awaited `getSession()` before `onNavigate` (Phase 598); sign-up with immediate `hasSession` still navigated immediately — Trips/confirmation could race AuthContext.
+
+**Fix:** Await `supabase.auth.getSession()` on the sign-up `hasSession` branch before navigate.
 
 ## Known remaining risks (ranked)
 

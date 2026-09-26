@@ -212,6 +212,10 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
           return;
         }
         if (hasSession) {
+          // Same session race as sign-in: wait before navigating to Trips / next.
+          if (supabase) {
+            await supabase.auth.getSession();
+          }
           onNavigate(nextPage);
         } else {
           setSuccessMessage(AUTH_CONFIRMATION_EMAIL_REQUESTED);
