@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `206ee7d`  
-**Current phase:** 616  
+**Current SHA:** `197ae6d`  
+**Current phase:** 617  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -112,6 +112,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 614 | Stay lead-guest autofill from traveler profile only | `dd1afcc` |
 | 615 | Checkout concurrency/hold/resume Vitest re-cert | `e73b53b` |
 | 616 | Performance guest plural spacing fix | `206ee7d` |
+| 617 | Pickup Planner no-date booking plural spacing | `197ae6d` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -2980,6 +2981,10 @@ Vitest: checkout-inventory-concurrency (3), checkout-inventory-conflict, booking
 ### Phase 616 — Performance “guest s” plural spacing
 
 Same class of bug as Phase 599: Performance revenue rows split `guest` / `s` across React text nodes. Collapsed to one template string.
+
+### Phase 617 — Pickup Planner no-date plural spacing
+
+Same split-text-node class as Phases 599/616: “No activity date” subsection rendered `booking` / `s` as separate React nodes. Collapsed to one template string.
 
 ## Known remaining risks (ranked)
 

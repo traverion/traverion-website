@@ -1326,8 +1326,7 @@ export default function SupplierPickupPlanner() {
                 <div>
                   <p className="font-display text-lg sm:text-xl text-ink tracking-tight">No activity date</p>
                   <p className="mt-0.5 text-sm text-ink-muted">
-                    {bookingsGroupedByDate.noDate.length} booking
-                    {bookingsGroupedByDate.noDate.length === 1 ? '' : 's'}
+                    {`${bookingsGroupedByDate.noDate.length} booking${bookingsGroupedByDate.noDate.length === 1 ? '' : 's'}`}
                   </p>
                 </div>
                 <ChevronDown
