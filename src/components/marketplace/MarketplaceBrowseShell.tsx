@@ -116,7 +116,12 @@ export function MarketplaceBrowseShell({
                   ) : null}
                 </h2>
               </div>
-              <button type="button" onClick={onCloseFilters} className="lux-tap-target p-2 -mr-1" aria-label="Close">
+              <button
+                type="button"
+                onClick={onCloseFilters}
+                className="lux-tap-target inline-flex min-h-11 min-w-11 items-center justify-center p-2 -mr-1"
+                aria-label="Close"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -145,7 +150,7 @@ export function MarketplaceFamilySwitch({
         role="tab"
         aria-selected={current === 'tours'}
         onClick={onTours}
-        className={`lux-flat rounded-full px-4 py-1.5 text-sm font-medium ${
+        className={`lux-flat min-h-11 rounded-full px-4 py-1.5 text-sm font-medium ${
           current === 'tours'
             ? 'bg-paper-raised text-ink shadow-sm ring-2 ring-finland/30'
             : 'text-ink-muted hover:bg-black/[0.04] hover:text-ink'
@@ -158,7 +163,7 @@ export function MarketplaceFamilySwitch({
         role="tab"
         aria-selected={current === 'stays'}
         onClick={onStays}
-        className={`lux-flat rounded-full px-4 py-1.5 text-sm font-medium ${
+        className={`lux-flat min-h-11 rounded-full px-4 py-1.5 text-sm font-medium ${
           current === 'stays'
             ? 'bg-paper-raised text-ink shadow-sm ring-2 ring-finland/30'
             : 'text-ink-muted hover:bg-black/[0.04] hover:text-ink'

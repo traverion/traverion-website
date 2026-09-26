@@ -3483,6 +3483,22 @@ Activity date long label reinvented locale formatting. Use `formatBookingDateDis
 
 Review/reply dates used bare `toLocaleDateString()`. Share a small locale formatter.
 
+### Phase 714 — Browse filter sheet: 44px close + family tabs
+
+Marketplace filter close and Tours/Stays family switch undersized for touch. Enlarge close and `min-h-11` tabs.
+
+### Phase 715 — Contact submit: 44px tap target
+
+Submit message button lacked explicit min height for mobile thumbs.
+
+### Phase 716 — Tour sticky CTA: min-h-11
+
+Mobile sticky Continue control could sit under 44px. Force `min-h-11`.
+
+### Phase 717 — Partner Pickup: larger back control
+
+Pickup detail back link was text-sized. Add `lux-tap-target min-h-11`.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Partner create→publish wizard** not browser-certified this pass (ops Home/Bookings/Calendar/Listings **are** localhost-browser certified in Phase 597). Full create→publish still pending.
